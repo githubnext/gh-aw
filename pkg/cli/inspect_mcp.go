@@ -577,5 +577,5 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 		fmt.Printf("\n%s\n", console.FormatSuccessMessage("✅ All available tools are explicitly allowed in your workflow"))
 	}
 
-	fmt.Printf("\n%s\n", console.FormatInfoMessage("📖 For more information, see: https://github.com/githubnext/gh-aw/blob/main/REFERENCE.md#tools"))
+	fmt.Printf("\n%s\n", console.FormatInfoMessage("📖 For more information, see: https://github.com/githubnext/gh-aw/blob/main/docs/tools.md"))
 }

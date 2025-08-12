@@ -3164,6 +3164,6 @@ Be clear and specific about what the AI should accomplish.
 ## Notes
 
 - Run ` + "`" + constants.CLIExtensionPrefix + " compile`" + ` to generate the GitHub Actions workflow
-- See REFERENCE.md for more configuration options and tools
+- See https://github.com/githubnext/gh-aw/blob/main/docs/index.md for complete configuration options and tools documentation
 `
 }
