@@ -7,7 +7,7 @@ make deps
 # take vertex_api_json from environment variable and write it to `.credentials/vertex_api.json`
 if [ -z "$VERTEX_API_JSON" ]; then
   echo "VERTEX_API_JSON environment variable is not set. Please set it to your Vertex API JSON credentials."
-  exit 1
+  exit 0
 fi  
 mkdir -p .credentials
 echo "$VERTEX_API_JSON" > .credentials/vertex_api.json
