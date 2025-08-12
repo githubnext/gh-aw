@@ -9,8 +9,8 @@ func TestEngineRegistry(t *testing.T) {
 
 	// Test that built-in engines are registered
 	supportedEngines := registry.GetSupportedEngines()
-	if len(supportedEngines) != 6 {
-		t.Errorf("Expected 6 supported engines, got %d", len(supportedEngines))
+	if len(supportedEngines) != 5 {
+		t.Errorf("Expected 5 supported engines, got %d", len(supportedEngines))
 	}
 
 	// Test getting engines by ID
@@ -36,14 +36,6 @@ func TestEngineRegistry(t *testing.T) {
 	}
 	if opencodeEngine.GetID() != "opencode" {
 		t.Errorf("Expected opencode engine ID, got '%s'", opencodeEngine.GetID())
-	}
-
-	aiInferenceEngine, err := registry.GetEngine("ai-inference")
-	if err != nil {
-		t.Errorf("Expected to find ai-inference engine, got error: %v", err)
-	}
-	if aiInferenceEngine.GetID() != "ai-inference" {
-		t.Errorf("Expected ai-inference engine ID, got '%s'", aiInferenceEngine.GetID())
 	}
 
 	geminiEngine, err := registry.GetEngine("gemini")
@@ -136,7 +128,7 @@ func TestEngineRegistryCustomEngine(t *testing.T) {
 
 	// Test that supported engines list is updated
 	supportedEngines := registry.GetSupportedEngines()
-	if len(supportedEngines) != 7 {
-		t.Errorf("Expected 7 supported engines after adding custom, got %d", len(supportedEngines))
+	if len(supportedEngines) != 6 {
+		t.Errorf("Expected 6 supported engines after adding custom, got %d", len(supportedEngines))
 	}
 }
