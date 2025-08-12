@@ -7,9 +7,9 @@ on:
 
 timeout_minutes: 15
 permissions:
+  issues: write # needed to write the output report to an issue
   contents: read
   models: read
-  issues: write
   pull-requests: read
   discussions: read
   actions: read
