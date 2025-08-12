@@ -16,45 +16,7 @@ concurrency:
 run-name: "Weekly Research"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-          fetch-depth: 1
-      - name: Compute current body text
-        id: compute-text
-        uses: ./.github/actions/compute-text
-
-  add-reaction:
-    needs: task
-    if: github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Read .github
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: ./.github/actions/reaction
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          mode: add
-          reaction: eyes
-
   weekly-research:
-    needs: task
     runs-on: ubuntu-latest
     permissions:
         actions: read
