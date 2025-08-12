@@ -175,14 +175,7 @@ jobs:
           - List labels: `gh label list ...`
           - View label: `gh label view <label-name> ...`
           
-          
-          <!-- Error: invalid frontmatter in included file /home/dsyme/gh-aw/.github/workflows/shared/tool-refused.md: [1;38;5;141m.github/workflows/shared/tool-refused.md:1:1:[0m [1;38;5;203merror:[0m got null, want object
-          [38;5;61m1[0m | [38;5;231m[0m[38;5;17;48;5;203m-[0m[38;5;231m--[0m
-              [1;38;5;203m^[0m
-          
-          [3;38;5;84mhint: [0mCheck the YAML frontmatter against the schema requirements
-           -->
-          
+          > NOTE: If you are refused permission to run an MCP tool or particular 'bash' commands, or need to request access to other tools or resources, then please include a request for access in the output, explaining the exact name of the tool and/or the exact prefix of bash commands needed, or other resources you need access to.
           
           EOF
       - name: Print prompt to step summary
