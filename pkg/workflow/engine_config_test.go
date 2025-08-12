@@ -248,43 +248,6 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 		expectedAPIKey string
 	}{
 		{
-			name:   "OpenCode with Claude model",
-			engine: NewOpenCodeEngine(),
-			engineConfig: &EngineConfig{
-				ID:    "opencode",
-				Model: "anthropic/claude-sonnet-4-20250514",
-			},
-			expectedModel:  "--model anthropic/claude-sonnet-4-20250514",
-			expectedAPIKey: "ANTHROPIC_API_KEY",
-		},
-		{
-			name:   "OpenCode with legacy Claude model format",
-			engine: NewOpenCodeEngine(),
-			engineConfig: &EngineConfig{
-				ID:    "opencode",
-				Model: "claude-3-5-sonnet-20241022",
-			},
-			expectedModel:  "--model claude-3-5-sonnet-20241022",
-			expectedAPIKey: "ANTHROPIC_API_KEY",
-		},
-		{
-			name:   "OpenCode with GPT model",
-			engine: NewOpenCodeEngine(),
-			engineConfig: &EngineConfig{
-				ID:    "opencode",
-				Model: "gpt-4o",
-			},
-			expectedModel:  "--model gpt-4o",
-			expectedAPIKey: "OPENCODE_API_KEY",
-		},
-		{
-			name:           "OpenCode without model",
-			engine:         NewOpenCodeEngine(),
-			engineConfig:   &EngineConfig{ID: "opencode"},
-			expectedModel:  "",
-			expectedAPIKey: "OPENCODE_API_KEY",
-		},
-		{
 			name:   "Claude with model",
 			engine: NewClaudeEngine(),
 			engineConfig: &EngineConfig{
@@ -311,18 +274,6 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 			config := tt.engine.GetExecutionConfig("test-workflow", "test-log", tt.engineConfig)
 
 			switch tt.engine.GetID() {
-			case "opencode":
-				if tt.expectedModel != "" {
-					if !strings.Contains(config.Command, tt.expectedModel) {
-						t.Errorf("Expected command to contain model %s, got: %s", tt.expectedModel, config.Command)
-					}
-				}
-
-				expectedSecret := "${{ secrets." + tt.expectedAPIKey + " }}"
-				if config.Environment[tt.expectedAPIKey] != expectedSecret {
-					t.Errorf("Expected environment %s to be %s, got: %s", tt.expectedAPIKey, expectedSecret, config.Environment[tt.expectedAPIKey])
-				}
-
 			case "claude":
 				if tt.expectedModel != "" {
 					if config.Inputs["model"] != tt.expectedModel {
@@ -346,7 +297,7 @@ func TestNilEngineConfig(t *testing.T) {
 	engines := []AgenticEngine{
 		NewClaudeEngine(),
 		NewCodexEngine(),
-		NewOpenCodeEngine(),
+		NewGeminiEngine(),
 	}
 
 	for _, engine := range engines {
