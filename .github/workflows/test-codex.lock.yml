@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Codex Pull Request Summary"
+name: "Test Codex"
 on:
     push:
         branches:
@@ -14,7 +14,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Codex Pull Request Summary"
+run-name: "Test Codex"
 
 jobs:
   task:
@@ -54,7 +54,7 @@ jobs:
           mode: add
           reaction: eyes
 
-  codex-pull-request-summary:
+  test-codex:
     needs: task
     runs-on: ubuntu-latest
     permissions:
@@ -92,7 +92,7 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
-          # Codex Pull Request Summary
+          # Test Codex
           
           ## Job Description
           
@@ -239,8 +239,8 @@ jobs:
           
           # Run codex with log capture
           codex exec \
-            -c model=gpt-4o \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/aw-logs//tmp/codex-pull-request-summary.log.log
+            -c model=o4-mini \
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/aw-logs//tmp/test-codex.log.log
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Check if workflow-complete.txt exists, if so upload it
@@ -263,7 +263,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codex-pull-request-summary.log
-          path: /tmp/codex-pull-request-summary.log
+          name: test-codex.log
+          path: /tmp/test-codex.log
           if-no-files-found: warn
 

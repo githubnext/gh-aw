@@ -4,7 +4,9 @@ on:
     branches: 
       - "*codex*"
   workflow_dispatch:
-engine: codex
+engine: 
+  id: codex
+  model: o4-mini
 timeout_minutes: 10
 permissions:
   contents: read
