@@ -1,0 +1,283 @@
+# 🛠️ Workflow Management Commands
+
+This guide covers all available commands for managing agentic workflows with the GitHub CLI extension.
+
+## Basic Commands
+
+```bash
+# List all available natural language action workflows
+gh aw list
+
+# List installed workflow packages
+gh aw list --packages
+
+# Create a new workflow from template
+gh aw new my-workflow
+
+# Create a new workflow with force overwrite
+gh aw new issue-handler --force
+
+# Add a new workflow from a sample
+gh aw add samples/weekly-research.md -r githubnext/agentics
+
+# Compile existing workflows after modifying the markdown file
+gh aw compile
+
+# Compile workflows with verbose output
+gh aw compile --verbose
+
+# Compile workflows and generate auto-compile workflow for automatic compilation
+gh aw compile --auto-compile
+
+# Compile workflows with both verbose output and auto-compile workflow generation
+gh aw compile --verbose --auto-compile
+
+# Watch for changes and automatically recompile workflows
+gh aw compile --watch
+
+# Watch with verbose output for development
+gh aw compile --watch --verbose
+
+# Watch with auto-compile workflow generation
+gh aw compile --watch --auto-compile --verbose
+
+# Remove a workflow
+gh aw remove WorkflowName
+
+# Run a workflow immediately
+gh aw run WorkflowName
+
+# Show status of all natural language action workflows
+gh aw status
+
+# Show status of workflows matching a pattern
+gh aw status WorkflowPrefix
+gh aw status path/to/workflow.lock.yml
+
+# Disable all natural language action workflows
+gh aw disable
+
+# Disable workflows matching a pattern
+gh aw disable WorkflowPrefix
+gh aw disable path/to/workflow.lock.yml
+
+# Enable all natural language action workflows
+gh aw enable
+
+# Enable workflows matching a pattern
+gh aw enable WorkflowPrefix
+gh aw enable path/to/workflow.lock.yml
+
+# Download and analyze workflow logs
+gh aw logs
+
+# Download logs for specific workflow
+gh aw logs weekly-research
+
+# Download last 10 runs with date filtering
+gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31
+
+# Download logs to custom directory
+gh aw logs -o ./my-logs
+
+# Inspect MCP servers in workflows
+gh aw inspect
+
+# Inspect MCP servers in a specific workflow
+gh aw inspect weekly-research
+
+# Inspect only specific MCP servers
+gh aw inspect weekly-research --server repo-mind
+
+# Verbose inspection with connection details
+gh aw inspect weekly-research -v
+
+# Launch the official MCP inspector tool
+gh aw inspect weekly-research --inspector
+```
+
+## 🔍 MCP Server Inspection
+
+The `inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
+
+> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](mcps.md).
+
+```bash
+# List all workflows that contain MCP server configurations
+gh aw inspect
+
+# Inspect all MCP servers in a specific workflow
+gh aw inspect workflow-name
+
+# Filter inspection to specific servers by name
+gh aw inspect workflow-name --server server-name
+
+# Enable verbose output with connection details
+gh aw inspect workflow-name --verbose
+
+# Launch the official @modelcontextprotocol/inspector web interface
+gh aw inspect workflow-name --inspector
+```
+
+**Key Features:**
+- Server discovery and connection testing
+- Tool and capability inspection
+- Permission analysis
+- Multi-protocol support (stdio, Docker, HTTP)
+- Web inspector integration
+
+For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](mcps.md#debugging-and-troubleshooting).
+
+## 🔄 Auto-Compile Workflow Management
+
+The `--auto-compile` flag enables automatic compilation of agentic workflows when markdown files change.
+
+```bash
+# Generate auto-compile workflow that triggers on markdown file changes
+gh aw compile --auto-compile
+
+# Auto-compile workflow features:
+# - Triggers when .github/workflows/*.md files are modified
+# - Automatically compiles markdown files to .lock.yml files
+# - Commits and pushes the compiled workflow files
+# - Uses locally built gh-aw extension for development workflows
+```
+
+## 👀 Watch Mode for Development
+The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time.
+```bash
+# Watch all workflow files in .github/workflows/ for changes
+gh aw compile --watch
+
+# Watch with verbose output for detailed compilation feedback
+gh aw compile --watch --verbose
+
+# Watch with auto-compile workflow generation
+gh aw compile --watch --auto-compile --verbose
+
+# Watch mode features:
+# - Real-time monitoring of .github/workflows/*.md files
+# - Automatic recompilation when markdown files are modified, created, or deleted
+# - Debounced file system events (300ms) to prevent excessive compilation
+# - Selective compilation - only recompiles changed files for better performance
+# - Automatic cleanup of .lock.yml files when corresponding .md files are deleted
+# - Graceful shutdown with Ctrl+C (SIGINT/SIGTERM handling)
+# - Enhanced error handling with console formatting
+# - Immediate feedback with success/error messages using emojis
+```
+
+## 📦 Package Management
+
+```bash
+# Install workflow packages globally (default)
+gh aw install org/repo
+
+# Install packages locally in current project
+gh aw install org/repo --local
+
+# Install a specific version, branch, or commit
+gh aw install org/repo@v1.0.0
+gh aw install org/repo@main --local
+gh aw install org/repo@commit-sha
+
+# Uninstall a workflow package globally
+gh aw uninstall org/repo
+
+# Uninstall a workflow package locally
+gh aw uninstall org/repo --local
+
+# List all installed packages (global and local)
+gh aw list --packages
+
+# List only local packages
+gh aw list --packages --local
+```
+
+**Package Management Features:**
+
+- **Install from GitHub**: Download workflow packages from any GitHub repository's `workflows/` directory
+- **Version Control**: Specify exact versions, branches, or commits using `@version` syntax
+- **Global Storage**: Global packages are stored in `~/.aw/packages/org/repo/` directory structure
+- **Local Storage**: Local packages are stored in `.aw/packages/org/repo/` directory structure
+- **Flexible Installation**: Choose between global (shared across projects) or local (project-specific) installations
+
+**Note**: The `disable`, `enable`, and `status` commands require:
+
+- GitHub CLI (`gh`) to be installed and authenticated
+- The command to be run from within a git repository
+- The workflows to be already updated (`.lock.yml` files must exist)
+
+**Package Installation Requirements:**
+
+- GitHub CLI (`gh`) to be installed and authenticated with access to the target repository
+- Network access to download from GitHub repositories
+- Target repository must have a `workflows/` directory containing `.md` files
+
+## 📝 Creating New Workflows
+
+The `gh aw new` command creates a new workflow markdown file with comprehensive template content and examples.
+
+```bash
+# Create a new workflow with example configuration
+gh aw new my-custom-workflow
+
+# Create a new workflow, overwriting if it exists
+gh aw new issue-handler --force
+```
+
+**New Workflow Features:**
+
+- **Template Generation**: Creates a comprehensive markdown file with commented examples
+- **All Options Covered**: Includes examples of all trigger types, permissions, tools, and frontmatter options
+- **Ready to Use**: Generated file serves as both documentation and working example
+- **Customizable**: Easy to modify for specific use cases
+
+**Generated Template Includes:**
+- Complete frontmatter examples with all available options
+- Trigger event configurations (issues, pull requests, schedule, etc.)
+- Permissions and security settings
+- AI processor configurations (Claude, Codex)
+- Tools configuration (GitHub, MCP servers, etc.)
+- Example workflow instructions
+
+## 📊 Workflow Logs and Analysis
+
+The `gh aw logs` command downloads and analyzes workflow execution logs with aggregated metrics and cost analysis.
+
+```bash
+# Download logs for all agentic workflows in the repository
+gh aw logs
+
+# Download logs for a specific workflow
+gh aw logs weekly-research
+
+# Limit the number of runs and filter by date
+gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31
+
+# Download to custom directory
+gh aw logs -o ./workflow-logs
+```
+
+**Workflow Logs Features:**
+
+- **Automated Download**: Downloads logs and artifacts from GitHub Actions
+- **Metrics Analysis**: Extracts execution time, token usage, and cost information
+- **Aggregated Reporting**: Provides summary statistics across multiple runs
+- **Flexible Filtering**: Filter by date range and limit number of runs
+- **Cost Tracking**: Analyzes AI model usage costs when available
+- **Custom Output**: Specify custom output directory for organized storage
+
+**Log Analysis Includes:**
+- Execution duration and performance metrics
+- AI model token consumption and costs
+- Success/failure rates and error patterns
+- Workflow run frequency and patterns
+- Artifact and log file organization
+
+## Related Documentation
+
+- [Workflow Structure](workflow-structure.md) - Directory layout and file organization
+- [Frontmatter Options](frontmatter.md) - Configuration options for workflows
+- [Tools Configuration](tools.md) - GitHub and MCP server configuration
+- [Include Directives](include-directives.md) - Modularizing workflows with includes
+- [Secrets Management](secrets.md) - Managing secrets and environment variables

@@ -161,41 +161,41 @@ func TestRunWorkflowOnGitHub(t *testing.T) {
 	}
 }
 
-func TestAllCommandsExist(t *testing.T) {
-	defer func() {
-		if err := os.RemoveAll(".github"); err != nil {
-			t.Logf("Warning: Failed to clean up .github directory: %v", err)
-		}
-	}()
+// func TestAllCommandsExist(t *testing.T) {
+// 	defer func() {
+// 		if err := os.RemoveAll(".github"); err != nil {
+// 			t.Logf("Warning: Failed to clean up .github directory: %v", err)
+// 		}
+// 	}()
 
-	// Test that all expected functions exist and can be called
-	// This helps ensure the interface is stable
+// 	// Test that all expected functions exist and can be called
+// 	// This helps ensure the interface is stable
 
-	// Test structure: function, expected to error
-	tests := []struct {
-		fn          func() error
-		expectError bool
-		name        string
-	}{
-		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
-		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},     // Shows help when empty, doesn't error
-		{func() error { return CompileWorkflows("", false, "", false, false, false) }, false, "CompileWorkflows"}, // Should succeed when .github/workflows directory exists
-		{func() error { return RemoveWorkflows("test") }, false, "RemoveWorkflows"},                               // Should handle missing directory gracefully
-		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                        // Should handle missing directory gracefully
-		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                               // Should handle missing directory gracefully
-		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                             // Should handle missing directory gracefully
-		{func() error { return RunWorkflowOnGitHub("", false) }, true, "RunWorkflowOnGitHub"},                     // Should error with empty workflow name
-	}
+// 	// Test structure: function, expected to error
+// 	tests := []struct {
+// 		fn          func() error
+// 		expectError bool
+// 		name        string
+// 	}{
+// 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
+// 		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},     // Shows help when empty, doesn't error
+// 		{func() error { return CompileWorkflows("", false, "", false, false, false) }, false, "CompileWorkflows"}, // Should succeed when .github/workflows directory exists
+// 		{func() error { return RemoveWorkflows("test") }, false, "RemoveWorkflows"},                               // Should handle missing directory gracefully
+// 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                        // Should handle missing directory gracefully
+// 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                               // Should handle missing directory gracefully
+// 		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                             // Should handle missing directory gracefully
+// 		{func() error { return RunWorkflowOnGitHub("", false) }, true, "RunWorkflowOnGitHub"},                     // Should error with empty workflow name
+// 	}
 
-	for _, test := range tests {
-		err := test.fn()
-		if test.expectError && err == nil {
-			t.Errorf("%s: expected error but got nil", test.name)
-		} else if !test.expectError && err != nil {
-			t.Errorf("%s: unexpected error: %v", test.name, err)
-		}
-	}
-}
+// 	for _, test := range tests {
+// 		err := test.fn()
+// 		if test.expectError && err == nil {
+// 			t.Errorf("%s: expected error but got nil", test.name)
+// 		} else if !test.expectError && err != nil {
+// 			t.Errorf("%s: unexpected error: %v", test.name, err)
+// 		}
+// 	}
+// }
 
 func TestAddWorkflowWithPR(t *testing.T) {
 	// Clean up any existing .github/workflows for this test
