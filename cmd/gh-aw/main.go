@@ -140,8 +140,8 @@ var removeCmd = &cobra.Command{
 		if len(args) > 0 {
 			pattern = args[0]
 		}
-		noOrphansRemove, _ := cmd.Flags().GetBool("keep-orphans")
-		if err := cli.RemoveWorkflows(pattern, noOrphansRemove); err != nil {
+		keepOrphans, _ := cmd.Flags().GetBool("keep-orphans")
+		if err := cli.RemoveWorkflows(pattern, keepOrphans); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}

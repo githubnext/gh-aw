@@ -849,7 +849,7 @@ func handleFileDeleted(mdFile string, verbose bool) {
 }
 
 // RemoveWorkflows removes workflows matching a pattern
-func RemoveWorkflows(pattern string, noOrphansRemove bool) error {
+func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	workflowsDir := getWorkflowsDir()
 
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
@@ -907,7 +907,7 @@ func RemoveWorkflows(pattern string, noOrphansRemove bool) error {
 
 	// Preview orphaned includes that would be removed (if orphan removal is enabled)
 	var orphanedIncludes []string
-	if !noOrphansRemove {
+	if !keepOrphans {
 		var err error
 		orphanedIncludes, err = previewOrphanedIncludes(filesToRemove, false)
 		if err != nil {
@@ -974,7 +974,7 @@ func RemoveWorkflows(pattern string, noOrphansRemove bool) error {
 	}
 
 	// Clean up orphaned include files (if orphan removal is enabled)
-	if len(removedFiles) > 0 && !noOrphansRemove {
+	if len(removedFiles) > 0 && !keepOrphans {
 		if err := cleanupOrphanedIncludes(false); err != nil {
 			fmt.Printf("Warning: Failed to clean up orphaned includes: %v\n", err)
 		}
