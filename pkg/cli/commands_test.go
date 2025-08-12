@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -887,5 +889,116 @@ func TestCollectIncludesRecursiveCircularReference(t *testing.T) {
 	// Should have collected some dependencies but not infinite
 	if len(dependencies) > 10 {
 		t.Errorf("collectIncludesRecursive collected too many dependencies (%d), possible infinite loop", len(dependencies))
+	}
+}
+
+// TestCleanupOrphanedIncludes tests that root workflow files are not removed as "orphaned" includes
+func TestCleanupOrphanedIncludes(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "test-cleanup-orphaned")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create shared subdirectory
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create root workflow files (these should NOT be considered orphaned)
+	rootWorkflows := []string{"daily-plan.md", "weekly-research.md", "action-workflow-assessor.md"}
+	for _, name := range rootWorkflows {
+		content := fmt.Sprintf(`---
+on:
+  workflow_dispatch:
+---
+
+# %s
+
+This is a root workflow.
+`, strings.TrimSuffix(name, ".md"))
+		if err := os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create include files in shared/ directory (these should be considered orphaned if not used)
+	includeFiles := []string{"shared/common.md", "shared/tools.md"}
+	for _, name := range includeFiles {
+		content := `---
+tools:
+  github:
+    allowed: []
+---
+
+This is an include file.
+`
+		if err := os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create one root workflow that actually uses an include
+	workflowWithInclude := `---
+on:
+  workflow_dispatch:
+---
+
+# Workflow with Include
+
+@include shared/common.md
+
+This workflow uses an include.
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow-with-include.md"), []byte(workflowWithInclude), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to the temporary directory to simulate the git root
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(oldDir)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Run cleanup
+	err = cleanupOrphanedIncludes(true)
+	if err != nil {
+		t.Fatalf("cleanupOrphanedIncludes failed: %v", err)
+	}
+
+	// Verify that root workflow files still exist
+	for _, name := range rootWorkflows {
+		filePath := filepath.Join(workflowsDir, name)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("Root workflow file %s was incorrectly removed as orphaned", name)
+		}
+	}
+
+	// Verify that workflow-with-include.md still exists
+	if _, err := os.Stat(filepath.Join(workflowsDir, "workflow-with-include.md")); os.IsNotExist(err) {
+		t.Error("Workflow with include was incorrectly removed")
+	}
+
+	// Verify that shared/common.md still exists (it's used by workflow-with-include.md)
+	if _, err := os.Stat(filepath.Join(workflowsDir, "shared", "common.md")); os.IsNotExist(err) {
+		t.Error("Used include file shared/common.md was incorrectly removed")
+	}
+
+	// Verify that shared/tools.md was removed (it's truly orphaned)
+	if _, err := os.Stat(filepath.Join(workflowsDir, "shared", "tools.md")); !os.IsNotExist(err) {
+		t.Error("Orphaned include file shared/tools.md was not removed")
 	}
 }

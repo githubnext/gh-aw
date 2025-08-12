@@ -2438,6 +2438,8 @@ func cleanupOrphanedIncludes(verbose bool) error {
 	}
 
 	// Find all include files in .github/workflows
+	// Only consider files in subdirectories (like shared/) as potential include files
+	// Root-level .md files are workflow files, not include files
 	workflowsDir := ".github/workflows"
 	var allIncludes []string
 
@@ -2447,12 +2449,16 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		}
 
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			// This is an include file
 			relPath, err := filepath.Rel(workflowsDir, path)
 			if err != nil {
 				return err
 			}
-			allIncludes = append(allIncludes, relPath)
+
+			// Only consider files in subdirectories as potential include files
+			// Root-level .md files are workflow files, not include files
+			if strings.Contains(relPath, string(filepath.Separator)) {
+				allIncludes = append(allIncludes, relPath)
+			}
 		}
 
 		return nil
@@ -2489,13 +2495,18 @@ func cleanupAllIncludes(verbose bool) error {
 		}
 
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			if err := os.Remove(path); err != nil {
-				if verbose {
-					fmt.Printf("Warning: Failed to remove include %s: %v\n", path, err)
+			relPath, _ := filepath.Rel(workflowsDir, path)
+
+			// Only remove files in subdirectories (like shared/) as these are include files
+			// Root-level .md files are workflow files, not include files
+			if strings.Contains(relPath, string(filepath.Separator)) {
+				if err := os.Remove(path); err != nil {
+					if verbose {
+						fmt.Printf("Warning: Failed to remove include %s: %v\n", relPath, err)
+					}
+				} else {
+					fmt.Printf("Removed include: %s\n", relPath)
 				}
-			} else {
-				relPath, _ := filepath.Rel(workflowsDir, path)
-				fmt.Printf("Removed include: %s\n", relPath)
 			}
 		}
 
