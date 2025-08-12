@@ -465,7 +465,7 @@ func AddWorkflow(workflow string, number int, verbose bool, engineOverride strin
 }
 
 // CompileWorkflows compiles markdown files into GitHub Actions workflow files
-func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, validate bool, autoCompile bool, watch bool) error {
+func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, validate bool, autoCompile bool, watch bool, writeInstructions bool) error {
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 
@@ -504,7 +504,7 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 		}
 
 		// Ensure copilot instructions are present
-		if err := ensureCopilotInstructions(verbose); err != nil {
+		if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 			if verbose {
 				fmt.Printf("Warning: Failed to update copilot instructions: %v\n", err)
 			}
@@ -576,7 +576,7 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 	}
 
 	// Ensure copilot instructions are present
-	if err := ensureCopilotInstructions(verbose); err != nil {
+	if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 		if verbose {
 			fmt.Printf("Warning: Failed to update copilot instructions: %v\n", err)
 		}
@@ -1246,12 +1246,8 @@ func compileWorkflow(filePath string, verbose bool, engineOverride string) error
 		}
 	}
 
-	// Ensure copilot instructions are present
-	if err := ensureCopilotInstructions(verbose); err != nil {
-		if verbose {
-			fmt.Printf("Warning: Failed to update copilot instructions: %v\n", err)
-		}
-	}
+	// Note: Instructions are only written when explicitly requested via the compile command flag
+	// This helper function is used in contexts where instructions should not be automatically written
 
 	return nil
 }
@@ -1335,7 +1331,11 @@ func ensureGitAttributes() error {
 }
 
 // ensureCopilotInstructions ensures that .github/instructions/github-agentic-workflows.md contains the copilot instructions
-func ensureCopilotInstructions(verbose bool) error {
+func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
+	if !writeInstructions {
+		return nil // Skip writing instructions if flag is not set
+	}
+	
 	gitRoot, err := findGitRoot()
 	if err != nil {
 		return err // Not in a git repository, skip

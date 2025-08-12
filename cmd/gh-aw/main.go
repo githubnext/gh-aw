@@ -204,11 +204,12 @@ var compileCmd = &cobra.Command{
 		validate, _ := cmd.Flags().GetBool("validate")
 		autoCompile, _ := cmd.Flags().GetBool("auto-compile")
 		watch, _ := cmd.Flags().GetBool("watch")
+		instructions, _ := cmd.Flags().GetBool("instructions")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
-		if err := cli.CompileWorkflows(file, verbose, engineOverride, validate, autoCompile, watch); err != nil {
+		if err := cli.CompileWorkflows(file, verbose, engineOverride, validate, autoCompile, watch, instructions); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -321,6 +322,7 @@ func init() {
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation")
 	compileCmd.Flags().Bool("auto-compile", false, "Generate auto-compile workflow file for automatic compilation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
+	compileCmd.Flags().Bool("instructions", false, "Generate or update GitHub Copilot instructions file")
 
 	// Add all commands to root
 	rootCmd.AddCommand(listCmd)

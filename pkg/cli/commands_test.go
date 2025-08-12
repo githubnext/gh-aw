@@ -100,7 +100,7 @@ func TestCompileWorkflows(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := CompileWorkflows(tt.markdownFile, false, "", false, false, false)
+			err := CompileWorkflows(tt.markdownFile, false, "", false, false, false, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -179,7 +179,7 @@ func TestAllCommandsExist(t *testing.T) {
 	}{
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
 		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},     // Shows help when empty, doesn't error
-		{func() error { return CompileWorkflows("", false, "", false, false, false) }, false, "CompileWorkflows"}, // Should succeed when .github/workflows directory exists
+		{func() error { return CompileWorkflows("", false, "", false, false, false, false) }, true, "CompileWorkflows"}, // Should error when no markdown files exist
 		{func() error { return RemoveWorkflows("test") }, false, "RemoveWorkflows"},                               // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                        // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                               // Should handle missing directory gracefully
