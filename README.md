@@ -65,7 +65,7 @@ Analyze issue #${{ github.event.issue.number }} and help with triage:
 Keep responses concise and helpful.
 ```
 
-> **💡 Learn more**: For a complete list of frontmatter options and workflow configuration details, see [REFERENCE.md](REFERENCE.md).
+> **💡 Learn more**: For complete workflow configuration details, see the [Documentation](docs/index.md)
 
 ## 📖 Deep Dive
 
@@ -133,7 +133,7 @@ This ensures that GitHub properly recognizes these files as generated code, whic
 
 The `.gitattributes` file is automatically managed - you don't need to create or maintain it manually.
 
-> **📚 Workflow commands**: See [REFERENCE.md](REFERENCE.md) for complete workflow management commands including `list`, `status`, `enable`, `disable`, and more.
+> **📚 Workflow commands**: See [Commands Documentation](docs/commands.md) for complete workflow management commands including `list`, `status`, `enable`, `disable`, and more.
 
 ### Configuring the agentic processor
 
@@ -165,7 +165,7 @@ This repository is for demonstration purposes and the workflows are not intended
 
 ⚠️⚠️ If you specify the access for any permissions, all of those that are not specified are set to none.
 
-> **🔧 Advanced configuration**: For detailed information about permissions, tools, secrets, and all frontmatter options, see [REFERENCE.md](REFERENCE.md).
+> **🔧 Advanced configuration**: For detailed information about permissions, tools, secrets, and all configuration options, see the [Documentation](docs/index.md)
 
 ## 🔗 Related Projects
 
