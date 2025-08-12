@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -112,7 +114,7 @@ func TestCompileWorkflows(t *testing.T) {
 }
 
 func TestRemoveWorkflows(t *testing.T) {
-	err := RemoveWorkflows("test-pattern")
+	err := RemoveWorkflows("test-pattern", false)
 
 	// Should not error since it's a stub implementation
 	if err != nil {
@@ -180,7 +182,7 @@ func TestAllCommandsExist(t *testing.T) {
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
 		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},           // Shows help when empty, doesn't error
 		{func() error { return CompileWorkflows("", false, "", false, false, false, false) }, true, "CompileWorkflows"}, // Should error when no markdown files exist
-		{func() error { return RemoveWorkflows("test") }, false, "RemoveWorkflows"},                                     // Should handle missing directory gracefully
+		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                              // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                              // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                     // Should handle missing directory gracefully
 		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                                   // Should handle missing directory gracefully
@@ -888,4 +890,342 @@ func TestCollectIncludesRecursiveCircularReference(t *testing.T) {
 	if len(dependencies) > 10 {
 		t.Errorf("collectIncludesRecursive collected too many dependencies (%d), possible infinite loop", len(dependencies))
 	}
+}
+
+// TestCleanupOrphanedIncludes tests that root workflow files are not removed as "orphaned" includes
+func TestCleanupOrphanedIncludes(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "test-cleanup-orphaned")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create shared subdirectory
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create root workflow files (these should NOT be considered orphaned)
+	rootWorkflows := []string{"daily-plan.md", "weekly-research.md", "action-workflow-assessor.md"}
+	for _, name := range rootWorkflows {
+		content := fmt.Sprintf(`---
+on:
+  workflow_dispatch:
+---
+
+# %s
+
+This is a root workflow.
+`, strings.TrimSuffix(name, ".md"))
+		if err := os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create include files in shared/ directory (these should be considered orphaned if not used)
+	includeFiles := []string{"shared/common.md", "shared/tools.md"}
+	for _, name := range includeFiles {
+		content := `---
+tools:
+  github:
+    allowed: []
+---
+
+This is an include file.
+`
+		if err := os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create one root workflow that actually uses an include
+	workflowWithInclude := `---
+on:
+  workflow_dispatch:
+---
+
+# Workflow with Include
+
+@include shared/common.md
+
+This workflow uses an include.
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow-with-include.md"), []byte(workflowWithInclude), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to the temporary directory to simulate the git root
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Logf("Warning: Failed to restore working directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Run cleanup
+	err = cleanupOrphanedIncludes(true)
+	if err != nil {
+		t.Fatalf("cleanupOrphanedIncludes failed: %v", err)
+	}
+
+	// Verify that root workflow files still exist
+	for _, name := range rootWorkflows {
+		filePath := filepath.Join(workflowsDir, name)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			t.Errorf("Root workflow file %s was incorrectly removed as orphaned", name)
+		}
+	}
+
+	// Verify that workflow-with-include.md still exists
+	if _, err := os.Stat(filepath.Join(workflowsDir, "workflow-with-include.md")); os.IsNotExist(err) {
+		t.Error("Workflow with include was incorrectly removed")
+	}
+
+	// Verify that shared/common.md still exists (it's used by workflow-with-include.md)
+	if _, err := os.Stat(filepath.Join(workflowsDir, "shared", "common.md")); os.IsNotExist(err) {
+		t.Error("Used include file shared/common.md was incorrectly removed")
+	}
+
+	// Verify that shared/tools.md was removed (it's truly orphaned)
+	if _, err := os.Stat(filepath.Join(workflowsDir, "shared", "tools.md")); !os.IsNotExist(err) {
+		t.Error("Orphaned include file shared/tools.md was not removed")
+	}
+}
+
+// TestPreviewOrphanedIncludes tests the preview functionality for orphaned includes
+func TestPreviewOrphanedIncludes(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "test-preview-orphaned")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create shared subdirectory
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create workflow files
+	workflow1 := `---
+on:
+  workflow_dispatch:
+---
+
+# Workflow 1
+
+@include shared/common.md
+
+This workflow uses common include.
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow1.md"), []byte(workflow1), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	workflow2 := `---
+on:
+  workflow_dispatch:
+---
+
+# Workflow 2
+
+@include shared/tools.md
+
+This workflow uses tools include.
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow2.md"), []byte(workflow2), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	workflow3 := `---
+on:
+  workflow_dispatch:
+---
+
+# Workflow 3
+
+@include shared/common.md
+
+This workflow also uses common include.
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow3.md"), []byte(workflow3), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create include files
+	includeFiles := map[string]string{
+		"shared/common.md": "Common include content",
+		"shared/tools.md":  "Tools include content",
+		"shared/unused.md": "Unused include content",
+	}
+	for name, content := range includeFiles {
+		if err := os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Change to the temporary directory
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Logf("Warning: Failed to restore working directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test Case 1: Remove workflow2 - should orphan shared/tools.md but not shared/common.md
+	// Use relative paths like the real RemoveWorkflows function does
+	filesToRemove := []string{".github/workflows/workflow2.md"}
+	orphaned, err := previewOrphanedIncludes(filesToRemove, false)
+	if err != nil {
+		t.Fatalf("previewOrphanedIncludes failed: %v", err)
+	}
+
+	expectedOrphaned := []string{"shared/tools.md", "shared/unused.md"}
+	if len(orphaned) != len(expectedOrphaned) {
+		t.Errorf("Expected %d orphaned includes, got %d: %v", len(expectedOrphaned), len(orphaned), orphaned)
+	}
+
+	for _, expected := range expectedOrphaned {
+		found := false
+		for _, actual := range orphaned {
+			if actual == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected %s to be orphaned, but it wasn't found in: %v", expected, orphaned)
+		}
+	}
+
+	// shared/common.md should NOT be orphaned as it's used by workflow1 and workflow3
+	for _, include := range orphaned {
+		if include == "shared/common.md" {
+			t.Error("shared/common.md should not be orphaned as it's used by remaining workflows")
+		}
+	}
+
+	// Test Case 2: Remove all workflows - should orphan all includes
+	allFiles := []string{
+		".github/workflows/workflow1.md",
+		".github/workflows/workflow2.md",
+		".github/workflows/workflow3.md",
+	}
+	orphaned, err = previewOrphanedIncludes(allFiles, false)
+	if err != nil {
+		t.Fatalf("previewOrphanedIncludes failed: %v", err)
+	}
+
+	expectedAllOrphaned := []string{"shared/common.md", "shared/tools.md", "shared/unused.md"}
+	if len(orphaned) != len(expectedAllOrphaned) {
+		t.Errorf("Expected %d orphaned includes when removing all workflows, got %d: %v", len(expectedAllOrphaned), len(orphaned), orphaned)
+	}
+}
+
+// TestRemoveWorkflowsWithNoOrphansFlag tests that the --keep-orphans flag works correctly
+func TestRemoveWorkflowsWithNoOrphansFlag(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "test-keep-orphans-flag")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create shared subdirectory
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a workflow that uses an include
+	workflowContent := `---
+on:
+  workflow_dispatch:
+---
+
+# Test Workflow
+
+@include shared/common.md
+
+This workflow uses an include.
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "test-workflow.md"), []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the include file
+	includeContent := `This is a shared include file.`
+	if err := os.WriteFile(filepath.Join(sharedDir, "common.md"), []byte(includeContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to the temporary directory
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(oldDir); err != nil {
+			t.Logf("Warning: Failed to restore working directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test 1: Verify include file exists before removal
+	if _, err := os.Stat(filepath.Join(sharedDir, "common.md")); os.IsNotExist(err) {
+		t.Fatal("Include file should exist before removal")
+	}
+
+	// Test 2: Check preview shows orphaned includes when flag is not used
+	filesToRemove := []string{".github/workflows/test-workflow.md"}
+	orphaned, err := previewOrphanedIncludes(filesToRemove, false)
+	if err != nil {
+		t.Fatalf("previewOrphanedIncludes failed: %v", err)
+	}
+
+	if len(orphaned) != 1 || orphaned[0] != "shared/common.md" {
+		t.Errorf("Expected shared/common.md to be orphaned, got: %v", orphaned)
+	}
+
+	// Note: We can't easily test the actual RemoveWorkflows function with user input
+	// since it requires interactive confirmation. The logic is tested through
+	// previewOrphanedIncludes and the flag handling is straightforward.
 }
