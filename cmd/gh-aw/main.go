@@ -140,7 +140,8 @@ var removeCmd = &cobra.Command{
 		if len(args) > 0 {
 			pattern = args[0]
 		}
-		if err := cli.RemoveWorkflows(pattern); err != nil {
+		noOrphansRemove, _ := cmd.Flags().GetBool("keep-orphans")
+		if err := cli.RemoveWorkflows(pattern, noOrphansRemove); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -321,6 +322,9 @@ func init() {
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation")
 	compileCmd.Flags().Bool("auto-compile", false, "Generate auto-compile workflow file for automatic compilation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
+
+	// Add flags to remove command
+	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
 
 	// Add all commands to root
 	rootCmd.AddCommand(listCmd)

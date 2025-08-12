@@ -44,6 +44,9 @@ gh aw compile --watch --auto-compile --verbose
 # Remove a workflow
 gh aw remove WorkflowName
 
+# Remove a workflow without removing orphaned include files
+gh aw remove WorkflowName --keep-orphans
+
 # Run a workflow immediately
 gh aw run WorkflowName
 

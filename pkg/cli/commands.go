@@ -849,7 +849,7 @@ func handleFileDeleted(mdFile string, verbose bool) {
 }
 
 // RemoveWorkflows removes workflows matching a pattern
-func RemoveWorkflows(pattern string) error {
+func RemoveWorkflows(pattern string, noOrphansRemove bool) error {
 	workflowsDir := getWorkflowsDir()
 
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
@@ -905,11 +905,15 @@ func RemoveWorkflows(pattern string) error {
 		return nil
 	}
 
-	// Preview orphaned includes that would be removed
-	orphanedIncludes, err := previewOrphanedIncludes(filesToRemove, false)
-	if err != nil {
-		fmt.Printf("Warning: Failed to preview orphaned includes: %v\n", err)
-		orphanedIncludes = []string{} // Continue with empty list
+	// Preview orphaned includes that would be removed (if orphan removal is enabled)
+	var orphanedIncludes []string
+	if !noOrphansRemove {
+		var err error
+		orphanedIncludes, err = previewOrphanedIncludes(filesToRemove, false)
+		if err != nil {
+			fmt.Printf("Warning: Failed to preview orphaned includes: %v\n", err)
+			orphanedIncludes = []string{} // Continue with empty list
+		}
 	}
 
 	// Show what will be removed
@@ -931,7 +935,7 @@ func RemoveWorkflows(pattern string) error {
 
 	// Show orphaned includes that will also be removed
 	if len(orphanedIncludes) > 0 {
-		fmt.Printf("\nThe following orphaned include files will also be removed:\n")
+		fmt.Printf("\nThe following orphaned include files will also be removed (suppress with --keep-orphans):\n")
 		for _, include := range orphanedIncludes {
 			fmt.Printf("  %s (orphaned include)\n", include)
 		}
@@ -969,8 +973,8 @@ func RemoveWorkflows(pattern string) error {
 		}
 	}
 
-	// Clean up orphaned include files
-	if len(removedFiles) > 0 {
+	// Clean up orphaned include files (if orphan removal is enabled)
+	if len(removedFiles) > 0 && !noOrphansRemove {
 		if err := cleanupOrphanedIncludes(false); err != nil {
 			fmt.Printf("Warning: Failed to clean up orphaned includes: %v\n", err)
 		}
@@ -2584,7 +2588,7 @@ func getAllIncludeFiles() ([]string, error) {
 			if err != nil {
 				return err
 			}
-			
+
 			// Only consider files in subdirectories as potential include files
 			// Root-level .md files are workflow files, not include files
 			if strings.Contains(relPath, string(filepath.Separator)) {

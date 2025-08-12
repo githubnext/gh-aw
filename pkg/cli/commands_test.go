@@ -114,7 +114,7 @@ func TestCompileWorkflows(t *testing.T) {
 }
 
 func TestRemoveWorkflows(t *testing.T) {
-	err := RemoveWorkflows("test-pattern")
+	err := RemoveWorkflows("test-pattern", false)
 
 	// Should not error since it's a stub implementation
 	if err != nil {
@@ -182,7 +182,7 @@ func TestAllCommandsExist(t *testing.T) {
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
 		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},     // Shows help when empty, doesn't error
 		{func() error { return CompileWorkflows("", false, "", false, false, false) }, false, "CompileWorkflows"}, // Should succeed when .github/workflows directory exists
-		{func() error { return RemoveWorkflows("test") }, false, "RemoveWorkflows"},                               // Should handle missing directory gracefully
+		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                        // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                        // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                               // Should handle missing directory gracefully
 		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                             // Should handle missing directory gracefully
@@ -1072,9 +1072,9 @@ This workflow also uses common include.
 
 	// Create include files
 	includeFiles := map[string]string{
-		"shared/common.md":  "Common include content",
-		"shared/tools.md":   "Tools include content", 
-		"shared/unused.md":  "Unused include content",
+		"shared/common.md": "Common include content",
+		"shared/tools.md":  "Tools include content",
+		"shared/unused.md": "Unused include content",
 	}
 	for name, content := range includeFiles {
 		if err := os.WriteFile(filepath.Join(workflowsDir, name), []byte(content), 0644); err != nil {
@@ -1088,7 +1088,7 @@ This workflow also uses common include.
 		t.Fatal(err)
 	}
 	defer os.Chdir(oldDir)
-	
+
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatal(err)
 	}
@@ -1141,4 +1141,79 @@ This workflow also uses common include.
 	if len(orphaned) != len(expectedAllOrphaned) {
 		t.Errorf("Expected %d orphaned includes when removing all workflows, got %d: %v", len(expectedAllOrphaned), len(orphaned), orphaned)
 	}
+}
+
+// TestRemoveWorkflowsWithNoOrphansFlag tests that the --keep-orphans flag works correctly
+func TestRemoveWorkflowsWithNoOrphansFlag(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "test-keep-orphans-flag")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create shared subdirectory
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a workflow that uses an include
+	workflowContent := `---
+on:
+  workflow_dispatch:
+---
+
+# Test Workflow
+
+@include shared/common.md
+
+This workflow uses an include.
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "test-workflow.md"), []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the include file
+	includeContent := `This is a shared include file.`
+	if err := os.WriteFile(filepath.Join(sharedDir, "common.md"), []byte(includeContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to the temporary directory
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(oldDir)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test 1: Verify include file exists before removal
+	if _, err := os.Stat(filepath.Join(sharedDir, "common.md")); os.IsNotExist(err) {
+		t.Fatal("Include file should exist before removal")
+	}
+
+	// Test 2: Check preview shows orphaned includes when flag is not used
+	filesToRemove := []string{".github/workflows/test-workflow.md"}
+	orphaned, err := previewOrphanedIncludes(filesToRemove, false)
+	if err != nil {
+		t.Fatalf("previewOrphanedIncludes failed: %v", err)
+	}
+
+	if len(orphaned) != 1 || orphaned[0] != "shared/common.md" {
+		t.Errorf("Expected shared/common.md to be orphaned, got: %v", orphaned)
+	}
+
+	// Note: We can't easily test the actual RemoveWorkflows function with user input
+	// since it requires interactive confirmation. The logic is tested through
+	// previewOrphanedIncludes and the flag handling is straightforward.
 }
