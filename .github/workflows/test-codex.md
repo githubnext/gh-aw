@@ -1,9 +1,8 @@
 ---
 on:
-  pull_request:
+  push:
     branches: 
       - "*codex*"
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 engine: codex
 timeout_minutes: 10
