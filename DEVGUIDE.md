@@ -261,11 +261,11 @@ git commit -m "docs: update installation instructions"
 
 We dogfood the workflows from githubnext/agentics in this repo:
 ```
-./gh-aw add daily-dependency-updates -r githubnext/agentics  --force --pr
-./gh-aw add daily-plan -r githubnext/agentics  --force --pr
-./gh-aw add daily-qa -r githubnext/agentics  --force --pr
-./gh-aw add daily-team-status -r githubnext/agentics  --force --pr
-./gh-aw add issue-triage -r githubnext/agentics  --force --pr
-./gh-aw add update-docs -r githubnext/agentics  --force --pr
-./gh-aw add weekly-research -r githubnext/agentics  --force --pr
+./gh-aw add daily-dependency-updates -r githubnext/agentics  --force
+./gh-aw add daily-plan -r githubnext/agentics  --force
+./gh-aw add daily-qa -r githubnext/agentics  --force
+./gh-aw add daily-team-status -r githubnext/agentics  --force
+./gh-aw add issue-triage -r githubnext/agentics  --force
+./gh-aw add update-docs -r githubnext/agentics  --force
+./gh-aw add weekly-research -r githubnext/agentics  --force
 ```

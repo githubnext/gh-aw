@@ -2,7 +2,7 @@
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions. From [GitHub Next](https://githubnext.com/) 
 
-> **Note**: This extension is in early development and may change significantly. Use with caution.
+> **Note**: 🚨 This extension is provided for research demonstrator purposes only, as a demonstrator of automated agentic processing on the GitHub platform. It is in early development and may change significantly. Using agentic workflows in your repository requires careful security analysis and supervision. Use with caution.
 
 ## ⚡ Quick Start (30 seconds)
 
@@ -125,7 +125,7 @@ You will see the changes reflected in the `.lock.yml` file, which is the actual 
 By default Claude Code is used as the agentic processor. You can configure the agentic processor by editing the frontmatter of the markdown workflow files.
 
 ```markdown
-engine: codex  # Optional: specify AI engine (claude, codex, ai-inference, gemini)
+engine: codex  # Optional: specify AI engine (claude, codex, gemini)
 ```
 
 You can also specify this on the command line when adding or running workflows:

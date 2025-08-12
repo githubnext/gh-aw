@@ -147,14 +147,13 @@ Specifies which AI engine to use. Defaults to `claude`.
 ### Simple String Format
 
 ```yaml
-engine: claude  # or codex, opencode, ai-inference
+engine: claude  # or codex, gemini
 ```
 
 **Available engines:**
 - `claude` (default): Claude Code with full MCP tool support and allow-listing (see [MCP Guide](mcps.md))
 - `codex` (**experimental**): Codex with OpenAI endpoints   
-- `opencode` (**experimental**): OpenCode AI coding assistant   
-- `ai-inference`: GitHub Models via actions/ai-inference with GitHub MCP support (see [MCP Guide](mcps.md))   
+- `gemini`: Google Gemini AI models   
 
 ### Extended Object Format
 
@@ -166,7 +165,7 @@ engine:
 ```
 
 **Fields:**
-- **`id`** (required): Engine identifier (`claude`, `codex`, `opencode`, `ai-inference`)
+- **`id`** (required): Engine identifier (`claude`, `codex`, `gemini`)
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model
 

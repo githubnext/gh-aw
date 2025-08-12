@@ -97,9 +97,6 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewClaudeEngine())
 	registry.Register(NewCodexEngine())
 	registry.Register(NewGeminiEngine())
-	registry.Register(NewOpenCodeEngine())
-	registry.Register(NewAIInferenceEngine())
-	registry.Register(NewGenAIScriptEngine())
 
 	return registry
 }

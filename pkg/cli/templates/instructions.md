@@ -60,11 +60,11 @@ The YAML frontmatter supports these fields:
 ### Agentic Workflow Specific Fields
 
 - **`engine:`** - AI processor configuration
-  - String format: `"claude"` (default), `"codex"`, `"ai-inference"`, `"gemini"`
+  - String format: `"claude"` (default), `"codex"`, `"gemini"`
   - Object format for extended configuration:
     ```yaml
     engine:
-      id: claude                        # Required: agent CLI identifier (claude, codex, ai-inference, gemini)
+      id: claude                        # Required: agent CLI identifier (claude, codex, gemini)
       version: beta                     # Optional: version of the action
       model: claude-3-5-sonnet-20241022 # Optional: LLM model to use
     ```
@@ -412,7 +412,7 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 
 - **Invalid field names** - Only fields in the schema are allowed
 - **Wrong field types** - e.g., `timeout_minutes` must be integer
-- **Invalid enum values** - e.g., `engine` must be "claude", "codex", "ai-inference", or "gemini"
+- **Invalid enum values** - e.g., `engine` must be "claude", "codex", or "gemini"
 - **Missing required fields** - Some triggers require specific configuration
 
 Use `gh aw compile --verbose` to see detailed validation messages.
