@@ -13,7 +13,7 @@ permissions:
   actions: read
 ---
 
-# Codex Pull Request Summary
+# Test Codex
 
 ## Job Description
 
