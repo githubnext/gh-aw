@@ -15,7 +15,7 @@ func NewCodexEngine() *CodexEngine {
 		BaseEngine: BaseEngine{
 			id:                     "codex",
 			displayName:            "Codex",
-			description:            "Uses codex with OpenAI endpoints (experimental)",
+			description:            "Uses OpenAI Codex CLI (experimental)",
 			experimental:           true,
 			supportsToolsWhitelist: false,
 		},
