@@ -178,13 +178,13 @@ func TestAllCommandsExist(t *testing.T) {
 		name        string
 	}{
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
-		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},     // Shows help when empty, doesn't error
+		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},           // Shows help when empty, doesn't error
 		{func() error { return CompileWorkflows("", false, "", false, false, false, false) }, true, "CompileWorkflows"}, // Should error when no markdown files exist
-		{func() error { return RemoveWorkflows("test") }, false, "RemoveWorkflows"},                               // Should handle missing directory gracefully
-		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                        // Should handle missing directory gracefully
-		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                               // Should handle missing directory gracefully
-		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                             // Should handle missing directory gracefully
-		{func() error { return RunWorkflowOnGitHub("", false) }, true, "RunWorkflowOnGitHub"},                     // Should error with empty workflow name
+		{func() error { return RemoveWorkflows("test") }, false, "RemoveWorkflows"},                                     // Should handle missing directory gracefully
+		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                              // Should handle missing directory gracefully
+		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                     // Should handle missing directory gracefully
+		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                                   // Should handle missing directory gracefully
+		{func() error { return RunWorkflowOnGitHub("", false) }, true, "RunWorkflowOnGitHub"},                           // Should error with empty workflow name
 	}
 
 	for _, test := range tests {

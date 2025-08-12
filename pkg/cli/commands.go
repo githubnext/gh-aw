@@ -1335,7 +1335,7 @@ func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 	if !writeInstructions {
 		return nil // Skip writing instructions if flag is not set
 	}
-	
+
 	gitRoot, err := findGitRoot()
 	if err != nil {
 		return err // Not in a git repository, skip
