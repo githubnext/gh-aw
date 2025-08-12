@@ -1,0 +1,67 @@
+name: "Compute current body text"
+description: "Computes the current body text based on the GitHub event context"
+outputs:
+  text:
+    description: "The computed current body text based on event type"
+runs:
+  using: "composite"
+  steps:
+    - name: Compute current body text
+      id: compute-text
+      uses: actions/github-script@v7
+      with:
+        script: |
+          let text = '';
+          
+          // Determine current body text based on event context
+          switch (context.eventName) {
+            case 'issues':
+              // For issues: title + body
+              if (context.payload.issue) {
+                const title = context.payload.issue.title || '';
+                const body = context.payload.issue.body || '';
+                text = `${title}\n\n${body}`;
+              }
+              break;
+              
+            case 'pull_request':
+              // For pull requests: title + body
+              if (context.payload.pull_request) {
+                const title = context.payload.pull_request.title || '';
+                const body = context.payload.pull_request.body || '';
+                text = `${title}\n\n${body}`;
+              }
+              break;
+              
+            case 'issue_comment':
+              // For issue comments: comment body
+              if (context.payload.comment) {
+                text = context.payload.comment.body || '';
+              }
+              break;
+              
+            case 'pull_request_review_comment':
+              // For PR review comments: comment body
+              if (context.payload.comment) {
+                text = context.payload.comment.body || '';
+              }
+              break;
+              
+            case 'pull_request_review':
+              // For PR reviews: review body
+              if (context.payload.review) {
+                text = context.payload.review.body || '';
+              }
+              break;
+              
+            default:
+              // Default: empty text
+              text = '';
+              break;
+          }
+          
+          // display in logs
+          console.log(`text: ${text}`);
+
+          // Set the text as output
+          core.setOutput('text', text);

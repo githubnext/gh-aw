@@ -1,0 +1,33 @@
+name: RepoMind Index
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'  # Run every hour at minute 0
+jobs:
+  repo-mind-index:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history instead of shallow clone
+      
+    - name: Create the Repo-mind index
+      id: repo-mind-index
+      uses: githubnext/repo-mind/.github/actions/index@main
+      with:
+        GITHUBNEXT_MODEL_8_UKSOUTH_API_KEY: ${{ secrets.GITHUBNEXT_MODEL_8_UKSOUTH_API_KEY }}
+        GITHUBNEXT_EASTUS2_API_KEY: ${{ secrets.GITHUBNEXT_EASTUS2_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Docker logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: docker-logs
+        path: |
+          ${{ github.workspace }}/.docker-logs/
+        include-hidden-files: true
+        

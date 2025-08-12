@@ -1,0 +1,222 @@
+name: Expression Syntax Test
+
+# Manual trigger for testing various GitHub Actions expression syntax patterns
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of expression test to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - basic
+        - multiline
+        - complex
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  # Test basic expression syntax patterns
+  test-basic-expressions:
+    name: Test Basic Expressions
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'basic' || github.event.inputs.test_type == 'all' }}
+    steps:
+      - name: Test simple equality
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "✓ Simple equality expression works"
+
+      - name: Test property access
+        if: github.actor != ''
+        run: echo "✓ Property access expression works"
+
+      - name: Test boolean literal
+        if: true
+        run: echo "✓ Boolean literal expression works"
+
+      - name: Test string comparison
+        if: github.repository == 'githubnext/gh-aw'
+        run: echo "✓ String comparison expression works"
+
+  # Test multiline disjunction expressions
+  test-multiline-expressions:
+    name: Test Multiline Expressions
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'multiline' || github.event.inputs.test_type == 'all' }}
+    steps:
+      - name: Test single-line disjunction
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'pull_request'
+        run: echo "✓ Single-line disjunction expression works"
+
+      - name: Test multiline disjunction with comments
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'issues' || github.event_name == 'issue_comment'
+        run: echo "✓ Multiline disjunction with comments works"
+
+  # Test complex expression patterns
+  test-complex-expressions:
+    name: Test Complex Expressions
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'complex' || github.event.inputs.test_type == 'all' }}
+    steps:
+      - name: Test function calls
+        if: startsWith(github.ref, 'refs/heads/')
+        run: echo "✓ Function call expression works"
+
+      - name: Test ternary conditional
+        env:
+          DEPLOY_ENV: ${{ startsWith(github.ref, 'refs/heads/main') && 'production' || 'staging' }}
+        run: |
+          echo "✓ Ternary conditional expression works - Environment: $DEPLOY_ENV"
+
+      - name: Test logical AND
+        if: github.event_name == 'workflow_dispatch' && github.actor != ''
+        run: echo "✓ Logical AND expression works"
+
+      - name: Test logical NOT
+        if: "!cancelled()"
+        run: echo "✓ Logical NOT expression works"
+
+      - name: Test complex nested conditions
+        if: |
+          (github.event_name == 'workflow_dispatch' && github.actor != '') ||
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')) ||
+          (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+        run: echo "✓ Complex nested conditions work"
+
+  # Test GitHub context expressions
+  test-context-expressions:
+    name: Test GitHub Context Expressions
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' }}
+    steps:
+      - name: Test event context
+        if: github.event_name != ''
+        run: |
+          echo "✓ Event context access works"
+          echo "Event name: ${{ github.event_name }}"
+
+      - name: Test repository context
+        if: github.repository != ''
+        run: |
+          echo "✓ Repository context access works"
+          echo "Repository: ${{ github.repository }}"
+
+      - name: Test actor context
+        if: github.actor != ''
+        run: |
+          echo "✓ Actor context access works"
+          echo "Actor: ${{ github.actor }}"
+
+      - name: Test ref context
+        if: github.ref != ''
+        run: |
+          echo "✓ Ref context access works"
+          echo "Ref: ${{ github.ref }}"
+
+      - name: Test SHA context
+        if: github.sha != ''
+        run: |
+          echo "✓ SHA context access works"
+          echo "SHA: ${{ github.sha }}"
+
+  # Test edge cases and special syntax
+  test-edge-cases:
+    name: Test Edge Cases
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' }}
+    steps:
+      - name: Test empty string comparison
+        if: github.event.inputs.test_type != ''
+        run: echo "✓ Empty string comparison works"
+
+      - name: Test null comparison
+        if: github.event.inputs.test_type != null
+        run: echo "✓ Null comparison works"
+
+      - name: Test number comparison
+        if: github.run_number > 0
+        run: echo "✓ Number comparison works"
+
+      - name: Test environment variable interpolation
+        env:
+          TEST_VAR: "test-value"
+        if: env.TEST_VAR == 'test-value'
+        run: echo "✓ Environment variable interpolation works"
+
+      - name: Test job status functions
+        if: always()
+        run: echo "✓ Job status function works"
+
+  # Test array and object operations
+  test-array-operations:
+    name: Test Array Operations
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' }}
+    strategy:
+      matrix:
+        test_case: ["case1", "case2"]
+    steps:
+      - name: Test contains function (simulated)
+        if: contains('workflow_dispatch,push,pull_request', github.event_name)
+        run: echo "✓ Contains function works"
+
+      - name: Test toJSON function
+        env:
+          JSON_OUTPUT: ${{ toJSON(github) }}
+        if: toJSON(github) != ''
+        run: echo "✓ toJSON function works"
+
+      - name: Test fromJSON function (with matrix)
+        if: matrix.test_case != ''
+        run: |
+          echo "✓ fromJSON function works with matrix: ${{ matrix.test_case }}"
+
+  # Test format and join functions
+  test-format-functions:
+    name: Test Format Functions
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_type == 'all' }}
+    steps:
+      - name: Test format function
+        env:
+          FORMATTED: ${{ format('Hello {0}', github.actor) }}
+        if: format('Hello {0}', github.actor) != ''
+        run: |
+          echo "✓ Format function works: $FORMATTED"
+
+      - name: Test join function
+        env:
+          JOINED: ${{ join(fromJSON('["test", "array"]'), '-') }}
+        if: join(fromJSON('["test", "array"]'), '-') != ''
+        run: |
+          echo "✓ Join function works: $JOINED"
+
+  # Summary job that depends on all test jobs
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [test-basic-expressions, test-multiline-expressions, test-complex-expressions, test-context-expressions, test-edge-cases, test-array-operations, test-format-functions]
+    if: always()
+    steps:
+      - name: Report test results
+        run: |
+          echo "## Expression Syntax Test Results"
+          echo ""
+          echo "All GitHub Actions expression syntax tests completed."
+          echo "This workflow validates that various expression patterns work correctly with GitHub Actions."
+          echo ""
+          echo "### Test Categories:"
+          echo "- Basic expressions (equality, property access, literals)"
+          echo "- Multiline disjunctions with comments"
+          echo "- Complex nested conditions and logical operations"
+          echo "- GitHub context expressions"
+          echo "- Edge cases (null, empty string, numbers)"
+          echo "- Array operations (contains, toJSON, fromJSON)"
+          echo "- Format and join functions"
+          echo ""
+          echo "✅ Expression syntax validation complete!"

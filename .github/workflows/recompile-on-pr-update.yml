@@ -1,0 +1,98 @@
+name: Recompile Agentic Workflows on PR Update
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - '.github/workflows/*.md'
+      - 'pkg/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+
+jobs:
+  recompile-workflows:
+    name: Recompile Agentic Workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Show commit info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha;
+            const prHeadSha = context.payload.pull_request.head.sha;
+            const branch = context.payload.pull_request.head.ref;
+            console.log(`context: ${JSON.stringify(context, null, 2)}`);
+            console.log(`Commit SHA: ${sha}`);
+            console.log(`PR head SHA: ${prHeadSha}`);
+            console.log(`Branch: ${branch}`);
+            
+            // Get commit details
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: sha
+            });
+            
+            const commitMessage = commit.commit.message;
+            console.log(`Commit message: ${commitMessage}`);
+            
+            console.log('Checking if this is a merge commit...');
+            
+            if (!commitMessage.startsWith('Merge')) {
+              console.log('This is a not merge commit, cancelling job');
+              process.exit(78);
+            }
+            
+            console.log('Merge commit, continuing with recompilation');
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Checkout the PR head ref to work on the feature branch
+          ref: ${{ github.head_ref }}
+          # Use a token that can push to the PR branch
+          token: ${{ github.token }}
+          # Fetch full history to ensure proper git operations
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Build project
+        run: make build
+
+      - name: Recompile workflows
+        run: make recompile
+
+      - name: Show diff summary
+        run: |
+          git diff --name-only
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Files changed:"
+            git status --porcelain
+          fi
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .github/workflows/*.lock.yml .gitattributes
+          git commit -m "[skip ci] Recompile agentic workflows after PR update [skip-ci]"
+          git push

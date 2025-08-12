@@ -1,0 +1,61 @@
+name: "Check if actor is team member"
+description: "Checks if the current GitHub actor is a member of the repository's organization/team"
+outputs:
+  is_team_member:
+    description: "Boolean indicating if the actor is a team member (true/false)"
+runs:
+  using: "composite"
+  steps:
+    - name: Check team membership
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const actor = context.actor;
+          const { owner, repo } = context.repo;
+          
+          console.log(`Checking if user '${actor}' is a member of organization '${owner}'`);
+          
+          try {
+            // First, check if the actor has repository access (admin, write, maintain permissions)
+            try {
+              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: owner,
+                repo: repo,
+                username: actor
+              });
+              
+              const permission = repoPermission.data.permission;
+              console.log(`Repository permission level: ${permission}`);
+              
+              if (permission === 'admin' || permission === 'write' || permission === 'maintain') {
+                console.log(`User has ${permission} access to repository`);
+                core.setOutput('is_team_member', 'true');
+                return;
+              }
+            } catch (repoError) {
+              console.log(`Repository permission check failed: ${repoError.message}`);
+              // Continue to org membership check
+            }
+            
+            // Fallback: check organization membership
+            try {
+              await github.rest.orgs.getMembershipForUser({
+                org: owner,
+                username: actor
+              });
+              console.log(`User is a member of organization ${owner}`);
+              core.setOutput('is_team_member', 'true');
+              return;
+            } catch (orgError) {
+              console.log(`Organization membership check failed: ${orgError.message}`);
+            }
+            
+            // If both checks failed, user is not a team member
+            console.log('User is not a team member (no repository access and not org member)');
+            core.setOutput('is_team_member', 'false');
+            
+          } catch (error) {
+            console.error(`Error checking team membership: ${error.message}`);
+            // Default to false on error for security
+            core.setOutput('is_team_member', 'false');
+          }

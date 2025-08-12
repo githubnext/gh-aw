@@ -1,0 +1,93 @@
+name: Use Repo-mind index through MCP server tool
+
+on:
+  workflow_dispatch:
+
+jobs:
+  repo-mind:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history instead of shallow clone
+      
+    - name: Start the Repo-mind MCP server
+      id: repo-mind-server
+      uses: githubnext/repo-mind/.github/actions/server@main
+      with:
+        GITHUBNEXT_MODEL_8_UKSOUTH_API_KEY: ${{ secrets.GITHUBNEXT_MODEL_8_UKSOUTH_API_KEY }}
+        GITHUBNEXT_EASTUS2_API_KEY: ${{ secrets.GITHUBNEXT_EASTUS2_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup MCP servers
+      shell: bash
+      run: |
+        echo "Configuring Claude to use ${{ steps.repo-mind-server.outputs.repo_mind_mcp_server_name }}"
+        mkdir -p /tmp/mcp-config
+        cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
+        {
+          "mcpServers": {
+            "repo-mind": {
+              "command": "docker",
+              "args": [
+                "attach",
+                "${{ steps.repo-mind-server.outputs.repo_mind_mcp_server_name }}"
+              ]
+            }
+          }
+        }
+        EOF
+
+    - name: Configure Claude prompt
+      shell: bash
+      run: |
+        mkdir -p /tmp/nlact-prompts
+        cat > /tmp/nlact-prompts/prompt.txt << 'EOF'
+        # Repository Explorer
+        
+        Explore what is this repository about using the Repo-mind index.
+        EOF
+
+    - name: Run Claude Code
+      uses: anthropics/claude-code-base-action@beta
+      with:
+        prompt_file: /tmp/nlact-prompts/prompt.txt
+        allowed_tools: |
+          mcp__repo-mind__query
+        timeout_minutes: 10
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        mcp_config: /tmp/mcp-config/mcp-servers.json
+        claude_env: |
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Collect Docker logs
+      shell: bash
+      if: always()
+      run: |
+        # Create directory for docker logs
+        mkdir -p ${{ github.workspace }}/.docker-logs/
+        
+        # Copy all .log files from the container
+        docker cp ${{ steps.repo-mind-server.outputs.repo_mind_mcp_server_name }}:/opt/repo-mind-action/tmp/ ${{ github.workspace }}/.docker-logs/tmp/ || echo "No files to copy or container not found"
+        
+        # Move only .log files to the root of .docker-logs and clean up
+        find ${{ github.workspace }}/.docker-logs/tmp/ -name "*.log" -exec mv {} ${{ github.workspace }}/.docker-logs/ \; 2>/dev/null || echo "No .log files found"
+        
+        # Remove the tmp directory structure
+        rm -rf ${{ github.workspace }}/.docker-logs/tmp/ 2>/dev/null || true
+        
+        # List what we copied for debugging
+        echo "Copied log files:"
+        ls -la ${{ github.workspace }}/.docker-logs/ || echo "No log files found"
+        
+    - name: Upload Docker logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: docker-logs
+        path: |
+          ${{ github.workspace }}/.docker-logs/
+        include-hidden-files: true
+        

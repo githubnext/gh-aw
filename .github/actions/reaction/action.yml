@@ -1,0 +1,130 @@
+name: "Add/Remove reaction on triggering item"
+description: "Adds or removes a reaction on the issue/PR/comment that triggered the workflow"
+inputs:
+  github-token:
+    description: "Token with issues/pull-requests write (GITHUB_TOKEN is fine)"
+    required: true
+  mode:
+    description: "'add' or 'remove'"
+    required: true
+  reaction:
+    description: "One of +1, -1, laugh, confused, heart, hooray, rocket, eyes"
+    required: false
+    default: "eyes"
+  reaction-id:
+    description: "Optional reaction id to remove (if known)"
+    required: false
+outputs:
+  reaction-id:
+    description: "ID of the reaction that was added (for later removal)"
+runs:
+  using: "composite"
+  steps:
+    - name: Compute reactions API endpoint for the triggering payload
+      id: ctx
+      shell: bash
+      env:
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_EVENT_PATH: ${{ github.event_path }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        owner="${GITHUB_REPOSITORY%%/*}"
+        repo="${GITHUB_REPOSITORY##*/}"
+        ev="$GITHUB_EVENT_PATH"
+
+        case "$GITHUB_EVENT_NAME" in
+          issues)
+            number=$(jq -r '.issue.number' "$ev")
+            endpoint="/repos/$owner/$repo/issues/$number/reactions"
+            ;;
+          issue_comment)
+            cid=$(jq -r '.comment.id' "$ev")
+            endpoint="/repos/$owner/$repo/issues/comments/$cid/reactions"
+            ;;
+          pull_request|pull_request_target)
+            number=$(jq -r '.pull_request.number' "$ev")
+            # PRs are "issues" for the reactions endpoint
+            endpoint="/repos/$owner/$repo/issues/$number/reactions"
+            ;;
+          pull_request_review_comment)
+            cid=$(jq -r '.comment.id' "$ev")
+            endpoint="/repos/$owner/$repo/pulls/comments/$cid/reactions"
+            ;;
+          *)
+            echo "Unsupported event: $GITHUB_EVENT_NAME" >&2
+            exit 1
+            ;;
+        esac
+
+        echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+    - name: Add reaction
+      if: ${{ inputs.mode == 'add' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        ENDPOINT: ${{ steps.ctx.outputs.endpoint }}
+        REACTION: ${{ inputs.reaction }}
+      run: |
+        set -euo pipefail
+        # Create (or fetch existing) reaction
+        # The API returns the reaction object (201 on create, 200 if it already existed)
+        resp=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -X POST "$ENDPOINT" \
+          -f content="$REACTION" \
+          || true)
+
+        # If a concurrent create happened, fall back to listing to find our reaction
+        if [ -z "${resp:-}" ] || [ "$resp" = "null" ]; then
+          resp=$(gh api -H "Accept: application/vnd.github+json" "$ENDPOINT")
+          rid=$(echo "$resp" | jq -r --arg r "$REACTION" \
+            '.[] | select(.content==$r and .user.login=="github-actions[bot]") | .id' | head -n1)
+        else
+          rid=$(echo "$resp" | jq -r '.id')
+          if [ "$rid" = "null" ] || [ -z "$rid" ]; then
+            # fallback to list, just in case
+            list=$(gh api -H "Accept: application/vnd.github+json" "$ENDPOINT")
+            rid=$(echo "$list" | jq -r --arg r "$REACTION" \
+              '.[] | select(.content==$r and .user.login=="github-actions[bot]") | .id' | head -n1)
+          fi
+        fi
+
+        if [ -z "${rid:-}" ]; then
+          echo "Warning: could not determine reaction id; cleanup will list/filter." >&2
+        fi
+
+        echo "reaction-id=${rid:-}" >> "$GITHUB_OUTPUT"
+
+    - name: Remove reaction
+      if: ${{ inputs.mode == 'remove' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        ENDPOINT: ${{ steps.ctx.outputs.endpoint }}
+        REACTION: ${{ inputs.reaction }}
+        REACTION_ID_IN: ${{ inputs.reaction-id }}
+      run: |
+        set -euo pipefail
+
+        delete_by_id () {
+          local rid="$1"
+          if [ -n "$rid" ] && [ "$rid" != "null" ]; then
+            gh api -H "Accept: application/vnd.github+json" -X DELETE "/reactions/$rid" || true
+          fi
+        }
+
+        if [ -n "$REACTION_ID_IN" ]; then
+          # Fast path: we were given the id from the add step
+          delete_by_id "$REACTION_ID_IN"
+          exit 0
+        fi
+
+        # Fallback: list reactions on the same subject, and delete the bot's matching reaction(s)
+        list=$(gh api -H "Accept: application/vnd.github+json" "$ENDPOINT" || echo "[]")
+        echo "$list" | jq -r --arg r "$REACTION" '
+          .[] | select(.content==$r and .user.login=="github-actions[bot]") | .id
+        ' | while read -r rid; do
+          delete_by_id "$rid"
+        done
