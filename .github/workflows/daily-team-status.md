@@ -9,7 +9,7 @@ timeout_minutes: 15
 permissions:
   contents: read
   models: read
-  issues: write
+  issues: write  # needed to write the output status report to an issue
   pull-requests: read
   discussions: read
   actions: read
@@ -65,11 +65,11 @@ tools:
 
    Only a new issue should be created, no existing issues should be adjusted.
 
-@include shared/include-link.md
+@include agentics/shared/include-link.md
 
-@include shared/job-summary.md
+@include agentics/shared/job-summary.md
 
-@include shared/xpia.md
+@include agentics/shared/xpia.md
 
-@include shared/gh-extra-tools.md
+@include agentics/shared/gh-extra-tools.md
 

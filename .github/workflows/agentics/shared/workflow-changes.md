@@ -1,0 +1,1 @@
+> NOTE: If changes need to be made to .github/workflows, you won't be able to do that directly because of permissions restrictions in automated agents creating workflows on GitHub. Instead, create a pull request putting the new files under .github/workflows-new (leave the old ones unchanged). Mention this very clearly in your pull request.

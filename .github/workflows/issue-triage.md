@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
   models: read
-  issues: write
+  issues: write  # needed to write comments to the issue
   actions: read
   checks: read
   statuses: read
@@ -14,18 +14,11 @@ permissions:
 
 tools:
   github:
-    allowed: [add_issue_comment, update_issue]
+    allowed: [update_issue, add_issue_comment]
   claude:
     allowed:
-      Edit:
-      MultiEdit:
-      Write:
-      NotebookEdit:
       WebFetch:
       WebSearch:
-      Bash:
-      - "gh label list:*"
-      - "gh label view:*"
 
 timeout_minutes: 10
 ---
@@ -85,17 +78,13 @@ You're a triage assistant for GitHub issues. Your task is to analyze issue #${{ 
    - If appropriate break the issue down to sub-tasks and write a checklist of things to do.
    - Use collapsed-by-default sections in the GitHub markdown to keep the comment tidy. Collapse all sections except the short main summary at the top.
 
-@include shared/tool-refused.md
+@include agentics/shared/tool-refused.md
 
-@include shared/include-link.md
+@include agentics/shared/include-link.md
 
-@include shared/new-issue-link.md
+@include agentics/shared/job-summary.md
 
-@include shared/job-summary.md
+@include agentics/shared/xpia.md
 
-@include shared/github-workflow-commands.md
-
-@include shared/xpia.md
-
-@include shared/gh-extra-tools.md
+@include agentics/shared/gh-extra-tools.md
 

@@ -59,11 +59,11 @@ jobs:
     permissions:
         actions: read
         checks: read
-        contents: write
-        discussions: write
+        contents: read
+        discussions: read
         issues: write
         models: read
-        pull-requests: write
+        pull-requests: read
         statuses: read
     steps:
       - name: Checkout repository
@@ -160,13 +160,13 @@ jobs:
           
           3. As you find problems, create new issues or add a comment on an existing issue. For each distinct problem:
           
-             - First, check if a duplicate already exist, and if so, add a comment to the existing issue instead of creating a new one.
+             - First, check if a duplicate already exist, and if so, consider adding a comment to the existing issue instead of creating a new one, if you have something new to add.
           
              - Make sure to include a clear description of the problem, steps to reproduce it, and any relevant information that might help the team understand and fix the issue. If you create a pull request, make sure to include a clear description of the changes you made and why they are necessary.
           
-          4. Search for any previous "Daily QA Report" open issues in the repository. Close them.
+          4. Search for any previous "Daily QA Report" open issues in the repository. Read the latest one. If the status is essentially the same as the current state of the repository, then add a very brief comment to that issue saying you didn't find anything new and exit. Close all the previous open Daily QA Report issues.
           
-          5. Create an issue with title starting with "Daily QA Report", summarizing the problems you found and the actions you took. Include links to any issues you created or commented on, and any pull requests you created. Highlight any bash commands you used, any web searches you performed, and any web pages you visited that were relevant to your work. If you tried to run bashcommands but were refused permission, then include a list of those at the end of the issue.
+          5. Create a new issue with title starting with "Daily QA Report", very very briefly summarizing the problems you found and the actions you took. Use note form. Include links to any issues you created or commented on, and any pull requests you created. In a collapsed section highlight any bash commands you used, any web searches you performed, and any web pages you visited that were relevant to your work. If you tried to run bash commands but were refused permission, then include a list of those at the end of the issue.
           
           6. Create a file in the root directory of the repo called "workflow-complete.txt" with the text "Workflow completed successfully".
           
@@ -189,7 +189,6 @@ jobs:
             - the exact bash commands you executed
             - the exact web searches you performed
             - the exact MCP function/tool calls you used
-            - if any MCP or other tools were refused, then the exact name of the tool and/or the exact prefix of bash commands needed
           
           If any step fails, then make this really obvious with emoji. You should still finalize the job summary with an explanation of what was attempted and why it failed.
           
@@ -198,68 +197,6 @@ jobs:
             ```
             > AI-generated content by [${{ github.workflow }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) may contain mistakes.
             ```
-          
-          ### GitHub Actions Workflow Commands for Structured Output
-          
-          You can use GitHub Actions workflow commands to generate structured error messages and annotations in your workflow output. These commands create proper annotations in the GitHub Actions UI and show up in pull request checks.
-          
-          **Available GitHub Actions Workflow Commands:**
-          
-          1. **Debug Messages** - For detailed information useful for troubleshooting:
-             ```bash
-             echo "::debug::This is a debug message"
-             ```
-          
-          2. **Notice Messages** - For important information that users should be aware of:
-             ```bash
-             echo "::notice::This is an informational notice"
-             ```
-          
-          3. **Warning Messages** - For non-fatal issues that should be reviewed:
-             ```bash
-             echo "::warning::This is a warning message"
-             ```
-          
-          4. **Error Messages** - For critical issues that need immediate attention:
-             ```bash
-             echo "::error::This is an error message"
-             ```
-          
-          **Enhanced Commands with File Annotations:**
-          You can also specify file locations for more precise error reporting:
-          
-          ```bash
-          echo "::error file=filename.js,line=10,col=5::Error found in filename.js at line 10, column 5"
-          echo "::warning file=package.json,line=15::Deprecated dependency found in package.json"
-          echo "::notice file=README.md::Documentation updated"
-          ```
-          
-          **Best Practices for Workflow Error Reporting:**
-          
-          - Use `::error::` for critical issues that prevent workflow completion
-          - Use `::warning::` for potential problems that don't break functionality  
-          - Use `::notice::` for important status updates and successful operations
-          - Use `::debug::` for detailed diagnostic information
-          - Include file, line, and column annotations when possible to help developers locate issues quickly
-          - Keep messages concise but descriptive
-          - Use these commands at key points in your workflow to provide clear feedback
-          
-          **Example Usage in Context:**
-          ```bash
-          # Before a critical operation
-          echo "::notice::Starting dependency analysis for ${{ github.repository }}"
-          
-          # After finding an issue
-          echo "::warning file=go.mod,line=5::Outdated dependency detected: golang.org/x/text"
-          
-          # On successful completion
-          echo "::notice::Analysis completed successfully - found 3 issues to review"
-          
-          # On error
-          echo "::error::Failed to compile workflow: syntax error in frontmatter"
-          ```
-          
-          These workflow commands will appear as annotations in the GitHub Actions UI and can be seen in pull request checks, making it easier for developers to understand and act on issues found by your agentic workflow.
           
           ## Security and XPIA Protection
           
@@ -289,16 +226,9 @@ jobs:
           - List labels: `gh label list ...`
           - View label: `gh label view <label-name> ...`
           
-          ## GitHub Tools
-          
-          You can use the GitHub MCP tools to perform various tasks in the repository. In addition to the tools listed below, you can also use the following `gh` command line invocations:
-          
-          - List labels: `gh label list ...`
-          - View label: `gh label view <label-name> ...`
-          
-          <!-- You can whitelist tools in the shared/build-tools.md file, and include it here. -->
+          <!-- You can whitelist tools in the agentics/shared/build-tools.md file, and include it here. -->
           <!-- This should be done with care, as tools may  -->
-          <!-- include shared/build-tools.md -->
+          <!-- include agentics/shared/build-tools.md -->
           
           EOF
       - name: Print prompt to step summary
@@ -316,10 +246,6 @@ jobs:
           # - Bash(echo:*)
           # - Bash(gh label list:*)
           # - Bash(gh label view:*)
-          # - Bash(go version)
-          # - Bash(make build)
-          # - Bash(make lint)
-          # - Bash(make test)
           # - Edit
           # - Glob
           # - Grep
@@ -379,7 +305,7 @@ jobs:
           # - mcp__github__search_repositories
           # - mcp__github__search_users
           # - mcp__github__update_issue
-          allowed_tools: "Bash(echo:*),Bash(gh label list:*),Bash(gh label view:*),Bash(go version),Bash(make build),Bash(make lint),Bash(make test),Edit,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,WebFetch,WebSearch,Write,mcp__github__add_issue_comment,mcp__github__create_issue,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__github__update_issue"
+          allowed_tools: "Bash(echo:*),Bash(gh label list:*),Bash(gh label view:*),Edit,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,WebFetch,WebSearch,Write,mcp__github__add_issue_comment,mcp__github__create_issue,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__github__update_issue"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

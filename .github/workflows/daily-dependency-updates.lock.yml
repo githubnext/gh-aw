@@ -100,10 +100,13 @@ jobs:
           
           Your name is "${{ github.workflow }}". Your job is to act as an agentic coder for the GitHub repository `${{ env.GITHUB_REPOSITORY }}`. You're really good at all kinds of tasks. You're excellent at everything.
           
-          1. Check the dependabot alerts in the repository. If there are any that aren't already covered by existing non-Dependabot pull requests, update the dependencies to the latest versions, by updating actual dependencies in dependency declaration files (package.json, go.mod etc), not just lock files, and create a pull request with the changes. For Go projects, run `go mod tidy` after updating go.mod to refresh go.sum. Try to bundle as many dependency updates as possible into one PR. Test the changes to ensure they work correctly, if the tests don't pass then divide and conquer and create separate pull requests for each dependency update. If the tests do pass close any Dependabot PRs that are already open for the same dependency updates with a note that the changes have been made in a different PR.
+          1. Check the dependabot alerts in the repository. If there are any that aren't already covered by existing non-Dependabot pull requests, update the dependencies to the latest versions, by updating actual dependencies in dependency declaration files (package.json etc), not just lock files, and create a draft pull request with the changes.
           
              - Use the `list_dependabot_alerts` tool to retrieve the list of Dependabot alerts.
              - Use the `get_dependabot_alert` tool to retrieve details of each alert.
+          
+          2. Check for an existing PR starting with title "Daily Dependency Updates". Add your additional updates to that PR if it exists, otherwise create a new PR.  Try to bundle as many dependency updates as possible into one PR. Test the changes to ensure they work correctly, if the tests don't pass then divide and conquer and create separate PRs for each dependency update. 
+          
              - Use the `create_pull_request` tool to create a pull request with the changes.
              - Use the `update_pull_request` tool to update pull requests with any additional changes.
           
@@ -134,7 +137,6 @@ jobs:
             - the exact bash commands you executed
             - the exact web searches you performed
             - the exact MCP function/tool calls you used
-            - if any MCP or other tools were refused, then the exact name of the tool and/or the exact prefix of bash commands needed
           
           If any step fails, then make this really obvious with emoji. You should still finalize the job summary with an explanation of what was attempted and why it failed.
           
@@ -172,9 +174,9 @@ jobs:
           - List labels: `gh label list ...`
           - View label: `gh label view <label-name> ...`
           
-          <!-- You can whitelist tools in the shared/build-tools.md file, and include it here. -->
+          <!-- You can whitelist tools in the agentics/shared/build-tools.md file, and include it here. -->
           <!-- This should be done with care, as tools may  -->
-          <!-- include shared/build-tools.md -->
+          <!-- include agentics/shared/build-tools.md -->
           
           EOF
       - name: Print prompt to step summary
@@ -192,8 +194,6 @@ jobs:
           # - Bash(echo:*)
           # - Bash(gh label list:*)
           # - Bash(gh label view:*)
-          # - Bash(go mod download)
-          # - Bash(go mod tidy)
           # - Edit
           # - Glob
           # - Grep
@@ -258,7 +258,7 @@ jobs:
           # - mcp__github__search_users
           # - mcp__github__update_issue
           # - mcp__github__update_pull_request
-          allowed_tools: "Bash(echo:*),Bash(gh label list:*),Bash(gh label view:*),Bash(go mod download),Bash(go mod tidy),Edit,Glob,Grep,LS,MultiEdit,NotebookRead,Read,Task,WebFetch,WebSearch,Write,mcp__github__add_issue_comment,mcp__github__create_branch,mcp__github__create_issue,mcp__github__create_or_update_file,mcp__github__create_pull_request,mcp__github__delete_file,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__push_files,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__github__update_issue,mcp__github__update_pull_request"
+          allowed_tools: "Bash(echo:*),Bash(gh label list:*),Bash(gh label view:*),Edit,Glob,Grep,LS,MultiEdit,NotebookRead,Read,Task,WebFetch,WebSearch,Write,mcp__github__add_issue_comment,mcp__github__create_branch,mcp__github__create_issue,mcp__github__create_or_update_file,mcp__github__create_pull_request,mcp__github__delete_file,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__push_files,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__github__update_issue,mcp__github__update_pull_request"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
