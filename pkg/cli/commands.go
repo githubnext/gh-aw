@@ -905,6 +905,13 @@ func RemoveWorkflows(pattern string) error {
 		return nil
 	}
 
+	// Preview orphaned includes that would be removed
+	orphanedIncludes, err := previewOrphanedIncludes(filesToRemove, false)
+	if err != nil {
+		fmt.Printf("Warning: Failed to preview orphaned includes: %v\n", err)
+		orphanedIncludes = []string{} // Continue with empty list
+	}
+
 	// Show what will be removed
 	fmt.Printf("The following workflows will be removed:\n")
 	for _, file := range filesToRemove {
@@ -919,6 +926,14 @@ func RemoveWorkflows(pattern string) error {
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
 		if _, err := os.Stat(lockFile); err == nil {
 			fmt.Printf("  %s (compiled workflow)\n", filepath.Base(lockFile))
+		}
+	}
+
+	// Show orphaned includes that will also be removed
+	if len(orphanedIncludes) > 0 {
+		fmt.Printf("\nThe following orphaned include files will also be removed:\n")
+		for _, include := range orphanedIncludes {
+			fmt.Printf("  %s (orphaned include)\n", include)
 		}
 	}
 
@@ -2483,6 +2498,104 @@ func cleanupOrphanedIncludes(verbose bool) error {
 	}
 
 	return nil
+}
+
+// previewOrphanedIncludes returns a list of include files that would become orphaned if the specified files were removed
+func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, error) {
+	// Get all current markdown files
+	allMdFiles, err := getMarkdownWorkflowFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a map of files to remove for quick lookup
+	removeMap := make(map[string]bool)
+	for _, file := range filesToRemove {
+		removeMap[file] = true
+	}
+
+	// Get the files that would remain after removal
+	var remainingFiles []string
+	for _, file := range allMdFiles {
+		if !removeMap[file] {
+			remainingFiles = append(remainingFiles, file)
+		}
+	}
+
+	// If no files remain, all include files would be orphaned
+	if len(remainingFiles) == 0 {
+		return getAllIncludeFiles()
+	}
+
+	// Collect all include dependencies from remaining workflows
+	usedIncludes := make(map[string]bool)
+
+	for _, mdFile := range remainingFiles {
+		content, err := os.ReadFile(mdFile)
+		if err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not read %s for include analysis: %v\n", mdFile, err)
+			}
+			continue
+		}
+
+		// Find includes used by this workflow
+		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
+		if err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not analyze includes in %s: %v\n", mdFile, err)
+			}
+			continue
+		}
+
+		for _, include := range includes {
+			usedIncludes[include] = true
+		}
+	}
+
+	// Find all include files and check which ones would be orphaned
+	allIncludes, err := getAllIncludeFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	var orphanedIncludes []string
+	for _, include := range allIncludes {
+		if !usedIncludes[include] {
+			orphanedIncludes = append(orphanedIncludes, include)
+		}
+	}
+
+	return orphanedIncludes, nil
+}
+
+// getAllIncludeFiles returns all include files in .github/workflows subdirectories
+func getAllIncludeFiles() ([]string, error) {
+	workflowsDir := ".github/workflows"
+	var allIncludes []string
+
+	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
+			relPath, err := filepath.Rel(workflowsDir, path)
+			if err != nil {
+				return err
+			}
+			
+			// Only consider files in subdirectories as potential include files
+			// Root-level .md files are workflow files, not include files
+			if strings.Contains(relPath, string(filepath.Separator)) {
+				allIncludes = append(allIncludes, relPath)
+			}
+		}
+
+		return nil
+	})
+
+	return allIncludes, err
 }
 
 // cleanupAllIncludes removes all include files when no workflows remain
