@@ -50,6 +50,44 @@ func TestFormatDuration(t *testing.T) {
 	}
 }
 
+func TestFormatNumber(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected string
+	}{
+		{0, "0"},
+		{5, "5"},
+		{42, "42"},
+		{999, "999"},
+		{1000, "1.00k"},
+		{1200, "1.20k"},
+		{1234, "1.23k"},
+		{12000, "12.0k"},
+		{12300, "12.3k"},
+		{123000, "123k"},
+		{999999, "1000k"},
+		{1000000, "1.00M"},
+		{1200000, "1.20M"},
+		{1234567, "1.23M"},
+		{12000000, "12.0M"},
+		{12300000, "12.3M"},
+		{123000000, "123M"},
+		{999999999, "1000M"},
+		{1000000000, "1.00B"},
+		{1200000000, "1.20B"},
+		{1234567890, "1.23B"},
+		{12000000000, "12.0B"},
+		{123000000000, "123B"},
+	}
+
+	for _, test := range tests {
+		result := formatNumber(test.input)
+		if result != test.expected {
+			t.Errorf("formatNumber(%d) = %s, expected %s", test.input, result, test.expected)
+		}
+	}
+}
+
 func TestParseLogFileWithoutAwInfo(t *testing.T) {
 	// Create a temporary log file
 	tmpDir := t.TempDir()
