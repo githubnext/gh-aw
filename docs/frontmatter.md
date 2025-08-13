@@ -53,9 +53,9 @@ on:
   workflow_dispatch:
 ```
 
-### Special `alias` Trigger
+## Special `alias:` Trigger
 
-Create workflows that respond to `@mentions` in issues and comments:
+GitHub Agentic Workflows add the convenience `alias:` trigger to create workflows that respond to `@mentions` in issues and comments.
 
 ```yaml
 on:
@@ -79,7 +79,9 @@ on:
     - cron: "0 9 * * 1"
 ```
 
-**Note**: Cannot combine `alias` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
+**Note**: You cannot combine `alias` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
+
+**Note**: Using this feature results in the addition of `.github/actions/check-team-member/action.yml` file to the repository when the workflow is compiled. This file is used to check if the user triggering the workflow has appropriate permissions to operate in the repository.
 
 #### Example alias workflow
 
@@ -118,6 +120,8 @@ All workflows have access to a computed `text` output variable that provides con
 - **PR Review Comments**: `comment.body`
 - **PR Reviews**: `review.body`
 - **Other events**: Empty string
+
+**Note**: Using this feature results in the addition of ".github/actions/compute-text/action.yml" file to the repository when the workflow is compiled.
 
 ## Permissions (`permissions:`)
 
@@ -201,17 +205,20 @@ stop-time: "2025-12-31 23:59:59"
 Emoji reaction added/removed on triggering GitHub items:
 
 ```yaml
-ai-reaction: "eyes"  # Default
+ai-reaction: "eyes"
 ```
 
 **Available reactions:**
-- `+1` (👍), `-1` (👎), `laugh` (😄), `confused` (😕)
-- `heart` (❤️), `hooray` (🎉), `rocket` (🚀), `eyes` (👀)
+- `+1` (👍)
+- `-1` (👎)
+- `laugh` (😄)
+- `confused` (😕)
+- `heart` (❤️)
+- `hooray` (🎉)
+- `rocket` (🚀)
+- `eyes` (👀)
 
-**Behavior:**
-1. **Added**: When workflow starts
-2. **Removed**: When workflow completes successfully
-3. **Default**: `eyes` if not specified
+**Note**: Using this feature results in the addition of ".github/actions/reaction/action.yml" file to the repository when the workflow is compiled.
 
 ## Cache Configuration (`cache:`)
 

@@ -253,3 +253,143 @@ func TestFileTracker_RollbackAllFiles(t *testing.T) {
 		t.Errorf("Existing file should be restored to original %q, got %q", originalContent, string(currentContent))
 	}
 }
+
+func TestCompileWorkflowWithTracking_SharedActions(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "shared-actions-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Initialize git repository in temp directory
+	gitCmd := []string{"git", "init"}
+	if err := runCommandInDir(gitCmd, tempDir); err != nil {
+		t.Skipf("Skipping test - git not available or failed to init: %v", err)
+	}
+
+	// Change to temp directory
+	oldWd, _ := os.Getwd()
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Test 1: Workflow WITH ai-reaction should create shared action
+	workflowWithReaction := `---
+name: Test Workflow With Reaction
+on: push
+ai-reaction: heart
+---
+
+This is a test workflow.
+
+## Job: test
+
+This uses ai-reaction.
+`
+
+	workflowFileWithReaction := filepath.Join(tempDir, "test-workflow-with-reaction.md")
+	if err := os.WriteFile(workflowFileWithReaction, []byte(workflowWithReaction), 0644); err != nil {
+		t.Fatalf("Failed to create workflow file: %v", err)
+	}
+
+	// Create file tracker
+	tracker, err := NewFileTracker()
+	if err != nil {
+		t.Fatalf("Failed to create file tracker: %v", err)
+	}
+
+	// Compile the workflow with tracking
+	if err := compileWorkflowWithTracking(workflowFileWithReaction, false, "", tracker); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Check that shared action files are tracked
+	allFiles := append(tracker.CreatedFiles, tracker.ModifiedFiles...)
+
+	// Should track the lock file
+	lockFile := filepath.Join(tempDir, "test-workflow-with-reaction.lock.yml")
+	found := false
+	for _, file := range allFiles {
+		if file == lockFile {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Lock file %s should be tracked", lockFile)
+	}
+
+	// Should track the shared reaction action
+	reactionActionFile := filepath.Join(tempDir, ".github", "actions", "reaction", "action.yml")
+	found = false
+	for _, file := range allFiles {
+		if file == reactionActionFile {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Reaction action file %s should be tracked", reactionActionFile)
+	}
+
+	// Verify the reaction action file was actually created
+	if _, err := os.Stat(reactionActionFile); os.IsNotExist(err) {
+		t.Errorf("Reaction action file %s should be created", reactionActionFile)
+	}
+
+	// Test 2: Workflow WITHOUT ai-reaction should NOT create shared action
+	workflowWithoutReaction := `---
+name: Test Workflow Without Reaction
+on: push
+---
+
+This is a test workflow.
+
+## Job: test
+
+This does NOT use ai-reaction.
+`
+
+	workflowFileWithoutReaction := filepath.Join(tempDir, "test-workflow-without-reaction.md")
+	if err := os.WriteFile(workflowFileWithoutReaction, []byte(workflowWithoutReaction), 0644); err != nil {
+		t.Fatalf("Failed to create workflow file: %v", err)
+	}
+
+	// Create new file tracker for second test
+	tracker2, err := NewFileTracker()
+	if err != nil {
+		t.Fatalf("Failed to create file tracker: %v", err)
+	}
+
+	// Remove the existing reaction action to test it's not created again
+	if err := os.RemoveAll(filepath.Join(tempDir, ".github", "actions", "reaction")); err != nil {
+		t.Fatalf("Failed to remove existing reaction action: %v", err)
+	}
+
+	// Compile the workflow with tracking
+	if err := compileWorkflowWithTracking(workflowFileWithoutReaction, false, "", tracker2); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Check that reaction action was NOT created
+	if _, err := os.Stat(reactionActionFile); !os.IsNotExist(err) {
+		t.Errorf("Reaction action file %s should NOT be created when ai-reaction is not specified", reactionActionFile)
+	}
+
+	// Check that reaction action is NOT tracked
+	allFiles2 := append(tracker2.CreatedFiles, tracker2.ModifiedFiles...)
+	found = false
+	for _, file := range allFiles2 {
+		if file == reactionActionFile {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Errorf("Reaction action file %s should NOT be tracked when ai-reaction is not specified", reactionActionFile)
+	}
+}

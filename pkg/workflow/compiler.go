@@ -37,6 +37,7 @@ type Compiler struct {
 	skipValidation bool            // If true, skip schema validation
 	jobManager     *JobManager     // Manages jobs and dependencies
 	engineRegistry *EngineRegistry // Registry of available agentic engines
+	createdFiles   []string        // Track files created during compilation
 }
 
 // generateSafeFileName converts a workflow name to a safe filename for logs
@@ -80,6 +81,7 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
 		engineRegistry: GetGlobalEngineRegistry(),
+		createdFiles:   make([]string, 0),
 	}
 
 	return c
@@ -88,6 +90,16 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// GetCreatedFiles returns the list of files created during compilation
+func (c *Compiler) GetCreatedFiles() []string {
+	return c.createdFiles
+}
+
+// ClearCreatedFiles clears the list of created files (useful for multiple compilations)
+func (c *Compiler) ClearCreatedFiles() {
+	c.createdFiles = nil
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -100,6 +112,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
 		engineRegistry: GetGlobalEngineRegistry(),
+		createdFiles:   make([]string, 0),
 	}
 
 	return c
@@ -179,18 +192,20 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 	}
 
-	// Write shared reaction action (always generated since reactions are always enabled)
-	if err := c.writeReactionAction(markdownPath); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("failed to write reaction action: %v", err),
-		})
-		return errors.New(formattedErr)
+	// Write shared reaction action only if ai-reaction is configured
+	if workflowData.AIReaction != "" {
+		if err := c.writeReactionAction(markdownPath); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("failed to write reaction action: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	}
 
 	// Write shared compute-text action (only if needed for task job)
@@ -550,11 +565,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Alias = c.extractAliasName(result.Frontmatter)
 	workflowData.AIReaction = c.extractYAMLValue(result.Frontmatter, "ai-reaction")
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
-
-	// Set default ai-reaction to "eyes" if not specified
-	if workflowData.AIReaction == "" {
-		workflowData.AIReaction = "eyes"
-	}
 
 	// Check if "alias" is used as a trigger in the "on" section
 	var hasAlias bool
@@ -1371,13 +1381,15 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add task job: %w", err)
 	}
 
-	// Build add-reaction job
-	addReactionJob, err := c.buildAddReactionJob(data)
-	if err != nil {
-		return fmt.Errorf("failed to build add-reaction job: %w", err)
-	}
-	if err := c.jobManager.AddJob(addReactionJob); err != nil {
-		return fmt.Errorf("failed to add add-reaction job: %w", err)
+	// Build add-reaction job only if ai-reaction is configured
+	if data.AIReaction != "" {
+		addReactionJob, err := c.buildAddReactionJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build add-reaction job: %w", err)
+		}
+		if err := c.jobManager.AddJob(addReactionJob); err != nil {
+			return fmt.Errorf("failed to add add-reaction job: %w", err)
+		}
 	}
 
 	// Build main workflow job
@@ -1678,6 +1690,8 @@ func (c *Compiler) writeSharedAction(markdownPath string, actionPath string, con
 		if err := os.WriteFile(actionFile, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write %s action: %w", actionName, err)
 		}
+		// Track the created file
+		c.createdFiles = append(c.createdFiles, actionFile)
 	} else {
 		// Check if the content is different and update if needed
 		existing, err := os.ReadFile(actionFile)
@@ -1691,6 +1705,8 @@ func (c *Compiler) writeSharedAction(markdownPath string, actionPath string, con
 			if err := os.WriteFile(actionFile, []byte(content), 0644); err != nil {
 				return fmt.Errorf("failed to update %s action: %w", actionName, err)
 			}
+			// Track the updated file
+			c.createdFiles = append(c.createdFiles, actionFile)
 		}
 	}
 
