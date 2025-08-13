@@ -30,108 +30,6 @@ var (
 	version = "dev"
 )
 
-// FileTracker keeps track of files created or modified during workflow operations
-// to enable proper staging and rollback functionality
-type FileTracker struct {
-	CreatedFiles  []string
-	ModifiedFiles []string
-	gitRoot       string
-}
-
-// NewFileTracker creates a new file tracker
-func NewFileTracker() (*FileTracker, error) {
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return nil, fmt.Errorf("file tracker requires being in a git repository: %w", err)
-	}
-	return &FileTracker{
-		CreatedFiles:  make([]string, 0),
-		ModifiedFiles: make([]string, 0),
-		gitRoot:       gitRoot,
-	}, nil
-}
-
-// TrackCreated adds a file to the created files list
-func (ft *FileTracker) TrackCreated(filePath string) {
-	absPath, err := filepath.Abs(filePath)
-	if err != nil {
-		absPath = filePath
-	}
-	ft.CreatedFiles = append(ft.CreatedFiles, absPath)
-}
-
-// TrackModified adds a file to the modified files list
-func (ft *FileTracker) TrackModified(filePath string) {
-	absPath, err := filepath.Abs(filePath)
-	if err != nil {
-		absPath = filePath
-	}
-	ft.ModifiedFiles = append(ft.ModifiedFiles, absPath)
-}
-
-// GetAllFiles returns all tracked files (created and modified)
-func (ft *FileTracker) GetAllFiles() []string {
-	all := make([]string, 0, len(ft.CreatedFiles)+len(ft.ModifiedFiles))
-	all = append(all, ft.CreatedFiles...)
-	all = append(all, ft.ModifiedFiles...)
-	return all
-}
-
-// StageAllFiles stages all tracked files using git add
-func (ft *FileTracker) StageAllFiles(verbose bool) error {
-	allFiles := ft.GetAllFiles()
-	if len(allFiles) == 0 {
-		if verbose {
-			fmt.Println("No files to stage")
-		}
-		return nil
-	}
-
-	if verbose {
-		fmt.Printf("Staging %d files...\n", len(allFiles))
-		for _, file := range allFiles {
-			fmt.Printf("  - %s\n", file)
-		}
-	}
-
-	// Stage all files in a single git add command
-	args := append([]string{"add"}, allFiles...)
-	cmd := exec.Command("git", args...)
-	cmd.Dir = ft.gitRoot
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to stage files: %w", err)
-	}
-
-	return nil
-}
-
-// RollbackCreatedFiles deletes all files that were created during the operation
-func (ft *FileTracker) RollbackCreatedFiles(verbose bool) error {
-	if len(ft.CreatedFiles) == 0 {
-		return nil
-	}
-
-	if verbose {
-		fmt.Printf("Rolling back %d created files...\n", len(ft.CreatedFiles))
-	}
-
-	var errors []string
-	for _, file := range ft.CreatedFiles {
-		if verbose {
-			fmt.Printf("  - Deleting %s\n", file)
-		}
-		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
-			errors = append(errors, fmt.Sprintf("failed to delete %s: %v", file, err))
-		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("rollback errors: %s", strings.Join(errors, "; "))
-	}
-
-	return nil
-}
-
 //go:embed templates/auto-compile-workflow.yml
 var autoCompileWorkflowTemplate string
 
@@ -384,8 +282,8 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 	rollbackOnError := true
 	defer func() {
 		if rollbackOnError {
-			if err := tracker.RollbackCreatedFiles(verbose); err != nil && verbose {
-				fmt.Printf("Warning: Failed to rollback created files: %v\n", err)
+			if err := tracker.RollbackAllFiles(verbose); err != nil && verbose {
+				fmt.Printf("Warning: Failed to rollback files: %v\n", err)
 			}
 		}
 		if err := switchBranch(currentBranch, verbose); err != nil && verbose {
@@ -568,11 +466,6 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 			content = updateWorkflowTitle(content, i)
 		}
 
-		// Write the file
-		if err := os.WriteFile(destFile, []byte(content), 0644); err != nil {
-			return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
-		}
-
 		// Track the file based on whether it existed before (if tracker is available)
 		if tracker != nil {
 			if fileExists {
@@ -580,6 +473,11 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 			} else {
 				tracker.TrackCreated(destFile)
 			}
+		}
+
+		// Write the file
+		if err := os.WriteFile(destFile, []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 		}
 
 		fmt.Printf("Added workflow: %s\n", destFile)
@@ -1451,30 +1349,30 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 		gitAttributesExists = true
 	}
 
-	// Create compiler and compile the workflow
-	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-	if err := compiler.CompileWorkflow(filePath); err != nil {
-		return err
-	}
-
-	// Track the lock file
+	// Track the lock file before compilation
 	if lockFileExists {
 		tracker.TrackModified(lockFile)
 	} else {
 		tracker.TrackCreated(lockFile)
 	}
 
+	// Track .gitattributes file before modification
+	if gitAttributesExists {
+		tracker.TrackModified(gitAttributesPath)
+	} else {
+		tracker.TrackCreated(gitAttributesPath)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
+	if err := compiler.CompileWorkflow(filePath); err != nil {
+		return err
+	}
+
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
 		if verbose {
 			fmt.Printf("Warning: Failed to update .gitattributes: %v\n", err)
-		}
-	} else {
-		// Track .gitattributes file
-		if gitAttributesExists {
-			tracker.TrackModified(gitAttributesPath)
-		} else {
-			tracker.TrackCreated(gitAttributesPath)
 		}
 	}
 

@@ -115,12 +115,14 @@ func TestFileTracker_ModifiedFiles(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	// Modify the file and track it
+	// Track modification BEFORE modifying the file
+	tracker.TrackModified(testFile)
+
+	// Now modify the file
 	modifiedContent := "# Modified Content"
 	if err := os.WriteFile(testFile, []byte(modifiedContent), 0644); err != nil {
 		t.Fatalf("Failed to modify test file: %v", err)
 	}
-	tracker.TrackModified(testFile)
 
 	// Verify tracking
 	if len(tracker.CreatedFiles) != 0 {
@@ -144,6 +146,29 @@ func TestFileTracker_ModifiedFiles(t *testing.T) {
 	if _, err := os.Stat(testFile); os.IsNotExist(err) {
 		t.Errorf("Modified file %s should not have been deleted during rollback", testFile)
 	}
+
+	// Verify file content is still modified
+	currentContent, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to read file after rollback: %v", err)
+	}
+	if string(currentContent) != modifiedContent {
+		t.Errorf("File content should still be modified, got %q", string(currentContent))
+	}
+
+	// Test rollback of modified files
+	if err := tracker.RollbackModifiedFiles(false); err != nil {
+		t.Errorf("Failed to rollback modified files: %v", err)
+	}
+
+	// Verify file content was restored to original
+	restoredContent, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to read file after modified rollback: %v", err)
+	}
+	if string(restoredContent) != originalContent {
+		t.Errorf("File content should be restored to original %q, got %q", originalContent, string(restoredContent))
+	}
 }
 
 // Helper function to run commands in a specific directory
@@ -157,4 +182,74 @@ func runCommandInDir(cmd []string, dir string) error {
 	c := exec.Command(command, args...)
 	c.Dir = dir
 	return c.Run()
+}
+
+func TestFileTracker_RollbackAllFiles(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "file-tracker-rollback-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Initialize git repository in temp directory
+	gitCmd := []string{"git", "init"}
+	if err := runCommandInDir(gitCmd, tempDir); err != nil {
+		t.Skipf("Skipping test - git not available or failed to init: %v", err)
+	}
+
+	// Change to temp directory
+	oldWd, _ := os.Getwd()
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create file tracker
+	tracker, err := NewFileTracker()
+	if err != nil {
+		t.Fatalf("Failed to create file tracker: %v", err)
+	}
+
+	// Create an existing file
+	existingFile := filepath.Join(tempDir, "existing.md")
+	originalContent := "# Original Content"
+	if err := os.WriteFile(existingFile, []byte(originalContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing file: %v", err)
+	}
+
+	// Track modification before modifying
+	tracker.TrackModified(existingFile)
+	modifiedContent := "# Modified Content"
+	if err := os.WriteFile(existingFile, []byte(modifiedContent), 0644); err != nil {
+		t.Fatalf("Failed to modify existing file: %v", err)
+	}
+
+	// Create a new file
+	newFile := filepath.Join(tempDir, "new.md")
+	tracker.TrackCreated(newFile)
+	if err := os.WriteFile(newFile, []byte("# New Content"), 0644); err != nil {
+		t.Fatalf("Failed to write new file: %v", err)
+	}
+
+	// Rollback all files
+	if err := tracker.RollbackAllFiles(false); err != nil {
+		t.Errorf("Failed to rollback all files: %v", err)
+	}
+
+	// Verify new file was deleted
+	if _, err := os.Stat(newFile); !os.IsNotExist(err) {
+		t.Errorf("New file %s should have been deleted", newFile)
+	}
+
+	// Verify existing file was restored to original content
+	currentContent, err := os.ReadFile(existingFile)
+	if err != nil {
+		t.Fatalf("Failed to read existing file after rollback: %v", err)
+	}
+	if string(currentContent) != originalContent {
+		t.Errorf("Existing file should be restored to original %q, got %q", originalContent, string(currentContent))
+	}
 }
