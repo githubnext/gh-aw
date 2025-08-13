@@ -178,7 +178,6 @@ Use GitHub Actions context expressions throughout the workflow content:
 ### Environment Variables
 - **`${{ github.repository }}`** - Repository name
 - **`${{ secrets.GITHUB_TOKEN }}`** - GitHub token
-- **Custom variables**: `${{ env.CUSTOM_VAR }}`
 
 ### Example Usage
 ```markdown
