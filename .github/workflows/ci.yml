@@ -49,8 +49,8 @@ jobs:
 
       - name: Check for changes in generated files
         run: |
-          git status --porcelain .github/workflows/*.lock.yml
-          
+          git status .github/workflows/*.lock.yml
+
       - name: Check for uncommitted workflow changes
         run: |
           if [ -n "$(git status --porcelain .github/workflows/*.yml)" ]; then
