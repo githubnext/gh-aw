@@ -4,6 +4,7 @@ package constants
 const CLIExtensionPrefix = "gh aw"
 
 // AllowedExpressions contains the GitHub Actions expressions that can be used in workflow markdown content
+// see https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context
 var AllowedExpressions = []string{
 	"github.event.after",
 	"github.event.before",
