@@ -20,16 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github
           fetch-depth: 1
-      - name: Compute current body text
-        id: compute-text
-        uses: ./.github/actions/compute-text
 
   add-reaction:
     needs: task

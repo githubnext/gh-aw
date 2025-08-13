@@ -130,6 +130,7 @@ type WorkflowData struct {
 	AIReaction       string         // AI reaction type like "eyes", "heart", etc.
 	Jobs             map[string]any // custom job configurations with dependencies
 	Cache            string         // cache configuration
+	NeedsTextOutput  bool           // whether the workflow uses ${{ needs.task.outputs.text }}
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -192,18 +193,20 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		return errors.New(formattedErr)
 	}
 
-	// Write shared compute-text action (always generated for task job)
-	if err := c.writeComputeTextAction(markdownPath); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("failed to write compute-text action: %v", err),
-		})
-		return errors.New(formattedErr)
+	// Write shared compute-text action (only if needed for task job)
+	if workflowData.NeedsTextOutput {
+		if err := c.writeComputeTextAction(markdownPath); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("failed to write compute-text action: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	}
 
 	// Write shared check-team-member action (only for alias workflows)
@@ -516,6 +519,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Extracted workflow name: '%s'", workflowName)))
 	}
 
+	// Check if the markdown content uses the text output
+	needsTextOutput := c.detectTextOutputUsage(markdownContent)
+
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:            workflowName,
@@ -523,6 +529,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		MarkdownContent: markdownContent,
 		AI:              engineSetting,
 		EngineConfig:    engineConfig,
+		NeedsTextOutput: needsTextOutput,
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -1140,6 +1147,20 @@ func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]a
 	return tools
 }
 
+// detectTextOutputUsage checks if the markdown content uses ${{ needs.task.outputs.text }}
+func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
+	// Check for the specific GitHub Actions expression
+	hasUsage := strings.Contains(markdownContent, "${{ needs.task.outputs.text }}")
+	if c.verbose {
+		if hasUsage {
+			fmt.Println(console.FormatInfoMessage("Detected usage of task.outputs.text - compute-text step will be included"))
+		} else {
+			fmt.Println(console.FormatInfoMessage("No usage of task.outputs.text found - compute-text step will be skipped"))
+		}
+	}
+	return hasUsage
+}
+
 // computeAllowedTools computes the comma-separated list of allowed tools for Claude
 func (c *Compiler) computeAllowedTools(tools map[string]any) string {
 	var allowedTools []string
@@ -1413,14 +1434,17 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, "          exit 1\n")
 	}
 
-	// Use shared compute-text action
-	steps = append(steps, "      - name: Compute current body text\n")
-	steps = append(steps, "        id: compute-text\n")
-	steps = append(steps, "        uses: ./.github/actions/compute-text\n")
+	// Use shared compute-text action only if needed
+	if data.NeedsTextOutput {
+		steps = append(steps, "      - name: Compute current body text\n")
+		steps = append(steps, "        id: compute-text\n")
+		steps = append(steps, "        uses: ./.github/actions/compute-text\n")
+	}
 
 	// Set up outputs
-	outputs := map[string]string{
-		"text": "${{ steps.compute-text.outputs.text }}",
+	outputs := map[string]string{}
+	if data.NeedsTextOutput {
+		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
 	job := &Job{
