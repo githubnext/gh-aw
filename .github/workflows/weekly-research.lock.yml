@@ -182,7 +182,7 @@ jobs:
           echo '``````' >> $GITHUB_STEP_SUMMARY
       - name: Execute Claude Code Action
         id: agentic_execution
-        uses: anthropics/claude-code-base-action@beta
+        uses: anthropics/claude-code-base-action@v0.0.56
         with:
           # Allowed tools (sorted):
           # - Bash(echo:*)
