@@ -115,3 +115,45 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestClaudeEngineWithVersion(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test with custom version
+	engineConfig := &EngineConfig{
+		ID:      "claude",
+		Version: "v1.2.3",
+		Model:   "claude-3-5-sonnet-20241022",
+	}
+
+	config := engine.GetExecutionConfig("test-workflow", "test-log", engineConfig)
+
+	// Check that the version is correctly used in the action
+	expectedAction := "anthropics/claude-code-base-action@v1.2.3"
+	if config.Action != expectedAction {
+		t.Errorf("Expected action '%s', got '%s'", expectedAction, config.Action)
+	}
+
+	// Check that model is set
+	if config.Inputs["model"] != "claude-3-5-sonnet-20241022" {
+		t.Errorf("Expected model 'claude-3-5-sonnet-20241022', got '%s'", config.Inputs["model"])
+	}
+}
+
+func TestClaudeEngineWithoutVersion(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test without version (should use default)
+	engineConfig := &EngineConfig{
+		ID:    "claude",
+		Model: "claude-3-5-sonnet-20241022",
+	}
+
+	config := engine.GetExecutionConfig("test-workflow", "test-log", engineConfig)
+
+	// Check that default version is used
+	expectedAction := "anthropics/claude-code-base-action@beta"
+	if config.Action != expectedAction {
+		t.Errorf("Expected action '%s', got '%s'", expectedAction, config.Action)
+	}
+}

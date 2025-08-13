@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+const (
+	// DefaultClaudeActionVersion is the default version of the Claude Code base action
+	DefaultClaudeActionVersion = "v0.0.56"
+)
+
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
 	BaseEngine
@@ -29,9 +34,15 @@ func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHub
 }
 
 func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig {
+	// Determine the action version to use
+	actionVersion := "beta" // Default version
+	if engineConfig != nil && engineConfig.Version != "" {
+		actionVersion = engineConfig.Version
+	}
+
 	config := ExecutionConfig{
 		StepName: "Execute Claude Code Action",
-		Action:   "anthropics/claude-code-base-action@v0.0.56",
+		Action:   fmt.Sprintf("anthropics/claude-code-base-action@%s", actionVersion),
 		Inputs: map[string]string{
 			"prompt_file":       "/tmp/aw-prompts/prompt.txt",
 			"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
