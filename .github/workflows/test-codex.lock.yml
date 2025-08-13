@@ -75,6 +75,8 @@ jobs:
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
           
           [mcp_servers.github]
           command = "docker"

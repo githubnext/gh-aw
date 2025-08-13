@@ -15,9 +15,9 @@ func NewCodexEngine() *CodexEngine {
 		BaseEngine: BaseEngine{
 			id:                     "codex",
 			displayName:            "Codex",
-			description:            "Uses OpenAI Codex CLI (experimental)",
+			description:            "Uses OpenAI Codex CLI with MCP server support",
 			experimental:           true,
-			supportsToolsWhitelist: false,
+			supportsToolsWhitelist: true,
 		},
 	}
 }
@@ -73,6 +73,10 @@ codex exec \
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
+
+	// Add history configuration to disable persistence
+	yaml.WriteString("          [history]\n")
+	yaml.WriteString("          persistence = \"none\"\n")
 
 	// Generate [mcp_servers] section
 	for _, toolName := range mcpTools {
