@@ -126,7 +126,7 @@ You will see the changes reflected in the `.lock.yml` file, which is the actual 
 By default Claude Code is used as the agentic processor. You can configure the agentic processor by editing the frontmatter of the markdown workflow files.
 
 ```markdown
-engine: codex  # Optional: specify AI engine (claude, codex, gemini)
+engine: codex  # Optional: specify AI engine (claude, codex)
 ```
 
 You can also specify this on the command line when adding or running workflows:

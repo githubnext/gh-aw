@@ -17,6 +17,9 @@ permissions:
   contents: read     # GITHUB_TOKEN gets content read access
 ```
 
+## User-Defined Secrets
+You need to define custom secrets in your repository or organization settings to enable usage of your chosen agentic processor. These secrets will be referenced in generated workflows.
+
 ### `ANTHROPIC_API_KEY`
 - **Purpose**: Claude engine access
 - **Required for**: `engine: claude` workflows
