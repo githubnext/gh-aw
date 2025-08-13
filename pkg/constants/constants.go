@@ -7,6 +7,7 @@ const CLIExtensionPrefix = "gh aw"
 var AllowedExpressions = []string{
 	"github.workflow",
 	"github.repository",
+	"github.owner",
 	"github.run_id",
 	"github.event.issue.number",
 	"needs.task.outputs.text",
