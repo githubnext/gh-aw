@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -376,6 +377,19 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	var metrics LogMetrics
 
+	// First check for aw_info.json to determine the engine
+	var detectedEngine workflow.AgenticEngine
+	infoFilePath := filepath.Join(logDir, "aw_info.json")
+	if _, err := os.Stat(infoFilePath); err == nil {
+		// aw_info.json exists, try to extract engine information
+		if engine := extractEngineFromAwInfo(infoFilePath, verbose); engine != nil {
+			detectedEngine = engine
+			if verbose {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Detected engine from aw_info.json: %s", engine.GetID())))
+			}
+		}
+	}
+
 	// Walk through all files in the log directory
 	err := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -392,7 +406,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			strings.HasSuffix(strings.ToLower(info.Name()), ".txt") ||
 			strings.Contains(strings.ToLower(info.Name()), "log") {
 
-			fileMetrics, err := parseLogFile(path, verbose)
+			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
 			if err != nil && verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s: %v", path, err)))
 				return nil // Continue processing other files
@@ -415,21 +429,59 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	return metrics, err
 }
 
-// parseLogFile parses a single log file and extracts metrics using engine-specific logic
-func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
+// extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.AgenticEngine {
+	data, err := os.ReadFile(infoFilePath)
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json: %v", err)))
+		}
+		return nil
+	}
+
+	var info map[string]interface{}
+	if err := json.Unmarshal(data, &info); err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json: %v", err)))
+		}
+		return nil
+	}
+
+	engineID, ok := info["engine_id"].(string)
+	if !ok || engineID == "" {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage("No engine_id found in aw_info.json"))
+		}
+		return nil
+	}
+
+	registry := workflow.NewEngineRegistry()
+	engine, err := registry.GetEngine(engineID)
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", engineID)))
+		}
+		return nil
+	}
+
+	return engine
+}
+
+// parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
+func parseLogFileWithEngine(filePath string, detectedEngine workflow.AgenticEngine, verbose bool) (LogMetrics, error) {
 	// Read the log file content
 	file, err := os.Open(filePath)
 	if err != nil {
-		return LogMetrics{}, err
+		return LogMetrics{}, fmt.Errorf("error opening log file: %w", err)
 	}
 	defer file.Close()
 
-	content := make([]byte, 0)
+	var content []byte
 	buffer := make([]byte, 4096)
 	for {
 		n, err := file.Read(buffer)
-		if err != nil && err.Error() != "EOF" {
-			return LogMetrics{}, err
+		if err != nil && err != io.EOF {
+			return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
 		}
 		if n == 0 {
 			break
@@ -439,7 +491,12 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 
 	logContent := string(content)
 
-	// Try to detect the engine from filename or content and use engine-specific parsing
+	// If we have a detected engine from aw_info.json, use it directly
+	if detectedEngine != nil {
+		return detectedEngine.ParseLogMetrics(logContent, verbose), nil
+	}
+
+	// Otherwise, fall back to the original auto-detection logic
 	engine := detectEngineFromLog(filePath, logContent)
 	if engine != nil {
 		return engine.ParseLogMetrics(logContent, verbose), nil
@@ -447,6 +504,11 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 
 	// Fallback to generic parsing (legacy behavior)
 	return parseLogFileGeneric(logContent, verbose)
+}
+
+// parseLogFile parses a single log file and extracts metrics using engine-specific logic
+func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
+	return parseLogFileWithEngine(filePath, nil, verbose)
 }
 
 // detectEngineFromLog attempts to detect which engine generated the log

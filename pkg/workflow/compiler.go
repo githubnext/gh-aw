@@ -1810,6 +1810,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
 	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
 	yaml.WriteString("          if-no-files-found: warn\n")
+	yaml.WriteString("      - name: Upload agentic run info\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw_info.json\n")
+	yaml.WriteString("          path: aw_info.json\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
@@ -1941,6 +1948,9 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
+	// Generate aw_info.json with agentic run metadata
+	c.generateAgenticInfoStep(yaml, data, engine)
+
 	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig)
 
 	if executionConfig.Command != "" {
@@ -2014,6 +2024,62 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          # Ensure log file exists\n")
 		yaml.WriteString("          touch " + logFile + "\n")
 	}
+}
+
+// generateAgenticInfoStep generates a step that creates aw_info.json with agentic run metadata
+func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
+	yaml.WriteString("      - name: Generate agentic run info\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          cat > aw_info.json << 'EOF'\n")
+	yaml.WriteString("          {\n")
+	
+	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
+	engineID := engine.GetID()
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	} else if data.AI != "" {
+		engineID = data.AI
+	}
+	yaml.WriteString(fmt.Sprintf("            \"engine_id\": \"%s\",\n", engineID))
+	
+	// Engine display name
+	yaml.WriteString(fmt.Sprintf("            \"engine_name\": \"%s\",\n", engine.GetDisplayName()))
+	
+	// Model information
+	model := ""
+	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
+		model = data.EngineConfig.Model
+	}
+	yaml.WriteString(fmt.Sprintf("            \"model\": \"%s\",\n", model))
+	
+	// Version information
+	version := ""
+	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
+		version = data.EngineConfig.Version
+	}
+	yaml.WriteString(fmt.Sprintf("            \"version\": \"%s\",\n", version))
+	
+	// Workflow information
+	yaml.WriteString(fmt.Sprintf("            \"workflow_name\": \"%s\",\n", data.Name))
+	yaml.WriteString(fmt.Sprintf("            \"experimental\": %t,\n", engine.IsExperimental()))
+	yaml.WriteString(fmt.Sprintf("            \"supports_tools_whitelist\": %t,\n", engine.SupportsToolsWhitelist()))
+	yaml.WriteString(fmt.Sprintf("            \"supports_http_transport\": %t,\n", engine.SupportsHTTPTransport()))
+	
+	// Run metadata
+	yaml.WriteString("            \"run_id\": \"${{ github.run_id }}\",\n")
+	yaml.WriteString("            \"run_number\": \"${{ github.run_number }}\",\n")
+	yaml.WriteString("            \"run_attempt\": \"${{ github.run_attempt }}\",\n")
+	yaml.WriteString("            \"repository\": \"${{ github.repository }}\",\n")
+	yaml.WriteString("            \"ref\": \"${{ github.ref }}\",\n")
+	yaml.WriteString("            \"sha\": \"${{ github.sha }}\",\n")
+	yaml.WriteString("            \"actor\": \"${{ github.actor }}\",\n")
+	yaml.WriteString("            \"event_name\": \"${{ github.event_name }}\",\n")
+	yaml.WriteString("            \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n")
+	
+	yaml.WriteString("          }\n")
+	yaml.WriteString("          EOF\n")
+	yaml.WriteString("          echo \"Generated aw_info.json:\"\n")
+	yaml.WriteString("          cat aw_info.json\n")
 }
 
 // validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
