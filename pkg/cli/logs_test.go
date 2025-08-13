@@ -596,7 +596,14 @@ I've posted the PR summary comment with analysis and recommendations. Let me kno
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Get the Codex engine for testing
+	registry := workflow.NewEngineRegistry()
+	codexEngine, err := registry.GetEngine("codex")
+	if err != nil {
+		t.Fatalf("Failed to get Codex engine: %v", err)
+	}
+
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
 	if err != nil {
 		t.Fatalf("parseLogFile failed: %v", err)
 	}
@@ -624,7 +631,14 @@ token_count: 10000`
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Get the Codex engine for testing
+	registry := workflow.NewEngineRegistry()
+	codexEngine, err := registry.GetEngine("codex")
+	if err != nil {
+		t.Fatalf("Failed to get Codex engine: %v", err)
+	}
+
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
 	if err != nil {
 		t.Fatalf("parseLogFile failed: %v", err)
 	}

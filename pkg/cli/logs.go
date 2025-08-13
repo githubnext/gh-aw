@@ -496,68 +496,13 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.AgenticEngi
 		return detectedEngine.ParseLogMetrics(logContent, verbose), nil
 	}
 
-	// Otherwise, fall back to the original auto-detection logic
-	engine := detectEngineFromLog(filePath, logContent)
-	if engine != nil {
-		return engine.ParseLogMetrics(logContent, verbose), nil
-	}
-
-	// Fallback to generic parsing (legacy behavior)
+	// If no aw_info.json metadata is available, fallback to generic parsing
 	return parseLogFileGeneric(logContent, verbose)
 }
 
 // parseLogFile parses a single log file and extracts metrics using engine-specific logic
 func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 	return parseLogFileWithEngine(filePath, nil, verbose)
-}
-
-// detectEngineFromLog attempts to detect which engine generated the log
-func detectEngineFromLog(filePath, logContent string) workflow.AgenticEngine {
-	registry := workflow.NewEngineRegistry()
-
-	// Try to detect from filename patterns first
-	fileName := strings.ToLower(filepath.Base(filePath))
-
-	// Check all engines for filename patterns
-	for _, engine := range registry.GetAllEngines() {
-		patterns := engine.GetFilenamePatterns()
-		for _, pattern := range patterns {
-			if strings.Contains(fileName, pattern) {
-				return engine
-			}
-		}
-	}
-
-	// Try to detect from content patterns
-	var bestEngine workflow.AgenticEngine
-	var bestScore int
-
-	for _, engine := range registry.GetAllEngines() {
-		score := engine.DetectFromContent(logContent)
-		if score > bestScore {
-			bestScore = score
-			bestEngine = engine
-		}
-	}
-
-	// Return the best match if we have a reasonable confidence score
-	if bestScore > 10 { // Minimum confidence threshold
-		return bestEngine
-	}
-
-	// For ambiguous cases or test files, return nil to use generic parsing
-	if strings.Contains(fileName, "test") || strings.Contains(fileName, "generic") {
-		return nil
-	}
-
-	// Default to Claude only if we have JSON-like content and no better match
-	if strings.Contains(logContent, "{") && strings.Contains(logContent, "}") {
-		if engine, err := registry.GetEngine("claude"); err == nil {
-			return engine
-		}
-	}
-
-	return nil // Use generic parsing for non-JSON content
 }
 
 // parseLogFileGeneric provides the original parsing logic as fallback

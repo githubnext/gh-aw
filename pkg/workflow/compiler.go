@@ -2032,7 +2032,7 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          cat > aw_info.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
-	
+
 	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
 	engineID := engine.GetID()
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
@@ -2041,30 +2041,30 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 		engineID = data.AI
 	}
 	yaml.WriteString(fmt.Sprintf("            \"engine_id\": \"%s\",\n", engineID))
-	
+
 	// Engine display name
 	yaml.WriteString(fmt.Sprintf("            \"engine_name\": \"%s\",\n", engine.GetDisplayName()))
-	
+
 	// Model information
 	model := ""
 	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
 		model = data.EngineConfig.Model
 	}
 	yaml.WriteString(fmt.Sprintf("            \"model\": \"%s\",\n", model))
-	
+
 	// Version information
 	version := ""
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		version = data.EngineConfig.Version
 	}
 	yaml.WriteString(fmt.Sprintf("            \"version\": \"%s\",\n", version))
-	
+
 	// Workflow information
 	yaml.WriteString(fmt.Sprintf("            \"workflow_name\": \"%s\",\n", data.Name))
 	yaml.WriteString(fmt.Sprintf("            \"experimental\": %t,\n", engine.IsExperimental()))
 	yaml.WriteString(fmt.Sprintf("            \"supports_tools_whitelist\": %t,\n", engine.SupportsToolsWhitelist()))
 	yaml.WriteString(fmt.Sprintf("            \"supports_http_transport\": %t,\n", engine.SupportsHTTPTransport()))
-	
+
 	// Run metadata
 	yaml.WriteString("            \"run_id\": \"${{ github.run_id }}\",\n")
 	yaml.WriteString("            \"run_number\": \"${{ github.run_number }}\",\n")
@@ -2075,7 +2075,7 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 	yaml.WriteString("            \"actor\": \"${{ github.actor }}\",\n")
 	yaml.WriteString("            \"event_name\": \"${{ github.event_name }}\",\n")
 	yaml.WriteString("            \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n")
-	
+
 	yaml.WriteString("          }\n")
 	yaml.WriteString("          EOF\n")
 	yaml.WriteString("          echo \"Generated aw_info.json:\"\n")

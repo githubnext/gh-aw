@@ -95,19 +95,3 @@ func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 	return metrics
 }
-
-// GetFilenamePatterns returns patterns that can be used to detect Gemini from filenames
-func (e *GeminiEngine) GetFilenamePatterns() []string {
-	return []string{"gemini"}
-}
-
-// DetectFromContent analyzes log content and returns a confidence score for Gemini engine
-func (e *GeminiEngine) DetectFromContent(logContent string) int {
-	confidence := 0
-
-	if strings.Contains(strings.ToLower(logContent), "gemini") {
-		confidence += 10
-	}
-
-	return confidence
-}
