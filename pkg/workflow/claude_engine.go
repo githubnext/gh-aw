@@ -141,6 +141,15 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	var metrics LogMetrics
 	var maxTokenUsage int
 
+	// First try to parse as JSON array (Claude logs are structured as JSON arrays)
+	if strings.TrimSpace(logContent) != "" {
+		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
+			metrics.TokenUsage = resultMetrics.TokenUsage
+			metrics.EstimatedCost = resultMetrics.EstimatedCost
+		}
+	}
+
+	// Process line by line for error counting and fallback parsing
 	lines := strings.Split(logContent, "\n")
 
 	for _, line := range lines {
@@ -149,26 +158,28 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			continue
 		}
 
-		// Try to parse as streaming JSON first to catch the final result payload
-		jsonMetrics := ExtractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
-			// Check if this is a Claude result payload with aggregated costs
-			if e.isClaudeResultPayload(line) {
-				// For Claude result payloads, use the aggregated values directly
-				if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
-					metrics.TokenUsage = resultMetrics.TokenUsage
-					metrics.EstimatedCost = resultMetrics.EstimatedCost
+		// If we haven't found cost data yet from JSON parsing, try streaming JSON
+		if metrics.TokenUsage == 0 || metrics.EstimatedCost == 0 {
+			jsonMetrics := ExtractJSONMetrics(line, verbose)
+			if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
+				// Check if this is a Claude result payload with aggregated costs
+				if e.isClaudeResultPayload(line) {
+					// For Claude result payloads, use the aggregated values directly
+					if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
+						metrics.TokenUsage = resultMetrics.TokenUsage
+						metrics.EstimatedCost = resultMetrics.EstimatedCost
+					}
+				} else {
+					// For streaming JSON, keep the maximum token usage found
+					if jsonMetrics.TokenUsage > maxTokenUsage {
+						maxTokenUsage = jsonMetrics.TokenUsage
+					}
+					if metrics.EstimatedCost == 0 && jsonMetrics.EstimatedCost > 0 {
+						metrics.EstimatedCost += jsonMetrics.EstimatedCost
+					}
 				}
-			} else {
-				// For streaming JSON, keep the maximum token usage found
-				if jsonMetrics.TokenUsage > maxTokenUsage {
-					maxTokenUsage = jsonMetrics.TokenUsage
-				}
-				if jsonMetrics.EstimatedCost > 0 {
-					metrics.EstimatedCost += jsonMetrics.EstimatedCost
-				}
+				continue
 			}
-			continue
 		}
 
 		// Count errors and warnings
@@ -238,6 +249,57 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 			totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
 			if totalTokens > 0 {
 				metrics.TokenUsage = totalTokens
+			}
+		}
+	}
+
+	return metrics
+}
+
+// parseClaudeJSONLog parses Claude logs as a JSON array to find the result payload
+func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMetrics {
+	var metrics LogMetrics
+
+	// Try to parse the entire log as a JSON array
+	var logEntries []map[string]interface{}
+	if err := json.Unmarshal([]byte(logContent), &logEntries); err != nil {
+		if verbose {
+			fmt.Printf("Failed to parse Claude log as JSON array: %v\n", err)
+		}
+		return metrics
+	}
+
+	// Look for the result entry with type: "result"
+	for _, entry := range logEntries {
+		if entryType, exists := entry["type"]; exists {
+			if typeStr, ok := entryType.(string); ok && typeStr == "result" {
+				// Found the result payload, extract cost and token data
+				if totalCost, exists := entry["total_cost_usd"]; exists {
+					if cost := ConvertToFloat(totalCost); cost > 0 {
+						metrics.EstimatedCost = cost
+					}
+				}
+
+				// Extract usage information with all token types
+				if usage, exists := entry["usage"]; exists {
+					if usageMap, ok := usage.(map[string]interface{}); ok {
+						inputTokens := ConvertToInt(usageMap["input_tokens"])
+						outputTokens := ConvertToInt(usageMap["output_tokens"])
+						cacheCreationTokens := ConvertToInt(usageMap["cache_creation_input_tokens"])
+						cacheReadTokens := ConvertToInt(usageMap["cache_read_input_tokens"])
+
+						totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
+						if totalTokens > 0 {
+							metrics.TokenUsage = totalTokens
+						}
+					}
+				}
+
+				if verbose {
+					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f\n",
+						metrics.TokenUsage, metrics.EstimatedCost)
+				}
+				break
 			}
 		}
 	}
