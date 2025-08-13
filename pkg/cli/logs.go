@@ -51,7 +51,9 @@ const (
 	// MaxIterations limits how many batches we fetch to prevent infinite loops
 	MaxIterations = 10
 	// BatchSize is the number of runs to fetch in each iteration
-	BatchSize = 20
+	BatchSize = 50
+	// BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows
+	BatchSizeForAllWorkflows = 100
 )
 
 // NewLogsCommand creates the logs command
@@ -79,15 +81,26 @@ Examples:
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
 				// Convert agentic workflow ID to GitHub Actions workflow name
+				// First try to resolve as an agentic workflow ID
 				resolvedName, err := workflow.ResolveWorkflowName(args[0])
 				if err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-						Type:    "error",
-						Message: err.Error(),
-					}))
-					os.Exit(1)
+					// If that fails, check if it's already a GitHub Actions workflow name
+					// by checking if any .lock.yml files have this as their name
+					agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
+					if nameErr == nil && contains(agenticWorkflowNames, args[0]) {
+						// It's already a valid GitHub Actions workflow name
+						workflowName = args[0]
+					} else {
+						// Neither agentic workflow ID nor valid GitHub Actions workflow name
+						fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+							Type:    "error",
+							Message: fmt.Sprintf("workflow '%s' not found. Expected either an agentic workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude'). Original error: %v", args[0], err),
+						}))
+						os.Exit(1)
+					}
+				} else {
+					workflowName = resolvedName
 				}
-				workflowName = resolvedName
 			}
 
 			count, _ := cmd.Flags().GetInt("count")
@@ -135,13 +148,22 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		// Fetch a batch of runs
 		batchSize := BatchSize
-		if count-len(processedRuns) < BatchSize {
+		if workflowName == "" {
+			// When searching for all agentic workflows, use a larger batch size
+			// since there may be many CI runs interspersed with agentic runs
+			batchSize = BatchSizeForAllWorkflows
+		}
+		if count-len(processedRuns) < batchSize {
 			// If we need fewer runs than the batch size, request exactly what we need
 			// but add some buffer since many runs might not have artifacts
 			needed := count - len(processedRuns)
 			batchSize = needed * 3 // Request 3x what we need to account for runs without artifacts
-			if batchSize > BatchSize {
-				batchSize = BatchSize
+			if workflowName == "" && batchSize < BatchSizeForAllWorkflows {
+				// For all-workflows search, maintain a minimum batch size
+				batchSize = BatchSizeForAllWorkflows
+			}
+			if batchSize > BatchSizeForAllWorkflows {
+				batchSize = BatchSizeForAllWorkflows
 			}
 		}
 
@@ -306,8 +328,14 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	var agenticRuns []WorkflowRun
 	if workflowName == "" {
 		// No specific workflow requested, filter to only agentic workflows
+		// Get the list of agentic workflow names from .lock.yml files
+		agenticWorkflowNames, err := getAgenticWorkflowNames(verbose)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get agentic workflow names: %w", err)
+		}
+
 		for _, run := range runs {
-			if strings.HasSuffix(run.WorkflowName, ".lock.yml") {
+			if contains(agenticWorkflowNames, run.WorkflowName) {
 				agenticRuns = append(agenticRuns, run)
 			}
 		}
@@ -636,4 +664,75 @@ func isDirEmpty(path string) bool {
 		return true // Consider it empty if we can't read it
 	}
 	return len(files) == 0
+}
+
+// getAgenticWorkflowNames reads all .lock.yml files and extracts their workflow names
+func getAgenticWorkflowNames(verbose bool) ([]string, error) {
+	var workflowNames []string
+
+	// Look for .lock.yml files in .github/workflows directory
+	workflowsDir := ".github/workflows"
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage("No .github/workflows directory found"))
+		}
+		return workflowNames, nil
+	}
+
+	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob .lock.yml files: %w", err)
+	}
+
+	for _, file := range files {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Reading workflow file: %s", file)))
+		}
+
+		content, err := os.ReadFile(file)
+		if err != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", file, err)))
+			}
+			continue
+		}
+
+		// Extract the workflow name using simple string parsing
+		lines := strings.Split(string(content), "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "name:") {
+				// Parse the name field
+				parts := strings.SplitN(trimmed, ":", 2)
+				if len(parts) == 2 {
+					name := strings.TrimSpace(parts[1])
+					// Remove quotes if present
+					name = strings.Trim(name, `"'`)
+					if name != "" {
+						workflowNames = append(workflowNames, name)
+						if verbose {
+							fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic workflow: %s", name)))
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d agentic workflows", len(workflowNames))))
+	}
+
+	return workflowNames, nil
+}
+
+// contains checks if a string slice contains a specific string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
