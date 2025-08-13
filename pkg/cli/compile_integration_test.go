@@ -13,6 +13,24 @@ import (
 	"github.com/creack/pty"
 )
 
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}
+
 // integrationTestSetup holds the setup state for integration tests
 type integrationTestSetup struct {
 	tempDir      string
@@ -44,32 +62,21 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 
 	// Build the gh-aw binary
 	binaryPath := filepath.Join(tempDir, "gh-aw")
-	buildCmd := exec.Command("make")
 	projectRoot := filepath.Join(originalWd, "..", "..")
+	buildCmd := exec.Command("make", "build")
 	buildCmd.Dir = projectRoot
 	buildCmd.Stderr = os.Stderr
 	if err := buildCmd.Run(); err != nil {
 		t.Fatalf("Failed to build gh-aw binary: %v", err)
 	}
-	// copy binary to temp directory
-	sourceBinary := filepath.Join(projectRoot, "gh-aw")
-	sourceFile, err := os.Open(sourceBinary)
-	if err != nil {
-		t.Fatalf("Failed to open source binary: %v", err)
-	}
-	defer sourceFile.Close()
 
-	destFile, err := os.Create(binaryPath)
-	if err != nil {
-		t.Fatalf("Failed to create destination binary: %v", err)
-	}
-	defer destFile.Close()
-
-	if _, err := io.Copy(destFile, sourceFile); err != nil {
-		t.Fatalf("Failed to copy binary to temp directory: %v", err)
+	// Copy binary to temp directory (use copy instead of move to avoid cross-device link issues)
+	srcBinary := filepath.Join(projectRoot, "gh-aw")
+	if err := copyFile(srcBinary, binaryPath); err != nil {
+		t.Fatalf("Failed to copy gh-aw binary to temp directory: %v", err)
 	}
 
-	// Make the binary executable
+  // Make the binary executable
 	if err := os.Chmod(binaryPath, 0755); err != nil {
 		t.Fatalf("Failed to make binary executable: %v", err)
 	}

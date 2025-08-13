@@ -258,15 +258,16 @@ gh aw logs -o ./workflow-logs
 **Workflow Logs Features:**
 
 - **Automated Download**: Downloads logs and artifacts from GitHub Actions
-- **Metrics Analysis**: Extracts execution time, token usage, and cost information
+- **Metrics Analysis**: Extracts token usage and cost information from log files
+- **GitHub API Timing**: Uses GitHub API timestamps for accurate duration calculation
 - **Aggregated Reporting**: Provides summary statistics across multiple runs
 - **Flexible Filtering**: Filter by date range and limit number of runs
 - **Cost Tracking**: Analyzes AI model usage costs when available
 - **Custom Output**: Specify custom output directory for organized storage
 
 **Log Analysis Includes:**
-- Execution duration and performance metrics
-- AI model token consumption and costs
+- Execution duration from GitHub API timestamps (CreatedAt, StartedAt, UpdatedAt)
+- AI model token consumption and costs extracted from engine-specific logs
 - Success/failure rates and error patterns
 - Workflow run frequency and patterns
 - Artifact and log file organization
