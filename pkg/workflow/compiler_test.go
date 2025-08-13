@@ -2206,6 +2206,102 @@ Content using custom API from include.
 	}
 }
 
+func TestIncludeWithEmptyFrontmatterInWorkflow(t *testing.T) {
+	// Test case where include file has empty frontmatter
+	// Create temporary directory with .github/workflows structure
+	tmpDir, err := os.MkdirTemp("", "empty-frontmatter-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create include file with empty frontmatter
+	includeContent := `---
+     
+---
+
+# Empty Frontmatter Include
+Include file with empty frontmatter.
+`
+	includeFile := filepath.Join(workflowsDir, "include.md")
+	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create main workflow file with include
+	mainContent := fmt.Sprintf(`---
+tools:
+  github:
+    allowed: ["list_issues"]
+  claude:
+    allowed:
+      Read:
+      Write:
+---
+
+# Test Workflow with Empty Frontmatter Include
+
+@include %s
+`, filepath.Base(includeFile))
+
+	mainFile := filepath.Join(workflowsDir, "main-workflow.md")
+	if err := os.WriteFile(mainFile, []byte(mainContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(mainFile)
+	if err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(mainFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	println("Lock file content:\n", lockContent)
+
+	// Check that custom MCP tools from include are present
+	expectedCustomMCPTools := []string{
+		"mcp__customApi__get_data",
+		"mcp__customApi__post_data",
+		"mcp__customApi__delete_data",
+	}
+
+	for _, expectedTool := range expectedCustomMCPTools {
+		if !strings.Contains(lockContent, expectedTool) {
+			t.Errorf("Expected custom MCP tool '%s' from include not found in lock file.\nLock file content:\n%s", expectedTool, lockContent)
+		}
+	}
+
+	// Check that custom MCP configuration is properly generated
+	if !strings.Contains(lockContent, `"customApi": {`) {
+		t.Errorf("Expected customApi MCP server configuration not found in lock file")
+	}
+	if !strings.Contains(lockContent, `"command": "custom-server"`) {
+		t.Errorf("Expected customApi command configuration not found in lock file")
+	}
+	if !strings.Contains(lockContent, `"--config"`) {
+		t.Errorf("Expected customApi args configuration not found in lock file")
+	}
+	if !strings.Contains(lockContent, `"API_KEY": "{{ secrets.API_KEY }}"`) {
+		t.Errorf("Expected customApi env configuration not found in lock file")
+	}
+}
+
 func TestCustomMCPMergingConflictDetection(t *testing.T) {
 	// Test that conflicting MCP configurations result in errors
 	tmpDir, err := os.MkdirTemp("", "custom-mcp-conflict-test")
