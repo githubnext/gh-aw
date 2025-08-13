@@ -2,7 +2,7 @@
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions. From [GitHub Next](https://githubnext.com/).
 
-> [!WARNING]
+> [!CAUTION]
 > This extension is a research demonstrator. It is in early development and may change significantly. It has not been thoroughly tested. Using agentic workflows in your repository requires careful supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
 ## ⚡ Quick Start (30 seconds)
