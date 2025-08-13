@@ -212,8 +212,14 @@ func TestEnsureAutoCompileWorkflowEdgeCases(t *testing.T) {
 		// Test verbose mode doesn't crash (output testing is complex)
 		testDir := t.TempDir()
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
-		os.Chdir(testDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				t.Errorf("Failed to restore original directory: %v", err)
+			}
+		}()
+		if err := os.Chdir(testDir); err != nil {
+			t.Fatalf("Failed to change to test directory: %v", err)
+		}
 
 		if err := initTestGitRepo(testDir); err != nil {
 			t.Fatalf("Failed to initialize test git repo: %v", err)
@@ -235,8 +241,14 @@ func TestEnsureAutoCompileWorkflowEdgeCases(t *testing.T) {
 	t.Run("non-verbose mode works", func(t *testing.T) {
 		testDir := t.TempDir()
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
-		os.Chdir(testDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				t.Errorf("Failed to restore original directory: %v", err)
+			}
+		}()
+		if err := os.Chdir(testDir); err != nil {
+			t.Fatalf("Failed to change to test directory: %v", err)
+		}
 
 		if err := initTestGitRepo(testDir); err != nil {
 			t.Fatalf("Failed to initialize test git repo: %v", err)
