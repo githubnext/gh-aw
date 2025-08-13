@@ -1416,3 +1416,298 @@ func TestMergeToolsFromJSON(t *testing.T) {
 		})
 	}
 }
+
+// Test StripANSI function
+func TestStripANSI(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "plain text without ANSI",
+			input:    "Hello World",
+			expected: "Hello World",
+		},
+		{
+			name:     "simple CSI color sequence",
+			input:    "\x1b[31mRed Text\x1b[0m",
+			expected: "Red Text",
+		},
+		{
+			name:     "multiple CSI sequences",
+			input:    "\x1b[1m\x1b[31mBold Red\x1b[0m\x1b[32mGreen\x1b[0m",
+			expected: "Bold RedGreen",
+		},
+		{
+			name:     "CSI cursor movement",
+			input:    "Line 1\x1b[2;1HLine 2",
+			expected: "Line 1Line 2",
+		},
+		{
+			name:     "CSI erase sequences",
+			input:    "Text\x1b[2JCleared\x1b[K",
+			expected: "TextCleared",
+		},
+		{
+			name:     "OSC sequence with BEL terminator",
+			input:    "\x1b]0;Window Title\x07Content",
+			expected: "Content",
+		},
+		{
+			name:     "OSC sequence with ST terminator",
+			input:    "\x1b]2;Terminal Title\x1b\\More content",
+			expected: "More content",
+		},
+		{
+			name:     "character set selection G0",
+			input:    "\x1b(0Hello\x1b(B",
+			expected: "Hello",
+		},
+		{
+			name:     "character set selection G1",
+			input:    "\x1b)0World\x1b)B",
+			expected: "World",
+		},
+		{
+			name:     "keypad mode sequences",
+			input:    "\x1b=Keypad\x1b>Normal",
+			expected: "KeypadNormal",
+		},
+		{
+			name:     "reset sequence",
+			input:    "Before\x1bcAfter",
+			expected: "BeforeAfter",
+		},
+		{
+			name:     "save and restore cursor",
+			input:    "Start\x1b7Middle\x1b8End",
+			expected: "StartMiddleEnd",
+		},
+		{
+			name:     "index and reverse index",
+			input:    "Text\x1bDDown\x1bMUp",
+			expected: "TextDownUp",
+		},
+		{
+			name:     "next line and horizontal tab set",
+			input:    "Line\x1bENext\x1bHTab",
+			expected: "LineNextTab",
+		},
+		{
+			name:     "complex CSI with parameters",
+			input:    "\x1b[38;5;196mBright Red\x1b[48;5;21mBlue BG\x1b[0m",
+			expected: "Bright RedBlue BG",
+		},
+		{
+			name:     "CSI with semicolon parameters",
+			input:    "\x1b[1;31;42mBold red on green\x1b[0m",
+			expected: "Bold red on green",
+		},
+		{
+			name:     "malformed escape at end",
+			input:    "Text\x1b",
+			expected: "Text",
+		},
+		{
+			name:     "malformed CSI at end",
+			input:    "Text\x1b[31",
+			expected: "Text",
+		},
+		{
+			name:     "malformed OSC at end",
+			input:    "Text\x1b]0;Title",
+			expected: "Text",
+		},
+		{
+			name:     "escape followed by invalid character",
+			input:    "Text\x1bXInvalid",
+			expected: "TextInvalid",
+		},
+		{
+			name:     "consecutive escapes",
+			input:    "\x1b[31m\x1b[1m\x1b[4mText\x1b[0m",
+			expected: "Text",
+		},
+		{
+			name:     "mixed content with newlines",
+			input:    "Line 1\n\x1b[31mRed Line 2\x1b[0m\nLine 3",
+			expected: "Line 1\nRed Line 2\nLine 3",
+		},
+		{
+			name:     "common terminal output",
+			input:    "\x1b[?25l\x1b[2J\x1b[H\x1b[32m✓\x1b[0m Success",
+			expected: "✓ Success",
+		},
+		{
+			name:     "git diff style colors",
+			input:    "\x1b[32m+Added line\x1b[0m\n\x1b[31m-Removed line\x1b[0m",
+			expected: "+Added line\n-Removed line",
+		},
+		{
+			name:     "unicode content with ANSI",
+			input:    "\x1b[33m🎉 Success! 测试\x1b[0m",
+			expected: "🎉 Success! 测试",
+		},
+		{
+			name:     "very long CSI sequence",
+			input:    "\x1b[1;2;3;4;5;6;7;8;9;10;11;12;13;14;15mLong params\x1b[0m",
+			expected: "Long params",
+		},
+		{
+			name:     "CSI with question mark private parameter",
+			input:    "\x1b[?25hCursor visible\x1b[?25l",
+			expected: "Cursor visible",
+		},
+		{
+			name:     "CSI with greater than private parameter",
+			input:    "\x1b[>0cDevice attributes\x1b[>1c",
+			expected: "Device attributes",
+		},
+		{
+			name:     "all final CSI characters test",
+			input:    "\x1b[@\x1b[A\x1b[B\x1b[C\x1b[D\x1b[E\x1b[F\x1b[G\x1b[H\x1b[I\x1b[J\x1b[K\x1b[L\x1b[M\x1b[N\x1b[O\x1b[P\x1b[Q\x1b[R\x1b[S\x1b[T\x1b[U\x1b[V\x1b[W\x1b[X\x1b[Y\x1b[Z\x1b[[\x1b[\\\x1b[]\x1b[^\x1b[_\x1b[`\x1b[a\x1b[b\x1b[c\x1b[d\x1b[e\x1b[f\x1b[g\x1b[h\x1b[i\x1b[j\x1b[k\x1b[l\x1b[m\x1b[n\x1b[o\x1b[p\x1b[q\x1b[r\x1b[s\x1b[t\x1b[u\x1b[v\x1b[w\x1b[x\x1b[y\x1b[z\x1b[{\x1b[|\x1b[}\x1b[~Text",
+			expected: "Text",
+		},
+		{
+			name:     "CSI with invalid final character",
+			input:    "Before\x1b[31Text after",
+			expected: "Beforeext after",
+		},
+		{
+			name:     "real world lipgloss output",
+			input:    "\x1b[1;38;2;80;250;123m✓\x1b[0;38;2;248;248;242m Success message\x1b[0m",
+			expected: "✓ Success message",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := StripANSI(tt.input)
+			if result != tt.expected {
+				t.Errorf("StripANSI(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Test isCSIParameterChar function
+func TestIsCSIParameterChar(t *testing.T) {
+	tests := []struct {
+		name     string
+		char     byte
+		expected bool
+	}{
+		// Valid parameter characters (0x30-0x3F, 0-?)
+		{name: "0 (0x30)", char: '0', expected: true},
+		{name: "9 (0x39)", char: '9', expected: true},
+		{name: "; (0x3B)", char: ';', expected: true},
+		{name: "? (0x3F)", char: '?', expected: true},
+
+		// Valid intermediate characters (0x20-0x2F, space-/)
+		{name: "space (0x20)", char: ' ', expected: true},
+		{name: "! (0x21)", char: '!', expected: true},
+		{name: "/ (0x2F)", char: '/', expected: true},
+
+		// Invalid characters (below 0x20)
+		{name: "tab (0x09)", char: '\t', expected: false},
+		{name: "newline (0x0A)", char: '\n', expected: false},
+		{name: "null (0x00)", char: 0x00, expected: false},
+
+		// Invalid characters (above 0x3F)
+		{name: "@ (0x40)", char: '@', expected: false},
+		{name: "A (0x41)", char: 'A', expected: false},
+		{name: "m (0x6D)", char: 'm', expected: false},
+		{name: "~ (0x7E)", char: '~', expected: false},
+		{name: "DEL (0x7F)", char: 0x7F, expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isCSIParameterChar(tt.char)
+			if result != tt.expected {
+				t.Errorf("isCSIParameterChar(%q/0x%02X) = %v, want %v", tt.char, tt.char, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Test isFinalCSIChar function
+func TestIsFinalCSIChar(t *testing.T) {
+	tests := []struct {
+		name     string
+		char     byte
+		expected bool
+	}{
+		// Valid final characters (0x40-0x7E, @-~)
+		{name: "@ (0x40)", char: '@', expected: true},
+		{name: "A (0x41)", char: 'A', expected: true},
+		{name: "Z (0x5A)", char: 'Z', expected: true},
+		{name: "a (0x61)", char: 'a', expected: true},
+		{name: "m (0x6D)", char: 'm', expected: true}, // Common color final char
+		{name: "~ (0x7E)", char: '~', expected: true},
+
+		// Invalid characters (below 0x40)
+		{name: "space (0x20)", char: ' ', expected: false},
+		{name: "0 (0x30)", char: '0', expected: false},
+		{name: "9 (0x39)", char: '9', expected: false},
+		{name: "; (0x3B)", char: ';', expected: false},
+		{name: "? (0x3F)", char: '?', expected: false},
+
+		// Invalid characters (above 0x7E)
+		{name: "DEL (0x7F)", char: 0x7F, expected: false},
+		{name: "high byte (0x80)", char: 0x80, expected: false},
+		{name: "high byte (0xFF)", char: 0xFF, expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isFinalCSIChar(tt.char)
+			if result != tt.expected {
+				t.Errorf("isFinalCSIChar(%q/0x%02X) = %v, want %v", tt.char, tt.char, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Benchmark StripANSI function for performance
+func BenchmarkStripANSI(b *testing.B) {
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "plain text",
+			input: "This is plain text without any ANSI codes",
+		},
+		{
+			name:  "simple color",
+			input: "\x1b[31mRed text\x1b[0m",
+		},
+		{
+			name:  "complex formatting",
+			input: "\x1b[1;38;2;255;0;0m\x1b[48;2;0;255;0mComplex formatting\x1b[0m",
+		},
+		{
+			name:  "mixed content",
+			input: "Normal \x1b[31mred\x1b[0m normal \x1b[32mgreen\x1b[0m normal \x1b[34mblue\x1b[0m text",
+		},
+		{
+			name:  "long text with ANSI",
+			input: strings.Repeat("\x1b[31mRed \x1b[32mGreen \x1b[34mBlue\x1b[0m ", 100),
+		},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				StripANSI(tc.input)
+			}
+		})
+	}
+}
