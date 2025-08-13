@@ -79,7 +79,7 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		version:        version,
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
-		engineRegistry: NewEngineRegistry(),
+		engineRegistry: GetGlobalEngineRegistry(),
 	}
 
 	return c
@@ -99,7 +99,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		version:        version,
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
-		engineRegistry: NewEngineRegistry(),
+		engineRegistry: GetGlobalEngineRegistry(),
 	}
 
 	return c
