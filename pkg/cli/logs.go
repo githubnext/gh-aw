@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,20 +40,8 @@ type WorkflowRun struct {
 }
 
 // LogMetrics represents extracted metrics from log files
-type LogMetrics struct {
-	Duration      time.Duration
-	TokenUsage    int
-	EstimatedCost float64
-	ErrorCount    int
-	WarningCount  int
-}
-
-// JSONMetrics represents metrics extracted from JSON log entries
-type JSONMetrics struct {
-	TokenUsage    int
-	EstimatedCost float64
-	Timestamp     time.Time
-}
+// This is now an alias to the shared type in workflow package
+type LogMetrics = workflow.LogMetrics
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
@@ -63,7 +51,9 @@ const (
 	// MaxIterations limits how many batches we fetch to prevent infinite loops
 	MaxIterations = 10
 	// BatchSize is the number of runs to fetch in each iteration
-	BatchSize = 20
+	BatchSize = 50
+	// BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows
+	BatchSizeForAllWorkflows = 100
 )
 
 // NewLogsCommand creates the logs command
@@ -91,15 +81,26 @@ Examples:
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
 				// Convert agentic workflow ID to GitHub Actions workflow name
+				// First try to resolve as an agentic workflow ID
 				resolvedName, err := workflow.ResolveWorkflowName(args[0])
 				if err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-						Type:    "error",
-						Message: err.Error(),
-					}))
-					os.Exit(1)
+					// If that fails, check if it's already a GitHub Actions workflow name
+					// by checking if any .lock.yml files have this as their name
+					agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
+					if nameErr == nil && contains(agenticWorkflowNames, args[0]) {
+						// It's already a valid GitHub Actions workflow name
+						workflowName = args[0]
+					} else {
+						// Neither agentic workflow ID nor valid GitHub Actions workflow name
+						fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+							Type:    "error",
+							Message: fmt.Sprintf("workflow '%s' not found. Expected either an agentic workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude'). Original error: %v", args[0], err),
+						}))
+						os.Exit(1)
+					}
+				} else {
+					workflowName = resolvedName
 				}
-				workflowName = resolvedName
 			}
 
 			count, _ := cmd.Flags().GetInt("count")
@@ -147,13 +148,22 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		// Fetch a batch of runs
 		batchSize := BatchSize
-		if count-len(processedRuns) < BatchSize {
+		if workflowName == "" {
+			// When searching for all agentic workflows, use a larger batch size
+			// since there may be many CI runs interspersed with agentic runs
+			batchSize = BatchSizeForAllWorkflows
+		}
+		if count-len(processedRuns) < batchSize {
 			// If we need fewer runs than the batch size, request exactly what we need
 			// but add some buffer since many runs might not have artifacts
 			needed := count - len(processedRuns)
 			batchSize = needed * 3 // Request 3x what we need to account for runs without artifacts
-			if batchSize > BatchSize {
-				batchSize = BatchSize
+			if workflowName == "" && batchSize < BatchSizeForAllWorkflows {
+				// For all-workflows search, maintain a minimum batch size
+				batchSize = BatchSizeForAllWorkflows
+			}
+			if batchSize > BatchSizeForAllWorkflows {
+				batchSize = BatchSizeForAllWorkflows
 			}
 		}
 
@@ -208,13 +218,14 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 
 			// Update run with metrics and path
-			run.Duration = metrics.Duration
+			// Note: Duration is calculated from GitHub API timestamps (StartedAt/UpdatedAt),
+			// not parsed from log files for accuracy and consistency
 			run.TokenUsage = metrics.TokenUsage
 			run.EstimatedCost = metrics.EstimatedCost
 			run.LogsPath = runOutputDir
 
-			// Calculate duration from GitHub data if not extracted from logs
-			if run.Duration == 0 && !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
+			// Always use GitHub API timestamps for duration calculation
+			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 			}
 
@@ -317,9 +328,14 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	var agenticRuns []WorkflowRun
 	if workflowName == "" {
 		// No specific workflow requested, filter to only agentic workflows
+		// Get the list of agentic workflow names from .lock.yml files
+		agenticWorkflowNames, err := getAgenticWorkflowNames(verbose)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get agentic workflow names: %w", err)
+		}
+
 		for _, run := range runs {
-			if strings.HasSuffix(run.WorkflowName, ".lock.yml") || strings.Contains(run.WorkflowName, "agentic") ||
-				strings.Contains(run.WorkflowName, "Agentic") || strings.Contains(run.WorkflowName, "@") {
+			if contains(agenticWorkflowNames, run.WorkflowName) {
 				agenticRuns = append(agenticRuns, run)
 			}
 		}
@@ -389,6 +405,19 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	var metrics LogMetrics
 
+	// First check for aw_info.json to determine the engine
+	var detectedEngine workflow.AgenticEngine
+	infoFilePath := filepath.Join(logDir, "aw_info.json")
+	if _, err := os.Stat(infoFilePath); err == nil {
+		// aw_info.json exists, try to extract engine information
+		if engine := extractEngineFromAwInfo(infoFilePath, verbose); engine != nil {
+			detectedEngine = engine
+			if verbose {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Detected engine from aw_info.json: %s", engine.GetID())))
+			}
+		}
+	}
+
 	// Walk through all files in the log directory
 	err := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -405,7 +434,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			strings.HasSuffix(strings.ToLower(info.Name()), ".txt") ||
 			strings.Contains(strings.ToLower(info.Name()), "log") {
 
-			fileMetrics, err := parseLogFile(path, verbose)
+			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
 			if err != nil && verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s: %v", path, err)))
 				return nil // Continue processing other files
@@ -416,10 +445,6 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			metrics.EstimatedCost += fileMetrics.EstimatedCost
 			metrics.ErrorCount += fileMetrics.ErrorCount
 			metrics.WarningCount += fileMetrics.WarningCount
-
-			if fileMetrics.Duration > metrics.Duration {
-				metrics.Duration = fileMetrics.Duration
-			}
 		}
 
 		return nil
@@ -428,24 +453,83 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	return metrics, err
 }
 
-// parseLogFile parses a single log file and extracts metrics
-func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
-	var metrics LogMetrics
-	var startTime, endTime time.Time
-	var maxTokenUsage int
+// extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+// Handles cases where aw_info.json is a file or a directory containing the actual file
+func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.AgenticEngine {
+	var data []byte
+	var err error
 
+	// Check if the path exists and determine if it's a file or directory
+	stat, statErr := os.Stat(infoFilePath)
+	if statErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json: %v", statErr)))
+		}
+		return nil
+	}
+
+	if stat.IsDir() {
+		// It's a directory - look for nested aw_info.json
+		nestedPath := filepath.Join(infoFilePath, "aw_info.json")
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("aw_info.json is a directory, trying nested file: %s", nestedPath)))
+		}
+		data, err = os.ReadFile(nestedPath)
+	} else {
+		// It's a regular file
+		data, err = os.ReadFile(infoFilePath)
+	}
+
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json: %v", err)))
+		}
+		return nil
+	}
+
+	var info map[string]interface{}
+	if err := json.Unmarshal(data, &info); err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json: %v", err)))
+		}
+		return nil
+	}
+
+	engineID, ok := info["engine_id"].(string)
+	if !ok || engineID == "" {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage("No engine_id found in aw_info.json"))
+		}
+		return nil
+	}
+
+	registry := workflow.GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine(engineID)
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", engineID)))
+		}
+		return nil
+	}
+
+	return engine
+}
+
+// parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
+func parseLogFileWithEngine(filePath string, detectedEngine workflow.AgenticEngine, verbose bool) (LogMetrics, error) {
+	// Read the log file content
 	file, err := os.Open(filePath)
 	if err != nil {
-		return metrics, err
+		return LogMetrics{}, fmt.Errorf("error opening log file: %w", err)
 	}
 	defer file.Close()
 
-	content := make([]byte, 0)
+	var content []byte
 	buffer := make([]byte, 4096)
 	for {
 		n, err := file.Read(buffer)
-		if err != nil && err.Error() != "EOF" {
-			return metrics, err
+		if err != nil && err != io.EOF {
+			return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
 		}
 		if n == 0 {
 			break
@@ -453,340 +537,23 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 		content = append(content, buffer[:n]...)
 	}
 
-	lines := strings.Split(string(content), "\n")
+	logContent := string(content)
 
-	for _, line := range lines {
-		// Skip empty lines
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		// Try to parse as streaming JSON first
-		jsonMetrics := extractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || !jsonMetrics.Timestamp.IsZero() {
-			// Successfully extracted from JSON, update metrics
-			if jsonMetrics.TokenUsage > maxTokenUsage {
-				maxTokenUsage = jsonMetrics.TokenUsage
-			}
-			if jsonMetrics.EstimatedCost > 0 {
-				metrics.EstimatedCost += jsonMetrics.EstimatedCost
-			}
-			if !jsonMetrics.Timestamp.IsZero() {
-				if startTime.IsZero() || jsonMetrics.Timestamp.Before(startTime) {
-					startTime = jsonMetrics.Timestamp
-				}
-				if endTime.IsZero() || jsonMetrics.Timestamp.After(endTime) {
-					endTime = jsonMetrics.Timestamp
-				}
-			}
-			continue
-		}
-
-		// Fall back to text pattern extraction
-		// Extract timestamps for duration calculation
-		timestamp := extractTimestamp(line)
-		if !timestamp.IsZero() {
-			if startTime.IsZero() || timestamp.Before(startTime) {
-				startTime = timestamp
-			}
-			if endTime.IsZero() || timestamp.After(endTime) {
-				endTime = timestamp
-			}
-		}
-
-		// Extract token usage - keep the maximum found
-		tokenUsage := extractTokenUsage(line)
-		if tokenUsage > maxTokenUsage {
-			maxTokenUsage = tokenUsage
-		}
-
-		// Extract cost information
-		cost := extractCost(line)
-		if cost > 0 {
-			metrics.EstimatedCost += cost
-		}
-
-		// Count errors and warnings
-		lowerLine := strings.ToLower(line)
-		if strings.Contains(lowerLine, "error") {
-			metrics.ErrorCount++
-		}
-		if strings.Contains(lowerLine, "warning") {
-			metrics.WarningCount++
-		}
+	// If we have a detected engine from aw_info.json, use it directly
+	if detectedEngine != nil {
+		return detectedEngine.ParseLogMetrics(logContent, verbose), nil
 	}
 
-	// Set the max token usage found
-	metrics.TokenUsage = maxTokenUsage
-
-	// Calculate duration
-	if !startTime.IsZero() && !endTime.IsZero() {
-		metrics.Duration = endTime.Sub(startTime)
+	// No aw_info.json metadata available - return empty metrics
+	if verbose {
+		fmt.Println(console.FormatWarningMessage("No aw_info.json found, unable to parse engine-specific metrics"))
 	}
-
-	return metrics, nil
+	return LogMetrics{}, nil
 }
 
-// extractTimestamp extracts timestamp from log line
-func extractTimestamp(line string) time.Time {
-	// Common timestamp patterns
-	patterns := []string{
-		"2006-01-02T15:04:05Z",
-		"2006-01-02T15:04:05.000Z",
-		"2006-01-02T15:04:05", // Codex format without Z
-		"2006-01-02 15:04:05",
-		"Jan 02 15:04:05",
-	}
-
-	// First try to extract the timestamp string from the line
-	// Updated regex to handle timestamps both with and without Z, and in brackets
-	timestampRegex := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z?`)
-	matches := timestampRegex.FindStringSubmatch(line)
-	if len(matches) > 1 {
-		timestampStr := matches[1]
-		for _, pattern := range patterns {
-			if t, err := time.Parse(pattern, timestampStr); err == nil {
-				return t
-			}
-		}
-	}
-
-	return time.Time{}
-}
-
-// extractTokenUsage extracts token usage from log line
-func extractTokenUsage(line string) int {
-	// Look for patterns like "tokens: 1234", "token_count: 1234", etc.
-	patterns := []string{
-		`tokens?[:\s]+(\d+)`,
-		`token[_\s]count[:\s]+(\d+)`,
-		`input[_\s]tokens[:\s]+(\d+)`,
-		`output[_\s]tokens[:\s]+(\d+)`,
-		`total[_\s]tokens[_\s]used[:\s]+(\d+)`,
-		`tokens\s+used[:\s]+(\d+)`, // Codex format: "tokens used: 13934"
-	}
-
-	for _, pattern := range patterns {
-		if match := extractFirstMatch(line, pattern); match != "" {
-			if count, err := strconv.Atoi(match); err == nil {
-				return count
-			}
-		}
-	}
-
-	return 0
-}
-
-// extractCost extracts cost information from log line
-func extractCost(line string) float64 {
-	// Look for patterns like "cost: $1.23", "price: 0.45", etc.
-	patterns := []string{
-		`cost[:\s]+\$?(\d+\.?\d*)`,
-		`price[:\s]+\$?(\d+\.?\d*)`,
-		`\$(\d+\.?\d+)`,
-	}
-
-	for _, pattern := range patterns {
-		if match := extractFirstMatch(line, pattern); match != "" {
-			if cost, err := strconv.ParseFloat(match, 64); err == nil {
-				return cost
-			}
-		}
-	}
-
-	return 0
-}
-
-// extractFirstMatch extracts the first regex match from a string
-func extractFirstMatch(text, pattern string) string {
-	re := regexp.MustCompile(`(?i)` + pattern)
-	matches := re.FindStringSubmatch(text)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-	return ""
-}
-
-// extractJSONMetrics extracts metrics from streaming JSON log lines
-func extractJSONMetrics(line string, verbose bool) JSONMetrics {
-	var metrics JSONMetrics
-
-	// Skip lines that don't look like JSON
-	trimmed := strings.TrimSpace(line)
-	if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
-		return metrics
-	}
-
-	// Try to parse as generic JSON
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal([]byte(trimmed), &jsonData); err != nil {
-		return metrics
-	}
-
-	// Extract timestamp from various possible fields
-	if ts := extractJSONTimestamp(jsonData); !ts.IsZero() {
-		metrics.Timestamp = ts
-	}
-
-	// Extract token usage from various possible fields and structures
-	if tokens := extractJSONTokenUsage(jsonData); tokens > 0 {
-		metrics.TokenUsage = tokens
-	}
-
-	// Extract cost information from various possible fields
-	if cost := extractJSONCost(jsonData); cost > 0 {
-		metrics.EstimatedCost = cost
-	}
-
-	return metrics
-}
-
-// extractJSONTimestamp extracts timestamp from JSON data
-func extractJSONTimestamp(data map[string]interface{}) time.Time {
-	// Common timestamp field names
-	timestampFields := []string{"timestamp", "time", "created_at", "updated_at", "ts"}
-
-	for _, field := range timestampFields {
-		if val, exists := data[field]; exists {
-			if timeStr, ok := val.(string); ok {
-				// Try common timestamp formats
-				formats := []string{
-					time.RFC3339,
-					time.RFC3339Nano,
-					"2006-01-02T15:04:05Z",
-					"2006-01-02T15:04:05.000Z",
-					"2006-01-02 15:04:05",
-				}
-
-				for _, format := range formats {
-					if t, err := time.Parse(format, timeStr); err == nil {
-						return t
-					}
-				}
-			}
-		}
-	}
-
-	return time.Time{}
-}
-
-// extractJSONTokenUsage extracts token usage from JSON data
-func extractJSONTokenUsage(data map[string]interface{}) int {
-	// Check top-level token fields
-	tokenFields := []string{"tokens", "token_count", "input_tokens", "output_tokens", "total_tokens"}
-	for _, field := range tokenFields {
-		if val, exists := data[field]; exists {
-			if tokens := convertToInt(val); tokens > 0 {
-				return tokens
-			}
-		}
-	}
-
-	// Check nested usage objects (Claude API format)
-	if usage, exists := data["usage"]; exists {
-		if usageMap, ok := usage.(map[string]interface{}); ok {
-			// Claude format: {"usage": {"input_tokens": 10, "output_tokens": 5, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 200}}
-			inputTokens := convertToInt(usageMap["input_tokens"])
-			outputTokens := convertToInt(usageMap["output_tokens"])
-			cacheCreationTokens := convertToInt(usageMap["cache_creation_input_tokens"])
-			cacheReadTokens := convertToInt(usageMap["cache_read_input_tokens"])
-
-			totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
-			if totalTokens > 0 {
-				return totalTokens
-			}
-
-			// Generic token count in usage
-			for _, field := range tokenFields {
-				if val, exists := usageMap[field]; exists {
-					if tokens := convertToInt(val); tokens > 0 {
-						return tokens
-					}
-				}
-			}
-		}
-	}
-
-	// Check for delta structures (streaming format)
-	if delta, exists := data["delta"]; exists {
-		if deltaMap, ok := delta.(map[string]interface{}); ok {
-			if usage, exists := deltaMap["usage"]; exists {
-				if usageMap, ok := usage.(map[string]interface{}); ok {
-					inputTokens := convertToInt(usageMap["input_tokens"])
-					outputTokens := convertToInt(usageMap["output_tokens"])
-					if inputTokens > 0 || outputTokens > 0 {
-						return inputTokens + outputTokens
-					}
-				}
-			}
-		}
-	}
-
-	return 0
-}
-
-// extractJSONCost extracts cost information from JSON data
-func extractJSONCost(data map[string]interface{}) float64 {
-	// Common cost field names
-	costFields := []string{"cost", "price", "amount", "total_cost", "estimated_cost", "total_cost_usd"}
-
-	for _, field := range costFields {
-		if val, exists := data[field]; exists {
-			if cost := convertToFloat(val); cost > 0 {
-				return cost
-			}
-		}
-	}
-
-	// Check nested billing or pricing objects
-	if billing, exists := data["billing"]; exists {
-		if billingMap, ok := billing.(map[string]interface{}); ok {
-			for _, field := range costFields {
-				if val, exists := billingMap[field]; exists {
-					if cost := convertToFloat(val); cost > 0 {
-						return cost
-					}
-				}
-			}
-		}
-	}
-
-	return 0
-}
-
-// convertToInt safely converts interface{} to int
-func convertToInt(val interface{}) int {
-	switch v := val.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	case string:
-		if i, err := strconv.Atoi(v); err == nil {
-			return i
-		}
-	}
-	return 0
-}
-
-// convertToFloat safely converts interface{} to float64
-func convertToFloat(val interface{}) float64 {
-	switch v := val.(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case string:
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
-	}
-	return 0
-}
+// Shared utilities are now in workflow package
+// extractJSONMetrics is available as an alias
+var extractJSONMetrics = workflow.ExtractJSONMetrics
 
 // displayLogsOverview displays a summary table of workflow runs and metrics
 func displayLogsOverview(runs []WorkflowRun, outputDir string) {
@@ -820,7 +587,7 @@ func displayLogsOverview(runs []WorkflowRun, outputDir string) {
 		// Format tokens
 		tokensStr := "N/A"
 		if run.TokenUsage > 0 {
-			tokensStr = fmt.Sprintf("%d", run.TokenUsage)
+			tokensStr = formatNumber(run.TokenUsage)
 			totalTokens += run.TokenUsage
 		}
 
@@ -852,7 +619,7 @@ func displayLogsOverview(runs []WorkflowRun, outputDir string) {
 		"",
 		"",
 		formatDuration(totalDuration),
-		fmt.Sprintf("%d", totalTokens),
+		formatNumber(totalTokens),
 		fmt.Sprintf("%.3f", totalCost),
 		"",
 		"",
@@ -881,6 +648,49 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%.1fh", d.Hours())
 }
 
+// formatNumber formats large numbers in a human-readable way (e.g., "1k", "1.2k", "1.12M")
+func formatNumber(n int) string {
+	if n == 0 {
+		return "0"
+	}
+
+	f := float64(n)
+
+	if f < 1000 {
+		return fmt.Sprintf("%d", n)
+	} else if f < 1000000 {
+		// Format as thousands (k)
+		k := f / 1000
+		if k >= 100 {
+			return fmt.Sprintf("%.0fk", k)
+		} else if k >= 10 {
+			return fmt.Sprintf("%.1fk", k)
+		} else {
+			return fmt.Sprintf("%.2fk", k)
+		}
+	} else if f < 1000000000 {
+		// Format as millions (M)
+		m := f / 1000000
+		if m >= 100 {
+			return fmt.Sprintf("%.0fM", m)
+		} else if m >= 10 {
+			return fmt.Sprintf("%.1fM", m)
+		} else {
+			return fmt.Sprintf("%.2fM", m)
+		}
+	} else {
+		// Format as billions (B)
+		b := f / 1000000000
+		if b >= 100 {
+			return fmt.Sprintf("%.0fB", b)
+		} else if b >= 10 {
+			return fmt.Sprintf("%.1fB", b)
+		} else {
+			return fmt.Sprintf("%.2fB", b)
+		}
+	}
+}
+
 // dirExists checks if a directory exists
 func dirExists(path string) bool {
 	info, err := os.Stat(path)
@@ -897,4 +707,75 @@ func isDirEmpty(path string) bool {
 		return true // Consider it empty if we can't read it
 	}
 	return len(files) == 0
+}
+
+// getAgenticWorkflowNames reads all .lock.yml files and extracts their workflow names
+func getAgenticWorkflowNames(verbose bool) ([]string, error) {
+	var workflowNames []string
+
+	// Look for .lock.yml files in .github/workflows directory
+	workflowsDir := ".github/workflows"
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage("No .github/workflows directory found"))
+		}
+		return workflowNames, nil
+	}
+
+	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob .lock.yml files: %w", err)
+	}
+
+	for _, file := range files {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Reading workflow file: %s", file)))
+		}
+
+		content, err := os.ReadFile(file)
+		if err != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", file, err)))
+			}
+			continue
+		}
+
+		// Extract the workflow name using simple string parsing
+		lines := strings.Split(string(content), "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "name:") {
+				// Parse the name field
+				parts := strings.SplitN(trimmed, ":", 2)
+				if len(parts) == 2 {
+					name := strings.TrimSpace(parts[1])
+					// Remove quotes if present
+					name = strings.Trim(name, `"'`)
+					if name != "" {
+						workflowNames = append(workflowNames, name)
+						if verbose {
+							fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic workflow: %s", name)))
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d agentic workflows", len(workflowNames))))
+	}
+
+	return workflowNames, nil
+}
+
+// contains checks if a string slice contains a specific string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }

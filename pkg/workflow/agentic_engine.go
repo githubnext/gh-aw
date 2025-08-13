@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // GitHubActionStep represents the YAML lines for a single step in a GitHub Actions workflow
@@ -36,6 +37,9 @@ type AgenticEngine interface {
 
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string)
+
+	// ParseLogMetrics extracts metrics from engine-specific log content
+	ParseLogMetrics(logContent string, verbose bool) LogMetrics
 }
 
 // ExecutionConfig contains the configuration for executing an agentic engine
@@ -95,6 +99,11 @@ type EngineRegistry struct {
 	engines map[string]AgenticEngine
 }
 
+var (
+	globalRegistry   *EngineRegistry
+	registryInitOnce sync.Once
+)
+
 // NewEngineRegistry creates a new engine registry with built-in engines
 func NewEngineRegistry() *EngineRegistry {
 	registry := &EngineRegistry{
@@ -106,6 +115,14 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewCodexEngine())
 
 	return registry
+}
+
+// GetGlobalEngineRegistry returns the singleton engine registry
+func GetGlobalEngineRegistry() *EngineRegistry {
+	registryInitOnce.Do(func() {
+		globalRegistry = NewEngineRegistry()
+	})
+	return globalRegistry
 }
 
 // Register adds an engine to the registry
@@ -151,4 +168,13 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (AgenticEngine, error)
 		}
 	}
 	return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
+}
+
+// GetAllEngines returns all registered engines
+func (r *EngineRegistry) GetAllEngines() []AgenticEngine {
+	var engines []AgenticEngine
+	for _, engine := range r.engines {
+		engines = append(engines, engine)
+	}
+	return engines
 }

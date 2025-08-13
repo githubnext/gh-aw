@@ -143,7 +143,7 @@ func ListWorkflows(verbose bool) error {
 // listAgenticEngines lists all available agentic engines with their characteristics
 func listAgenticEngines(verbose bool) error {
 	// Create an engine registry directly to access the engines
-	registry := workflow.NewEngineRegistry()
+	registry := workflow.GetGlobalEngineRegistry()
 
 	// Get all supported engines from the registry
 	engines := registry.GetSupportedEngines()

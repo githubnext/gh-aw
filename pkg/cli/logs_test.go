@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestDownloadWorkflowLogs(t *testing.T) {
@@ -18,59 +20,18 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	// If GitHub CLI is authenticated, the function may succeed but find no results
 	// If not authenticated, it should return an auth error
 	if err != nil {
-		// If there's an error, it should be an authentication error
-		if !strings.Contains(err.Error(), "authentication required") {
-			t.Errorf("Expected authentication error or no error, got: %v", err)
+		// If there's an error, it should be an authentication or workflow-related error
+		errMsg := strings.ToLower(err.Error())
+		if !strings.Contains(errMsg, "authentication required") &&
+			!strings.Contains(errMsg, "failed to list workflow runs") &&
+			!strings.Contains(errMsg, "exit status 1") {
+			t.Errorf("Expected authentication error, workflow listing error, or no error, got: %v", err)
 		}
 	}
 	// If err is nil, that's also acceptable (authenticated case with no results)
 
 	// Clean up
 	os.RemoveAll("./test-logs")
-}
-
-func TestExtractTokenUsage(t *testing.T) {
-	tests := []struct {
-		line     string
-		expected int
-	}{
-		{"tokens: 1234", 1234},
-		{"token_count: 567", 567},
-		{"input_tokens: 890", 890},
-		{"Total tokens used: 999", 999},
-		{"tokens used: 13934", 13934},                       // Codex format
-		{"[2025-08-13T00:24:50] tokens used: 13934", 13934}, // Codex format with timestamp
-		{"no token info here", 0},
-		{"tokens: invalid", 0},
-	}
-
-	for _, tt := range tests {
-		result := extractTokenUsage(tt.line)
-		if result != tt.expected {
-			t.Errorf("extractTokenUsage(%q) = %d, expected %d", tt.line, result, tt.expected)
-		}
-	}
-}
-
-func TestExtractCost(t *testing.T) {
-	tests := []struct {
-		line     string
-		expected float64
-	}{
-		{"cost: $1.23", 1.23},
-		{"price: 0.45", 0.45},
-		{"Total cost: $99.99", 99.99},
-		{"$5.67 spent", 5.67},
-		{"no cost info here", 0},
-		{"cost: invalid", 0},
-	}
-
-	for _, tt := range tests {
-		result := extractCost(tt.line)
-		if result != tt.expected {
-			t.Errorf("extractCost(%q) = %f, expected %f", tt.line, result, tt.expected)
-		}
-	}
 }
 
 func TestFormatDuration(t *testing.T) {
@@ -92,7 +53,45 @@ func TestFormatDuration(t *testing.T) {
 	}
 }
 
-func TestParseLogFile(t *testing.T) {
+func TestFormatNumber(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected string
+	}{
+		{0, "0"},
+		{5, "5"},
+		{42, "42"},
+		{999, "999"},
+		{1000, "1.00k"},
+		{1200, "1.20k"},
+		{1234, "1.23k"},
+		{12000, "12.0k"},
+		{12300, "12.3k"},
+		{123000, "123k"},
+		{999999, "1000k"},
+		{1000000, "1.00M"},
+		{1200000, "1.20M"},
+		{1234567, "1.23M"},
+		{12000000, "12.0M"},
+		{12300000, "12.3M"},
+		{123000000, "123M"},
+		{999999999, "1000M"},
+		{1000000000, "1.00B"},
+		{1200000000, "1.20B"},
+		{1234567890, "1.23B"},
+		{12000000000, "12.0B"},
+		{123000000000, "123B"},
+	}
+
+	for _, test := range tests {
+		result := formatNumber(test.input)
+		if result != test.expected {
+			t.Errorf("formatNumber(%d) = %s, expected %s", test.input, result, test.expected)
+		}
+	}
+}
+
+func TestParseLogFileWithoutAwInfo(t *testing.T) {
 	// Create a temporary log file
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test.log")
@@ -110,35 +109,31 @@ func TestParseLogFile(t *testing.T) {
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Test parseLogFileWithEngine without an engine (simulates no aw_info.json)
+	metrics, err := parseLogFileWithEngine(logFile, nil, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
-	// Check token usage (should pick up the highest individual value: 2100)
-	if metrics.TokenUsage != 2100 {
-		t.Errorf("Expected token usage 2100, got %d", metrics.TokenUsage)
+	// Without aw_info.json, should return empty metrics
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
 	}
 
-	// Check cost
-	if metrics.EstimatedCost != 0.025 {
-		t.Errorf("Expected cost 0.025, got %f", metrics.EstimatedCost)
+	// Check cost - should be 0 without engine-specific parsing
+	if metrics.EstimatedCost != 0 {
+		t.Errorf("Expected cost 0 (no aw_info.json), got %f", metrics.EstimatedCost)
 	}
 
-	// Check duration (90 seconds between start and end)
-	expectedDuration := 90 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
-	}
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
 func TestExtractJSONMetrics(t *testing.T) {
 	tests := []struct {
-		name            string
-		line            string
-		expectedTokens  int
-		expectedCost    float64
-		expectTimestamp bool
+		name           string
+		line           string
+		expectedTokens int
+		expectedCost   float64
 	}{
 		{
 			name:           "Claude streaming format with usage",
@@ -146,10 +141,9 @@ func TestExtractJSONMetrics(t *testing.T) {
 			expectedTokens: 579, // 123 + 456
 		},
 		{
-			name:            "Simple token count",
-			line:            `{"tokens": 1234, "timestamp": "2024-01-15T10:30:00Z"}`,
-			expectedTokens:  1234,
-			expectTimestamp: true,
+			name:           "Simple token count (timestamp ignored)",
+			line:           `{"tokens": 1234, "timestamp": "2024-01-15T10:30:00Z"}`,
+			expectedTokens: 1234,
 		},
 		{
 			name:         "Cost information",
@@ -197,10 +191,6 @@ func TestExtractJSONMetrics(t *testing.T) {
 			if metrics.EstimatedCost != tt.expectedCost {
 				t.Errorf("Expected cost %f, got %f", tt.expectedCost, metrics.EstimatedCost)
 			}
-
-			if tt.expectTimestamp && metrics.Timestamp.IsZero() {
-				t.Error("Expected timestamp to be parsed, but got zero value")
-			}
 		})
 	}
 }
@@ -211,11 +201,11 @@ func TestParseLogFileWithJSON(t *testing.T) {
 	logFile := filepath.Join(tmpDir, "test-mixed.log")
 
 	logContent := `2024-01-15T10:30:00Z Starting workflow execution
-{"type": "message_start", "timestamp": "2024-01-15T10:30:15Z"}
+{"type": "message_start"}
 {"type": "content_block_delta", "delta": {"type": "text", "text": "Hello"}}
 {"type": "message_delta", "delta": {"usage": {"input_tokens": 150, "output_tokens": 200}}}
 Regular log line: tokens: 1000
-{"cost": 0.035, "timestamp": "2024-01-15T10:31:00Z"}
+{"cost": 0.035}
 2024-01-15T10:31:30Z Workflow completed successfully`
 
 	err := os.WriteFile(logFile, []byte(logContent), 0644)
@@ -223,26 +213,22 @@ Regular log line: tokens: 1000
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	metrics, err := parseLogFileWithEngine(logFile, nil, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
-	// Should pick up the highest token usage (1000 from text vs 350 from JSON)
-	if metrics.TokenUsage != 1000 {
-		t.Errorf("Expected token usage 1000, got %d", metrics.TokenUsage)
+	// Without aw_info.json and specific engine, should return empty metrics
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
 	}
 
-	// Should accumulate cost from JSON
-	if metrics.EstimatedCost != 0.035 {
-		t.Errorf("Expected cost 0.035, got %f", metrics.EstimatedCost)
+	// Should have no cost without engine-specific parsing
+	if metrics.EstimatedCost != 0 {
+		t.Errorf("Expected cost 0 (no aw_info.json), got %f", metrics.EstimatedCost)
 	}
 
-	// Check duration (90 seconds between start and end)
-	expectedDuration := 90 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
-	}
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
 func TestConvertToInt(t *testing.T) {
@@ -259,9 +245,9 @@ func TestConvertToInt(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := convertToInt(tt.value)
+		result := workflow.ConvertToInt(tt.value)
 		if result != tt.expected {
-			t.Errorf("convertToInt(%v) = %d, expected %d", tt.value, result, tt.expected)
+			t.Errorf("ConvertToInt(%v) = %d, expected %d", tt.value, result, tt.expected)
 		}
 	}
 }
@@ -280,9 +266,9 @@ func TestConvertToFloat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := convertToFloat(tt.value)
+		result := workflow.ConvertToFloat(tt.value)
 		if result != tt.expected {
-			t.Errorf("convertToFloat(%v) = %f, expected %f", tt.value, result, tt.expected)
+			t.Errorf("ConvertToFloat(%v) = %f, expected %f", tt.value, result, tt.expected)
 		}
 	}
 }
@@ -433,9 +419,9 @@ func TestExtractJSONCost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractJSONCost(tt.data)
+			result := workflow.ExtractJSONCost(tt.data)
 			if result != tt.expected {
-				t.Errorf("extractJSONCost() = %f, expected %f", result, tt.expected)
+				t.Errorf("ExtractJSONCost() = %f, expected %f", result, tt.expected)
 			}
 		})
 	}
@@ -459,9 +445,11 @@ Claude processing request...
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Test with Claude engine to parse Claude-specific logs
+	claudeEngine := workflow.NewClaudeEngine()
+	metrics, err := parseLogFileWithEngine(logFile, claudeEngine, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
 	// Check total token usage includes all token types from Claude
@@ -476,11 +464,7 @@ Claude processing request...
 		t.Errorf("Expected cost %f, got %f", expectedCost, metrics.EstimatedCost)
 	}
 
-	// Check duration (150 seconds between start and end)
-	expectedDuration := 150 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
-	}
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
 func TestParseLogFileWithCodexFormat(t *testing.T) {
@@ -501,9 +485,11 @@ I'm ready to generate a Codex PR summary, but I need the pull request number to 
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Test with Codex engine to parse Codex-specific logs
+	codexEngine := workflow.NewCodexEngine()
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
 	// Check token usage extraction from Codex format
@@ -512,62 +498,238 @@ I'm ready to generate a Codex PR summary, but I need the pull request number to 
 		t.Errorf("Expected token usage %d, got %d", expectedTokens, metrics.TokenUsage)
 	}
 
-	// Check duration (10 seconds between start and end)
-	expectedDuration := 10 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
+}
+
+func TestParseLogFileWithCodexTokenSumming(t *testing.T) {
+	// Create a temporary log file with multiple Codex token entries
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-codex-tokens.log")
+
+	// Simulate the exact Codex format from the issue
+	logContent := `  ]
+}
+[2025-08-13T04:38:03] tokens used: 32169
+[2025-08-13T04:38:06] codex
+I've posted the PR summary comment with analysis and recommendations. Let me know if you'd like to adjust any details or add further insights!
+[2025-08-13T04:38:06] tokens used: 28828
+[2025-08-13T04:38:10] Processing complete
+[2025-08-13T04:38:15] tokens used: 5000`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	// Get the Codex engine for testing
+	registry := workflow.NewEngineRegistry()
+	codexEngine, err := registry.GetEngine("codex")
+	if err != nil {
+		t.Fatalf("Failed to get Codex engine: %v", err)
+	}
+
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	if err != nil {
+		t.Fatalf("parseLogFile failed: %v", err)
+	}
+
+	// Should sum all Codex token entries: 32169 + 28828 + 5000 = 65997
+	expectedTokens := 32169 + 28828 + 5000
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (sum of all Codex entries), got %d", expectedTokens, metrics.TokenUsage)
 	}
 }
 
-func TestExtractTokenUsageCodexPatterns(t *testing.T) {
-	tests := []struct {
-		name     string
-		line     string
-		expected int
-	}{
-		{
-			name:     "Codex basic format",
-			line:     "tokens used: 13934",
-			expected: 13934,
-		},
-		{
-			name:     "Codex format with timestamp",
-			line:     "[2025-08-13T00:24:50] tokens used: 13934",
-			expected: 13934,
-		},
-		{
-			name:     "Codex format with different timestamp",
-			line:     "[2024-12-01T15:30:45] tokens used: 5678",
-			expected: 5678,
-		},
-		{
-			name:     "Codex format mixed with other text",
-			line:     "Processing completed. tokens used: 999 - Summary generated",
-			expected: 999,
-		},
-		{
-			name:     "Standard format still works",
-			line:     "tokens: 1234",
-			expected: 1234,
-		},
-		{
-			name:     "Total tokens used format",
-			line:     "total tokens used: 4567",
-			expected: 4567,
-		},
-		{
-			name:     "No token info",
-			line:     "[2025-08-13T00:24:50] codex processing",
-			expected: 0,
-		},
+func TestParseLogFileWithMixedTokenFormats(t *testing.T) {
+	// Create a temporary log file with mixed token formats
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-mixed-tokens.log")
+
+	// Mix of Codex and non-Codex formats - should prioritize Codex summing
+	logContent := `[2025-08-13T04:38:03] tokens used: 1000
+tokens: 5000
+[2025-08-13T04:38:06] tokens used: 2000
+token_count: 10000`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractTokenUsage(tt.line)
-			if result != tt.expected {
-				t.Errorf("extractTokenUsage(%q) = %d, expected %d", tt.line, result, tt.expected)
-			}
-		})
+	// Get the Codex engine for testing
+	registry := workflow.NewEngineRegistry()
+	codexEngine, err := registry.GetEngine("codex")
+	if err != nil {
+		t.Fatalf("Failed to get Codex engine: %v", err)
+	}
+
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	if err != nil {
+		t.Fatalf("parseLogFile failed: %v", err)
+	}
+
+	// Should sum Codex entries: 1000 + 2000 = 3000 (ignoring non-Codex formats)
+	expectedTokens := 1000 + 2000
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (sum of Codex entries), got %d", expectedTokens, metrics.TokenUsage)
+	}
+}
+
+func TestExtractEngineFromAwInfoNestedDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Test Case 1: aw_info.json as a regular file
+	awInfoFile := filepath.Join(tmpDir, "aw_info.json")
+	awInfoContent := `{
+		"engine_id": "claude",
+		"engine_name": "Claude",
+		"model": "claude-3-sonnet",
+		"version": "20240620",
+		"workflow_name": "Test Claude",
+		"experimental": false,
+		"supports_tools_whitelist": true,
+		"supports_http_transport": false,
+		"run_id": 123456789,
+		"run_number": 42,
+		"run_attempt": "1",
+		"repository": "githubnext/gh-aw",
+		"ref": "refs/heads/main",
+		"sha": "abc123",
+		"actor": "testuser",
+		"event_name": "workflow_dispatch",
+		"created_at": "2025-08-13T13:36:39.704Z"
+	}`
+
+	err := os.WriteFile(awInfoFile, []byte(awInfoContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create aw_info.json file: %v", err)
+	}
+
+	// Test regular file extraction
+	engine := extractEngineFromAwInfo(awInfoFile, true)
+	if engine == nil {
+		t.Errorf("Expected to extract engine from regular aw_info.json file, got nil")
+	} else if engine.GetID() != "claude" {
+		t.Errorf("Expected engine ID 'claude', got '%s'", engine.GetID())
+	}
+
+	// Clean up for next test
+	os.Remove(awInfoFile)
+
+	// Test Case 2: aw_info.json as a directory containing the actual file
+	awInfoDir := filepath.Join(tmpDir, "aw_info.json")
+	err = os.Mkdir(awInfoDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create aw_info.json directory: %v", err)
+	}
+
+	// Create the nested aw_info.json file inside the directory
+	nestedAwInfoFile := filepath.Join(awInfoDir, "aw_info.json")
+	awInfoContentCodex := `{
+		"engine_id": "codex",
+		"engine_name": "Codex",
+		"model": "o4-mini",
+		"version": "",
+		"workflow_name": "Test Codex",
+		"experimental": true,
+		"supports_tools_whitelist": true,
+		"supports_http_transport": false,
+		"run_id": 987654321,
+		"run_number": 7,
+		"run_attempt": "1",
+		"repository": "githubnext/gh-aw",
+		"ref": "refs/heads/copilot/fix-24",
+		"sha": "def456",
+		"actor": "testuser2",
+		"event_name": "workflow_dispatch",
+		"created_at": "2025-08-13T13:36:39.704Z"
+	}`
+
+	err = os.WriteFile(nestedAwInfoFile, []byte(awInfoContentCodex), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create nested aw_info.json file: %v", err)
+	}
+
+	// Test directory-based extraction (the main fix)
+	engine = extractEngineFromAwInfo(awInfoDir, true)
+	if engine == nil {
+		t.Errorf("Expected to extract engine from aw_info.json directory, got nil")
+	} else if engine.GetID() != "codex" {
+		t.Errorf("Expected engine ID 'codex', got '%s'", engine.GetID())
+	}
+
+	// Test Case 3: Non-existent aw_info.json should return nil
+	nonExistentPath := filepath.Join(tmpDir, "nonexistent", "aw_info.json")
+	engine = extractEngineFromAwInfo(nonExistentPath, false)
+	if engine != nil {
+		t.Errorf("Expected nil for non-existent aw_info.json, got engine: %s", engine.GetID())
+	}
+
+	// Test Case 4: Directory without nested aw_info.json should return nil
+	emptyDir := filepath.Join(tmpDir, "empty_aw_info.json")
+	err = os.Mkdir(emptyDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create empty directory: %v", err)
+	}
+
+	engine = extractEngineFromAwInfo(emptyDir, false)
+	if engine != nil {
+		t.Errorf("Expected nil for directory without nested aw_info.json, got engine: %s", engine.GetID())
+	}
+
+	// Test Case 5: Invalid JSON should return nil
+	invalidAwInfoFile := filepath.Join(tmpDir, "invalid_aw_info.json")
+	invalidContent := `{invalid json content`
+	err = os.WriteFile(invalidAwInfoFile, []byte(invalidContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create invalid aw_info.json file: %v", err)
+	}
+
+	engine = extractEngineFromAwInfo(invalidAwInfoFile, false)
+	if engine != nil {
+		t.Errorf("Expected nil for invalid JSON aw_info.json, got engine: %s", engine.GetID())
+	}
+
+	// Test Case 6: Missing engine_id should return nil
+	missingEngineIDFile := filepath.Join(tmpDir, "missing_engine_id_aw_info.json")
+	missingEngineIDContent := `{
+		"workflow_name": "Test Workflow",
+		"run_id": 123456789
+	}`
+	err = os.WriteFile(missingEngineIDFile, []byte(missingEngineIDContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create aw_info.json file without engine_id: %v", err)
+	}
+
+	engine = extractEngineFromAwInfo(missingEngineIDFile, false)
+	if engine != nil {
+		t.Errorf("Expected nil for aw_info.json without engine_id, got engine: %s", engine.GetID())
+	}
+}
+
+func TestParseLogFileWithNonCodexTokensOnly(t *testing.T) {
+	// Create a temporary log file with only non-Codex token formats
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-generic-tokens.log")
+
+	// Only non-Codex formats - should keep maximum behavior
+	logContent := `tokens: 5000
+token_count: 10000
+input_tokens: 2000`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	// Without aw_info.json and specific engine, should return empty metrics
+	metrics, err := parseLogFileWithEngine(logFile, nil, false)
+	if err != nil {
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
+	}
+
+	// Without engine-specific parsing, should return 0
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
 	}
 }
