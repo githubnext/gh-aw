@@ -199,11 +199,10 @@ func TestAllowedExpressionsList(t *testing.T) {
 	expectedExpressions := []string{
 		"github.workflow",
 		"github.repository",
+		"github.owner",
 		"github.run_id",
 		"github.event.issue.number",
 		"needs.task.outputs.text",
-		"github.head_ref",
-		"github.event.pull_request.created_at",
 	}
 
 	if len(constants.AllowedExpressions) != len(expectedExpressions) {
