@@ -122,8 +122,8 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain 'codex exec' command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check for correct model based on AI setting
-				if !strings.Contains(lockContent, "model=gpt-4o") {
-					t.Errorf("Expected lock file to contain 'model=gpt-4o' for codex but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "model=o4-mini") {
+					t.Errorf("Expected lock file to contain 'model=o4-mini' for codex but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "OPENAI_API_KEY") {
 					t.Errorf("Expected lock file to contain 'OPENAI_API_KEY' for codex but it didn't.\nContent:\n%s", lockContent)

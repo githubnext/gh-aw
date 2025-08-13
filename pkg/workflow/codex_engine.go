@@ -44,8 +44,8 @@ func (e *CodexEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHubA
 }
 
 func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig {
-	// Use model from engineConfig if available, otherwise default to gpt-4o
-	model := "gpt-4o"
+	// Use model from engineConfig if available, otherwise default to o4-mini
+	model := "o4-mini"
 	if engineConfig != nil && engineConfig.Model != "" {
 		model = engineConfig.Model
 	}
