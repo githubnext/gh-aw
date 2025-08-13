@@ -51,7 +51,7 @@ func TestAddWorkflow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := AddWorkflow(tt.workflow, tt.number, false, "", "", false)
+			err := AddWorkflowWithTracking(tt.workflow, tt.number, false, "", "", false, nil)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -68,13 +68,13 @@ func TestAddWorkflowForce(t *testing.T) {
 	// It doesn't test the actual file system operations
 
 	// Test that force=false fails when a file "exists" (simulated by empty workflow name which triggers help)
-	err := AddWorkflow("", 1, false, "", "", false)
+	err := AddWorkflowWithTracking("", 1, false, "", "", false, nil)
 	if err != nil {
 		t.Errorf("Expected no error for empty workflow (shows help), got: %v", err)
 	}
 
 	// Test that force=true works with same parameters
-	err = AddWorkflow("", 1, false, "", "", true)
+	err = AddWorkflowWithTracking("", 1, false, "", "", true, nil)
 	if err != nil {
 		t.Errorf("Expected no error for empty workflow with force=true, got: %v", err)
 	}
@@ -180,13 +180,13 @@ func TestAllCommandsExist(t *testing.T) {
 		name        string
 	}{
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
-		{func() error { return AddWorkflow("", 1, false, "", "", false) }, false, "AddWorkflow (empty name)"},            // Shows help when empty, doesn't error
-		{func() error { return CompileWorkflows("", false, "", false, false, false, false) }, false, "CompileWorkflows"}, // Should compile existing markdown files successfully
-		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                               // Should handle missing directory gracefully
-		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                               // Should handle missing directory gracefully
-		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                      // Should handle missing directory gracefully
-		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                                    // Should handle missing directory gracefully
-		{func() error { return RunWorkflowOnGitHub("", false) }, true, "RunWorkflowOnGitHub"},                            // Should error with empty workflow name
+		{func() error { return AddWorkflowWithTracking("", 1, false, "", "", false, nil) }, false, "AddWorkflowWithTracking (empty name)"}, // Shows help when empty, doesn't error
+		{func() error { return CompileWorkflows("", false, "", false, false, false, false) }, false, "CompileWorkflows"},                   // Should compile existing markdown files successfully
+		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                                                 // Should handle missing directory gracefully
+		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                                                 // Should handle missing directory gracefully
+		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                                        // Should handle missing directory gracefully
+		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                                                      // Should handle missing directory gracefully
+		{func() error { return RunWorkflowOnGitHub("", false) }, true, "RunWorkflowOnGitHub"},                                              // Should error with empty workflow name
 	}
 
 	for _, test := range tests {

@@ -168,7 +168,7 @@ func listAgenticEngines(verbose bool) error {
 		engine, err := registry.GetEngine(engineID)
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: Failed to get engine '%s': %v\n", engineID, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get engine '%s': %v", engineID, err)))
 			}
 			continue
 		}
@@ -225,7 +225,7 @@ func AddWorkflowWithRepo(workflow string, number int, verbose bool, engineOverri
 		}
 
 		if verbose {
-			fmt.Printf("Installing repository %s before adding workflow...\n", repoSpec)
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflow...", repoSpec)))
 		}
 		// Install as global package (not local) to match the behavior expected
 		if err := InstallPackage(repoSpec, false, verbose); err != nil {
@@ -237,8 +237,17 @@ func AddWorkflowWithRepo(workflow string, number int, verbose bool, engineOverri
 		workflow = fmt.Sprintf("%s/%s", repo, workflow)
 	}
 
-	// Call the original AddWorkflow function
-	return AddWorkflow(workflow, number, verbose, engineOverride, name, force)
+	// Call AddWorkflowWithTracking directly with a new tracker
+	tracker, err := NewFileTracker()
+	if err != nil {
+		// If we can't create a tracker (e.g., not in git repo), fall back to non-tracking behavior
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Could not create file tracker: %v", err)))
+		}
+		return AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, nil)
+	}
+
+	return AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, tracker)
 }
 
 // AddWorkflowWithRepoAndPR adds a workflow from components to .github/workflows
@@ -283,11 +292,11 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 	defer func() {
 		if rollbackOnError {
 			if err := tracker.RollbackAllFiles(verbose); err != nil && verbose {
-				fmt.Printf("Warning: Failed to rollback files: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", err)))
 			}
 		}
 		if err := switchBranch(currentBranch, verbose); err != nil && verbose {
-			fmt.Printf("Warning: Failed to switch back to original branch %s: %v\n", currentBranch, err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to original branch %s: %v", currentBranch, err)))
 		}
 	}()
 
@@ -299,7 +308,7 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 		}
 
 		if verbose {
-			fmt.Printf("Installing repository %s before adding workflow...\n", repoSpec)
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflow...", repoSpec)))
 		}
 		// Install as global package (not local) to match the behavior expected
 		if err := InstallPackage(repoSpec, false, verbose); err != nil {
@@ -349,16 +358,16 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 // AddWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
 func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOverride string, name string, force bool, tracker *FileTracker) error {
 	if workflow == "" {
-		fmt.Println("Error: No components path specified. Usage: " + constants.CLIExtensionPrefix + " add <name>")
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("No components path specified. Usage: "+constants.CLIExtensionPrefix+" add <name>"))
 		// Show available workflows using the same logic as ListWorkflows
 		return ListWorkflows(false)
 	}
 
 	if verbose {
-		fmt.Printf("Adding workflow: %s\n", workflow)
-		fmt.Printf("Number of copies: %d\n", number)
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow)))
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
 		if force {
-			fmt.Printf("Force flag enabled: will overwrite existing files\n")
+			fmt.Println(console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
 		}
 	}
 
@@ -386,11 +395,11 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	// Try to read the workflow content from multiple sources
 	sourceContent, sourceInfo, err := findAndReadWorkflow(workflowPath, workflowsDir, verbose)
 	if err != nil {
-		fmt.Printf("Error: Workflow '%s' not found.\n", workflow)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflow)))
 
 		// Show available workflows using the same logic as ListWorkflows
-		fmt.Println("\nRun '" + constants.CLIExtensionPrefix + " list' to see available workflows.")
-		fmt.Println("For packages, use '" + constants.CLIExtensionPrefix + " list --packages' to see installed packages.")
+		fmt.Println(console.FormatInfoMessage("Run '" + constants.CLIExtensionPrefix + " list' to see available workflows."))
+		fmt.Println(console.FormatInfoMessage("For packages, use '" + constants.CLIExtensionPrefix + " list --packages' to see installed packages."))
 		return fmt.Errorf("workflow not found: %s", workflow)
 	}
 
@@ -430,12 +439,12 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	// Collect all @include dependencies from the workflow file
 	includeDeps, err := collectIncludeDependenciesFromSource(string(sourceContent), sourceInfo, verbose)
 	if err != nil {
-		fmt.Printf("Warning: Failed to collect include dependencies: %v\n", err)
+		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to collect include dependencies: %v", err)))
 	}
 
 	// Copy all @include dependencies to .github/workflows maintaining relative paths
 	if err := copyIncludeDependenciesFromSourceWithForce(includeDeps, githubWorkflowsDir, sourceInfo, verbose, force); err != nil {
-		fmt.Printf("Warning: Failed to copy include dependencies: %v\n", err)
+		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to copy include dependencies: %v", err)))
 	}
 
 	// Process each copy
@@ -453,10 +462,10 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		if _, err := os.Stat(destFile); err == nil {
 			fileExists = true
 			if !force {
-				fmt.Printf("Warning: Destination file '%s' already exists, skipping.\n", destFile)
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
 				continue
 			}
-			fmt.Printf("Overwriting existing file: %s\n", destFile)
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Overwriting existing file: %s", destFile)))
 		}
 
 		// Process content for numbered workflows
@@ -505,21 +514,6 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	return nil
 }
 
-// AddWorkflow adds a workflow from components to .github/workflows (backward compatibility wrapper)
-func AddWorkflow(workflow string, number int, verbose bool, engineOverride string, name string, force bool) error {
-	// For backward compatibility, we create a tracker but don't require it to succeed
-	tracker, err := NewFileTracker()
-	if err != nil {
-		// If we can't create a tracker (e.g., not in git repo), fall back to non-tracking behavior
-		if verbose {
-			fmt.Printf("Warning: Could not create file tracker: %v\n", err)
-		}
-		return AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, nil)
-	}
-
-	return AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, tracker)
-}
-
 // CompileWorkflows compiles markdown files into GitHub Actions workflow files
 func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, validate bool, autoCompile bool, watch bool, writeInstructions bool) error {
 	// Create compiler with verbose flag and AI engine override
@@ -545,7 +539,7 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 		if autoCompile {
 			if err := ensureAutoCompileWorkflow(verbose); err != nil {
 				if verbose {
-					fmt.Printf("Warning: Failed to manage auto-compile workflow: %v\n", err)
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to manage auto-compile workflow: %v", err)))
 				}
 			}
 		}
@@ -553,16 +547,16 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 		// Ensure .gitattributes marks .lock.yml files as generated
 		if err := ensureGitAttributes(); err != nil {
 			if verbose {
-				fmt.Printf("Warning: Failed to update .gitattributes: %v\n", err)
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 		} else if verbose {
-			fmt.Printf("Updated .gitattributes to mark .lock.yml files as generated\n")
+			fmt.Println(console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
 		}
 
 		// Ensure copilot instructions are present
 		if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 			if verbose {
-				fmt.Printf("Warning: Failed to update copilot instructions: %v\n", err)
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
 			}
 		}
 
@@ -579,7 +573,7 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 	if autoCompile {
 		if err := ensureAutoCompileWorkflow(verbose); err != nil {
 			if verbose {
-				fmt.Printf("Warning: Failed to manage auto-compile workflow: %v\n", err)
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to manage auto-compile workflow: %v", err)))
 			}
 		}
 	}
@@ -625,16 +619,16 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
 		if verbose {
-			fmt.Printf("Warning: Failed to update .gitattributes: %v\n", err)
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 		}
 	} else if verbose {
-		fmt.Printf("Updated .gitattributes to mark .lock.yml files as generated\n")
+		fmt.Println(console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
 	}
 
 	// Ensure copilot instructions are present
 	if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 		if verbose {
-			fmt.Printf("Warning: Failed to update copilot instructions: %v\n", err)
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
 		}
 	}
 
@@ -1012,9 +1006,9 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	var removedFiles []string
 	for _, file := range filesToRemove {
 		if err := os.Remove(file); err != nil {
-			fmt.Printf("Warning: Failed to remove %s: %v\n", file, err)
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", file, err)))
 		} else {
-			fmt.Printf("Removed: %s\n", filepath.Base(file))
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Removed: %s", filepath.Base(file))))
 			removedFiles = append(removedFiles, file)
 		}
 
