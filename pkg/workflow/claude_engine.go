@@ -31,7 +31,7 @@ func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHub
 func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig {
 	config := ExecutionConfig{
 		StepName: "Execute Claude Code Action",
-		Action:   "anthropics/claude-code-base-action@beta",
+		Action:   "anthropics/claude-code-base-action@v0.0.56",
 		Inputs: map[string]string{
 			"prompt_file":       "/tmp/aw-prompts/prompt.txt",
 			"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
