@@ -17,8 +17,9 @@ tools:
   time:
     mcp:
       type: stdio
-      command: "docker"
-      args: ["run", "-i", "--rm", "-e", "LOCAL_TIMEZONE", "mcp/time"]
+      container: "mcp/time"
+      env:
+        LOCAL_TIMEZONE: "${LOCAL_TIMEZONE}"
     allowed: ["get_current_time"]
 ---
 

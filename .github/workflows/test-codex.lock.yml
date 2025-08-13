@@ -94,12 +94,13 @@ jobs:
           command = "docker"
           args = [
             "run",
-            "-i",
             "--rm",
+            "-i",
             "-e",
             "LOCAL_TIMEZONE",
             "mcp/time",
           ]
+          env = { "LOCAL_TIMEZONE" = "${LOCAL_TIMEZONE}" }
           EOF
       - name: Create prompt
         run: |
