@@ -287,14 +287,8 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 		return fmt.Errorf("failed to create file tracker: %w", err)
 	}
 
-	// Add rollback functionality to the defer function
-	rollbackOnError := true
+	// Ensure we switch back to original branch on exit
 	defer func() {
-		if rollbackOnError {
-			if err := tracker.RollbackAllFiles(verbose); err != nil && verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", err)))
-			}
-		}
 		if err := switchBranch(currentBranch, verbose); err != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to original branch %s: %v", currentBranch, err)))
 		}
@@ -322,17 +316,26 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 
 	// Add workflow files using tracking logic
 	if err := AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, tracker); err != nil {
+		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
 		return fmt.Errorf("failed to add workflow: %w", err)
 	}
 
 	// Commit changes (all tracked files should already be staged)
 	commitMessage := fmt.Sprintf("Add workflow: %s", workflow)
 	if err := commitChanges(commitMessage, verbose); err != nil {
+		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
 	// Push branch
 	if err := pushBranch(branchName, verbose); err != nil {
+		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
 		return fmt.Errorf("failed to push branch %s: %w", branchName, err)
 	}
 
@@ -340,11 +343,13 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 	prTitle := fmt.Sprintf("Add workflow: %s", workflow)
 	prBody := fmt.Sprintf("Automatically created PR to add workflow: %s", workflow)
 	if err := createPR(branchName, prTitle, prBody, verbose); err != nil {
+		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
 		return fmt.Errorf("failed to create PR: %w", err)
 	}
 
-	// Success - disable rollback
-	rollbackOnError = false
+	// Success - no rollback needed
 
 	// Switch back to original branch
 	if err := switchBranch(currentBranch, verbose); err != nil {
