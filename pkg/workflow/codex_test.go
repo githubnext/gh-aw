@@ -122,8 +122,8 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain 'codex exec' command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check for correct model based on AI setting
-				if !strings.Contains(lockContent, "model=gpt-4o") {
-					t.Errorf("Expected lock file to contain 'model=gpt-4o' for codex but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "model=o4-mini") {
+					t.Errorf("Expected lock file to contain 'model=o4-mini' for codex but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "OPENAI_API_KEY") {
 					t.Errorf("Expected lock file to contain 'OPENAI_API_KEY' for codex but it didn't.\nContent:\n%s", lockContent)
@@ -138,6 +138,13 @@ This is a test workflow.
 				}
 				if !strings.Contains(lockContent, "[mcp_servers.github]") {
 					t.Errorf("Expected lock file to contain '[mcp_servers.github]' section in config.toml but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Check that history configuration is present
+				if !strings.Contains(lockContent, "[history]") {
+					t.Errorf("Expected lock file to contain '[history]' section in config.toml but it didn't.\nContent:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, "persistence = \"none\"") {
+					t.Errorf("Expected lock file to contain 'persistence = \"none\"' in config.toml but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Ensure it does NOT contain mcp-servers.json
 				if strings.Contains(lockContent, "mcp-servers.json") {
@@ -289,6 +296,27 @@ tools:
 			expectMcpServersJson: true,
 			expectCodexHome:      false,
 		},
+		{
+			name: "codex with custom MCP tools generates config.toml",
+			frontmatter: `---
+engine: codex
+tools:
+  github:
+    allowed: [get_issue, create_issue]
+  custom-server:
+    mcp:
+      type: stdio
+      command: "python"
+      args: ["-m", "my_server"]
+      env:
+        API_KEY: "${{ secrets.API_KEY }}"
+    allowed: ["*"]
+---`,
+			expectedAI:           "codex",
+			expectConfigToml:     true,
+			expectMcpServersJson: false,
+			expectCodexHome:      true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -331,6 +359,18 @@ This is a test workflow for MCP configuration with different AI engines.
 
 				if !strings.Contains(lockContent, "command = \"docker\"") {
 					t.Errorf("Expected docker command in config.toml but didn't find it in:\n%s", lockContent)
+				}
+				// Check for custom MCP server if test includes it
+				if strings.Contains(tt.name, "custom MCP") {
+					if !strings.Contains(lockContent, "[mcp_servers.custom-server]") {
+						t.Errorf("Expected [mcp_servers.custom-server] section but didn't find it in:\n%s", lockContent)
+					}
+					if !strings.Contains(lockContent, "command = \"python\"") {
+						t.Errorf("Expected python command for custom server but didn't find it in:\n%s", lockContent)
+					}
+					if !strings.Contains(lockContent, "\"API_KEY\" = \"${{ secrets.API_KEY }}\"") {
+						t.Errorf("Expected API_KEY env var for custom server but didn't find it in:\n%s", lockContent)
+					}
 				}
 				// Should NOT have services section (services mode removed)
 				if strings.Contains(lockContent, "services:") {

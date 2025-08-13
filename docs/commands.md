@@ -44,6 +44,9 @@ gh aw compile --watch --auto-compile --verbose
 # Remove a workflow
 gh aw remove WorkflowName
 
+# Remove a workflow without removing orphaned include files
+gh aw remove WorkflowName --keep-orphans
+
 # Run a workflow immediately
 gh aw run WorkflowName
 
@@ -200,12 +203,6 @@ gh aw list --packages --local
 - **Global Storage**: Global packages are stored in `~/.aw/packages/org/repo/` directory structure
 - **Local Storage**: Local packages are stored in `.aw/packages/org/repo/` directory structure
 - **Flexible Installation**: Choose between global (shared across projects) or local (project-specific) installations
-
-**Note**: The `disable`, `enable`, and `status` commands require:
-
-- GitHub CLI (`gh`) to be installed and authenticated
-- The command to be run from within a git repository
-- The workflows to be already updated (`.lock.yml` files must exist)
 
 **Package Installation Requirements:**
 

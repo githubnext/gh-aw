@@ -20,6 +20,14 @@ tools:
       WebFetch:
       WebSearch:
 
+# By default agentic workflows use a concurrency setting that
+# allows one run at a time, regardless of branch or issue. This is
+# not appropriate for triage workflows, so here we allow one run
+# per issue at a time.
+concurrency:
+   group: "triage-${{ github.event.issue.number }}"
+   cancel-in-progress: true
+
 timeout_minutes: 10
 ---
 

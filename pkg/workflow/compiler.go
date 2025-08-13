@@ -130,6 +130,7 @@ type WorkflowData struct {
 	AIReaction       string         // AI reaction type like "eyes", "heart", etc.
 	Jobs             map[string]any // custom job configurations with dependencies
 	Cache            string         // cache configuration
+	NeedsTextOutput  bool           // whether the workflow uses ${{ needs.task.outputs.text }}
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -192,18 +193,20 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		return errors.New(formattedErr)
 	}
 
-	// Write shared compute-text action (always generated for task job)
-	if err := c.writeComputeTextAction(markdownPath); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("failed to write compute-text action: %v", err),
-		})
-		return errors.New(formattedErr)
+	// Write shared compute-text action (only if needed for task job)
+	if workflowData.NeedsTextOutput {
+		if err := c.writeComputeTextAction(markdownPath); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("failed to write compute-text action: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	}
 
 	// Write shared check-team-member action (only for alias workflows)
@@ -481,6 +484,11 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			return nil, fmt.Errorf("invalid MCP configuration: %w", err)
 		}
 
+		// Validate HTTP transport support for the current engine
+		if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
+			return nil, fmt.Errorf("HTTP transport not supported: %w", err)
+		}
+
 		// Apply default GitHub MCP tools (only for engines that support MCP)
 		if agenticEngine.SupportsToolsWhitelist() {
 			tools = c.applyDefaultGitHubMCPTools(tools)
@@ -511,6 +519,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Extracted workflow name: '%s'", workflowName)))
 	}
 
+	// Check if the markdown content uses the text output
+	needsTextOutput := c.detectTextOutputUsage(markdownContent)
+
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:            workflowName,
@@ -518,6 +529,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		MarkdownContent: markdownContent,
 		AI:              engineSetting,
 		EngineConfig:    engineConfig,
+		NeedsTextOutput: needsTextOutput,
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -1135,6 +1147,20 @@ func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]a
 	return tools
 }
 
+// detectTextOutputUsage checks if the markdown content uses ${{ needs.task.outputs.text }}
+func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
+	// Check for the specific GitHub Actions expression
+	hasUsage := strings.Contains(markdownContent, "${{ needs.task.outputs.text }}")
+	if c.verbose {
+		if hasUsage {
+			fmt.Println(console.FormatInfoMessage("Detected usage of task.outputs.text - compute-text step will be included"))
+		} else {
+			fmt.Println(console.FormatInfoMessage("No usage of task.outputs.text found - compute-text step will be skipped"))
+		}
+	}
+	return hasUsage
+}
+
 // computeAllowedTools computes the comma-separated list of allowed tools for Claude
 func (c *Compiler) computeAllowedTools(tools map[string]any) string {
 	var allowedTools []string
@@ -1408,14 +1434,17 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, "          exit 1\n")
 	}
 
-	// Use shared compute-text action
-	steps = append(steps, "      - name: Compute current body text\n")
-	steps = append(steps, "        id: compute-text\n")
-	steps = append(steps, "        uses: ./.github/actions/compute-text\n")
+	// Use shared compute-text action only if needed
+	if data.NeedsTextOutput {
+		steps = append(steps, "      - name: Compute current body text\n")
+		steps = append(steps, "        id: compute-text\n")
+		steps = append(steps, "        uses: ./.github/actions/compute-text\n")
+	}
 
 	// Set up outputs
-	outputs := map[string]string{
-		"text": "${{ steps.compute-text.outputs.text }}",
+	outputs := map[string]string{}
+	if data.NeedsTextOutput {
+		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
 	job := &Job{
@@ -1928,7 +1957,15 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		// Add environment variables
 		if len(executionConfig.Environment) > 0 {
 			yaml.WriteString("        env:\n")
-			for key, value := range executionConfig.Environment {
+			// Sort environment keys for consistent output
+			envKeys := make([]string, 0, len(executionConfig.Environment))
+			for key := range executionConfig.Environment {
+				envKeys = append(envKeys, key)
+			}
+			sort.Strings(envKeys)
+
+			for _, key := range envKeys {
+				value := executionConfig.Environment[key]
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
 		}
@@ -1977,4 +2014,23 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          # Ensure log file exists\n")
 		yaml.WriteString("          touch " + logFile + "\n")
 	}
+}
+
+// validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
+func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine AgenticEngine) error {
+	if engine.SupportsHTTPTransport() {
+		// Engine supports HTTP transport, no validation needed
+		return nil
+	}
+
+	// Engine doesn't support HTTP transport, check for HTTP MCP servers
+	for toolName, toolConfig := range tools {
+		if config, ok := toolConfig.(map[string]any); ok {
+			if hasMcp, mcpType := hasMCPConfig(config); hasMcp && mcpType == "http" {
+				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s' (only stdio transport is supported)", toolName, engine.GetID())
+			}
+		}
+	}
+
+	return nil
 }

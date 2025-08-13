@@ -21,8 +21,8 @@ func TestCodexEngine(t *testing.T) {
 		t.Error("Codex engine should be experimental")
 	}
 
-	if engine.SupportsToolsWhitelist() {
-		t.Error("Codex engine should not support MCP tools")
+	if !engine.SupportsToolsWhitelist() {
+		t.Error("Codex engine should support MCP tools")
 	}
 
 	// Test installation steps
@@ -60,7 +60,7 @@ func TestCodexEngine(t *testing.T) {
 		t.Errorf("Expected command to contain 'codex exec', got '%s'", config.Command)
 	}
 
-	if !strings.Contains(config.Command, "test-log.log") {
+	if !strings.Contains(config.Command, "test-log") {
 		t.Errorf("Expected command to contain log file name, got '%s'", config.Command)
 	}
 

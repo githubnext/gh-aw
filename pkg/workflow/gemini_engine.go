@@ -17,6 +17,7 @@ func NewGeminiEngine() *GeminiEngine {
 			description:            "Uses Google Gemini CLI with GitHub integration and tool support",
 			experimental:           false,
 			supportsToolsWhitelist: true,
+			supportsHTTPTransport:  false, // Gemini CLI does not support custom MCP HTTP servers
 		},
 	}
 }

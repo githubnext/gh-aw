@@ -64,8 +64,8 @@ func TestEnsureCopilotInstructions(t *testing.T) {
 				}
 			}
 
-			// Call the function
-			err = ensureCopilotInstructions(false)
+			// Call the function with writeInstructions=true to test the functionality
+			err = ensureCopilotInstructions(false, true)
 			if err != nil {
 				t.Fatalf("ensureCopilotInstructions() returned error: %v", err)
 			}
@@ -90,6 +90,40 @@ func TestEnsureCopilotInstructions(t *testing.T) {
 					contentStr[:min(100, len(contentStr))])
 			}
 		})
+	}
+}
+
+func TestEnsureCopilotInstructions_WithWriteInstructionsFalse(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Change to temp directory and initialize git repo for findGitRoot to work
+	oldWd, _ := os.Getwd()
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err := os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	copilotDir := filepath.Join(tempDir, ".github", "instructions")
+	copilotInstructionsPath := filepath.Join(copilotDir, "github-agentic-workflows.instructions.md")
+
+	// Call the function with writeInstructions=false
+	err = ensureCopilotInstructions(false, false)
+	if err != nil {
+		t.Fatalf("ensureCopilotInstructions() returned error: %v", err)
+	}
+
+	// Check that file does not exist
+	if _, err := os.Stat(copilotInstructionsPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected copilot instructions file to not exist when writeInstructions=false")
 	}
 }
 

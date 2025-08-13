@@ -533,12 +533,14 @@ func extractTimestamp(line string) time.Time {
 	patterns := []string{
 		"2006-01-02T15:04:05Z",
 		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05", // Codex format without Z
 		"2006-01-02 15:04:05",
 		"Jan 02 15:04:05",
 	}
 
 	// First try to extract the timestamp string from the line
-	timestampRegex := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)`)
+	// Updated regex to handle timestamps both with and without Z, and in brackets
+	timestampRegex := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z?`)
 	matches := timestampRegex.FindStringSubmatch(line)
 	if len(matches) > 1 {
 		timestampStr := matches[1]
@@ -561,6 +563,7 @@ func extractTokenUsage(line string) int {
 		`input[_\s]tokens[:\s]+(\d+)`,
 		`output[_\s]tokens[:\s]+(\d+)`,
 		`total[_\s]tokens[_\s]used[:\s]+(\d+)`,
+		`tokens\s+used[:\s]+(\d+)`, // Codex format: "tokens used: 13934"
 	}
 
 	for _, pattern := range patterns {

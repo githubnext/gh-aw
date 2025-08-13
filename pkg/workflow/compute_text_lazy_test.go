@@ -1,0 +1,177 @@
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestComputeTextLazyInsertion(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir, err := os.MkdirTemp("", "compute-text-lazy-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a .git directory to simulate a git repository
+	gitDir := filepath.Join(tempDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git dir: %v", err)
+	}
+
+	// Test case 1: Workflow that uses task.outputs.text
+	workflowWithText := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+tools:
+  github:
+    allowed: [add_issue_comment]
+---
+
+# Test Workflow With Text Output
+
+This workflow uses the text output: "${{ needs.task.outputs.text }}"
+
+Please analyze this issue and provide a helpful response.`
+
+	workflowWithTextPath := filepath.Join(tempDir, "with-text.md")
+	if err := os.WriteFile(workflowWithTextPath, []byte(workflowWithText), 0644); err != nil {
+		t.Fatalf("Failed to write workflow with text: %v", err)
+	}
+
+	// Test case 2: Workflow that does NOT use task.outputs.text
+	workflowWithoutText := `---
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+permissions:
+  issues: write
+tools:
+  github:
+    allowed: [create_issue]
+---
+
+# Test Workflow Without Text Output
+
+This workflow does NOT use the text output.
+
+Create a report based on repository analysis.`
+
+	workflowWithoutTextPath := filepath.Join(tempDir, "without-text.md")
+	if err := os.WriteFile(workflowWithoutTextPath, []byte(workflowWithoutText), 0644); err != nil {
+		t.Fatalf("Failed to write workflow without text: %v", err)
+	}
+
+	compiler := NewCompiler(false, "", "test-version")
+
+	// Test workflow WITH text usage
+	t.Run("workflow_with_text_usage", func(t *testing.T) {
+		err := compiler.CompileWorkflow(workflowWithTextPath)
+		if err != nil {
+			t.Fatalf("Failed to compile workflow with text: %v", err)
+		}
+
+		// Check that compute-text action was created
+		actionPath := filepath.Join(tempDir, ".github", "actions", "compute-text", "action.yml")
+		if _, err := os.Stat(actionPath); os.IsNotExist(err) {
+			t.Error("Expected compute-text action to be created for workflow that uses text output")
+		}
+
+		// Check that the compiled YAML contains compute-text step
+		lockPath := strings.TrimSuffix(workflowWithTextPath, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("Failed to read compiled workflow: %v", err)
+		}
+
+		lockStr := string(lockContent)
+		if !strings.Contains(lockStr, "compute-text") {
+			t.Error("Expected compiled workflow to contain compute-text step")
+		}
+		if !strings.Contains(lockStr, "text: ${{ steps.compute-text.outputs.text }}") {
+			t.Error("Expected compiled workflow to contain text output")
+		}
+	})
+
+	// Remove compute-text action for next test
+	os.RemoveAll(filepath.Join(tempDir, ".github"))
+
+	// Test workflow WITHOUT text usage
+	t.Run("workflow_without_text_usage", func(t *testing.T) {
+		err := compiler.CompileWorkflow(workflowWithoutTextPath)
+		if err != nil {
+			t.Fatalf("Failed to compile workflow without text: %v", err)
+		}
+
+		// Check that compute-text action was NOT created
+		actionPath := filepath.Join(tempDir, ".github", "actions", "compute-text", "action.yml")
+		if _, err := os.Stat(actionPath); !os.IsNotExist(err) {
+			t.Error("Expected compute-text action NOT to be created for workflow that doesn't use text output")
+		}
+
+		// Check that the compiled YAML does NOT contain compute-text step
+		lockPath := strings.TrimSuffix(workflowWithoutTextPath, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockPath)
+		if err != nil {
+			t.Fatalf("Failed to read compiled workflow: %v", err)
+		}
+
+		lockStr := string(lockContent)
+		if strings.Contains(lockStr, "compute-text") {
+			t.Error("Expected compiled workflow NOT to contain compute-text step")
+		}
+		if strings.Contains(lockStr, "text: ${{ steps.compute-text.outputs.text }}") {
+			t.Error("Expected compiled workflow NOT to contain text output")
+		}
+	})
+}
+
+func TestDetectTextOutputUsage(t *testing.T) {
+	compiler := NewCompiler(false, "", "test-version")
+
+	tests := []struct {
+		name          string
+		content       string
+		expectedUsage bool
+	}{
+		{
+			name:          "with_text_usage",
+			content:       "Analyze this: \"${{ needs.task.outputs.text }}\"",
+			expectedUsage: true,
+		},
+		{
+			name:          "without_text_usage",
+			content:       "Create a report based on repository analysis.",
+			expectedUsage: false,
+		},
+		{
+			name:          "with_other_github_expressions",
+			content:       "Repository: ${{ github.repository }} but no text output",
+			expectedUsage: false,
+		},
+		{
+			name:          "with_partial_match",
+			content:       "Something about task.outputs but not the full expression",
+			expectedUsage: false,
+		},
+		{
+			name:          "with_multiple_usages",
+			content:       "First: \"${{ needs.task.outputs.text }}\" and second: \"${{ needs.task.outputs.text }}\"",
+			expectedUsage: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.detectTextOutputUsage(tt.content)
+			if result != tt.expectedUsage {
+				t.Errorf("detectTextOutputUsage() = %v, expected %v", result, tt.expectedUsage)
+			}
+		})
+	}
+}

@@ -25,6 +25,9 @@ type AgenticEngine interface {
 	// SupportsToolsWhitelist returns true if this engine supports MCP tool allow-listing
 	SupportsToolsWhitelist() bool
 
+	// SupportsHTTPTransport returns true if this engine supports HTTP transport for MCP servers
+	SupportsHTTPTransport() bool
+
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
 	GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep
 
@@ -60,6 +63,7 @@ type BaseEngine struct {
 	description            string
 	experimental           bool
 	supportsToolsWhitelist bool
+	supportsHTTPTransport  bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -80,6 +84,10 @@ func (e *BaseEngine) IsExperimental() bool {
 
 func (e *BaseEngine) SupportsToolsWhitelist() bool {
 	return e.supportsToolsWhitelist
+}
+
+func (e *BaseEngine) SupportsHTTPTransport() bool {
+	return e.supportsHTTPTransport
 }
 
 // EngineRegistry manages available agentic engines
