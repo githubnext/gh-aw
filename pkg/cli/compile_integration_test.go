@@ -58,17 +58,17 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 		t.Fatalf("Failed to open source binary: %v", err)
 	}
 	defer sourceFile.Close()
-	
+
 	destFile, err := os.Create(binaryPath)
 	if err != nil {
 		t.Fatalf("Failed to create destination binary: %v", err)
 	}
 	defer destFile.Close()
-	
+
 	if _, err := io.Copy(destFile, sourceFile); err != nil {
 		t.Fatalf("Failed to copy binary to temp directory: %v", err)
 	}
-	
+
 	// Make the binary executable
 	if err := os.Chmod(binaryPath, 0755); err != nil {
 		t.Fatalf("Failed to make binary executable: %v", err)
