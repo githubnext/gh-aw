@@ -19,6 +19,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// FileTracker interface for tracking files created during compilation
+type FileTracker interface {
+	TrackCreated(filePath string)
+}
+
 //go:embed templates/reaction_action.yaml
 var reactionActionTemplate string
 
@@ -37,6 +42,7 @@ type Compiler struct {
 	skipValidation bool            // If true, skip schema validation
 	jobManager     *JobManager     // Manages jobs and dependencies
 	engineRegistry *EngineRegistry // Registry of available agentic engines
+	fileTracker    FileTracker     // Optional file tracker for tracking created files
 }
 
 // generateSafeFileName converts a workflow name to a safe filename for logs
@@ -79,7 +85,7 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		version:        version,
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
-		engineRegistry: NewEngineRegistry(),
+		engineRegistry: GetGlobalEngineRegistry(),
 	}
 
 	return c
@@ -88,6 +94,11 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// SetFileTracker sets the file tracker for tracking created files
+func (c *Compiler) SetFileTracker(tracker FileTracker) {
+	c.fileTracker = tracker
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -99,7 +110,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		version:        version,
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
-		engineRegistry: NewEngineRegistry(),
+		engineRegistry: GetGlobalEngineRegistry(),
 	}
 
 	return c
@@ -179,18 +190,20 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 	}
 
-	// Write shared reaction action (always generated since reactions are always enabled)
-	if err := c.writeReactionAction(markdownPath); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("failed to write reaction action: %v", err),
-		})
-		return errors.New(formattedErr)
+	// Write shared reaction action only if ai-reaction is configured
+	if workflowData.AIReaction != "" {
+		if err := c.writeReactionAction(markdownPath); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("failed to write reaction action: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	}
 
 	// Write shared compute-text action (only if needed for task job)
@@ -550,11 +563,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Alias = c.extractAliasName(result.Frontmatter)
 	workflowData.AIReaction = c.extractYAMLValue(result.Frontmatter, "ai-reaction")
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
-
-	// Set default ai-reaction to "eyes" if not specified
-	if workflowData.AIReaction == "" {
-		workflowData.AIReaction = "eyes"
-	}
 
 	// Check if "alias" is used as a trigger in the "on" section
 	var hasAlias bool
@@ -1371,13 +1379,15 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add task job: %w", err)
 	}
 
-	// Build add-reaction job
-	addReactionJob, err := c.buildAddReactionJob(data)
-	if err != nil {
-		return fmt.Errorf("failed to build add-reaction job: %w", err)
-	}
-	if err := c.jobManager.AddJob(addReactionJob); err != nil {
-		return fmt.Errorf("failed to add add-reaction job: %w", err)
+	// Build add-reaction job only if ai-reaction is configured
+	if data.AIReaction != "" {
+		addReactionJob, err := c.buildAddReactionJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build add-reaction job: %w", err)
+		}
+		if err := c.jobManager.AddJob(addReactionJob); err != nil {
+			return fmt.Errorf("failed to add add-reaction job: %w", err)
+		}
 	}
 
 	// Build main workflow job
@@ -1678,6 +1688,10 @@ func (c *Compiler) writeSharedAction(markdownPath string, actionPath string, con
 		if err := os.WriteFile(actionFile, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write %s action: %w", actionName, err)
 		}
+		// Track the created file
+		if c.fileTracker != nil {
+			c.fileTracker.TrackCreated(actionFile)
+		}
 	} else {
 		// Check if the content is different and update if needed
 		existing, err := os.ReadFile(actionFile)
@@ -1690,6 +1704,10 @@ func (c *Compiler) writeSharedAction(markdownPath string, actionPath string, con
 			}
 			if err := os.WriteFile(actionFile, []byte(content), 0644); err != nil {
 				return fmt.Errorf("failed to update %s action: %w", actionName, err)
+			}
+			// Track the updated file
+			if c.fileTracker != nil {
+				c.fileTracker.TrackCreated(actionFile)
 			}
 		}
 	}
@@ -1809,6 +1827,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        with:\n")
 	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
 	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
+	yaml.WriteString("          if-no-files-found: warn\n")
+	yaml.WriteString("      - name: Upload agentic run info\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw_info.json\n")
+	yaml.WriteString("          path: aw_info.json\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
@@ -1941,6 +1966,9 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
+	// Generate aw_info.json with agentic run metadata
+	c.generateAgenticInfoStep(yaml, data, engine)
+
 	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig)
 
 	if executionConfig.Command != "" {
@@ -2014,6 +2042,66 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          # Ensure log file exists\n")
 		yaml.WriteString("          touch " + logFile + "\n")
 	}
+}
+
+// generateAgenticInfoStep generates a step that creates aw_info.json with agentic run metadata
+func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
+	yaml.WriteString("      - name: Generate agentic run info\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            const awInfo = {\n")
+
+	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
+	engineID := engine.GetID()
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		engineID = data.EngineConfig.ID
+	} else if data.AI != "" {
+		engineID = data.AI
+	}
+	yaml.WriteString(fmt.Sprintf("              engine_id: \"%s\",\n", engineID))
+
+	// Engine display name
+	yaml.WriteString(fmt.Sprintf("              engine_name: \"%s\",\n", engine.GetDisplayName()))
+
+	// Model information
+	model := ""
+	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
+		model = data.EngineConfig.Model
+	}
+	yaml.WriteString(fmt.Sprintf("              model: \"%s\",\n", model))
+
+	// Version information
+	version := ""
+	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
+		version = data.EngineConfig.Version
+	}
+	yaml.WriteString(fmt.Sprintf("              version: \"%s\",\n", version))
+
+	// Workflow information
+	yaml.WriteString(fmt.Sprintf("              workflow_name: \"%s\",\n", data.Name))
+	yaml.WriteString(fmt.Sprintf("              experimental: %t,\n", engine.IsExperimental()))
+	yaml.WriteString(fmt.Sprintf("              supports_tools_whitelist: %t,\n", engine.SupportsToolsWhitelist()))
+	yaml.WriteString(fmt.Sprintf("              supports_http_transport: %t,\n", engine.SupportsHTTPTransport()))
+
+	// Run metadata
+	yaml.WriteString("              run_id: context.runId,\n")
+	yaml.WriteString("              run_number: context.runNumber,\n")
+	yaml.WriteString("              run_attempt: process.env.GITHUB_RUN_ATTEMPT,\n")
+	yaml.WriteString("              repository: context.repo.owner + '/' + context.repo.repo,\n")
+	yaml.WriteString("              ref: context.ref,\n")
+	yaml.WriteString("              sha: context.sha,\n")
+	yaml.WriteString("              actor: context.actor,\n")
+	yaml.WriteString("              event_name: context.eventName,\n")
+	yaml.WriteString("              created_at: new Date().toISOString()\n")
+
+	yaml.WriteString("            };\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            console.log('Generated aw_info.json:');\n")
+	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
 }
 
 // validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport

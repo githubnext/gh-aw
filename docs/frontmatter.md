@@ -53,9 +53,9 @@ on:
   workflow_dispatch:
 ```
 
-### Special `alias` Trigger
+## Special `alias:` Trigger
 
-Create workflows that respond to `@mentions` in issues and comments:
+GitHub Agentic Workflows add the convenience `alias:` trigger to create workflows that respond to `@mentions` in issues and comments.
 
 ```yaml
 on:
@@ -79,7 +79,9 @@ on:
     - cron: "0 9 * * 1"
 ```
 
-**Note**: Cannot combine `alias` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
+**Note**: You cannot combine `alias` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
+
+**Note**: Using this feature results in the addition of `.github/actions/check-team-member/action.yml` file to the repository when the workflow is compiled. This file is used to check if the user triggering the workflow has appropriate permissions to operate in the repository.
 
 #### Example alias workflow
 
@@ -119,6 +121,8 @@ All workflows have access to a computed `text` output variable that provides con
 - **PR Reviews**: `review.body`
 - **Other events**: Empty string
 
+**Note**: Using this feature results in the addition of ".github/actions/compute-text/action.yml" file to the repository when the workflow is compiled.
+
 ## Permissions (`permissions:`)
 
 Standard GitHub Actions permissions syntax. See [GitHub Actions permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions).
@@ -147,13 +151,12 @@ Specifies which AI engine to use. Defaults to `claude`.
 ### Simple String Format
 
 ```yaml
-engine: claude  # or codex, gemini
+engine: claude  # or codex
 ```
 
 **Available engines:**
 - `claude` (default): Claude Code with full MCP tool support and allow-listing (see [MCP Guide](mcps.md))
 - `codex` (**experimental**): Codex with OpenAI endpoints   
-- `gemini`: Google Gemini AI models   
 
 ### Extended Object Format
 
@@ -165,7 +168,7 @@ engine:
 ```
 
 **Fields:**
-- **`id`** (required): Engine identifier (`claude`, `codex`, `gemini`)
+- **`id`** (required): Engine identifier (`claude`, `codex`)
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model
 
@@ -202,17 +205,20 @@ stop-time: "2025-12-31 23:59:59"
 Emoji reaction added/removed on triggering GitHub items:
 
 ```yaml
-ai-reaction: "eyes"  # Default
+ai-reaction: "eyes"
 ```
 
 **Available reactions:**
-- `+1` (👍), `-1` (👎), `laugh` (😄), `confused` (😕)
-- `heart` (❤️), `hooray` (🎉), `rocket` (🚀), `eyes` (👀)
+- `+1` (👍)
+- `-1` (👎)
+- `laugh` (😄)
+- `confused` (😕)
+- `heart` (❤️)
+- `hooray` (🎉)
+- `rocket` (🚀)
+- `eyes` (👀)
 
-**Behavior:**
-1. **Added**: When workflow starts
-2. **Removed**: When workflow completes successfully
-3. **Default**: `eyes` if not specified
+**Note**: Using this feature results in the addition of ".github/actions/reaction/action.yml" file to the repository when the workflow is compiled.
 
 ## Cache Configuration (`cache:`)
 

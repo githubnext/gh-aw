@@ -30,11 +30,6 @@ You need to define custom secrets in your repository or organization settings to
 - **Required for**: `engine: codex` workflows
 - **Setup**: Add to repository or organization secrets
 
-### `GEMINI_API_KEY`
-- **Purpose**: Gemini engine access
-- **Required for**: `engine: gemini` workflows
-- **Setup**: Add to repository or organization secrets
-
 ## Related Documentation
 
 - [Commands](commands.md) - CLI commands for workflow management

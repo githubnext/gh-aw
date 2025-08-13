@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -98,6 +99,51 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 
 	yaml.WriteString("          EOF\n")
+}
+
+// ParseLogMetrics implements engine-specific log parsing for Codex
+func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	var metrics LogMetrics
+	var totalTokenUsage int
+
+	lines := strings.Split(logContent, "\n")
+
+	for _, line := range lines {
+		// Skip empty lines
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		// Extract Codex-specific token usage (always sum for Codex)
+		if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
+			totalTokenUsage += tokenUsage
+		}
+
+		// Count errors and warnings
+		lowerLine := strings.ToLower(line)
+		if strings.Contains(lowerLine, "error") {
+			metrics.ErrorCount++
+		}
+		if strings.Contains(lowerLine, "warning") {
+			metrics.WarningCount++
+		}
+	}
+
+	metrics.TokenUsage = totalTokenUsage
+
+	return metrics
+}
+
+// extractCodexTokenUsage extracts token usage from Codex-specific log lines
+func (e *CodexEngine) extractCodexTokenUsage(line string) int {
+	// Codex format: "tokens used: 13934"
+	codexPattern := `tokens\s+used[:\s]+(\d+)`
+	if match := ExtractFirstMatch(line, codexPattern); match != "" {
+		if count, err := strconv.Atoi(match); err == nil {
+			return count
+		}
+	}
+	return 0
 }
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml

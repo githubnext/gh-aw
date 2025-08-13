@@ -68,12 +68,6 @@ Common permission set for repository automation workflows.
 on:
   issues:
     types: [opened]
-
-@include shared/github-permissions.md
-@include shared/common-tools.md
-
-max-runs: 50
-ai-reaction: "eyes"
 ---
 
 # Issue Auto-Handler
@@ -82,15 +76,16 @@ ai-reaction: "eyes"
 
 When an issue is opened, analyze and respond appropriately.
 
-Issue content: "${{ needs.task.outputs.text }}"
+@include shared/github-permissions.md
+
+@include shared/common-tools.md
+
 ```
 
-## Include Rules and Limitations
+## Frontmatter Merging
 
-### Frontmatter Merging
-- **Only `tools:` frontmatter** is allowed in included files
+- **Only `tools:` frontmatter** is allowed in included files, other entries give a warning.
 - **Tool merging**: `allowed:` tools are merged across all included files
-- **Conflict resolution**: Later includes override earlier ones for the same tool
 
 ### Example Tool Merging
 ```markdown
@@ -118,43 +113,11 @@ tools:
 
 **Result**: Final workflow has `github.allowed: [get_issue, add_issue_comment, update_issue]` and Claude Edit tool.
 
-### Include Path Resolution
+## Include Path Resolution
+
 - **Relative paths**: Resolved relative to the including file
 - **Nested includes**: Included files can include other files
 - **Circular protection**: System prevents infinite include loops
-
-## Advanced Include Patterns
-
-### Conditional Includes by Environment
-```markdown
----
-on:
-  issues:
-    types: [opened]
----
-
-@include shared/base-config.md
-
-# Development environment
-@include environments/development.md#Development Tools
-
-# Production environment  
-@include environments/production.md#Production Tools
-
-# Conditional based on repository
-```
-
-### Include with Section Targeting
-```markdown
-# Include only the permissions section
-@include shared/security-config.md#Permissions
-
-# Include only tool configuration
-@include shared/tool-config.md#GitHub Tools
-@include shared/tool-config.md#MCP Servers
-
-> **📘 Complete MCP Guide**: For comprehensive MCP server configuration, see the [MCPs](mcps.md).
-```
 
 ## Related Documentation
 

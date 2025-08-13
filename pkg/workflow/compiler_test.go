@@ -3358,16 +3358,16 @@ Test workflow with ai-reaction.
 	}
 }
 
-// TestAIReactionWorkflowWithDefaultReaction tests that workflows without explicit ai-reaction use default "eyes"
-func TestAIReactionWorkflowWithDefaultReaction(t *testing.T) {
+// TestAIReactionWorkflowWithoutReaction tests that workflows without explicit ai-reaction do not create reaction actions
+func TestAIReactionWorkflowWithoutReaction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "default-ai-reaction-test")
+	tmpDir, err := os.MkdirTemp("", "no-ai-reaction-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create a test markdown file without explicit ai-reaction (should default to "eyes")
+	// Create a test markdown file without explicit ai-reaction (should not create reaction action)
 	testContent := `---
 on:
   issues:
@@ -3381,12 +3381,12 @@ tools:
 timeout_minutes: 5
 ---
 
-# Default Reaction Test
+# No Reaction Test
 
-Test workflow without explicit ai-reaction (should default to "eyes").
+Test workflow without explicit ai-reaction (should not create reaction action).
 `
 
-	testFile := filepath.Join(tmpDir, "test-default-reaction.md")
+	testFile := filepath.Join(tmpDir, "test-no-reaction.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -3399,35 +3399,34 @@ Test workflow without explicit ai-reaction (should default to "eyes").
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
 
-	// Verify ai-reaction field defaults to "eyes"
-	if workflowData.AIReaction != "eyes" {
-		t.Errorf("Expected AIReaction to default to 'eyes', got '%s'", workflowData.AIReaction)
+	// Verify ai-reaction field is empty (not defaulted)
+	if workflowData.AIReaction != "" {
+		t.Errorf("Expected AIReaction to be empty, got '%s'", workflowData.AIReaction)
 	}
 
-	// Generate YAML and verify it contains reaction jobs (now always present)
+	// Generate YAML and verify it does NOT contain reaction jobs
 	yamlContent, err := compiler.generateYAML(workflowData)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	// Check that reaction-specific content IS in generated YAML (since reactions are always enabled)
-	expectedStrings := []string{
+	// Check that reaction-specific content is NOT in generated YAML
+	unexpectedStrings := []string{
 		"add-reaction:",
 		"uses: ./.github/actions/reaction",
-		"reaction: eyes", // Default reaction
 		"mode: add",
 	}
 
-	for _, expected := range expectedStrings {
-		if !strings.Contains(yamlContent, expected) {
-			t.Errorf("Generated YAML should contain: %s", expected)
+	for _, unexpected := range unexpectedStrings {
+		if strings.Contains(yamlContent, unexpected) {
+			t.Errorf("Generated YAML should NOT contain: %s", unexpected)
 		}
 	}
 
-	// Verify three jobs are created (task, add-reaction, main)
+	// Verify only two jobs are created (task and main, no add-reaction)
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
-	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (task, add-reaction, main), found %d", jobCount)
+	if jobCount != 2 {
+		t.Errorf("Expected 2 jobs (task, main), found %d", jobCount)
 	}
 }
 
