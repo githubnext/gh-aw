@@ -64,8 +64,14 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 
 	// Setup cleanup function
 	cleanup := func() {
-		os.Chdir(originalWd)
-		os.RemoveAll(tempDir)
+		err := os.Chdir(originalWd)
+		if err != nil {
+			t.Fatalf("Failed to change back to original working directory: %v", err)
+		}
+		err = os.RemoveAll(tempDir)
+		if err != nil {
+			t.Fatalf("Failed to remove temp directory: %v", err)
+		}
 	}
 
 	return &integrationTestSetup{
