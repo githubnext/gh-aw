@@ -21,16 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github
           fetch-depth: 1
-      - name: Compute current body text
-        id: compute-text
-        uses: ./.github/actions/compute-text
 
   test-codex:
     needs: task
@@ -53,6 +48,8 @@ jobs:
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
           
           [mcp_servers.github]
           command = "docker"
@@ -65,6 +62,18 @@ jobs:
             "ghcr.io/github/github-mcp-server:sha-45e90ae"
           ]
           env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
+          
+          [mcp_servers.time]
+          command = "docker"
+          args = [
+            "run",
+            "--rm",
+            "-i",
+            "-e",
+            "LOCAL_TIMEZONE",
+            "mcp/time",
+          ]
+          env = { "LOCAL_TIMEZONE" = "${LOCAL_TIMEZONE}" }
           EOF
       - name: Create prompt
         run: |
@@ -233,8 +242,9 @@ jobs:
           # Run codex with log capture
           codex exec \
             -c model=o4-mini \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/aw-logs//tmp/test-codex.log.log
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex.log
         env:
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file

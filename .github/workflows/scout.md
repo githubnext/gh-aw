@@ -28,7 +28,7 @@ timeout_minutes: 15
 You are a deep research scout agent that responds to @scout mentions in GitHub issues and comments. Your job is to conduct comprehensive research on questions and topics mentioned in the triggering comment.
 
 <question>
-${{ steps.task.outputs.text }}
+${{ needs.task.outputs.text }}
 </question>
 
 **If the question is empty, resolve the parent issue/pull_request/comment and use it as the topic**. 
@@ -61,7 +61,7 @@ ${{ steps.task.outputs.text }}
 
 ## Research Report Structure
 
-Create a detailed research report comment with the following structure:
+Create a detailed research report in an issue comment with the following structure:
 
 ### 🔍 Deep Research Report
 

@@ -20,38 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github
           fetch-depth: 1
-      - name: Compute current body text
-        id: compute-text
-        uses: ./.github/actions/compute-text
-
-  add-reaction:
-    needs: task
-    if: github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Read .github
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: ./.github/actions/reaction
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          mode: add
-          reaction: eyes
 
   agentic-planner:
     needs: task
@@ -125,7 +98,7 @@ jobs:
           
           ### Output Report implemented via GitHub Action Job Summary
           
-          You will use the Job Summary for GitHub Actions run ${{ github.run_id }} in ${{ github.repository }} to report progess. This means writing to the special file that is stored in the environment variable GITHUB_STEP_SUMMARY. You can write the file using "echo" or the "Write" tool. GITHUB_STEP_SUMMARY is an environment variable set by GitHub Actions which you can use to write the report. You can read this environment variable using the bash command "echo $GITHUB_STEP_SUMMARY".
+          You will use the Job Summary for GitHub Actions run ${{ github.run_id }} in ${{ github.repository }} to report progess. This means writing to the special file $GITHUB_STEP_SUMMARY. You can write the file using "echo" or the "Write" tool. GITHUB_STEP_SUMMARY is an environment variable set by GitHub Actions which you can use to write the report. You can read this environment variable using the bash command "echo $GITHUB_STEP_SUMMARY".
           
           At the end of the workflow, finalize the job summry with a very, very succinct summary in note form of 
             - the steps you took
@@ -179,9 +152,38 @@ jobs:
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat /tmp/aw-prompts/prompt.txt >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
+      - name: Generate agentic run info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            const awInfo = {
+              engine_id: "claude",
+              engine_name: "Claude Code",
+              model: "",
+              version: "",
+              workflow_name: "Agentic Planner",
+              experimental: false,
+              supports_tools_whitelist: true,
+              supports_http_transport: true,
+              run_id: context.runId,
+              run_number: context.runNumber,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+              repository: context.repo.owner + '/' + context.repo.repo,
+              ref: context.ref,
+              sha: context.sha,
+              actor: context.actor,
+              event_name: context.eventName,
+              created_at: new Date().toISOString()
+            };
+            
+            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json:');
+            console.log(JSON.stringify(awInfo, null, 2));
       - name: Execute Claude Code Action
         id: agentic_execution
-        uses: anthropics/claude-code-base-action@beta
+        uses: anthropics/claude-code-base-action@v0.0.56
         with:
           # Allowed tools (sorted):
           # - Bash(echo:*)
@@ -285,5 +287,12 @@ jobs:
         with:
           name: agentic-planner.log
           path: /tmp/agentic-planner.log
+          if-no-files-found: warn
+      - name: Upload agentic run info
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw_info.json
+          path: aw_info.json
           if-no-files-found: warn
 
