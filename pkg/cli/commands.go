@@ -448,7 +448,7 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	}
 
 	// Copy all @include dependencies to .github/workflows maintaining relative paths
-	if err := copyIncludeDependenciesFromSourceWithForce(includeDeps, githubWorkflowsDir, sourceInfo, verbose, force); err != nil {
+	if err := copyIncludeDependenciesFromSourceWithForce(includeDeps, githubWorkflowsDir, sourceInfo, verbose, force, tracker); err != nil {
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to copy include dependencies: %v", err)))
 	}
 
@@ -2464,16 +2464,16 @@ func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]In
 }
 
 // copyIncludeDependenciesFromSourceWithForce copies dependencies based on source type with force option
-func copyIncludeDependenciesFromSourceWithForce(dependencies []IncludeDependency, githubWorkflowsDir string, sourceInfo *WorkflowSourceInfo, verbose bool, force bool) error {
+func copyIncludeDependenciesFromSourceWithForce(dependencies []IncludeDependency, githubWorkflowsDir string, sourceInfo *WorkflowSourceInfo, verbose bool, force bool, tracker *FileTracker) error {
 	if sourceInfo.IsPackage {
 		// For package sources, copy from local filesystem
-		return copyIncludeDependenciesFromPackageWithForce(dependencies, githubWorkflowsDir, verbose, force)
+		return copyIncludeDependenciesFromPackageWithForce(dependencies, githubWorkflowsDir, verbose, force, tracker)
 	}
 	return copyIncludeDependenciesWithForce(dependencies, githubWorkflowsDir, force)
 }
 
 // copyIncludeDependenciesFromPackageWithForce copies include dependencies from package filesystem with force option
-func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependency, githubWorkflowsDir string, verbose bool, force bool) error {
+func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependency, githubWorkflowsDir string, verbose bool, force bool, tracker *FileTracker) error {
 	for _, dep := range dependencies {
 		// Create the target path in .github/workflows
 		targetPath := filepath.Join(githubWorkflowsDir, dep.TargetPath)
@@ -2492,7 +2492,9 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 		}
 
 		// Check if target file already exists
+		fileExists := false
 		if existingContent, err := os.ReadFile(targetPath); err == nil {
+			fileExists = true
 			// File exists, compare contents
 			if string(existingContent) == string(sourceContent) {
 				// Contents are the same, skip
@@ -2510,6 +2512,15 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 
 			// Force is enabled, overwrite
 			fmt.Printf("Overwriting existing include file: %s\n", dep.TargetPath)
+		}
+
+		// Track the file based on whether it existed before (if tracker is available)
+		if tracker != nil {
+			if fileExists {
+				tracker.TrackModified(targetPath)
+			} else {
+				tracker.TrackCreated(targetPath)
+			}
 		}
 
 		// Write to target
