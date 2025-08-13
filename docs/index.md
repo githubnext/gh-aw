@@ -7,7 +7,7 @@ Complete documentation for creating and managing agentic workflows with GitHub A
 
 ## Getting Started
 
-- **[Workflow Structure](workflow-structure.md)** - Directory layout and file organization
+- **[Workflow Structure](workflow-structure.md)** - Directory layout, file organization, and expression security
 - **[Commands](commands.md)** - CLI commands for workflow management
 - **[Include Directives](include-directives.md)** - Modularizing workflows with includes
 

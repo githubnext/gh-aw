@@ -95,6 +95,76 @@ When a new issue is opened, analyze the issue content and:
 The issue details are: "${{ needs.task.outputs.text }}"
 ```
 
+## Expression Security
+
+For security reasons, agentic workflows restrict which GitHub Actions expressions can be used in **markdown content**. This prevents potential security vulnerabilities from unauthorized access to secrets or environment variables.
+
+> **Note**: These restrictions apply only to expressions in the markdown content portion of workflows. The YAML frontmatter can still use secrets and environment variables as needed for workflow configuration (e.g., `env:` and authentication).
+
+### Allowed Expressions
+
+The following GitHub Actions context expressions are permitted in workflow markdown:
+
+#### GitHub Event Context
+- `${{ github.event.issue.number }}` - Issue number
+- `${{ github.event.pull_request.number }}` - Pull request number  
+- `${{ github.event.comment.id }}` - Comment ID
+- `${{ github.event.after }}` - After commit SHA
+- `${{ github.event.before }}` - Before commit SHA
+- And other event-specific IDs and properties
+
+#### GitHub Repository Context
+- `${{ github.repository }}` - Repository name (owner/repo)
+- `${{ github.actor }}` - User who triggered the workflow
+- `${{ github.owner }}` - Repository owner
+- `${{ github.workflow }}` - Workflow name
+- `${{ github.run_id }}` - Workflow run ID
+- `${{ github.run_number }}` - Workflow run number
+
+#### Special Pattern Expressions
+- `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
+- `${{ steps.* }}` - Any outputs from previous steps in the same job
+
+### Prohibited Expressions
+
+The following expressions are **NOT ALLOWED** and will cause compilation to fail:
+
+- `${{ secrets.* }}` - Any secrets access (e.g., `${{ secrets.GITHUB_TOKEN }}`)
+- `${{ env.* }}` - Any environment variables (e.g., `${{ env.MY_VAR }}`)
+- Functions or complex expressions (e.g., `${{ toJson(github.workflow) }}`)
+- Multi-line expressions
+
+### Security Rationale
+
+This restriction prevents:
+- **Secret leakage**: Prevents accidentally exposing secrets in AI prompts or logs
+- **Environment variable exposure**: Protects sensitive configuration from being accessed
+- **Code injection**: Prevents complex expressions that could execute unintended code
+
+### Validation
+
+Expression safety is validated during compilation with `gh aw compile`. If unauthorized expressions are found, you'll see an error like:
+
+```
+error: unauthorized expressions: [secrets.TOKEN, env.MY_VAR]. 
+allowed: [github.repository, github.actor, github.workflow, ...]
+```
+
+### Example Valid Usage
+
+```markdown
+# Valid expressions
+Repository: ${{ github.repository }}
+Triggered by: ${{ github.actor }}  
+Issue number: ${{ github.event.issue.number }}
+Previous output: ${{ needs.task.outputs.text }}
+
+# Invalid expressions (will cause compilation error)
+Token: ${{ secrets.GITHUB_TOKEN }}
+Environment: ${{ env.MY_VAR }}
+Complex: ${{ toJson(github.workflow) }}
+```
+
 ## Generated Files
 
 When you run `gh aw compile`, the system:

@@ -161,29 +161,52 @@ on:
 
 ## GitHub Context Expression Interpolation
 
-Use GitHub Actions context expressions throughout the workflow content:
+Use GitHub Actions context expressions throughout the workflow content. **Note: For security reasons, only specific expressions are allowed.**
 
-### Common Context Variables
+### Allowed Context Variables
+
+#### GitHub Event Context
 - **`${{ github.event.issue.number }}`** - Issue number
 - **`${{ github.event.issue.title }}`** - Issue title
 - **`${{ github.event.issue.body }}`** - Issue body content
-- **`${{ github.event.comment.body }}`** - Comment content
+- **`${{ github.event.comment.id }}`** - Comment content
+- **`${{ github.event.pull_request.number }}`** - Pull request number
+- **`${{ github.event.after }}`** - After commit SHA
+- **`${{ github.event.before }}`** - Before commit SHA
+
+#### GitHub Repository Context
 - **`${{ github.repository }}`** - Repository name (owner/repo)
 - **`${{ github.actor }}`** - User who triggered the workflow
+- **`${{ github.owner }}`** - Repository owner
 - **`${{ github.run_id }}`** - Workflow run ID
+- **`${{ github.run_number }}`** - Workflow run number
 - **`${{ github.workflow }}`** - Workflow name
 - **`${{ github.ref }}`** - Git reference
 - **`${{ github.sha }}`** - Commit SHA
 
-### Environment Variables
-- **`${{ github.repository }}`** - Repository name
-- **`${{ secrets.GITHUB_TOKEN }}`** - GitHub token
+#### Special Pattern Expressions
+- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
+- **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
+
+All other expressions are dissallowed.
+
+### Security Validation
+
+Expression safety is automatically validated during compilation. If unauthorized expressions are found, compilation will fail with an error listing the prohibited expressions.
 
 ### Example Usage
 ```markdown
+# Valid expressions
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
 The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
+
+Using output from previous task: "${{ needs.task.outputs.text }}"
+
+# Invalid expressions (will cause compilation errors)
+# Token: ${{ secrets.GITHUB_TOKEN }}
+# Environment: ${{ env.MY_VAR }}
+# Complex: ${{ toJson(github.workflow) }}
 ```
 
 ## Tool Configuration
