@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // ClaudeEngine represents the Claude Code agentic engine
@@ -140,7 +139,6 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 // ParseLogMetrics implements engine-specific log parsing for Claude
 func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	var metrics LogMetrics
-	var startTime, endTime time.Time
 	var maxTokenUsage int
 
 	lines := strings.Split(logContent, "\n")
@@ -160,7 +158,6 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 				if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
 					metrics.TokenUsage = resultMetrics.TokenUsage
 					metrics.EstimatedCost = resultMetrics.EstimatedCost
-					// Continue to extract duration from timestamps if available
 				}
 			} else {
 				// For streaming JSON, keep the maximum token usage found
@@ -171,28 +168,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 					metrics.EstimatedCost += jsonMetrics.EstimatedCost
 				}
 			}
-
-			if !jsonMetrics.Timestamp.IsZero() {
-				if startTime.IsZero() || jsonMetrics.Timestamp.Before(startTime) {
-					startTime = jsonMetrics.Timestamp
-				}
-				if endTime.IsZero() || jsonMetrics.Timestamp.After(endTime) {
-					endTime = jsonMetrics.Timestamp
-				}
-			}
 			continue
-		}
-
-		// Fall back to text pattern extraction
-		// Extract timestamps for duration calculation
-		timestamp := ExtractTimestamp(line)
-		if !timestamp.IsZero() {
-			if startTime.IsZero() || timestamp.Before(startTime) {
-				startTime = timestamp
-			}
-			if endTime.IsZero() || timestamp.After(endTime) {
-				endTime = timestamp
-			}
 		}
 
 		// Count errors and warnings
@@ -208,11 +184,6 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	// If no result payload was found, use the maximum from streaming JSON
 	if metrics.TokenUsage == 0 {
 		metrics.TokenUsage = maxTokenUsage
-	}
-
-	// Calculate duration
-	if !startTime.IsZero() && !endTime.IsZero() {
-		metrics.Duration = endTime.Sub(startTime)
 	}
 
 	return metrics

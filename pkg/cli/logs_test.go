@@ -84,10 +84,7 @@ func TestParseLogFileWithoutAwInfo(t *testing.T) {
 		t.Errorf("Expected cost 0 (no aw_info.json), got %f", metrics.EstimatedCost)
 	}
 
-	// Check duration - should be 0 without engine-specific parsing
-	if metrics.Duration != 0 {
-		t.Errorf("Expected duration 0 (no aw_info.json), got %v", metrics.Duration)
-	}
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
 func TestExtractJSONMetrics(t *testing.T) {
@@ -196,10 +193,7 @@ Regular log line: tokens: 1000
 		t.Errorf("Expected cost 0 (no aw_info.json), got %f", metrics.EstimatedCost)
 	}
 
-	// Should have no duration without engine-specific parsing
-	if metrics.Duration != 0 {
-		t.Errorf("Expected duration 0 (no aw_info.json), got %v", metrics.Duration)
-	}
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
 func TestConvertToInt(t *testing.T) {
@@ -435,11 +429,7 @@ Claude processing request...
 		t.Errorf("Expected cost %f, got %f", expectedCost, metrics.EstimatedCost)
 	}
 
-	// Check duration (150 seconds between start and end)
-	expectedDuration := 150 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
-	}
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
 func TestParseLogFileWithCodexFormat(t *testing.T) {
@@ -473,11 +463,7 @@ I'm ready to generate a Codex PR summary, but I need the pull request number to 
 		t.Errorf("Expected token usage %d, got %d", expectedTokens, metrics.TokenUsage)
 	}
 
-	// Check duration (10 seconds between start and end)
-	expectedDuration := 10 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
-	}
+	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
 func TestParseLogFileWithCodexTokenSumming(t *testing.T) {

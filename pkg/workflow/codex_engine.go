@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -105,7 +104,6 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 // ParseLogMetrics implements engine-specific log parsing for Codex
 func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	var metrics LogMetrics
-	var startTime, endTime time.Time
 	var totalTokenUsage int
 
 	lines := strings.Split(logContent, "\n")
@@ -114,17 +112,6 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
-		}
-
-		// Extract timestamps for duration calculation
-		timestamp := ExtractTimestamp(line)
-		if !timestamp.IsZero() {
-			if startTime.IsZero() || timestamp.Before(startTime) {
-				startTime = timestamp
-			}
-			if endTime.IsZero() || timestamp.After(endTime) {
-				endTime = timestamp
-			}
 		}
 
 		// Extract Codex-specific token usage (always sum for Codex)
@@ -143,11 +130,6 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	}
 
 	metrics.TokenUsage = totalTokenUsage
-
-	// Calculate duration
-	if !startTime.IsZero() && !endTime.IsZero() {
-		metrics.Duration = endTime.Sub(startTime)
-	}
 
 	return metrics
 }

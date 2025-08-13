@@ -10,7 +10,6 @@ import (
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
-	Duration      time.Duration
 	TokenUsage    int
 	EstimatedCost float64
 	ErrorCount    int

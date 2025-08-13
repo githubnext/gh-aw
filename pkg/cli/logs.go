@@ -195,14 +195,13 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				}
 			}
 
-			// Update run with metrics and path
-			run.Duration = metrics.Duration
+			// Update run with metrics and path (but not duration)
 			run.TokenUsage = metrics.TokenUsage
 			run.EstimatedCost = metrics.EstimatedCost
 			run.LogsPath = runOutputDir
 
-			// Calculate duration from GitHub data if not extracted from logs
-			if run.Duration == 0 && !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
+			// Always use GitHub API timestamps for duration calculation
+			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 			}
 
@@ -417,10 +416,6 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			metrics.EstimatedCost += fileMetrics.EstimatedCost
 			metrics.ErrorCount += fileMetrics.ErrorCount
 			metrics.WarningCount += fileMetrics.WarningCount
-
-			if fileMetrics.Duration > metrics.Duration {
-				metrics.Duration = fileMetrics.Duration
-			}
 		}
 
 		return nil
