@@ -24,9 +24,9 @@ import (
 // are in the allowed list and returns an error if any unauthorized expressions are found
 func validateExpressionSafety(markdownContent string) error {
 	// Regular expression to match GitHub Actions expressions: ${{ ... }}
-	// Use (?s) flag to enable dotall mode so . matches newlines
+	// Use (?s) flag to enable dotall mode so . matches newlines to capture multiline expressions
 	// Use non-greedy matching with .*? to handle nested braces properly
-	expressionRegex := regexp.MustCompile(`\$\{\{(.*?)\}\}`)
+	expressionRegex := regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
 	needsStepsRegex := regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
 
 	// Find all expressions in the markdown content
@@ -41,6 +41,12 @@ func validateExpressionSafety(markdownContent string) error {
 
 		// Extract the expression content (everything between ${{ and }})
 		expression := strings.TrimSpace(match[1])
+
+		// Reject expressions that span multiple lines (contain newlines)
+		if strings.Contains(match[1], "\n") {
+			unauthorizedExpressions = append(unauthorizedExpressions, expression)
+			continue
+		}
 
 		// Check if this expression is in the allowed list
 		allowed := false

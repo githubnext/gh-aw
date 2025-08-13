@@ -31,6 +31,7 @@ var AllowedExpressions = []string{
 	"github.event.review_comment.id",
 	"github.event.sender.id",
 	"github.event.workflow_run.id",
+	"github.actor",
 	"github.owner",
 	"github.repository",
 	"github.run_id",

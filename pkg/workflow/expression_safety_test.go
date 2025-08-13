@@ -54,10 +54,9 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectedErrors: []string{"secrets.GITHUB_TOKEN"},
 		},
 		{
-			name:           "authorized_github_actor",
-			content:        "Actor: ${{ github.actor }}",
-			expectError:    false,
-			expectedErrors: []string{"github.actor"},
+			name:        "authorized_github_actor",
+			content:     "Actor: ${{ github.actor }}",
+			expectError: false,
 		},
 		{
 			name:           "unauthorized_env_variable",
@@ -80,9 +79,9 @@ func TestValidateExpressionSafety(t *testing.T) {
 		},
 		{
 			name:           "multiple_unauthorized_expressions",
-			content:        "Token: ${{ secrets.GITHUB_TOKEN }}, Actor: ${{ github.actor }}, Env: ${{ env.TEST }}",
+			content:        "Token: ${{ secrets.GITHUB_TOKEN }}, Valid: ${{ github.actor }}, Env: ${{ env.TEST }}",
 			expectError:    true,
-			expectedErrors: []string{"secrets.GITHUB_TOKEN", "github.actor", "env.TEST"},
+			expectedErrors: []string{"secrets.GITHUB_TOKEN", "env.TEST"},
 		},
 		{
 			name:        "expressions_with_whitespace",
