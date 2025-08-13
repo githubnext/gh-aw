@@ -1362,15 +1362,11 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 		tracker.TrackCreated(gitAttributesPath)
 	}
 
-	// Create compiler and compile the workflow
+	// Create compiler and set the file tracker
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
+	compiler.SetFileTracker(tracker)
 	if err := compiler.CompileWorkflow(filePath); err != nil {
 		return err
-	}
-
-	// Track any shared action files created by the compiler
-	for _, createdFile := range compiler.GetCreatedFiles() {
-		tracker.TrackCreated(createdFile)
 	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated

@@ -19,6 +19,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// FileTracker interface for tracking files created during compilation
+type FileTracker interface {
+	TrackCreated(filePath string)
+}
+
 //go:embed templates/reaction_action.yaml
 var reactionActionTemplate string
 
@@ -37,7 +42,7 @@ type Compiler struct {
 	skipValidation bool            // If true, skip schema validation
 	jobManager     *JobManager     // Manages jobs and dependencies
 	engineRegistry *EngineRegistry // Registry of available agentic engines
-	createdFiles   []string        // Track files created during compilation
+	fileTracker    FileTracker     // Optional file tracker for tracking created files
 }
 
 // generateSafeFileName converts a workflow name to a safe filename for logs
@@ -81,7 +86,6 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
 		engineRegistry: GetGlobalEngineRegistry(),
-		createdFiles:   make([]string, 0),
 	}
 
 	return c
@@ -92,14 +96,9 @@ func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
 }
 
-// GetCreatedFiles returns the list of files created during compilation
-func (c *Compiler) GetCreatedFiles() []string {
-	return c.createdFiles
-}
-
-// ClearCreatedFiles clears the list of created files (useful for multiple compilations)
-func (c *Compiler) ClearCreatedFiles() {
-	c.createdFiles = nil
+// SetFileTracker sets the file tracker for tracking created files
+func (c *Compiler) SetFileTracker(tracker FileTracker) {
+	c.fileTracker = tracker
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -112,7 +111,6 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
 		engineRegistry: GetGlobalEngineRegistry(),
-		createdFiles:   make([]string, 0),
 	}
 
 	return c
@@ -1691,7 +1689,9 @@ func (c *Compiler) writeSharedAction(markdownPath string, actionPath string, con
 			return fmt.Errorf("failed to write %s action: %w", actionName, err)
 		}
 		// Track the created file
-		c.createdFiles = append(c.createdFiles, actionFile)
+		if c.fileTracker != nil {
+			c.fileTracker.TrackCreated(actionFile)
+		}
 	} else {
 		// Check if the content is different and update if needed
 		existing, err := os.ReadFile(actionFile)
@@ -1706,7 +1706,9 @@ func (c *Compiler) writeSharedAction(markdownPath string, actionPath string, con
 				return fmt.Errorf("failed to update %s action: %w", actionName, err)
 			}
 			// Track the updated file
-			c.createdFiles = append(c.createdFiles, actionFile)
+			if c.fileTracker != nil {
+				c.fileTracker.TrackCreated(actionFile)
+			}
 		}
 	}
 
