@@ -1933,7 +1933,15 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		// Add environment variables
 		if len(executionConfig.Environment) > 0 {
 			yaml.WriteString("        env:\n")
-			for key, value := range executionConfig.Environment {
+			// Sort environment keys for consistent output
+			envKeys := make([]string, 0, len(executionConfig.Environment))
+			for key := range executionConfig.Environment {
+				envKeys = append(envKeys, key)
+			}
+			sort.Strings(envKeys)
+
+			for _, key := range envKeys {
+				value := executionConfig.Environment[key]
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
 		}

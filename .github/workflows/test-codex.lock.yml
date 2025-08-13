@@ -259,8 +259,8 @@ jobs:
             -c model=o4-mini \
             --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex.log
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
