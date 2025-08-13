@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -18,6 +19,57 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"gopkg.in/yaml.v3"
 )
+
+// Allowed GitHub Actions expressions that can be used in workflow markdown content
+var allowedExpressions = []string{
+	"github.workflow",
+	"github.repository",
+	"github.run_id",
+	"github.event.issue.number",
+	"needs.task.outputs.text",
+}
+
+// validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
+// are in the allowed list and returns an error if any unauthorized expressions are found
+func validateExpressionSafety(markdownContent string) error {
+	// Regular expression to match GitHub Actions expressions: ${{ ... }}
+	expressionRegex := regexp.MustCompile(`\$\{\{\s*([^}]+)\s*\}\}`)
+	
+	// Find all expressions in the markdown content
+	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
+	
+	var unauthorizedExpressions []string
+	
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		
+		// Extract the expression content (everything between ${{ and }})
+		expression := strings.TrimSpace(match[1])
+		
+		// Check if this expression is in the allowed list
+		allowed := false
+		for _, allowedExpr := range allowedExpressions {
+			if expression == allowedExpr {
+				allowed = true
+				break
+			}
+		}
+		
+		if !allowed {
+			unauthorizedExpressions = append(unauthorizedExpressions, expression)
+		}
+	}
+	
+	// If we found unauthorized expressions, return an error
+	if len(unauthorizedExpressions) > 0 {
+		return fmt.Errorf("unauthorized GitHub Actions expressions found: %v. Only these expressions are allowed: %v", 
+			unauthorizedExpressions, allowedExpressions)
+	}
+	
+	return nil
+}
 
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
@@ -177,6 +229,26 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			Message: err.Error(),
 		})
 		return errors.New(formattedErr)
+	}
+
+	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
+	if c.verbose {
+		fmt.Println(console.FormatInfoMessage("Validating expression safety..."))
+	}
+	if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return errors.New(formattedErr)
+	}
+	if c.verbose {
+		fmt.Println(console.FormatSuccessMessage("Expression safety validation passed"))
 	}
 
 	if c.verbose {
