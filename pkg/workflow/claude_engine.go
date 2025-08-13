@@ -35,7 +35,7 @@ func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHub
 
 func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig {
 	// Determine the action version to use
-	actionVersion := "beta" // Default version
+	actionVersion := DefaultClaudeActionVersion // Default version
 	if engineConfig != nil && engineConfig.Version != "" {
 		actionVersion = engineConfig.Version
 	}

@@ -1,6 +1,9 @@
 package workflow
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestClaudeEngine(t *testing.T) {
 	engine := NewClaudeEngine()
@@ -38,8 +41,8 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected step name 'Execute Claude Code Action', got '%s'", config.StepName)
 	}
 
-	if config.Action != "anthropics/claude-code-base-action@beta" {
-		t.Errorf("Expected action 'anthropics/claude-code-base-action@beta', got '%s'", config.Action)
+	if config.Action != fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion) {
+		t.Errorf("Expected action 'anthropics/claude-code-base-action@%s', got '%s'", DefaultClaudeActionVersion, config.Action)
 	}
 
 	if config.Command != "" {
@@ -101,8 +104,8 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 				t.Errorf("Expected step name 'Execute Claude Code Action', got '%s'", config.StepName)
 			}
 
-			if config.Action != "anthropics/claude-code-base-action@beta" {
-				t.Errorf("Expected action 'anthropics/claude-code-base-action@beta', got '%s'", config.Action)
+			if config.Action != fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion) {
+				t.Errorf("Expected action 'anthropics/claude-code-base-action@%s', got '%s'", DefaultClaudeActionVersion, config.Action)
 			}
 
 			// Verify all required inputs are present
@@ -152,7 +155,7 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 	config := engine.GetExecutionConfig("test-workflow", "test-log", engineConfig)
 
 	// Check that default version is used
-	expectedAction := "anthropics/claude-code-base-action@beta"
+	expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
 	if config.Action != expectedAction {
 		t.Errorf("Expected action '%s', got '%s'", expectedAction, config.Action)
 	}

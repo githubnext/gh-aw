@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,7 +167,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Execute Claude Code Action") {
 					t.Errorf("Expected lock file to contain 'Execute Claude Code Action' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "anthropics/claude-code-base-action@beta") {
+				if !strings.Contains(lockContent, fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)) {
 					t.Errorf("Expected lock file to contain Claude Code action but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
