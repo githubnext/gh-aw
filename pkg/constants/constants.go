@@ -36,5 +36,4 @@ var AllowedExpressions = []string{
 	"github.run_id",
 	"github.run_number",
 	"github.workflow",
-	"needs.task.outputs.text",
-}
+} // needs., steps. already allowed

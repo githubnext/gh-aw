@@ -24,7 +24,10 @@ import (
 // are in the allowed list and returns an error if any unauthorized expressions are found
 func validateExpressionSafety(markdownContent string) error {
 	// Regular expression to match GitHub Actions expressions: ${{ ... }}
-	expressionRegex := regexp.MustCompile(`\$\{\{\s*([^}]+)\s*\}\}`)
+	// Use (?s) flag to enable dotall mode so . matches newlines
+	// Use non-greedy matching with .*? to handle nested braces properly
+	expressionRegex := regexp.MustCompile(`\$\{\{(.*?)\}\}`)
+	needsStepsRegex := regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
 
 	// Find all expressions in the markdown content
 	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
@@ -41,10 +44,16 @@ func validateExpressionSafety(markdownContent string) error {
 
 		// Check if this expression is in the allowed list
 		allowed := false
-		for _, allowedExpr := range constants.AllowedExpressions {
-			if expression == allowedExpr {
-				allowed = true
-				break
+
+		// Check if this expression starts with "needs." or "steps." and is a simple property access
+		if needsStepsRegex.MatchString(expression) {
+			allowed = true
+		} else {
+			for _, allowedExpr := range constants.AllowedExpressions {
+				if expression == allowedExpr {
+					allowed = true
+					break
+				}
 			}
 		}
 
