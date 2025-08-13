@@ -18,6 +18,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsWhitelist: true,
+			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
 		},
 	}
 }

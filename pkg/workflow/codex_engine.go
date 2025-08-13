@@ -18,6 +18,7 @@ func NewCodexEngine() *CodexEngine {
 			description:            "Uses OpenAI Codex CLI with MCP server support",
 			experimental:           true,
 			supportsToolsWhitelist: true,
+			supportsHTTPTransport:  false, // Codex only supports stdio transport
 		},
 	}
 }

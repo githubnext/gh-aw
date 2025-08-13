@@ -157,11 +157,11 @@ func listAgenticEngines(verbose bool) error {
 	fmt.Println(console.FormatListHeader("========================"))
 
 	if verbose {
-		fmt.Printf("%-15s %-20s %-12s %-8s %-8s %s\n", "ID", "Display Name", "Status", "MCP", "Node.js", "Description")
-		fmt.Printf("%-15s %-20s %-12s %-8s %-8s %s\n", "--", "------------", "------", "---", "-------", "-----------")
+		fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n", "ID", "Display Name", "Status", "MCP", "HTTP Transport", "Description")
+		fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n", "--", "------------", "------", "---", "-------------", "-----------")
 	} else {
-		fmt.Printf("%-15s %-20s %-12s %-8s %-8s\n", "ID", "Display Name", "Status", "MCP", "Node.js")
-		fmt.Printf("%-15s %-20s %-12s %-8s %-8s\n", "--", "------------", "------", "---", "-------")
+		fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n", "ID", "Display Name", "Status", "MCP", "HTTP Transport")
+		fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n", "--", "------------", "------", "---", "-------------")
 	}
 
 	for _, engineID := range engines {
@@ -185,20 +185,28 @@ func listAgenticEngines(verbose bool) error {
 			mcpSupport = "Yes"
 		}
 
+		// HTTP transport support
+		httpTransport := "No"
+		if engine.SupportsHTTPTransport() {
+			httpTransport = "Yes"
+		}
+
 		if verbose {
-			fmt.Printf("%-15s %-20s %-12s %-8s %s\n",
+			fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n",
 				engine.GetID(),
 				engine.GetDisplayName(),
 				status,
 				mcpSupport,
+				httpTransport,
 				engine.GetDescription())
 
 		} else {
-			fmt.Printf("%-15s %-20s %-12s %-8s\n",
+			fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n",
 				engine.GetID(),
 				engine.GetDisplayName(),
 				status,
-				mcpSupport)
+				mcpSupport,
+				httpTransport)
 		}
 	}
 
