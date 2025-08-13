@@ -55,7 +55,7 @@ func validateExpressionSafety(markdownContent string) error {
 
 	// If we found unauthorized expressions, return an error
 	if len(unauthorizedExpressions) > 0 {
-		return fmt.Errorf("unauthorized GitHub Actions expressions found: %v. Only these expressions are allowed: %v",
+		return fmt.Errorf("unauthorized expressions: %v. allowed: %v",
 			unauthorizedExpressions, constants.AllowedExpressions)
 	}
 
