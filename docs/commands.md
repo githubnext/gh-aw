@@ -204,12 +204,6 @@ gh aw list --packages --local
 - **Local Storage**: Local packages are stored in `.aw/packages/org/repo/` directory structure
 - **Flexible Installation**: Choose between global (shared across projects) or local (project-specific) installations
 
-**Note**: The `disable`, `enable`, and `status` commands require:
-
-- GitHub CLI (`gh`) to be installed and authenticated
-- The command to be run from within a git repository
-- The workflows to be already updated (`.lock.yml` files must exist)
-
 **Package Installation Requirements:**
 
 - GitHub CLI (`gh`) to be installed and authenticated with access to the target repository
