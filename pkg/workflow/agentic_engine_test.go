@@ -9,8 +9,8 @@ func TestEngineRegistry(t *testing.T) {
 
 	// Test that built-in engines are registered
 	supportedEngines := registry.GetSupportedEngines()
-	if len(supportedEngines) != 3 {
-		t.Errorf("Expected 3 supported engines, got %d", len(supportedEngines))
+	if len(supportedEngines) != 2 {
+		t.Errorf("Expected 2 supported engines, got %d", len(supportedEngines))
 	}
 
 	// Test getting engines by ID
@@ -30,14 +30,6 @@ func TestEngineRegistry(t *testing.T) {
 		t.Errorf("Expected codex engine ID, got '%s'", codexEngine.GetID())
 	}
 
-	geminiEngine, err := registry.GetEngine("gemini")
-	if err != nil {
-		t.Errorf("Expected to find gemini engine, got error: %v", err)
-	}
-	if geminiEngine.GetID() != "gemini" {
-		t.Errorf("Expected gemini engine ID, got '%s'", geminiEngine.GetID())
-	}
-
 	// Test getting non-existent engine
 	_, err = registry.GetEngine("nonexistent")
 	if err == nil {
@@ -51,10 +43,6 @@ func TestEngineRegistry(t *testing.T) {
 
 	if !registry.IsValidEngine("codex") {
 		t.Error("Expected codex to be valid engine")
-	}
-
-	if !registry.IsValidEngine("gemini") {
-		t.Error("Expected gemini to be valid engine")
 	}
 
 	if registry.IsValidEngine("nonexistent") {
@@ -116,7 +104,7 @@ func TestEngineRegistryCustomEngine(t *testing.T) {
 
 	// Test that supported engines list is updated
 	supportedEngines := registry.GetSupportedEngines()
-	if len(supportedEngines) != 4 {
-		t.Errorf("Expected 4 supported engines after adding custom, got %d", len(supportedEngines))
+	if len(supportedEngines) != 3 {
+		t.Errorf("Expected 3 supported engines after adding custom, got %d", len(supportedEngines))
 	}
 }

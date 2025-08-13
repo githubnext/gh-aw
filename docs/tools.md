@@ -131,11 +131,6 @@ tools:
 - ❌ Claude-specific tools (ignored)
 - ✅ Custom MCP tools (stdio only, see [MCP Guide](mcps.md))
 
-### Gemini Engine
-- ✅ GitHub tools (native support)
-- ❌ Claude-specific tools (ignored)
-- ❌ Custom MCP tools (ignored)
-
 
 ## Security Considerations
 
