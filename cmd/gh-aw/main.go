@@ -20,8 +20,8 @@ var verbose bool
 
 // validateEngine validates the engine flag value
 func validateEngine(engine string) error {
-	if engine != "" && engine != "claude" && engine != "codex" && engine != "gemini" {
-		return fmt.Errorf("invalid engine value '%s'. Must be 'claude', 'codex', or 'gemini'", engine)
+	if engine != "" && engine != "claude" && engine != "codex" {
+		return fmt.Errorf("invalid engine value '%s'. Must be 'claude' or 'codex'", engine)
 	}
 	return nil
 }
@@ -294,7 +294,7 @@ func init() {
 	addCmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 
 	// Add AI flag to add command
-	addCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, gemini)")
+	addCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex)")
 
 	// Add repository flag to add command
 	addCmd.Flags().StringP("repo", "r", "", "Install and use workflows from specified repository (org/repo)")
@@ -319,7 +319,7 @@ func init() {
 	uninstallCmd.Flags().BoolP("local", "l", false, "Uninstall packages from local .aw/packages instead of global ~/.aw/packages")
 
 	// Add AI flag to compile and add commands
-	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, gemini)")
+	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex)")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation")
 	compileCmd.Flags().Bool("auto-compile", false, "Generate auto-compile workflow file for automatic compilation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")

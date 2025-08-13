@@ -254,8 +254,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["claude", "codex", "gemini"],
-          "description": "Simple engine name (claude, codex, or gemini)"
+          "enum": ["claude", "codex"],
+          "description": "Simple engine name (claude or codex)"
         },
         {
           "type": "object",
@@ -263,8 +263,8 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": ["claude", "codex", "gemini"],
-              "description": "Agent CLI identifier (claude, codex, or gemini)"
+              "enum": ["claude", "codex"],
+              "description": "Agent CLI identifier (claude or codex)"
             },
             "version": {
               "type": "string",
