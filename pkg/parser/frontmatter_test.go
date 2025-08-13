@@ -1608,17 +1608,17 @@ func TestIsCSIParameterChar(t *testing.T) {
 		{name: "9 (0x39)", char: '9', expected: true},
 		{name: "; (0x3B)", char: ';', expected: true},
 		{name: "? (0x3F)", char: '?', expected: true},
-		
+
 		// Valid intermediate characters (0x20-0x2F, space-/)
 		{name: "space (0x20)", char: ' ', expected: true},
 		{name: "! (0x21)", char: '!', expected: true},
 		{name: "/ (0x2F)", char: '/', expected: true},
-		
+
 		// Invalid characters (below 0x20)
 		{name: "tab (0x09)", char: '\t', expected: false},
 		{name: "newline (0x0A)", char: '\n', expected: false},
 		{name: "null (0x00)", char: 0x00, expected: false},
-		
+
 		// Invalid characters (above 0x3F)
 		{name: "@ (0x40)", char: '@', expected: false},
 		{name: "A (0x41)", char: 'A', expected: false},
@@ -1651,14 +1651,14 @@ func TestIsFinalCSIChar(t *testing.T) {
 		{name: "a (0x61)", char: 'a', expected: true},
 		{name: "m (0x6D)", char: 'm', expected: true}, // Common color final char
 		{name: "~ (0x7E)", char: '~', expected: true},
-		
+
 		// Invalid characters (below 0x40)
 		{name: "space (0x20)", char: ' ', expected: false},
 		{name: "0 (0x30)", char: '0', expected: false},
 		{name: "9 (0x39)", char: '9', expected: false},
 		{name: "; (0x3B)", char: ';', expected: false},
 		{name: "? (0x3F)", char: '?', expected: false},
-		
+
 		// Invalid characters (above 0x7E)
 		{name: "DEL (0x7F)", char: 0x7F, expected: false},
 		{name: "high byte (0x80)", char: 0x80, expected: false},
