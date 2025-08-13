@@ -100,8 +100,8 @@ type EngineRegistry struct {
 }
 
 var (
-	globalRegistry     *EngineRegistry
-	registryInitOnce   sync.Once
+	globalRegistry   *EngineRegistry
+	registryInitOnce sync.Once
 )
 
 // NewEngineRegistry creates a new engine registry with built-in engines

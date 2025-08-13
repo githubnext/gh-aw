@@ -31,8 +31,6 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	os.RemoveAll("./test-logs")
 }
 
-
-
 func TestFormatDuration(t *testing.T) {
 	tests := []struct {
 		duration time.Duration
@@ -482,8 +480,6 @@ I'm ready to generate a Codex PR summary, but I need the pull request number to 
 	}
 }
 
-
-
 func TestParseLogFileWithCodexTokenSumming(t *testing.T) {
 	// Create a temporary log file with multiple Codex token entries
 	tmpDir := t.TempDir()
@@ -558,6 +554,138 @@ token_count: 10000`
 	}
 }
 
+func TestExtractEngineFromAwInfoNestedDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Test Case 1: aw_info.json as a regular file
+	awInfoFile := filepath.Join(tmpDir, "aw_info.json")
+	awInfoContent := `{
+		"engine_id": "claude",
+		"engine_name": "Claude",
+		"model": "claude-3-sonnet",
+		"version": "20240620",
+		"workflow_name": "Test Claude",
+		"experimental": false,
+		"supports_tools_whitelist": true,
+		"supports_http_transport": false,
+		"run_id": 123456789,
+		"run_number": 42,
+		"run_attempt": "1",
+		"repository": "githubnext/gh-aw",
+		"ref": "refs/heads/main",
+		"sha": "abc123",
+		"actor": "testuser",
+		"event_name": "workflow_dispatch",
+		"created_at": "2025-08-13T13:36:39.704Z"
+	}`
+
+	err := os.WriteFile(awInfoFile, []byte(awInfoContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create aw_info.json file: %v", err)
+	}
+
+	// Test regular file extraction
+	engine := extractEngineFromAwInfo(awInfoFile, true)
+	if engine == nil {
+		t.Errorf("Expected to extract engine from regular aw_info.json file, got nil")
+	} else if engine.GetID() != "claude" {
+		t.Errorf("Expected engine ID 'claude', got '%s'", engine.GetID())
+	}
+
+	// Clean up for next test
+	os.Remove(awInfoFile)
+
+	// Test Case 2: aw_info.json as a directory containing the actual file
+	awInfoDir := filepath.Join(tmpDir, "aw_info.json")
+	err = os.Mkdir(awInfoDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create aw_info.json directory: %v", err)
+	}
+
+	// Create the nested aw_info.json file inside the directory
+	nestedAwInfoFile := filepath.Join(awInfoDir, "aw_info.json")
+	awInfoContentCodex := `{
+		"engine_id": "codex",
+		"engine_name": "Codex",
+		"model": "o4-mini",
+		"version": "",
+		"workflow_name": "Test Codex",
+		"experimental": true,
+		"supports_tools_whitelist": true,
+		"supports_http_transport": false,
+		"run_id": 987654321,
+		"run_number": 7,
+		"run_attempt": "1",
+		"repository": "githubnext/gh-aw",
+		"ref": "refs/heads/copilot/fix-24",
+		"sha": "def456",
+		"actor": "testuser2",
+		"event_name": "workflow_dispatch",
+		"created_at": "2025-08-13T13:36:39.704Z"
+	}`
+
+	err = os.WriteFile(nestedAwInfoFile, []byte(awInfoContentCodex), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create nested aw_info.json file: %v", err)
+	}
+
+	// Test directory-based extraction (the main fix)
+	engine = extractEngineFromAwInfo(awInfoDir, true)
+	if engine == nil {
+		t.Errorf("Expected to extract engine from aw_info.json directory, got nil")
+	} else if engine.GetID() != "codex" {
+		t.Errorf("Expected engine ID 'codex', got '%s'", engine.GetID())
+	}
+
+	// Test Case 3: Non-existent aw_info.json should return nil
+	nonExistentPath := filepath.Join(tmpDir, "nonexistent", "aw_info.json")
+	engine = extractEngineFromAwInfo(nonExistentPath, false)
+	if engine != nil {
+		t.Errorf("Expected nil for non-existent aw_info.json, got engine: %s", engine.GetID())
+	}
+
+	// Test Case 4: Directory without nested aw_info.json should return nil
+	emptyDir := filepath.Join(tmpDir, "empty_aw_info.json")
+	err = os.Mkdir(emptyDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create empty directory: %v", err)
+	}
+
+	engine = extractEngineFromAwInfo(emptyDir, false)
+	if engine != nil {
+		t.Errorf("Expected nil for directory without nested aw_info.json, got engine: %s", engine.GetID())
+	}
+
+	// Test Case 5: Invalid JSON should return nil
+	invalidAwInfoFile := filepath.Join(tmpDir, "invalid_aw_info.json")
+	invalidContent := `{invalid json content`
+	err = os.WriteFile(invalidAwInfoFile, []byte(invalidContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create invalid aw_info.json file: %v", err)
+	}
+
+	engine = extractEngineFromAwInfo(invalidAwInfoFile, false)
+	if engine != nil {
+		t.Errorf("Expected nil for invalid JSON aw_info.json, got engine: %s", engine.GetID())
+	}
+
+	// Test Case 6: Missing engine_id should return nil
+	missingEngineIDFile := filepath.Join(tmpDir, "missing_engine_id_aw_info.json")
+	missingEngineIDContent := `{
+		"workflow_name": "Test Workflow",
+		"run_id": 123456789
+	}`
+	err = os.WriteFile(missingEngineIDFile, []byte(missingEngineIDContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create aw_info.json file without engine_id: %v", err)
+	}
+
+	engine = extractEngineFromAwInfo(missingEngineIDFile, false)
+	if engine != nil {
+		t.Errorf("Expected nil for aw_info.json without engine_id, got engine: %s", engine.GetID())
+	}
+}
+
 func TestParseLogFileWithNonCodexTokensOnly(t *testing.T) {
 	// Create a temporary log file with only non-Codex token formats
 	tmpDir := t.TempDir()
@@ -584,5 +712,3 @@ input_tokens: 2000`
 		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
 	}
 }
-
-

@@ -430,8 +430,32 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 }
 
 // extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+// Handles cases where aw_info.json is a file or a directory containing the actual file
 func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.AgenticEngine {
-	data, err := os.ReadFile(infoFilePath)
+	var data []byte
+	var err error
+
+	// Check if the path exists and determine if it's a file or directory
+	stat, statErr := os.Stat(infoFilePath)
+	if statErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json: %v", statErr)))
+		}
+		return nil
+	}
+
+	if stat.IsDir() {
+		// It's a directory - look for nested aw_info.json
+		nestedPath := filepath.Join(infoFilePath, "aw_info.json")
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("aw_info.json is a directory, trying nested file: %s", nestedPath)))
+		}
+		data, err = os.ReadFile(nestedPath)
+	} else {
+		// It's a regular file
+		data, err = os.ReadFile(infoFilePath)
+	}
+
 	if err != nil {
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json: %v", err)))
@@ -503,20 +527,9 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.AgenticEngi
 	return LogMetrics{}, nil
 }
 
-
-// extractFirstMatch extracts the first regex match from a string (shared utility)
-var extractFirstMatch = workflow.ExtractFirstMatch
-
-// extractTimestamp extracts timestamp from log line (shared utility)
-var extractTimestamp = workflow.ExtractTimestamp
-
-// extractJSONMetrics extracts metrics from streaming JSON log lines (shared utility)
-var extractJSONMetrics = workflow.ExtractJSONMetrics
-
 // Shared utilities are now in workflow package
-// extractFirstMatch, extractTimestamp, extractJSONMetrics are available as aliases
-
-
+// extractJSONMetrics is available as an alias
+var extractJSONMetrics = workflow.ExtractJSONMetrics
 
 // displayLogsOverview displays a summary table of workflow runs and metrics
 func displayLogsOverview(runs []WorkflowRun, outputDir string) {
