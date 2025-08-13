@@ -309,7 +309,7 @@ tools:
       command: "python"
       args: ["-m", "my_server"]
       env:
-        API_KEY: "{{ secrets.API_KEY }}"
+        API_KEY: "${{ secrets.API_KEY }}"
     allowed: ["*"]
 ---`,
 			expectedAI:           "codex",
@@ -368,7 +368,7 @@ This is a test workflow for MCP configuration with different AI engines.
 					if !strings.Contains(lockContent, "command = \"python\"") {
 						t.Errorf("Expected python command for custom server but didn't find it in:\n%s", lockContent)
 					}
-					if !strings.Contains(lockContent, "\"API_KEY\" = \"{{ secrets.API_KEY }}\"") {
+					if !strings.Contains(lockContent, "\"API_KEY\" = \"${{ secrets.API_KEY }}\"") {
 						t.Errorf("Expected API_KEY env var for custom server but didn't find it in:\n%s", lockContent)
 					}
 				}
