@@ -66,6 +66,7 @@ codex exec \
 		Command:  command,
 		Environment: map[string]string{
 			"OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
+			"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 		},
 	}
 }
