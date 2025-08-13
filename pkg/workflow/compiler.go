@@ -20,15 +20,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Allowed GitHub Actions expressions that can be used in workflow markdown content
-var allowedExpressions = []string{
-	"github.workflow",
-	"github.repository",
-	"github.run_id",
-	"github.event.issue.number",
-	"needs.task.outputs.text",
-}
-
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
 // are in the allowed list and returns an error if any unauthorized expressions are found
 func validateExpressionSafety(markdownContent string) error {
@@ -50,7 +41,7 @@ func validateExpressionSafety(markdownContent string) error {
 		
 		// Check if this expression is in the allowed list
 		allowed := false
-		for _, allowedExpr := range allowedExpressions {
+		for _, allowedExpr := range constants.AllowedExpressions {
 			if expression == allowedExpr {
 				allowed = true
 				break
@@ -65,7 +56,7 @@ func validateExpressionSafety(markdownContent string) error {
 	// If we found unauthorized expressions, return an error
 	if len(unauthorizedExpressions) > 0 {
 		return fmt.Errorf("unauthorized GitHub Actions expressions found: %v. Only these expressions are allowed: %v", 
-			unauthorizedExpressions, allowedExpressions)
+			unauthorizedExpressions, constants.AllowedExpressions)
 	}
 	
 	return nil
