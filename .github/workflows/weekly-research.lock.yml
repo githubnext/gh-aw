@@ -211,7 +211,7 @@ jobs:
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Execute Claude Code Action
         id: agentic_execution
-        uses: anthropics/claude-code-base-action@beta
+        uses: anthropics/claude-code-base-action@v0.0.56
         with:
           # Allowed tools (sorted):
           # - Bash(echo:*)
