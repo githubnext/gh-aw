@@ -273,3 +273,35 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 
 	return metrics
 }
+
+// GetFilenamePatterns returns patterns that can be used to detect Claude from filenames
+func (e *ClaudeEngine) GetFilenamePatterns() []string {
+	return []string{"claude"}
+}
+
+// DetectFromContent analyzes log content and returns a confidence score for Claude engine
+func (e *ClaudeEngine) DetectFromContent(logContent string) int {
+	confidence := 0
+	lines := strings.Split(logContent, "\n")
+	maxLinesToCheck := 20
+	if len(lines) < maxLinesToCheck {
+		maxLinesToCheck = len(lines)
+	}
+
+	for i := 0; i < maxLinesToCheck; i++ {
+		line := lines[i]
+
+		// Look for Claude-specific patterns (result payload or Claude streaming)
+		if strings.Contains(line, `"type": "result"`) && strings.Contains(line, `"total_cost_usd"`) {
+			confidence += 30 // Strong indicator
+		}
+		if strings.Contains(line, `"type": "message"`) || strings.Contains(line, `"type": "assistant"`) {
+			confidence += 10
+		}
+		if strings.Contains(strings.ToLower(line), "claude") {
+			confidence += 5
+		}
+	}
+
+	return confidence
+}

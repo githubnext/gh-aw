@@ -132,11 +132,6 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 			totalTokenUsage += tokenUsage
 		}
 
-		// Extract cost information (if any)
-		if cost := e.extractCodexCost(line); cost > 0 {
-			metrics.EstimatedCost += cost
-		}
-
 		// Count errors and warnings
 		lowerLine := strings.ToLower(line)
 		if strings.Contains(lowerLine, "error") {
@@ -169,24 +164,43 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 	return 0
 }
 
-// extractCodexCost extracts cost information from Codex log lines
-func (e *CodexEngine) extractCodexCost(line string) float64 {
-	// Look for patterns like "cost: $1.23", "price: 0.45", etc.
-	patterns := []string{
-		`cost[:\s]+\$?(\d+\.?\d*)`,
-		`price[:\s]+\$?(\d+\.?\d*)`,
-		`\$(\d+\.?\d+)`,
+// GetFilenamePatterns returns patterns that can be used to detect Codex from filenames
+func (e *CodexEngine) GetFilenamePatterns() []string {
+	return []string{"codex"}
+}
+
+// DetectFromContent analyzes log content and returns a confidence score for Codex engine
+func (e *CodexEngine) DetectFromContent(logContent string) int {
+	confidence := 0
+	lines := strings.Split(logContent, "\n")
+	maxLinesToCheck := 20
+	if len(lines) < maxLinesToCheck {
+		maxLinesToCheck = len(lines)
 	}
 
-	for _, pattern := range patterns {
-		if match := ExtractFirstMatch(line, pattern); match != "" {
-			if cost, err := strconv.ParseFloat(match, 64); err == nil {
-				return cost
+	for i := 0; i < maxLinesToCheck; i++ {
+		line := lines[i]
+
+		// Look for Codex-specific patterns - must be exact format
+		// Codex format: "tokens used: 13934" (not preceded by other words like "Total")
+		if strings.Contains(line, "tokens used:") {
+			// Check that it's not preceded by words like "Total", "Input", "Output"
+			lowerLine := strings.ToLower(line)
+			if !strings.Contains(lowerLine, "total tokens used") &&
+				!strings.Contains(lowerLine, "input tokens used") &&
+				!strings.Contains(lowerLine, "output tokens used") {
+				// Check if it matches the exact Codex pattern
+				if match := ExtractFirstMatch(line, `tokens\s+used[:\s]+(\d+)`); match != "" {
+					confidence += 20 // Strong indicator
+				}
 			}
+		}
+		if strings.Contains(strings.ToLower(line), "codex") {
+			confidence += 10
 		}
 	}
 
-	return 0
+	return confidence
 }
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml

@@ -42,10 +42,6 @@ type WorkflowRun struct {
 // This is now an alias to the shared type in workflow package
 type LogMetrics = workflow.LogMetrics
 
-// JSONMetrics represents metrics extracted from JSON log entries
-// This is now an alias to the shared type in workflow package
-type JSONMetrics = workflow.JSONMetrics
-
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
 
@@ -460,63 +456,31 @@ func detectEngineFromLog(filePath, logContent string) workflow.AgenticEngine {
 	// Try to detect from filename patterns first
 	fileName := strings.ToLower(filepath.Base(filePath))
 
-	// Check for engine-specific filename patterns
-	if strings.Contains(fileName, "codex") {
-		if engine, err := registry.GetEngine("codex"); err == nil {
-			return engine
-		}
-	}
-	if strings.Contains(fileName, "claude") {
-		if engine, err := registry.GetEngine("claude"); err == nil {
-			return engine
-		}
-	}
-	if strings.Contains(fileName, "gemini") {
-		if engine, err := registry.GetEngine("gemini"); err == nil {
-			return engine
+	// Check all engines for filename patterns
+	for _, engine := range registry.GetAllEngines() {
+		patterns := engine.GetFilenamePatterns()
+		for _, pattern := range patterns {
+			if strings.Contains(fileName, pattern) {
+				return engine
+			}
 		}
 	}
 
-	// Try to detect from log content patterns (look at more lines for better detection)
-	lines := strings.Split(logContent, "\n")
-	maxLinesToCheck := 20
-	if len(lines) < maxLinesToCheck {
-		maxLinesToCheck = len(lines)
-	}
+	// Try to detect from content patterns
+	var bestEngine workflow.AgenticEngine
+	var bestScore int
 
-	codexPatterns := 0
-	claudePatterns := 0
-
-	for i := 0; i < maxLinesToCheck; i++ {
-		line := lines[i]
-
-		// Look for Codex-specific patterns
-		if strings.Contains(line, "tokens used:") {
-			codexPatterns++
-		}
-		if strings.Contains(line, "codex") {
-			codexPatterns++
-		}
-
-		// Look for Claude-specific patterns (result payload or Claude streaming)
-		if strings.Contains(line, `"type": "result"`) && strings.Contains(line, `"total_cost_usd"`) {
-			claudePatterns += 2 // Strong indicator
-		}
-		if strings.Contains(line, `"type": "message"`) || strings.Contains(line, `"type": "assistant"`) {
-			claudePatterns++
+	for _, engine := range registry.GetAllEngines() {
+		score := engine.DetectFromContent(logContent)
+		if score > bestScore {
+			bestScore = score
+			bestEngine = engine
 		}
 	}
 
-	// Use pattern-based detection if we have strong indicators
-	if codexPatterns > claudePatterns && codexPatterns > 0 {
-		if engine, err := registry.GetEngine("codex"); err == nil {
-			return engine
-		}
-	}
-	if claudePatterns > codexPatterns && claudePatterns > 0 {
-		if engine, err := registry.GetEngine("claude"); err == nil {
-			return engine
-		}
+	// Return the best match if we have a reasonable confidence score
+	if bestScore > 10 { // Minimum confidence threshold
+		return bestEngine
 	}
 
 	// For ambiguous cases or test files, return nil to use generic parsing
@@ -524,7 +488,7 @@ func detectEngineFromLog(filePath, logContent string) workflow.AgenticEngine {
 		return nil
 	}
 
-	// Default to Claude only if we have JSON-like content
+	// Default to Claude only if we have JSON-like content and no better match
 	if strings.Contains(logContent, "{") && strings.Contains(logContent, "}") {
 		if engine, err := registry.GetEngine("claude"); err == nil {
 			return engine

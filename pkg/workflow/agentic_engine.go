@@ -39,6 +39,12 @@ type AgenticEngine interface {
 
 	// ParseLogMetrics extracts metrics from engine-specific log content
 	ParseLogMetrics(logContent string, verbose bool) LogMetrics
+
+	// GetFilenamePatterns returns patterns that can be used to detect this engine from filenames
+	GetFilenamePatterns() []string
+
+	// DetectFromContent analyzes log content and returns a confidence score (0-100) for this engine
+	DetectFromContent(logContent string) int
 }
 
 // ExecutionConfig contains the configuration for executing an agentic engine
@@ -91,6 +97,20 @@ func (e *BaseEngine) SupportsToolsWhitelist() bool {
 
 func (e *BaseEngine) SupportsHTTPTransport() bool {
 	return e.supportsHTTPTransport
+}
+
+// GetFilenamePatterns provides a default implementation (engines should override)
+func (e *BaseEngine) GetFilenamePatterns() []string {
+	return []string{e.id}
+}
+
+// DetectFromContent provides a default implementation (engines should override)
+func (e *BaseEngine) DetectFromContent(logContent string) int {
+	// Simple default: look for engine ID in content
+	if strings.Contains(strings.ToLower(logContent), e.id) {
+		return 10 // Low confidence
+	}
+	return 0
 }
 
 // EngineRegistry manages available agentic engines
@@ -155,4 +175,13 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (AgenticEngine, error)
 		}
 	}
 	return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
+}
+
+// GetAllEngines returns all registered engines
+func (r *EngineRegistry) GetAllEngines() []AgenticEngine {
+	var engines []AgenticEngine
+	for _, engine := range r.engines {
+		engines = append(engines, engine)
+	}
+	return engines
 }

@@ -15,12 +15,6 @@ type LogMetrics struct {
 	EstimatedCost float64
 	ErrorCount    int
 	WarningCount  int
-}
-
-// JSONMetrics represents metrics extracted from JSON log entries
-type JSONMetrics struct {
-	TokenUsage    int
-	EstimatedCost float64
 	Timestamp     time.Time
 }
 
@@ -62,8 +56,8 @@ func ExtractFirstMatch(text, pattern string) string {
 }
 
 // ExtractJSONMetrics extracts metrics from streaming JSON log lines
-func ExtractJSONMetrics(line string, verbose bool) JSONMetrics {
-	var metrics JSONMetrics
+func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
+	var metrics LogMetrics
 
 	// Skip lines that don't look like JSON
 	trimmed := strings.TrimSpace(line)
