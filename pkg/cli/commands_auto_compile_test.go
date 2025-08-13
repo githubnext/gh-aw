@@ -119,7 +119,11 @@ jobs:
 			if err != nil {
 				t.Fatalf("Failed to get current directory: %v", err)
 			}
-			defer os.Chdir(originalDir)
+			defer func() {
+				if err := os.Chdir(originalDir); err != nil {
+					t.Errorf("Failed to restore original directory: %v", err)
+				}
+			}()
 
 			if err := os.Chdir(testDir); err != nil {
 				t.Fatalf("Failed to change to test directory: %v", err)
@@ -171,7 +175,9 @@ jobs:
 			// Clean up permissions for deletion
 			if strings.Contains(tt.name, "permission denied") {
 				githubDir := filepath.Join(testDir, ".github")
-				os.Chmod(githubDir, 0755) // Restore write permissions for cleanup
+				if err := os.Chmod(githubDir, 0755); err != nil {
+					t.Errorf("Failed to restore write permissions for cleanup: %v", err)
+				}
 			}
 		})
 	}
@@ -183,8 +189,14 @@ func TestEnsureAutoCompileWorkflowEdgeCases(t *testing.T) {
 		// For now, we'll test the function behavior with a non-git directory
 		testDir := t.TempDir()
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
-		os.Chdir(testDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				t.Errorf("Failed to restore original directory: %v", err)
+			}
+		}()
+		if err := os.Chdir(testDir); err != nil {
+			t.Fatalf("Failed to change to test directory: %v", err)
+		}
 
 		// Create a non-git directory structure
 		err := ensureAutoCompileWorkflow(false)
@@ -203,7 +215,9 @@ func TestEnsureAutoCompileWorkflowEdgeCases(t *testing.T) {
 		defer os.Chdir(originalDir)
 		os.Chdir(testDir)
 
-		initTestGitRepo(testDir)
+		if err := initTestGitRepo(testDir); err != nil {
+			t.Fatalf("Failed to initialize test git repo: %v", err)
+		}
 
 		// This should work and not panic in verbose mode
 		err := ensureAutoCompileWorkflow(true)
@@ -224,7 +238,9 @@ func TestEnsureAutoCompileWorkflowEdgeCases(t *testing.T) {
 		defer os.Chdir(originalDir)
 		os.Chdir(testDir)
 
-		initTestGitRepo(testDir)
+		if err := initTestGitRepo(testDir); err != nil {
+			t.Fatalf("Failed to initialize test git repo: %v", err)
+		}
 
 		// This should work and not produce output
 		err := ensureAutoCompileWorkflow(false)
