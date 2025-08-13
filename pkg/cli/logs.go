@@ -455,6 +455,9 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 
 	lines := strings.Split(string(content), "\n")
 
+	// Track Codex-style "tokens used" entries separately for summing
+	var codexTokenUsages []int
+
 	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
@@ -464,7 +467,7 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 		// Try to parse as streaming JSON first
 		jsonMetrics := extractJSONMetrics(line, verbose)
 		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || !jsonMetrics.Timestamp.IsZero() {
-			// Successfully extracted from JSON, update metrics
+			// Successfully extracted from JSON - keep maximum (original behavior)
 			if jsonMetrics.TokenUsage > maxTokenUsage {
 				maxTokenUsage = jsonMetrics.TokenUsage
 			}
@@ -494,10 +497,15 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 			}
 		}
 
-		// Extract token usage - keep the maximum found
-		tokenUsage := extractTokenUsage(line)
-		if tokenUsage > maxTokenUsage {
-			maxTokenUsage = tokenUsage
+		// Check for Codex-style "tokens used: X" pattern specifically
+		if codexTokens := extractCodexTokenUsage(line); codexTokens > 0 {
+			codexTokenUsages = append(codexTokenUsages, codexTokens)
+		} else {
+			// Extract other token usage patterns - keep the maximum found (original behavior)
+			tokenUsage := extractTokenUsage(line)
+			if tokenUsage > maxTokenUsage {
+				maxTokenUsage = tokenUsage
+			}
 		}
 
 		// Extract cost information
@@ -516,8 +524,21 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 		}
 	}
 
-	// Set the max token usage found
-	metrics.TokenUsage = maxTokenUsage
+	// If we have Codex token usages, sum them, otherwise use the max found
+	if len(codexTokenUsages) > 0 {
+		codexTotal := 0
+		for _, tokens := range codexTokenUsages {
+			codexTotal += tokens
+		}
+		// Use the higher of Codex total vs other max tokens
+		if codexTotal > maxTokenUsage {
+			metrics.TokenUsage = codexTotal
+		} else {
+			metrics.TokenUsage = maxTokenUsage
+		}
+	} else {
+		metrics.TokenUsage = maxTokenUsage
+	}
 
 	// Calculate duration
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -556,25 +577,57 @@ func extractTimestamp(line string) time.Time {
 
 // extractTokenUsage extracts token usage from log line
 func extractTokenUsage(line string) int {
-	// Look for patterns like "tokens: 1234", "token_count: 1234", etc.
-	patterns := []string{
-		`tokens?[:\s]+(\d+)`,
-		`token[_\s]count[:\s]+(\d+)`,
-		`input[_\s]tokens[:\s]+(\d+)`,
-		`output[_\s]tokens[:\s]+(\d+)`,
+	tokens, _ := extractTokenUsageWithType(line)
+	return tokens
+}
+
+// extractCodexTokenUsage specifically extracts Codex "tokens used: X" pattern
+func extractCodexTokenUsage(line string) int {
+	// Codex-specific pattern that should be summed across multiple entries
+	pattern := `tokens\s+used[:\s]+(\d+)`
+	if match := extractFirstMatch(line, pattern); match != "" {
+		if count, err := strconv.Atoi(match); err == nil {
+			return count
+		}
+	}
+	return 0
+}
+
+// extractTokenUsageWithType extracts token usage and indicates if it's a total measurement
+func extractTokenUsageWithType(line string) (int, bool) {
+	// Total/summary patterns - these should take precedence
+	totalPatterns := []string{
 		`total[_\s]tokens[_\s]used[:\s]+(\d+)`,
-		`tokens\s+used[:\s]+(\d+)`, // Codex format: "tokens used: 13934"
+		`tokens\s+used[:\s]+(\d+)`, // Codex format: "tokens used: 13934" - include for backward compatibility
 	}
 
-	for _, pattern := range patterns {
+	// Component patterns - these should be summed only if no totals exist
+	componentPatterns := []string{
+		`input[_\s]tokens[:\s]+(\d+)`,
+		`output[_\s]tokens[:\s]+(\d+)`,
+		`token[_\s]count[:\s]+(\d+)`,
+		`tokens?[:\s]+(\d+)`, // Generic token pattern
+	}
+
+	// First check for total patterns
+	for _, pattern := range totalPatterns {
 		if match := extractFirstMatch(line, pattern); match != "" {
 			if count, err := strconv.Atoi(match); err == nil {
-				return count
+				return count, true // isTotal = true
 			}
 		}
 	}
 
-	return 0
+	// Then check for component patterns
+	for _, pattern := range componentPatterns {
+		if match := extractFirstMatch(line, pattern); match != "" {
+			if count, err := strconv.Atoi(match); err == nil {
+				return count, false // isTotal = false
+			}
+		}
+	}
+
+	return 0, false
 }
 
 // extractCost extracts cost information from log line

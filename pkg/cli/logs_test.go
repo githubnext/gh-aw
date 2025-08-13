@@ -571,3 +571,42 @@ func TestExtractTokenUsageCodexPatterns(t *testing.T) {
 		})
 	}
 }
+
+func TestParseLogFileWithMultipleCodexTokenEntries(t *testing.T) {
+	// Create a temporary log file with multiple Codex token usage entries
+	// This tests the exact scenario described in the issue
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-codex-multiple.log")
+
+	// This is the exact format from the issue with multiple token entries
+	logContent := `[2025-08-13T04:38:03] Starting Codex workflow execution
+  ]
+}
+[2025-08-13T04:38:03] tokens used: 32169
+[2025-08-13T04:38:06] codex
+I've posted the PR summary comment with analysis and recommendations. Let me know if you'd like to adjust any details or add further insights!
+[2025-08-13T04:38:06] tokens used: 28828
+[2025-08-13T04:38:10] Workflow completed successfully`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	metrics, err := parseLogFile(logFile, false)
+	if err != nil {
+		t.Fatalf("parseLogFile failed: %v", err)
+	}
+
+	// Check that token usages are summed (32169 + 28828 = 60997)
+	expectedTokens := 32169 + 28828
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (sum of multiple entries), got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Check duration (7 seconds between start and end)
+	expectedDuration := 7 * time.Second
+	if metrics.Duration != expectedDuration {
+		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
+	}
+}
