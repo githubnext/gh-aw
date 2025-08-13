@@ -89,11 +89,10 @@ func TestParseLogFileWithoutAwInfo(t *testing.T) {
 
 func TestExtractJSONMetrics(t *testing.T) {
 	tests := []struct {
-		name            string
-		line            string
-		expectedTokens  int
-		expectedCost    float64
-		expectTimestamp bool
+		name           string
+		line           string
+		expectedTokens int
+		expectedCost   float64
 	}{
 		{
 			name:           "Claude streaming format with usage",
@@ -101,10 +100,9 @@ func TestExtractJSONMetrics(t *testing.T) {
 			expectedTokens: 579, // 123 + 456
 		},
 		{
-			name:            "Simple token count",
-			line:            `{"tokens": 1234, "timestamp": "2024-01-15T10:30:00Z"}`,
-			expectedTokens:  1234,
-			expectTimestamp: true,
+			name:           "Simple token count (timestamp ignored)",
+			line:           `{"tokens": 1234, "timestamp": "2024-01-15T10:30:00Z"}`,
+			expectedTokens: 1234,
 		},
 		{
 			name:         "Cost information",
@@ -152,10 +150,6 @@ func TestExtractJSONMetrics(t *testing.T) {
 			if metrics.EstimatedCost != tt.expectedCost {
 				t.Errorf("Expected cost %f, got %f", tt.expectedCost, metrics.EstimatedCost)
 			}
-
-			if tt.expectTimestamp && metrics.Timestamp.IsZero() {
-				t.Error("Expected timestamp to be parsed, but got zero value")
-			}
 		})
 	}
 }
@@ -166,11 +160,11 @@ func TestParseLogFileWithJSON(t *testing.T) {
 	logFile := filepath.Join(tmpDir, "test-mixed.log")
 
 	logContent := `2024-01-15T10:30:00Z Starting workflow execution
-{"type": "message_start", "timestamp": "2024-01-15T10:30:15Z"}
+{"type": "message_start"}
 {"type": "content_block_delta", "delta": {"type": "text", "text": "Hello"}}
 {"type": "message_delta", "delta": {"usage": {"input_tokens": 150, "output_tokens": 200}}}
 Regular log line: tokens: 1000
-{"cost": 0.035, "timestamp": "2024-01-15T10:31:00Z"}
+{"cost": 0.035}
 2024-01-15T10:31:30Z Workflow completed successfully`
 
 	err := os.WriteFile(logFile, []byte(logContent), 0644)

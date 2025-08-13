@@ -151,7 +151,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 		// Try to parse as streaming JSON first to catch the final result payload
 		jsonMetrics := ExtractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || !jsonMetrics.Timestamp.IsZero() {
+		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
 			// Check if this is a Claude result payload with aggregated costs
 			if e.isClaudeResultPayload(line) {
 				// For Claude result payloads, use the aggregated values directly

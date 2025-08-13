@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // LogMetrics represents extracted metrics from log files
@@ -14,34 +13,7 @@ type LogMetrics struct {
 	EstimatedCost float64
 	ErrorCount    int
 	WarningCount  int
-	Timestamp     time.Time
-}
-
-// ExtractTimestamp extracts timestamp from log line
-func ExtractTimestamp(line string) time.Time {
-	// Common timestamp patterns
-	patterns := []string{
-		"2006-01-02T15:04:05Z",
-		"2006-01-02T15:04:05.000Z",
-		"2006-01-02T15:04:05", // Codex format without Z
-		"2006-01-02 15:04:05",
-		"Jan 02 15:04:05",
-	}
-
-	// First try to extract the timestamp string from the line
-	// Updated regex to handle timestamps both with and without Z, and in brackets
-	timestampRegex := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z?`)
-	matches := timestampRegex.FindStringSubmatch(line)
-	if len(matches) > 1 {
-		timestampStr := matches[1]
-		for _, pattern := range patterns {
-			if t, err := time.Parse(pattern, timestampStr); err == nil {
-				return t
-			}
-		}
-	}
-
-	return time.Time{}
+	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 
 // ExtractFirstMatch extracts the first regex match from a string
@@ -70,11 +42,6 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 		return metrics
 	}
 
-	// Extract timestamp from various possible fields
-	if ts := ExtractJSONTimestamp(jsonData); !ts.IsZero() {
-		metrics.Timestamp = ts
-	}
-
 	// Extract token usage from various possible fields and structures
 	if tokens := ExtractJSONTokenUsage(jsonData); tokens > 0 {
 		metrics.TokenUsage = tokens
@@ -86,35 +53,6 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 	}
 
 	return metrics
-}
-
-// ExtractJSONTimestamp extracts timestamp from JSON data
-func ExtractJSONTimestamp(data map[string]interface{}) time.Time {
-	// Common timestamp field names
-	timestampFields := []string{"timestamp", "time", "created_at", "updated_at", "ts"}
-
-	for _, field := range timestampFields {
-		if val, exists := data[field]; exists {
-			if timeStr, ok := val.(string); ok {
-				// Try common timestamp formats
-				formats := []string{
-					time.RFC3339,
-					time.RFC3339Nano,
-					"2006-01-02T15:04:05Z",
-					"2006-01-02T15:04:05.000Z",
-					"2006-01-02 15:04:05",
-				}
-
-				for _, format := range formats {
-					if t, err := time.Parse(format, timeStr); err == nil {
-						return t
-					}
-				}
-			}
-		}
-	}
-
-	return time.Time{}
 }
 
 // ExtractJSONTokenUsage extracts token usage from JSON data

@@ -195,7 +195,9 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				}
 			}
 
-			// Update run with metrics and path (but not duration)
+			// Update run with metrics and path
+			// Note: Duration is calculated from GitHub API timestamps (StartedAt/UpdatedAt),
+			// not parsed from log files for accuracy and consistency
 			run.TokenUsage = metrics.TokenUsage
 			run.EstimatedCost = metrics.EstimatedCost
 			run.LogsPath = runOutputDir
