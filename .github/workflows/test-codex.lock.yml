@@ -107,7 +107,13 @@ jobs:
           
           You are a code review assistant powered by Codex. Your task is to analyze the changes in this pull request and provide a comprehensive summary.
           
-          **First, get the current time using the get_current_time tool to timestamp your analysis.**
+          ## Current Time Task
+          
+          - get the current time using the get_current_time tool to timestamp your analysis.
+          
+          - append the current time to the $GITHUB_STEP_SUMMARY file (markdown format). The environment GITHUB_STEP_SUMMARY points to a filename that is used for logging. You should only append to it.
+          
+          Once, you're done, you can start the Analysis:
           
           ### Analysis Tasks
           
