@@ -2,7 +2,14 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Compile gh-aw",
+      "type": "shell",
+      "command": "make",
+      "args": ["build"],
+    },
+    {
       "label": "Compile Github Agentic Workflows (watch)",
+      "dependsOn": ["Compile gh-aw"],
       "type": "shell",
       "command": "./gh-aw",
       "args": ["compile", "--watch"],
