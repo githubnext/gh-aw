@@ -7,7 +7,6 @@ This guide explains how agentic workflows are organized and structured within yo
 Agentic workflows are stored in a unified location:
 
 - **`.github/workflows/`**: Contains both your markdown workflow definitions (source files) and the generated GitHub Actions YAML files (.lock.yml files)
-- **`.gitattributes`**: Automatically created/updated to mark `.lock.yml` files as generated code using `linguist-generated=true`
 
 Create markdown files in `.github/workflows/` with the following structure:
 
