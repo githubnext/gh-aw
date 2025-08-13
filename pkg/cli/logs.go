@@ -433,6 +433,8 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 	var metrics LogMetrics
 	var startTime, endTime time.Time
 	var maxTokenUsage int
+	var totalTokenUsage int
+	var hasCodexTokens bool
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -494,10 +496,19 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 			}
 		}
 
-		// Extract token usage - keep the maximum found
+		// Extract token usage
 		tokenUsage := extractTokenUsage(line)
-		if tokenUsage > maxTokenUsage {
-			maxTokenUsage = tokenUsage
+		if tokenUsage > 0 {
+			// Check if this is a Codex-style token usage line
+			if isCodexTokenUsage(line) {
+				hasCodexTokens = true
+				totalTokenUsage += tokenUsage // Sum for Codex
+			} else {
+				// For non-Codex formats, keep the maximum
+				if tokenUsage > maxTokenUsage {
+					maxTokenUsage = tokenUsage
+				}
+			}
 		}
 
 		// Extract cost information
@@ -516,8 +527,12 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 		}
 	}
 
-	// Set the max token usage found
-	metrics.TokenUsage = maxTokenUsage
+	// Set token usage: sum for Codex, max for others
+	if hasCodexTokens {
+		metrics.TokenUsage = totalTokenUsage
+	} else {
+		metrics.TokenUsage = maxTokenUsage
+	}
 
 	// Calculate duration
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -575,6 +590,14 @@ func extractTokenUsage(line string) int {
 	}
 
 	return 0
+}
+
+// isCodexTokenUsage checks if the line contains Codex-style token usage
+func isCodexTokenUsage(line string) bool {
+	// Codex format: "tokens used: 13934"
+	codexPattern := `tokens\s+used[:\s]+(\d+)`
+	match := extractFirstMatch(line, codexPattern)
+	return match != ""
 }
 
 // extractCost extracts cost information from log line

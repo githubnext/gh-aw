@@ -571,3 +571,138 @@ func TestExtractTokenUsageCodexPatterns(t *testing.T) {
 		})
 	}
 }
+
+func TestParseLogFileWithCodexTokenSumming(t *testing.T) {
+	// Create a temporary log file with multiple Codex token entries
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-codex-tokens.log")
+
+	// Simulate the exact Codex format from the issue
+	logContent := `  ]
+}
+[2025-08-13T04:38:03] tokens used: 32169
+[2025-08-13T04:38:06] codex
+I've posted the PR summary comment with analysis and recommendations. Let me know if you'd like to adjust any details or add further insights!
+[2025-08-13T04:38:06] tokens used: 28828
+[2025-08-13T04:38:10] Processing complete
+[2025-08-13T04:38:15] tokens used: 5000`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	metrics, err := parseLogFile(logFile, false)
+	if err != nil {
+		t.Fatalf("parseLogFile failed: %v", err)
+	}
+
+	// Should sum all Codex token entries: 32169 + 28828 + 5000 = 65997
+	expectedTokens := 32169 + 28828 + 5000
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (sum of all Codex entries), got %d", expectedTokens, metrics.TokenUsage)
+	}
+}
+
+func TestParseLogFileWithMixedTokenFormats(t *testing.T) {
+	// Create a temporary log file with mixed token formats
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-mixed-tokens.log")
+
+	// Mix of Codex and non-Codex formats - should prioritize Codex summing
+	logContent := `[2025-08-13T04:38:03] tokens used: 1000
+tokens: 5000
+[2025-08-13T04:38:06] tokens used: 2000
+token_count: 10000`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	metrics, err := parseLogFile(logFile, false)
+	if err != nil {
+		t.Fatalf("parseLogFile failed: %v", err)
+	}
+
+	// Should sum Codex entries: 1000 + 2000 = 3000 (ignoring non-Codex formats)
+	expectedTokens := 1000 + 2000
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (sum of Codex entries), got %d", expectedTokens, metrics.TokenUsage)
+	}
+}
+
+func TestParseLogFileWithNonCodexTokensOnly(t *testing.T) {
+	// Create a temporary log file with only non-Codex token formats
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-non-codex-tokens.log")
+
+	// Only non-Codex formats - should keep maximum behavior
+	logContent := `tokens: 5000
+token_count: 10000
+input_tokens: 2000`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	metrics, err := parseLogFile(logFile, false)
+	if err != nil {
+		t.Fatalf("parseLogFile failed: %v", err)
+	}
+
+	// Should keep maximum: 10000
+	expectedTokens := 10000
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (maximum of non-Codex entries), got %d", expectedTokens, metrics.TokenUsage)
+	}
+}
+
+func TestIsCodexTokenUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		expected bool
+	}{
+		{
+			name:     "Codex format with timestamp",
+			line:     "[2025-08-13T04:38:03] tokens used: 32169",
+			expected: true,
+		},
+		{
+			name:     "Codex format without timestamp",
+			line:     "tokens used: 13934",
+			expected: true,
+		},
+		{
+			name:     "Non-Codex format",
+			line:     "tokens: 1234",
+			expected: false,
+		},
+		{
+			name:     "Token count format",
+			line:     "token_count: 567",
+			expected: false,
+		},
+		{
+			name:     "Input tokens format",
+			line:     "input_tokens: 890",
+			expected: false,
+		},
+		{
+			name:     "No token info",
+			line:     "[2025-08-13T00:24:50] codex processing",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isCodexTokenUsage(tt.line)
+			if result != tt.expected {
+				t.Errorf("isCodexTokenUsage(%q) = %v, expected %v", tt.line, result, tt.expected)
+			}
+		})
+	}
+}
