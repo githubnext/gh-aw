@@ -131,10 +131,6 @@ tools:
 - ❌ Claude-specific tools (ignored)
 - ✅ Custom MCP tools (stdio only, see [MCP Guide](mcps.md))
 
-### Other Engines
-- ✅ GitHub tools (varies by engine)
-- ❌ Claude-specific tools
-- Varies: Custom MCP tools (see [MCP Guide](mcps.md))
 
 ## Security Considerations
 

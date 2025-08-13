@@ -297,7 +297,6 @@ func TestNilEngineConfig(t *testing.T) {
 	engines := []AgenticEngine{
 		NewClaudeEngine(),
 		NewCodexEngine(),
-		NewGeminiEngine(),
 	}
 
 	for _, engine := range engines {
