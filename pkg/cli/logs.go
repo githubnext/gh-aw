@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,20 +39,12 @@ type WorkflowRun struct {
 }
 
 // LogMetrics represents extracted metrics from log files
-type LogMetrics struct {
-	Duration      time.Duration
-	TokenUsage    int
-	EstimatedCost float64
-	ErrorCount    int
-	WarningCount  int
-}
+// This is now an alias to the shared type in workflow package
+type LogMetrics = workflow.LogMetrics
 
 // JSONMetrics represents metrics extracted from JSON log entries
-type JSONMetrics struct {
-	TokenUsage    int
-	EstimatedCost float64
-	Timestamp     time.Time
-}
+// This is now an alias to the shared type in workflow package
+type JSONMetrics = workflow.JSONMetrics
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
@@ -428,17 +419,12 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	return metrics, err
 }
 
-// parseLogFile parses a single log file and extracts metrics
+// parseLogFile parses a single log file and extracts metrics using engine-specific logic
 func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
-	var metrics LogMetrics
-	var startTime, endTime time.Time
-	var maxTokenUsage int
-	var totalTokenUsage int
-	var hasCodexTokens bool
-
+	// Read the log file content
 	file, err := os.Open(filePath)
 	if err != nil {
-		return metrics, err
+		return LogMetrics{}, err
 	}
 	defer file.Close()
 
@@ -447,7 +433,7 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 	for {
 		n, err := file.Read(buffer)
 		if err != nil && err.Error() != "EOF" {
-			return metrics, err
+			return LogMetrics{}, err
 		}
 		if n == 0 {
 			break
@@ -455,7 +441,106 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 		content = append(content, buffer[:n]...)
 	}
 
-	lines := strings.Split(string(content), "\n")
+	logContent := string(content)
+
+	// Try to detect the engine from filename or content and use engine-specific parsing
+	engine := detectEngineFromLog(filePath, logContent)
+	if engine != nil {
+		return engine.ParseLogMetrics(logContent, verbose), nil
+	}
+
+	// Fallback to generic parsing (legacy behavior)
+	return parseLogFileGeneric(logContent, verbose)
+}
+
+// detectEngineFromLog attempts to detect which engine generated the log
+func detectEngineFromLog(filePath, logContent string) workflow.AgenticEngine {
+	registry := workflow.NewEngineRegistry()
+
+	// Try to detect from filename patterns first
+	fileName := strings.ToLower(filepath.Base(filePath))
+
+	// Check for engine-specific filename patterns
+	if strings.Contains(fileName, "codex") {
+		if engine, err := registry.GetEngine("codex"); err == nil {
+			return engine
+		}
+	}
+	if strings.Contains(fileName, "claude") {
+		if engine, err := registry.GetEngine("claude"); err == nil {
+			return engine
+		}
+	}
+	if strings.Contains(fileName, "gemini") {
+		if engine, err := registry.GetEngine("gemini"); err == nil {
+			return engine
+		}
+	}
+
+	// Try to detect from log content patterns (look at more lines for better detection)
+	lines := strings.Split(logContent, "\n")
+	maxLinesToCheck := 20
+	if len(lines) < maxLinesToCheck {
+		maxLinesToCheck = len(lines)
+	}
+
+	codexPatterns := 0
+	claudePatterns := 0
+
+	for i := 0; i < maxLinesToCheck; i++ {
+		line := lines[i]
+
+		// Look for Codex-specific patterns
+		if strings.Contains(line, "tokens used:") {
+			codexPatterns++
+		}
+		if strings.Contains(line, "codex") {
+			codexPatterns++
+		}
+
+		// Look for Claude-specific patterns (result payload or Claude streaming)
+		if strings.Contains(line, `"type": "result"`) && strings.Contains(line, `"total_cost_usd"`) {
+			claudePatterns += 2 // Strong indicator
+		}
+		if strings.Contains(line, `"type": "message"`) || strings.Contains(line, `"type": "assistant"`) {
+			claudePatterns++
+		}
+	}
+
+	// Use pattern-based detection if we have strong indicators
+	if codexPatterns > claudePatterns && codexPatterns > 0 {
+		if engine, err := registry.GetEngine("codex"); err == nil {
+			return engine
+		}
+	}
+	if claudePatterns > codexPatterns && claudePatterns > 0 {
+		if engine, err := registry.GetEngine("claude"); err == nil {
+			return engine
+		}
+	}
+
+	// For ambiguous cases or test files, return nil to use generic parsing
+	if strings.Contains(fileName, "test") || strings.Contains(fileName, "generic") {
+		return nil
+	}
+
+	// Default to Claude only if we have JSON-like content
+	if strings.Contains(logContent, "{") && strings.Contains(logContent, "}") {
+		if engine, err := registry.GetEngine("claude"); err == nil {
+			return engine
+		}
+	}
+
+	return nil // Use generic parsing for non-JSON content
+}
+
+// parseLogFileGeneric provides the original parsing logic as fallback
+func parseLogFileGeneric(logContent string, verbose bool) (LogMetrics, error) {
+	var metrics LogMetrics
+	var startTime, endTime time.Time
+	var maxTokenUsage int
+
+	lines := strings.Split(logContent, "\n")
 
 	for _, line := range lines {
 		// Skip empty lines
@@ -496,19 +581,10 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 			}
 		}
 
-		// Extract token usage
+		// Extract token usage - use maximum approach for generic parsing
 		tokenUsage := extractTokenUsage(line)
-		if tokenUsage > 0 {
-			// Check if this is a Codex-style token usage line
-			if isCodexTokenUsage(line) {
-				hasCodexTokens = true
-				totalTokenUsage += tokenUsage // Sum for Codex
-			} else {
-				// For non-Codex formats, keep the maximum
-				if tokenUsage > maxTokenUsage {
-					maxTokenUsage = tokenUsage
-				}
-			}
+		if tokenUsage > maxTokenUsage {
+			maxTokenUsage = tokenUsage
 		}
 
 		// Extract cost information
@@ -527,12 +603,7 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 		}
 	}
 
-	// Set token usage: sum for Codex, max for others
-	if hasCodexTokens {
-		metrics.TokenUsage = totalTokenUsage
-	} else {
-		metrics.TokenUsage = maxTokenUsage
-	}
+	metrics.TokenUsage = maxTokenUsage
 
 	// Calculate duration
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -542,34 +613,7 @@ func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
 	return metrics, nil
 }
 
-// extractTimestamp extracts timestamp from log line
-func extractTimestamp(line string) time.Time {
-	// Common timestamp patterns
-	patterns := []string{
-		"2006-01-02T15:04:05Z",
-		"2006-01-02T15:04:05.000Z",
-		"2006-01-02T15:04:05", // Codex format without Z
-		"2006-01-02 15:04:05",
-		"Jan 02 15:04:05",
-	}
-
-	// First try to extract the timestamp string from the line
-	// Updated regex to handle timestamps both with and without Z, and in brackets
-	timestampRegex := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z?`)
-	matches := timestampRegex.FindStringSubmatch(line)
-	if len(matches) > 1 {
-		timestampStr := matches[1]
-		for _, pattern := range patterns {
-			if t, err := time.Parse(pattern, timestampStr); err == nil {
-				return t
-			}
-		}
-	}
-
-	return time.Time{}
-}
-
-// extractTokenUsage extracts token usage from log line
+// extractTokenUsage extracts token usage from log line using legacy patterns
 func extractTokenUsage(line string) int {
 	// Look for patterns like "tokens: 1234", "token_count: 1234", etc.
 	patterns := []string{
@@ -592,15 +636,7 @@ func extractTokenUsage(line string) int {
 	return 0
 }
 
-// isCodexTokenUsage checks if the line contains Codex-style token usage
-func isCodexTokenUsage(line string) bool {
-	// Codex format: "tokens used: 13934"
-	codexPattern := `tokens\s+used[:\s]+(\d+)`
-	match := extractFirstMatch(line, codexPattern)
-	return match != ""
-}
-
-// extractCost extracts cost information from log line
+// extractCost extracts cost information from log line using legacy patterns
 func extractCost(line string) float64 {
 	// Look for patterns like "cost: $1.23", "price: 0.45", etc.
 	patterns := []string{
@@ -620,195 +656,24 @@ func extractCost(line string) float64 {
 	return 0
 }
 
-// extractFirstMatch extracts the first regex match from a string
-func extractFirstMatch(text, pattern string) string {
-	re := regexp.MustCompile(`(?i)` + pattern)
-	matches := re.FindStringSubmatch(text)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-	return ""
-}
+// extractFirstMatch extracts the first regex match from a string (shared utility)
+var extractFirstMatch = workflow.ExtractFirstMatch
 
-// extractJSONMetrics extracts metrics from streaming JSON log lines
-func extractJSONMetrics(line string, verbose bool) JSONMetrics {
-	var metrics JSONMetrics
+// extractTimestamp extracts timestamp from log line (shared utility)
+var extractTimestamp = workflow.ExtractTimestamp
 
-	// Skip lines that don't look like JSON
-	trimmed := strings.TrimSpace(line)
-	if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
-		return metrics
-	}
+// extractJSONMetrics extracts metrics from streaming JSON log lines (shared utility)
+var extractJSONMetrics = workflow.ExtractJSONMetrics
 
-	// Try to parse as generic JSON
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal([]byte(trimmed), &jsonData); err != nil {
-		return metrics
-	}
+// Shared utilities are now in workflow package
+// extractFirstMatch, extractTimestamp, extractJSONMetrics are available as aliases
 
-	// Extract timestamp from various possible fields
-	if ts := extractJSONTimestamp(jsonData); !ts.IsZero() {
-		metrics.Timestamp = ts
-	}
-
-	// Extract token usage from various possible fields and structures
-	if tokens := extractJSONTokenUsage(jsonData); tokens > 0 {
-		metrics.TokenUsage = tokens
-	}
-
-	// Extract cost information from various possible fields
-	if cost := extractJSONCost(jsonData); cost > 0 {
-		metrics.EstimatedCost = cost
-	}
-
-	return metrics
-}
-
-// extractJSONTimestamp extracts timestamp from JSON data
-func extractJSONTimestamp(data map[string]interface{}) time.Time {
-	// Common timestamp field names
-	timestampFields := []string{"timestamp", "time", "created_at", "updated_at", "ts"}
-
-	for _, field := range timestampFields {
-		if val, exists := data[field]; exists {
-			if timeStr, ok := val.(string); ok {
-				// Try common timestamp formats
-				formats := []string{
-					time.RFC3339,
-					time.RFC3339Nano,
-					"2006-01-02T15:04:05Z",
-					"2006-01-02T15:04:05.000Z",
-					"2006-01-02 15:04:05",
-				}
-
-				for _, format := range formats {
-					if t, err := time.Parse(format, timeStr); err == nil {
-						return t
-					}
-				}
-			}
-		}
-	}
-
-	return time.Time{}
-}
-
-// extractJSONTokenUsage extracts token usage from JSON data
-func extractJSONTokenUsage(data map[string]interface{}) int {
-	// Check top-level token fields
-	tokenFields := []string{"tokens", "token_count", "input_tokens", "output_tokens", "total_tokens"}
-	for _, field := range tokenFields {
-		if val, exists := data[field]; exists {
-			if tokens := convertToInt(val); tokens > 0 {
-				return tokens
-			}
-		}
-	}
-
-	// Check nested usage objects (Claude API format)
-	if usage, exists := data["usage"]; exists {
-		if usageMap, ok := usage.(map[string]interface{}); ok {
-			// Claude format: {"usage": {"input_tokens": 10, "output_tokens": 5, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 200}}
-			inputTokens := convertToInt(usageMap["input_tokens"])
-			outputTokens := convertToInt(usageMap["output_tokens"])
-			cacheCreationTokens := convertToInt(usageMap["cache_creation_input_tokens"])
-			cacheReadTokens := convertToInt(usageMap["cache_read_input_tokens"])
-
-			totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
-			if totalTokens > 0 {
-				return totalTokens
-			}
-
-			// Generic token count in usage
-			for _, field := range tokenFields {
-				if val, exists := usageMap[field]; exists {
-					if tokens := convertToInt(val); tokens > 0 {
-						return tokens
-					}
-				}
-			}
-		}
-	}
-
-	// Check for delta structures (streaming format)
-	if delta, exists := data["delta"]; exists {
-		if deltaMap, ok := delta.(map[string]interface{}); ok {
-			if usage, exists := deltaMap["usage"]; exists {
-				if usageMap, ok := usage.(map[string]interface{}); ok {
-					inputTokens := convertToInt(usageMap["input_tokens"])
-					outputTokens := convertToInt(usageMap["output_tokens"])
-					if inputTokens > 0 || outputTokens > 0 {
-						return inputTokens + outputTokens
-					}
-				}
-			}
-		}
-	}
-
-	return 0
-}
-
-// extractJSONCost extracts cost information from JSON data
-func extractJSONCost(data map[string]interface{}) float64 {
-	// Common cost field names
-	costFields := []string{"cost", "price", "amount", "total_cost", "estimated_cost", "total_cost_usd"}
-
-	for _, field := range costFields {
-		if val, exists := data[field]; exists {
-			if cost := convertToFloat(val); cost > 0 {
-				return cost
-			}
-		}
-	}
-
-	// Check nested billing or pricing objects
-	if billing, exists := data["billing"]; exists {
-		if billingMap, ok := billing.(map[string]interface{}); ok {
-			for _, field := range costFields {
-				if val, exists := billingMap[field]; exists {
-					if cost := convertToFloat(val); cost > 0 {
-						return cost
-					}
-				}
-			}
-		}
-	}
-
-	return 0
-}
-
-// convertToInt safely converts interface{} to int
-func convertToInt(val interface{}) int {
-	switch v := val.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	case string:
-		if i, err := strconv.Atoi(v); err == nil {
-			return i
-		}
-	}
-	return 0
-}
-
-// convertToFloat safely converts interface{} to float64
-func convertToFloat(val interface{}) float64 {
-	switch v := val.(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case string:
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			return f
-		}
-	}
-	return 0
+// isCodexTokenUsage checks if the line contains Codex-style token usage (for testing)
+func isCodexTokenUsage(line string) bool {
+	// Codex format: "tokens used: 13934"
+	codexPattern := `tokens\s+used[:\s]+(\d+)`
+	match := extractFirstMatch(line, codexPattern)
+	return match != ""
 }
 
 // displayLogsOverview displays a summary table of workflow runs and metrics

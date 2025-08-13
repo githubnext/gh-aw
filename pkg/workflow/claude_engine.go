@@ -1,8 +1,10 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // ClaudeEngine represents the Claude Code agentic engine
@@ -133,4 +135,141 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 	}
 
 	return nil
+}
+
+// ParseLogMetrics implements engine-specific log parsing for Claude
+func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	var metrics LogMetrics
+	var startTime, endTime time.Time
+	var maxTokenUsage int
+
+	lines := strings.Split(logContent, "\n")
+
+	for _, line := range lines {
+		// Skip empty lines
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		// Try to parse as streaming JSON first to catch the final result payload
+		jsonMetrics := ExtractJSONMetrics(line, verbose)
+		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || !jsonMetrics.Timestamp.IsZero() {
+			// Check if this is a Claude result payload with aggregated costs
+			if e.isClaudeResultPayload(line) {
+				// For Claude result payloads, use the aggregated values directly
+				if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
+					metrics.TokenUsage = resultMetrics.TokenUsage
+					metrics.EstimatedCost = resultMetrics.EstimatedCost
+					// Continue to extract duration from timestamps if available
+				}
+			} else {
+				// For streaming JSON, keep the maximum token usage found
+				if jsonMetrics.TokenUsage > maxTokenUsage {
+					maxTokenUsage = jsonMetrics.TokenUsage
+				}
+				if jsonMetrics.EstimatedCost > 0 {
+					metrics.EstimatedCost += jsonMetrics.EstimatedCost
+				}
+			}
+
+			if !jsonMetrics.Timestamp.IsZero() {
+				if startTime.IsZero() || jsonMetrics.Timestamp.Before(startTime) {
+					startTime = jsonMetrics.Timestamp
+				}
+				if endTime.IsZero() || jsonMetrics.Timestamp.After(endTime) {
+					endTime = jsonMetrics.Timestamp
+				}
+			}
+			continue
+		}
+
+		// Fall back to text pattern extraction
+		// Extract timestamps for duration calculation
+		timestamp := ExtractTimestamp(line)
+		if !timestamp.IsZero() {
+			if startTime.IsZero() || timestamp.Before(startTime) {
+				startTime = timestamp
+			}
+			if endTime.IsZero() || timestamp.After(endTime) {
+				endTime = timestamp
+			}
+		}
+
+		// Count errors and warnings
+		lowerLine := strings.ToLower(line)
+		if strings.Contains(lowerLine, "error") {
+			metrics.ErrorCount++
+		}
+		if strings.Contains(lowerLine, "warning") {
+			metrics.WarningCount++
+		}
+	}
+
+	// If no result payload was found, use the maximum from streaming JSON
+	if metrics.TokenUsage == 0 {
+		metrics.TokenUsage = maxTokenUsage
+	}
+
+	// Calculate duration
+	if !startTime.IsZero() && !endTime.IsZero() {
+		metrics.Duration = endTime.Sub(startTime)
+	}
+
+	return metrics
+}
+
+// isClaudeResultPayload checks if the JSON line is a Claude result payload with type: "result"
+func (e *ClaudeEngine) isClaudeResultPayload(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
+		return false
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(trimmed), &jsonData); err != nil {
+		return false
+	}
+
+	typeField, exists := jsonData["type"]
+	if !exists {
+		return false
+	}
+
+	typeStr, ok := typeField.(string)
+	return ok && typeStr == "result"
+}
+
+// extractClaudeResultMetrics extracts metrics from Claude result payload
+func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
+	var metrics LogMetrics
+
+	trimmed := strings.TrimSpace(line)
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(trimmed), &jsonData); err != nil {
+		return metrics
+	}
+
+	// Extract total_cost_usd directly
+	if totalCost, exists := jsonData["total_cost_usd"]; exists {
+		if cost := ConvertToFloat(totalCost); cost > 0 {
+			metrics.EstimatedCost = cost
+		}
+	}
+
+	// Extract usage information with all token types
+	if usage, exists := jsonData["usage"]; exists {
+		if usageMap, ok := usage.(map[string]interface{}); ok {
+			inputTokens := ConvertToInt(usageMap["input_tokens"])
+			outputTokens := ConvertToInt(usageMap["output_tokens"])
+			cacheCreationTokens := ConvertToInt(usageMap["cache_creation_input_tokens"])
+			cacheReadTokens := ConvertToInt(usageMap["cache_read_input_tokens"])
+
+			totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
+			if totalTokens > 0 {
+				metrics.TokenUsage = totalTokens
+			}
+		}
+	}
+
+	return metrics
 }

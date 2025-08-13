@@ -2,7 +2,9 @@ package workflow
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -98,6 +100,93 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	}
 
 	yaml.WriteString("          EOF\n")
+}
+
+// ParseLogMetrics implements engine-specific log parsing for Codex
+func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	var metrics LogMetrics
+	var startTime, endTime time.Time
+	var totalTokenUsage int
+
+	lines := strings.Split(logContent, "\n")
+
+	for _, line := range lines {
+		// Skip empty lines
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		// Extract timestamps for duration calculation
+		timestamp := ExtractTimestamp(line)
+		if !timestamp.IsZero() {
+			if startTime.IsZero() || timestamp.Before(startTime) {
+				startTime = timestamp
+			}
+			if endTime.IsZero() || timestamp.After(endTime) {
+				endTime = timestamp
+			}
+		}
+
+		// Extract Codex-specific token usage (always sum for Codex)
+		if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
+			totalTokenUsage += tokenUsage
+		}
+
+		// Extract cost information (if any)
+		if cost := e.extractCodexCost(line); cost > 0 {
+			metrics.EstimatedCost += cost
+		}
+
+		// Count errors and warnings
+		lowerLine := strings.ToLower(line)
+		if strings.Contains(lowerLine, "error") {
+			metrics.ErrorCount++
+		}
+		if strings.Contains(lowerLine, "warning") {
+			metrics.WarningCount++
+		}
+	}
+
+	metrics.TokenUsage = totalTokenUsage
+
+	// Calculate duration
+	if !startTime.IsZero() && !endTime.IsZero() {
+		metrics.Duration = endTime.Sub(startTime)
+	}
+
+	return metrics
+}
+
+// extractCodexTokenUsage extracts token usage from Codex-specific log lines
+func (e *CodexEngine) extractCodexTokenUsage(line string) int {
+	// Codex format: "tokens used: 13934"
+	codexPattern := `tokens\s+used[:\s]+(\d+)`
+	if match := ExtractFirstMatch(line, codexPattern); match != "" {
+		if count, err := strconv.Atoi(match); err == nil {
+			return count
+		}
+	}
+	return 0
+}
+
+// extractCodexCost extracts cost information from Codex log lines
+func (e *CodexEngine) extractCodexCost(line string) float64 {
+	// Look for patterns like "cost: $1.23", "price: 0.45", etc.
+	patterns := []string{
+		`cost[:\s]+\$?(\d+\.?\d*)`,
+		`price[:\s]+\$?(\d+\.?\d*)`,
+		`\$(\d+\.?\d+)`,
+	}
+
+	for _, pattern := range patterns {
+		if match := ExtractFirstMatch(line, pattern); match != "" {
+			if cost, err := strconv.ParseFloat(match, 64); err == nil {
+				return cost
+			}
+		}
+	}
+
+	return 0
 }
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml

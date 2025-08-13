@@ -36,6 +36,9 @@ type AgenticEngine interface {
 
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string)
+
+	// ParseLogMetrics extracts metrics from engine-specific log content
+	ParseLogMetrics(logContent string, verbose bool) LogMetrics
 }
 
 // ExecutionConfig contains the configuration for executing an agentic engine
