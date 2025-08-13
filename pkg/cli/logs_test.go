@@ -38,6 +38,8 @@ func TestExtractTokenUsage(t *testing.T) {
 		{"token_count: 567", 567},
 		{"input_tokens: 890", 890},
 		{"Total tokens used: 999", 999},
+		{"tokens used: 13934", 13934},                       // Codex format
+		{"[2025-08-13T00:24:50] tokens used: 13934", 13934}, // Codex format with timestamp
 		{"no token info here", 0},
 		{"tokens: invalid", 0},
 	}
@@ -478,5 +480,94 @@ Claude processing request...
 	expectedDuration := 150 * time.Second
 	if metrics.Duration != expectedDuration {
 		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
+	}
+}
+
+func TestParseLogFileWithCodexFormat(t *testing.T) {
+	// Create a temporary log file with the Codex output format from the issue
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-codex.log")
+
+	// This is the exact Codex format provided in the issue
+	logContent := `[2025-08-13T00:24:45] Starting Codex workflow execution
+[2025-08-13T00:24:50] codex
+
+I'm ready to generate a Codex PR summary, but I need the pull request number to fetch its details. Could you please share the PR number (and confirm the repo/owner if it isn't ` + "`githubnext/gh-aw`" + `)?
+[2025-08-13T00:24:50] tokens used: 13934
+[2025-08-13T00:24:55] Workflow completed successfully`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	metrics, err := parseLogFile(logFile, false)
+	if err != nil {
+		t.Fatalf("parseLogFile failed: %v", err)
+	}
+
+	// Check token usage extraction from Codex format
+	expectedTokens := 13934
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d, got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Check duration (10 seconds between start and end)
+	expectedDuration := 10 * time.Second
+	if metrics.Duration != expectedDuration {
+		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
+	}
+}
+
+func TestExtractTokenUsageCodexPatterns(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		expected int
+	}{
+		{
+			name:     "Codex basic format",
+			line:     "tokens used: 13934",
+			expected: 13934,
+		},
+		{
+			name:     "Codex format with timestamp",
+			line:     "[2025-08-13T00:24:50] tokens used: 13934",
+			expected: 13934,
+		},
+		{
+			name:     "Codex format with different timestamp",
+			line:     "[2024-12-01T15:30:45] tokens used: 5678",
+			expected: 5678,
+		},
+		{
+			name:     "Codex format mixed with other text",
+			line:     "Processing completed. tokens used: 999 - Summary generated",
+			expected: 999,
+		},
+		{
+			name:     "Standard format still works",
+			line:     "tokens: 1234",
+			expected: 1234,
+		},
+		{
+			name:     "Total tokens used format",
+			line:     "total tokens used: 4567",
+			expected: 4567,
+		},
+		{
+			name:     "No token info",
+			line:     "[2025-08-13T00:24:50] codex processing",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractTokenUsage(tt.line)
+			if result != tt.expected {
+				t.Errorf("extractTokenUsage(%q) = %d, expected %d", tt.line, result, tt.expected)
+			}
+		})
 	}
 }
