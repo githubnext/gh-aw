@@ -455,7 +455,7 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.Agentic
 		return nil
 	}
 
-	registry := workflow.NewEngineRegistry()
+	registry := workflow.GetGlobalEngineRegistry()
 	engine, err := registry.GetEngine(engineID)
 	if err != nil {
 		if verbose {
@@ -496,136 +496,13 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.AgenticEngi
 		return detectedEngine.ParseLogMetrics(logContent, verbose), nil
 	}
 
-	// If no aw_info.json metadata is available, fallback to generic parsing
-	return parseLogFileGeneric(logContent, verbose)
+	// No aw_info.json metadata available - return empty metrics
+	if verbose {
+		fmt.Println(console.FormatWarningMessage("No aw_info.json found, unable to parse engine-specific metrics"))
+	}
+	return LogMetrics{}, nil
 }
 
-// parseLogFile parses a single log file and extracts metrics using engine-specific logic
-func parseLogFile(filePath string, verbose bool) (LogMetrics, error) {
-	return parseLogFileWithEngine(filePath, nil, verbose)
-}
-
-// parseLogFileGeneric provides the original parsing logic as fallback
-func parseLogFileGeneric(logContent string, verbose bool) (LogMetrics, error) {
-	var metrics LogMetrics
-	var startTime, endTime time.Time
-	var maxTokenUsage int
-
-	lines := strings.Split(logContent, "\n")
-
-	for _, line := range lines {
-		// Skip empty lines
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		// Try to parse as streaming JSON first
-		jsonMetrics := extractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || !jsonMetrics.Timestamp.IsZero() {
-			// Successfully extracted from JSON, update metrics
-			if jsonMetrics.TokenUsage > maxTokenUsage {
-				maxTokenUsage = jsonMetrics.TokenUsage
-			}
-			if jsonMetrics.EstimatedCost > 0 {
-				metrics.EstimatedCost += jsonMetrics.EstimatedCost
-			}
-			if !jsonMetrics.Timestamp.IsZero() {
-				if startTime.IsZero() || jsonMetrics.Timestamp.Before(startTime) {
-					startTime = jsonMetrics.Timestamp
-				}
-				if endTime.IsZero() || jsonMetrics.Timestamp.After(endTime) {
-					endTime = jsonMetrics.Timestamp
-				}
-			}
-			continue
-		}
-
-		// Fall back to text pattern extraction
-		// Extract timestamps for duration calculation
-		timestamp := extractTimestamp(line)
-		if !timestamp.IsZero() {
-			if startTime.IsZero() || timestamp.Before(startTime) {
-				startTime = timestamp
-			}
-			if endTime.IsZero() || timestamp.After(endTime) {
-				endTime = timestamp
-			}
-		}
-
-		// Extract token usage - use maximum approach for generic parsing
-		tokenUsage := extractTokenUsage(line)
-		if tokenUsage > maxTokenUsage {
-			maxTokenUsage = tokenUsage
-		}
-
-		// Extract cost information
-		cost := extractCost(line)
-		if cost > 0 {
-			metrics.EstimatedCost += cost
-		}
-
-		// Count errors and warnings
-		lowerLine := strings.ToLower(line)
-		if strings.Contains(lowerLine, "error") {
-			metrics.ErrorCount++
-		}
-		if strings.Contains(lowerLine, "warning") {
-			metrics.WarningCount++
-		}
-	}
-
-	metrics.TokenUsage = maxTokenUsage
-
-	// Calculate duration
-	if !startTime.IsZero() && !endTime.IsZero() {
-		metrics.Duration = endTime.Sub(startTime)
-	}
-
-	return metrics, nil
-}
-
-// extractTokenUsage extracts token usage from log line using legacy patterns
-func extractTokenUsage(line string) int {
-	// Look for patterns like "tokens: 1234", "token_count: 1234", etc.
-	patterns := []string{
-		`tokens?[:\s]+(\d+)`,
-		`token[_\s]count[:\s]+(\d+)`,
-		`input[_\s]tokens[:\s]+(\d+)`,
-		`output[_\s]tokens[:\s]+(\d+)`,
-		`total[_\s]tokens[_\s]used[:\s]+(\d+)`,
-		`tokens\s+used[:\s]+(\d+)`, // Codex format: "tokens used: 13934"
-	}
-
-	for _, pattern := range patterns {
-		if match := extractFirstMatch(line, pattern); match != "" {
-			if count, err := strconv.Atoi(match); err == nil {
-				return count
-			}
-		}
-	}
-
-	return 0
-}
-
-// extractCost extracts cost information from log line using legacy patterns
-func extractCost(line string) float64 {
-	// Look for patterns like "cost: $1.23", "price: 0.45", etc.
-	patterns := []string{
-		`cost[:\s]+\$?(\d+\.?\d*)`,
-		`price[:\s]+\$?(\d+\.?\d*)`,
-		`\$(\d+\.?\d+)`,
-	}
-
-	for _, pattern := range patterns {
-		if match := extractFirstMatch(line, pattern); match != "" {
-			if cost, err := strconv.ParseFloat(match, 64); err == nil {
-				return cost
-			}
-		}
-	}
-
-	return 0
-}
 
 // extractFirstMatch extracts the first regex match from a string (shared utility)
 var extractFirstMatch = workflow.ExtractFirstMatch
@@ -639,13 +516,7 @@ var extractJSONMetrics = workflow.ExtractJSONMetrics
 // Shared utilities are now in workflow package
 // extractFirstMatch, extractTimestamp, extractJSONMetrics are available as aliases
 
-// isCodexTokenUsage checks if the line contains Codex-style token usage (for testing)
-func isCodexTokenUsage(line string) bool {
-	// Codex format: "tokens used: 13934"
-	codexPattern := `tokens\s+used[:\s]+(\d+)`
-	match := extractFirstMatch(line, codexPattern)
-	return match != ""
-}
+
 
 // displayLogsOverview displays a summary table of workflow runs and metrics
 func displayLogsOverview(runs []WorkflowRun, outputDir string) {

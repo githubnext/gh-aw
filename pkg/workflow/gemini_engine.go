@@ -77,21 +77,8 @@ func (e *GeminiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Gemini
-// Since Gemini log structure is unknown, returns default metrics
+// Since Gemini log structure is unknown, returns empty metrics
 func (e *GeminiEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
-	var metrics LogMetrics
-
-	// Basic error/warning counting since we don't know the specific log format
-	lines := strings.Split(logContent, "\n")
-	for _, line := range lines {
-		lowerLine := strings.ToLower(line)
-		if strings.Contains(lowerLine, "error") {
-			metrics.ErrorCount++
-		}
-		if strings.Contains(lowerLine, "warning") {
-			metrics.WarningCount++
-		}
-	}
-
-	return metrics
+	// Return empty metrics since Gemini log structure is unknown
+	return LogMetrics{}
 }

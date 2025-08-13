@@ -31,49 +31,7 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	os.RemoveAll("./test-logs")
 }
 
-func TestExtractTokenUsage(t *testing.T) {
-	tests := []struct {
-		line     string
-		expected int
-	}{
-		{"tokens: 1234", 1234},
-		{"token_count: 567", 567},
-		{"input_tokens: 890", 890},
-		{"Total tokens used: 999", 999},
-		{"tokens used: 13934", 13934},                       // Codex format
-		{"[2025-08-13T00:24:50] tokens used: 13934", 13934}, // Codex format with timestamp
-		{"no token info here", 0},
-		{"tokens: invalid", 0},
-	}
 
-	for _, tt := range tests {
-		result := extractTokenUsage(tt.line)
-		if result != tt.expected {
-			t.Errorf("extractTokenUsage(%q) = %d, expected %d", tt.line, result, tt.expected)
-		}
-	}
-}
-
-func TestExtractCost(t *testing.T) {
-	tests := []struct {
-		line     string
-		expected float64
-	}{
-		{"cost: $1.23", 1.23},
-		{"price: 0.45", 0.45},
-		{"Total cost: $99.99", 99.99},
-		{"$5.67 spent", 5.67},
-		{"no cost info here", 0},
-		{"cost: invalid", 0},
-	}
-
-	for _, tt := range tests {
-		result := extractCost(tt.line)
-		if result != tt.expected {
-			t.Errorf("extractCost(%q) = %f, expected %f", tt.line, result, tt.expected)
-		}
-	}
-}
 
 func TestFormatDuration(t *testing.T) {
 	tests := []struct {
@@ -94,7 +52,7 @@ func TestFormatDuration(t *testing.T) {
 	}
 }
 
-func TestParseLogFile(t *testing.T) {
+func TestParseLogFileWithoutAwInfo(t *testing.T) {
 	// Create a temporary log file
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test.log")
@@ -112,25 +70,25 @@ func TestParseLogFile(t *testing.T) {
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Test parseLogFileWithEngine without an engine (simulates no aw_info.json)
+	metrics, err := parseLogFileWithEngine(logFile, nil, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
-	// Check token usage (should pick up the highest individual value: 2100)
-	if metrics.TokenUsage != 2100 {
-		t.Errorf("Expected token usage 2100, got %d", metrics.TokenUsage)
+	// Without aw_info.json, should return empty metrics
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
 	}
 
-	// Check cost
-	if metrics.EstimatedCost != 0.025 {
-		t.Errorf("Expected cost 0.025, got %f", metrics.EstimatedCost)
+	// Check cost - should be 0 without engine-specific parsing
+	if metrics.EstimatedCost != 0 {
+		t.Errorf("Expected cost 0 (no aw_info.json), got %f", metrics.EstimatedCost)
 	}
 
-	// Check duration (90 seconds between start and end)
-	expectedDuration := 90 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
+	// Check duration - should be 0 without engine-specific parsing
+	if metrics.Duration != 0 {
+		t.Errorf("Expected duration 0 (no aw_info.json), got %v", metrics.Duration)
 	}
 }
 
@@ -225,27 +183,24 @@ Regular log line: tokens: 1000
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	metrics, err := parseLogFileWithEngine(logFile, nil, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
-	// With engine detection, this will likely be detected as Claude
-	// Claude uses maximum for JSON (350) but should still look at text patterns
-	// The actual behavior depends on the engine detection result
-	if metrics.TokenUsage != 350 && metrics.TokenUsage != 1000 {
-		t.Errorf("Expected token usage 350 or 1000, got %d", metrics.TokenUsage)
+	// Without aw_info.json and specific engine, should return empty metrics
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
 	}
 
-	// Should accumulate cost from JSON
-	if metrics.EstimatedCost != 0.035 {
-		t.Errorf("Expected cost 0.035, got %f", metrics.EstimatedCost)
+	// Should have no cost without engine-specific parsing
+	if metrics.EstimatedCost != 0 {
+		t.Errorf("Expected cost 0 (no aw_info.json), got %f", metrics.EstimatedCost)
 	}
 
-	// Check duration (90 seconds between start and end)
-	expectedDuration := 90 * time.Second
-	if metrics.Duration != expectedDuration {
-		t.Errorf("Expected duration %v, got %v", expectedDuration, metrics.Duration)
+	// Should have no duration without engine-specific parsing
+	if metrics.Duration != 0 {
+		t.Errorf("Expected duration 0 (no aw_info.json), got %v", metrics.Duration)
 	}
 }
 
@@ -463,9 +418,11 @@ Claude processing request...
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Test with Claude engine to parse Claude-specific logs
+	claudeEngine := workflow.NewClaudeEngine()
+	metrics, err := parseLogFileWithEngine(logFile, claudeEngine, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
 	// Check total token usage includes all token types from Claude
@@ -505,9 +462,11 @@ I'm ready to generate a Codex PR summary, but I need the pull request number to 
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Test with Codex engine to parse Codex-specific logs
+	codexEngine := workflow.NewCodexEngine()
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
 	// Check token usage extraction from Codex format
@@ -523,58 +482,7 @@ I'm ready to generate a Codex PR summary, but I need the pull request number to 
 	}
 }
 
-func TestExtractTokenUsageCodexPatterns(t *testing.T) {
-	tests := []struct {
-		name     string
-		line     string
-		expected int
-	}{
-		{
-			name:     "Codex basic format",
-			line:     "tokens used: 13934",
-			expected: 13934,
-		},
-		{
-			name:     "Codex format with timestamp",
-			line:     "[2025-08-13T00:24:50] tokens used: 13934",
-			expected: 13934,
-		},
-		{
-			name:     "Codex format with different timestamp",
-			line:     "[2024-12-01T15:30:45] tokens used: 5678",
-			expected: 5678,
-		},
-		{
-			name:     "Codex format mixed with other text",
-			line:     "Processing completed. tokens used: 999 - Summary generated",
-			expected: 999,
-		},
-		{
-			name:     "Standard format still works",
-			line:     "tokens: 1234",
-			expected: 1234,
-		},
-		{
-			name:     "Total tokens used format",
-			line:     "total tokens used: 4567",
-			expected: 4567,
-		},
-		{
-			name:     "No token info",
-			line:     "[2025-08-13T00:24:50] codex processing",
-			expected: 0,
-		},
-	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractTokenUsage(tt.line)
-			if result != tt.expected {
-				t.Errorf("extractTokenUsage(%q) = %d, expected %d", tt.line, result, tt.expected)
-			}
-		})
-	}
-}
 
 func TestParseLogFileWithCodexTokenSumming(t *testing.T) {
 	// Create a temporary log file with multiple Codex token entries
@@ -665,63 +573,16 @@ input_tokens: 2000`
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	metrics, err := parseLogFile(logFile, false)
+	// Without aw_info.json and specific engine, should return empty metrics
+	metrics, err := parseLogFileWithEngine(logFile, nil, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
-	// With engine detection, this might be detected as Claude (default)
-	// Claude engine doesn't parse these text patterns the same way
-	// The test should either use a generic file name or expect different behavior
-	if metrics.TokenUsage != 0 && metrics.TokenUsage != 10000 {
-		t.Errorf("Expected token usage 0 or 10000, got %d", metrics.TokenUsage)
+	// Without engine-specific parsing, should return 0
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
 	}
 }
 
-func TestIsCodexTokenUsage(t *testing.T) {
-	tests := []struct {
-		name     string
-		line     string
-		expected bool
-	}{
-		{
-			name:     "Codex format with timestamp",
-			line:     "[2025-08-13T04:38:03] tokens used: 32169",
-			expected: true,
-		},
-		{
-			name:     "Codex format without timestamp",
-			line:     "tokens used: 13934",
-			expected: true,
-		},
-		{
-			name:     "Non-Codex format",
-			line:     "tokens: 1234",
-			expected: false,
-		},
-		{
-			name:     "Token count format",
-			line:     "token_count: 567",
-			expected: false,
-		},
-		{
-			name:     "Input tokens format",
-			line:     "input_tokens: 890",
-			expected: false,
-		},
-		{
-			name:     "No token info",
-			line:     "[2025-08-13T00:24:50] codex processing",
-			expected: false,
-		},
-	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isCodexTokenUsage(tt.line)
-			if result != tt.expected {
-				t.Errorf("isCodexTokenUsage(%q) = %v, expected %v", tt.line, result, tt.expected)
-			}
-		})
-	}
-}

@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // GitHubActionStep represents the YAML lines for a single step in a GitHub Actions workflow
@@ -98,6 +99,11 @@ type EngineRegistry struct {
 	engines map[string]AgenticEngine
 }
 
+var (
+	globalRegistry     *EngineRegistry
+	registryInitOnce   sync.Once
+)
+
 // NewEngineRegistry creates a new engine registry with built-in engines
 func NewEngineRegistry() *EngineRegistry {
 	registry := &EngineRegistry{
@@ -110,6 +116,14 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewGeminiEngine())
 
 	return registry
+}
+
+// GetGlobalEngineRegistry returns the singleton engine registry
+func GetGlobalEngineRegistry() *EngineRegistry {
+	registryInitOnce.Do(func() {
+		globalRegistry = NewEngineRegistry()
+	})
+	return globalRegistry
 }
 
 // Register adds an engine to the registry

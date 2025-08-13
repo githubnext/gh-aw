@@ -2029,9 +2029,12 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 // generateAgenticInfoStep generates a step that creates aw_info.json with agentic run metadata
 func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat > aw_info.json << 'EOF'\n")
-	yaml.WriteString("          {\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            const awInfo = {\n")
 
 	// Engine ID (prefer EngineConfig.ID, fallback to AI field for backwards compatibility)
 	engineID := engine.GetID()
@@ -2040,46 +2043,47 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 	} else if data.AI != "" {
 		engineID = data.AI
 	}
-	yaml.WriteString(fmt.Sprintf("            \"engine_id\": \"%s\",\n", engineID))
+	yaml.WriteString(fmt.Sprintf("              engine_id: \"%s\",\n", engineID))
 
 	// Engine display name
-	yaml.WriteString(fmt.Sprintf("            \"engine_name\": \"%s\",\n", engine.GetDisplayName()))
+	yaml.WriteString(fmt.Sprintf("              engine_name: \"%s\",\n", engine.GetDisplayName()))
 
 	// Model information
 	model := ""
 	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
 		model = data.EngineConfig.Model
 	}
-	yaml.WriteString(fmt.Sprintf("            \"model\": \"%s\",\n", model))
+	yaml.WriteString(fmt.Sprintf("              model: \"%s\",\n", model))
 
 	// Version information
 	version := ""
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		version = data.EngineConfig.Version
 	}
-	yaml.WriteString(fmt.Sprintf("            \"version\": \"%s\",\n", version))
+	yaml.WriteString(fmt.Sprintf("              version: \"%s\",\n", version))
 
 	// Workflow information
-	yaml.WriteString(fmt.Sprintf("            \"workflow_name\": \"%s\",\n", data.Name))
-	yaml.WriteString(fmt.Sprintf("            \"experimental\": %t,\n", engine.IsExperimental()))
-	yaml.WriteString(fmt.Sprintf("            \"supports_tools_whitelist\": %t,\n", engine.SupportsToolsWhitelist()))
-	yaml.WriteString(fmt.Sprintf("            \"supports_http_transport\": %t,\n", engine.SupportsHTTPTransport()))
+	yaml.WriteString(fmt.Sprintf("              workflow_name: \"%s\",\n", data.Name))
+	yaml.WriteString(fmt.Sprintf("              experimental: %t,\n", engine.IsExperimental()))
+	yaml.WriteString(fmt.Sprintf("              supports_tools_whitelist: %t,\n", engine.SupportsToolsWhitelist()))
+	yaml.WriteString(fmt.Sprintf("              supports_http_transport: %t,\n", engine.SupportsHTTPTransport()))
 
 	// Run metadata
-	yaml.WriteString("            \"run_id\": \"${{ github.run_id }}\",\n")
-	yaml.WriteString("            \"run_number\": \"${{ github.run_number }}\",\n")
-	yaml.WriteString("            \"run_attempt\": \"${{ github.run_attempt }}\",\n")
-	yaml.WriteString("            \"repository\": \"${{ github.repository }}\",\n")
-	yaml.WriteString("            \"ref\": \"${{ github.ref }}\",\n")
-	yaml.WriteString("            \"sha\": \"${{ github.sha }}\",\n")
-	yaml.WriteString("            \"actor\": \"${{ github.actor }}\",\n")
-	yaml.WriteString("            \"event_name\": \"${{ github.event_name }}\",\n")
-	yaml.WriteString("            \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n")
+	yaml.WriteString("              run_id: context.runId,\n")
+	yaml.WriteString("              run_number: context.runNumber,\n")
+	yaml.WriteString("              run_attempt: process.env.GITHUB_RUN_ATTEMPT,\n")
+	yaml.WriteString("              repository: context.repo.owner + '/' + context.repo.repo,\n")
+	yaml.WriteString("              ref: context.ref,\n")
+	yaml.WriteString("              sha: context.sha,\n")
+	yaml.WriteString("              actor: context.actor,\n")
+	yaml.WriteString("              event_name: context.eventName,\n")
+	yaml.WriteString("              created_at: new Date().toISOString()\n")
 
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
-	yaml.WriteString("          echo \"Generated aw_info.json:\"\n")
-	yaml.WriteString("          cat aw_info.json\n")
+	yaml.WriteString("            };\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            console.log('Generated aw_info.json:');\n")
+	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
 }
 
 // validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
