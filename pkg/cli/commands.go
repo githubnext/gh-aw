@@ -3063,7 +3063,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 	return nil
 }
 
-// IsRunnable checks if a workflow can be run locally (has schedule or workflow_dispatch trigger)
+// IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)
 func IsRunnable(markdownPath string) (bool, error) {
 	// Read the file
 	contentBytes, err := os.ReadFile(markdownPath)

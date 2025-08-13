@@ -26,6 +26,15 @@ gh aw compile
 # Compile workflows with verbose output
 gh aw compile --verbose
 
+# Compile workflows with schema validation
+gh aw compile --validate
+
+# Compile workflows with engine override
+gh aw compile --engine codex
+
+# Generate GitHub Copilot instructions file
+gh aw compile --instructions
+
 # Compile workflows and generate auto-compile workflow for automatic compilation
 gh aw compile --auto-compile
 
@@ -194,6 +203,15 @@ gh aw list --packages
 
 # List only local packages
 gh aw list --packages --local
+
+# Uninstall a workflow package globally
+gh aw uninstall org/repo
+
+# Uninstall a workflow package locally
+gh aw uninstall org/repo --local
+
+# Show version information
+gh aw version
 ```
 
 **Package Management Features:**
@@ -210,7 +228,24 @@ gh aw list --packages --local
 - Network access to download from GitHub repositories
 - Target repository must have a `workflows/` directory containing `.md` files
 
-## 📝 Creating New Workflows
+## �️ Package Removal
+
+```bash
+# Uninstall workflow packages globally (default)
+gh aw uninstall org/repo
+
+# Uninstall packages locally from current project
+gh aw uninstall org/repo --local
+```
+
+**Package Removal Features:**
+
+- **Clean Uninstall**: Removes all downloaded workflow files and metadata
+- **Global vs Local**: Supports both global (`~/.aw/packages/`) and local (`.aw/packages/`) removal
+- **Safe Operation**: Only removes the specified package without affecting others
+- **Validation**: Confirms package exists before attempting removal
+
+## �📝 Creating New Workflows
 
 The `gh aw new` command creates a new workflow markdown file with comprehensive template content and examples.
 

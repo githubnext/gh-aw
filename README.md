@@ -21,11 +21,14 @@ gh aw add weekly-research -r githubnext/agentics --pr
 
 This command will create a PR to your repo adding several files including `.github/workflows/weekly-research.md` and `.github/workflows/weekly-research.lock.yml`.
 
-Your repository will also need a ANTHROPIC_API_KEY or OPENAI_API_KEY Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
+Your repository will also need an ANTHROPIC_API_KEY (for Claude) or OPENAI_API_KEY (for Codex) Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
 
 ```bash
+# For Claude engine (default)
 gh secret set ANTHROPIC_API_KEY -a actions --body <your-anthropic-api-key>
-#gh secret set OPENAI_API_KEY -a actions --body <your-openai-api-key>
+
+# For Codex engine (experimental)
+gh secret set OPENAI_API_KEY -a actions --body <your-openai-api-key>
 ```
 
 Once you've reviewed and merged the PR you're all set! Each week, the workflow will run automatically and create a research report issue in your repository. If you're in a hurry and would like to run the workflow immediately, you can do so using:
@@ -126,12 +129,17 @@ You will see the changes reflected in the `.lock.yml` file, which is the actual 
 By default Claude Code is used as the agentic processor. You can configure the agentic processor by editing the frontmatter of the markdown workflow files.
 
 ```markdown
-engine: codex  # Optional: specify AI engine (claude, codex)
+engine: claude  # Default: Claude Code
+engine: codex   # Experimental: OpenAI Codex CLI with MCP support
 ```
 
 You can also specify this on the command line when adding or running workflows:
 
 ```bash
+# Use Claude (default)
+gh aw add weekly-research --engine claude
+
+# Use Codex (experimental)
 gh aw add weekly-research --engine codex
 ```
 

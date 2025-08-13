@@ -40,10 +40,10 @@ tools:
 
 Different AI engines support different MCP features:
 
-- **Claude** (default): ✅ Full MCP support (stdio and HTTP)
-- **Codex**: ✅ Limited MCP support (stdio only)
-- **AI Inference**: ✅ GitHub MCP support
-- **Other engines**: Varies by engine
+- **Claude** (default): ✅ Full MCP support (stdio, Docker, HTTP)
+- **Codex** (experimental): ✅ Limited MCP support (stdio only, no HTTP)
+
+**Note**: When using Codex engine, HTTP MCP servers will be ignored and only stdio-based servers will be configured.
 
 ## MCP Server Types
 
