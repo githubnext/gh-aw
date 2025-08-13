@@ -49,7 +49,7 @@ jobs:
 
       - name: Check for changes in generated files
         run: |
-          git status .github/workflows/*.lock.yml
+          git diff .github/workflows/*.lock.yml
 
       - name: Check for uncommitted workflow changes
         run: |
