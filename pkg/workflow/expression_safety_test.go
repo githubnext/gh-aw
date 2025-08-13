@@ -3,6 +3,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestValidateExpressionSafety(t *testing.T) {
@@ -196,19 +198,21 @@ func TestAllowedExpressionsList(t *testing.T) {
 	// Test to ensure our allowed expressions list contains expected values
 	expectedExpressions := []string{
 		"github.workflow",
-		"github.repository", 
+		"github.repository",
 		"github.run_id",
 		"github.event.issue.number",
 		"needs.task.outputs.text",
+		"github.head_ref",
+		"github.event.pull_request.created_at",
 	}
 
-	if len(allowedExpressions) != len(expectedExpressions) {
-		t.Errorf("Expected %d allowed expressions, got %d", len(expectedExpressions), len(allowedExpressions))
+	if len(constants.AllowedExpressions) != len(expectedExpressions) {
+		t.Errorf("Expected %d allowed expressions, got %d", len(expectedExpressions), len(constants.AllowedExpressions))
 	}
 
 	for _, expected := range expectedExpressions {
 		found := false
-		for _, allowed := range allowedExpressions {
+		for _, allowed := range constants.AllowedExpressions {
 			if allowed == expected {
 				found = true
 				break

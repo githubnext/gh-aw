@@ -25,20 +25,20 @@ import (
 func validateExpressionSafety(markdownContent string) error {
 	// Regular expression to match GitHub Actions expressions: ${{ ... }}
 	expressionRegex := regexp.MustCompile(`\$\{\{\s*([^}]+)\s*\}\}`)
-	
+
 	// Find all expressions in the markdown content
 	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
-	
+
 	var unauthorizedExpressions []string
-	
+
 	for _, match := range matches {
 		if len(match) < 2 {
 			continue
 		}
-		
+
 		// Extract the expression content (everything between ${{ and }})
 		expression := strings.TrimSpace(match[1])
-		
+
 		// Check if this expression is in the allowed list
 		allowed := false
 		for _, allowedExpr := range constants.AllowedExpressions {
@@ -47,18 +47,18 @@ func validateExpressionSafety(markdownContent string) error {
 				break
 			}
 		}
-		
+
 		if !allowed {
 			unauthorizedExpressions = append(unauthorizedExpressions, expression)
 		}
 	}
-	
+
 	// If we found unauthorized expressions, return an error
 	if len(unauthorizedExpressions) > 0 {
-		return fmt.Errorf("unauthorized GitHub Actions expressions found: %v. Only these expressions are allowed: %v", 
+		return fmt.Errorf("unauthorized GitHub Actions expressions found: %v. Only these expressions are allowed: %v",
 			unauthorizedExpressions, constants.AllowedExpressions)
 	}
-	
+
 	return nil
 }
 
