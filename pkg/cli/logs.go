@@ -307,8 +307,7 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	if workflowName == "" {
 		// No specific workflow requested, filter to only agentic workflows
 		for _, run := range runs {
-			if strings.HasSuffix(run.WorkflowName, ".lock.yml") || strings.Contains(run.WorkflowName, "agentic") ||
-				strings.Contains(run.WorkflowName, "Agentic") || strings.Contains(run.WorkflowName, "@") {
+			if strings.HasSuffix(run.WorkflowName, ".lock.yml") {
 				agenticRuns = append(agenticRuns, run)
 			}
 		}
