@@ -59,13 +59,13 @@ mkdir -p /tmp/aw-logs
 # Run codex with log capture
 codex exec \
   -c model=%s \
-  --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/aw-logs/%s.log`, model, logFile)
+  --full-auto "$INSTRUCTION" 2>&1 | tee %s`, model, logFile)
 
 	return ExecutionConfig{
 		StepName: "Run Codex",
 		Command:  command,
 		Environment: map[string]string{
-			"OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
+			"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
 			"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 		},
 	}

@@ -240,7 +240,7 @@ jobs:
           # Run codex with log capture
           codex exec \
             -c model=o4-mini \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/aw-logs//tmp/test-codex.log.log
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex.log
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

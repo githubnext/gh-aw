@@ -60,7 +60,7 @@ func TestCodexEngine(t *testing.T) {
 		t.Errorf("Expected command to contain 'codex exec', got '%s'", config.Command)
 	}
 
-	if !strings.Contains(config.Command, "test-log.log") {
+	if !strings.Contains(config.Command, "test-log") {
 		t.Errorf("Expected command to contain log file name, got '%s'", config.Command)
 	}
 
