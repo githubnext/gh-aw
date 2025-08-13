@@ -176,7 +176,7 @@ Use GitHub Actions context expressions throughout the workflow content:
 - **`${{ github.sha }}`** - Commit SHA
 
 ### Environment Variables
-- **`${{ env.GITHUB_REPOSITORY }}`** - Repository name
+- **`${{ github.repository }}`** - Repository name
 - **`${{ secrets.GITHUB_TOKEN }}`** - GitHub token
 - **Custom variables**: `${{ env.CUSTOM_VAR }}`
 
@@ -342,7 +342,7 @@ timeout_minutes: 15
 
 # Weekly Research
 
-Research latest developments in ${{ env.GITHUB_REPOSITORY }}:
+Research latest developments in ${{ github.repository }}:
 - Review recent commits and issues
 - Search for industry trends
 - Create summary issue

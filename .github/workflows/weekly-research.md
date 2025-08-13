@@ -29,7 +29,7 @@ tools:
 
 ## Job Description
 
-Do a deep research investigation in ${{ env.GITHUB_REPOSITORY }} repository, and the related industry in general.
+Do a deep research investigation in ${{ github.repository }} repository, and the related industry in general.
 
 - Read selections of the latest code, issues and PRs for this repo.
 - Read latest trends and news from the software industry news source on the Web.
