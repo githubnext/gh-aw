@@ -89,6 +89,17 @@ jobs:
             "ghcr.io/github/github-mcp-server:sha-45e90ae"
           ]
           env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
+          
+          [mcp_servers.time]
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "LOCAL_TIMEZONE",
+            "mcp/time",
+          ]
           EOF
       - name: Create prompt
         run: |
@@ -99,6 +110,8 @@ jobs:
           ## Job Description
           
           You are a code review assistant powered by Codex. Your task is to analyze the changes in this pull request and provide a comprehensive summary.
+          
+          **First, get the current time using the get_current_time tool to timestamp your analysis.**
           
           ### Analysis Tasks
           
@@ -120,6 +133,7 @@ jobs:
              
              **Branch:** `${{ github.head_ref }}`
              **Files Changed:** [number] files
+             **Analysis Time:** [current timestamp from get_current_time]
              
              #### 📋 Change Overview
              - Brief description of what this PR accomplishes

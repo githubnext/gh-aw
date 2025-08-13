@@ -13,6 +13,13 @@ permissions:
   pull-requests: write
   issues: read
   actions: read
+tools:
+  time:
+    mcp:
+      type: stdio
+      command: "docker"
+      args: ["run", "-i", "--rm", "-e", "LOCAL_TIMEZONE", "mcp/time"]
+    allowed: ["get_current_time"]
 ---
 
 # Test Codex
@@ -20,6 +27,8 @@ permissions:
 ## Job Description
 
 You are a code review assistant powered by Codex. Your task is to analyze the changes in this pull request and provide a comprehensive summary.
+
+**First, get the current time using the get_current_time tool to timestamp your analysis.**
 
 ### Analysis Tasks
 
@@ -41,6 +50,7 @@ You are a code review assistant powered by Codex. Your task is to analyze the ch
    
    **Branch:** `${{ github.head_ref }}`
    **Files Changed:** [number] files
+   **Analysis Time:** [current timestamp from get_current_time]
    
    #### 📋 Change Overview
    - Brief description of what this PR accomplishes
