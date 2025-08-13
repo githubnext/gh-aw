@@ -1,7 +1,7 @@
 # 📖 GitHub Agentic Workflows Documentation
 
-> [!CAUTION]
-> This extension is a research project from GitHub Next. It is in early development and may change significantly. It has not been thoroughly tested. Using agentic workflows in your repository requires careful supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
+> [!WARNING]
+> This extension is a research demonstrator. It is in early development and may change significantly. It has not been thoroughly tested. Using agentic workflows in your repository requires careful supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
 Complete documentation for creating and managing agentic workflows with GitHub Actions.
 

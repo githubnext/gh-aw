@@ -2824,9 +2824,9 @@ func listPackageWorkflows(verbose bool) error {
 		// Mark packages with their location
 		for i := range packages {
 			if local {
-				packages[i].Name = packages[i].Name + " (local)"
+				packages[i].Name = packages[i].Name + ", local"
 			} else {
-				packages[i].Name = packages[i].Name + " (global)"
+				packages[i].Name = packages[i].Name + ", global"
 			}
 		}
 

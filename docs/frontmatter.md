@@ -105,9 +105,9 @@ analyze and provide a helpful summary.
 The current context text is: "${{ needs.task.outputs.text }}"
 ```
 
-## Context Text Variable (`text`)
+## Context Text (`needs.task.outputs.text`)
 
-All workflows have access to a computed `text` output variable that provides context based on the triggering event:
+All workflows have access to a special computed `needs.task.outputs.text` value that provides context based on the triggering event:
 
 ```markdown
 # Analyze this content: "${{ needs.task.outputs.text }}"
