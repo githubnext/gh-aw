@@ -34,12 +34,12 @@ This means they inherit the security model of GitHub Actions, which includes:
 - **Read-only defaults** for forked PRs
 - **Restricted secret access** - secrets are not available in forked PRs by default
 - **Explicit permissions** - all permissions default to `none` unless explicitly set
-- **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
-- **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
 
 In addition, the compilation step of Agentic Workflows enforces additional security measures: 
 - **Expression restrictions** - only a limited set of expressions are allowed in the workflow frontmatter, preventing arbitrary code execution
 - **Tool allowlisting** - only explicitly allowed tools can be used in the workflow
+- **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
+- **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
 
 Apply these principles consistently across all workflow components:
 
@@ -68,6 +68,14 @@ jobs:
     permissions:
       issues: write  # Job-scoped elevation
 ```
+
+### Human in the Loop
+
+GitHub Actions workflows are not designed to be fully autonomous. Some critical operations should always involve human review:
+- **Approval gates**: Use manual approval steps for high-risk operations like deployments, secret management, or external tool invocations
+- **Pull requests require humans**: GitHub Actions cannot approve or merge pull requests. This means a human will always be involved in reviewing and merging pull requests that contain agentic workflows.
+- **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via a pull request.
+- **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
 
 ### MCP Tool Hardening
 
