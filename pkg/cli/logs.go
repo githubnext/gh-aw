@@ -63,7 +63,7 @@ const (
 	// BatchSize is the number of runs to fetch in each iteration
 	BatchSize = 50
 	// BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows
-	BatchSizeForAllWorkflows = 100
+	BatchSizeForAllWorkflows = 1000
 	// MaxConcurrentDownloads limits the number of parallel artifact downloads
 	MaxConcurrentDownloads = 10
 )
