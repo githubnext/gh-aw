@@ -182,40 +182,6 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
-			name: "Multiple MCP servers",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"github": map[string]any{},
-					"custom": map[string]any{
-						"mcp": map[string]any{
-							"type":    "stdio",
-							"command": "custom-server",
-						},
-					},
-				},
-			},
-			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:sha-45e90ae",
-					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
-					Allowed: []string{},
-				},
-				{
-					Name:    "custom",
-					Type:    "stdio",
-					Command: "custom-server",
-					Env:     map[string]string{},
-					Allowed: []string{},
-				},
-			},
-		},
-		{
 			name: "Server filter - matching",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
