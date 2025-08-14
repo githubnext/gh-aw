@@ -124,7 +124,7 @@ install: build
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build
-	./$(BINARY_NAME) compile --validate
+	./$(BINARY_NAME) compile --validate --instructions
 
 # Run development server
 .PHONY: dev

@@ -10,6 +10,7 @@ Complete documentation for creating and managing agentic workflows with GitHub A
 - **[Workflow Structure](workflow-structure.md)** - Directory layout, file organization, and expression security
 - **[Commands](commands.md)** - CLI commands for workflow management
 - **[Include Directives](include-directives.md)** - Modularizing workflows with includes
+- **[Authoring In Visual Studio Code](vscode.md)** - Enhancing your development experience in VS Code
 
 ## Configuration
 
