@@ -190,6 +190,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.event.sender.id }}`** - ID of the user who triggered the event
 - **`${{ github.event.workflow_run.id }}`** - ID of the workflow run
 - **`${{ github.actor }}`** - Username of the person who initiated the workflow
+- **`${{ github.job }}`** - Job ID of the current workflow run
 - **`${{ github.owner }}`** - Owner of the repository
 - **`${{ github.repository }}`** - Repository name in "owner/name" format
 - **`${{ github.run_id }}`** - Unique ID of the workflow run

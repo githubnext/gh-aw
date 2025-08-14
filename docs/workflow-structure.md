@@ -132,6 +132,7 @@ The following GitHub Actions context expressions are permitted in workflow markd
 - `${{ github.event.sender.id }}` - The ID of the user who triggered the workflow
 - `${{ github.event.workflow_run.id }}` - The ID of the workflow run that triggered the current workflow
 - `${{ github.actor }}` - The username of the user who triggered the workflow
+- `${{ github.job }}` - Job ID of the current workflow run
 - `${{ github.owner }}` - The owner of the repository (user or organization name)
 - `${{ github.repository }}` - The owner and repository name (e.g., `octocat/Hello-World`)
 - `${{ github.run_id }}` - A unique number for each workflow run within a repository
