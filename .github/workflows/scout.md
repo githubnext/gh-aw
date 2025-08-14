@@ -12,6 +12,8 @@ permissions:
   statuses: read
   pull-requests: read
 
+ai-reaction: eyes
+
 tools:
   github:
     allowed: [update_issue, add_issue_comment]
