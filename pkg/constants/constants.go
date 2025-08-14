@@ -32,6 +32,7 @@ var AllowedExpressions = []string{
 	"github.event.sender.id",
 	"github.event.workflow_run.id",
 	"github.actor",
+	"github.job",
 	"github.owner",
 	"github.repository",
 	"github.run_id",
