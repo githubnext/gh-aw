@@ -36,5 +36,6 @@ var AllowedExpressions = []string{
 	"github.repository",
 	"github.run_id",
 	"github.run_number",
+	"github.server_url",
 	"github.workflow",
 } // needs., steps. already allowed
