@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 )
 
@@ -275,7 +275,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 }
 
 // downloadRunArtifactsParallel downloads artifacts for multiple workflow runs in parallel
-func downloadRunArtifactsParallel(runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
+func doadRunArtifactsParallel(runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
 	if len(runs) == 0 {
 		return []DownloadResult{}
 	}
@@ -290,35 +290,23 @@ func downloadRunArtifactsParallel(runs []WorkflowRun, outputDir string, verbose 
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", len(actualRuns))))
 	}
 
-	// Create a buffered channel to limit concurrent downloads
-	semaphore := make(chan struct{}, MaxConcurrentDownloads)
+	// Use conc pool for controlled concurrency with results
+	p := pool.NewWithResults[DownloadResult]().WithMaxGoroutines(MaxConcurrentDownloads)
 
-	// Channel to collect results
-	resultsChan := make(chan DownloadResult, len(actualRuns))
-
-	// WaitGroup to wait for all goroutines to complete
-	var wg sync.WaitGroup
-
-	// Start a goroutine for each run
+	// Process each run concurrently
 	for _, run := range actualRuns {
-		wg.Add(1)
-		go func(r WorkflowRun) {
-			defer wg.Done()
-
-			// Acquire semaphore to limit concurrency
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
+		run := run // capture loop variable
+		p.Go(func() DownloadResult {
 			if verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", r.DatabaseID, r.Status)))
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", run.DatabaseID, run.Status)))
 			}
 
 			// Download artifacts and logs for this run
-			runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", r.DatabaseID))
-			err := downloadRunArtifacts(r.DatabaseID, runOutputDir, verbose)
+			runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
+			err := downloadRunArtifacts(run.DatabaseID, runOutputDir, verbose)
 
 			result := DownloadResult{
-				Run:      r,
+				Run:      run,
 				LogsPath: runOutputDir,
 			}
 
@@ -335,7 +323,7 @@ func downloadRunArtifactsParallel(runs []WorkflowRun, outputDir string, verbose 
 				metrics, metricsErr := extractLogMetrics(runOutputDir, verbose)
 				if metricsErr != nil {
 					if verbose {
-						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", r.DatabaseID, metricsErr)))
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", run.DatabaseID, metricsErr)))
 					}
 					// Don't fail the whole download for metrics errors
 					metrics = LogMetrics{}
@@ -343,21 +331,12 @@ func downloadRunArtifactsParallel(runs []WorkflowRun, outputDir string, verbose 
 				result.Metrics = metrics
 			}
 
-			resultsChan <- result
-		}(run)
+			return result
+		})
 	}
 
-	// Close the results channel when all goroutines are done
-	go func() {
-		wg.Wait()
-		close(resultsChan)
-	}()
-
-	// Collect all results
-	var results []DownloadResult
-	for result := range resultsChan {
-		results = append(results, result)
-	}
+	// Wait for all downloads to complete and collect results
+	results := p.Wait()
 
 	if verbose {
 		successCount := 0
