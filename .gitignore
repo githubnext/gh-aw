@@ -48,3 +48,5 @@ gh-aw-linux-arm64
 
 coverage.html
 logs/
+
+.github/instructions/github-agentic-workflows.instructions.md
