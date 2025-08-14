@@ -147,9 +147,12 @@ This will override the `engine` setting in the frontmatter of the markdown file.
 
 > **🔧 Advanced configuration**: For detailed information about permissions, tools, secrets, and all configuration options, see the [Documentation](docs/index.md)
 
-## Security and untrusted inputs
+## Security of Agentic Workflows
 
-Security is a key consideration when using agentic workflows. Please see the [Security Best Practices](docs/security.md) for guidelines on how to secure your workflows and handle untrusted inputs.
+Security is a key consideration when using agentic workflows. Please see the [Security Notes](docs/security-notes.md) for guidelines related to workflow security and handling untrusted inputs.
+
+> [!CAUTION]
+> GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
 
 ## 🔗 Related Projects
 

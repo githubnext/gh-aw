@@ -132,6 +132,12 @@ The following GitHub Actions context expressions are permitted in workflow markd
 - `${{ github.event.review_comment.id }}` - The ID of the review comment that triggered the workflow
 - `${{ github.event.sender.id }}` - The ID of the user who triggered the workflow
 - `${{ github.event.workflow_run.id }}` - The ID of the workflow run that triggered the current workflow
+- `${{ github.event.workflow_run.conclusion }}` - The conclusion of the workflow run that triggered the current workflow
+- `${{ github.event.workflow_run.html_url }}` - The URL of the workflow run that triggered the current workflow
+- `${{ github.event.workflow_run.head_sha }}` - The head SHA of the workflow run that triggered the current workflow
+- `${{ github.event.workflow_run.run_number }}` - The run number of the workflow run that triggered the current workflow
+- `${{ github.event.workflow_run.event }}` - The event that triggered the workflow run that triggered the current workflow
+- `${{ github.event.workflow_run.status }}` - The status of the workflow run that triggered the current workflow
 - `${{ github.actor }}` - The username of the user who triggered the workflow
 - `${{ github.job }}` - Job ID of the current workflow run
 - `${{ github.owner }}` - The owner of the repository (user or organization name)
@@ -179,6 +185,7 @@ Triggered by: ${{ github.actor }}
 Issue number: ${{ github.event.issue.number }}
 Previous output: ${{ needs.task.outputs.text }}
 User input: ${{ github.event.inputs.environment }}
+Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}
 
 # Invalid expressions (will cause compilation error)
 Token: ${{ secrets.GITHUB_TOKEN }}
