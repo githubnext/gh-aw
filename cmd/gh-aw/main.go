@@ -29,7 +29,7 @@ func validateEngine(engine string) error {
 var rootCmd = &cobra.Command{
 	Use:   constants.CLIExtensionPrefix,
 	Short: "GitHub Agentic Workflows CLI from GitHub Next",
-	Long: ` = GitHub Agentic Workflows from GitHub Next
+	Long: `GitHub Agentic Workflows from GitHub Next
 
 A natural language GitHub Action is a markdown file checked into the .github/workflows directory of a repository.
 The file contains a natural language description of the workflow, which is then compiled into a GitHub Actions workflow file.

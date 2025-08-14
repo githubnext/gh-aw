@@ -73,6 +73,21 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "allowed_github_event_workflow_run_run_number",
+			content:     "Run number: ${{ github.event.workflow_run.run_number }}",
+			expectError: false,
+		},
+		{
+			name:        "allowed_github_event_workflow_run_event",
+			content:     "Triggering event: ${{ github.event.workflow_run.event }}",
+			expectError: false,
+		},
+		{
+			name:        "allowed_github_event_workflow_run_status",
+			content:     "Run status: ${{ github.event.workflow_run.status }}",
+			expectError: false,
+		},
+		{
 			name:        "multiple_allowed_expressions",
 			content:     "Workflow: ${{ github.workflow }}, Repository: ${{ github.repository }}, Output: ${{ needs.task.outputs.text }}",
 			expectError: false,
