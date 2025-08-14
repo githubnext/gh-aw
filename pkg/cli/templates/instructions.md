@@ -193,6 +193,9 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.event.workflow_run.conclusion }}`** - Conclusion of the workflow run
 - **`${{ github.event.workflow_run.html_url }}`** - URL of the workflow run
 - **`${{ github.event.workflow_run.head_sha }}`** - Head SHA of the workflow run
+- **`${{ github.event.workflow_run.run_number }}`** - Run number of the workflow run
+- **`${{ github.event.workflow_run.event }}`** - Event that triggered the workflow run
+- **`${{ github.event.workflow_run.status }}`** - Status of the workflow run
 - **`${{ github.actor }}`** - Username of the person who initiated the workflow
 - **`${{ github.job }}`** - Job ID of the current workflow run
 - **`${{ github.owner }}`** - Owner of the repository
