@@ -436,9 +436,64 @@ permissions:
   models: read      # Typically needed for AI workflows
 ```
 
+### Security Best Practices (summary)
+
+The following condensed guidance is adapted from the full Security Best Practices guide in `docs/security.md`:
+
+- Review before install: treat prompt templates, includes, and rules as code. Always inspect compiled `.lock.yml` to see actual permissions and steps.
+- Understand defaults: once any permission is set at the workflow level, all others default to `none`. Elevate narrowly at job/step scope.
+- Threat model highlights: prompt injection via issues/PRs/comments/code; automated execution without review; over-broad tool exposure; supply chain risks from unpinned actions/images.
+- Core principles: least privilege; default-deny tool allowlists; separate plan vs. apply with approval gates for risky actions; pin all dependencies by immutable SHAs/digests.
+
+#### Practical implementation
+
+- Workflow permissions
+  - Keep top-level minimal (e.g., `contents: read`).
+  - Elevate per job only when required (e.g., a comment job needs `issues: write`).
+
+  
+  Example:
+  ```yaml
+  permissions:
+    contents: read
+
+  jobs:
+    comment:
+      permissions:
+        issues: write
+  ```
+
+- MCP tool hardening
+  - Sandbox: run MCP servers in isolated containers, non-root, least capabilities; disable privilege escalation; apply seccomp/AppArmor where supported.
+  - Supply chain: pin images/binaries to digests/SHAs; scan for vulns; track SBOMs.
+  - Access control: start with empty allowlists; grant only required verbs/hosts.
+
+  
+  Example (pinned container with minimal allowances):
+  ```yaml
+  tools:
+    web:
+      mcp:
+        container: "ghcr.io/example/web-mcp@sha256:abc123..."  # pinned digest
+      allowed: [fetch]
+  ```
+
+- Network egress filtering
+  - Prefer outbound allowlists (proxy or policy) for MCP tools and any web access.
+
+- Agent safety and policy
+  - Reduce exposure to untrusted inputs; strip embedded commands when not needed.
+  - Use plan-validate-execute: require validation checkpoints before executing high-risk tool calls.
+
+- Supply chain integrity
+  - Pin GitHub Actions by SHA, containers by digest; avoid floating tags.
+
+For deeper guidance and references, see the full guide: `docs/security.md`.
+
 ## Compilation Process
 
 Agentic workflows compile to GitHub Actions YAML:
+
 - `.github/workflows/example.md` → `.github/workflows/example.lock.yml`
 - Include dependencies are resolved and merged
 - Tool configurations are processed
