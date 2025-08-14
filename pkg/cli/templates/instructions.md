@@ -194,6 +194,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.repository }}`** - Repository name in "owner/name" format
 - **`${{ github.run_id }}`** - Unique ID of the workflow run
 - **`${{ github.run_number }}`** - Number of the workflow run
+- **`${{ github.server_url }}`** - Base URL of the server, e.g. https://github.com
 - **`${{ github.workflow }}`** - Name of the workflow
 
 #### Special Pattern Expressions

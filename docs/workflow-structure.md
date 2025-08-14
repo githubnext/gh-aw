@@ -136,6 +136,7 @@ The following GitHub Actions context expressions are permitted in workflow markd
 - `${{ github.repository }}` - The owner and repository name (e.g., `octocat/Hello-World`)
 - `${{ github.run_id }}` - A unique number for each workflow run within a repository
 - `${{ github.run_number }}` - A unique number for each run of a particular workflow in a repository
+- `${{ github.server_url }}` - Base URL of the server, e.g. https://github.com
 - `${{ github.workflow }}` - The name of the workflow
 
 #### Special Pattern Expressions
