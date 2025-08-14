@@ -30,12 +30,14 @@ Understanding the security risks in agentic workflows helps inform protective me
 The fundamental principle of security for Agentic Workflows is that they are GitHub Actions workflows and should be reviewed with the same rigour and rules that are applied to all GitHub Actions. See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use).
 
 This means they inherit the security model of GitHub Actions, which includes:
+
 - **Isolated copy of the repository** - each workflow runs in a separate copy of the repository, so it cannot access other repositories or workflows
 - **Read-only defaults** for forked PRs
 - **Restricted secret access** - secrets are not available in forked PRs by default
 - **Explicit permissions** - all permissions default to `none` unless explicitly set
 
-In addition, the compilation step of Agentic Workflows enforces additional security measures: 
+In addition, the compilation step of Agentic Workflows enforces additional security measures:
+
 - **Expression restrictions** - only a limited set of expressions are allowed in the workflow frontmatter, preventing arbitrary code execution
 - **Tool allowlisting** - only explicitly allowed tools can be used in the workflow
 - **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
@@ -72,6 +74,7 @@ jobs:
 ### Human in the Loop
 
 GitHub Actions workflows are not designed to be fully autonomous. Some critical operations should always involve human review:
+
 - **Approval gates**: Use manual approval steps for high-risk operations like deployments, secret management, or external tool invocations
 - **Pull requests require humans**: GitHub Actions cannot approve or merge pull requests. This means a human will always be involved in reviewing and merging pull requests that contain agentic workflows.
 - **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via a pull request.
@@ -99,18 +102,39 @@ tools:
     allowed: [fetch]
 ```
 
-#### Access Control Strategy
+#### Tool Allow/Disallow Examples
 
-Start with empty allowlists and grant permissions incrementally:
+Configure explicit allow-lists for tools. See also `docs/tools.md` for full options.
+
+- Minimal GitHub tool set (read + specific writes):
 
 ```yaml
 tools:
   github:
-    allowed: [add_issue_comment]  # Minimal required verbs
-  web:
-    mcp:
-      allowed: [fetch]
-  container: my-registry/my-image@sha256:abc123...
+    allowed: [get_issue, add_issue_comment]
+```
+
+- Restricted Claude bash and editing:
+
+```yaml
+engine: claude
+tools:
+  claude:
+    allowed:
+      Edit:
+      Write:
+      Bash: ["echo", "git status"]   # keep tight; avoid wildcards
+```
+
+- Dangerous patterns to avoid:
+
+```yaml
+tools:
+  github:
+    allowed: ["*"]            # Too broad
+  claude:
+    allowed:
+      Bash: [":*"]           # Unrestricted shell access
 ```
 
 #### Egress Filtering
@@ -126,11 +150,25 @@ Protect against model manipulation through layered defenses:
 - **Input sanitization**: Minimize untrusted content exposure; strip embedded commands when not required for functionality
 - **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
 
+## Engine Security Notes
+
+Different agentic engines have distinct defaults and operational surfaces.
+
+#### `engine: claude`
+
+- Restrict `claude.allowed` to only the needed capabilities (Edit/Write/WebFetch/Bash with a short list)
+- Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
+
+#### Security posture differences with Codex
+
+Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors. In both cases, tool allow-lists and pinned dependencies are your primary controls.
+
 ## See also
 
 - [Tools Configuration](tools.md)
 - [MCPs](mcps.md)
 - [Secrets Management](secrets.md)
+- [Workflow Structure](workflow-structure.md)
 
 ## References
 
