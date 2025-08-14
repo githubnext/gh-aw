@@ -145,21 +145,11 @@ gh aw add weekly-research --engine codex
 
 This will override the `engine` setting in the frontmatter of the markdown file.
 
+> **🔧 Advanced configuration**: For detailed information about permissions, tools, secrets, and all configuration options, see the [Documentation](docs/index.md)
+
 ## Security and untrusted inputs
 
-Security is a key consideration when using agentic workflows.
-
-This repository is for demonstration purposes and the workflows are not intended to be run in production. The workflows are designed to be run in a controlled environment.
-
-⚠️ You should carefully review the contents of any workflow before installing it, especially if you have not authored it, as it may contain workflows that you do not want to run in your repository.
-
-⚠️⚠️ You should carefully review and assess the compiled workflows before adding them to your repository. You should assess the permissions required by the workflows, and ensure that they are appropriate for your repository. You can do this by reviewing the `.lock.yml` file for your workflow.
-
-⚠️⚠️ GitHub Actions applies many organization settings, limitations and defaults to help protect repositories from unintended actions. For example, by default workflows run in a read-only mode, and do not have access to secrets, when run over pull requests from forks. These rules all apply to agentic workflows as well. You can read more about [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use) and [GitHub Actions permissions](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions) in the documentation.
-
-⚠️⚠️ If you specify the access for any permissions, all of those that are not specified are set to none.
-
-> **🔧 Advanced configuration**: For detailed information about permissions, tools, secrets, and all configuration options, see the [Documentation](docs/index.md)
+Security is a key consideration when using agentic workflows. Please see the [Security Best Practices](docs/security.md) for guidelines on how to secure your workflows and handle untrusted inputs.
 
 ## 🔗 Related Projects
 
