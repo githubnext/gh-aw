@@ -203,6 +203,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 #### Special Pattern Expressions
 - **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
+- **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 
 All other expressions are dissallowed.
 
@@ -218,6 +219,8 @@ Analyze issue #${{ github.event.issue.number }} in repository ${{ github.reposit
 The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
 
 Using output from previous task: "${{ needs.task.outputs.text }}"
+
+Deploy to environment: "${{ github.event.inputs.environment }}"
 
 # Invalid expressions (will cause compilation errors)
 # Token: ${{ secrets.GITHUB_TOKEN }}

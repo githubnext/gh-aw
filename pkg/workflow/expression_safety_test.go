@@ -43,6 +43,21 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "allowed_github_event_inputs",
+			content:     "User input: ${{ github.event.inputs.name }}",
+			expectError: false,
+		},
+		{
+			name:        "allowed_github_event_inputs_underscore",
+			content:     "Branch input: ${{ github.event.inputs.target_branch }}",
+			expectError: false,
+		},
+		{
+			name:        "allowed_github_event_inputs_hyphen",
+			content:     "Deploy input: ${{ github.event.inputs.deploy-environment }}",
+			expectError: false,
+		},
+		{
 			name:        "multiple_allowed_expressions",
 			content:     "Workflow: ${{ github.workflow }}, Repository: ${{ github.repository }}, Output: ${{ needs.task.outputs.text }}",
 			expectError: false,

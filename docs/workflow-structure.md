@@ -145,6 +145,7 @@ The following GitHub Actions context expressions are permitted in workflow markd
 #### Special Pattern Expressions
 - `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
 - `${{ steps.* }}` - Any outputs from previous steps in the same job
+- `${{ github.event.inputs.* }}` - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.name }}`)
 
 ### Prohibited Expressions
 
@@ -177,6 +178,7 @@ Repository: ${{ github.repository }}
 Triggered by: ${{ github.actor }}  
 Issue number: ${{ github.event.issue.number }}
 Previous output: ${{ needs.task.outputs.text }}
+User input: ${{ github.event.inputs.environment }}
 
 # Invalid expressions (will cause compilation error)
 Token: ${{ secrets.GITHUB_TOKEN }}
