@@ -79,6 +79,8 @@ Keep responses concise and helpful.
 
 > **📚 Workflow commands**: See [Commands Documentation](docs/commands.md) for complete workflow management commands including `list`, `status`, `enable`, `disable`, and more.
 
+> **🤖 Teach AI** how write agentic workflows with [custom instructions](vscode.md#copilot-instructions).
+
 ## 📖 Deep Dive
 
 ### What's this extension for?

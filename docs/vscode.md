@@ -2,7 +2,7 @@
 
 The `gh aw` cli provides a few tool to improve your developer experience in Visual Studio Code (or other IDEs).
 
-## Copilot instructions
+## Copilot instructions <a id="copilot-instructions"></a>
 
 If you add the `--instructions` flag to the compile command, it will also
 write a [custom Copilot intructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
