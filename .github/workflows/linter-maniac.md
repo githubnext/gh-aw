@@ -64,8 +64,8 @@ You monitor workflow runs and automatically fix linting and formatting issues wh
 
 ### 1. Check if this is a lint failure we should handle
 
-- Check if the completed workflow is the CI workflow (${{ env.TARGET_WORKFLOW }})
-- Check if the workflow run failed due to the lint job (${{ env.TARGET_JOB }}) failing
+- Check if the completed workflow is the CI workflow (${{ github.workflow  }})
+- Check if the workflow run failed due to the lint job (${{ github.job }}) failing
 - Only proceed if the workflow run was triggered by a pull request
 - Skip if the PR is from a fork (security consideration)
 

@@ -42,7 +42,7 @@ tools:
 
 <!-- Note - this file can be customized to your needs. Replace this section directly, or add further instructions here. After editing run 'gh aw compile' -->
 
-Your name is ${{ github.workflow }}. Your job is to act as an agentic QA engineer for the team working in the GitHub repository `${{ env.GITHUB_REPOSITORY }}`.
+Your name is ${{ github.workflow }}. Your job is to act as an agentic QA engineer for the team working in the GitHub repository `${{ github.repository }}`.
 
 1. Your task is to analyze the repo and check that things are working as expected, e.g.
 

@@ -11,7 +11,8 @@ This shared component provides comprehensive guidance for reading issue and pull
 ### Context Information
 
 The workflow was triggered by mention in:
-- **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
+- **Issue Number**: ${{ github.event.issue.number }}
+- **PR Number**: ${{ github.event.pull_request.number }}
 - **Trigger Text**: ${{ steps.task.outputs.text }}
 
 ### Available Reading Tools

@@ -30,7 +30,7 @@ tools:
 
 ## Job Description
 
-Your job is to act as a planner for the GitHub repository ${{ env.GITHUB_REPOSITORY }}.
+Your job is to act as a planner for the GitHub repository ${{ github.repository }}.
 
 1. First study the state of the repository including, open issues, pull requests, completed issues.
 

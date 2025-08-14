@@ -40,10 +40,6 @@ If this workflow was triggered by a release event:
 - Use the release from `${{ github.event.release.tag_name }}`
 - Get the release details using the `get_release` tool with the tag name
 
-If this workflow was triggered manually via workflow_dispatch:
-- Use the provided release ID: `${{ github.event.inputs.release_id }}`
-- Get the release details using the `get_release` tool with the release ID
-
 ### Step 2: Gather Release Information
 
 1. **Get the current release details** using `get_release`

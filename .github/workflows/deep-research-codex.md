@@ -25,7 +25,7 @@ tools:
 
 ## Job Description
 
-Perform an comprehensive deep research investigation using the Codex agentic engine in ${{ env.GITHUB_REPOSITORY }} repository. This workflow demonstrates Codex functionality and MCP integration capabilities.
+Perform an comprehensive deep research investigation using the Codex agentic engine in ${{ github.repository }} repository. This workflow demonstrates Codex functionality and MCP integration capabilities.
 
 ### Research Areas
 
