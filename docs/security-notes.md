@@ -3,7 +3,7 @@
 > [!CAUTION]
 > GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
 
-This material documents some thinking of the security implications of using partially-automated agentic workflows. It's not a security guide, but rather a set of working notes.
+This material documents some notes on the security of using partially-automated agentic workflows.
 
 ## Before You Begin
 
