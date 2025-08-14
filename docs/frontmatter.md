@@ -105,9 +105,9 @@ analyze and provide a helpful summary.
 The current context text is: "${{ needs.task.outputs.text }}"
 ```
 
-## Context Text Variable (`text`)
+## Context Text (`needs.task.outputs.text`)
 
-All workflows have access to a computed `text` output variable that provides context based on the triggering event:
+All workflows have access to a special computed `needs.task.outputs.text` value that provides context based on the triggering event:
 
 ```markdown
 # Analyze this content: "${{ needs.task.outputs.text }}"
@@ -148,15 +148,23 @@ If you specify any permission, unspecified ones are set to `none`.
 
 Specifies which AI engine to use. Defaults to `claude`.
 
+```yaml
+engine: claude  # Default: Claude Code
+engine: codex   # Experimental: OpenAI Codex CLI with MCP support
+```
+
+**Engine Override**:
+You can override the engine specified in frontmatter using CLI flags:
+```bash
+gh aw add weekly-research --engine codex
+gh aw compile --engine claude
+```
+
 ### Simple String Format
 
 ```yaml
 engine: claude  # or codex
 ```
-
-**Available engines:**
-- `claude` (default): Claude Code with full MCP tool support and allow-listing (see [MCP Guide](mcps.md))
-- `codex` (**experimental**): Codex with OpenAI endpoints   
 
 ### Extended Object Format
 
@@ -170,7 +178,11 @@ engine:
 **Fields:**
 - **`id`** (required): Engine identifier (`claude`, `codex`)
 - **`version`** (optional): Action version (`beta`, `stable`)
-- **`model`** (optional): Specific LLM model
+- **`model`** (optional): Specific LLM model to use
+
+**Model Defaults:**
+- **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
+- **Codex**: Defaults to `o4-mini` when no model is specified
 
 ## Cost Control Options
 

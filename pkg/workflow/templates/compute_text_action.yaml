@@ -12,6 +12,29 @@ runs:
       with:
         script: |
           let text = '';
+
+          const actor = context.actor;
+          const { owner, repo } = context.repo;
+
+          // Check if the actor has repository access (admin, maintain permissions)
+          try {
+            const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: owner,
+              repo: repo,
+              username: actor
+            });
+            
+            const permission = repoPermission.data.permission;
+            console.log(`Repository permission level: ${permission}`);
+            
+            if (permission !== 'admin' && permission !== 'maintain') {
+              return;
+            }
+          } catch (repoError) {
+            console.log(`Repository permission check failed: ${repoError.message}`);
+            core.setOutput('text', '');
+            return;
+          }
           
           // Determine current body text based on event context
           switch (context.eventName) {

@@ -95,6 +95,91 @@ When a new issue is opened, analyze the issue content and:
 The issue details are: "${{ needs.task.outputs.text }}"
 ```
 
+## Expression Security
+
+For security reasons, agentic workflows restrict which GitHub Actions expressions can be used in **markdown content**. This prevents potential security vulnerabilities from unauthorized access to secrets or environment variables.
+
+> **Note**: These restrictions apply only to expressions in the markdown content portion of workflows. The YAML frontmatter can still use secrets and environment variables as needed for workflow configuration (e.g., `env:` and authentication).
+
+### Allowed Expressions
+
+The following GitHub Actions context expressions are permitted in workflow markdown:
+#### GitHub Context Expressions
+
+- `${{ github.event.after }}` - The SHA of the most recent commit on the ref after the push
+- `${{ github.event.before }}` - The SHA of the most recent commit on the ref before the push
+- `${{ github.event.check_run.id }}` - The ID of the check run that triggered the workflow
+- `${{ github.event.check_suite.id }}` - The ID of the check suite that triggered the workflow
+- `${{ github.event.comment.id }}` - The ID of the comment that triggered the workflow
+- `${{ github.event.deployment.id }}` - The ID of the deployment that triggered the workflow
+- `${{ github.event.deployment_status.id }}` - The ID of the deployment status that triggered the workflow
+- `${{ github.event.head_commit.id }}` - The ID of the head commit for the push event
+- `${{ github.event.installation.id }}` - The ID of the GitHub App installation
+- `${{ github.event.issue.number }}` - The number of the issue that triggered the workflow
+- `${{ github.event.label.id }}` - The ID of the label that triggered the workflow
+- `${{ github.event.milestone.id }}` - The ID of the milestone that triggered the workflow
+- `${{ github.event.organization.id }}` - The ID of the organization that triggered the workflow
+- `${{ github.event.page.id }}` - The ID of the page build that triggered the workflow
+- `${{ github.event.project.id }}` - The ID of the project that triggered the workflow
+- `${{ github.event.project_card.id }}` - The ID of the project card that triggered the workflow
+- `${{ github.event.project_column.id }}` - The ID of the project column that triggered the workflow
+- `${{ github.event.pull_request.number }}` - The number of the pull request that triggered the workflow
+- `${{ github.event.release.assets[0].id }}` - The ID of the first asset in a release
+- `${{ github.event.release.id }}` - The ID of the release that triggered the workflow
+- `${{ github.event.repository.id }}` - The ID of the repository that triggered the workflow
+- `${{ github.event.review.id }}` - The ID of the pull request review that triggered the workflow
+- `${{ github.event.review_comment.id }}` - The ID of the review comment that triggered the workflow
+- `${{ github.event.sender.id }}` - The ID of the user who triggered the workflow
+- `${{ github.event.workflow_run.id }}` - The ID of the workflow run that triggered the current workflow
+- `${{ github.actor }}` - The username of the user who triggered the workflow
+- `${{ github.owner }}` - The owner of the repository (user or organization name)
+- `${{ github.repository }}` - The owner and repository name (e.g., `octocat/Hello-World`)
+- `${{ github.run_id }}` - A unique number for each workflow run within a repository
+- `${{ github.run_number }}` - A unique number for each run of a particular workflow in a repository
+- `${{ github.workflow }}` - The name of the workflow
+
+#### Special Pattern Expressions
+- `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
+- `${{ steps.* }}` - Any outputs from previous steps in the same job
+
+### Prohibited Expressions
+
+All other expressions are dissallowed.
+
+### Security Rationale
+
+This restriction prevents:
+- **Secret leakage**: Prevents accidentally exposing secrets in AI prompts or logs
+- **Environment variable exposure**: Protects sensitive configuration from being accessed
+- **Code injection**: Prevents complex expressions that could execute unintended code
+- **Expression injection**: Prevents malicious expressions from being injected into AI prompts
+- **Prompt hijacking**: Stops unauthorized modification of workflow instructions through expression values
+- **Cross-prompt information attacks (XPIA)**: Blocks attempts to leak information between different workflow executions
+
+### Validation
+
+Expression safety is validated during compilation with `gh aw compile`. If unauthorized expressions are found, you'll see an error like:
+
+```
+error: unauthorized expressions: [secrets.TOKEN, env.MY_VAR]. 
+allowed: [github.repository, github.actor, github.workflow, ...]
+```
+
+### Example Valid Usage
+
+```markdown
+# Valid expressions
+Repository: ${{ github.repository }}
+Triggered by: ${{ github.actor }}  
+Issue number: ${{ github.event.issue.number }}
+Previous output: ${{ needs.task.outputs.text }}
+
+# Invalid expressions (will cause compilation error)
+Token: ${{ secrets.GITHUB_TOKEN }}
+Environment: ${{ env.MY_VAR }}
+Complex: ${{ toJson(github.workflow) }}
+```
+
 ## Generated Files
 
 When you run `gh aw compile`, the system:

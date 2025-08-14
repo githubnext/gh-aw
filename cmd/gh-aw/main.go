@@ -287,6 +287,18 @@ func init() {
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
 
+	// Override the help function to hide completion command
+	originalHelpFunc := rootCmd.HelpFunc()
+	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		// Hide completion command before displaying help
+		for _, subCmd := range cmd.Commands() {
+			if subCmd.Name() == "completion" {
+				subCmd.Hidden = true
+			}
+		}
+		originalHelpFunc(cmd, args)
+	})
+
 	// Add number flag to add command
 	addCmd.Flags().IntP("number", "c", 1, "Create multiple numbered copies")
 

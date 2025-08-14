@@ -119,18 +119,6 @@ tools:
       Bash: ["echo", "ls", "git", "npm test"]
 ```
 
-## Engine Compatibility
-
-### Claude Engine
-- ✅ GitHub tools
-- ✅ Claude-specific tools
-- ✅ Custom MCP tools (see [MCP Guide](mcps.md))
-
-### Codex Engine
-- ✅ GitHub tools
-- ❌ Claude-specific tools (ignored)
-- ✅ Custom MCP tools (stdio only, see [MCP Guide](mcps.md))
-
 
 ## Security Considerations
 
