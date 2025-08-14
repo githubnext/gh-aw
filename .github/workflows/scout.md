@@ -12,6 +12,9 @@ permissions:
   statuses: read
   pull-requests: read
 
+concurrency:
+  group: aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+
 ai-reaction: eyes
 
 tools:
