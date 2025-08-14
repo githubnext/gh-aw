@@ -17,4 +17,4 @@ Complete documentation for creating and managing agentic workflows with GitHub A
 - **[Tools Configuration](tools.md)** - GitHub and other tools setup
 - **[MCPs](mcps.md)** - Model Context Protocol setup and configuration
 - **[Secrets Management](secrets.md)** - Managing secrets and environment variables
-
+- **[Security Best Practices](security.md)** - Hardening agentic workflows and MCP tools
