@@ -38,4 +38,5 @@ var AllowedExpressions = []string{
 	"github.run_number",
 	"github.server_url",
 	"github.workflow",
+	"github.workspace",
 } // needs., steps. already allowed

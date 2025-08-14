@@ -196,6 +196,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.run_number }}`** - Number of the workflow run
 - **`${{ github.server_url }}`** - Base URL of the server, e.g. https://github.com
 - **`${{ github.workflow }}`** - Name of the workflow
+- **`${{ github.workspace }}`** - The default working directory on the runner for steps
 
 #### Special Pattern Expressions
 - **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)

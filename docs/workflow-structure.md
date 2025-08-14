@@ -138,6 +138,7 @@ The following GitHub Actions context expressions are permitted in workflow markd
 - `${{ github.run_number }}` - A unique number for each run of a particular workflow in a repository
 - `${{ github.server_url }}` - Base URL of the server, e.g. https://github.com
 - `${{ github.workflow }}` - The name of the workflow
+- `${{ github.workspace }}` - The default working directory on the runner for steps
 
 #### Special Pattern Expressions
 - `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
