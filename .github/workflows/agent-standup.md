@@ -49,12 +49,11 @@ tools:
    
    - Run `./gh-aw logs --start-date $(date -d '1 day ago' '+%Y-%m-%d')` to collect agentic workflow logs from the last day
    
-3. **Agentic workflow activity from the last day** including:
-       - Number of agentic workflow runs
-       - Success/failure rates
-       - Token usage and costs (if available)
-       - Duration of runs
-       - Any errors or patterns in the logs
+3. Generate a report on **Agentic workflow activity from the last day** including:
+
+      - Overview table (markdown format) with number of runs, cost for each agents    
+      - Any errors or patterns in the logs
+      - Anything interresting your discover
 
    - If little has happened, don't write too much.
 
