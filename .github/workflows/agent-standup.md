@@ -30,13 +30,19 @@ steps:
     run: make build
   - name: Download logs
     env:
-      GH_TOKEN: ${{ secrets.GITHUBT_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       ./gh-aw logs --start-date "$(date -d '24 hours ago' +%Y-%m-%d)" --count 1000 2>&1 | tee awlogs.txt
       echo '## Agentic Workflow Logs (last 24h)' >> $GITHUB_STEP_SUMMARY
       echo '```' >> $GITHUB_STEP_SUMMARY
       cat awlogs.txt >> $GITHUB_STEP_SUMMARY
       echo '```' >> $GITHUB_STEP_SUMMARY
+
+cache: 
+  key: agent-standup-logs-${{ github.run_id }}
+  path: logs/**
+  restore-keys: |
+    agent-standup-logs-
 
 tools:
   github:

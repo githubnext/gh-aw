@@ -17,6 +17,8 @@ concurrency:
 
 run-name: "Agent Standup"
 
+# Cache configuration from frontmatter was processed and added to the main job steps
+
 jobs:
   task:
     runs-on: ubuntu-latest
@@ -53,7 +55,7 @@ jobs:
       - name: Build gh-aw tool
         run: make build
       - env:
-          GH_TOKEN: ${{ secrets.GITHUBT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download logs
         run: |
           ./gh-aw logs --start-date "$(date -d '24 hours ago' +%Y-%m-%d)" --count 1000 2>&1 | tee awlogs.txt
@@ -61,6 +63,13 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat awlogs.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+      # Cache configuration from frontmatter processed below
+      - name: Cache (agent-standup-logs-${{ github.run_id }})
+        uses: actions/cache@v3
+        with:
+          key: agent-standup-logs-${{ github.run_id }}
+          path: logs/**
+          restore-keys: agent-standup-logs-
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
