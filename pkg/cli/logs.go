@@ -59,13 +59,13 @@ type DownloadResult struct {
 // Constants for the iterative algorithm
 const (
 	// MaxIterations limits how many batches we fetch to prevent infinite loops
-	MaxIterations = 50
+	MaxIterations = 20
 	// BatchSize is the number of runs to fetch in each iteration
-	BatchSize = 50
+	BatchSize = 100
 	// BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows
 	// There can be a really large number of workflow runs in a repository, so
 	// we are generous in the batch size when used without qualification.
-	BatchSizeForAllWorkflows = 1000
+	BatchSizeForAllWorkflows = 250
 	// MaxConcurrentDownloads limits the number of parallel artifact downloads
 	MaxConcurrentDownloads = 10
 )
