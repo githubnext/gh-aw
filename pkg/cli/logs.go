@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -46,6 +47,15 @@ type LogMetrics = workflow.LogMetrics
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
 
+// DownloadResult represents the result of downloading artifacts for a single run
+type DownloadResult struct {
+	Run      WorkflowRun
+	Metrics  LogMetrics
+	Error    error
+	Skipped  bool
+	LogsPath string
+}
+
 // Constants for the iterative algorithm
 const (
 	// MaxIterations limits how many batches we fetch to prevent infinite loops
@@ -54,6 +64,8 @@ const (
 	BatchSize = 50
 	// BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows
 	BatchSizeForAllWorkflows = 100
+	// MaxConcurrentDownloads limits the number of parallel artifact downloads
+	MaxConcurrentDownloads = 5
 )
 
 // NewLogsCommand creates the logs command
@@ -185,44 +197,33 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		// Process each run in this batch
 		batchProcessed := 0
-		for _, run := range runs {
+		downloadResults := downloadRunArtifactsParallel(runs, outputDir, verbose, count-len(processedRuns))
+
+		for _, result := range downloadResults {
 			// Stop if we've reached our target count
 			if len(processedRuns) >= count {
 				break
 			}
 
-			if verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", run.DatabaseID, run.Status)))
-			}
-
-			// Download artifacts and logs for this run
-			runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
-			if err := downloadRunArtifacts(run.DatabaseID, runOutputDir, verbose); err != nil {
-				// Check if this is a "no artifacts" case - skip silently for cancelled/failed runs
-				if errors.Is(err, ErrNoArtifacts) {
-					if verbose {
-						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", run.DatabaseID, err)))
+			if result.Skipped {
+				if verbose {
+					if result.Error != nil {
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
 					}
-					continue
 				}
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", run.DatabaseID, err)))
 				continue
 			}
 
-			// Extract metrics from logs
-			metrics, err := extractLogMetrics(runOutputDir, verbose)
-			if err != nil {
-				if verbose {
-					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", run.DatabaseID, err)))
-				}
+			if result.Error != nil {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
+				continue
 			}
 
 			// Update run with metrics and path
-			// Note: Duration is calculated from GitHub API timestamps (StartedAt/UpdatedAt),
-			// not parsed from log files for accuracy and consistency
-			run.TokenUsage = metrics.TokenUsage
-			run.EstimatedCost = metrics.EstimatedCost
-			run.LogsPath = runOutputDir
+			run := result.Run
+			run.TokenUsage = result.Metrics.TokenUsage
+			run.EstimatedCost = result.Metrics.EstimatedCost
+			run.LogsPath = result.LogsPath
 
 			// Always use GitHub API timestamps for duration calculation
 			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
@@ -269,6 +270,104 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	absOutputDir, _ := filepath.Abs(outputDir)
 	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", len(processedRuns), absOutputDir)))
 	return nil
+}
+
+// downloadRunArtifactsParallel downloads artifacts for multiple workflow runs in parallel
+func downloadRunArtifactsParallel(runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
+	if len(runs) == 0 {
+		return []DownloadResult{}
+	}
+
+	// Limit the number of runs to process if maxRuns is specified
+	actualRuns := runs
+	if maxRuns > 0 && len(runs) > maxRuns {
+		actualRuns = runs[:maxRuns]
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", len(actualRuns))))
+	}
+
+	// Create a buffered channel to limit concurrent downloads
+	semaphore := make(chan struct{}, MaxConcurrentDownloads)
+
+	// Channel to collect results
+	resultsChan := make(chan DownloadResult, len(actualRuns))
+
+	// WaitGroup to wait for all goroutines to complete
+	var wg sync.WaitGroup
+
+	// Start a goroutine for each run
+	for _, run := range actualRuns {
+		wg.Add(1)
+		go func(r WorkflowRun) {
+			defer wg.Done()
+
+			// Acquire semaphore to limit concurrency
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			if verbose {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", r.DatabaseID, r.Status)))
+			}
+
+			// Download artifacts and logs for this run
+			runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", r.DatabaseID))
+			err := downloadRunArtifacts(r.DatabaseID, runOutputDir, verbose)
+
+			result := DownloadResult{
+				Run:      r,
+				LogsPath: runOutputDir,
+			}
+
+			if err != nil {
+				// Check if this is a "no artifacts" case - mark as skipped for cancelled/failed runs
+				if errors.Is(err, ErrNoArtifacts) {
+					result.Skipped = true
+					result.Error = err
+				} else {
+					result.Error = err
+				}
+			} else {
+				// Extract metrics from logs
+				metrics, metricsErr := extractLogMetrics(runOutputDir, verbose)
+				if metricsErr != nil {
+					if verbose {
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", r.DatabaseID, metricsErr)))
+					}
+					// Don't fail the whole download for metrics errors
+					metrics = LogMetrics{}
+				}
+				result.Metrics = metrics
+			}
+
+			resultsChan <- result
+		}(run)
+	}
+
+	// Close the results channel when all goroutines are done
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	// Collect all results
+	var results []DownloadResult
+	for result := range resultsChan {
+		results = append(results, result)
+	}
+
+	if verbose {
+		successCount := 0
+		for _, result := range results {
+			if result.Error == nil && !result.Skipped {
+				successCount++
+			}
+		}
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Completed parallel processing: %d successful, %d total", successCount, len(results))))
+	}
+
+	return results
 }
 
 // listWorkflowRunsWithPagination fetches workflow runs from GitHub with pagination support
