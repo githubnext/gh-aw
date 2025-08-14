@@ -190,6 +190,9 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.event.review_comment.id }}`** - ID of the review comment
 - **`${{ github.event.sender.id }}`** - ID of the user who triggered the event
 - **`${{ github.event.workflow_run.id }}`** - ID of the workflow run
+- **`${{ github.event.workflow_run.conclusion }}`** - Conclusion of the workflow run
+- **`${{ github.event.workflow_run.html_url }}`** - URL of the workflow run
+- **`${{ github.event.workflow_run.head_sha }}`** - Head SHA of the workflow run
 - **`${{ github.actor }}`** - Username of the person who initiated the workflow
 - **`${{ github.job }}`** - Job ID of the current workflow run
 - **`${{ github.owner }}`** - Owner of the repository
@@ -221,6 +224,8 @@ The issue was created by ${{ github.actor }} with title: "${{ github.event.issue
 Using output from previous task: "${{ needs.task.outputs.text }}"
 
 Deploy to environment: "${{ github.event.inputs.environment }}"
+
+Previous workflow conclusion: "${{ github.event.workflow_run.conclusion }}"
 
 # Invalid expressions (will cause compilation errors)
 # Token: ${{ secrets.GITHUB_TOKEN }}
