@@ -29,6 +29,8 @@ steps:
   - name: Build gh-aw tool
     run: make build
   - name: Download logs
+    env:
+      GH_TOKEN: ${{ secrets.GITHUBT_TOKEN }}
     run: |
       ./gh-aw logs --start-date "$(date -d '24 hours ago' +%Y-%m-%d)" --count 1000 2>&1 | tee awlogs.txt
       echo '## Agentic Workflow Logs (last 24h)' >> $GITHUB_STEP_SUMMARY
