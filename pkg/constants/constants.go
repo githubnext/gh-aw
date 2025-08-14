@@ -26,6 +26,7 @@ var AllowedExpressions = []string{
 	"github.event.pull_request.number",
 	"github.event.release.assets[0].id",
 	"github.event.release.id",
+	"github.event.release.tag_name",
 	"github.event.repository.id",
 	"github.event.review.id",
 	"github.event.review_comment.id",

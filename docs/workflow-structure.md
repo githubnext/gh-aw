@@ -126,6 +126,7 @@ The following GitHub Actions context expressions are permitted in workflow markd
 - `${{ github.event.pull_request.number }}` - The number of the pull request that triggered the workflow
 - `${{ github.event.release.assets[0].id }}` - The ID of the first asset in a release
 - `${{ github.event.release.id }}` - The ID of the release that triggered the workflow
+- `${{ github.event.release.tag_name }}` - The tag name of the release that triggered the workflow
 - `${{ github.event.repository.id }}` - The ID of the repository that triggered the workflow
 - `${{ github.event.review.id }}` - The ID of the pull request review that triggered the workflow
 - `${{ github.event.review_comment.id }}` - The ID of the review comment that triggered the workflow

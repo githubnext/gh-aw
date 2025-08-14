@@ -184,6 +184,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.event.pull_request.number }}`** - Pull request number
 - **`${{ github.event.release.assets[0].id }}`** - ID of the first release asset
 - **`${{ github.event.release.id }}`** - ID of the release
+- **`${{ github.event.release.tag_name }}`** - Tag name of the release
 - **`${{ github.event.repository.id }}`** - ID of the repository
 - **`${{ github.event.review.id }}`** - ID of the review
 - **`${{ github.event.review_comment.id }}`** - ID of the review comment
