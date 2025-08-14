@@ -18,10 +18,16 @@ Now, add a weekly research report to your repo (this adds [this sample](https://
 ```bash
 gh aw add weekly-research -r githubnext/agentics --pr
 ```
+This command will create a PR to your repo adding several files including `.github/workflows/weekly-research.md` and `.github/workflows/weekly-research.lock.yml`:
 
-This command will create a PR to your repo adding several files including `.github/workflows/weekly-research.md` and `.github/workflows/weekly-research.lock.yml`.
+```
+.github/
+└── workflows/
+  ├── weekly-research.md # Markdown workflow definition
+  └── weekly-research.lock.yml # Compiled GitHub Actions workflow
+```
 
-Your repository will also need an ANTHROPIC_API_KEY (for Claude) or OPENAI_API_KEY (for Codex) Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
+Your repository will also need an `ANTHROPIC_API_KEY` (for Anthropic Claude) or `OPENAI_API_KEY` (for OpenAI Codex) Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
 
 ```bash
 # For Claude engine (default)
