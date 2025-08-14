@@ -1,6 +1,9 @@
-# Security Best Practices
+# Security Notes
 
-This guide provides security recommendations for Agentic Workflows (AW). The fundamental principle: treat all user-supplied inputs as untrusted, enforcing guardrails through code and configuration rather than prompts alone.
+> [!CAUTION]
+> GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
+
+This material documents some thinking of the security implications of using partially-automated agentic workflows. It's not a security guide, but rather a set of working notes.
 
 ## Before You Begin
 
@@ -17,12 +20,26 @@ Understanding the security risks in agentic workflows helps inform protective me
 
 ### Primary Threats
 
-- **Prompt injection and malicious inputs**: Attackers can craft inputs that poison an agent. Agentic workflows often pull data from many sources, including GitHub Issues, PRs, comments, code, and external APIs, so any of those inputs could carry a hidden trigger for AI.
-- **Automated execution without review**: Unlike IDEs, agentic workflows may execute code and call tools automatically. If not tightly controlled, an attacker might make the agent fetch and run malicious code.
-- **Tool exposure**: Unconstrained MCP tools (filesystem, network) can enable data exfiltration or privilege escalation
+- **Malicious inputs**: Attackers can craft inputs that poison an agent. Agentic workflows often pull data from many sources, including GitHub Issues, PRs, comments and code. If considered untrusted, e.g. in an open source setting, any of those inputs could carry a hidden payload for AI. Agentic workflows are designed to minimize the risk of malicious inputs by restricting the expressions that can be used in workflow markdown content. This means inputs such as GitHub Issues and Pull Requests must be accessed via the GitHub MCP, however the returned data can, in principle, be used to manipulate the AI's behavior if not properly assessed and sanitized.
+- **Command execution**: Agentic workflows are, by default, configured not to allow the execution of arbitrary shell commands. However, they may optionally be manually configured to allow specific commands, and if so they will not ask for confirmation before executing these specific commands. This execution is performed in the partially-sandboxed environment of GitHub Actions. If not tightly controlled, an attacker might use this capability to make the agent fetch and run malicious code to exfiltrate data or perform unauthorized execution within this environment.
+- **Tool exposure**: By default, Agentic Workflows are configured to have no access to MCPs except the GitHub MCP in read-only mode. However unconstrained use of 3rd-party MCP tools can enable data exfiltration or privilege escalation.
 - **Supply chain attacks**: Unpinned Actions, npm packages and container images are vulnerable to tampering
 
 ### Core Security Principles
+
+The fundamental principle of security for Agentic Workflows is that they are GitHub Actions workflows and should be reviewed with the same rigour and rules that are applied to all GitHub Actions. 
+
+This means they inherit the security model of GitHub Actions, which includes:
+- **Isolated copy of the repository** - each workflow runs in a separate copy of the repository, so it cannot access other repositories or workflows
+- **Read-only defaults** for forked PRs
+- **Restricted secret access** - secrets are not available in forked PRs by default
+- **Explicit permissions** - all permissions default to `none` unless explicitly set
+- **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
+- **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
+
+In addition, the compilation step of Agentic Workflows enforces additional security measures: 
+- **Expression restrictions** - only a limited set of expressions are allowed in the workflow frontmatter, preventing arbitrary code execution
+- **Tool allowlisting** - only explicitly allowed tools can be used in the workflow
 
 Apply these principles consistently across all workflow components:
 

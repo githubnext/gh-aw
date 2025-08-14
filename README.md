@@ -149,7 +149,10 @@ This will override the `engine` setting in the frontmatter of the markdown file.
 
 ## Security and untrusted inputs
 
-Security is a key consideration when using agentic workflows. Please see the [Security Best Practices](docs/security.md) for guidelines on how to secure your workflows and handle untrusted inputs.
+Security is a key consideration when using agentic workflows. Please see the [Security](docs/security.md) for guidelines related to securing your workflows and handling untrusted inputs.
+
+> [!CAUTION]
+> GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
 
 ## 🔗 Related Projects
 
