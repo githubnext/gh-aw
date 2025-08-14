@@ -28,6 +28,7 @@ func validateExpressionSafety(markdownContent string) error {
 	// Use non-greedy matching with .*? to handle nested braces properly
 	expressionRegex := regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
 	needsStepsRegex := regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
+	inputsRegex := regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
 
 	// Find all expressions in the markdown content
 	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
@@ -53,6 +54,9 @@ func validateExpressionSafety(markdownContent string) error {
 
 		// Check if this expression starts with "needs." or "steps." and is a simple property access
 		if needsStepsRegex.MatchString(expression) {
+			allowed = true
+		} else if inputsRegex.MatchString(expression) {
+			// Check if this expression matches github.event.inputs.* pattern
 			allowed = true
 		} else {
 			for _, allowedExpr := range constants.AllowedExpressions {
