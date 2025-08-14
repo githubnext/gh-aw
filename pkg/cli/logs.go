@@ -199,7 +199,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		// Process each run in this batch
 		batchProcessed := 0
-		downloadResults := downloadRunArtifactsParallel(runs, outputDir, verbose, count-len(processedRuns))
+		downloadResults := downloadRunArtifactsConcurrent(runs, outputDir, verbose, count-len(processedRuns))
 
 		for _, result := range downloadResults {
 			// Stop if we've reached our target count
@@ -274,8 +274,8 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	return nil
 }
 
-// downloadRunArtifactsParallel downloads artifacts for multiple workflow runs in parallel
-func doadRunArtifactsParallel(runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
+// downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
+func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
 	if len(runs) == 0 {
 		return []DownloadResult{}
 	}

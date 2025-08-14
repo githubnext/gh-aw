@@ -9,7 +9,7 @@ import (
 
 func TestDownloadRunArtifactsParallel(t *testing.T) {
 	// Test with empty runs slice
-	results := downloadRunArtifactsParallel([]WorkflowRun{}, "./test-logs", false, 5)
+	results := downloadRunArtifactsConcurrent([]WorkflowRun{}, "./test-logs", false, 5)
 	if len(results) != 0 {
 		t.Errorf("Expected 0 results for empty runs, got %d", len(results))
 	}
@@ -40,7 +40,7 @@ func TestDownloadRunArtifactsParallel(t *testing.T) {
 
 	// This will fail since we don't have real GitHub CLI access,
 	// but we can verify the structure and that no panics occur
-	results = downloadRunArtifactsParallel(runs, "./test-logs", false, 5)
+	results = downloadRunArtifactsConcurrent(runs, "./test-logs", false, 5)
 
 	// We expect 2 results even if they fail
 	if len(results) != 2 {
@@ -78,7 +78,7 @@ func TestDownloadRunArtifactsParallelMaxRuns(t *testing.T) {
 	}
 
 	// Limit to 3 runs
-	results := downloadRunArtifactsParallel(runs, "./test-logs", false, 3)
+	results := downloadRunArtifactsConcurrent(runs, "./test-logs", false, 3)
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results when maxRuns=3, got %d", len(results))
