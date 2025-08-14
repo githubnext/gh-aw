@@ -1,9 +1,10 @@
 ---
 on:
-  schedule:
-    # Every day at 9am UTC
-    - cron: "0 9 * * *"
+  schedule:    
+    - cron: "0 9 * * *" # Every day at 9am UTC
   workflow_dispatch:
+  push:
+    path: .github/workflows/agent-standup.lock.yml
 
 timeout_minutes: 15
 permissions:
@@ -15,22 +16,25 @@ permissions:
   actions: read
   checks: read
   statuses: read
-
 steps:
   - name: Checkout code
     uses: actions/checkout@v4
-  
   - name: Set up Go
     uses: actions/setup-go@v5
     with:
       go-version-file: go.mod
       cache: true
-  
   - name: Install dependencies
-    run: make deps
-  
+    run: make deps  
   - name: Build gh-aw tool
     run: make build
+  - name: Download logs
+    run: |
+      ./gh-aw logs --start-date "$(date -d '24 hours ago' +%Y-%m-%d)" --count 1000 2>&1 | tee awlogs.txt
+      echo '## Agentic Workflow Logs (last 24h)' >> $GITHUB_STEP_SUMMARY
+      echo '```' >> $GITHUB_STEP_SUMMARY
+      cat awlogs.txt >> $GITHUB_STEP_SUMMARY
+      echo '```' >> $GITHUB_STEP_SUMMARY
 
 tools:
   github:
@@ -47,7 +51,10 @@ tools:
 
 2. Collect agentic workflow activity from the last day:
    
-   - Run `./gh-aw logs --start-date $(date -d '1 day ago' '+%Y-%m-%d')` to collect agentic workflow logs from the last day
+   - the file `awlogs.txt` contains a summary of the daily agentic runs
+   - the logs folder contains pre-downloaded artifacts for each run (`logs/run-<runid>`)
+
+Use the information in `awlogs.txt`, the `logs` folder and the GitHub APIs to collect information.
    
 3. Generate a report on **Agentic workflow activity from the last day** including:
 
