@@ -164,25 +164,37 @@ on:
 Use GitHub Actions context expressions throughout the workflow content. **Note: For security reasons, only specific expressions are allowed.**
 
 ### Allowed Context Variables
-
-#### GitHub Event Context
+- **`${{ github.event.after }}`** - SHA of the most recent commit after the push
+- **`${{ github.event.before }}`** - SHA of the most recent commit before the push
+- **`${{ github.event.check_run.id }}`** - ID of the check run
+- **`${{ github.event.check_suite.id }}`** - ID of the check suite
+- **`${{ github.event.comment.id }}`** - ID of the comment
+- **`${{ github.event.deployment.id }}`** - ID of the deployment
+- **`${{ github.event.deployment_status.id }}`** - ID of the deployment status
+- **`${{ github.event.head_commit.id }}`** - ID of the head commit
+- **`${{ github.event.installation.id }}`** - ID of the GitHub App installation
 - **`${{ github.event.issue.number }}`** - Issue number
-- **`${{ github.event.issue.title }}`** - Issue title
-- **`${{ github.event.issue.body }}`** - Issue body content
-- **`${{ github.event.comment.id }}`** - Comment content
+- **`${{ github.event.label.id }}`** - ID of the label
+- **`${{ github.event.milestone.id }}`** - ID of the milestone
+- **`${{ github.event.organization.id }}`** - ID of the organization
+- **`${{ github.event.page.id }}`** - ID of the GitHub Pages page
+- **`${{ github.event.project.id }}`** - ID of the project
+- **`${{ github.event.project_card.id }}`** - ID of the project card
+- **`${{ github.event.project_column.id }}`** - ID of the project column
 - **`${{ github.event.pull_request.number }}`** - Pull request number
-- **`${{ github.event.after }}`** - After commit SHA
-- **`${{ github.event.before }}`** - Before commit SHA
-
-#### GitHub Repository Context
-- **`${{ github.repository }}`** - Repository name (owner/repo)
-- **`${{ github.actor }}`** - User who triggered the workflow
-- **`${{ github.owner }}`** - Repository owner
-- **`${{ github.run_id }}`** - Workflow run ID
-- **`${{ github.run_number }}`** - Workflow run number
-- **`${{ github.workflow }}`** - Workflow name
-- **`${{ github.ref }}`** - Git reference
-- **`${{ github.sha }}`** - Commit SHA
+- **`${{ github.event.release.assets[0].id }}`** - ID of the first release asset
+- **`${{ github.event.release.id }}`** - ID of the release
+- **`${{ github.event.repository.id }}`** - ID of the repository
+- **`${{ github.event.review.id }}`** - ID of the review
+- **`${{ github.event.review_comment.id }}`** - ID of the review comment
+- **`${{ github.event.sender.id }}`** - ID of the user who triggered the event
+- **`${{ github.event.workflow_run.id }}`** - ID of the workflow run
+- **`${{ github.actor }}`** - Username of the person who initiated the workflow
+- **`${{ github.owner }}`** - Owner of the repository
+- **`${{ github.repository }}`** - Repository name in "owner/name" format
+- **`${{ github.run_id }}`** - Unique ID of the workflow run
+- **`${{ github.run_number }}`** - Number of the workflow run
+- **`${{ github.workflow }}`** - Name of the workflow
 
 #### Special Pattern Expressions
 - **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
