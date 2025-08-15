@@ -18,6 +18,8 @@ concurrency:
 
 run-name: "Action Workflow Assessor"
 
+# Cache configuration from frontmatter was processed and added to the main job steps
+
 jobs:
   task:
     runs-on: ubuntu-latest
@@ -35,11 +37,17 @@ jobs:
     permissions:
         actions: read
         contents: read
-        models: read
         pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      # Cache configuration from frontmatter processed below
+      - name: Cache (aw-reviews-${{ github.run_id }})
+        uses: actions/cache@v3
+        with:
+          key: aw-reviews-${{ github.run_id }}
+          path: logs/**
+          restore-keys: aw-reviews-
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
@@ -78,13 +86,18 @@ jobs:
              - Get the list of changed files using `get_pull_request_files`
              - Focus on any `.github/workflows/*.md` files that were added or modified
           
-          2. **Review Each Modified Workflow File**
+          2. Find out which workflow was changed
+          
+            - Use `git` to extract the list of agentic workflow files (.github/workflow/*.md) that were modified.
+            - Ignore unmodified workflow files!
+            
+          3. **Review Each Modified Workflow File**
              For each workflow file that was changed:
              - Get the file contents using `get_file_contents`
              - Parse the frontmatter configuration (permissions, tools, triggers, etc.)
              - Analyze the workflow description and logic
           
-          3. **Security Analysis**
+          4. **Security Analysis**
              Evaluate each workflow for potential security issues:
              
              **Permissions Assessment:**
@@ -104,7 +117,7 @@ jobs:
              - Check for triggers that could be exploited by external actors
              - Validate that sensitive operations aren't triggered by external events
           
-          4. **Responsible AI Assessment**
+          5. **Responsible AI Assessment**
              Evaluate for responsible AI concerns:
              
              **AI Configuration:**
@@ -127,7 +140,7 @@ jobs:
              - Check if workflow decisions can be explained and reviewed
              - Verify appropriate documentation and reasoning
           
-          5. **Generate Assessment Report**
+          6. **Generate Assessment Report**
              Create a comprehensive comment on the pull request with:
              
              **Summary Section:**
@@ -173,6 +186,11 @@ jobs:
           - Clear documentation and reasoning
           - Safety checks and validations in place
           - Appropriate level of human oversight
+          
+          ## Result caching
+          
+          Write useful results in the aw-reviews/ folder so that future agentic runs can learn from the cache.
+          - use flat markdown files for the cache file format
           
           ## Output Format
           
@@ -365,7 +383,7 @@ jobs:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           mcp_config: /tmp/mcp-config/mcp-servers.json
           prompt_file: /tmp/aw-prompts/prompt.txt
-          timeout_minutes: 10
+          timeout_minutes: 5
       - name: Capture Agentic Action logs
         if: always()
         run: |

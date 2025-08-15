@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  models: read
   pull-requests: write
   actions: read
 
@@ -22,7 +21,13 @@ tools:
       - "gh pr view:*"
       - "gh pr diff:*"
 
-timeout_minutes: 10
+cache: 
+  key: aw-reviews-${{ github.run_id }}
+  path: logs/**
+  restore-keys: |
+    aw-reviews-
+
+timeout_minutes: 5
 ---
 
 # Action Workflow Assessor
@@ -36,13 +41,18 @@ You are a security and responsible AI assessor for GitHub Agentic Workflows. You
    - Get the list of changed files using `get_pull_request_files`
    - Focus on any `.github/workflows/*.md` files that were added or modified
 
-2. **Review Each Modified Workflow File**
+2. Find out which workflow was changed
+
+  - Use `git` to extract the list of agentic workflow files (.github/workflow/*.md) that were modified.
+  - Ignore unmodified workflow files!
+  
+3. **Review Each Modified Workflow File**
    For each workflow file that was changed:
    - Get the file contents using `get_file_contents`
    - Parse the frontmatter configuration (permissions, tools, triggers, etc.)
    - Analyze the workflow description and logic
 
-3. **Security Analysis**
+4. **Security Analysis**
    Evaluate each workflow for potential security issues:
    
    **Permissions Assessment:**
@@ -62,7 +72,7 @@ You are a security and responsible AI assessor for GitHub Agentic Workflows. You
    - Check for triggers that could be exploited by external actors
    - Validate that sensitive operations aren't triggered by external events
 
-4. **Responsible AI Assessment**
+5. **Responsible AI Assessment**
    Evaluate for responsible AI concerns:
    
    **AI Configuration:**
@@ -85,7 +95,7 @@ You are a security and responsible AI assessor for GitHub Agentic Workflows. You
    - Check if workflow decisions can be explained and reviewed
    - Verify appropriate documentation and reasoning
 
-5. **Generate Assessment Report**
+6. **Generate Assessment Report**
    Create a comprehensive comment on the pull request with:
    
    **Summary Section:**
@@ -131,6 +141,11 @@ You are a security and responsible AI assessor for GitHub Agentic Workflows. You
 - Clear documentation and reasoning
 - Safety checks and validations in place
 - Appropriate level of human oversight
+
+## Result caching
+
+Write useful results in the aw-reviews/ folder so that future agentic runs can learn from the cache.
+- use flat markdown files for the cache file format
 
 ## Output Format
 
