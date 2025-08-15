@@ -1,6 +1,6 @@
 # Visual Studio Code Integration
 
-The `gh aw` cli provides a few tool to improve your developer experience in Visual Studio Code (or other IDEs).
+The `gh aw` cli provides a few tools to improve your developer experience in Visual Studio Code (or other IDEs).
 
 ## Copilot instructions <a id="copilot-instructions"></a>
 
