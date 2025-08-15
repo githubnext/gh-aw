@@ -4545,3 +4545,209 @@ This workflow tests post-steps without pre-steps.
 		t.Error("Post-step should appear after AI execution step")
 	}
 }
+
+func TestDefaultPermissions(t *testing.T) {
+	// Test that workflows without permissions in frontmatter get default permissions applied
+	tmpDir, err := os.MkdirTemp("", "default-permissions-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow WITHOUT permissions specified in frontmatter
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---
+
+# Test Workflow
+
+This workflow should get default permissions applied automatically.
+`
+
+	testFile := filepath.Join(tmpDir, "test-default-permissions.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	lockFile := filepath.Join(tmpDir, "test-default-permissions.lock.yml")
+	err = compiler.CompileWorkflow(testFile, lockFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that default permissions are present in the generated workflow
+	expectedDefaultPermissions := []string{
+		"contents: read",
+		"issues: read", 
+		"pull-requests: read",
+		"discussions: read",
+		"deployments: read",
+		"models: read",
+	}
+
+	for _, expectedPerm := range expectedDefaultPermissions {
+		if !strings.Contains(lockContentStr, expectedPerm) {
+			t.Errorf("Expected default permission '%s' not found in generated workflow.\nGenerated content:\n%s", expectedPerm, lockContentStr)
+		}
+	}
+
+	// Verify that permissions section exists
+	if !strings.Contains(lockContentStr, "permissions:") {
+		t.Error("Expected 'permissions:' section not found in generated workflow")
+	}
+
+	// Parse the generated YAML to verify structure
+	var workflow map[string]interface{}
+	if err := yaml.Unmarshal(lockContent, &workflow); err != nil {
+		t.Fatalf("Failed to parse generated YAML: %v", err)
+	}
+
+	// Verify permissions section exists in parsed YAML
+	permissions, exists := workflow["permissions"]
+	if !exists {
+		t.Fatal("Permissions section not found in parsed workflow")
+	}
+
+	// Verify permissions is a map
+	permissionsMap, ok := permissions.(map[string]interface{})
+	if !ok {
+		t.Fatal("Permissions section is not a map")
+	}
+
+	// Verify each expected default permission exists and has correct value
+	expectedPermissionsMap := map[string]string{
+		"contents":       "read",
+		"issues":         "read",
+		"pull-requests":  "read", 
+		"discussions":    "read",
+		"deployments":    "read",
+		"models":         "read",
+	}
+
+	for key, expectedValue := range expectedPermissionsMap {
+		actualValue, exists := permissionsMap[key]
+		if !exists {
+			t.Errorf("Expected permission '%s' not found in permissions map", key)
+			continue
+		}
+		if actualValue != expectedValue {
+			t.Errorf("Expected permission '%s' to have value '%s', but got '%v'", key, expectedValue, actualValue)
+		}
+	}
+}
+
+func TestCustomPermissionsOverrideDefaults(t *testing.T) {
+	// Test that custom permissions in frontmatter override default permissions
+	tmpDir, err := os.MkdirTemp("", "custom-permissions-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow WITH custom permissions specified in frontmatter
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+tools:
+  github:
+    allowed: [list_issues, create_issue]
+engine: claude
+---
+
+# Test Workflow
+
+This workflow has custom permissions that should override defaults.
+`
+
+	testFile := filepath.Join(tmpDir, "test-custom-permissions.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	lockFile := filepath.Join(tmpDir, "test-custom-permissions.lock.yml")
+	err = compiler.CompileWorkflow(testFile, lockFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	// Parse the generated YAML to verify structure
+	var workflow map[string]interface{}
+	if err := yaml.Unmarshal(lockContent, &workflow); err != nil {
+		t.Fatalf("Failed to parse generated YAML: %v", err)
+	}
+
+	// Verify permissions section exists in parsed YAML
+	permissions, exists := workflow["permissions"]
+	if !exists {
+		t.Fatal("Permissions section not found in parsed workflow")
+	}
+
+	// Verify permissions is a map
+	permissionsMap, ok := permissions.(map[string]interface{})
+	if !ok {
+		t.Fatal("Permissions section is not a map")
+	}
+
+	// Verify custom permissions are applied
+	expectedCustomPermissions := map[string]string{
+		"contents": "write",
+		"issues":   "write",
+	}
+
+	for key, expectedValue := range expectedCustomPermissions {
+		actualValue, exists := permissionsMap[key]
+		if !exists {
+			t.Errorf("Expected custom permission '%s' not found in permissions map", key)
+			continue
+		}
+		if actualValue != expectedValue {
+			t.Errorf("Expected permission '%s' to have value '%s', but got '%v'", key, expectedValue, actualValue)
+		}
+	}
+
+	// Verify that default permissions that are not overridden are NOT present
+	// since custom permissions completely replace defaults
+	lockContentStr := string(lockContent)
+	defaultOnlyPermissions := []string{
+		"pull-requests: read",
+		"discussions: read", 
+		"deployments: read",
+		"models: read",
+	}
+
+	for _, defaultPerm := range defaultOnlyPermissions {
+		if strings.Contains(lockContentStr, defaultPerm) {
+			t.Errorf("Default permission '%s' should not be present when custom permissions are specified.\nGenerated content:\n%s", defaultPerm, lockContentStr)
+		}
+	}
+}

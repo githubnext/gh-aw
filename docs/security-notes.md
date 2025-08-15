@@ -49,7 +49,7 @@ In addition, the compilation step of Agentic Workflows enforces additional secur
 - **Tool allowlisting** - only explicitly allowed tools can be used in the workflow
 - **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
 - **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
-- **Limit workflow longevity** - workflows can be configured to stop running after a certain time period, preventing long-running or runaway workflows
+- **Limit workflow longevity** - workflows can be configured to stop triggering after a certain time period
 - **Limit chat iterations** - workflows can be configured to limit the number of chat iterations per run, preventing runaway loops and excessive resource consumption
 
 Apply these principles consistently across all workflow components:
