@@ -165,6 +165,9 @@ For patch releases (bug fixes), you can use the automated make target:
 
 ```bash
 # Automated patch release - finds current version and increments patch number
+make patch-release
+
+# Automated patch release - finds current version and increments minor number
 make minor-release
 ```
 
