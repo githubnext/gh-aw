@@ -64,45 +64,6 @@ jobs:
             }
           }
           EOF
-      - name: Safety checks
-        run: |
-          set -e
-          echo "Performing safety checks before executing agentic tools..."
-          WORKFLOW_NAME="Daily QA"
-          
-          # Check max-runs limit
-          MAX_RUNS=1
-          echo "Checking max-runs limit: $MAX_RUNS"
-          
-          # Count successful runs with workflow-complete.txt artifact
-          echo "Counting successful workflow runs with workflow-complete.txt artifact..."
-          SUCCESSFUL_RUNS=0
-          
-          # Get completed workflow runs
-          COMPLETED_RUNS=$(gh run list --workflow "$WORKFLOW_NAME" --status completed --json databaseId -L 1000 --jq '.[].databaseId')
-          
-          # Check each completed run for workflow-complete.txt artifact
-          for run_id in $COMPLETED_RUNS; do
-            echo "Checking run $run_id for workflow-complete.txt artifact..."
-            if gh run view $run_id --json artifacts --jq '.artifacts[].name' | grep -q '^workflow-complete.txt$'; then
-              SUCCESSFUL_RUNS=$((SUCCESSFUL_RUNS + 1))
-              echo "  ✓ Run $run_id has workflow-complete.txt artifact"
-            else
-              echo "  ✗ Run $run_id does not have workflow-complete.txt artifact"
-            fi
-          done
-          
-          echo "Successful runs count: $SUCCESSFUL_RUNS"
-          
-          if [ "$SUCCESSFUL_RUNS" -ge "$MAX_RUNS" ]; then
-            echo "Maximum successful runs limit ($MAX_RUNS) reached. Disabling workflow to prevent cost overrun."
-            gh workflow disable "$WORKFLOW_NAME"
-            echo "Workflow disabled. Current run will continue but no future runs will be triggered."
-            exit 1
-          fi
-          echo "All safety checks passed. Proceeding with agentic tool execution."
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create prompt
         run: |
           mkdir -p /tmp/aw-prompts

@@ -6,8 +6,6 @@ on:
 
 timeout_minutes: 15
 
-max-runs: 1
-
 permissions:
   issues: write  # needed to create issues for problems found
   contents: read
