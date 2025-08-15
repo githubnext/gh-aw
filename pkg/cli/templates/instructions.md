@@ -74,7 +74,6 @@ The YAML frontmatter supports these fields:
   - `claude:` - Claude-specific tools  
   - Custom tool names for MCP servers
   
-- **`max-runs:`** - Maximum workflow runs before auto-disable (integer)
 - **`stop-time:`** - Deadline timestamp for workflow (string: "YYYY-MM-DD HH:MM:SS")
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
@@ -444,8 +443,7 @@ Agentic workflows compile to GitHub Actions YAML:
 4. **Use @include directives** for common patterns and security boilerplate
 5. **Test with `gh aw compile`** before committing
 6. **Review generated `.lock.yml`** files before deploying
-7. **Set `max-runs`** for cost-sensitive workflows
-8. **Use specific tool permissions** rather than broad access
+7. **Use specific tool permissions** rather than broad access
 
 ## Validation
 
