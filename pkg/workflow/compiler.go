@@ -640,6 +640,20 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 	workflowData.StopTime = c.extractYAMLValue(result.Frontmatter, "stop-time")
+	
+	// Resolve relative stop-time to absolute time if needed
+	if workflowData.StopTime != "" {
+		resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now())
+		if err != nil {
+			return nil, fmt.Errorf("invalid stop-time format: %w", err)
+		}
+		workflowData.StopTime = resolvedStopTime
+		
+		if c.verbose && isRelativeStopTime(c.extractYAMLValue(result.Frontmatter, "stop-time")) {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-time to: %s", resolvedStopTime)))
+		}
+	}
+	
 	workflowData.Alias = c.extractAliasName(result.Frontmatter)
 	workflowData.AIReaction = c.extractYAMLValue(result.Frontmatter, "ai-reaction")
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)

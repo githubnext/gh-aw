@@ -373,7 +373,7 @@
     },
     "stop-time": {
       "type": "string",
-      "description": "Time when workflow should stop running"
+      "description": "Time when workflow should stop running. Can be absolute date (YYYY-MM-DD HH:MM:SS) or relative time delta (+25h, +3d, +1d12h30m)"
     },
     "alias": {
       "type": "string",

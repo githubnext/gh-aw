@@ -18,9 +18,10 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 
 **Agentic-Specific Properties:**
-- `engine`: AI executor to use (`claude`, `codex`, etc.)
-- `tools`: Tools configuration (GitHub tools, Engine-specific tools, MCP servers etc.)
-- `stop-time`: Deadline timestamp when workflow should stop running
+- `engine`: AI engine configuration (claude/codex)
+- `tools`: Available tools and MCP servers for the AI engine  
+- `stop-time`: Deadline when workflow should stop running (absolute or relative time)
+- `alias`: Alias name for the workflow
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
 
@@ -187,16 +188,30 @@ engine:
 
 ### Stop Time (`stop-time:`)
 
-Automatically disable workflow after a deadline:
+Automatically disable workflow after a deadline. Supports both absolute timestamps and relative time deltas:
 
+**Absolute time:**
 ```yaml
 stop-time: "2025-12-31 23:59:59"
 ```
 
+**Relative time delta (calculated from compilation time):**
+```yaml
+stop-time: "+25h"      # 25 hours from now
+stop-time: "+3d"       # 3 days from now  
+stop-time: "+1d12h30m" # 1 day, 12 hours, 30 minutes from now
+```
+
+**Supported delta units:**
+- `d` - days
+- `h` - hours
+- `m` - minutes
+
 **Behavior:**
-1. Checks deadline before each run
-2. Disables workflow if deadline passed
-3. Allows current run to complete
+1. Relative times are resolved to absolute timestamps during compilation
+2. Checks deadline before each run
+3. Disables workflow if deadline passed
+4. Allows current run to complete
 
 ## Visual Feedback (`ai-reaction:`)
 
