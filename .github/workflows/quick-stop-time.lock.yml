@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 #
-# Effective stop-time: 2025-08-15 16:38:08
+# Effective stop-time: 2025-08-15 16:54:30
 
 name: "Quick Stop Time"
 on:
@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
       issues: read
-      pull_requests: read
+      pull-requests: read
       discussions: read
       deployments: read
       models: read
@@ -71,7 +71,7 @@ jobs:
           WORKFLOW_NAME="Quick Stop Time"
           
           # Check stop-time limit
-          STOP_TIME="2025-08-15 16:38:08"
+          STOP_TIME="2025-08-15 16:54:30"
           echo "Checking stop-time limit: $STOP_TIME"
           
           # Convert stop time to epoch seconds
@@ -133,8 +133,10 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json:');
+            // Write to /tmp directory to avoid inclusion in PR
+            const tmpPath = '/tmp/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Execute Claude Code Action
         id: agentic_execution
@@ -238,6 +240,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw_info.json
-          path: aw_info.json
+          path: /tmp/aw_info.json
           if-no-files-found: warn
 
