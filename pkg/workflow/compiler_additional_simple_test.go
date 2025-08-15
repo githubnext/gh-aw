@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -37,14 +39,36 @@ func TestCompiler_WriteReactionAction_Basic(t *testing.T) {
 	// Create compiler
 	compiler := NewCompiler(false, "", "test-version")
 
-	// Test with nonexistent file should return error
-	err := compiler.writeReactionAction("nonexistent.md")
-	if err == nil {
-		t.Errorf("Expected error for nonexistent file")
+	// Create temporary directory for testing
+	tmpDir := t.TempDir()
+	
+	// Create a test markdown file path (doesn't need to actually exist)
+	markdownPath := filepath.Join(tmpDir, "test.md")
+	
+	// Set up file tracker to verify file creation
+	mockTracker := &SimpleBasicMockFileTracker{}
+	compiler.SetFileTracker(mockTracker)
+
+	// Test that writeReactionAction succeeds
+	err := compiler.writeReactionAction(markdownPath)
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
 	}
 
-	// This tests that the function exists and doesn't crash
-	// More detailed testing would require complex setup
+	// Verify that the action file was created
+	expectedActionFile := filepath.Join(tmpDir, ".github", "actions", "reaction", "action.yml")
+	if _, err := os.Stat(expectedActionFile); os.IsNotExist(err) {
+		t.Errorf("Expected action file to be created at: %s", expectedActionFile)
+	}
+
+	// Verify that file tracker was called
+	if len(mockTracker.tracked) != 1 {
+		t.Errorf("Expected file tracker to track 1 file, got %d", len(mockTracker.tracked))
+	}
+	
+	if len(mockTracker.tracked) > 0 && mockTracker.tracked[0] != expectedActionFile {
+		t.Errorf("Expected tracker to track %s, got %s", expectedActionFile, mockTracker.tracked[0])
+	}
 }
 
 // SimpleBasicMockFileTracker is a basic implementation for testing
