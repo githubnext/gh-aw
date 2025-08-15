@@ -264,9 +264,3 @@ func TestCommandErrorHandling(t *testing.T) {
 		rootCmd.SetArgs([]string{})
 	})
 }
-
-// Helper function to reset command state between tests
-func resetCommandState() {
-	rootCmd.SetArgs([]string{})
-	verbose = false
-}
