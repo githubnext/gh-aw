@@ -190,16 +190,22 @@ engine:
 
 Automatically disable workflow after a deadline. Supports both absolute timestamps and relative time deltas:
 
-**Absolute time:**
+**Absolute time (multiple formats supported):**
 ```yaml
-stop-time: "2025-12-31 23:59:59"
 ```
 
 **Relative time delta (calculated from compilation time):**
 ```yaml
 stop-time: "+25h"      # 25 hours from now
-stop-time: "+3d"       # 3 days from now  
 ```
+
+**Supported absolute date formats:**
+- Standard: `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD`
+- US format: `MM/DD/YYYY HH:MM:SS`, `MM/DD/YYYY`  
+- European: `DD/MM/YYYY HH:MM:SS`, `DD/MM/YYYY`
+- Readable: `January 2, 2006`, `2 January 2006`, `Jan 2, 2006`
+- Ordinals: `1st June 2025`, `June 1st 2025`, `23rd December 2025`
+- ISO 8601: `2006-01-02T15:04:05Z`
 
 **Supported delta units:**
 - `d` - days

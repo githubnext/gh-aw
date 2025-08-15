@@ -87,6 +87,16 @@ GitHub Actions workflows are designed to be steps within a larger process. Some 
 - **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via an output issue or pull request.
 - **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
 
+### Limit time of operation
+
+Use `stop-time:` to limit the time of operation of an agentic workflow. For example, using
+
+```yaml
+stop-time: +7d
+```
+
+will mean the agentic workflow no longer operates 7 days after time of compilation.
+
 ### MCP Tool Hardening
 
 Model Context Protocol tools require strict containment:
