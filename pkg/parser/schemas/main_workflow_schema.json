@@ -371,10 +371,6 @@
         ]
       }
     },
-    "max-runs": {
-      "type": "integer",
-      "description": "Maximum number of workflow runs"
-    },
     "stop-time": {
       "type": "string",
       "description": "Time when workflow should stop running"
