@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 #
-# Effective stop-time: 2025-08-15 16:54:30
+# Effective stop-time: 2025-08-15 16:05:19
 
 name: "Quick Stop Time"
 on:
@@ -71,7 +71,7 @@ jobs:
           WORKFLOW_NAME="Quick Stop Time"
           
           # Check stop-time limit
-          STOP_TIME="2025-08-15 16:54:30"
+          STOP_TIME="2025-08-15 16:05:19"
           echo "Checking stop-time limit: $STOP_TIME"
           
           # Convert stop time to epoch seconds
