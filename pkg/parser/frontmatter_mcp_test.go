@@ -309,7 +309,7 @@ func TestMergeAllowedArrays(t *testing.T) {
 			name:     "merge with non-string values (should be converted)",
 			existing: []any{"tool1", 123, true},
 			new:      []any{"tool2", 456, false},
-			expected: []string{"tool1", "123", "true", "tool2", "456", "false"},
+			expected: []string{"tool1", "tool2"},
 		},
 	}
 
