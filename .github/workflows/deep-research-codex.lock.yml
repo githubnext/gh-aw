@@ -27,7 +27,7 @@ name: "Deep Research with Codex"
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
 run-name: "Deep Research with Codex"
 
