@@ -21,6 +21,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `engine`: AI engine configuration (claude/codex)
 - `tools`: Available tools and MCP servers for the AI engine  
 - `stop-time`: Deadline when workflow should stop running (absolute or relative time)
+- `max-turns`: Maximum number of chat iterations per run
 - `alias`: Alias name for the workflow
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
@@ -186,13 +187,23 @@ engine:
 
 ## Cost Control Options
 
+### Maximum Turns (`max-turns:`)
+
+Limit the number of chat iterations within a single agentic run:
+
+```yaml
+max-turns: 5
+```
+
+**Behavior:**
+1. Passes the limit to the AI engine (e.g., Claude Code action)
+2. Engine stops iterating when the turn limit is reached
+3. Helps prevent runaway chat loops and control costs
+4. Only applies to engines that support turn limiting (currently Claude)
+
 ### Stop Time (`stop-time:`)
 
-Automatically disable workflow after a deadline. Supports both absolute timestamps and relative time deltas:
-
-**Absolute time (multiple formats supported):**
-```yaml
-```
+Automatically disable workflow after a deadline:
 
 **Relative time delta (calculated from compilation time):**
 ```yaml

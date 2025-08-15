@@ -76,6 +76,10 @@ func TestClaudeEngine(t *testing.T) {
 		t.Error("Expected timeout_minutes input to be present")
 	}
 
+	if _, hasMaxTurns := config.Inputs["max_turns"]; !hasMaxTurns {
+		t.Error("Expected max_turns input to be present")
+	}
+
 	// Check environment variables
 	if config.Environment["GH_TOKEN"] != "${{ secrets.GITHUB_TOKEN }}" {
 		t.Errorf("Expected GH_TOKEN environment variable, got '%s'", config.Environment["GH_TOKEN"])
@@ -109,7 +113,7 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 			}
 
 			// Verify all required inputs are present
-			requiredInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "claude_env", "allowed_tools", "timeout_minutes"}
+			requiredInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "claude_env", "allowed_tools", "timeout_minutes", "max_turns"}
 			for _, input := range requiredInputs {
 				if _, exists := config.Inputs[input]; !exists {
 					t.Errorf("Expected input '%s' to be present", input)

@@ -196,6 +196,7 @@ type WorkflowData struct {
 	AllowedTools     string
 	AI               string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig     *EngineConfig // Extended engine configuration
+	MaxTurns         string
 	StopTime         string
 	Alias            string         // for @alias trigger support
 	AliasOtherEvents map[string]any // for merging alias with other events
@@ -593,6 +594,11 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Validate max-turns support for the current engine
+	if err := c.validateMaxTurnsSupport(result.Frontmatter, agenticEngine); err != nil {
+		return nil, fmt.Errorf("max-turns not supported: %w", err)
+	}
+
 	// Process @include directives in markdown content
 	markdownContent, err := parser.ExpandIncludes(result.Markdown, markdownDir, false)
 	if err != nil {
@@ -639,6 +645,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
+	workflowData.MaxTurns = c.extractYAMLValue(result.Frontmatter, "max-turns")
 	workflowData.StopTime = c.extractYAMLValue(result.Frontmatter, "stop-time")
 
 	// Resolve relative stop-time to absolute time if needed
@@ -2094,6 +2101,10 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				if data.TimeoutMinutes != "" {
 					yaml.WriteString("          " + data.TimeoutMinutes + "\n")
 				}
+			} else if key == "max_turns" {
+				if data.MaxTurns != "" {
+					yaml.WriteString(fmt.Sprintf("          max_turns: %s\n", data.MaxTurns))
+				}
 			} else if value != "" {
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
@@ -2190,6 +2201,26 @@ func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine Age
 			}
 		}
 	}
+
+	return nil
+}
+
+// validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
+func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine AgenticEngine) error {
+	// Check if max-turns is specified in the frontmatter
+	_, hasMaxTurns := frontmatter["max-turns"]
+	if !hasMaxTurns {
+		// No max-turns specified, no validation needed
+		return nil
+	}
+
+	// max-turns is specified, check if the engine supports it
+	if !engine.SupportsMaxTurns() {
+		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
+	}
+
+	// Engine supports max-turns - additional validation could be added here if needed
+	// For now, we rely on JSON schema validation for format checking
 
 	return nil
 }
