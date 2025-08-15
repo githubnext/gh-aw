@@ -74,8 +74,7 @@ The YAML frontmatter supports these fields:
   - `claude:` - Claude-specific tools  
   - Custom tool names for MCP servers
   
-- **`max-runs:`** - Maximum workflow runs before auto-disable (integer)
-- **`stop-time:`** - Deadline timestamp for workflow (string: "YYYY-MM-DD HH:MM:SS")
+- **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m)
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 
@@ -161,29 +160,71 @@ on:
 
 ## GitHub Context Expression Interpolation
 
-Use GitHub Actions context expressions throughout the workflow content:
+Use GitHub Actions context expressions throughout the workflow content. **Note: For security reasons, only specific expressions are allowed.**
 
-### Common Context Variables
+### Allowed Context Variables
+- **`${{ github.event.after }}`** - SHA of the most recent commit after the push
+- **`${{ github.event.before }}`** - SHA of the most recent commit before the push
+- **`${{ github.event.check_run.id }}`** - ID of the check run
+- **`${{ github.event.check_suite.id }}`** - ID of the check suite
+- **`${{ github.event.comment.id }}`** - ID of the comment
+- **`${{ github.event.deployment.id }}`** - ID of the deployment
+- **`${{ github.event.deployment_status.id }}`** - ID of the deployment status
+- **`${{ github.event.head_commit.id }}`** - ID of the head commit
+- **`${{ github.event.installation.id }}`** - ID of the GitHub App installation
 - **`${{ github.event.issue.number }}`** - Issue number
-- **`${{ github.event.issue.title }}`** - Issue title
-- **`${{ github.event.issue.body }}`** - Issue body content
-- **`${{ github.event.comment.body }}`** - Comment content
-- **`${{ github.repository }}`** - Repository name (owner/repo)
-- **`${{ github.actor }}`** - User who triggered the workflow
-- **`${{ github.run_id }}`** - Workflow run ID
-- **`${{ github.workflow }}`** - Workflow name
-- **`${{ github.ref }}`** - Git reference
-- **`${{ github.sha }}`** - Commit SHA
+- **`${{ github.event.label.id }}`** - ID of the label
+- **`${{ github.event.milestone.id }}`** - ID of the milestone
+- **`${{ github.event.organization.id }}`** - ID of the organization
+- **`${{ github.event.page.id }}`** - ID of the GitHub Pages page
+- **`${{ github.event.project.id }}`** - ID of the project
+- **`${{ github.event.project_card.id }}`** - ID of the project card
+- **`${{ github.event.project_column.id }}`** - ID of the project column
+- **`${{ github.event.pull_request.number }}`** - Pull request number
+- **`${{ github.event.release.assets[0].id }}`** - ID of the first release asset
+- **`${{ github.event.release.id }}`** - ID of the release
+- **`${{ github.event.release.tag_name }}`** - Tag name of the release
+- **`${{ github.event.repository.id }}`** - ID of the repository
+- **`${{ github.event.review.id }}`** - ID of the review
+- **`${{ github.event.review_comment.id }}`** - ID of the review comment
+- **`${{ github.event.sender.id }}`** - ID of the user who triggered the event
+- **`${{ github.event.workflow_run.id }}`** - ID of the workflow run
+- **`${{ github.actor }}`** - Username of the person who initiated the workflow
+- **`${{ github.job }}`** - Job ID of the current workflow run
+- **`${{ github.owner }}`** - Owner of the repository
+- **`${{ github.repository }}`** - Repository name in "owner/name" format
+- **`${{ github.run_id }}`** - Unique ID of the workflow run
+- **`${{ github.run_number }}`** - Number of the workflow run
+- **`${{ github.server_url }}`** - Base URL of the server, e.g. https://github.com
+- **`${{ github.workflow }}`** - Name of the workflow
+- **`${{ github.workspace }}`** - The default working directory on the runner for steps
 
-### Environment Variables
-- **`${{ secrets.GITHUB_TOKEN }}`** - GitHub token
-- **Custom variables**: `${{ env.CUSTOM_VAR }}`
+#### Special Pattern Expressions
+- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
+- **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
+- **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
+
+All other expressions are dissallowed.
+
+### Security Validation
+
+Expression safety is automatically validated during compilation. If unauthorized expressions are found, compilation will fail with an error listing the prohibited expressions.
 
 ### Example Usage
 ```markdown
+# Valid expressions
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
 The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
+
+Using output from previous task: "${{ needs.task.outputs.text }}"
+
+Deploy to environment: "${{ github.event.inputs.environment }}"
+
+# Invalid expressions (will cause compilation errors)
+# Token: ${{ secrets.GITHUB_TOKEN }}
+# Environment: ${{ env.MY_VAR }}
+# Complex: ${{ toJson(github.workflow) }}
 ```
 
 ## Tool Configuration
@@ -457,7 +498,7 @@ Agentic workflows compile to GitHub Actions YAML:
 4. **Use @include directives** for common patterns and security boilerplate
 5. **Test with `gh aw compile`** before committing
 6. **Review generated `.lock.yml`** files before deploying
-7. **Set `max-runs`** for cost-sensitive workflows
+7. **Set `stop-time`** for cost-sensitive workflows
 8. **Use specific tool permissions** rather than broad access
 
 ## Validation
