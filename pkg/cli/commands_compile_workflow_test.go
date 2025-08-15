@@ -343,7 +343,7 @@ func TestStageGitAttributesIfChanged(t *testing.T) {
 			setupRepo: func(tmpDir string) error {
 				return initTestGitRepo(tmpDir)
 			},
-			expectError: true, // git add may fail on missing files in some git versions
+			expectError:   true, // git add may fail on missing files in some git versions
 			errorContains: "exit status",
 		},
 		{

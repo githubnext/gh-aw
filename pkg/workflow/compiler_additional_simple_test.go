@@ -9,7 +9,7 @@ import (
 func TestCompiler_SetFileTracker_Basic(t *testing.T) {
 	// Create compiler
 	compiler := NewCompiler(false, "", "test-version")
-	
+
 	// Initial state should have nil tracker
 	if compiler.fileTracker != nil {
 		t.Errorf("Expected initial fileTracker to be nil")
@@ -17,18 +17,18 @@ func TestCompiler_SetFileTracker_Basic(t *testing.T) {
 
 	// Create mock tracker
 	mockTracker := &SimpleBasicMockFileTracker{}
-	
+
 	// Set tracker
 	compiler.SetFileTracker(mockTracker)
-	
+
 	// Verify tracker was set
 	if compiler.fileTracker != mockTracker {
 		t.Errorf("Expected tracker to be set")
 	}
-	
+
 	// Set to nil
 	compiler.SetFileTracker(nil)
-	
+
 	// Verify tracker is nil
 	if compiler.fileTracker != nil {
 		t.Errorf("Expected tracker to be nil after setting to nil")
@@ -41,10 +41,10 @@ func TestCompiler_WriteReactionAction_Basic(t *testing.T) {
 
 	// Create temporary directory for testing
 	tmpDir := t.TempDir()
-	
+
 	// Create a test markdown file path (doesn't need to actually exist)
 	markdownPath := filepath.Join(tmpDir, "test.md")
-	
+
 	// Set up file tracker to verify file creation
 	mockTracker := &SimpleBasicMockFileTracker{}
 	compiler.SetFileTracker(mockTracker)
@@ -65,7 +65,7 @@ func TestCompiler_WriteReactionAction_Basic(t *testing.T) {
 	if len(mockTracker.tracked) != 1 {
 		t.Errorf("Expected file tracker to track 1 file, got %d", len(mockTracker.tracked))
 	}
-	
+
 	if len(mockTracker.tracked) > 0 && mockTracker.tracked[0] != expectedActionFile {
 		t.Errorf("Expected tracker to track %s, got %s", expectedActionFile, mockTracker.tracked[0])
 	}
