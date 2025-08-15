@@ -177,6 +177,11 @@ Security is a key consideration when using agentic workflows. Please see the [Se
 > [!CAUTION]
 > GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
 
+## 💬 Share Feedback
+
+We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
+and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord).
+
 ## 🔗 Related Projects
 
 - [Continuous AI](https://githubnext.com/projects/continuous-ai/)
