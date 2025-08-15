@@ -20,7 +20,6 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 **Agentic-Specific Properties:**
 - `engine`: AI executor to use (`claude`, `codex`, etc.)
 - `tools`: Tools configuration (GitHub tools, Engine-specific tools, MCP servers etc.)
-- `max-runs`: Maximum number of workflow runs before auto-disable
 - `stop-time`: Deadline timestamp when workflow should stop running
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
@@ -186,19 +185,6 @@ engine:
 
 ## Cost Control Options
 
-### Maximum Runs (`max-runs:`)
-
-Automatically disable workflow after a number of successful runs:
-
-```yaml
-max-runs: 10
-```
-
-**Behavior:**
-1. Counts successful runs with `workflow-complete.txt` artifact
-2. Disables workflow when limit reached using `gh workflow disable`
-3. Allows current run to complete
-
 ### Stop Time (`stop-time:`)
 
 Automatically disable workflow after a deadline:
@@ -342,7 +328,6 @@ cache:
   key: deps-${{ hashFiles('**/package-lock.json') }}
   path: node_modules
 
-max-runs: 100
 stop-time: "2025-12-31 23:59:59"
 ai-reaction: "rocket"
 

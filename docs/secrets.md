@@ -47,8 +47,8 @@ tools:
       command: "python"
       args: ["-m", "trello_mcp"]
       env:
-        TRELLO_TOKEN: "${secrets.TRELLO_TOKEN}"
-        TRELLO_KEY: "${secrets.TRELLO_KEY}"
+        TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
+        TRELLO_KEY: "${{ secrets.TRELLO_KEY }}"
     allowed: ["list_boards", "create_card"]
 ```
 
@@ -60,7 +60,7 @@ You can define custom environment variables in the workflow frontmatter:
 env:
   NODE_ENV: "production"
   DEBUG: "false"
-  CUSTOM_CONFIG: "${secrets.MY_CONFIG}"
+  CUSTOM_CONFIG: "${{ secrets.MY_CONFIG }}"
 ```
 
 ## Setting Up Secrets
@@ -94,7 +94,7 @@ gh secret set ANTHROPIC_API_KEY -a actions --org <your-org> --body <your-api-key
 ```yaml
 # ✅ Good: Secret reference
 env:
-  API_KEY: "${secrets.MY_API_KEY}"
+  API_KEY: "${{ secrets.MY_API_KEY }}"
 
 # ❌ Bad: Hardcoded value
 env:
