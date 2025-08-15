@@ -3,16 +3,12 @@ on:
   schedule:    
     - cron: "0 9 * * *" # Every day at 9am UTC
   workflow_dispatch:
-  push:
-    path: .github/workflows/agent-standup.lock.yml
 
 timeout_minutes: 15
 permissions:
   contents: read
-  models: read
   issues: write  # needed to write the output status report to an issue
   pull-requests: read
-  discussions: read
   actions: read
   checks: read
   statuses: read

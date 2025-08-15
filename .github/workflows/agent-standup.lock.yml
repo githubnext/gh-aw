@@ -4,8 +4,6 @@
 
 name: "Agent Standup"
 on:
-    push:
-        path: .github/workflows/agent-standup.lock.yml
     schedule:
         - cron: 0 9 * * *
     workflow_dispatch: null
@@ -37,9 +35,7 @@ jobs:
         actions: read
         checks: read
         contents: read
-        discussions: read
         issues: write
-        models: read
         pull-requests: read
         statuses: read
     steps:
