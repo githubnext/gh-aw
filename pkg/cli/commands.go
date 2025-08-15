@@ -1099,8 +1099,8 @@ func StatusWorkflows(pattern string, verbose bool) error {
 
 	fmt.Println("Workflow Status:")
 	fmt.Println("================")
-	fmt.Printf("%-30s %-12s %-12s %-10s\n", "Name", "Installed", "Up-to-date", "Status")
-	fmt.Printf("%-30s %-12s %-12s %-10s\n", "----", "---------", "----------", "------")
+	fmt.Printf("%-30s %-12s %-12s %-10s %-20s\n", "Name", "Installed", "Up-to-date", "Status", "Time Remaining")
+	fmt.Printf("%-30s %-12s %-12s %-10s %-20s\n", "----", "---------", "----------", "------", "--------------")
 
 	for _, file := range mdFiles {
 		base := filepath.Base(file)
@@ -1115,6 +1115,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
 		compiled := "No"
 		upToDate := "N/A"
+		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
 			compiled = "Yes"
@@ -1126,6 +1127,11 @@ func StatusWorkflows(pattern string, verbose bool) error {
 				upToDate = "No"
 			} else {
 				upToDate = "Yes"
+			}
+
+			// Extract stop-time from lock file
+			if stopTime := extractStopTimeFromLockFile(lockFile); stopTime != "" {
+				timeRemaining = calculateTimeRemaining(stopTime)
 			}
 		}
 
@@ -1139,10 +1145,72 @@ func StatusWorkflows(pattern string, verbose bool) error {
 			}
 		}
 
-		fmt.Printf("%-30s %-12s %-12s %-10s\n", name, compiled, upToDate, status)
+		fmt.Printf("%-30s %-12s %-12s %-10s %-20s\n", name, compiled, upToDate, status, timeRemaining)
 	}
 
 	return nil
+}
+
+// extractStopTimeFromLockFile extracts the STOP_TIME value from a compiled workflow lock file
+func extractStopTimeFromLockFile(lockFilePath string) string {
+	content, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return ""
+	}
+
+	// Look for the STOP_TIME line in the safety checks section
+	// Pattern: STOP_TIME="YYYY-MM-DD HH:MM:SS"
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "STOP_TIME=") {
+			// Extract the value between quotes
+			start := strings.Index(line, `"`) + 1
+			end := strings.LastIndex(line, `"`)
+			if start > 0 && end > start {
+				return line[start:end]
+			}
+		}
+	}
+	return ""
+}
+
+// calculateTimeRemaining calculates and formats the time remaining until stop-time
+func calculateTimeRemaining(stopTimeStr string) string {
+	if stopTimeStr == "" {
+		return "N/A"
+	}
+
+	// Parse the stop time
+	stopTime, err := time.Parse("2006-01-02 15:04:05", stopTimeStr)
+	if err != nil {
+		return "Invalid"
+	}
+
+	now := time.Now()
+	remaining := stopTime.Sub(now)
+
+	// If already past the stop time
+	if remaining <= 0 {
+		return "Expired"
+	}
+
+	// Format the remaining time in a human-readable way
+	days := int(remaining.Hours() / 24)
+	hours := int(remaining.Hours()) % 24
+	minutes := int(remaining.Minutes()) % 60
+
+	if days > 0 {
+		if days == 1 {
+			return fmt.Sprintf("%dd %dh", days, hours)
+		}
+		return fmt.Sprintf("%dd %dh", days, hours)
+	} else if hours > 0 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	} else if minutes > 0 {
+		return fmt.Sprintf("%dm", minutes)
+	} else {
+		return "< 1m"
+	}
 }
 
 // EnableWorkflows enables workflows matching a pattern
