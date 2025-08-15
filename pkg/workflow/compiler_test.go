@@ -4578,11 +4578,13 @@ This workflow should get default permissions applied automatically.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	lockFile := filepath.Join(tmpDir, "test-default-permissions.lock.yml")
-	err = compiler.CompileWorkflow(testFile, lockFile)
+	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
+
+	// Calculate the lock file path
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
 
 	// Read the generated lock file
 	lockContent, err := os.ReadFile(lockFile)
@@ -4591,6 +4593,9 @@ This workflow should get default permissions applied automatically.
 	}
 
 	lockContentStr := string(lockContent)
+
+	// Debug: Print the generated content for inspection
+	t.Logf("Generated workflow content:\n%s", lockContentStr)
 
 	// Verify that default permissions are present in the generated workflow
 	expectedDefaultPermissions := []string{
@@ -4619,10 +4624,36 @@ This workflow should get default permissions applied automatically.
 		t.Fatalf("Failed to parse generated YAML: %v", err)
 	}
 
-	// Verify permissions section exists in parsed YAML
-	permissions, exists := workflow["permissions"]
+	// Verify that jobs section exists
+	jobs, exists := workflow["jobs"]
 	if !exists {
-		t.Fatal("Permissions section not found in parsed workflow")
+		t.Fatal("Jobs section not found in parsed workflow")
+	}
+
+	jobsMap, ok := jobs.(map[string]interface{})
+	if !ok {
+		t.Fatal("Jobs section is not a map")
+	}
+
+	// Find the main job (should be the one with the workflow name converted to kebab-case)
+	var mainJob map[string]interface{}
+	for jobName, job := range jobsMap {
+		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
+			if jobMap, ok := job.(map[string]interface{}); ok {
+				mainJob = jobMap
+				break
+			}
+		}
+	}
+
+	if mainJob == nil {
+		t.Fatal("Main workflow job not found")
+	}
+
+	// Verify permissions section exists in the main job
+	permissions, exists := mainJob["permissions"]
+	if !exists {
+		t.Fatal("Permissions section not found in main job")
 	}
 
 	// Verify permissions is a map
@@ -4688,11 +4719,13 @@ This workflow has custom permissions that should override defaults.
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow
-	lockFile := filepath.Join(tmpDir, "test-custom-permissions.lock.yml")
-	err = compiler.CompileWorkflow(testFile, lockFile)
+	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
+
+	// Calculate the lock file path
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
 
 	// Read the generated lock file
 	lockContent, err := os.ReadFile(lockFile)
@@ -4706,10 +4739,36 @@ This workflow has custom permissions that should override defaults.
 		t.Fatalf("Failed to parse generated YAML: %v", err)
 	}
 
-	// Verify permissions section exists in parsed YAML
-	permissions, exists := workflow["permissions"]
+	// Verify that jobs section exists
+	jobs, exists := workflow["jobs"]
 	if !exists {
-		t.Fatal("Permissions section not found in parsed workflow")
+		t.Fatal("Jobs section not found in parsed workflow")
+	}
+
+	jobsMap, ok := jobs.(map[string]interface{})
+	if !ok {
+		t.Fatal("Jobs section is not a map")
+	}
+
+	// Find the main job (should be the one with the workflow name converted to kebab-case)
+	var mainJob map[string]interface{}
+	for jobName, job := range jobsMap {
+		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
+			if jobMap, ok := job.(map[string]interface{}); ok {
+				mainJob = jobMap
+				break
+			}
+		}
+	}
+
+	if mainJob == nil {
+		t.Fatal("Main workflow job not found")
+	}
+
+	// Verify permissions section exists in the main job
+	permissions, exists := mainJob["permissions"]
+	if !exists {
+		t.Fatal("Permissions section not found in main job")
 	}
 
 	// Verify permissions is a map
