@@ -443,7 +443,8 @@ Agentic workflows compile to GitHub Actions YAML:
 4. **Use @include directives** for common patterns and security boilerplate
 5. **Test with `gh aw compile`** before committing
 6. **Review generated `.lock.yml`** files before deploying
-7. **Use specific tool permissions** rather than broad access
+7. **Set `stop-time`** for cost-sensitive workflows
+8. **Use specific tool permissions** rather than broad access
 
 ## Validation
 
