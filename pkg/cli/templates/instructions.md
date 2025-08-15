@@ -74,7 +74,7 @@ The YAML frontmatter supports these fields:
   - `claude:` - Claude-specific tools  
   - Custom tool names for MCP servers
   
-- **`stop-time:`** - Deadline timestamp for workflow (string: "YYYY-MM-DD HH:MM:SS")
+- **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m)
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 

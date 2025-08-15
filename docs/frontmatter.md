@@ -18,9 +18,10 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 
 **Agentic-Specific Properties:**
-- `engine`: AI executor to use (`claude`, `codex`, etc.)
-- `tools`: Tools configuration (GitHub tools, Engine-specific tools, MCP servers etc.)
-- `stop-time`: Deadline timestamp when workflow should stop running
+- `engine`: AI engine configuration (claude/codex)
+- `tools`: Available tools and MCP servers for the AI engine  
+- `stop-time`: Deadline when workflow should stop running (absolute or relative time)
+- `alias`: Alias name for the workflow
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
 
@@ -187,16 +188,31 @@ engine:
 
 ### Stop Time (`stop-time:`)
 
-Automatically disable workflow after a deadline:
+Automatically disable workflow after a deadline. Supports both absolute timestamps and relative time deltas:
 
+**Absolute time (multiple formats supported):**
 ```yaml
-stop-time: "2025-12-31 23:59:59"
 ```
 
-**Behavior:**
-1. Checks deadline before each run
-2. Disables workflow if deadline passed
-3. Allows current run to complete
+**Relative time delta (calculated from compilation time):**
+```yaml
+stop-time: "+25h"      # 25 hours from now
+```
+
+**Supported absolute date formats:**
+- Standard: `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD`
+- US format: `MM/DD/YYYY HH:MM:SS`, `MM/DD/YYYY`  
+- European: `DD/MM/YYYY HH:MM:SS`, `DD/MM/YYYY`
+- Readable: `January 2, 2006`, `2 January 2006`, `Jan 2, 2006`
+- Ordinals: `1st June 2025`, `June 1st 2025`, `23rd December 2025`
+- ISO 8601: `2006-01-02T15:04:05Z`
+
+**Supported delta units:**
+- `d` - days
+- `h` - hours
+- `m` - minutes
+
+Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
 
 ## Visual Feedback (`ai-reaction:`)
 

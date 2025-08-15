@@ -85,7 +85,6 @@ cache:
   key: node-modules-${{ hashFiles('package-lock.json') }}
   path: node_modules
 
-stop-time: "2025-12-31 23:59:59"
 ai-reaction: "eyes"
 ---
 

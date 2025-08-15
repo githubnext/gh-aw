@@ -373,7 +373,7 @@
     },
     "stop-time": {
       "type": "string",
-      "description": "Time when workflow should stop running"
+      "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
     },
     "alias": {
       "type": "string",
