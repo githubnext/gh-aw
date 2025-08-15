@@ -7,7 +7,6 @@ on:
     issues:
         types:
             - opened
-            - reopened
 
 permissions: {}
 
@@ -31,6 +30,7 @@ jobs:
     needs: task
     runs-on: ubuntu-latest
     permissions:
+        contents: read
         issues: write
     steps:
       - name: Checkout repository

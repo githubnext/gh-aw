@@ -1,8 +1,9 @@
 ---
 on:
   issues:
-    types: [opened, reopened]
+    types: [opened]
 permissions:
+  contents: read
   issues: write
 tools:
   github:
