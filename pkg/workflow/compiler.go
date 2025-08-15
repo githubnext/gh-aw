@@ -650,7 +650,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Resolve relative stop-time to absolute time if needed
 	if workflowData.StopTime != "" {
-		resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now())
+		resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
 		if err != nil {
 			return nil, fmt.Errorf("invalid stop-time format: %w", err)
 		}

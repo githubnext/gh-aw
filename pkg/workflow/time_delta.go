@@ -196,8 +196,8 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 	// Try to parse with each format
 	for _, format := range formats {
 		if parsed, err := time.Parse(format, dateTimeStr); err == nil {
-			// Successfully parsed, return in standard format
-			return parsed.Format("2006-01-02 15:04:05"), nil
+			// Successfully parsed, convert to UTC and return in standard format
+			return parsed.UTC().Format("2006-01-02 15:04:05"), nil
 		}
 	}
 
@@ -207,8 +207,8 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 
 	for _, format := range formats {
 		if parsed, err := time.Parse(format, normalizedStr); err == nil {
-			// Successfully parsed, return in standard format
-			return parsed.Format("2006-01-02 15:04:05"), nil
+			// Successfully parsed, convert to UTC and return in standard format
+			return parsed.UTC().Format("2006-01-02 15:04:05"), nil
 		}
 	}
 
@@ -231,7 +231,7 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 
 	for _, format := range smartFormats {
 		if parsed, err := time.Parse(format, dateTimeStr); err == nil {
-			return parsed.Format("2006-01-02 15:04:05"), nil
+			return parsed.UTC().Format("2006-01-02 15:04:05"), nil
 		}
 	}
 
@@ -253,8 +253,8 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 			return "", err
 		}
 
-		// Calculate absolute time
-		absoluteTime := compilationTime.Add(delta.toDuration())
+		// Calculate absolute time in UTC
+		absoluteTime := compilationTime.UTC().Add(delta.toDuration())
 
 		// Format in the expected format: "YYYY-MM-DD HH:MM:SS"
 		return absoluteTime.Format("2006-01-02 15:04:05"), nil
