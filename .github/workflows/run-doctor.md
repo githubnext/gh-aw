@@ -7,6 +7,9 @@ on:
     # This will trigger only when the CI workflow completes with failure
     # The condition is handled in the workflow body
 
+
+if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
 permissions:
   contents: read # needed to read repository content and workflow files
   actions: read # needed to access workflow runs and job logs
@@ -130,6 +133,17 @@ You are the CI Failure Doctor, an expert investigative agent that analyzes faile
    - Maintain an index file of all investigations for fast searching
 2. **Update Pattern Database**: Enhance knowledge with new findings by updating pattern files
 3. **Save Artifacts**: Store detailed logs and analysis in the cached directories
+
+### Phase 6: Looking for existing issues
+
+1. **Convert the report to a search query**
+    - Use any advanced search features in GitHub Issues to find related issues
+    - Look for keywords, error messages, and patterns in existing issues
+2. **Judge each match issues for relevance**
+    - Analyze the content of the issues found by the search and judge if they are similar to this issue.
+3. **Add issue comment to duplicate issue and finish**
+    - If you find a duplicate issue, add a comment with your findings and close the investigation.
+    - Do NOT open a new issue since you found a duplicate already (skip next phases).
 
 ### Phase 6: Reporting and Recommendations
 1. **Create Investigation Report**: Generate a comprehensive analysis including:
