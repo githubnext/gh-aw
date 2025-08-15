@@ -4545,3 +4545,265 @@ This workflow tests post-steps without pre-steps.
 		t.Error("Post-step should appear after AI execution step")
 	}
 }
+
+func TestDefaultPermissions(t *testing.T) {
+	// Test that workflows without permissions in frontmatter get default permissions applied
+	tmpDir, err := os.MkdirTemp("", "default-permissions-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow WITHOUT permissions specified in frontmatter
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---
+
+# Test Workflow
+
+This workflow should get default permissions applied automatically.
+`
+
+	testFile := filepath.Join(tmpDir, "test-default-permissions.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Calculate the lock file path
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+
+	// Read the generated lock file
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that default permissions are present in the generated workflow
+	expectedDefaultPermissions := []string{
+		"contents: read",
+		"issues: read",
+		"pull-requests: read",
+		"discussions: read",
+		"deployments: read",
+		"models: read",
+	}
+
+	for _, expectedPerm := range expectedDefaultPermissions {
+		if !strings.Contains(lockContentStr, expectedPerm) {
+			t.Errorf("Expected default permission '%s' not found in generated workflow.\nGenerated content:\n%s", expectedPerm, lockContentStr)
+		}
+	}
+
+	// Verify that permissions section exists
+	if !strings.Contains(lockContentStr, "permissions:") {
+		t.Error("Expected 'permissions:' section not found in generated workflow")
+	}
+
+	// Parse the generated YAML to verify structure
+	var workflow map[string]interface{}
+	if err := yaml.Unmarshal(lockContent, &workflow); err != nil {
+		t.Fatalf("Failed to parse generated YAML: %v", err)
+	}
+
+	// Verify that jobs section exists
+	jobs, exists := workflow["jobs"]
+	if !exists {
+		t.Fatal("Jobs section not found in parsed workflow")
+	}
+
+	jobsMap, ok := jobs.(map[string]interface{})
+	if !ok {
+		t.Fatal("Jobs section is not a map")
+	}
+
+	// Find the main job (should be the one with the workflow name converted to kebab-case)
+	var mainJob map[string]interface{}
+	for jobName, job := range jobsMap {
+		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
+			if jobMap, ok := job.(map[string]interface{}); ok {
+				mainJob = jobMap
+				break
+			}
+		}
+	}
+
+	if mainJob == nil {
+		t.Fatal("Main workflow job not found")
+	}
+
+	// Verify permissions section exists in the main job
+	permissions, exists := mainJob["permissions"]
+	if !exists {
+		t.Fatal("Permissions section not found in main job")
+	}
+
+	// Verify permissions is a map
+	permissionsMap, ok := permissions.(map[string]interface{})
+	if !ok {
+		t.Fatal("Permissions section is not a map")
+	}
+
+	// Verify each expected default permission exists and has correct value
+	expectedPermissionsMap := map[string]string{
+		"contents":      "read",
+		"issues":        "read",
+		"pull-requests": "read",
+		"discussions":   "read",
+		"deployments":   "read",
+		"models":        "read",
+	}
+
+	for key, expectedValue := range expectedPermissionsMap {
+		actualValue, exists := permissionsMap[key]
+		if !exists {
+			t.Errorf("Expected permission '%s' not found in permissions map", key)
+			continue
+		}
+		if actualValue != expectedValue {
+			t.Errorf("Expected permission '%s' to have value '%s', but got '%v'", key, expectedValue, actualValue)
+		}
+	}
+}
+
+func TestCustomPermissionsOverrideDefaults(t *testing.T) {
+	// Test that custom permissions in frontmatter override default permissions
+	tmpDir, err := os.MkdirTemp("", "custom-permissions-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow WITH custom permissions specified in frontmatter
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+tools:
+  github:
+    allowed: [list_issues, create_issue]
+engine: claude
+---
+
+# Test Workflow
+
+This workflow has custom permissions that should override defaults.
+`
+
+	testFile := filepath.Join(tmpDir, "test-custom-permissions.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Calculate the lock file path
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+
+	// Read the generated lock file
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	// Parse the generated YAML to verify structure
+	var workflow map[string]interface{}
+	if err := yaml.Unmarshal(lockContent, &workflow); err != nil {
+		t.Fatalf("Failed to parse generated YAML: %v", err)
+	}
+
+	// Verify that jobs section exists
+	jobs, exists := workflow["jobs"]
+	if !exists {
+		t.Fatal("Jobs section not found in parsed workflow")
+	}
+
+	jobsMap, ok := jobs.(map[string]interface{})
+	if !ok {
+		t.Fatal("Jobs section is not a map")
+	}
+
+	// Find the main job (should be the one with the workflow name converted to kebab-case)
+	var mainJob map[string]interface{}
+	for jobName, job := range jobsMap {
+		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
+			if jobMap, ok := job.(map[string]interface{}); ok {
+				mainJob = jobMap
+				break
+			}
+		}
+	}
+
+	if mainJob == nil {
+		t.Fatal("Main workflow job not found")
+	}
+
+	// Verify permissions section exists in the main job
+	permissions, exists := mainJob["permissions"]
+	if !exists {
+		t.Fatal("Permissions section not found in main job")
+	}
+
+	// Verify permissions is a map
+	permissionsMap, ok := permissions.(map[string]interface{})
+	if !ok {
+		t.Fatal("Permissions section is not a map")
+	}
+
+	// Verify custom permissions are applied
+	expectedCustomPermissions := map[string]string{
+		"contents": "write",
+		"issues":   "write",
+	}
+
+	for key, expectedValue := range expectedCustomPermissions {
+		actualValue, exists := permissionsMap[key]
+		if !exists {
+			t.Errorf("Expected custom permission '%s' not found in permissions map", key)
+			continue
+		}
+		if actualValue != expectedValue {
+			t.Errorf("Expected permission '%s' to have value '%s', but got '%v'", key, expectedValue, actualValue)
+		}
+	}
+
+	// Verify that default permissions that are not overridden are NOT present
+	// since custom permissions completely replace defaults
+	lockContentStr := string(lockContent)
+	defaultOnlyPermissions := []string{
+		"pull-requests: read",
+		"discussions: read",
+		"deployments: read",
+		"models: read",
+	}
+
+	for _, defaultPerm := range defaultOnlyPermissions {
+		if strings.Contains(lockContentStr, defaultPerm) {
+			t.Errorf("Default permission '%s' should not be present when custom permissions are specified.\nGenerated content:\n%s", defaultPerm, lockContentStr)
+		}
+	}
+}

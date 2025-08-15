@@ -971,7 +971,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		data.Permissions = `permissions:
   contents: read
   issues: read
-  pull_requests: read
+  pull-requests: read
   discussions: read
   deployments: read
   models: read`

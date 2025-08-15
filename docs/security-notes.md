@@ -49,6 +49,8 @@ In addition, the compilation step of Agentic Workflows enforces additional secur
 - **Tool allowlisting** - only explicitly allowed tools can be used in the workflow
 - **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
 - **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
+- **Limit workflow longevity** - workflows can be configured to stop triggering after a certain time period
+- **Limit chat iterations** - workflows can be configured to limit the number of chat iterations per run, preventing runaway loops and excessive resource consumption
 
 Apply these principles consistently across all workflow components:
 
@@ -87,7 +89,9 @@ GitHub Actions workflows are designed to be steps within a larger process. Some 
 - **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via an output issue or pull request.
 - **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
 
-### Limit time of operation
+### Limit operations
+
+#### Limit workflow longevity by `stop-time:`
 
 Use `stop-time:` to limit the time of operation of an agentic workflow. For example, using
 
@@ -96,6 +100,20 @@ stop-time: +7d
 ```
 
 will mean the agentic workflow no longer operates 7 days after time of compilation.
+
+#### Limit workflow runs by `max-turns:`
+
+Use `max-turns:` to limit the number of chat iterations per run. This prevents runaway loops and excessive resource consumption. For example:
+
+```yaml
+max-turns: 5
+```
+
+This limits the workflow to a maximum of 5 interactions with the AI engine per run.
+
+#### Monitor costs by `gh aw logs`
+
+Use `gh aw logs` to monitor the costs of running agentic workflows. This command provides insights into the number of turns, tokens used, and other metrics that can help you understand the cost implications of your workflows. Reported information may differ based on the AI engine used (e.g., Claude vs. Codex).
 
 ### MCP Tool Hardening
 
