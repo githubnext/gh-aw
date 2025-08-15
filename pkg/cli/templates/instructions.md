@@ -74,6 +74,7 @@ The YAML frontmatter supports these fields:
   - `claude:` - Claude-specific tools  
   - Custom tool names for MCP servers
   
+- **`max-turns:`** - Maximum chat iterations per run (integer)
 - **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m)
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
@@ -444,7 +445,8 @@ Agentic workflows compile to GitHub Actions YAML:
 5. **Test with `gh aw compile`** before committing
 6. **Review generated `.lock.yml`** files before deploying
 7. **Set `stop-time`** for cost-sensitive workflows
-8. **Use specific tool permissions** rather than broad access
+8. **Set `max-turns`** to limit chat iterations and prevent runaway loops
+9. **Use specific tool permissions** rather than broad access
 
 ## Validation
 
