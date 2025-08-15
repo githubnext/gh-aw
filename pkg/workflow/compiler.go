@@ -1902,7 +1902,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
-	yaml.WriteString("          path: aw_info.json\n")
+	yaml.WriteString("          path: /tmp/aw_info.json\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
@@ -2168,8 +2168,10 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 
 	yaml.WriteString("            };\n")
 	yaml.WriteString("            \n")
-	yaml.WriteString("            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));\n")
-	yaml.WriteString("            console.log('Generated aw_info.json:');\n")
+	yaml.WriteString("            // Write to /tmp directory to avoid inclusion in PR\n")
+	yaml.WriteString("            const tmpPath = '/tmp/aw_info.json';\n")
+	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
 }
 

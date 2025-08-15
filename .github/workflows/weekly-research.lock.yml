@@ -184,8 +184,10 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json:');
+            // Write to /tmp directory to avoid inclusion in PR
+            const tmpPath = '/tmp/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Execute Claude Code Action
         id: agentic_execution
@@ -298,6 +300,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw_info.json
-          path: aw_info.json
+          path: /tmp/aw_info.json
           if-no-files-found: warn
 
