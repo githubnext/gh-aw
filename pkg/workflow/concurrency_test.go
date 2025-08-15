@@ -53,7 +53,7 @@ tools:
 ---`,
 			filename: "alias-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`,
 			shouldHaveCancel: false,
 			description:      "Alias workflows should use dynamic concurrency with ref but without cancellation",
 		},
@@ -129,13 +129,17 @@ This is a test workflow for concurrency behavior.
 				t.Errorf("Did not expect cancel-in-progress: true for %s workflow, but found in: %s", tt.name, workflowData.Concurrency)
 			}
 
-			// For PR workflows and alias workflows, check for ref inclusion, but only PR should have cancel
+			// For PR workflows, check for ref inclusion; for alias workflows, check for issue/PR numbers
 			isPRWorkflow := strings.Contains(tt.name, "PR workflow")
 			isAliasWorkflow := strings.Contains(tt.name, "alias workflow")
 
-			if isPRWorkflow || isAliasWorkflow {
+			if isPRWorkflow {
 				if !strings.Contains(workflowData.Concurrency, "github.ref") {
 					t.Errorf("Expected concurrency to include github.ref for %s workflow, got: %s", tt.name, workflowData.Concurrency)
+				}
+			} else if isAliasWorkflow {
+				if !strings.Contains(workflowData.Concurrency, "github.event.issue.number || github.event.pull_request.number") {
+					t.Errorf("Expected concurrency to include issue/PR numbers for %s workflow, got: %s", tt.name, workflowData.Concurrency)
 				}
 			} else {
 				if strings.Contains(workflowData.Concurrency, "github.ref") {
@@ -178,7 +182,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: true,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`,
 			description: "Alias workflows should use dynamic concurrency with ref but without cancellation",
 		},
 		{

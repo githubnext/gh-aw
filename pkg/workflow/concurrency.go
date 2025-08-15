@@ -15,9 +15,9 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isAliasTrigger bool) 
 	// Generate concurrency configuration based on workflow type
 	// Note: Check alias trigger first since alias workflows also contain pull_request events
 	if isAliasTrigger {
-		// For alias workflows: include ref but do NOT enable cancellation
+		// For alias workflows: use issue/PR number for concurrency but do NOT enable cancellation
 		return `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"`
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`
 	} else if isPullRequestWorkflow(workflowData.On) {
 		// For PR workflows: include ref and enable cancellation
 		return `concurrency:
