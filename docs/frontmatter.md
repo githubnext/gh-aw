@@ -199,7 +199,6 @@ stop-time: "2025-12-31 23:59:59"
 ```yaml
 stop-time: "+25h"      # 25 hours from now
 stop-time: "+3d"       # 3 days from now  
-stop-time: "+1d12h30m" # 1 day, 12 hours, 30 minutes from now
 ```
 
 **Supported delta units:**
@@ -207,11 +206,7 @@ stop-time: "+1d12h30m" # 1 day, 12 hours, 30 minutes from now
 - `h` - hours
 - `m` - minutes
 
-**Behavior:**
-1. Relative times are resolved to absolute timestamps during compilation
-2. Checks deadline before each run
-3. Disables workflow if deadline passed
-4. Allows current run to complete
+Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
 
 ## Visual Feedback (`ai-reaction:`)
 
