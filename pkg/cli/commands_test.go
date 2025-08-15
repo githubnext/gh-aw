@@ -1323,19 +1323,19 @@ jobs:
 // TestCalculateTimeRemaining tests the calculateTimeRemaining function
 func TestCalculateTimeRemaining(t *testing.T) {
 	tests := []struct {
-		name         string
-		stopTimeStr  string
-		expected     string
+		name        string
+		stopTimeStr string
+		expected    string
 	}{
 		{
-			name:         "empty stop time",
-			stopTimeStr:  "",
-			expected:     "N/A",
+			name:        "empty stop time",
+			stopTimeStr: "",
+			expected:    "N/A",
 		},
 		{
-			name:         "invalid format",
-			stopTimeStr:  "invalid-date-format",
-			expected:     "Invalid",
+			name:        "invalid format",
+			stopTimeStr: "invalid-date-format",
+			expected:    "Invalid",
 		},
 	}
 
@@ -1353,14 +1353,14 @@ func TestCalculateTimeRemaining(t *testing.T) {
 		// Create a time 2 hours and 30 minutes in the future
 		futureTime := time.Now().Add(2*time.Hour + 30*time.Minute)
 		stopTimeStr := futureTime.Format("2006-01-02 15:04:05")
-		
+
 		result := calculateTimeRemaining(stopTimeStr)
-		
+
 		// Should contain "h" and "m" for hours and minutes
 		if !strings.Contains(result, "h") || !strings.Contains(result, "m") {
 			t.Errorf("calculateTimeRemaining() for future time should contain hours and minutes, got: %q", result)
 		}
-		
+
 		// Should not be "Expired", "Invalid", or "N/A"
 		if result == "Expired" || result == "Invalid" || result == "N/A" {
 			t.Errorf("calculateTimeRemaining() for future time should not be %q", result)
@@ -1372,7 +1372,7 @@ func TestCalculateTimeRemaining(t *testing.T) {
 		// Create a time 1 hour in the past
 		pastTime := time.Now().Add(-1 * time.Hour)
 		stopTimeStr := pastTime.Format("2006-01-02 15:04:05")
-		
+
 		result := calculateTimeRemaining(stopTimeStr)
 		if result != "Expired" {
 			t.Errorf("calculateTimeRemaining() for past time = %q, want %q", result, "Expired")
