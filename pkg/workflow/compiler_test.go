@@ -4594,13 +4594,10 @@ This workflow should get default permissions applied automatically.
 
 	lockContentStr := string(lockContent)
 
-	// Debug: Print the generated content for inspection
-	t.Logf("Generated workflow content:\n%s", lockContentStr)
-
 	// Verify that default permissions are present in the generated workflow
 	expectedDefaultPermissions := []string{
 		"contents: read",
-		"issues: read", 
+		"issues: read",
 		"pull-requests: read",
 		"discussions: read",
 		"deployments: read",
@@ -4664,12 +4661,12 @@ This workflow should get default permissions applied automatically.
 
 	// Verify each expected default permission exists and has correct value
 	expectedPermissionsMap := map[string]string{
-		"contents":       "read",
-		"issues":         "read",
-		"pull-requests":  "read", 
-		"discussions":    "read",
-		"deployments":    "read",
-		"models":         "read",
+		"contents":      "read",
+		"issues":        "read",
+		"pull-requests": "read",
+		"discussions":   "read",
+		"deployments":   "read",
+		"models":        "read",
 	}
 
 	for key, expectedValue := range expectedPermissionsMap {
@@ -4799,7 +4796,7 @@ This workflow has custom permissions that should override defaults.
 	lockContentStr := string(lockContent)
 	defaultOnlyPermissions := []string{
 		"pull-requests: read",
-		"discussions: read", 
+		"discussions: read",
 		"deployments: read",
 		"models: read",
 	}
