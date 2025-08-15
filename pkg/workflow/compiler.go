@@ -196,7 +196,6 @@ type WorkflowData struct {
 	AllowedTools     string
 	AI               string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig     *EngineConfig // Extended engine configuration
-	MaxRuns          string
 	StopTime         string
 	Alias            string         // for @alias trigger support
 	AliasOtherEvents map[string]any // for merging alias with other events
@@ -640,7 +639,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
-	workflowData.MaxRuns = c.extractYAMLValue(result.Frontmatter, "max-runs")
 	workflowData.StopTime = c.extractYAMLValue(result.Frontmatter, "stop-time")
 	workflowData.Alias = c.extractAliasName(result.Frontmatter)
 	workflowData.AIReaction = c.extractYAMLValue(result.Frontmatter, "ai-reaction")
@@ -1611,10 +1609,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string) (*Job, error
 	return job, nil
 }
 
-// generateSafetyChecks generates safety checks for max-runs and stop-time before executing agentic tools
+// generateSafetyChecks generates safety checks for stop-time before executing agentic tools
 func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowData) {
 	// If no safety settings, skip generating safety checks
-	if data.MaxRuns == "" && data.StopTime == "" {
+	if data.StopTime == "" {
 		return
 	}
 
@@ -1626,41 +1624,6 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 	// Extract workflow name for gh workflow commands
 	workflowName := data.Name
 	yaml.WriteString(fmt.Sprintf("          WORKFLOW_NAME=\"%s\"\n", workflowName))
-
-	// Add max-runs check
-	if data.MaxRuns != "" {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Check max-runs limit\n")
-		yaml.WriteString(fmt.Sprintf("          MAX_RUNS=%s\n", data.MaxRuns))
-		yaml.WriteString("          echo \"Checking max-runs limit: $MAX_RUNS\"\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Count successful runs with workflow-complete.txt artifact\n")
-		yaml.WriteString("          echo \"Counting successful workflow runs with workflow-complete.txt artifact...\"\n")
-		yaml.WriteString("          SUCCESSFUL_RUNS=0\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Get completed workflow runs\n")
-		yaml.WriteString("          COMPLETED_RUNS=$(gh run list --workflow \"$WORKFLOW_NAME\" --status completed --json databaseId -L 1000 --jq '.[].databaseId')\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Check each completed run for workflow-complete.txt artifact\n")
-		yaml.WriteString("          for run_id in $COMPLETED_RUNS; do\n")
-		yaml.WriteString("            echo \"Checking run $run_id for workflow-complete.txt artifact...\"\n")
-		yaml.WriteString("            if gh run view $run_id --json artifacts --jq '.artifacts[].name' | grep -q '^workflow-complete.txt$'; then\n")
-		yaml.WriteString("              SUCCESSFUL_RUNS=$((SUCCESSFUL_RUNS + 1))\n")
-		yaml.WriteString("              echo \"  ✓ Run $run_id has workflow-complete.txt artifact\"\n")
-		yaml.WriteString("            else\n")
-		yaml.WriteString("              echo \"  ✗ Run $run_id does not have workflow-complete.txt artifact\"\n")
-		yaml.WriteString("            fi\n")
-		yaml.WriteString("          done\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          echo \"Successful runs count: $SUCCESSFUL_RUNS\"\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          if [ \"$SUCCESSFUL_RUNS\" -ge \"$MAX_RUNS\" ]; then\n")
-		yaml.WriteString("            echo \"Maximum successful runs limit ($MAX_RUNS) reached. Disabling workflow to prevent cost overrun.\"\n")
-		yaml.WriteString("            gh workflow disable \"$WORKFLOW_NAME\"\n")
-		yaml.WriteString("            echo \"Workflow disabled. Current run will continue but no future runs will be triggered.\"\n")
-		yaml.WriteString("            exit 1\n")
-		yaml.WriteString("          fi\n")
-	}
 
 	// Add stop-time check
 	if data.StopTime != "" {

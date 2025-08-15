@@ -27,7 +27,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				"steps":           []string{"step1"},
 				"engine":          "claude",
 				"tools":           map[string]any{"github": "test"},
-				"max-runs":        5,
 				"stop-time":       "2024-12-31",
 				"alias":           "test-workflow",
 			},
@@ -173,14 +172,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			name: "invalid type for timeout_minutes",
 			frontmatter: map[string]any{
 				"timeout_minutes": "not-a-number",
-			},
-			wantErr:     true,
-			errContains: "got string, want integer",
-		},
-		{
-			name: "invalid type for max-runs",
-			frontmatter: map[string]any{
-				"max-runs": "not-a-number",
 			},
 			wantErr:     true,
 			errContains: "got string, want integer",
