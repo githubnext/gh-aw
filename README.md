@@ -23,8 +23,8 @@ This command will create a PR to your repo adding several files including `.gith
 ```
 .github/
 └── workflows/
-  ├── weekly-research.md # Markdown workflow definition
-  └── weekly-research.lock.yml # Compiled GitHub Actions workflow
+  ├── weekly-research.md # Agentic Workflow
+  └── weekly-research.lock.yml # Compiled GitHub Actions Workflow
 ```
 
 Your repository will also need an `ANTHROPIC_API_KEY` (for Anthropic Claude) or `OPENAI_API_KEY` (for OpenAI Codex) Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
