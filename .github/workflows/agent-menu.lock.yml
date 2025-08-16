@@ -18,8 +18,6 @@ concurrency:
 
 run-name: "Agent Menu"
 
-# Cache configuration from frontmatter was processed and added to the main job steps
-
 jobs:
   task:
     runs-on: ubuntu-latest
@@ -39,31 +37,8 @@ jobs:
         issues: read
         pull-requests: write
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps
-      - name: Build gh-aw tool
-        run: make build
-      - name: List all agentic workflows
-        run: |
-          echo "## Discovered Agentic Workflows" >> $GITHUB_STEP_SUMMARY
-          find .github/workflows -name "*.md" -not -path "*/shared/*" | sort >> workflow_list.txt
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat workflow_list.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-      # Cache configuration from frontmatter processed below
-      - name: Cache (agent-menu-analysis-${{ github.run_id }})
-        uses: actions/cache@v3
-        with:
-          key: agent-menu-analysis-${{ github.run_id }}
-          path: workflow_list.txt
-          restore-keys: agent-menu-analysis-
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
@@ -151,9 +126,10 @@ jobs:
           
           **THIS IS VERY IMPORTANT DO NOT SKIP THIS STEP**
           
-             - Use `Git` tool to stage changes: `git add AGENTIC_WORKFLOWS.md`
-             - Use `Git` tool to create commit: `git commit -m "🧳 Update Agent Menu Documentation"`
-             - Use `github.create_pull_request` with title: "🧳 Update Agent Menu Documentation"
+             - Use `create_or_update_file` tool to save the updated `AGENTIC_WORKFLOWS.md` file 
+             - Use `create_branch` tool to create a new branch for the changes
+             - Use `push_files` tool to push the changes to the branch
+             - Use `create_pull_request` tool with title: "🧳 Update Agent Menu Documentation"
              - Include summary of changes in pull request description
              - Mention number of workflows analyzed and any new additions/changes
           
@@ -161,7 +137,7 @@ jobs:
           
           - **Use Claude tools with restricted access** - `Bash` tool is limited to `.github/workflows/` directory and `AGENTIC_WORKFLOWS.md` file only
           - **Leverage command line tools** - Use `Grep` for pattern matching across files, `Bash` for file operations within allowed paths
-          - **Use Git for version control** - Stage and commit changes using `Git` tool before creating pull request
+          - **Use GitHub MCP tools for version control** - Use `create_branch`, `create_or_update_file`, `push_files`, and `create_pull_request` tools to submit changes
           - **Be thorough but concise** - Each workflow should be documented but descriptions should be brief
           - **Use consistent formatting** - Follow GitHub Flavored Markdown standards
           - **Include helpful emojis** - Make the documentation visually appealing and scannable
@@ -216,6 +192,12 @@ jobs:
           ```
           
           Remember: You are creating the "menu" that helps developers discover and use the 37+ agentic workflows available in this repository. Make it comprehensive, helpful, and visually appealing!
+          
+          > NOTE: Never make direct pushes to the default (main) branch. Always create a pull request. The default (main) branch is protected and you will not be able to push to it.
+          
+          > NOTE: If changes need to be made to .github/workflows, you won't be able to do that directly because of permissions restrictions in automated agents creating workflows on GitHub. Instead, create a pull request putting the new files under .github/workflows-new (leave the old ones unchanged). Mention this very clearly in your pull request.
+          
+          > NOTE: If you are refused permission to run an MCP tool or particular 'bash' commands, or need to request access to other tools or resources, then please include a request for access in the output, explaining the exact name of the tool and/or the exact prefix of bash commands needed, or other resources you need access to.
           
           > NOTE: Include a footer link like this at the end of each new issue, issue comment or pull request you create. Do this in addition to any other footers you are instructed to include.
           
@@ -328,6 +310,8 @@ jobs:
           # - Read
           # - Task
           # - Write
+          # - mcp__github__create_branch
+          # - mcp__github__create_or_update_file
           # - mcp__github__create_pull_request
           # - mcp__github__download_workflow_run_artifact
           # - mcp__github__get_code_scanning_alert
@@ -367,13 +351,14 @@ jobs:
           # - mcp__github__list_workflow_run_artifacts
           # - mcp__github__list_workflow_runs
           # - mcp__github__list_workflows
+          # - mcp__github__push_files
           # - mcp__github__search_code
           # - mcp__github__search_issues
           # - mcp__github__search_orgs
           # - mcp__github__search_pull_requests
           # - mcp__github__search_repositories
           # - mcp__github__search_users
-          allowed_tools: "Bash(echo:*),Bash(gh label list:*),Bash(gh label view:*),Edit,Git,Glob,Grep,LS,MultiEdit,NotebookRead,Read,Task,Write,mcp__github__create_pull_request,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
+          allowed_tools: "Bash(echo:*),Bash(gh label list:*),Bash(gh label view:*),Edit,Git,Glob,Grep,LS,MultiEdit,NotebookRead,Read,Task,Write,mcp__github__create_branch,mcp__github__create_or_update_file,mcp__github__create_pull_request,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__push_files,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

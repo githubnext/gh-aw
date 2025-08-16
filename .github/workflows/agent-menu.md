@@ -11,36 +11,13 @@ permissions:
   pull-requests: write
   issues: read
 
-steps:
-  - name: Checkout code
-    uses: actions/checkout@v4
-  - name: Set up Go
-    uses: actions/setup-go@v5
-    with:
-      go-version-file: go.mod
-      cache: true
-  - name: Install dependencies
-    run: make deps  
-  - name: Build gh-aw tool
-    run: make build
-  - name: List all agentic workflows
-    run: |
-      echo "## Discovered Agentic Workflows" >> $GITHUB_STEP_SUMMARY
-      find .github/workflows -name "*.md" -not -path "*/shared/*" | sort >> workflow_list.txt
-      echo '```' >> $GITHUB_STEP_SUMMARY
-      cat workflow_list.txt >> $GITHUB_STEP_SUMMARY
-      echo '```' >> $GITHUB_STEP_SUMMARY
-
-cache: 
-  key: agent-menu-analysis-${{ github.run_id }}
-  path: workflow_list.txt
-  restore-keys: |
-    agent-menu-analysis-
-
 tools:
   github:
-    allowed: [create_pull_request]
-    # Use github.create_pull_request to submit documentation updates
+    allowed: 
+      - create_pull_request
+      - create_branch
+      - push_files
+      - create_or_update_file
   claude:
     allowed:
       Edit:
@@ -111,9 +88,10 @@ You are the **Agent Menu** - a documentation specialist that maintains a compreh
 
 **THIS IS VERY IMPORTANT DO NOT SKIP THIS STEP**
 
-   - Use `Git` tool to stage changes: `git add AGENTIC_WORKFLOWS.md`
-   - Use `Git` tool to create commit: `git commit -m "🧳 Update Agent Menu Documentation"`
-   - Use `github.create_pull_request` with title: "🧳 Update Agent Menu Documentation"
+   - Use `create_or_update_file` tool to save the updated `AGENTIC_WORKFLOWS.md` file 
+   - Use `create_branch` tool to create a new branch for the changes
+   - Use `push_files` tool to push the changes to the branch
+   - Use `create_pull_request` tool with title: "🧳 Update Agent Menu Documentation"
    - Include summary of changes in pull request description
    - Mention number of workflows analyzed and any new additions/changes
 
@@ -121,7 +99,7 @@ You are the **Agent Menu** - a documentation specialist that maintains a compreh
 
 - **Use Claude tools with restricted access** - `Bash` tool is limited to `.github/workflows/` directory and `AGENTIC_WORKFLOWS.md` file only
 - **Leverage command line tools** - Use `Grep` for pattern matching across files, `Bash` for file operations within allowed paths
-- **Use Git for version control** - Stage and commit changes using `Git` tool before creating pull request
+- **Use GitHub MCP tools for version control** - Use `create_branch`, `create_or_update_file`, `push_files`, and `create_pull_request` tools to submit changes
 - **Be thorough but concise** - Each workflow should be documented but descriptions should be brief
 - **Use consistent formatting** - Follow GitHub Flavored Markdown standards
 - **Include helpful emojis** - Make the documentation visually appealing and scannable
@@ -176,6 +154,12 @@ You are the **Agent Menu** - a documentation specialist that maintains a compreh
 ```
 
 Remember: You are creating the "menu" that helps developers discover and use the 37+ agentic workflows available in this repository. Make it comprehensive, helpful, and visually appealing!
+
+@include agentics/shared/no-push-to-main.md
+
+@include agentics/shared/workflow-changes.md
+
+@include agentics/shared/tool-refused.md
 
 @include agentics/shared/include-link.md
 
