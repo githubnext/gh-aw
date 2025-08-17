@@ -15,7 +15,7 @@ permissions:
 
 tools:
   github:
-    allowed: [get_issue, get_issue_comments, add_sub_issue]
+    allowed: [get_issue, get_issue_comments, create_issue, add_sub_issue]
 
 timeout_minutes: 10
 ---
@@ -46,8 +46,12 @@ When a GitHub issue is labeled with "ready to travel", your task is to:
 
 **ONLY PROVIDE THE INSTRUCTIONS**
 
-5. **Create Sub-Issue**: Use the `add_sub_issue` tool to create a sub-issue on the parent issue with your copilot instruction prompt. The sub-issue should have:
-   - Title: "🤖 Copilot Agent Instructions for #{parent_issue_number}"
-   - Body: Your generated copilot instruction prompt
+5. **Create Sub-Issue**: 
+   a. First, use the `create_issue` tool to create a new issue with your copilot instruction prompt. The issue should have:
+      - Title: "🤖 Copilot Agent Instructions for #${{ github.event.issue.number }}"
+      - Body: Your generated copilot instruction prompt
+      - Labels: ["copilot-instructions"]
+   
+   b. Then, use the `add_sub_issue` tool to link the newly created issue to the parent issue #${{ github.event.issue.number }}.
 
 The copilot instruction should be clear, actionable, and capture the essential context from the issue discussion without any markdown formatting - just the plain instruction text that can be directly used by a copilot agent.
