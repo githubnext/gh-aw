@@ -88,31 +88,13 @@ jobs:
              - Includes any specific requirements or constraints mentioned
              - Is formatted in a way that can be easily copied and used as a copilot instruction
           
-          5. **Post as Comment**: Use the `add_issue_comment` tool to post your summary and copilot instruction prompt as a comment on the issue. Format it as follows:
+          **ONLY PROVIDE THE INSTRUCTIONS**
           
-          ```markdown
-          ## 🧳 Travel Agent Summary
+          5. **Create Sub-Issue**: Use the `add_sub_issue` tool to create a sub-issue on the parent issue with your copilot instruction prompt. The sub-issue should have:
+             - Title: "🤖 Copilot Agent Instructions for #{parent_issue_number}"
+             - Body: Your generated copilot instruction prompt
           
-          ### Issue Overview
-          [Brief summary of the issue]
-          
-          ### Key Discussion Points
-          [Summary of important points from comments]
-          
-          ### Copilot Agent Instruction Prompt
-          
-          ```
-          # Copilot Instructions for Issue #${{ github.event.issue.number }}
-          
-          [Your generated copilot instruction prompt here - this should be a clear, actionable prompt that explains the context and what the copilot agent should help with]
-          
-          Context: [Relevant context from the issue and comments]
-          Requirements: [Any specific requirements or constraints]
-          Focus Areas: [What the agent should prioritize]
-          ```
-          
-          Make sure the copilot instruction is clear, actionable, and captures the essential context from the issue discussion.
-          ```
+          The copilot instruction should be clear, actionable, and capture the essential context from the issue discussion without any markdown formatting - just the plain instruction text that can be directly used by a copilot agent.
           
           EOF
       - name: Print prompt to step summary
@@ -164,7 +146,7 @@ jobs:
           # - NotebookRead
           # - Read
           # - Task
-          # - mcp__github__add_issue_comment
+          # - mcp__github__add_sub_issue
           # - mcp__github__download_workflow_run_artifact
           # - mcp__github__get_code_scanning_alert
           # - mcp__github__get_commit
@@ -209,7 +191,7 @@ jobs:
           # - mcp__github__search_pull_requests
           # - mcp__github__search_repositories
           # - mcp__github__search_users
-          allowed_tools: "Glob,Grep,LS,NotebookRead,Read,Task,mcp__github__add_issue_comment,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
+          allowed_tools: "Glob,Grep,LS,NotebookRead,Read,Task,mcp__github__add_sub_issue,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

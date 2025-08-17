@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "@mergefest - Merge Parent Branch Changes"
+name: "Merge Parent Branch Changes"
 on:
   issues:
     types: [opened, edited, reopened]
@@ -18,7 +18,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "@mergefest - Merge Parent Branch Changes"
+run-name: "Merge Parent Branch Changes"
 
 jobs:
   task:
@@ -47,7 +47,7 @@ jobs:
         id: compute-text
         uses: ./.github/actions/compute-text
 
-  mergefest-merge-parent-branch-changes:
+  merge-parent-branch-changes:
     needs: task
     runs-on: ubuntu-latest
     permissions:
@@ -84,7 +84,7 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
-          # @mergefest - Merge Parent Branch Changes
+          # Merge Parent Branch Changes
           
           @mergefest is an action workflow that merges changes from the parent branch into the current pull request branch.
           
@@ -365,7 +365,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "@mergefest - Merge Parent Branch Changes",
+              workflow_name: "Merge Parent Branch Changes",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -459,13 +459,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/mergefest-merge-parent-branch-changes.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/merge-parent-branch-changes.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/mergefest-merge-parent-branch-changes.log
+            echo "No execution file output found from Agentic Action" >> /tmp/merge-parent-branch-changes.log
           fi
           
           # Ensure log file exists
-          touch /tmp/mergefest-merge-parent-branch-changes.log
+          touch /tmp/merge-parent-branch-changes.log
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
@@ -486,8 +486,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mergefest-merge-parent-branch-changes.log
-          path: /tmp/mergefest-merge-parent-branch-changes.log
+          name: merge-parent-branch-changes.log
+          path: /tmp/merge-parent-branch-changes.log
           if-no-files-found: warn
       - name: Upload agentic run info
         if: always()

@@ -15,7 +15,7 @@ permissions:
 
 tools:
   github:
-    allowed: [get_issue, get_issue_comments, add_issue_comment]
+    allowed: [get_issue, get_issue_comments, add_sub_issue]
 
 timeout_minutes: 10
 ---
@@ -44,28 +44,10 @@ When a GitHub issue is labeled with "ready to travel", your task is to:
    - Includes any specific requirements or constraints mentioned
    - Is formatted in a way that can be easily copied and used as a copilot instruction
 
-5. **Post as Comment**: Use the `add_issue_comment` tool to post your summary and copilot instruction prompt as a comment on the issue. Format it as follows:
+**ONLY PROVIDE THE INSTRUCTIONS**
 
-```markdown
-## 🧳 Travel Agent Summary
+5. **Create Sub-Issue**: Use the `add_sub_issue` tool to create a sub-issue on the parent issue with your copilot instruction prompt. The sub-issue should have:
+   - Title: "🤖 Copilot Agent Instructions for #{parent_issue_number}"
+   - Body: Your generated copilot instruction prompt
 
-### Issue Overview
-[Brief summary of the issue]
-
-### Key Discussion Points
-[Summary of important points from comments]
-
-### Copilot Agent Instruction Prompt
-
-```
-# Copilot Instructions for Issue #${{ github.event.issue.number }}
-
-[Your generated copilot instruction prompt here - this should be a clear, actionable prompt that explains the context and what the copilot agent should help with]
-
-Context: [Relevant context from the issue and comments]
-Requirements: [Any specific requirements or constraints]
-Focus Areas: [What the agent should prioritize]
-```
-
-Make sure the copilot instruction is clear, actionable, and captures the essential context from the issue discussion.
-```
+The copilot instruction should be clear, actionable, and capture the essential context from the issue discussion without any markdown formatting - just the plain instruction text that can be directly used by a copilot agent.

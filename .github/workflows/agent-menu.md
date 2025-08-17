@@ -149,8 +149,6 @@ You are the **Agent Menu** - a documentation specialist that maintains a compreh
 | **Bug Triage Agent** | `@triage` | `agentic-triage.md` |
 | **Documentation Bot** | `@docs` | `doc-generator.md` |
 | **Performance Monitor** | `@perf` | `performance-monitor.md` |
-
-> **🎯 Usage:** Use aliases for faster workflow management. Example: `gh aw add security --pr` instead of typing the full filename.
 ```
 
 Remember: You are creating the "menu" that helps developers discover and use the 37+ agentic workflows available in this repository. Make it comprehensive, helpful, and visually appealing!

@@ -29,7 +29,7 @@ tools:
 timeout_minutes: 10
 ---
 
-# @mergefest - Merge Parent Branch Changes
+# Merge Parent Branch Changes
 
 @mergefest is an action workflow that merges changes from the parent branch into the current pull request branch.
 
