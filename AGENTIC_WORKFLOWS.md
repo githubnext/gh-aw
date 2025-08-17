@@ -2,7 +2,7 @@
 
 > Your comprehensive guide to all AI-powered workflows in this repository
 
-*Last Updated: August 16, 2025*
+*Last Updated: August 17, 2025*
 
 ## 🤖 Agent Directory
 
@@ -165,4 +165,4 @@ Used by nearly all workflows for repository interaction:
 
 ---
 
-> AI-generated content by [Agent Menu](https://github.com/githubnext/gh-aw-internal/actions/runs/17012509608) may contain mistakes.
+> AI-generated content by [Agent Menu](https://github.com/githubnext/gh-aw-internal/actions/runs/17022745039) may contain mistakes.
