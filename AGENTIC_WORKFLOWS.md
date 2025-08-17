@@ -2,7 +2,7 @@
 
 > Your comprehensive guide to all AI-powered workflows in this repository
 
-*Last Updated: August 17, 2025*
+*Last Updated: December 17, 2024*
 
 ## 🤖 Agent Directory
 
@@ -31,9 +31,10 @@
 | 🧪 **Integration Test** | 📤 Push, 🔀 PR, ⚙️ Manual | On-demand | Comprehensive GitHub MCP integration testing and validation |
 | 📋 **Agent Menu** | 📤 Push (workflow changes), ⚙️ Manual | On-demand | Documentation specialist maintaining this comprehensive workflow guide |
 | 🔍 **Action Workflow Assessor** | 🔀 Pull requests (workflow changes) | On-demand | Security and capability assessor for agentic workflow modifications |
-| 🏷️ **Issue Labeller** | 🔢 Issues (opened) | On-demand | Basic issue labeling service |
+| 🏷️ **Issue Labeller** | 🔢 Issues (opened) | On-demand | Basic issue labeling service for newly opened issues |
 | 🧪 **Test Claude** | 📤 Push (*claude* branches), ⚙️ Manual | On-demand | Code review assistant powered by Claude AI |
 | 🧪 **Test Codex** | 📤 Push (*codex* branches), ⚙️ Manual | On-demand | Code review assistant powered by Codex AI |
+| 👨‍⚕️ **Run Doctor** | 🔄 Workflow runs (CI completed) | On-demand | Diagnoses and provides fixes for failed CI workflow runs |
 
 ## 📅 Schedule Overview
 
@@ -165,4 +166,4 @@ Used by nearly all workflows for repository interaction:
 
 ---
 
-> AI-generated content by [Agent Menu](https://github.com/githubnext/gh-aw-internal/actions/runs/17022745039) may contain mistakes.
+> AI-generated content by [Agent Menu](https://github.com/githubnext/gh-aw-internal/actions/runs/17023213151) may contain mistakes.
