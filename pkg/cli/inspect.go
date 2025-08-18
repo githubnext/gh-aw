@@ -17,7 +17,7 @@ import (
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
 func InspectWorkflowMCP(workflowFile string, serverFilter string, verbose bool) error {
-	workflowsDir := filepath.Join(".github", "workflows")
+	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, show available workflow files with MCP configs
 	if workflowFile == "" {
@@ -254,7 +254,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
-		workflowsDir := filepath.Join(".github", "workflows")
+		workflowsDir := workflow.GetWorkflowDir()
 
 		// Normalize the workflow file path
 		if !strings.HasSuffix(workflowFile, ".md") {
