@@ -3014,6 +3014,12 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 			fmt.Printf("Created temporary workflow file: %s\n", tmpFile.Name())
 		}
 
+		defer func() {
+			if err := os.Remove(tmpFile.Name()); err != nil && verbose {
+				fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", tmpFile.Name(), err)
+			}
+		}()
+
 		return tmpFile.Name(), nil
 	} else {
 		// It's a local file, return the source path
