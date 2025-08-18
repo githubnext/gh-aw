@@ -124,6 +124,9 @@ gh aw inspect workflow-name
 # Filter inspection to specific servers by name
 gh aw inspect workflow-name --server server-name
 
+# Show detailed information about a specific tool (requires --server)
+gh aw inspect workflow-name --server server-name --tool tool-name
+
 # Enable verbose output with connection details
 gh aw inspect workflow-name --verbose
 
@@ -134,6 +137,7 @@ gh aw inspect workflow-name --inspector
 **Key Features:**
 - Server discovery and connection testing
 - Tool and capability inspection
+- Detailed tool information with `--tool` flag
 - Permission analysis
 - Multi-protocol support (stdio, Docker, HTTP)
 - Web inspector integration
