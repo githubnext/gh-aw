@@ -436,13 +436,21 @@ Agentic workflows compile to GitHub Actions YAML:
 - Tool configurations are processed
 - GitHub Actions syntax is generated
 
+### Compilation Commands
+
+- **`gh aw compile`** - Compile all workflow files in `.github/workflows/`
+- **`gh aw compile <workflow-id>`** - Compile a specific workflow by ID (filename without extension)
+  - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
+  - Supports partial matching and fuzzy search for workflow names
+- **`gh aw compile --verbose`** - Show detailed compilation and validation messages
+
 ## Best Practices
 
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
 3. **Include security notices** for workflows processing user content  
 4. **Use @include directives** for common patterns and security boilerplate
-5. **Test with `gh aw compile`** before committing
+5. **Test with `gh aw compile`** before committing (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
 7. **Set `stop-time`** for cost-sensitive workflows
 8. **Set `max-turns`** to limit chat iterations and prevent runaway loops
@@ -457,4 +465,4 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 - **Invalid enum values** - e.g., `engine` must be "claude" or "codex"
 - **Missing required fields** - Some triggers require specific configuration
 
-Use `gh aw compile --verbose` to see detailed validation messages.
+Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.
