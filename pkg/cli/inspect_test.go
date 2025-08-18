@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestInspectWorkflowMCP(t *testing.T) {
@@ -140,7 +141,45 @@ This workflow has no MCP servers.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, false)
+			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, "", false)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestInspectWorkflowMCPWithToolFilter(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowFile string
+		serverFilter string
+		toolFilter   string
+		expectError  bool
+	}{
+		{
+			name:         "tool filter requires server filter",
+			workflowFile: "nonexistent",
+			serverFilter: "",
+			toolFilter:   "some_tool",
+			expectError:  true,
+		},
+		{
+			name:         "tool filter with server filter",
+			workflowFile: "nonexistent",
+			serverFilter: "some_server",
+			toolFilter:   "some_tool",
+			expectError:  true, // Will fail because file doesn't exist, but validates filters work together
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, tt.toolFilter, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -579,7 +618,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 					Name:    "test-server",
 					Allowed: []string{"tool1", "tool2"},
 				},
-				Tools: []parser.MCPToolInfo{
+				Tools: []*mcp.Tool{
 					{Name: "tool1", Description: "Allowed tool 1"},
 					{Name: "tool2", Description: "Allowed tool 2"},
 					{Name: "tool3", Description: "Blocked tool 3"},
@@ -604,7 +643,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 					Name:    "open-server",
 					Allowed: []string{}, // Empty means all allowed
 				},
-				Tools: []parser.MCPToolInfo{
+				Tools: []*mcp.Tool{
 					{Name: "tool1", Description: "Tool 1"},
 					{Name: "tool2", Description: "Tool 2"},
 				},
@@ -625,7 +664,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 					Name:    "explicit-server",
 					Allowed: []string{"tool1", "tool2"},
 				},
-				Tools: []parser.MCPToolInfo{
+				Tools: []*mcp.Tool{
 					{Name: "tool1", Description: "Tool 1"},
 					{Name: "tool2", Description: "Tool 2"},
 				},

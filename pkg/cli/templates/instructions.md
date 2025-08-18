@@ -428,6 +428,37 @@ permissions:
   models: read      # Typically needed for AI workflows
 ```
 
+## Debugging and Inspection
+
+### MCP Server Inspection
+
+Use the `inspect` command to analyze and debug MCP servers in workflows:
+
+```bash
+# List workflows with MCP configurations
+gh aw inspect
+
+# Inspect MCP servers in a specific workflow
+gh aw inspect workflow-name
+
+# Filter to a specific MCP server
+gh aw inspect workflow-name --server server-name
+
+# Show detailed information about a specific tool
+gh aw inspect workflow-name --server server-name --tool tool-name
+
+# Enable verbose output with connection details
+gh aw inspect workflow-name --verbose
+```
+
+The `--tool` flag provides detailed information about a specific tool, including:
+- Tool name, title, and description
+- Input schema and parameters
+- Whether the tool is allowed in the workflow configuration
+- Annotations and additional metadata
+
+**Note**: The `--tool` flag requires the `--server` flag to specify which MCP server contains the tool.
+
 ## Compilation Process
 
 Agentic workflows compile to GitHub Actions YAML:
