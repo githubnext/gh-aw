@@ -223,8 +223,8 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 		Config:    config,
 		Connected: true,
 		Tools:     []*mcp.Tool{},
-		Resources: []parser.MCPResourceInfo{},
-		Roots:     []parser.MCPRootInfo{},
+		Resources: []*mcp.Resource{},
+		Roots:     []*mcp.Root{},
 	}
 
 	// List tools
@@ -253,13 +253,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 		}
 	} else {
 		for _, resource := range resourcesResult.Resources {
-			mimeType := resource.MIMEType
-			info.Resources = append(info.Resources, parser.MCPResourceInfo{
-				URI:         resource.URI,
-				Name:        resource.Name,
-				Description: resource.Description,
-				MimeType:    mimeType,
-			})
+			info.Resources = append(info.Resources, resource)
 		}
 	}
 
@@ -280,7 +274,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 					}
 				}
 				if !found {
-					info.Roots = append(info.Roots, parser.MCPRootInfo{
+					info.Roots = append(info.Roots, &mcp.Root{
 						URI:  rootURI,
 						Name: parts[0],
 					})
@@ -323,8 +317,8 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 		Config:    config,
 		Connected: true,
 		Tools:     []*mcp.Tool{},
-		Resources: []parser.MCPResourceInfo{},
-		Roots:     []parser.MCPRootInfo{},
+		Resources: []*mcp.Resource{},
+		Roots:     []*mcp.Root{},
 	}
 
 	// List tools
@@ -353,13 +347,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 		}
 	} else {
 		for _, resource := range resourcesResult.Resources {
-			mimeType := resource.MIMEType
-			info.Resources = append(info.Resources, parser.MCPResourceInfo{
-				URI:         resource.URI,
-				Name:        resource.Name,
-				Description: resource.Description,
-				MimeType:    mimeType,
-			})
+			info.Resources = append(info.Resources, resource)
 		}
 	}
 
@@ -378,7 +366,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 					}
 				}
 				if !found {
-					info.Roots = append(info.Roots, parser.MCPRootInfo{
+					info.Roots = append(info.Roots, &mcp.Root{
 						URI:  rootURI,
 						Name: parts[0],
 					})
@@ -468,7 +456,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 				description = description[:37] + "..."
 			}
 
-			mimeType := resource.MimeType
+			mimeType := resource.MIMEType
 			if mimeType == "" {
 				mimeType = "N/A"
 			}

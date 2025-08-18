@@ -21,28 +21,14 @@ type MCPServerConfig struct {
 	Allowed   []string          `json:"allowed"`   // allowed tools
 }
 
-// MCPResourceInfo represents a resource available from an MCP server
-type MCPResourceInfo struct {
-	URI         string `json:"uri"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	MimeType    string `json:"mimeType"`
-}
-
-// MCPRootInfo represents a root available from an MCP server
-type MCPRootInfo struct {
-	URI  string `json:"uri"`
-	Name string `json:"name"`
-}
-
 // MCPServerInfo contains the inspection results for an MCP server
 type MCPServerInfo struct {
 	Config    MCPServerConfig
 	Connected bool
 	Error     error
 	Tools     []*mcp.Tool
-	Resources []MCPResourceInfo
-	Roots     []MCPRootInfo
+	Resources []*mcp.Resource
+	Roots     []*mcp.Root
 }
 
 // ExtractMCPConfigurations extracts MCP server configurations from workflow frontmatter
