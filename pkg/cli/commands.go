@@ -533,10 +533,25 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 	}
 
 	if markdownFile != "" {
-		if verbose {
-			fmt.Printf("Compiling %s\n", markdownFile)
+		// Resolve workflow ID or file path to actual file path
+		resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to resolve workflow: %w", err)
 		}
-		if err := compiler.CompileWorkflow(markdownFile); err != nil {
+
+		// Check if we created a temporary file that needs cleanup
+		if strings.HasPrefix(resolvedFile, os.TempDir()) {
+			defer func() {
+				if err := os.Remove(resolvedFile); err != nil && verbose {
+					fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", resolvedFile, err)
+				}
+			}()
+		}
+
+		if verbose {
+			fmt.Printf("Compiling %s\n", resolvedFile)
+		}
+		if err := compiler.CompileWorkflow(resolvedFile); err != nil {
 			return err
 		}
 
