@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // MCPServerConfig represents a parsed MCP server configuration
@@ -17,25 +19,6 @@ type MCPServerConfig struct {
 	Headers   map[string]string `json:"headers"`   // for http
 	Env       map[string]string `json:"env"`       // environment variables
 	Allowed   []string          `json:"allowed"`   // allowed tools
-}
-
-// MCPToolInfo represents a tool available from an MCP server
-type MCPToolInfo struct {
-	Name         string                 `json:"name"`
-	Description  string                 `json:"description"`
-	Title        string                 `json:"title,omitempty"`
-	InputSchema  map[string]interface{} `json:"inputSchema,omitempty"`
-	OutputSchema map[string]interface{} `json:"outputSchema,omitempty"`
-	Annotations  *MCPToolAnnotations    `json:"annotations,omitempty"`
-}
-
-// MCPToolAnnotations represents tool annotations from an MCP server
-type MCPToolAnnotations struct {
-	DestructiveHint *bool  `json:"destructiveHint,omitempty"`
-	IdempotentHint  bool   `json:"idempotentHint,omitempty"`
-	OpenWorldHint   *bool  `json:"openWorldHint,omitempty"`
-	ReadOnlyHint    bool   `json:"readOnlyHint,omitempty"`
-	Title           string `json:"title,omitempty"`
 }
 
 // MCPResourceInfo represents a resource available from an MCP server
@@ -57,7 +40,7 @@ type MCPServerInfo struct {
 	Config    MCPServerConfig
 	Connected bool
 	Error     error
-	Tools     []MCPToolInfo
+	Tools     []*mcp.Tool
 	Resources []MCPResourceInfo
 	Roots     []MCPRootInfo
 }

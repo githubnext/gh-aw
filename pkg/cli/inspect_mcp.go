@@ -15,48 +15,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// extractToolInfo creates a detailed MCPToolInfo from an MCP Tool
-func extractToolInfo(tool *mcp.Tool) parser.MCPToolInfo {
-	toolInfo := parser.MCPToolInfo{
-		Name:        tool.Name,
-		Description: tool.Description,
-	}
-
-	// Capture detailed information from the MCP tool
-	if tool.Annotations != nil {
-		toolInfo.Title = tool.Annotations.Title
-		toolInfo.Annotations = &parser.MCPToolAnnotations{
-			DestructiveHint: tool.Annotations.DestructiveHint,
-			IdempotentHint:  tool.Annotations.IdempotentHint,
-			OpenWorldHint:   tool.Annotations.OpenWorldHint,
-			ReadOnlyHint:    tool.Annotations.ReadOnlyHint,
-			Title:           tool.Annotations.Title,
-		}
-	}
-
-	// Convert input schema to map[string]interface{}
-	if tool.InputSchema != nil {
-		if schemaBytes, err := json.Marshal(tool.InputSchema); err == nil {
-			var schemaMap map[string]interface{}
-			if err := json.Unmarshal(schemaBytes, &schemaMap); err == nil {
-				toolInfo.InputSchema = schemaMap
-			}
-		}
-	}
-
-	// Convert output schema to map[string]interface{}
-	if tool.OutputSchema != nil {
-		if schemaBytes, err := json.Marshal(tool.OutputSchema); err == nil {
-			var schemaMap map[string]interface{}
-			if err := json.Unmarshal(schemaBytes, &schemaMap); err == nil {
-				toolInfo.OutputSchema = schemaMap
-			}
-		}
-	}
-
-	return toolInfo
-}
-
 var (
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -264,7 +222,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 	info := &parser.MCPServerInfo{
 		Config:    config,
 		Connected: true,
-		Tools:     []parser.MCPToolInfo{},
+		Tools:     []*mcp.Tool{},
 		Resources: []parser.MCPResourceInfo{},
 		Roots:     []parser.MCPRootInfo{},
 	}
@@ -280,7 +238,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 		}
 	} else {
 		for _, tool := range toolsResult.Tools {
-			info.Tools = append(info.Tools, extractToolInfo(tool))
+			info.Tools = append(info.Tools, tool)
 		}
 	}
 
@@ -364,7 +322,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 	info := &parser.MCPServerInfo{
 		Config:    config,
 		Connected: true,
-		Tools:     []parser.MCPToolInfo{},
+		Tools:     []*mcp.Tool{},
 		Resources: []parser.MCPResourceInfo{},
 		Roots:     []parser.MCPRootInfo{},
 	}
@@ -380,7 +338,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 		}
 	} else {
 		for _, tool := range toolsResult.Tools {
-			info.Tools = append(info.Tools, extractToolInfo(tool))
+			info.Tools = append(info.Tools, tool)
 		}
 	}
 
@@ -434,8 +392,6 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 
 // displayServerCapabilities shows the server's tools, resources, and roots in formatted tables
 func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
-	fmt.Print(successBoxStyle.Render("✅ Connection successful"))
-
 	// Display tools with allowed/not allowed status
 	if len(info.Tools) > 0 {
 		// If a specific tool is requested, show detailed information
@@ -555,10 +511,10 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 // displayDetailedToolInfo shows detailed information about a specific tool
 func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 	// Find the specific tool
-	var foundTool *parser.MCPToolInfo
-	for i, tool := range info.Tools {
+	var foundTool *mcp.Tool
+	for _, tool := range info.Tools {
 		if tool.Name == toolName {
-			foundTool = &info.Tools[i]
+			foundTool = tool
 			break
 		}
 	}

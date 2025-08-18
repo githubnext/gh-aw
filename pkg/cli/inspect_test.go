@@ -191,30 +191,6 @@ func TestInspectWorkflowMCPWithToolFilter(t *testing.T) {
 	}
 }
 
-func TestExtractToolInfo(t *testing.T) {
-	// Create a mock MCP tool with various properties
-	testTool := &mcp.Tool{
-		Name:        "test_tool",
-		Description: "A test tool for unit testing",
-	}
-
-	// Test basic extraction
-	result := extractToolInfo(testTool)
-
-	if result.Name != "test_tool" {
-		t.Errorf("Expected tool name 'test_tool', got '%s'", result.Name)
-	}
-
-	if result.Description != "A test tool for unit testing" {
-		t.Errorf("Expected description 'A test tool for unit testing', got '%s'", result.Description)
-	}
-
-	// Test that it doesn't crash with nil annotations
-	if result.Annotations != nil {
-		t.Errorf("Expected nil annotations for tool without annotations, got %+v", result.Annotations)
-	}
-}
-
 func TestExtractMCPConfigurations(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -642,7 +618,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 					Name:    "test-server",
 					Allowed: []string{"tool1", "tool2"},
 				},
-				Tools: []parser.MCPToolInfo{
+				Tools: []*mcp.Tool{
 					{Name: "tool1", Description: "Allowed tool 1"},
 					{Name: "tool2", Description: "Allowed tool 2"},
 					{Name: "tool3", Description: "Blocked tool 3"},
@@ -667,7 +643,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 					Name:    "open-server",
 					Allowed: []string{}, // Empty means all allowed
 				},
-				Tools: []parser.MCPToolInfo{
+				Tools: []*mcp.Tool{
 					{Name: "tool1", Description: "Tool 1"},
 					{Name: "tool2", Description: "Tool 2"},
 				},
@@ -688,7 +664,7 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 					Name:    "explicit-server",
 					Allowed: []string{"tool1", "tool2"},
 				},
-				Tools: []parser.MCPToolInfo{
+				Tools: []*mcp.Tool{
 					{Name: "tool1", Description: "Tool 1"},
 					{Name: "tool2", Description: "Tool 2"},
 				},
