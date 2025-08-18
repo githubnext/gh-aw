@@ -395,12 +395,12 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 		errMsg := err.Error()
 		outputMsg := string(output)
 		combinedMsg := errMsg + " " + outputMsg
-		if strings.Contains(combinedMsg, "exit status 4") || 
-		   strings.Contains(combinedMsg, "exit status 1") ||
-		   strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
-		   strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
-		   strings.Contains(combinedMsg, "authentication required") ||
-		   strings.Contains(outputMsg, "gh auth login") {
+		if strings.Contains(combinedMsg, "exit status 4") ||
+			strings.Contains(combinedMsg, "exit status 1") ||
+			strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
+			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
+			strings.Contains(combinedMsg, "authentication required") ||
+			strings.Contains(outputMsg, "gh auth login") {
 			return nil, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		if len(output) > 0 {
