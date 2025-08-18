@@ -407,6 +407,30 @@ tools:
 Respond to @helper-bot mentions with helpful information.
 ```
 
+## Workflow Monitoring and Analysis
+
+### Logs and Metrics
+
+Monitor workflow execution and costs using the `logs` command:
+
+```bash
+# Download logs for all agentic workflows
+gh aw logs
+
+# Download logs for a specific workflow
+gh aw logs weekly-research
+
+# Filter logs by AI engine type
+gh aw logs --engine claude           # Only Claude workflows
+gh aw logs --engine codex            # Only Codex workflows
+
+# Limit number of runs and filter by date
+gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31
+
+# Download to custom directory
+gh aw logs -o ./workflow-logs
+```
+
 ## Security Considerations
 
 ### Cross-Prompt Injection Protection
@@ -486,6 +510,8 @@ Agentic workflows compile to GitHub Actions YAML:
 7. **Set `stop-time`** for cost-sensitive workflows
 8. **Set `max-turns`** to limit chat iterations and prevent runaway loops
 9. **Use specific tool permissions** rather than broad access
+10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
+11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
 
 ## Validation
 
