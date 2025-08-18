@@ -33,12 +33,6 @@ var (
 			BorderForeground(lipgloss.Color("#FF5555")).
 			Padding(1).
 			Margin(1)
-
-	successBoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#50FA7B")).
-			Padding(1).
-			Margin(1)
 )
 
 // inspectMCPServer connects to an MCP server and queries its capabilities
@@ -237,9 +231,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to list tools: %v", err)))
 		}
 	} else {
-		for _, tool := range toolsResult.Tools {
-			info.Tools = append(info.Tools, tool)
-		}
+		info.Tools = append(info.Tools, toolsResult.Tools...)
 	}
 
 	// List resources
@@ -252,9 +244,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to list resources: %v", err)))
 		}
 	} else {
-		for _, resource := range resourcesResult.Resources {
-			info.Resources = append(info.Resources, resource)
-		}
+		info.Resources = append(info.Resources, resourcesResult.Resources...)
 	}
 
 	// Note: Roots are not directly available via MCP protocol in the current spec,
@@ -331,9 +321,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to list tools: %v", err)))
 		}
 	} else {
-		for _, tool := range toolsResult.Tools {
-			info.Tools = append(info.Tools, tool)
-		}
+		info.Tools = append(info.Tools, toolsResult.Tools...)
 	}
 
 	// List resources
@@ -346,9 +334,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, to
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to list resources: %v", err)))
 		}
 	} else {
-		for _, resource := range resourcesResult.Resources {
-			info.Resources = append(info.Resources, resource)
-		}
+		info.Resources = append(info.Resources, resourcesResult.Resources...)
 	}
 
 	// Extract root URIs from resources (simple heuristic)
