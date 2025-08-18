@@ -183,7 +183,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		runs, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to list workflow runs: %w", err)
+			return err
 		}
 
 		if len(runs) == 0 {
@@ -384,16 +384,27 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	}
 
 	cmd := exec.Command("gh", args...)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 
 	// Stop spinner
 	if !verbose {
 		spinner.Stop()
 	}
 	if err != nil {
-		// Check for authentication errors
-		if strings.Contains(err.Error(), "exit status 4") {
+		// Check for authentication errors - GitHub CLI can return different exit codes and messages
+		errMsg := err.Error()
+		outputMsg := string(output)
+		combinedMsg := errMsg + " " + outputMsg
+		if strings.Contains(combinedMsg, "exit status 4") ||
+			strings.Contains(combinedMsg, "exit status 1") ||
+			strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
+			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
+			strings.Contains(combinedMsg, "authentication required") ||
+			strings.Contains(outputMsg, "gh auth login") {
 			return nil, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+		}
+		if len(output) > 0 {
+			return nil, fmt.Errorf("failed to list workflow runs: %s", string(output))
 		}
 		return nil, fmt.Errorf("failed to list workflow runs: %w", err)
 	}
