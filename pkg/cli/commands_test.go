@@ -12,13 +12,22 @@ import (
 // Test the CLI functions that are exported from this package
 
 func TestListWorkflows(t *testing.T) {
-	// Test the ListWorkflows function
+	// Test the ListWorkflows function (which includes listAgenticEngines)
 	err := ListWorkflows(false)
 
-	// Since it's not implemented yet, it should return nil (no error)
-	// and print a message about not being implemented
+	// Should return nil (no error) and print table-formatted output
 	if err != nil {
 		t.Errorf("ListWorkflows should not return an error for valid input, got: %v", err)
+	}
+}
+
+func TestListWorkflowsVerbose(t *testing.T) {
+	// Test the ListWorkflows function in verbose mode
+	err := ListWorkflows(true)
+
+	// Should return nil (no error) and print table-formatted output with descriptions
+	if err != nil {
+		t.Errorf("ListWorkflows verbose mode should not return an error for valid input, got: %v", err)
 	}
 }
 

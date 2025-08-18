@@ -153,16 +153,15 @@ func listAgenticEngines(verbose bool) error {
 		return nil
 	}
 
-	fmt.Println(console.FormatListHeader("Available Agentic Engines"))
-	fmt.Println(console.FormatListHeader("========================"))
-
+	// Build table configuration
+	var headers []string
 	if verbose {
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n", "ID", "Display Name", "Status", "MCP", "HTTP Transport", "Description")
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n", "--", "------------", "------", "---", "-------------", "-----------")
+		headers = []string{"ID", "Display Name", "Status", "MCP", "HTTP Transport", "Description"}
 	} else {
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n", "ID", "Display Name", "Status", "MCP", "HTTP Transport")
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n", "--", "------------", "------", "---", "-------------")
+		headers = []string{"ID", "Display Name", "Status", "MCP", "HTTP Transport"}
 	}
+
+	var rows [][]string
 
 	for _, engineID := range engines {
 		engine, err := registry.GetEngine(engineID)
@@ -191,24 +190,36 @@ func listAgenticEngines(verbose bool) error {
 			httpTransport = "Yes"
 		}
 
+		// Build row data
+		var row []string
 		if verbose {
-			fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n",
+			row = []string{
 				engine.GetID(),
 				engine.GetDisplayName(),
 				status,
 				mcpSupport,
 				httpTransport,
-				engine.GetDescription())
-
+				engine.GetDescription(),
+			}
 		} else {
-			fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n",
+			row = []string{
 				engine.GetID(),
 				engine.GetDisplayName(),
 				status,
 				mcpSupport,
-				httpTransport)
+				httpTransport,
+			}
 		}
+		rows = append(rows, row)
 	}
+
+	// Render the table
+	tableConfig := console.TableConfig{
+		Title:   "Available Agentic Engines",
+		Headers: headers,
+		Rows:    rows,
+	}
+	fmt.Print(console.RenderTable(tableConfig))
 
 	fmt.Println()
 	return nil
@@ -1097,10 +1108,9 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		fmt.Printf("Successfully fetched %d GitHub workflows\n", len(githubWorkflows))
 	}
 
-	fmt.Println("Workflow Status:")
-	fmt.Println("================")
-	fmt.Printf("%-30s %-12s %-12s %-10s %-20s\n", "Name", "Installed", "Up-to-date", "Status", "Time Remaining")
-	fmt.Printf("%-30s %-12s %-12s %-10s %-20s\n", "----", "---------", "----------", "------", "--------------")
+	// Build table configuration
+	headers := []string{"Name", "Installed", "Up-to-date", "Status", "Time Remaining"}
+	var rows [][]string
 
 	for _, file := range mdFiles {
 		base := filepath.Base(file)
@@ -1145,8 +1155,18 @@ func StatusWorkflows(pattern string, verbose bool) error {
 			}
 		}
 
-		fmt.Printf("%-30s %-12s %-12s %-10s %-20s\n", name, compiled, upToDate, status, timeRemaining)
+		// Build row data
+		row := []string{name, compiled, upToDate, status, timeRemaining}
+		rows = append(rows, row)
 	}
+
+	// Render the table
+	tableConfig := console.TableConfig{
+		Title:   "Workflow Status",
+		Headers: headers,
+		Rows:    rows,
+	}
+	fmt.Print(console.RenderTable(tableConfig))
 
 	return nil
 }
