@@ -126,13 +126,17 @@ Examples:
 			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
-			// Validate engine parameter using the same validation as other commands
-			if engine != "" && engine != "claude" && engine != "codex" {
-				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-					Type:    "error",
-					Message: fmt.Sprintf("invalid engine value '%s'. Must be 'claude' or 'codex'", engine),
-				}))
-				os.Exit(1)
+			// Validate engine parameter using the engine registry
+			if engine != "" {
+				registry := workflow.GetGlobalEngineRegistry()
+				if !registry.IsValidEngine(engine) {
+					supportedEngines := registry.GetSupportedEngines()
+					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+						Type:    "error",
+						Message: fmt.Sprintf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", ")),
+					}))
+					os.Exit(1)
+				}
 			}
 
 			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose); err != nil {
