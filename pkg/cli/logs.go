@@ -90,6 +90,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 runs
   ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Filter runs after date
   ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Filter runs before date
+  ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
+  ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
   ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
@@ -121,9 +123,19 @@ Examples:
 			startDate, _ := cmd.Flags().GetString("start-date")
 			endDate, _ := cmd.Flags().GetString("end-date")
 			outputDir, _ := cmd.Flags().GetString("output")
+			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, verbose); err != nil {
+			// Validate engine parameter using the same validation as other commands
+			if engine != "" && engine != "claude" && engine != "codex" {
+				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+					Type:    "error",
+					Message: fmt.Sprintf("invalid engine value '%s'. Must be 'claude' or 'codex'", engine),
+				}))
+				os.Exit(1)
+			}
+
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -138,12 +150,13 @@ Examples:
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
+	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir string, verbose bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -219,6 +232,43 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			if result.Error != nil {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
 				continue
+			}
+
+			// Apply engine filtering if specified
+			if engine != "" {
+				// Check if the run's engine matches the filter
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+
+				var engineMatches bool
+				if detectedEngine != nil {
+					// Get the engine ID to compare with the filter
+					registry := workflow.GetGlobalEngineRegistry()
+					for _, supportedEngine := range []string{"claude", "codex"} {
+						if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
+							engineMatches = (supportedEngine == engine)
+							break
+						}
+					}
+				}
+
+				if !engineMatches {
+					if verbose {
+						engineName := "unknown"
+						if detectedEngine != nil {
+							// Try to get a readable name for the detected engine
+							registry := workflow.GetGlobalEngineRegistry()
+							for _, supportedEngine := range []string{"claude", "codex"} {
+								if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
+									engineName = supportedEngine
+									break
+								}
+							}
+						}
+						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+					}
+					continue
+				}
 			}
 
 			// Update run with metrics and path
