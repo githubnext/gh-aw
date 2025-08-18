@@ -539,15 +539,6 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 			return fmt.Errorf("failed to resolve workflow: %w", err)
 		}
 
-		// Check if we created a temporary file that needs cleanup
-		if strings.HasPrefix(resolvedFile, os.TempDir()) {
-			defer func() {
-				if err := os.Remove(resolvedFile); err != nil && verbose {
-					fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", resolvedFile, err)
-				}
-			}()
-		}
-
 		if verbose {
 			fmt.Printf("Compiling %s\n", resolvedFile)
 		}
@@ -3049,15 +3040,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 	workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to resolve workflow: %w", err)
-	}
-
-	// Check if we created a temporary file that needs cleanup
-	if strings.HasPrefix(workflowFile, os.TempDir()) {
-		defer func() {
-			if err := os.Remove(workflowFile); err != nil && verbose {
-				fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", workflowFile, err)
-			}
-		}()
 	}
 
 	// Check if the workflow is runnable (has workflow_dispatch trigger)
