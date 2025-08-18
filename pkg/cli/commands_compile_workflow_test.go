@@ -399,3 +399,134 @@ func TestStageGitAttributesIfChanged(t *testing.T) {
 		})
 	}
 }
+
+func TestCompileWorkflowsWithWorkflowID(t *testing.T) {
+	tests := []struct {
+		name          string
+		workflowID    string
+		setupWorkflow func(string) error
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:       "compile with workflow ID successfully resolves to .md file",
+			workflowID: "test-workflow",
+			setupWorkflow: func(tmpDir string) error {
+				workflowContent := `---
+name: Test Workflow
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow for compilation.
+`
+				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				err := os.MkdirAll(workflowsDir, 0755)
+				if err != nil {
+					return err
+				}
+
+				workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+				return os.WriteFile(workflowFile, []byte(workflowContent), 0644)
+			},
+			expectError: false,
+		},
+		{
+			name:       "compile with nonexistent workflow ID returns error",
+			workflowID: "nonexistent",
+			setupWorkflow: func(tmpDir string) error {
+				// Create workflows directory but no file
+				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				return os.MkdirAll(workflowsDir, 0755)
+			},
+			expectError:   true,
+			errorContains: "workflow 'nonexistent' not found",
+		},
+		{
+			name:       "compile with full path still works (backward compatibility)",
+			workflowID: ".github/workflows/test-workflow.md",
+			setupWorkflow: func(tmpDir string) error {
+				workflowContent := `---
+name: Test Workflow
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow for backward compatibility.
+`
+				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				err := os.MkdirAll(workflowsDir, 0755)
+				if err != nil {
+					return err
+				}
+
+				workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+				return os.WriteFile(workflowFile, []byte(workflowContent), 0644)
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory
+			tmpDir := t.TempDir()
+
+			// Initialize git repository in tmp directory
+			if err := initTestGitRepo(tmpDir); err != nil {
+				t.Fatalf("Failed to initialize git repo: %v", err)
+			}
+
+			// Change to temporary directory
+			oldDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
+			defer func() {
+				if err := os.Chdir(oldDir); err != nil {
+					t.Errorf("Failed to restore directory: %v", err)
+				}
+			}()
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			// Setup workflow file
+			if err := tt.setupWorkflow(tmpDir); err != nil {
+				t.Fatalf("Failed to setup workflow: %v", err)
+			}
+
+			// Test CompileWorkflows function with workflow ID
+			err = CompileWorkflows(tt.workflowID, false, "", false, false, false, false)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("Expected error to contain '%s', but got: %v", tt.errorContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+
+				// Verify the lock file was created
+				expectedLockFile := filepath.Join(".github", "workflows", "test-workflow.lock.yml")
+				if _, err := os.Stat(expectedLockFile); os.IsNotExist(err) {
+					t.Errorf("Expected lock file %s to be created", expectedLockFile)
+				}
+			}
+		})
+	}
+}
