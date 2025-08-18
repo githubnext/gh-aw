@@ -544,10 +544,16 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 	}
 
 	if markdownFile != "" {
-		if verbose {
-			fmt.Printf("Compiling %s\n", markdownFile)
+		// Resolve workflow ID or file path to actual file path
+		resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to resolve workflow: %w", err)
 		}
-		if err := compiler.CompileWorkflow(markdownFile); err != nil {
+
+		if verbose {
+			fmt.Printf("Compiling %s\n", resolvedFile)
+		}
+		if err := compiler.CompileWorkflow(resolvedFile); err != nil {
 			return err
 		}
 
@@ -3028,6 +3034,12 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 			fmt.Printf("Created temporary workflow file: %s\n", tmpFile.Name())
 		}
 
+		defer func() {
+			if err := os.Remove(tmpFile.Name()); err != nil && verbose {
+				fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", tmpFile.Name(), err)
+			}
+		}()
+
 		return tmpFile.Name(), nil
 	} else {
 		// It's a local file, return the source path
@@ -3054,15 +3066,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 	workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to resolve workflow: %w", err)
-	}
-
-	// Check if we created a temporary file that needs cleanup
-	if strings.HasPrefix(workflowFile, os.TempDir()) {
-		defer func() {
-			if err := os.Remove(workflowFile); err != nil && verbose {
-				fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", workflowFile, err)
-			}
-		}()
 	}
 
 	// Check if the workflow is runnable (has workflow_dispatch trigger)
