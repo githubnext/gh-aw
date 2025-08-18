@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestInspectWorkflowMCP(t *testing.T) {
@@ -140,7 +141,7 @@ This workflow has no MCP servers.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, false)
+			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, "", false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -149,6 +150,68 @@ This workflow has no MCP servers.`,
 				t.Errorf("Unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestInspectWorkflowMCPWithToolFilter(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowFile string
+		serverFilter string
+		toolFilter   string
+		expectError  bool
+	}{
+		{
+			name:         "tool filter requires server filter",
+			workflowFile: "nonexistent",
+			serverFilter: "",
+			toolFilter:   "some_tool",
+			expectError:  true,
+		},
+		{
+			name:         "tool filter with server filter",
+			workflowFile: "nonexistent",
+			serverFilter: "some_server",
+			toolFilter:   "some_tool",
+			expectError:  true, // Will fail because file doesn't exist, but validates filters work together
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, tt.toolFilter, false)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestExtractToolInfo(t *testing.T) {
+	// Create a mock MCP tool with various properties
+	testTool := &mcp.Tool{
+		Name:        "test_tool",
+		Description: "A test tool for unit testing",
+	}
+
+	// Test basic extraction
+	result := extractToolInfo(testTool)
+
+	if result.Name != "test_tool" {
+		t.Errorf("Expected tool name 'test_tool', got '%s'", result.Name)
+	}
+
+	if result.Description != "A test tool for unit testing" {
+		t.Errorf("Expected description 'A test tool for unit testing', got '%s'", result.Description)
+	}
+
+	// Test that it doesn't crash with nil annotations
+	if result.Annotations != nil {
+		t.Errorf("Expected nil annotations for tool without annotations, got %+v", result.Annotations)
 	}
 }
 
