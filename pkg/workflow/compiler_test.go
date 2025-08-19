@@ -4041,7 +4041,7 @@ engine: claude
 
 YAML error that demonstrates column position handling.`,
 			expectedErrorLine:   1,
-			expectedErrorColumn: 1, // Schema validation error 
+			expectedErrorColumn: 1, // Schema validation error
 			expectedMessagePart: "additional properties 'message' not allowed",
 			description:         "yaml error should be extracted with column information when available",
 		},
