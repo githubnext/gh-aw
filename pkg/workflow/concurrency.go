@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -12,25 +13,73 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isAliasTrigger bool) 
 		return workflowData.Concurrency
 	}
 
-	// Generate concurrency configuration based on workflow type
-	// Note: Check alias trigger first since alias workflows also contain pull_request events
-	if isAliasTrigger {
-		// For alias workflows: use issue/PR number for concurrency but do NOT enable cancellation
-		return `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`
-	} else if isPullRequestWorkflow(workflowData.On) {
-		// For PR workflows: include ref and enable cancellation
-		return `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
-  cancel-in-progress: true`
-	} else {
-		// For other workflows: use static concurrency without cancellation
-		return `concurrency:
-  group: "gh-aw-${{ github.workflow }}"`
+	// Build concurrency group keys
+	keys := buildConcurrencyGroupKeys(workflowData, isAliasTrigger)
+	groupValue := strings.Join(keys, "-")
+
+	// Build the concurrency configuration
+	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
+
+	// Add cancel-in-progress if appropriate
+	if shouldEnableCancelInProgress(workflowData, isAliasTrigger) {
+		concurrencyConfig += "\n  cancel-in-progress: true"
 	}
+
+	return concurrencyConfig
 }
 
 // isPullRequestWorkflow checks if a workflow's "on" section contains pull_request triggers
 func isPullRequestWorkflow(on string) bool {
 	return strings.Contains(on, "pull_request")
+}
+
+// isIssueWorkflow checks if a workflow's "on" section contains issue-related triggers
+func isIssueWorkflow(on string) bool {
+	return strings.Contains(on, "issues") || strings.Contains(on, "issue_comment")
+}
+
+// isDiscussionWorkflow checks if a workflow's "on" section contains discussion-related triggers
+func isDiscussionWorkflow(on string) bool {
+	return strings.Contains(on, "discussion")
+}
+
+// buildConcurrencyGroupKeys builds an array of keys for the concurrency group
+func buildConcurrencyGroupKeys(workflowData *WorkflowData, isAliasTrigger bool) []string {
+	keys := []string{"gh-aw", "${{ github.workflow }}"}
+
+	if isAliasTrigger {
+		// For alias workflows: use issue/PR number
+		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number }}")
+	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
+		// Mixed workflows with both issue and PR triggers: use issue/PR number
+		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number }}")
+	} else if isPullRequestWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
+		// Mixed workflows with PR and discussion triggers: use PR/discussion number
+		keys = append(keys, "${{ github.event.pull_request.number || github.event.discussion.number }}")
+	} else if isIssueWorkflow(workflowData.On) && isDiscussionWorkflow(workflowData.On) {
+		// Mixed workflows with issue and discussion triggers: use issue/discussion number
+		keys = append(keys, "${{ github.event.issue.number || github.event.discussion.number }}")
+	} else if isPullRequestWorkflow(workflowData.On) {
+		// Pure PR workflows: use PR number if available, otherwise fall back to ref for compatibility
+		keys = append(keys, "${{ github.event.pull_request.number || github.ref }}")
+	} else if isIssueWorkflow(workflowData.On) {
+		// Issue workflows: use issue number
+		keys = append(keys, "${{ github.event.issue.number }}")
+	} else if isDiscussionWorkflow(workflowData.On) {
+		// Discussion workflows: use discussion number
+		keys = append(keys, "${{ github.event.discussion.number }}")
+	}
+
+	return keys
+}
+
+// shouldEnableCancelInProgress determines if cancel-in-progress should be enabled
+func shouldEnableCancelInProgress(workflowData *WorkflowData, isAliasTrigger bool) bool {
+	// Never enable cancellation for alias workflows
+	if isAliasTrigger {
+		return false
+	}
+
+	// Enable cancellation for pull request workflows (including mixed workflows)
+	return isPullRequestWorkflow(workflowData.On)
 }
