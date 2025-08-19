@@ -23,12 +23,16 @@ var mcpConfigSchema string
 
 // ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
 func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
-	return validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file")
+	// Remove internal-only fields from validation
+	cleanedFrontmatter := removeInternalFields(frontmatter)
+	return validateWithSchema(cleanedFrontmatter, mainWorkflowSchema, "main workflow file")
 }
 
 // ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info
 func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
-	return validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath)
+	// Remove internal-only fields from validation
+	cleanedFrontmatter := removeInternalFields(frontmatter)
+	return validateWithSchemaAndLocation(cleanedFrontmatter, mainWorkflowSchema, "main workflow file", filePath)
 }
 
 // ValidateIncludedFileFrontmatterWithSchema validates included file frontmatter using JSON schema
@@ -202,4 +206,24 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// removeInternalFields creates a copy of the frontmatter without internal-only fields
+// that should not be validated against the public schema
+func removeInternalFields(frontmatter map[string]any) map[string]any {
+	if frontmatter == nil {
+		return nil
+	}
+
+	// Create a copy of the frontmatter
+	cleaned := make(map[string]any)
+	for key, value := range frontmatter {
+		// Skip internal-only fields that are processed by Go code but not part of the public schema
+		if key == "concurrency_policy" {
+			continue
+		}
+		cleaned[key] = value
+	}
+
+	return cleaned
 }

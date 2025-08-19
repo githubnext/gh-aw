@@ -223,33 +223,6 @@
         }
       ]
     },
-    "concurrency_policy": {
-      "type": "object",
-      "description": "Concurrency policy configuration for different workflow trigger types",
-      "additionalProperties": {
-        "type": "object",
-        "description": "Policy configuration for a specific trigger type",
-        "properties": {
-          "group": {
-            "type": "string",
-            "description": "Group identifier for concurrency (defaults to 'workflow')"
-          },
-          "id": {
-            "type": "string",
-            "description": "Legacy group identifier (use 'group' instead)"
-          },
-          "node": {
-            "type": "string",
-            "description": "Node expression for dynamic concurrency (e.g., 'issue.number', 'pull_request.number', 'github.ref')"
-          },
-          "cancel-in-progress": {
-            "type": "boolean",
-            "description": "Whether to cancel in-progress workflows when new ones start"
-          }
-        },
-        "additionalProperties": false
-      }
-    },
     "env": {
       "description": "Environment variables for the workflow",
       "oneOf": [
