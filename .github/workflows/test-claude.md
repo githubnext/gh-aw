@@ -113,7 +113,7 @@ Your comment should include:
 
 **IMPORTANT**: After completing your PR analysis and posting your comment, please create a haiku about the changes you analyzed and write it to the action output. The haiku should capture the essence of the pull request in a creative and poetic way.
 
-Write your haiku to the file "${{ env.GITHUB_AW_OUTPUT }}". This will make it available as a workflow output that other jobs can access.
+Write your haiku to the file "${{ env.GITHUB_AW_OUTPUT }}" (use the `Write` tool). This will make it available as a workflow output that other jobs can access.
 
 Make your haiku relevant to the specific changes you analyzed in this PR. Be creative and thoughtful in your poetic interpretation of the code changes.
 
