@@ -300,7 +300,52 @@ concurrency:
   cancel-in-progress: true
 ```
 
-Defaults to single instance per workflow.
+#### Enhanced Concurrency Policies
+
+GitHub Agentic Workflows automatically generates enhanced concurrency policies based on workflow trigger types to provide better isolation and resource management. Different workflow types receive different concurrency groups and cancellation behavior:
+
+| Trigger Type | Concurrency Group | Cancellation | Description |
+|--------------|-------------------|--------------|-------------|
+| `issues` | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}` | ❌ | Issue workflows include issue number for isolation |
+| `pull_request` | `gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number \|\| github.ref }}` | ✅ | PR workflows include PR number with cancellation |
+| `discussion` | `gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}` | ❌ | Discussion workflows include discussion number |
+| Mixed issue/PR | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ✅ | Mixed workflows handle both contexts with cancellation |
+| Alias workflows | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ❌ | Alias workflows handle both contexts without cancellation |
+| Other triggers | `gh-aw-${{ github.workflow }}` | ❌ | Default behavior for schedule, push, etc. |
+
+**Benefits:**
+- **Better Isolation**: Workflows operating on different issues/PRs can run concurrently
+- **Conflict Prevention**: No interference between unrelated workflow executions  
+- **Resource Management**: Pull request workflows can cancel previous runs when updated
+- **Predictable Behavior**: Consistent concurrency rules based on trigger type
+
+**Examples:**
+
+```yaml
+# Issue workflow - no cancellation, isolated by issue number
+on:
+  issues:
+    types: [opened, edited]
+# Generates: group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+
+# PR workflow - with cancellation, isolated by PR number  
+on:
+  pull_request:
+    types: [opened, synchronize]
+# Generates: group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+#           cancel-in-progress: true
+
+# Mixed workflow - handles both issues and PRs with cancellation
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, synchronize]
+# Generates: group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+#           cancel-in-progress: true
+```
+
+If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
 
 ### Environment Variables
 
