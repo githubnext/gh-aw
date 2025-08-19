@@ -4,12 +4,16 @@
 
 name: "Test Network Permissions"
 on:
+    pull_request:
+        branches:
+            - main
     workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
 
 run-name: "Test Network Permissions"
 
