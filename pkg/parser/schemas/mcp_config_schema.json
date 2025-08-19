@@ -14,30 +14,133 @@
     "command": {
       "type": "string", 
       "description": "Command for stdio MCP connections"
+    },
+    "container": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$",
+      "description": "Container image for stdio MCP connections (alternative to command)"
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Arguments for command or container execution"
+    },
+    "env": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Z_][A-Z0-9_]*$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Environment variables for MCP server"
+    },
+    "headers": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Za-z0-9-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "HTTP headers for HTTP MCP connections"
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "network": {
+          "type": "object",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
+                "description": "Allowed domain name"
+              },
+              "minItems": 1,
+              "uniqueItems": true,
+              "description": "List of allowed domain names for network access"
+            }
+          },
+          "required": ["allowed"],
+          "additionalProperties": false,
+          "description": "Network access permissions"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Permissions configuration for container-based MCP servers"
     }
   },
   "required": ["type"],
-  "additionalProperties": true,
-  "if": {
-    "properties": {
-      "type": {
-        "const": "http"
-      }
-    }
-  },
-  "then": {
-    "required": ["url"]
-  },
-  "else": {
-    "if": {
-      "properties": {
-        "type": {
-          "const": "stdio"
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "http"
+          }
+        }
+      },
+      "then": {
+        "required": ["url"],
+        "not": {
+          "anyOf": [
+            {"required": ["command"]},
+            {"required": ["container"]},
+            {"required": ["permissions"]}
+          ]
         }
       }
     },
-    "then": {
-      "required": ["command"]
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "stdio"
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {"required": ["command"]},
+          {"required": ["container"]}
+        ],
+        "not": {
+          "allOf": [
+            {"required": ["command"]},
+            {"required": ["container"]}
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["container"]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "stdio"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["permissions"]
+      },
+      "then": {
+        "required": ["container"],
+        "properties": {
+          "type": {
+            "const": "stdio"
+          }
+        }
+      }
     }
-  }
+  ]
 }
