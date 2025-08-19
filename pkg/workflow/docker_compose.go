@@ -39,7 +39,6 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
     depends_on:
       squid-proxy-` + toolName + `:
         condition: service_healthy
-    restart: unless-stopped
 
 volumes:
   squid-logs:

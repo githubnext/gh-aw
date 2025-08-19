@@ -1719,11 +1719,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)
 
-	// Add docker-compose setup for proxy-enabled tools
+	// Generate proxy configuration files inline for proxy-enabled tools
+	// These files will be used automatically by docker compose when MCP tools run
 	if len(proxyTools) > 0 {
-		yaml.WriteString("      - name: Setup Proxy for MCP Network Restrictions\n")
+		yaml.WriteString("      - name: Setup Proxy Configuration for MCP Network Restrictions\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          echo \"Setting up proxy services for MCP tools with network restrictions...\"\n")
+		yaml.WriteString("          echo \"Generating proxy configuration files for MCP tools with network restrictions...\"\n")
 		yaml.WriteString("          \n")
 
 		// Generate proxy configurations inline for each proxy-enabled tool
@@ -1732,14 +1733,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				c.generateInlineProxyConfig(yaml, toolName, toolConfig)
 			}
 		}
-
-		yaml.WriteString("          echo \"Starting proxy services...\"\n")
-		for _, toolName := range proxyTools {
-			yaml.WriteString(fmt.Sprintf("          docker-compose -f docker-compose-%s.yml up -d\n", toolName))
-			yaml.WriteString(fmt.Sprintf("          echo \"Waiting for proxy to be ready for %s...\"\n", toolName))
-			yaml.WriteString(fmt.Sprintf("          timeout 60 sh -c 'until docker-compose -f docker-compose-%s.yml exec -T squid-proxy-%s squid -k check; do sleep 2; done'\n", toolName, toolName))
-			yaml.WriteString(fmt.Sprintf("          echo \"Proxy ready for tool: %s\"\n", toolName))
-		}
+		
+		yaml.WriteString("          echo \"Proxy configuration files generated. Services will start automatically when MCP tools are used.\"\n")
 	}
 
 	// If no MCP tools, no configuration needed

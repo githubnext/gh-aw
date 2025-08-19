@@ -260,9 +260,9 @@ func transformContainerToDockerCommand(mcpConfig map[string]any) error {
 
 	// Check if this is a proxy-enabled container (has special marker)
 	if _, hasProxyFlag := mcpConfig["__uses_proxy"]; hasProxyFlag {
-		// For proxy-enabled containers, use docker-compose
-		mcpConfig["command"] = "docker-compose"
-		mcpConfig["args"] = []any{"run", "--rm", containerStr}
+		// For proxy-enabled containers, use docker compose
+		mcpConfig["command"] = "docker"
+		mcpConfig["args"] = []any{"compose", "run", "--rm", containerStr}
 		// Keep the container field for compose file generation
 		return nil
 	}

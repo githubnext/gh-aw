@@ -36,9 +36,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Setup Proxy for MCP Network Restrictions
+      - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
-          echo "Setting up proxy services for MCP tools with network restrictions..."
+          echo "Generating proxy configuration files for MCP tools with network restrictions..."
           
           # Generate Squid proxy configuration
           cat > squid.conf << 'EOF'
@@ -130,18 +130,13 @@ jobs:
               depends_on:
                 squid-proxy-fetch:
                   condition: service_healthy
-              restart: unless-stopped
           
           volumes:
             squid-logs:
           
           EOF
           
-          echo "Starting proxy services..."
-          docker-compose -f docker-compose-fetch.yml up -d
-          echo "Waiting for proxy to be ready for fetch..."
-          timeout 60 sh -c 'until docker-compose -f docker-compose-fetch.yml exec -T squid-proxy-fetch squid -k check; do sleep 2; done'
-          echo "Proxy ready for tool: fetch"
+          echo "Proxy configuration files generated. Services will start automatically when MCP tools are used."
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
@@ -149,8 +144,9 @@ jobs:
           {
             "mcpServers": {
               "fetch": {
-                "command": "docker-compose",
+                "command": "docker",
                 "args": [
+                  "compose",
                   "run",
                   "--rm",
                   "mcp/fetch"
