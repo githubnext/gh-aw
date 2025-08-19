@@ -1,0 +1,4 @@
+# Domain whitelist for MCP network permissions testing
+# Only domains listed here will be accessible through the proxy
+example.com
+httpbin.org

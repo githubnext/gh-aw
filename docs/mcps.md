@@ -248,6 +248,7 @@ Error: Tool 'my_tool' not found
 
 - [Tools Configuration](tools.md) - Complete tools reference
 - [Commands](commands.md) - CLI commands including `inspect`
+- [Network Security](network-security.md) - MCP network permissions and proxy configuration
 - [Include Directives](include-directives.md) - Modularizing workflows with includes
 - [Secrets Management](secrets.md) - Managing secrets and environment variables
 - [Frontmatter Options](frontmatter.md) - All configuration options

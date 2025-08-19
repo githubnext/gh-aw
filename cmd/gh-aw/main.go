@@ -354,6 +354,8 @@ func init() {
 	rootCmd.AddCommand(disableCmd)
 	rootCmd.AddCommand(cli.NewLogsCommand())
 	rootCmd.AddCommand(cli.NewInspectCommand())
+	rootCmd.AddCommand(cli.NewNetworkTestCommand())
+	rootCmd.AddCommand(cli.NewNetworkValidateCommand())
 	rootCmd.AddCommand(versionCmd)
 }
 
