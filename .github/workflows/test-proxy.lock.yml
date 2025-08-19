@@ -147,9 +147,11 @@ jobs:
                 "command": "docker",
                 "args": [
                   "compose",
+                  "-f",
+                  "docker-compose-fetch.yml",
                   "run",
                   "--rm",
-                  "mcp/fetch"
+                  "fetch"
                 ]
               },
               "github": {

@@ -12,7 +12,7 @@ import (
 // needsProxy determines if a tool configuration requires proxy setup
 func needsProxy(toolConfig map[string]any) (bool, []string) {
 	// Check if tool has MCP container configuration
-	mcpConfig, err := getMCPConfig(toolConfig)
+	mcpConfig, err := getMCPConfig(toolConfig, "")
 	if err != nil {
 		return false, nil
 	}
@@ -125,7 +125,7 @@ func (c *Compiler) generateProxyFiles(markdownPath string, toolName string, tool
 	}
 
 	// Get container image and environment variables from MCP config
-	mcpConfig, err := getMCPConfig(toolConfig)
+	mcpConfig, err := getMCPConfig(toolConfig, toolName)
 	if err != nil {
 		return fmt.Errorf("failed to get MCP config: %w", err)
 	}
@@ -176,7 +176,7 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 	}
 
 	// Get container image and environment variables from MCP config
-	mcpConfig, err := getMCPConfig(toolConfig)
+	mcpConfig, err := getMCPConfig(toolConfig, toolName)
 	if err != nil {
 		if c.verbose {
 			fmt.Printf("Error getting MCP config for %s: %v\n", toolName, err)

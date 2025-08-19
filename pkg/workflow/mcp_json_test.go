@@ -61,7 +61,7 @@ func TestGetMCPConfigJSONString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := getMCPConfig(tt.toolConfig)
+			result, err := getMCPConfig(tt.toolConfig, "test")
 
 			if tt.wantErr != (err != nil) {
 				t.Errorf("getMCPConfig() error = %v, wantErr %v", err, tt.wantErr)

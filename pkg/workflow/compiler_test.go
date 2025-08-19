@@ -3210,7 +3210,7 @@ func TestTransformImageToDockerCommand(t *testing.T) {
 				mcpConfig[k] = v
 			}
 
-			err := transformContainerToDockerCommand(mcpConfig)
+			err := transformContainerToDockerCommand(mcpConfig, "test")
 
 			if tt.wantErr {
 				if err == nil {
