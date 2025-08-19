@@ -19,8 +19,8 @@ permissions:
 tools:
   claude:
     allowed:
-      Bash:
-      - "echo:*"
+      Write:
+      Bash: ["echo", "ls", "git status"]  # Allowed bash commands
   time:
     mcp:
       type: stdio
@@ -114,15 +114,6 @@ Your comment should include:
 **IMPORTANT**: After completing your PR analysis and posting your comment, please create a haiku about the changes you analyzed and write it to the action output. The haiku should capture the essence of the pull request in a creative and poetic way.
 
 Write your haiku to the file specified by the `GITHUB_AW_OUTPUT` environment variable. This will make it available as a workflow output that other jobs can access.
-
-For example:
-```bash
-echo "Code flows like stream
-Pull requests merge and evolve  
-Software grows with care" > $GITHUB_AW_OUTPUT
-```
-
-Print the value of the `GITHUB_AW_OUTPUT` to the github step summary file (pointed by `GITHUB_STEP_SUMMARY`)
 
 Make your haiku relevant to the specific changes you analyzed in this PR. Be creative and thoughtful in your poetic interpretation of the code changes.
 
