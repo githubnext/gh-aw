@@ -124,18 +124,6 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 	return delta, nil
 }
 
-// toDuration converts a TimeDelta to a Go time.Duration
-func (td *TimeDelta) toDuration() time.Duration {
-	duration := time.Duration(td.Days) * 24 * time.Hour
-	duration += time.Duration(td.Hours) * time.Hour
-	duration += time.Duration(td.Minutes) * time.Minute
-	duration += time.Duration(td.Weeks) * 7 * 24 * time.Hour
-	// Note: Months are approximated as 30 days for duration calculation
-	// For more precise month handling, use AddDate instead of Add
-	duration += time.Duration(td.Months) * 30 * 24 * time.Hour
-	return duration
-}
-
 // String returns a human-readable representation of the TimeDelta
 func (td *TimeDelta) String() string {
 	var parts []string

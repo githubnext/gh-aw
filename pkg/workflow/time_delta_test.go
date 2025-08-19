@@ -159,49 +159,6 @@ func TestParseTimeDelta(t *testing.T) {
 	}
 }
 
-func TestTimeDeltaToDuration(t *testing.T) {
-	tests := []struct {
-		name     string
-		delta    *TimeDelta
-		expected time.Duration
-	}{
-		{
-			name:     "hours only",
-			delta:    &TimeDelta{Hours: 25},
-			expected: 25 * time.Hour,
-		},
-		{
-			name:     "days only",
-			delta:    &TimeDelta{Days: 3},
-			expected: 3 * 24 * time.Hour,
-		},
-		{
-			name:     "minutes only",
-			delta:    &TimeDelta{Minutes: 30},
-			expected: 30 * time.Minute,
-		},
-		{
-			name:     "all units",
-			delta:    &TimeDelta{Days: 2, Hours: 5, Minutes: 30},
-			expected: 2*24*time.Hour + 5*time.Hour + 30*time.Minute,
-		},
-		{
-			name:     "zero values",
-			delta:    &TimeDelta{Days: 0, Hours: 0, Minutes: 0},
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.delta.toDuration()
-			if result != tt.expected {
-				t.Errorf("TimeDelta.toDuration() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestTimeDeltaString(t *testing.T) {
 	tests := []struct {
 		name     string
