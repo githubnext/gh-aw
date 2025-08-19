@@ -17,6 +17,10 @@ permissions:
   issues: read
   actions: read
 tools:
+  claude:
+    allowed:
+      Bash:
+      - "echo:*"
   time:
     mcp:
       type: stdio
