@@ -218,10 +218,8 @@ func removeInternalFields(frontmatter map[string]any) map[string]any {
 	// Create a copy of the frontmatter
 	cleaned := make(map[string]any)
 	for key, value := range frontmatter {
-		// Skip internal-only fields that are processed by Go code but not part of the public schema
-		if key == "concurrency_policy" {
-			continue
-		}
+		// Currently no internal-only fields need to be filtered
+		// This function is kept for future extensibility
 		cleaned[key] = value
 	}
 

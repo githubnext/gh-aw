@@ -1,10 +1,7 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // GenerateConcurrencyConfig generates the concurrency configuration for a workflow
@@ -20,47 +17,21 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isAliasTrigger bool) 
 }
 
 // GenerateConcurrencyConfigWithFrontmatter generates concurrency config using the policy system
-// This is the new entry point that accepts frontmatter for policy parsing
+// This function maintains the same interface but no longer parses frontmatter for policies
 func GenerateConcurrencyConfigWithFrontmatter(workflowData *WorkflowData, isAliasTrigger bool, frontmatter map[string]any, verbose bool) string {
 	// Don't override if already set by user
 	if workflowData.Concurrency != "" {
 		return workflowData.Concurrency
 	}
 
-	// Parse concurrency policy from frontmatter
-	userPolicySet, err := parseConcurrencyPolicyFromFrontmatter(frontmatter)
-	if err != nil {
-		if verbose {
-			fmt.Println(console.FormatWarningMessage("Failed to parse concurrency policy, using defaults: " + err.Error()))
-		}
-		// Fall back to legacy behavior
-		return generateConcurrencyWithPolicySystem(workflowData, isAliasTrigger)
-	}
-
-	// Compute the final policy
-	computed, err := computeConcurrencyPolicy(workflowData, isAliasTrigger, userPolicySet)
-	if err != nil {
-		if verbose {
-			fmt.Println(console.FormatWarningMessage("Failed to compute concurrency policy, using defaults: " + err.Error()))
-		}
-		// Fall back to legacy behavior
-		return generateConcurrencyWithPolicySystem(workflowData, isAliasTrigger)
-	}
-
-	// Generate YAML
-	yaml := generateConcurrencyYAML(computed)
-	if yaml == "" {
-		// Fall back to legacy behavior
-		return generateConcurrencyWithPolicySystem(workflowData, isAliasTrigger)
-	}
-
-	return yaml
+	// Use the policy system with code-based rules only
+	return generateConcurrencyWithPolicySystem(workflowData, isAliasTrigger)
 }
 
-// generateConcurrencyWithPolicySystem uses the new policy system but with default policies only
+// generateConcurrencyWithPolicySystem uses the policy system with code-based rules only
 func generateConcurrencyWithPolicySystem(workflowData *WorkflowData, isAliasTrigger bool) string {
-	// Compute policy using defaults only (no user override)
-	computed, err := computeConcurrencyPolicy(workflowData, isAliasTrigger, nil)
+	// Compute policy using code-based rules only
+	computed, err := computeConcurrencyPolicy(workflowData, isAliasTrigger)
 	if err != nil {
 		// Fall back to legacy behavior if policy system fails
 		return generateLegacyConcurrency(workflowData, isAliasTrigger)

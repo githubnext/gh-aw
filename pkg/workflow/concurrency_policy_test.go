@@ -4,221 +4,213 @@ import (
 	"testing"
 )
 
-func TestParseConcurrencyPolicyFromFrontmatter(t *testing.T) {
-	tests := []struct {
-		name        string
-		frontmatter map[string]any
-		expected    *ConcurrencyPolicySet
-		shouldError bool
-		description string
-	}{
-		{
-			name:        "empty frontmatter returns nil",
-			frontmatter: map[string]any{},
-			expected:    nil,
-			shouldError: false,
-			description: "No concurrency_policy key should return nil",
-		},
-		{
-			name: "basic policy with default",
-			frontmatter: map[string]any{
-				"concurrency_policy": map[string]any{
-					"*": map[string]any{
-						"group": "workflow",
-					},
-				},
-			},
-			expected: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group: "workflow",
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			shouldError: false,
-			description: "Basic default policy should parse correctly",
-		},
-		{
-			name: "complete policy set",
-			frontmatter: map[string]any{
-				"concurrency_policy": map[string]any{
-					"*": map[string]any{
-						"group": "workflow",
-					},
-					"issues": map[string]any{
-						"group":              "workflow",
-						"node":               "issue.number",
-						"cancel-in-progress": true,
-					},
-					"pull_requests": map[string]any{
-						"group":              "workflow",
-						"node":               "pull_request.number",
-						"cancel-in-progress": true,
-					},
-				},
-			},
-			expected: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group: "workflow",
-				},
-				Issues: &ConcurrencyPolicy{
-					Group:            "workflow",
-					Node:             "issue.number",
-					CancelInProgress: boolPtr(true),
-				},
-				PullRequest: &ConcurrencyPolicy{
-					Group:            "workflow",
-					Node:             "pull_request.number",
-					CancelInProgress: boolPtr(true),
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			shouldError: false,
-			description: "Complete policy set should parse correctly",
-		},
-		{
-			name: "policy with backwards compatible id field",
-			frontmatter: map[string]any{
-				"concurrency_policy": map[string]any{
-					"*": map[string]any{
-						"id": "workflow", // using "id" instead of "group"
-					},
-				},
-			},
-			expected: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group: "workflow",
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			shouldError: false,
-			description: "Backwards compatible 'id' field should work",
-		},
-		{
-			name: "invalid policy type",
-			frontmatter: map[string]any{
-				"concurrency_policy": "invalid",
-			},
-			expected:    nil,
-			shouldError: true,
-			description: "Invalid policy type should return error",
-		},
-		{
-			name: "invalid cancel-in-progress type",
-			frontmatter: map[string]any{
-				"concurrency_policy": map[string]any{
-					"*": map[string]any{
-						"group":              "workflow",
-						"cancel-in-progress": "invalid",
-					},
-				},
-			},
-			expected:    nil,
-			shouldError: true,
-			description: "Invalid cancel-in-progress type should return error",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseConcurrencyPolicyFromFrontmatter(tt.frontmatter)
-
-			if tt.shouldError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
-
-			if !comparePolicySets(result, tt.expected) {
-				t.Errorf("Policy sets don't match.\nGot: %+v\nExpected: %+v", result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestComputeConcurrencyPolicy(t *testing.T) {
 	tests := []struct {
 		name           string
 		workflowData   *WorkflowData
 		isAliasTrigger bool
-		userPolicySet  *ConcurrencyPolicySet
 		expected       *ComputedConcurrencyPolicy
 		description    string
 	}{
 		{
-			name: "default policy for basic workflow",
+			name: "basic workflow without special triggers",
 			workflowData: &WorkflowData{
 				On: "push:",
 			},
 			isAliasTrigger: false,
-			userPolicySet:  nil,
 			expected: &ComputedConcurrencyPolicy{
-				Group: "gh-aw-${{ github.workflow }}",
+				Group:            "gh-aw-${{ github.workflow }}",
+				CancelInProgress: nil,
 			},
-			description: "Basic workflow should use default policy",
+			description: "Basic workflow should use simple group",
 		},
 		{
-			name: "pull request workflow with cancellation",
+			name: "pull request workflow",
 			workflowData: &WorkflowData{
-				On: "pull_request:\n  types: [opened]",
+				On: "pull_request:",
 			},
 			isAliasTrigger: false,
-			userPolicySet:  nil,
 			expected: &ComputedConcurrencyPolicy{
 				Group:            "gh-aw-${{ github.workflow }}-${{ github.ref }}",
-				CancelInProgress: boolPtr(true),
+				CancelInProgress: &[]bool{true}[0],
 			},
-			description: "PR workflow should use PR policy with cancellation",
+			description: "Pull request workflow should include ref and enable cancellation",
 		},
 		{
-			name: "alias workflow without cancellation",
+			name: "issues workflow",
 			workflowData: &WorkflowData{
-				On: "issues:\n  types: [opened]",
-			},
-			isAliasTrigger: true,
-			userPolicySet:  nil,
-			expected: &ComputedConcurrencyPolicy{
-				Group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}",
-			},
-			description: "Alias workflow should not use cancellation",
-		},
-		{
-			name: "user override policy",
-			workflowData: &WorkflowData{
-				On: "push:",
+				On: "issues:",
 			},
 			isAliasTrigger: false,
-			userPolicySet: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group:            "custom-group",
-					CancelInProgress: boolPtr(true),
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
 			expected: &ComputedConcurrencyPolicy{
-				Group:            "gh-aw-custom-group",
-				CancelInProgress: boolPtr(true),
+				Group:            "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}",
+				CancelInProgress: &[]bool{true}[0],
 			},
-			description: "User override should take precedence",
+			description: "Issues workflow should include issue number and enable cancellation",
+		},
+		{
+			name: "alias workflow",
+			workflowData: &WorkflowData{
+				On: "issues:",
+			},
+			isAliasTrigger: true,
+			expected: &ComputedConcurrencyPolicy{
+				Group:            "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}",
+				CancelInProgress: nil,
+			},
+			description: "Alias workflow should not enable cancellation",
+		},
+		{
+			name: "schedule workflow",
+			workflowData: &WorkflowData{
+				On: "schedule:",
+			},
+			isAliasTrigger: false,
+			expected: &ComputedConcurrencyPolicy{
+				Group:            "gh-aw-${{ github.workflow }}",
+				CancelInProgress: nil,
+			},
+			description: "Schedule workflow should use default policy",
+		},
+		{
+			name: "workflow_dispatch workflow",
+			workflowData: &WorkflowData{
+				On: "workflow_dispatch:",
+			},
+			isAliasTrigger: false,
+			expected: &ComputedConcurrencyPolicy{
+				Group:            "gh-aw-${{ github.workflow }}",
+				CancelInProgress: nil,
+			},
+			description: "Manual workflow should use default policy",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := computeConcurrencyPolicy(tt.workflowData, tt.isAliasTrigger, tt.userPolicySet)
+			result, err := computeConcurrencyPolicy(tt.workflowData, tt.isAliasTrigger)
 
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return
 			}
 
-			if !compareComputedPolicies(result, tt.expected) {
-				t.Errorf("Computed policies don't match.\nGot: %+v\nExpected: %+v", result, tt.expected)
+			if result.Group != tt.expected.Group {
+				t.Errorf("Group mismatch.\nGot: %s\nExpected: %s", result.Group, tt.expected.Group)
+			}
+
+			if !compareCancelInProgress(result.CancelInProgress, tt.expected.CancelInProgress) {
+				t.Errorf("CancelInProgress mismatch.\nGot: %v\nExpected: %v", result.CancelInProgress, tt.expected.CancelInProgress)
+			}
+		})
+	}
+}
+
+func TestGenerateConcurrencyYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		computed *ComputedConcurrencyPolicy
+		expected string
+	}{
+		{
+			name: "basic group without cancellation",
+			computed: &ComputedConcurrencyPolicy{
+				Group: "gh-aw-${{ github.workflow }}",
+			},
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}"`,
+		},
+		{
+			name: "group with cancellation enabled",
+			computed: &ComputedConcurrencyPolicy{
+				Group:            "gh-aw-${{ github.workflow }}-ref",
+				CancelInProgress: &[]bool{true}[0],
+			},
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-ref"
+  cancel-in-progress: true`,
+		},
+		{
+			name: "group with cancellation disabled",
+			computed: &ComputedConcurrencyPolicy{
+				Group:            "gh-aw-${{ github.workflow }}-ref",
+				CancelInProgress: &[]bool{false}[0],
+			},
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-ref"`,
+		},
+		{
+			name:     "nil policy returns empty string",
+			computed: nil,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateConcurrencyYAML(tt.computed)
+			if result != tt.expected {
+				t.Errorf("YAML output mismatch.\nGot:\n%s\nExpected:\n%s", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetDefaultPolicySet(t *testing.T) {
+	tests := []struct {
+		name           string
+		isAliasTrigger bool
+		description    string
+	}{
+		{
+			name:           "normal workflow policy set",
+			isAliasTrigger: false,
+			description:    "Normal workflows should have cancellation enabled for issues and PR triggers",
+		},
+		{
+			name:           "alias workflow policy set",
+			isAliasTrigger: true,
+			description:    "Alias workflows should not have cancellation enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			policySet := getDefaultPolicySet(tt.isAliasTrigger)
+
+			// Verify basic structure
+			if policySet == nil {
+				t.Error("Policy set should not be nil")
+				return
+			}
+
+			if policySet.Default == nil {
+				t.Error("Default policy should not be nil")
+			}
+
+			if policySet.Issues == nil {
+				t.Error("Issues policy should not be nil")
+			}
+
+			if policySet.PullRequest == nil {
+				t.Error("PullRequest policy should not be nil")
+			}
+
+			// Verify cancellation behavior based on alias trigger
+			if tt.isAliasTrigger {
+				if policySet.Issues.CancelInProgress != nil {
+					t.Error("Alias workflow issues policy should not have cancellation enabled")
+				}
+				if policySet.PullRequest.CancelInProgress != nil {
+					t.Error("Alias workflow PR policy should not have cancellation enabled")
+				}
+			} else {
+				if policySet.Issues.CancelInProgress == nil || !*policySet.Issues.CancelInProgress {
+					t.Error("Normal workflow issues policy should have cancellation enabled")
+				}
+				if policySet.PullRequest.CancelInProgress == nil || !*policySet.PullRequest.CancelInProgress {
+					t.Error("Normal workflow PR policy should have cancellation enabled")
+				}
 			}
 		})
 	}
@@ -230,7 +222,6 @@ func TestBuildGroupIdentifier(t *testing.T) {
 		policy       *ConcurrencyPolicy
 		workflowData *WorkflowData
 		expected     string
-		description  string
 	}{
 		{
 			name: "basic workflow group",
@@ -239,230 +230,72 @@ func TestBuildGroupIdentifier(t *testing.T) {
 			},
 			workflowData: &WorkflowData{},
 			expected:     "gh-aw-${{ github.workflow }}",
-			description:  "Basic workflow group should include workflow name",
 		},
 		{
-			name: "issue number node",
+			name: "custom group",
+			policy: &ConcurrencyPolicy{
+				Group: "custom",
+			},
+			workflowData: &WorkflowData{},
+			expected:     "gh-aw-custom",
+		},
+		{
+			name: "with issue number node",
 			policy: &ConcurrencyPolicy{
 				Group: "workflow",
 				Node:  "issue.number",
 			},
 			workflowData: &WorkflowData{},
 			expected:     "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}",
-			description:  "Issue number node should be included",
 		},
 		{
-			name: "pull request number node",
+			name: "with pull request number node",
 			policy: &ConcurrencyPolicy{
 				Group: "workflow",
 				Node:  "pull_request.number",
 			},
 			workflowData: &WorkflowData{},
 			expected:     "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number }}",
-			description:  "PR number node should be included",
 		},
 		{
-			name: "custom group and node",
-			policy: &ConcurrencyPolicy{
-				Group: "custom-group",
-				Node:  "custom.expr",
-			},
-			workflowData: &WorkflowData{},
-			expected:     "gh-aw-custom-group-${{ custom.expr }}",
-			description:  "Custom group and node should be included",
-		},
-		{
-			name: "custom node with expression",
+			name: "with github ref node",
 			policy: &ConcurrencyPolicy{
 				Group: "workflow",
-				Node:  "${{ github.event.custom.field }}",
+				Node:  "github.ref",
 			},
 			workflowData: &WorkflowData{},
-			expected:     "gh-aw-${{ github.workflow }}-${{ github.event.custom.field }}",
-			description:  "Custom expression node should be preserved",
+			expected:     "gh-aw-${{ github.workflow }}-${{ github.ref }}",
+		},
+		{
+			name: "with custom node expression",
+			policy: &ConcurrencyPolicy{
+				Group: "workflow",
+				Node:  "custom.expression",
+			},
+			workflowData: &WorkflowData{},
+			expected:     "gh-aw-${{ github.workflow }}-${{ custom.expression }}",
+		},
+		{
+			name:         "nil policy returns fallback",
+			policy:       nil,
+			workflowData: &WorkflowData{},
+			expected:     "gh-aw-${{ github.workflow }}",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := buildGroupIdentifier(tt.policy, tt.workflowData)
-
 			if result != tt.expected {
-				t.Errorf("Group identifier doesn't match.\nGot: %s\nExpected: %s", result, tt.expected)
+				t.Errorf("Group identifier mismatch.\nGot: %s\nExpected: %s", result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestGenerateConcurrencyYAML(t *testing.T) {
-	tests := []struct {
-		name        string
-		computed    *ComputedConcurrencyPolicy
-		expected    string
-		description string
-	}{
-		{
-			name: "basic concurrency without cancel",
-			computed: &ComputedConcurrencyPolicy{
-				Group: "gh-aw-${{ github.workflow }}",
-			},
-			expected:    "concurrency:\n  group: \"gh-aw-${{ github.workflow }}\"",
-			description: "Basic concurrency should only include group",
-		},
-		{
-			name: "concurrency with cancellation",
-			computed: &ComputedConcurrencyPolicy{
-				Group:            "gh-aw-${{ github.workflow }}-${{ github.ref }}",
-				CancelInProgress: boolPtr(true),
-			},
-			expected:    "concurrency:\n  group: \"gh-aw-${{ github.workflow }}-${{ github.ref }}\"\n  cancel-in-progress: true",
-			description: "Concurrency with cancellation should include both fields",
-		},
-		{
-			name: "concurrency with cancellation false",
-			computed: &ComputedConcurrencyPolicy{
-				Group:            "gh-aw-${{ github.workflow }}",
-				CancelInProgress: boolPtr(false),
-			},
-			expected:    "concurrency:\n  group: \"gh-aw-${{ github.workflow }}\"",
-			description: "Concurrency with cancel false should not include cancel field",
-		},
-		{
-			name:        "nil computed policy",
-			computed:    nil,
-			expected:    "",
-			description: "Nil policy should return empty string",
-		},
-	}
+// Helper functions
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := generateConcurrencyYAML(tt.computed)
-
-			if result != tt.expected {
-				t.Errorf("YAML doesn't match.\nGot:\n%s\nExpected:\n%s", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestMergePolicySets(t *testing.T) {
-	tests := []struct {
-		name        string
-		base        *ConcurrencyPolicySet
-		override    *ConcurrencyPolicySet
-		expected    *ConcurrencyPolicySet
-		description string
-	}{
-		{
-			name: "merge with nil override",
-			base: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{Group: "workflow"},
-				Custom:  make(map[string]*ConcurrencyPolicy),
-			},
-			override: nil,
-			expected: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{Group: "workflow"},
-				Custom:  make(map[string]*ConcurrencyPolicy),
-			},
-			description: "Merge with nil should return base",
-		},
-		{
-			name: "override default policy",
-			base: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{Group: "workflow"},
-				Custom:  make(map[string]*ConcurrencyPolicy),
-			},
-			override: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group:            "custom-workflow",
-					CancelInProgress: boolPtr(true),
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			expected: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group:            "custom-workflow",
-					CancelInProgress: boolPtr(true),
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			description: "Override should replace default policy",
-		},
-		{
-			name: "partial override",
-			base: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group: "workflow",
-					Node:  "base-node",
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			override: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					CancelInProgress: boolPtr(true),
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			expected: &ConcurrencyPolicySet{
-				Default: &ConcurrencyPolicy{
-					Group:            "workflow",
-					Node:             "base-node",
-					CancelInProgress: boolPtr(true),
-				},
-				Custom: make(map[string]*ConcurrencyPolicy),
-			},
-			description: "Partial override should merge fields",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := mergePolicySets(tt.base, tt.override)
-
-			if !comparePolicySets(result, tt.expected) {
-				t.Errorf("Merged policy sets don't match.\nGot: %+v\nExpected: %+v", result, tt.expected)
-			}
-		})
-	}
-}
-
-// Helper functions for testing
-
-func boolPtr(b bool) *bool {
-	return &b
-}
-
-func comparePolicySets(a, b *ConcurrencyPolicySet) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-
-	return comparePolicies(a.Default, b.Default) &&
-		comparePolicies(a.Issues, b.Issues) &&
-		comparePolicies(a.PullRequest, b.PullRequest) &&
-		comparePolicies(a.Schedule, b.Schedule) &&
-		comparePolicies(a.Manual, b.Manual) &&
-		compareCustomPolicies(a.Custom, b.Custom)
-}
-
-func comparePolicies(a, b *ConcurrencyPolicy) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-
-	return a.Group == b.Group &&
-		a.Node == b.Node &&
-		compareBoolPtrs(a.CancelInProgress, b.CancelInProgress)
-}
-
-func compareBoolPtrs(a, b *bool) bool {
+func compareCancelInProgress(a, b *bool) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -470,30 +303,4 @@ func compareBoolPtrs(a, b *bool) bool {
 		return false
 	}
 	return *a == *b
-}
-
-func compareCustomPolicies(a, b map[string]*ConcurrencyPolicy) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for k, v := range a {
-		if !comparePolicies(v, b[k]) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func compareComputedPolicies(a, b *ComputedConcurrencyPolicy) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-
-	return a.Group == b.Group &&
-		compareBoolPtrs(a.CancelInProgress, b.CancelInProgress)
 }

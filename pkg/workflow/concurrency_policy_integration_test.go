@@ -8,7 +8,7 @@ import (
 )
 
 func TestConcurrencyPolicyIntegration(t *testing.T) {
-	// Test the new concurrency policy system with real workflow files
+	// Test the concurrency policy system with real workflow files using code-based rules
 	tmpDir, err := os.MkdirTemp("", "concurrency-policy-integration-test")
 	if err != nil {
 		t.Fatal(err)
@@ -26,115 +26,68 @@ func TestConcurrencyPolicyIntegration(t *testing.T) {
 		description    string
 	}{
 		{
-			name: "workflow with custom concurrency policy",
+			name: "basic push workflow",
 			frontmatter: `---
-name: custom-concurrency-test
+name: basic-push-test
 on:
   push:
     branches: [main]
-concurrency_policy:
-  "*":
-    group: custom-workflow
-    cancel-in-progress: true
-  pull_requests:
-    group: pr-specific
-    node: pull_request.number
-    cancel-in-progress: false
 ---`,
-			filename:       "custom-policy.md",
-			expectedGroup:  "gh-aw-custom-workflow",
-			expectedCancel: boolPtr(true),
-			description:    "Should use custom default policy",
+			filename:       "basic-push.md",
+			expectedGroup:  "gh-aw-${{ github.workflow }}",
+			expectedCancel: nil,
+			description:    "Should use basic group for push workflows",
 		},
 		{
-			name: "pull request workflow with custom policy",
+			name: "pull request workflow",
 			frontmatter: `---
-name: pr-custom-test
+name: pr-test
 on:
   pull_request:
     types: [opened, synchronize]
-concurrency_policy:
-  "*":
-    group: default-workflow
-  pull_requests:
-    group: pr-workflow
-    node: pull_request.number
-    cancel-in-progress: false
 ---`,
-			filename:       "pr-custom.md",
-			expectedGroup:  "gh-aw-pr-workflow-${{ github.event.pull_request.number }}",
-			expectedCancel: boolPtr(false),
-			description:    "Should use PR-specific policy overriding cancel behavior",
+			filename:       "pr.md",
+			expectedGroup:  "gh-aw-${{ github.workflow }}-${{ github.ref }}",
+			expectedCancel: boolPtr(true),
+			description:    "Should use ref-based group with cancellation for PR workflows",
 		},
 		{
-			name: "issue workflow with node override",
+			name: "issue workflow",
 			frontmatter: `---
-name: issue-custom-test
+name: issue-test
 on:
   issues:
     types: [opened]
-concurrency_policy:
-  issues:
-    group: workflow
-    node: "github.event.issue.title"
-    cancel-in-progress: true
 ---`,
-			filename:       "issue-custom.md",
-			expectedGroup:  "gh-aw-${{ github.workflow }}-${{ github.event.issue.title }}",
+			filename:       "issue.md",
+			expectedGroup:  "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}",
 			expectedCancel: boolPtr(true),
-			description:    "Should use custom node expression for issue workflow",
+			description:    "Should use issue number with cancellation for issue workflows",
 		},
 		{
-			name: "workflow with backwards compatible id field",
-			frontmatter: `---
-name: backwards-compat-test
-on:
-  push:
-    branches: [main]
-concurrency_policy:
-  "*":
-    id: legacy-workflow  # using "id" instead of "group"
----`,
-			filename:       "backwards-compat.md",
-			expectedGroup:  "gh-aw-legacy-workflow",
-			expectedCancel: nil,
-			description:    "Should support backwards compatible 'id' field",
-		},
-		{
-			name: "schedule workflow with specific policy",
+			name: "schedule workflow",
 			frontmatter: `---
 name: schedule-test
 on:
   schedule:
     - cron: "0 9 * * *"
-concurrency_policy:
-  schedule:
-    group: scheduled-tasks
-    cancel-in-progress: false
 ---`,
 			filename:       "schedule.md",
-			expectedGroup:  "gh-aw-scheduled-tasks",
+			expectedGroup:  "gh-aw-${{ github.workflow }}",
 			expectedCancel: nil,
-			description:    "Should use schedule-specific policy",
+			description:    "Should use basic group for scheduled workflows",
 		},
 		{
-			name: "workflow with custom trigger policy",
+			name: "workflow_dispatch workflow",
 			frontmatter: `---
-name: custom-trigger-test
+name: manual-test
 on:
-  repository_dispatch:
-    types: [custom-event]
-concurrency_policy:
-  "*":
-    group: workflow
-  repository_dispatch:
-    group: dispatch-workflow
-    node: "github.event.client_payload.id"
+  workflow_dispatch:
 ---`,
-			filename:       "custom-trigger.md",
-			expectedGroup:  "gh-aw-dispatch-workflow-${{ github.event.client_payload.id }}",
+			filename:       "manual.md",
+			expectedGroup:  "gh-aw-${{ github.workflow }}",
 			expectedCancel: nil,
-			description:    "Should use custom trigger-specific policy",
+			description:    "Should use basic group for manual workflows",
 		},
 	}
 
@@ -181,54 +134,6 @@ concurrency_policy:
 	}
 }
 
-func TestConcurrencyPolicyMerging(t *testing.T) {
-	// Test that user policies correctly override default policies
-	tmpDir, err := os.MkdirTemp("", "concurrency-policy-merging-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	compiler := NewCompiler(false, "", "test")
-
-	// Test case: PR workflow with user policy that overrides the default PR behavior
-	frontmatter := `---
-name: pr-override-test
-on:
-  pull_request:
-    types: [opened, synchronize]
-concurrency_policy:
-  pull_requests:
-    group: custom-pr-group
-    node: "github.sha"
-    cancel-in-progress: false
----`
-
-	testContent := frontmatter + "\n\nThis is a test for policy merging."
-	testFile := filepath.Join(tmpDir, "pr-override.md")
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Parse the workflow
-	workflowData, err := compiler.parseWorkflowFile(testFile)
-	if err != nil {
-		t.Errorf("Failed to parse workflow: %v", err)
-		return
-	}
-
-	// Verify that the user policy overrode the defaults
-	expectedGroup := "gh-aw-custom-pr-group-${{ github.sha }}"
-	if !strings.Contains(workflowData.Concurrency, expectedGroup) {
-		t.Errorf("Expected custom group '%s', got: %s", expectedGroup, workflowData.Concurrency)
-	}
-
-	// Verify that cancellation was overridden to false (should not appear)
-	if strings.Contains(workflowData.Concurrency, "cancel-in-progress: true") {
-		t.Errorf("Expected cancel-in-progress to be disabled, but found it enabled: %s", workflowData.Concurrency)
-	}
-}
-
 func TestConcurrencyUserOverrideRespected(t *testing.T) {
 	// Test that user-provided concurrency is not overridden by the policy system
 	tmpDir, err := os.MkdirTemp("", "concurrency-user-override-test")
@@ -241,13 +146,13 @@ func TestConcurrencyUserOverrideRespected(t *testing.T) {
 
 	frontmatter := `---
 name: user-override-test
+on:
+  push:
+    branches: [main]
 concurrency: |
   concurrency:
     group: user-defined-group
     cancel-in-progress: true
-concurrency_policy:
-  "*":
-    group: policy-group
 ---`
 
 	testContent := frontmatter + "\n\nThis is a test for user override."
@@ -263,13 +168,18 @@ concurrency_policy:
 		return
 	}
 
-	// Should use the user-defined concurrency, not the policy
+	// Should use the user-defined concurrency, not the auto-generated policy
 	if !strings.Contains(workflowData.Concurrency, "user-defined-group") {
 		t.Errorf("Expected user-defined concurrency to be preserved, got: %s", workflowData.Concurrency)
 	}
 
-	// Should not contain policy-generated content
-	if strings.Contains(workflowData.Concurrency, "policy-group") {
-		t.Errorf("User-defined concurrency should not be overridden by policy, got: %s", workflowData.Concurrency)
+	// Should not contain auto-generated content
+	if strings.Contains(workflowData.Concurrency, "gh-aw-${{ github.workflow }}") {
+		t.Errorf("User-defined concurrency should not be overridden by auto-generated policy, got: %s", workflowData.Concurrency)
 	}
+}
+
+// Helper function to create bool pointers
+func boolPtr(b bool) *bool {
+	return &b
 }
