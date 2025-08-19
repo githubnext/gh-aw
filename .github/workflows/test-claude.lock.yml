@@ -368,22 +368,21 @@ jobs:
               // Remove control characters (except newlines and tabs)
               let sanitized = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
               
-              // Limit total length to prevent DoS (64KB max)
-              const maxLength = 65536;
+              // Limit total length to prevent DoS (1MB max)
+              const maxLength = 1048576;
               if (sanitized.length > maxLength) {
                 sanitized = sanitized.substring(0, maxLength) + '\n[Content truncated due to length]';
               }
               
-              // Limit number of lines to prevent log flooding (1000 max)
+              // Limit number of lines to prevent log flooding (65k max)
               const lines = sanitized.split('\n');
-              const maxLines = 1000;
+              const maxLines = 65000;
               if (lines.length > maxLines) {
                 sanitized = lines.slice(0, maxLines).join('\n') + '\n[Content truncated due to line count]';
               }
               
               // Remove potential shell injection patterns
               sanitized = sanitized.replace(/\$\([^)]*\)/g, '[shell-command-removed]');
-              sanitized = sanitized.replace(/`[^`]*`/g, '[backtick-content-removed]');
               
               // Remove ANSI escape sequences
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, '');
