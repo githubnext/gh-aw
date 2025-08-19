@@ -1646,6 +1646,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string) (*Job, error
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
 		Depends:     []string{"task"}, // Depend on the task job
+		Outputs: map[string]string{
+			"output": "${{ steps.collect_output.outputs.output }}",
+		},
 	}
 
 	return job, nil
@@ -1872,6 +1875,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	for _, line := range strings.Split(data.MarkdownContent, "\n") {
 		yaml.WriteString("          " + line + "\n")
 	}
+
+	// Add output instructions for the agent
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ---\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file specified by the environment variable GITHUB_AW_OUTPUT. This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          Example usage:\n")
+	yaml.WriteString("          - If GITHUB_AW_OUTPUT is set, you can write results to that file\n")
+	yaml.WriteString("          - The content will be available to other workflows or jobs via the 'output' output\n")
+	yaml.WriteString("          - Only write to this file if you have meaningful output to provide\n")
 	yaml.WriteString("          EOF\n")
 
 	// Add step to print prompt to GitHub step summary for debugging
@@ -2053,6 +2067,9 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
+	// Generate output file setup step
+	c.generateOutputFileSetup(yaml, data)
+
 	// Generate aw_info.json with agentic run metadata
 	c.generateAgenticInfoStep(yaml, data, engine)
 
@@ -2083,6 +2100,12 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				value := executionConfig.Environment[key]
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
+			// Add GITHUB_AW_OUTPUT environment variable
+			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+		} else {
+			// Add GITHUB_AW_OUTPUT environment variable even if no other env vars
+			yaml.WriteString("        env:\n")
+			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 		}
 	} else if executionConfig.Action != "" {
 
@@ -2120,6 +2143,9 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
 		}
+		// Add environment section to pass GITHUB_AW_OUTPUT to the action
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 		yaml.WriteString("      - name: Capture Agentic Action logs\n")
 		yaml.WriteString("        if: always()\n")
 		yaml.WriteString("        run: |\n")
@@ -2133,6 +2159,9 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          # Ensure log file exists\n")
 		yaml.WriteString("          touch " + logFile + "\n")
 	}
+
+	// Add output collection step
+	c.generateOutputCollectionStep(yaml, data)
 }
 
 // generateAgenticInfoStep generates a step that creates aw_info.json with agentic run metadata
@@ -2195,6 +2224,67 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
+}
+
+// generateOutputFileSetup generates a step that sets up the GITHUB_AW_OUTPUT environment variable
+func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Setup agentic output file\n")
+	yaml.WriteString("        id: setup_output\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            const crypto = require('crypto');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Generate a random filename for the output file\n")
+	yaml.WriteString("            const randomId = crypto.randomBytes(8).toString('hex');\n")
+	yaml.WriteString("            const outputFile = `/tmp/aw_output_${randomId}.txt`;\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Ensure the file exists (create empty file)\n")
+	yaml.WriteString("            fs.writeFileSync(outputFile, '');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Set the environment variable for subsequent steps\n")
+	yaml.WriteString("            const fs2 = require('fs');\n")
+	yaml.WriteString("            fs2.appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OUTPUT=${outputFile}\\n`);\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            console.log('Created agentic output file:', outputFile);\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Also set as step output for reference\n")
+	yaml.WriteString("            core.setOutput('output_file', outputFile);\n")
+}
+
+// generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
+func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Collect agentic output\n")
+	yaml.WriteString("        id: collect_output\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            const outputFile = process.env.GITHUB_AW_OUTPUT;\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            if (!outputFile) {\n")
+	yaml.WriteString("              console.log('GITHUB_AW_OUTPUT not set, no output to collect');\n")
+	yaml.WriteString("              core.setOutput('output', '');\n")
+	yaml.WriteString("              return;\n")
+	yaml.WriteString("            }\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            if (!fs.existsSync(outputFile)) {\n")
+	yaml.WriteString("              console.log('Output file does not exist:', outputFile);\n")
+	yaml.WriteString("              core.setOutput('output', '');\n")
+	yaml.WriteString("              return;\n")
+	yaml.WriteString("            }\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            const outputContent = fs.readFileSync(outputFile, 'utf8');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            if (outputContent.trim() === '') {\n")
+	yaml.WriteString("              console.log('Output file is empty');\n")
+	yaml.WriteString("              core.setOutput('output', '');\n")
+	yaml.WriteString("            } else {\n")
+	yaml.WriteString("              console.log('Collected agentic output:', outputContent);\n")
+	yaml.WriteString("              core.setOutput('output', outputContent.trim());\n")
+	yaml.WriteString("            }\n")
 }
 
 // validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
