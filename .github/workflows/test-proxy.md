@@ -52,12 +52,3 @@ Create a GitHub issue with the test results, documenting:
 
 The test should demonstrate that MCP containers are properly isolated and can only access explicitly allowed domains through the network proxy.
 
-@include agentics/shared/include-link.md
-
-@include agentics/shared/job-summary.md
-
-@include agentics/shared/xpia.md
-
-@include agentics/shared/gh-extra-tools.md
-
-@include agentics/shared/tool-refused.md
