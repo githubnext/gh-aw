@@ -43,32 +43,26 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Setup agentic output file
-        id: setup_output
+      - name: Setup Agent Output File (GITHUB_AW_OUTPUT)
+        id: setup_agent_output
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const crypto = require('crypto');
-            
             // Generate a random filename for the output file
             const randomId = crypto.randomBytes(8).toString('hex');
             const outputFile = `/tmp/aw_output_${randomId}.txt`;
-            
             // Ensure the /tmp directory exists and create empty output file
             fs.mkdirSync('/tmp', { recursive: true });
             fs.writeFileSync(outputFile, '', { mode: 0o644 });
-            
             // Verify the file was created and is writable
             if (!fs.existsSync(outputFile)) {
               throw new Error(`Failed to create output file: ${outputFile}`);
             }
-            
             // Set the environment variable for subsequent steps
             core.exportVariable('GITHUB_AW_OUTPUT', outputFile);
-            
             console.log('Created agentic output file:', outputFile);
-            
             // Also set as step output for reference
             core.setOutput('output_file', outputFile);
       - name: Setup MCPs
@@ -317,29 +311,25 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            
             const outputFile = process.env.GITHUB_AW_OUTPUT;
-            
             if (!outputFile) {
               console.log('GITHUB_AW_OUTPUT not set, no output to collect');
               core.setOutput('output', '');
               return;
             }
-            
             if (!fs.existsSync(outputFile)) {
               console.log('Output file does not exist:', outputFile);
               core.setOutput('output', '');
               return;
             }
-            
             const outputContent = fs.readFileSync(outputFile, 'utf8');
-            
             if (outputContent.trim() === '') {
               console.log('Output file is empty');
               core.setOutput('output', '');
             } else {
               console.log('Collected agentic output:', outputContent);
               core.setOutput('output', outputContent.trim());
+              core.summary.addRaw('\n\n## Agentic Output\n\n``````markdown\n' + outputContent + '\n``````');
             }
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
