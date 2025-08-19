@@ -45,7 +45,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	if verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
-		
+
 		// Show time filtering information if provided
 		if beforeTime != "" || afterTime != "" {
 			fmt.Println(console.FormatInfoMessage("Time filtering enabled:"))

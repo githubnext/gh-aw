@@ -33,7 +33,7 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 
 	var sign int
 	var prefix string
-	
+
 	// Determine sign and remove prefix
 	if strings.HasPrefix(deltaStr, "+") {
 		sign = 1
@@ -144,7 +144,7 @@ func (td *TimeDelta) String() string {
 	if len(parts) == 0 {
 		return "0m"
 	}
-	
+
 	prefix := "+"
 	if td.Sign < 0 {
 		prefix = "-"
@@ -312,12 +312,12 @@ func ResolveRelativeTime(timeStr string, referenceTime time.Time) (time.Time, er
 	if err != nil {
 		return time.Time{}, err
 	}
-	
+
 	// Convert back to time.Time
 	parsedTime, err := time.Parse("2006-01-02 15:04:05", absoluteTimeStr)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to parse resolved time: %w", err)
 	}
-	
+
 	return parsedTime.UTC(), nil
 }
