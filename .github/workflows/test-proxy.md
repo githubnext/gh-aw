@@ -5,7 +5,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  issues: write # needed to write the output report to an issue
+
 tools:
   fetch:
     mcp:
