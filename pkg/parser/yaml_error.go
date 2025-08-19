@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -8,15 +9,28 @@ import (
 
 // ExtractYAMLError extracts line and column information from YAML parsing errors
 func ExtractYAMLError(err error, frontmatterStartLine int) (line int, column int, message string) {
-	errStr := err.Error()
+	// First try to unwrap and get the original error from goccy/go-yaml
+	originalErr := err
+	for unwrapped := errors.Unwrap(originalErr); unwrapped != nil; unwrapped = errors.Unwrap(originalErr) {
+		originalErr = unwrapped
+	}
 
-	// First try to extract information from goccy/go-yaml's native error structure
-	line, column, message = extractFromGoccyError(err, frontmatterStartLine)
+	// Try to extract information from goccy/go-yaml's native error structure
+	line, column, message = extractFromGoccyError(originalErr, frontmatterStartLine)
 	if line > 0 || column > 0 {
 		return line, column, message
 	}
 
+	// Also try the wrapped error itself in case it's a different structure
+	if originalErr != err {
+		line, column, message = extractFromGoccyError(err, frontmatterStartLine)
+		if line > 0 || column > 0 {
+			return line, column, message
+		}
+	}
+
 	// Fallback to string parsing for other YAML libraries or unknown error formats
+	errStr := err.Error()
 	return extractFromStringParsing(errStr, frontmatterStartLine)
 }
 
