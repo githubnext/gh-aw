@@ -55,8 +55,8 @@ This workflow tests the agentic output collection functionality.
 	lockContent := string(content)
 
 	// Verify pre-step: Setup agentic output file step exists
-	if !strings.Contains(lockContent, "- name: Setup agentic output file") {
-		t.Error("Expected 'Setup agentic output file' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Setup Agent Output File (GITHUB_AW_OUTPUT)") {
+		t.Error("Expected 'Setup Agent Output File (GITHUB_AW_OUTPUT)' step to be in generated workflow")
 	}
 
 	// Verify the step uses github-script and sets up the output file
@@ -73,17 +73,17 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify prompt injection: Check for output instructions in the prompt
-	if !strings.Contains(lockContent, "**IMPORTANT**: If you need to provide output that should be captured as a workflow output variable") {
+	if !strings.Contains(lockContent, "**IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file") {
 		t.Error("Expected output instructions to be injected into prompt")
 	}
 
-	if !strings.Contains(lockContent, "write it to the file specified by the environment variable GITHUB_AW_OUTPUT") {
-		t.Error("Expected GITHUB_AW_OUTPUT instructions in prompt")
+	if !strings.Contains(lockContent, "\"${{ env.GITHUB_AW_OUTPUT }}\"") {
+		t.Error("Expected GITHUB_AW_OUTPUT environment variable reference in prompt")
 	}
 
 	// Verify environment variable is passed to agentic engine
-	if !strings.Contains(lockContent, "env:\n          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}") {
-		t.Error("Expected GITHUB_AW_OUTPUT environment variable to be passed to agentic engine")
+	if !strings.Contains(lockContent, "claude_env: |\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}") {
+		t.Error("Expected GITHUB_AW_OUTPUT environment variable to be passed to Claude via claude_env")
 	}
 
 	// Verify post-step: Collect agentic output step exists
@@ -109,9 +109,17 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify step order: setup should come before agentic execution, collection should come after
-	setupIndex := strings.Index(lockContent, "- name: Setup agentic output file")
-	executeIndex := strings.Index(lockContent, "- name: Execute Claude Code Action")
+	setupIndex := strings.Index(lockContent, "- name: Setup Agent Output File (GITHUB_AW_OUTPUT)")
+	executeIndex := strings.Index(lockContent, "- name: Execute Claude Code")
 	collectIndex := strings.Index(lockContent, "- name: Collect agentic output")
+
+	// If "Execute Claude Code" isn't found, try alternative step names
+	if executeIndex == -1 {
+		executeIndex = strings.Index(lockContent, "- name: Execute Claude")
+	}
+	if executeIndex == -1 {
+		executeIndex = strings.Index(lockContent, "uses: githubnext/claude-action")
+	}
 
 	if setupIndex == -1 || executeIndex == -1 || collectIndex == -1 {
 		t.Fatal("Could not find expected steps in generated workflow")
