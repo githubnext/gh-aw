@@ -75,7 +75,7 @@ The YAML frontmatter supports these fields:
   - Custom tool names for MCP servers
   
 - **`max-turns:`** - Maximum chat iterations per run (integer)
-- **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m)
+- **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 
@@ -424,12 +424,46 @@ gh aw logs weekly-research
 gh aw logs --engine claude           # Only Claude workflows
 gh aw logs --engine codex            # Only Codex workflows
 
-# Limit number of runs and filter by date
+# Limit number of runs and filter by date (absolute dates)
 gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31
+
+# Filter by date using delta time syntax (relative dates)
+gh aw logs --start-date -1w          # Last week's runs
+gh aw logs --end-date -1d            # Up to yesterday
+gh aw logs --start-date -1mo         # Last month's runs
+gh aw logs --start-date -2w3d        # 2 weeks 3 days ago
 
 # Download to custom directory
 gh aw logs -o ./workflow-logs
 ```
+
+#### Delta Time Syntax for Date Filtering
+
+The `--start-date` and `--end-date` flags support delta time syntax for relative dates:
+
+**Supported Time Units:**
+- **Days**: `-1d`, `-7d`
+- **Weeks**: `-1w`, `-4w` 
+- **Months**: `-1mo`, `-6mo`
+- **Hours/Minutes**: `-12h`, `-30m` (for sub-day precision)
+- **Combinations**: `-1mo2w3d`, `-2w5d12h`
+
+**Examples:**
+```bash
+# Get runs from the last week
+gh aw logs --start-date -1w
+
+# Get runs up to yesterday  
+gh aw logs --end-date -1d
+
+# Get runs from the last month
+gh aw logs --start-date -1mo
+
+# Complex combinations work too
+gh aw logs --start-date -2w3d --end-date -1d
+```
+
+Delta time calculations use precise date arithmetic that accounts for varying month lengths and daylight saving time transitions.
 
 ## Security Considerations
 
