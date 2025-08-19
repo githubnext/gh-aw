@@ -99,8 +99,17 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected output file reading in collection step")
 	}
 
-	if !strings.Contains(lockContent, "core.setOutput('output', outputContent.trim());") {
-		t.Error("Expected output to be set in collection step")
+	if !strings.Contains(lockContent, "core.setOutput('output', sanitizedContent);") {
+		t.Error("Expected sanitized output to be set in collection step")
+	}
+
+	// Verify sanitization function is included
+	if !strings.Contains(lockContent, "function sanitizeContent(content) {") {
+		t.Error("Expected sanitization function to be in collection step")
+	}
+
+	if !strings.Contains(lockContent, "const sanitizedContent = sanitizeContent(outputContent);") {
+		t.Error("Expected sanitization function to be called on output content")
 	}
 
 	// Verify job output declaration
