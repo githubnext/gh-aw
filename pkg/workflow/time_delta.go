@@ -13,15 +13,20 @@ type TimeDelta struct {
 	Hours   int
 	Days    int
 	Minutes int
+	Weeks   int
+	Months  int
 }
 
-// parseTimeDelta parses a relative time delta string like "+25h", "+3d", "+1d12h30m", etc.
+// parseTimeDelta parses a relative time delta string like "+25h", "+3d", "+1w", "+1mo", "+1d12h30m", etc.
 // Supported formats:
 // - +25h (25 hours)
 // - +3d (3 days)
+// - +1w (1 week)
+// - +1mo (1 month)
 // - +30m (30 minutes)
 // - +1d12h (1 day and 12 hours)
 // - +2d5h30m (2 days, 5 hours, 30 minutes)
+// - +1mo2w3d (1 month, 2 weeks, 3 days)
 func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 	if deltaStr == "" {
 		return nil, fmt.Errorf("empty time delta")
@@ -40,12 +45,12 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 	}
 
 	// Parse components using regex
-	// Pattern matches: number followed by d/h/m
-	pattern := regexp.MustCompile(`(\d+)([dhm])`)
+	// Pattern matches: number followed by mo/w/d/h/m (months, weeks, days, hours, minutes)
+	pattern := regexp.MustCompile(`(\d+)(mo|w|d|h|m)`)
 	matches := pattern.FindAllStringSubmatch(deltaStr, -1)
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1d12h30m", deltaStr)
+		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m", deltaStr)
 	}
 
 	// Check that all characters are consumed by matches
@@ -84,6 +89,10 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 		}
 
 		switch unit {
+		case "mo":
+			delta.Months = value
+		case "w":
+			delta.Weeks = value
 		case "d":
 			delta.Days = value
 		case "h":
@@ -96,6 +105,12 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 	}
 
 	// Validate reasonable limits
+	if delta.Months > 12 {
+		return nil, fmt.Errorf("time delta too large: %d months exceeds maximum of 12 months", delta.Months)
+	}
+	if delta.Weeks > 52 {
+		return nil, fmt.Errorf("time delta too large: %d weeks exceeds maximum of 52 weeks", delta.Weeks)
+	}
 	if delta.Days > 365 {
 		return nil, fmt.Errorf("time delta too large: %d days exceeds maximum of 365 days", delta.Days)
 	}
@@ -114,12 +129,22 @@ func (td *TimeDelta) toDuration() time.Duration {
 	duration := time.Duration(td.Days) * 24 * time.Hour
 	duration += time.Duration(td.Hours) * time.Hour
 	duration += time.Duration(td.Minutes) * time.Minute
+	duration += time.Duration(td.Weeks) * 7 * 24 * time.Hour
+	// Note: Months are approximated as 30 days for duration calculation
+	// For more precise month handling, use AddDate instead of Add
+	duration += time.Duration(td.Months) * 30 * 24 * time.Hour
 	return duration
 }
 
 // String returns a human-readable representation of the TimeDelta
 func (td *TimeDelta) String() string {
 	var parts []string
+	if td.Months > 0 {
+		parts = append(parts, fmt.Sprintf("%dmo", td.Months))
+	}
+	if td.Weeks > 0 {
+		parts = append(parts, fmt.Sprintf("%dw", td.Weeks))
+	}
 	if td.Days > 0 {
 		parts = append(parts, fmt.Sprintf("%dd", td.Days))
 	}
@@ -262,4 +287,91 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 
 	// Parse absolute date-time with flexible format support
 	return parseAbsoluteDateTime(stopTime)
+}
+
+// isRelativeDate checks if a date string is a relative time delta (starts with + or -)
+func isRelativeDate(dateStr string) bool {
+	return strings.HasPrefix(dateStr, "+") || strings.HasPrefix(dateStr, "-")
+}
+
+// parseRelativeDate parses a relative date string like "-1d", "-1w", "-1mo", "+3d", etc.
+// Supports both positive (+) and negative (-) deltas for log filtering use cases.
+// Supported formats:
+// - -1d (1 day ago)
+// - -1w (1 week ago)
+// - -1mo (1 month ago)
+// - +3d (3 days from now)
+// - -2w3d (2 weeks and 3 days ago)
+func parseRelativeDate(dateStr string) (*TimeDelta, bool, error) {
+	if dateStr == "" {
+		return nil, false, fmt.Errorf("empty date string")
+	}
+
+	// Check if it's a relative date
+	if !isRelativeDate(dateStr) {
+		return nil, false, nil // Not a relative date, caller should handle as absolute
+	}
+
+	// Determine if it's negative (going backwards in time)
+	isNegative := strings.HasPrefix(dateStr, "-")
+
+	// Convert to positive format for parsing with existing parseTimeDelta
+	var deltaStr string
+	if isNegative {
+		deltaStr = "+" + dateStr[1:] // Replace - with +
+	} else {
+		deltaStr = dateStr // Already has +
+	}
+
+	// Parse using existing function
+	delta, err := parseTimeDelta(deltaStr)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return delta, isNegative, nil
+}
+
+// ResolveRelativeDate resolves a relative date string to an absolute date string
+// suitable for use with GitHub CLI (YYYY-MM-DD format).
+// If the date string is not relative, it returns the original string.
+func ResolveRelativeDate(dateStr string, baseTime time.Time) (string, error) {
+	if dateStr == "" {
+		return "", nil
+	}
+
+	// Check if it's a relative date
+	delta, isNegative, err := parseRelativeDate(dateStr)
+	if err != nil {
+		return "", err
+	}
+	if delta == nil {
+		// Not a relative date, return as-is
+		return dateStr, nil
+	}
+
+	// Calculate the absolute time
+	var absoluteTime time.Time
+	if delta.Months > 0 || delta.Weeks > 0 {
+		// Use AddDate for months and weeks for more accurate calculation
+		absoluteTime = baseTime.UTC()
+		if isNegative {
+			absoluteTime = absoluteTime.AddDate(0, -delta.Months, -delta.Weeks*7-delta.Days)
+			absoluteTime = absoluteTime.Add(-time.Duration(delta.Hours)*time.Hour - time.Duration(delta.Minutes)*time.Minute)
+		} else {
+			absoluteTime = absoluteTime.AddDate(0, delta.Months, delta.Weeks*7+delta.Days)
+			absoluteTime = absoluteTime.Add(time.Duration(delta.Hours)*time.Hour + time.Duration(delta.Minutes)*time.Minute)
+		}
+	} else {
+		// Use simple duration arithmetic for days, hours, minutes
+		duration := delta.toDuration()
+		if isNegative {
+			absoluteTime = baseTime.UTC().Add(-duration)
+		} else {
+			absoluteTime = baseTime.UTC().Add(duration)
+		}
+	}
+
+	// Format as YYYY-MM-DD for GitHub CLI
+	return absoluteTime.Format("2006-01-02"), nil
 }

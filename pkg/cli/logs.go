@@ -90,6 +90,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 runs
   ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Filter runs after date
   ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Filter runs before date
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w          # Filter runs from last week
+  ` + constants.CLIExtensionPrefix + ` logs --end-date -1d            # Filter runs until yesterday
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
   ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
   ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
   ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory`,
@@ -126,6 +129,31 @@ Examples:
 			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
+			// Resolve relative dates to absolute dates for GitHub CLI
+			now := time.Now()
+			if startDate != "" {
+				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+						Type:    "error",
+						Message: fmt.Sprintf("invalid start-date format '%s': %v", startDate, err),
+					}))
+					os.Exit(1)
+				}
+				startDate = resolvedStartDate
+			}
+			if endDate != "" {
+				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+						Type:    "error",
+						Message: fmt.Sprintf("invalid end-date format '%s': %v", endDate, err),
+					}))
+					os.Exit(1)
+				}
+				endDate = resolvedEndDate
+			}
+
 			// Validate engine parameter using the engine registry
 			if engine != "" {
 				registry := workflow.GetGlobalEngineRegistry()
@@ -151,8 +179,8 @@ Examples:
 
 	// Add flags to logs command
 	logsCmd.Flags().IntP("count", "c", 20, "Maximum number of workflow runs to fetch")
-	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD)")
-	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD)")
+	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
+	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 

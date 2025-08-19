@@ -612,3 +612,254 @@ func containsSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+func TestIsRelativeDate(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "negative delta",
+			input:    "-1d",
+			expected: true,
+		},
+		{
+			name:     "positive delta",
+			input:    "+3d",
+			expected: true,
+		},
+		{
+			name:     "absolute date",
+			input:    "2024-01-01",
+			expected: false,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "just minus",
+			input:    "-",
+			expected: true,
+		},
+		{
+			name:     "just plus",
+			input:    "+",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isRelativeDate(tt.input)
+			if result != tt.expected {
+				t.Errorf("isRelativeDate(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseRelativeDate(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectDelta   bool
+		expectNeg     bool
+		expectedDelta *TimeDelta
+		expectError   bool
+		errorMsg      string
+	}{
+		{
+			name:          "negative 1 day",
+			input:         "-1d",
+			expectDelta:   true,
+			expectNeg:     true,
+			expectedDelta: &TimeDelta{Days: 1},
+		},
+		{
+			name:          "negative 1 week",
+			input:         "-1w",
+			expectDelta:   true,
+			expectNeg:     true,
+			expectedDelta: &TimeDelta{Weeks: 1},
+		},
+		{
+			name:          "negative 1 month",
+			input:         "-1mo",
+			expectDelta:   true,
+			expectNeg:     true,
+			expectedDelta: &TimeDelta{Months: 1},
+		},
+		{
+			name:          "positive 3 days",
+			input:         "+3d",
+			expectDelta:   true,
+			expectNeg:     false,
+			expectedDelta: &TimeDelta{Days: 3},
+		},
+		{
+			name:          "complex negative delta",
+			input:         "-1mo2w3d",
+			expectDelta:   true,
+			expectNeg:     true,
+			expectedDelta: &TimeDelta{Months: 1, Weeks: 2, Days: 3},
+		},
+		{
+			name:        "absolute date",
+			input:       "2024-01-01",
+			expectDelta: false,
+			expectNeg:   false,
+		},
+		{
+			name:        "empty string",
+			input:       "",
+			expectError: true,
+			errorMsg:    "empty date string",
+		},
+		{
+			name:        "invalid negative format",
+			input:       "-invalid",
+			expectError: true,
+			errorMsg:    "invalid time delta format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			delta, isNeg, err := parseRelativeDate(tt.input)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("parseRelativeDate(%q) expected error but got none", tt.input)
+					return
+				}
+				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
+					t.Errorf("parseRelativeDate(%q) error = %v, want to contain %v", tt.input, err.Error(), tt.errorMsg)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("parseRelativeDate(%q) unexpected error: %v", tt.input, err)
+				return
+			}
+
+			if !tt.expectDelta {
+				if delta != nil {
+					t.Errorf("parseRelativeDate(%q) expected no delta but got %v", tt.input, delta)
+				}
+				return
+			}
+
+			if delta == nil {
+				t.Errorf("parseRelativeDate(%q) expected delta but got nil", tt.input)
+				return
+			}
+
+			if isNeg != tt.expectNeg {
+				t.Errorf("parseRelativeDate(%q) isNegative = %v, want %v", tt.input, isNeg, tt.expectNeg)
+			}
+
+			if *delta != *tt.expectedDelta {
+				t.Errorf("parseRelativeDate(%q) delta = %v, want %v", tt.input, delta, tt.expectedDelta)
+			}
+		})
+	}
+}
+
+func TestResolveRelativeDate(t *testing.T) {
+	baseTime := time.Date(2024, 8, 15, 12, 0, 0, 0, time.UTC) // Thursday, August 15, 2024 12:00:00 UTC
+
+	tests := []struct {
+		name        string
+		input       string
+		baseTime    time.Time
+		expected    string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			baseTime: baseTime,
+			expected: "",
+		},
+		{
+			name:     "absolute date unchanged",
+			input:    "2024-01-01",
+			baseTime: baseTime,
+			expected: "2024-01-01",
+		},
+		{
+			name:     "negative 1 day",
+			input:    "-1d",
+			baseTime: baseTime,
+			expected: "2024-08-14", // August 14, 2024
+		},
+		{
+			name:     "negative 1 week",
+			input:    "-1w",
+			baseTime: baseTime,
+			expected: "2024-08-08", // August 8, 2024
+		},
+		{
+			name:     "negative 1 month",
+			input:    "-1mo",
+			baseTime: baseTime,
+			expected: "2024-07-15", // July 15, 2024
+		},
+		{
+			name:     "positive 3 days",
+			input:    "+3d",
+			baseTime: baseTime,
+			expected: "2024-08-18", // August 18, 2024
+		},
+		{
+			name:     "complex negative delta",
+			input:    "-1mo2w3d",
+			baseTime: baseTime,
+			expected: "2024-06-28", // 1 month before Aug 15 = July 15, then 2 weeks = July 1, then 3 days = June 28
+		},
+		{
+			name:     "negative 2 hours (sub-day)",
+			input:    "-2h",
+			baseTime: baseTime,
+			expected: "2024-08-15", // Same day since we only return date part
+		},
+		{
+			name:        "invalid relative format",
+			input:       "-invalid",
+			baseTime:    baseTime,
+			expectError: true,
+			errorMsg:    "invalid time delta format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ResolveRelativeDate(tt.input, tt.baseTime)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("ResolveRelativeDate(%q) expected error but got none", tt.input)
+					return
+				}
+				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
+					t.Errorf("ResolveRelativeDate(%q) error = %v, want to contain %v", tt.input, err.Error(), tt.errorMsg)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ResolveRelativeDate(%q) unexpected error: %v", tt.input, err)
+				return
+			}
+
+			if result != tt.expected {
+				t.Errorf("ResolveRelativeDate(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
