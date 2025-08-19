@@ -155,11 +155,13 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	yaml.WriteString("          [mcp_servers.github]\n")
 
 	// Always use Docker-based GitHub MCP server (services mode has been removed)
+	// Remove --rm and add container name for log collection
 	yaml.WriteString("          command = \"docker\"\n")
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"run\",\n")
 	yaml.WriteString("            \"-i\",\n")
-	yaml.WriteString("            \"--rm\",\n")
+	yaml.WriteString("            \"--name\",\n")
+	yaml.WriteString("            \"mcp-github-${{ github.run_id }}\",\n")
 	yaml.WriteString("            \"-e\",\n")
 	yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
 	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")

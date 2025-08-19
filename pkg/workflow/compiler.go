@@ -1729,6 +1729,76 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	engine.RenderMCPConfig(yaml, tools, mcpTools)
 }
 
+// generateMCPLogCollection generates steps to collect and upload MCP server logs
+func (c *Compiler) generateMCPLogCollection(yaml *strings.Builder, tools map[string]any, engine AgenticEngine) {
+	// Collect tools that need MCP server configuration (same logic as generateMCPSetup)
+	var mcpTools []string
+	for toolName, toolValue := range tools {
+		// Standard MCP tools
+		if toolName == "github" {
+			mcpTools = append(mcpTools, toolName)
+		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
+			// Check if it's explicitly marked as MCP type in the new format
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+				mcpTools = append(mcpTools, toolName)
+			}
+		}
+	}
+
+	// Sort MCP tools to ensure stable code generation
+	sort.Strings(mcpTools)
+
+	// If no MCP tools, no log collection needed
+	if len(mcpTools) == 0 {
+		return
+	}
+
+	yaml.WriteString("      - name: Collect MCP server logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"Collecting MCP server logs...\"\n")
+	yaml.WriteString("          mkdir -p /tmp/mcp-logs\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Collect Docker container logs for MCP servers\n")
+
+	for _, toolName := range mcpTools {
+		containerName := fmt.Sprintf("mcp-%s-${{ github.run_id }}", toolName)
+		yaml.WriteString(fmt.Sprintf("          echo \"Collecting logs for MCP server: %s\"\n", toolName))
+		yaml.WriteString(fmt.Sprintf("          if docker ps -a --format '{{.Names}}' | grep -q '^%s$'; then\n", containerName))
+		yaml.WriteString(fmt.Sprintf("            echo \"Found container %s, collecting logs...\"\n", containerName))
+		yaml.WriteString(fmt.Sprintf("            docker logs %s > /tmp/mcp-logs/%s.log 2>&1\n", containerName, toolName))
+		yaml.WriteString(fmt.Sprintf("            echo \"Cleaning up container %s...\"\n", containerName))
+		yaml.WriteString(fmt.Sprintf("            docker rm -f %s || true\n", containerName))
+		yaml.WriteString("          else\n")
+		yaml.WriteString(fmt.Sprintf("            echo \"Container %s not found, creating empty log file\"\n", containerName))
+		yaml.WriteString(fmt.Sprintf("            echo \"No MCP server container found for %s\" > /tmp/mcp-logs/%s.log\n", toolName, toolName))
+		yaml.WriteString("          fi\n")
+		yaml.WriteString("          \n")
+	}
+
+	yaml.WriteString("          # List collected log files\n")
+	yaml.WriteString("          echo \"MCP log files collected:\"\n")
+	yaml.WriteString("          ls -la /tmp/mcp-logs/ || echo \"No MCP log files found\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          # Show summary of each log file\n")
+	yaml.WriteString("          for logfile in /tmp/mcp-logs/*.log; do\n")
+	yaml.WriteString("            if [ -f \"$logfile\" ]; then\n")
+	yaml.WriteString("              echo \"=== Contents of $(basename $logfile) ===\"\n")
+	yaml.WriteString("              wc -l \"$logfile\"\n")
+	yaml.WriteString("              head -5 \"$logfile\" 2>/dev/null || echo \"(empty or unreadable)\"\n")
+	yaml.WriteString("              echo \"\"\n")
+	yaml.WriteString("            fi\n")
+	yaml.WriteString("          done\n")
+
+	yaml.WriteString("      - name: Upload MCP server logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: mcp-server-logs\n")
+	yaml.WriteString("          path: /tmp/mcp-logs/\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := "sha-45e90ae" // Default Docker image version
 	// Extract docker_image_version setting from tool properties
@@ -1922,6 +1992,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("          name: aw_info.json\n")
 	yaml.WriteString("          path: /tmp/aw_info.json\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
+
+	// Add MCP server log collection and upload
+	c.generateMCPLogCollection(yaml, data.Tools, engine)
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution

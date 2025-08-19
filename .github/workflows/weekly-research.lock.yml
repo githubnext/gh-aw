@@ -52,7 +52,8 @@ jobs:
                 "args": [
                   "run",
                   "-i",
-                  "--rm",
+                  "--name",
+                  "mcp-github-${{ github.run_id }}",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "ghcr.io/github/github-mcp-server:sha-45e90ae"
@@ -301,5 +302,43 @@ jobs:
         with:
           name: aw_info.json
           path: /tmp/aw_info.json
+          if-no-files-found: warn
+      - name: Collect MCP server logs
+        if: always()
+        run: |
+          echo "Collecting MCP server logs..."
+          mkdir -p /tmp/mcp-logs
+          
+          # Collect Docker container logs for MCP servers
+          echo "Collecting logs for MCP server: github"
+          if docker ps -a --format '{{.Names}}' | grep -q '^mcp-github-${{ github.run_id }}$'; then
+            echo "Found container mcp-github-${{ github.run_id }}, collecting logs..."
+            docker logs mcp-github-${{ github.run_id }} > /tmp/mcp-logs/github.log 2>&1
+            echo "Cleaning up container mcp-github-${{ github.run_id }}..."
+            docker rm -f mcp-github-${{ github.run_id }} || true
+          else
+            echo "Container mcp-github-${{ github.run_id }} not found, creating empty log file"
+            echo "No MCP server container found for github" > /tmp/mcp-logs/github.log
+          fi
+          
+          # List collected log files
+          echo "MCP log files collected:"
+          ls -la /tmp/mcp-logs/ || echo "No MCP log files found"
+          
+          # Show summary of each log file
+          for logfile in /tmp/mcp-logs/*.log; do
+            if [ -f "$logfile" ]; then
+              echo "=== Contents of $(basename $logfile) ==="
+              wc -l "$logfile"
+              head -5 "$logfile" 2>/dev/null || echo "(empty or unreadable)"
+              echo ""
+            fi
+          done
+      - name: Upload MCP server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-server-logs
+          path: /tmp/mcp-logs/
           if-no-files-found: warn
 
