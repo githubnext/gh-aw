@@ -59,7 +59,7 @@ func validateExpressionSafety(markdownContent string) error {
 		} else if inputsRegex.MatchString(expression) {
 			// Check if this expression matches github.event.inputs.* pattern
 			allowed = true
-		} else if (envRegex.MatchString(expression)) {
+		} else if envRegex.MatchString(expression) {
 			// check if this expression matches env.* pattern
 			allowed = true
 		} else {
@@ -1871,6 +1871,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add prompt creation step
 	yaml.WriteString("      - name: Create prompt\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
 	yaml.WriteString("          cat > /tmp/aw-prompts/prompt.txt << 'EOF'\n")

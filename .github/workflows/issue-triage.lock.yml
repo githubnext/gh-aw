@@ -68,6 +68,8 @@ jobs:
           }
           EOF
       - name: Create prompt
+        env:
+          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
