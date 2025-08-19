@@ -519,7 +519,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			expectedOn: `on:
-    workflow_dispatch: null`,
+  workflow_dispatch: null`,
 		},
 		{
 			name: "custom on with push",
@@ -534,12 +534,12 @@ tools:
     allowed: [list_issues]
 ---`,
 			expectedOn: `on:
-    pull_request:
-        branches:
-            - main
-    push:
-        branches:
-            - main`,
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main`,
 		},
 		{
 			name: "custom on with multiple events",
@@ -555,13 +555,13 @@ tools:
     allowed: [list_issues]
 ---`,
 			expectedOn: `on:
-    issues:
-        types:
-            - opened
-            - closed
-    schedule:
-        - cron: 0 8 * * *
-    workflow_dispatch: null`,
+  issues:
+    types:
+    - opened
+    - closed
+  schedule:
+  - cron: 0 8 * * *
+  workflow_dispatch: null`,
 		},
 	}
 

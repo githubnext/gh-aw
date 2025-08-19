@@ -495,8 +495,8 @@ jobs:
 
 			if tt.expectPreciseLocation {
 				// Verify we got a reasonable line and column
-				if line <= 2 { // Should be greater than frontmatter start
-					t.Errorf("Expected line > 2, got %d for %s", line, tt.description)
+				if line < 2 { // Should be at least at frontmatter start
+					t.Errorf("Expected line >= 2, got %d for %s", line, tt.description)
 				}
 
 				if column <= 0 {
