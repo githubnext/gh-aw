@@ -62,7 +62,7 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected mcp_config input, got '%s'", config.Inputs["mcp_config"])
 	}
 
-	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
+	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}"
 	if config.Inputs["claude_env"] != expectedClaudeEnv {
 		t.Errorf("Expected claude_env input '%s', got '%s'", expectedClaudeEnv, config.Inputs["claude_env"])
 	}

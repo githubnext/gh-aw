@@ -345,6 +345,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
           mcp_config: /tmp/mcp-config/mcp-servers.json
           model: claude-3-5-sonnet-20241022
           prompt_file: /tmp/aw-prompts/prompt.txt
