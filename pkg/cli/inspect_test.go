@@ -141,7 +141,7 @@ This workflow has no MCP servers.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, "", false)
+			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, "", "", "", false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -179,7 +179,7 @@ func TestInspectWorkflowMCPWithToolFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, tt.toolFilter, false)
+			err := InspectWorkflowMCP(tt.workflowFile, tt.serverFilter, tt.toolFilter, "", "", false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")

@@ -16,7 +16,7 @@ import (
 )
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
-func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool) error {
+func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, beforeTime string, afterTime string, verbose bool) error {
 	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, show available workflow files with MCP configs
@@ -45,6 +45,19 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	if verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
+		
+		// Show time filtering information if provided
+		if beforeTime != "" || afterTime != "" {
+			fmt.Println(console.FormatInfoMessage("Time filtering enabled:"))
+			if afterTime != "" {
+				resolvedAfter, _ := workflow.ResolveRelativeTime(afterTime, time.Now())
+				fmt.Printf("  • After: %s (resolved to %s)\n", afterTime, resolvedAfter.Format("2006-01-02 15:04:05 UTC"))
+			}
+			if beforeTime != "" {
+				resolvedBefore, _ := workflow.ResolveRelativeTime(beforeTime, time.Now())
+				fmt.Printf("  • Before: %s (resolved to %s)\n", beforeTime, resolvedBefore.Format("2006-01-02 15:04:05 UTC"))
+			}
+		}
 	}
 
 	// Parse the workflow file
@@ -194,6 +207,8 @@ func NewInspectCommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
+	var beforeTime string
+	var afterTime string
 
 	cmd := &cobra.Command{
 		Use:   "inspect [workflow-file]",
@@ -203,11 +218,17 @@ func NewInspectCommand() *cobra.Command {
 This command starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
 
+Time filtering allows you to filter results based on workflow run history using absolute dates
+or relative time expressions like "-24h" (24 hours ago) or "-3d" (3 days ago).
+
 Examples:
   gh aw inspect                    # List workflows with MCP servers
   gh aw inspect weekly-research    # Inspect MCP servers in weekly-research.md  
   gh aw inspect repomind --server repo-mind  # Inspect only the repo-mind server
   gh aw inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
+  gh aw inspect weekly-research --after "-24h"  # Filter results after 24 hours ago
+  gh aw inspect weekly-research --before "2024-01-01"  # Filter results before specific date
+  gh aw inspect weekly-research --after "-3d" --before "-1d"  # Filter results between 3 and 1 days ago
   gh aw inspect weekly-research -v # Verbose output with detailed connection info
   gh aw inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
 
@@ -235,17 +256,31 @@ The command will:
 				return fmt.Errorf("--tool flag requires --server flag to be specified")
 			}
 
+			// Validate time filter formats if provided
+			if beforeTime != "" {
+				if _, err := workflow.ResolveRelativeTime(beforeTime, time.Now()); err != nil {
+					return fmt.Errorf("invalid --before time format: %w", err)
+				}
+			}
+			if afterTime != "" {
+				if _, err := workflow.ResolveRelativeTime(afterTime, time.Now()); err != nil {
+					return fmt.Errorf("invalid --after time format: %w", err)
+				}
+			}
+
 			// Handle spawn inspector flag
 			if spawnInspector {
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, beforeTime, afterTime, verbose)
 		},
 	}
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "Filter to inspect only the specified MCP server")
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
+	cmd.Flags().StringVar(&beforeTime, "before", "", "Filter results before this time (supports absolute dates and relative times like '-24h', '-3d')")
+	cmd.Flags().StringVar(&afterTime, "after", "", "Filter results after this time (supports absolute dates and relative times like '-24h', '-3d')")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed connection information")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
 

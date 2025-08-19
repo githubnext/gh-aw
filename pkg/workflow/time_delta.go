@@ -286,11 +286,11 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 	return parseAbsoluteDateTime(stopTime)
 }
 
-// resolveRelativeTime resolves a relative or absolute time value to an absolute timestamp
+// ResolveRelativeTime resolves a relative or absolute time value to an absolute timestamp
 // If the time is relative (starts with '+' or '-'), it calculates the absolute time
 // from the reference time. Otherwise, it parses the absolute time using various formats.
 // Returns the time as a time.Time object instead of a string.
-func resolveRelativeTime(timeStr string, referenceTime time.Time) (time.Time, error) {
+func ResolveRelativeTime(timeStr string, referenceTime time.Time) (time.Time, error) {
 	if timeStr == "" {
 		return time.Time{}, fmt.Errorf("empty time value")
 	}

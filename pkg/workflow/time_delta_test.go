@@ -683,7 +683,7 @@ func TestIsRelativeTime(t *testing.T) {
 	}
 }
 
-// TestResolveRelativeTime tests the new resolveRelativeTime function
+// TestResolveRelativeTime tests the new ResolveRelativeTime function
 func TestResolveRelativeTime(t *testing.T) {
 	baseTime := time.Date(2025, 8, 15, 12, 0, 0, 0, time.UTC)
 
@@ -735,23 +735,23 @@ func TestResolveRelativeTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := resolveRelativeTime(tt.timeStr, tt.referenceTime)
+			result, err := ResolveRelativeTime(tt.timeStr, tt.referenceTime)
 
 			if tt.expectError {
 				if err == nil {
-					t.Errorf("resolveRelativeTime(%q, %v) expected error but got none", tt.timeStr, tt.referenceTime)
+					t.Errorf("ResolveRelativeTime(%q, %v) expected error but got none", tt.timeStr, tt.referenceTime)
 					return
 				}
 				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
-					t.Errorf("resolveRelativeTime(%q, %v) error = %v, want to contain %v", tt.timeStr, tt.referenceTime, err.Error(), tt.errorMsg)
+					t.Errorf("ResolveRelativeTime(%q, %v) error = %v, want to contain %v", tt.timeStr, tt.referenceTime, err.Error(), tt.errorMsg)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("resolveRelativeTime(%q, %v) unexpected error: %v", tt.timeStr, tt.referenceTime, err)
+					t.Errorf("ResolveRelativeTime(%q, %v) unexpected error: %v", tt.timeStr, tt.referenceTime, err)
 					return
 				}
 				if !result.Equal(tt.expectedTime) {
-					t.Errorf("resolveRelativeTime(%q, %v) = %v, want %v", tt.timeStr, tt.referenceTime, result, tt.expectedTime)
+					t.Errorf("ResolveRelativeTime(%q, %v) = %v, want %v", tt.timeStr, tt.referenceTime, result, tt.expectedTime)
 				}
 			}
 		})
