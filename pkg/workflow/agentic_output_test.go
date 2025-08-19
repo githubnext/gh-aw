@@ -68,7 +68,7 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected output file creation in setup step")
 	}
 
-	if !strings.Contains(lockContent, "fs2.appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OUTPUT=${outputFile}\\n`);") {
+	if !strings.Contains(lockContent, "core.exportVariable('GITHUB_AW_OUTPUT', outputFile);") {
 		t.Error("Expected GITHUB_AW_OUTPUT environment variable to be set")
 	}
 

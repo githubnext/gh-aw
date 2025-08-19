@@ -223,8 +223,7 @@ jobs:
             fs.writeFileSync(outputFile, '');
             
             // Set the environment variable for subsequent steps
-            const fs2 = require('fs');
-            fs2.appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_OUTPUT=${outputFile}\n`);
+            core.exportVariable('GITHUB_AW_OUTPUT', outputFile);
             
             console.log('Created agentic output file:', outputFile);
             
