@@ -4,16 +4,16 @@
 
 name: "Agentic Triage"
 on:
-    issues:
-        types:
-            - opened
-            - reopened
+  issues:
+    types:
+    - opened
+    - reopened
 
 permissions: {}
 
 concurrency:
-    cancel-in-progress: true
-    group: triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+  group: triage-${{ github.event.issue.number }}
 
 run-name: "Agentic Triage"
 
@@ -32,13 +32,13 @@ jobs:
     needs: task
     runs-on: ubuntu-latest
     permissions:
-        actions: read
-        checks: read
-        contents: read
-        issues: write
-        models: read
-        pull-requests: read
-        statuses: read
+      actions: read
+      checks: read
+      contents: read
+      issues: write
+      models: read
+      pull-requests: read
+      statuses: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

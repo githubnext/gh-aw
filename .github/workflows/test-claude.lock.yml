@@ -4,10 +4,10 @@
 
 name: "Test Claude"
 on:
-    push:
-        branches:
-            - '*claude*'
-    workflow_dispatch: null
+  push:
+    branches:
+    - "*claude*"
+  workflow_dispatch: null
 
 permissions: {}
 
@@ -31,10 +31,10 @@ jobs:
     needs: task
     runs-on: ubuntu-latest
     permissions:
-        actions: read
-        contents: read
-        issues: read
-        pull-requests: write
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

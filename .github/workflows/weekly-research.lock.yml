@@ -4,9 +4,9 @@
 
 name: "Weekly Research"
 on:
-    schedule:
-        - cron: 0 9 * * 1
-    workflow_dispatch: null
+  schedule:
+  - cron: 0 9 * * 1
+  workflow_dispatch: null
 
 permissions: {}
 
@@ -30,14 +30,14 @@ jobs:
     needs: task
     runs-on: ubuntu-latest
     permissions:
-        actions: read
-        checks: read
-        contents: read
-        discussions: read
-        issues: write
-        models: read
-        pull-requests: read
-        statuses: read
+      actions: read
+      checks: read
+      contents: read
+      discussions: read
+      issues: write
+      models: read
+      pull-requests: read
+      statuses: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

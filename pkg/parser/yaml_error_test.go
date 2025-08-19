@@ -204,7 +204,7 @@ func TestExtractYAMLErrorWithGoccyErrors(t *testing.T) {
 			// Generate an actual goccy/go-yaml error
 			var result map[string]any
 			err := yaml.Unmarshal([]byte(tt.yamlContent), &result)
-			
+
 			if err == nil {
 				t.Errorf("Expected YAML parsing to fail for content: %q", tt.yamlContent)
 				return
