@@ -147,8 +147,20 @@ func (c *Compiler) generateProxyFiles(markdownPath string, toolName string, tool
 		}
 	}
 
+	// Extract custom proxy args from MCP config if present
+	var customProxyArgs []string
+	if proxyArgsInterface, hasProxyArgs := mcpConfig["proxy_args"]; hasProxyArgs {
+		if proxyArgsSlice, ok := proxyArgsInterface.([]any); ok {
+			for _, arg := range proxyArgsSlice {
+				if argStr, ok := arg.(string); ok {
+					customProxyArgs = append(customProxyArgs, argStr)
+				}
+			}
+		}
+	}
+
 	// Generate docker-compose.yml
-	composeConfig := generateDockerCompose(containerStr, envVars, toolName)
+	composeConfig := generateDockerCompose(containerStr, envVars, toolName, customProxyArgs)
 	composePath := filepath.Join(markdownDir, fmt.Sprintf("docker-compose-%s.yml", toolName))
 	if err := os.WriteFile(composePath, []byte(composeConfig), 0644); err != nil {
 		return fmt.Errorf("failed to write docker-compose.yml: %w", err)
@@ -231,10 +243,22 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 	yaml.WriteString("          EOF\n")
 	yaml.WriteString("          \n")
 
+	// Extract custom proxy args from MCP config if present
+	var customProxyArgs []string
+	if proxyArgsInterface, hasProxyArgs := mcpConfig["proxy_args"]; hasProxyArgs {
+		if proxyArgsSlice, ok := proxyArgsInterface.([]any); ok {
+			for _, arg := range proxyArgsSlice {
+				if argStr, ok := arg.(string); ok {
+					customProxyArgs = append(customProxyArgs, argStr)
+				}
+			}
+		}
+	}
+
 	// Generate docker-compose.yml inline
 	yaml.WriteString(fmt.Sprintf("          # Generate Docker Compose configuration for %s\n", toolName))
 	yaml.WriteString(fmt.Sprintf("          cat > docker-compose-%s.yml << 'EOF'\n", toolName))
-	dockerComposeContent := generateDockerCompose(containerStr, envVars, toolName)
+	dockerComposeContent := generateDockerCompose(containerStr, envVars, toolName, customProxyArgs)
 	for _, line := range strings.Split(dockerComposeContent, "\n") {
 		yaml.WriteString(fmt.Sprintf("          %s\n", line))
 	}

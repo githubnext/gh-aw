@@ -1,7 +1,31 @@
 package workflow
 
+import (
+	"fmt"
+	"strings"
+)
+
+// getStandardProxyArgs returns the standard proxy arguments for all MCP containers
+// This defines the standard interface that all proxy-enabled MCP containers should support
+func getStandardProxyArgs() []string {
+	return []string{"--proxy-url", "http://squid-proxy:3128", "--ignore-robots-txt"}
+}
+
+// formatYAMLArray formats a string slice as a YAML array
+func formatYAMLArray(items []string) string {
+	if len(items) == 0 {
+		return "[]"
+	}
+	
+	var parts []string
+	for _, item := range items {
+		parts = append(parts, fmt.Sprintf(`"%s"`, item))
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
 // generateDockerCompose generates the Docker Compose configuration
-func generateDockerCompose(containerImage string, envVars map[string]any, toolName string) string {
+func generateDockerCompose(containerImage string, envVars map[string]any, toolName string, customProxyArgs []string) string {
 	compose := `services:
   squid-proxy:
     image: ubuntu/squid:latest
@@ -22,6 +46,8 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
   ` + toolName + `:
     image: ` + containerImage + `
     container_name: ` + toolName + `-mcp
+    stdin_open: true
+    tty: true
     environment:
       - PROXY_HOST=squid-proxy
       - PROXY_PORT=3128`
@@ -34,6 +60,19 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
 			}
 		}
 	}
+
+	// Set proxy-aware command - use standard proxy args for all containers
+	var proxyArgs []string
+	if len(customProxyArgs) > 0 {
+		// Use user-provided proxy args (for advanced users or non-standard containers)
+		proxyArgs = customProxyArgs
+	} else {
+		// Use standard proxy args for all MCP containers
+		proxyArgs = getStandardProxyArgs()
+	}
+	
+	compose += `
+    command: ` + formatYAMLArray(proxyArgs)
 
 	compose += `
     depends_on:

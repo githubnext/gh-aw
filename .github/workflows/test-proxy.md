@@ -16,6 +16,7 @@ tools:
       network:
         allowed: 
           - "example.com"
+          - "httpbin.org"
     allowed: 
       - "fetch"
   
