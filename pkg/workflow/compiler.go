@@ -721,7 +721,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Apply defaults
-	c.applyDefaults(workflowData, markdownPath)
+	c.applyDefaults(workflowData, markdownPath, result.Frontmatter)
 
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
@@ -881,7 +881,7 @@ func (c *Compiler) extractAliasName(frontmatter map[string]any) string {
 }
 
 // applyDefaults applies default values for missing workflow sections
-func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
+func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string, frontmatter map[string]any) {
 	// Check if this is an alias trigger workflow (by checking if user specified "on.alias")
 	isAliasTrigger := false
 	if data.On == "" {
@@ -988,8 +988,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
   models: read`
 	}
 
-	// Generate concurrency configuration using the dedicated concurrency module
-	data.Concurrency = GenerateConcurrencyConfig(data, isAliasTrigger)
+	// Generate concurrency configuration using the new policy system
+	data.Concurrency = GenerateConcurrencyConfigWithFrontmatter(data, isAliasTrigger, frontmatter, c.verbose)
 
 	if data.RunName == "" {
 		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)
