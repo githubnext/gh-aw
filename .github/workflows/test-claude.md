@@ -122,6 +122,8 @@ Pull requests merge and evolve
 Software grows with care" > $GITHUB_AW_OUTPUT
 ```
 
+Print the value of the `GITHUB_AW_OUTPUT` to the github step summary file (pointed by `GITHUB_STEP_SUMMARY`)
+
 Make your haiku relevant to the specific changes you analyzed in this PR. Be creative and thoughtful in your poetic interpretation of the code changes.
 
 ### Security Guidelines
