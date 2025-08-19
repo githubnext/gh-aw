@@ -301,6 +301,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            DEBUG: true
           mcp_config: /tmp/mcp-config/mcp-servers.json
           prompt_file: /tmp/aw-prompts/prompt.txt
           timeout_minutes: "5"

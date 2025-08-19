@@ -48,7 +48,7 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 			"prompt_file":       "/tmp/aw-prompts/prompt.txt",
 			"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
 			"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
-			"claude_env":        "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}",
+			"claude_env":        "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            DEBUG: true",
 			"allowed_tools":     "", // Will be filled in during generation
 			"timeout_minutes":   "", // Will be filled in during generation
 		},
