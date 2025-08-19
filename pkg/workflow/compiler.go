@@ -1733,7 +1733,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				c.generateInlineProxyConfig(yaml, toolName, toolConfig)
 			}
 		}
-		
+
 		yaml.WriteString("          echo \"Proxy configuration files generated. Services will start automatically when MCP tools are used.\"\n")
 	}
 

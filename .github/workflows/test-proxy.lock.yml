@@ -125,10 +125,10 @@ jobs:
               image: mcp/fetch
               container_name: fetch-mcp
               environment:
-                - PROXY_HOST=squid-proxy-fetch
+                - PROXY_HOST=squid-proxy
                 - PROXY_PORT=3128
               depends_on:
-                squid-proxy-fetch:
+                squid-proxy:
                   condition: service_healthy
           
           volumes:

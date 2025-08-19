@@ -23,7 +23,7 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
     image: ` + containerImage + `
     container_name: ` + toolName + `-mcp
     environment:
-      - PROXY_HOST=squid-proxy-` + toolName + `
+      - PROXY_HOST=squid-proxy
       - PROXY_PORT=3128`
 
 	// Add environment variables
@@ -37,7 +37,7 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
 
 	compose += `
     depends_on:
-      squid-proxy-` + toolName + `:
+      squid-proxy:
         condition: service_healthy
 
 volumes:
