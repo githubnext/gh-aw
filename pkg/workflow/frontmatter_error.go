@@ -10,7 +10,8 @@ import (
 )
 
 // createFrontmatterError creates a detailed error for frontmatter parsing issues
-func (c *Compiler) createFrontmatterError(filePath, content string, err error) error {
+// frontmatterLineOffset is the line number where the frontmatter content begins (1-based)
+func (c *Compiler) createFrontmatterError(filePath, content string, err error, frontmatterLineOffset int) error {
 	lines := strings.Split(content, "\n")
 
 	// Check if this is a YAML parsing error that we can enhance
@@ -19,7 +20,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error) e
 		parts := strings.SplitN(err.Error(), "failed to parse frontmatter: ", 2)
 		if len(parts) > 1 {
 			yamlErr := errors.New(parts[1])
-			line, column, message := parser.ExtractYAMLError(yamlErr, 1)
+			line, column, message := parser.ExtractYAMLError(yamlErr, frontmatterLineOffset)
 
 			if line > 0 || column > 0 {
 				// Create context lines around the error
@@ -52,7 +53,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error) e
 		}
 	} else {
 		// Try to extract YAML error directly from the original error
-		line, column, message := parser.ExtractYAMLError(err, 1)
+		line, column, message := parser.ExtractYAMLError(err, frontmatterLineOffset)
 
 		if line > 0 || column > 0 {
 			// Create context lines around the error

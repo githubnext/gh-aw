@@ -6,21 +6,23 @@ import (
 )
 
 // ExtractYAMLError extracts line and column information from YAML parsing errors
-func ExtractYAMLError(err error, frontmatterStartLine int) (line int, column int, message string) {
+// frontmatterLineOffset is the line number where the frontmatter content begins in the document (1-based)
+// This allows proper line number reporting when frontmatter is not at the beginning of the document
+func ExtractYAMLError(err error, frontmatterLineOffset int) (line int, column int, message string) {
 	errStr := err.Error()
 
 	// First try to extract from goccy/go-yaml's [line:column] format
-	line, column, message = extractFromGoccyFormat(errStr, frontmatterStartLine)
+	line, column, message = extractFromGoccyFormat(errStr, frontmatterLineOffset)
 	if line > 0 || column > 0 {
 		return line, column, message
 	}
 
 	// Fallback to standard YAML error string parsing for other libraries
-	return extractFromStringParsing(errStr, frontmatterStartLine)
+	return extractFromStringParsing(errStr, frontmatterLineOffset)
 }
 
 // extractFromGoccyFormat extracts line/column from goccy/go-yaml's [line:column] message format
-func extractFromGoccyFormat(errStr string, frontmatterStartLine int) (line int, column int, message string) {
+func extractFromGoccyFormat(errStr string, frontmatterLineOffset int) (line int, column int, message string) {
 	// Look for goccy format like "[5:10] mapping value is not allowed in this context"
 	if strings.Contains(errStr, "[") && strings.Contains(errStr, "]") {
 		start := strings.Index(errStr, "[")
@@ -41,11 +43,11 @@ func extractFromGoccyFormat(errStr string, frontmatterStartLine int) (line int, 
 						if _, parseErr := fmt.Sscanf(columnStr, "%d", &column); parseErr == nil {
 							// Adjust line number to account for frontmatter position in file
 							if line > 0 {
-								line += frontmatterStartLine
+								line += frontmatterLineOffset - 1 // -1 because line numbers in YAML errors are 1-based relative to YAML content
 							}
 
 							// Only return valid positions - avoid returning 1,1 when location is unknown
-							if line <= frontmatterStartLine && column <= 1 {
+							if line <= frontmatterLineOffset && column <= 1 {
 								return 0, 0, messagePart
 							}
 
@@ -61,7 +63,7 @@ func extractFromGoccyFormat(errStr string, frontmatterStartLine int) (line int, 
 }
 
 // extractFromStringParsing provides fallback string parsing for other YAML libraries
-func extractFromStringParsing(errStr string, frontmatterStartLine int) (line int, column int, message string) {
+func extractFromStringParsing(errStr string, frontmatterLineOffset int) (line int, column int, message string) {
 	// Parse "yaml: line X: column Y: message" format (enhanced parsers that provide column info)
 	if strings.Contains(errStr, "yaml: line ") && strings.Contains(errStr, "column ") {
 		parts := strings.SplitN(errStr, "yaml: line ", 2)
@@ -89,7 +91,7 @@ func extractFromStringParsing(errStr string, frontmatterStartLine int) (line int
 								// Parse column number
 								if _, parseErr := fmt.Sscanf(columnStr, "%d", &column); parseErr == nil {
 									// Adjust line number to account for frontmatter position in file
-									line += frontmatterStartLine
+									line += frontmatterLineOffset - 1 // -1 because line numbers in YAML errors are 1-based relative to YAML content
 									return
 								}
 							}
@@ -113,7 +115,7 @@ func extractFromStringParsing(errStr string, frontmatterStartLine int) (line int
 				// Parse line number
 				if _, parseErr := fmt.Sscanf(lineStr, "%d", &line); parseErr == nil {
 					// Adjust line number to account for frontmatter position in file
-					line += frontmatterStartLine
+					line += frontmatterLineOffset - 1 // -1 because line numbers in YAML errors are 1-based relative to YAML content
 					// Don't default to column 1 when not provided - return 0 instead
 					column = 0
 					return
@@ -139,8 +141,8 @@ func extractFromStringParsing(errStr string, frontmatterStartLine int) (line int
 						// Parse line number
 						if _, parseErr := fmt.Sscanf(lineStr, "%d", &line); parseErr == nil {
 							// Adjust line number to account for frontmatter position in file
-							line += frontmatterStartLine
-							column = 0 // Don't default to column 1
+							line += frontmatterLineOffset - 1 // -1 because line numbers in YAML errors are 1-based relative to YAML content
+							column = 0                        // Don't default to column 1
 							message = restOfMessage
 							return
 						}

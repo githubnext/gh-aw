@@ -481,7 +481,12 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Parse frontmatter and markdown
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
-		return nil, c.createFrontmatterError(markdownPath, string(content), err)
+		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
+		frontmatterStart := 2
+		if result != nil && result.FrontmatterStart > 0 {
+			frontmatterStart = result.FrontmatterStart
+		}
+		return nil, c.createFrontmatterError(markdownPath, string(content), err, frontmatterStart)
 	}
 
 	if len(result.Frontmatter) == 0 {
