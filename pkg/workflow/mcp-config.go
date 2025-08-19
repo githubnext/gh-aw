@@ -263,10 +263,7 @@ func transformContainerToDockerCommand(mcpConfig map[string]any, toolName string
 		// For proxy-enabled containers, use docker compose with specific file
 		mcpConfig["command"] = "docker"
 		if toolName != "" {
-			mcpConfig["args"] = []any{"compose", "-f", fmt.Sprintf("docker-compose-%s.yml", toolName), "run", "--rm", toolName}
-		} else {
-			// Fallback for when toolName is not available (shouldn't happen in proxy scenarios)
-			mcpConfig["args"] = []any{"compose", "run", "--rm", containerStr}
+			mcpConfig["args"] = []any{"compose", "-f", fmt.Sprintf("docker-compose-%s.yml", toolName), "up", "--build"}
 		}
 		// Keep the container field for compose file generation
 		return nil
