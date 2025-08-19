@@ -4,6 +4,9 @@
 
 name: "Test Claude"
 on:
+  pull_request:
+    branches:
+    - "*claude*"
   push:
     branches:
     - "*claude*"
@@ -12,7 +15,8 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
 
 run-name: "Test Claude"
 

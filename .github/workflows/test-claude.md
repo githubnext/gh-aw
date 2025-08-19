@@ -3,6 +3,9 @@ on:
   push:
     branches: 
       - "*claude*"
+  pull_request:
+    branches: 
+      - "*claude*"
   workflow_dispatch:
 engine: 
   id: claude
