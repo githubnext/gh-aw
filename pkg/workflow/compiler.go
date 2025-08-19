@@ -2279,8 +2279,16 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            } else {\n")
 	yaml.WriteString("              console.log('Collected agentic output:', outputContent);\n")
 	yaml.WriteString("              core.setOutput('output', outputContent.trim());\n")
-	yaml.WriteString("              core.summary.addRaw('\\n\\n## Agentic Output\\n\\n``````markdown\\n' + outputContent + '\\n``````');\n")
 	yaml.WriteString("            }\n")
+
+	yaml.WriteString("      - name: Print agent output to step summary\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"## Agent Output\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          cat ${{ steps.collect_output.outputs.output }} >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
+
 }
 
 // validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport

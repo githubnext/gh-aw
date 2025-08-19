@@ -297,8 +297,14 @@ jobs:
             } else {
               console.log('Collected agentic output:', outputContent);
               core.setOutput('output', outputContent.trim());
-              core.summary.addRaw('\n\n## Agentic Output\n\n``````markdown\n' + outputContent + '\n``````');
             }
+      - name: Print agent output to step summary
+        run: |
+          echo "## Agent Output" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '``````markdown' >> $GITHUB_STEP_SUMMARY
+          cat ${{ steps.collect_output.outputs.output }} >> $GITHUB_STEP_SUMMARY
+          echo '``````' >> $GITHUB_STEP_SUMMARY
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
