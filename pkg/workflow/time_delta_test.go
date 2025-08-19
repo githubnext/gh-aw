@@ -572,6 +572,30 @@ func TestResolveStopTime(t *testing.T) {
 			compileTime: time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC),
 			expected:    "2026-01-01 00:00:00",
 		},
+		{
+			name:        "relative weeks",
+			stopTime:    "+1w",
+			compileTime: baseTime,
+			expected:    "2025-08-22 12:00:00",
+		},
+		{
+			name:        "relative months",
+			stopTime:    "+1mo",
+			compileTime: baseTime,
+			expected:    "2025-09-15 12:00:00",
+		},
+		{
+			name:        "relative months and weeks",
+			stopTime:    "+1mo2w",
+			compileTime: baseTime,
+			expected:    "2025-09-29 12:00:00",
+		},
+		{
+			name:        "relative complex with months",
+			stopTime:    "+1mo1w2d5h",
+			compileTime: baseTime,
+			expected:    "2025-09-24 17:00:00",
+		},
 	}
 
 	for _, tt := range tests {

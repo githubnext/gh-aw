@@ -278,8 +278,20 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 			return "", err
 		}
 
-		// Calculate absolute time in UTC
-		absoluteTime := compilationTime.UTC().Add(delta.toDuration())
+		// Calculate absolute time in UTC using precise calculation
+		var absoluteTime time.Time
+		if delta.Months > 0 || delta.Weeks > 0 {
+			// Use AddDate for months and weeks for more accurate calculation
+			absoluteTime = compilationTime.UTC()
+			absoluteTime = absoluteTime.AddDate(0, delta.Months, delta.Weeks*7+delta.Days)
+			absoluteTime = absoluteTime.Add(time.Duration(delta.Hours)*time.Hour + time.Duration(delta.Minutes)*time.Minute)
+		} else {
+			// Use simple duration arithmetic for days, hours, minutes only
+			duration := time.Duration(delta.Days)*24*time.Hour +
+				time.Duration(delta.Hours)*time.Hour +
+				time.Duration(delta.Minutes)*time.Minute
+			absoluteTime = compilationTime.UTC().Add(duration)
+		}
 
 		// Format in the expected format: "YYYY-MM-DD HH:MM:SS"
 		return absoluteTime.Format("2006-01-02 15:04:05"), nil
