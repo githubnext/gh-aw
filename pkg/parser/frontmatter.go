@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"github.com/githubnext/gh-aw/pkg/console"
-	"gopkg.in/yaml.v3"
 )
 
 // isMCPType checks if a type string represents an MCP-compatible type

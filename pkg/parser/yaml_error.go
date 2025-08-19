@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -9,6 +10,74 @@ import (
 func ExtractYAMLError(err error, frontmatterStartLine int) (line int, column int, message string) {
 	errStr := err.Error()
 
+	// First try to extract information from goccy/go-yaml's native error structure
+	line, column, message = extractFromGoccyError(err, frontmatterStartLine)
+	if line > 0 || column > 0 {
+		return line, column, message
+	}
+
+	// Fallback to string parsing for other YAML libraries or unknown error formats
+	return extractFromStringParsing(errStr, frontmatterStartLine)
+}
+
+// extractFromGoccyError extracts line/column from goccy/go-yaml error structure using reflection
+func extractFromGoccyError(err error, frontmatterStartLine int) (line int, column int, message string) {
+	errorValue := reflect.ValueOf(err)
+	if errorValue.Kind() != reflect.Ptr || errorValue.IsNil() {
+		return 0, 0, ""
+	}
+
+	errorValue = errorValue.Elem()
+
+	// Try to get Message field
+	messageField := errorValue.FieldByName("Message")
+	if messageField.IsValid() && messageField.Kind() == reflect.String {
+		message = messageField.String()
+	}
+
+	// Try to get Token field
+	tokenField := errorValue.FieldByName("Token")
+	if !tokenField.IsValid() || tokenField.Kind() != reflect.Ptr || tokenField.IsNil() {
+		return 0, 0, message
+	}
+
+	tokenValue := tokenField.Elem()
+
+	// Try to get Position field from token
+	positionField := tokenValue.FieldByName("Position")
+	if !positionField.IsValid() || positionField.Kind() != reflect.Ptr || positionField.IsNil() {
+		return 0, 0, message
+	}
+
+	positionValue := positionField.Elem()
+
+	// Extract line and column from position
+	lineField := positionValue.FieldByName("Line")
+	columnField := positionValue.FieldByName("Column")
+
+	if lineField.IsValid() && lineField.Kind() == reflect.Int {
+		line = int(lineField.Int())
+	}
+
+	if columnField.IsValid() && columnField.Kind() == reflect.Int {
+		column = int(columnField.Int())
+	}
+
+	// Adjust line number to account for frontmatter position in file
+	if line > 0 {
+		line += frontmatterStartLine
+	}
+
+	// Only return valid positions - avoid returning 1,1 when location is unknown
+	if line <= frontmatterStartLine && column <= 1 {
+		return 0, 0, message
+	}
+
+	return line, column, message
+}
+
+// extractFromStringParsing provides fallback string parsing for other YAML libraries
+func extractFromStringParsing(errStr string, frontmatterStartLine int) (line int, column int, message string) {
 	// Parse "yaml: line X: column Y: message" format (enhanced parsers that provide column info)
 	if strings.Contains(errStr, "yaml: line ") && strings.Contains(errStr, "column ") {
 		parts := strings.SplitN(errStr, "yaml: line ", 2)
@@ -61,7 +130,8 @@ func ExtractYAMLError(err error, frontmatterStartLine int) (line int, column int
 				if _, parseErr := fmt.Sscanf(lineStr, "%d", &line); parseErr == nil {
 					// Adjust line number to account for frontmatter position in file
 					line += frontmatterStartLine
-					column = 1 // Default to column 1 when not provided
+					// Don't default to column 1 when not provided - return 0 instead
+					column = 0
 					return
 				}
 			}
@@ -86,7 +156,7 @@ func ExtractYAMLError(err error, frontmatterStartLine int) (line int, column int
 						if _, parseErr := fmt.Sscanf(lineStr, "%d", &line); parseErr == nil {
 							// Adjust line number to account for frontmatter position in file
 							line += frontmatterStartLine
-							column = 1
+							column = 0 // Don't default to column 1
 							message = restOfMessage
 							return
 						}
@@ -96,6 +166,6 @@ func ExtractYAMLError(err error, frontmatterStartLine int) (line int, column int
 		}
 	}
 
-	// Fallback: return original error message
+	// Fallback: return original error message with no location
 	return 0, 0, errStr
 }

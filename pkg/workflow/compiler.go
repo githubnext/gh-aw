@@ -16,8 +16,8 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
-	"gopkg.in/yaml.v3"
 )
 
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
