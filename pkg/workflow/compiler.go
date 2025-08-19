@@ -1863,6 +1863,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Generate output file setup step
+	c.generateOutputFileSetup(yaml, data)
+
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine)
 
@@ -2067,9 +2070,6 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
-
-	// Generate output file setup step
-	c.generateOutputFileSetup(yaml, data)
 
 	// Generate aw_info.json with agentic run metadata
 	c.generateAgenticInfoStep(yaml, data, engine)
