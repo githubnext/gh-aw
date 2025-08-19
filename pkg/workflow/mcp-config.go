@@ -223,6 +223,14 @@ func getMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		}
 	}
 
+	// Check if this container needs proxy support
+	if _, hasContainer := result["container"]; hasContainer {
+		if hasNetPerms, _ := hasNetworkPermissions(toolConfig); hasNetPerms {
+			// Mark this configuration as proxy-enabled
+			result["__uses_proxy"] = true
+		}
+	}
+
 	// Transform container field to docker command if present
 	if err := transformContainerToDockerCommand(result); err != nil {
 		return nil, err
@@ -232,6 +240,7 @@ func getMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 }
 
 // transformContainerToDockerCommand converts a container field to docker command and args
+// For proxy-enabled containers, it sets special markers instead of docker commands
 func transformContainerToDockerCommand(mcpConfig map[string]any) error {
 	container, hasContainer := mcpConfig["container"]
 	if !hasContainer {
@@ -247,6 +256,15 @@ func transformContainerToDockerCommand(mcpConfig map[string]any) error {
 	// Check for conflicting command field
 	if _, hasCommand := mcpConfig["command"]; hasCommand {
 		return fmt.Errorf("cannot specify both 'container' and 'command' fields")
+	}
+
+	// Check if this is a proxy-enabled container (has special marker)
+	if _, hasProxyFlag := mcpConfig["__uses_proxy"]; hasProxyFlag {
+		// For proxy-enabled containers, use docker-compose
+		mcpConfig["command"] = "docker-compose"
+		mcpConfig["args"] = []any{"run", "--rm", containerStr}
+		// Keep the container field for compose file generation
+		return nil
 	}
 
 	// Set docker command
@@ -395,6 +413,179 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 		return fmt.Errorf("tool '%s' mcp configuration '%s' got %s, want string", toolName, propertyName, actualType)
 	}
 	return nil
+}
+
+// hasNetworkPermissions checks if a tool configuration has network permissions
+func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
+	permissions, hasPerms := toolConfig["permissions"]
+	if !hasPerms {
+		return false, nil
+	}
+
+	permsMap, ok := permissions.(map[string]any)
+	if !ok {
+		return false, nil
+	}
+
+	network, hasNetwork := permsMap["network"]
+	if !hasNetwork {
+		return false, nil
+	}
+
+	networkMap, ok := network.(map[string]any)
+	if !ok {
+		return false, nil
+	}
+
+	allowed, hasAllowed := networkMap["allowed"]
+	if !hasAllowed {
+		return false, nil
+	}
+
+	allowedSlice, ok := allowed.([]any)
+	if !ok {
+		return false, nil
+	}
+
+	var domains []string
+	for _, item := range allowedSlice {
+		if str, ok := item.(string); ok {
+			domains = append(domains, str)
+		}
+	}
+
+	return len(domains) > 0, domains
+}
+
+// needsProxy determines if a tool configuration requires proxy setup
+func needsProxy(toolConfig map[string]any) (bool, []string) {
+	// Check if tool has MCP container configuration
+	mcpConfig, err := getMCPConfig(toolConfig)
+	if err != nil {
+		return false, nil
+	}
+
+	// Check if it has a container field
+	_, hasContainer := mcpConfig["container"]
+	if !hasContainer {
+		return false, nil
+	}
+
+	// Check if it has network permissions
+	hasNetPerms, domains := hasNetworkPermissions(toolConfig)
+
+	return hasNetPerms, domains
+}
+
+// generateSquidConfig generates the Squid proxy configuration
+func generateSquidConfig() string {
+	return `# Squid configuration for egress traffic control
+# This configuration implements a whitelist-based proxy
+
+# Access log and cache configuration
+access_log /var/log/squid/access.log squid
+cache_log /var/log/squid/cache.log
+cache deny all
+
+# Port configuration
+http_port 3128
+
+# ACL definitions for allowed domains
+acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
+acl localnet src 10.0.0.0/8
+acl localnet src 172.16.0.0/12
+acl localnet src 192.168.0.0/16
+acl SSL_ports port 443
+acl Safe_ports port 80
+acl Safe_ports port 443
+acl CONNECT method CONNECT
+
+# Access rules
+# Deny requests to unknown domains (not in whitelist)
+http_access deny !allowed_domains
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow localnet
+http_access deny all
+
+# Disable caching
+cache deny all
+
+# DNS settings
+dns_nameservers 8.8.8.8 8.8.4.4
+
+# Forwarded headers
+forwarded_for delete
+via off
+
+# Error page customization
+error_directory /usr/share/squid/errors/English
+
+# Logging
+logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
+access_log /var/log/squid/access.log combined
+
+# Memory and file descriptor limits
+cache_mem 64 MB
+maximum_object_size 0 KB
+`
+}
+
+// generateAllowedDomainsFile generates the allowed domains file content
+func generateAllowedDomainsFile(domains []string) string {
+	content := "# Allowed domains for egress traffic\n# Add one domain per line\n"
+	for _, domain := range domains {
+		content += domain + "\n"
+	}
+	return content
+}
+
+// generateDockerCompose generates the Docker Compose configuration
+func generateDockerCompose(containerImage string, envVars map[string]any, toolName string) string {
+	compose := `services:
+  squid-proxy:
+    image: ubuntu/squid:latest
+    container_name: squid-proxy-` + toolName + `
+    ports:
+      - "3128:3128"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+      - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
+      - squid-logs:/var/log/squid
+    healthcheck:
+      test: ["CMD", "squid", "-k", "check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  ` + toolName + `:
+    image: ` + containerImage + `
+    container_name: ` + toolName + `-mcp
+    environment:
+      - PROXY_HOST=squid-proxy-` + toolName + `
+      - PROXY_PORT=3128`
+
+	// Add environment variables
+	if envVars != nil {
+		for key, value := range envVars {
+			if valueStr, ok := value.(string); ok {
+				compose += "\n      - " + key + "=" + valueStr
+			}
+		}
+	}
+
+	compose += `
+    depends_on:
+      squid-proxy-` + toolName + `:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  squid-logs:
+`
+
+	return compose
 }
 
 // validateMCPRequirements validates the specific requirements for MCP configuration
