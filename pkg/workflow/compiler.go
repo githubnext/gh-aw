@@ -815,6 +815,12 @@ func (c *Compiler) extractYAMLValue(frontmatter map[string]any, key string) stri
 		if num, ok := value.(int); ok {
 			return fmt.Sprintf("%d", num)
 		}
+		if num, ok := value.(int64); ok {
+			return fmt.Sprintf("%d", num)
+		}
+		if num, ok := value.(uint64); ok {
+			return fmt.Sprintf("%d", num)
+		}
 		if float, ok := value.(float64); ok {
 			return fmt.Sprintf("%.0f", float)
 		}
@@ -990,7 +996,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.TimeoutMinutes == "" {
-		data.TimeoutMinutes = `timeout_minutes: "5"`
+		data.TimeoutMinutes = `timeout_minutes: 5`
 	}
 
 	if data.RunsOn == "" {
