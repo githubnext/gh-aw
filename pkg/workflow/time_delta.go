@@ -248,7 +248,7 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("unable to parse date-time: %s. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc.", dateTimeStr)
+	return "", fmt.Errorf("unable to parse date-time: %s. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc", dateTimeStr)
 }
 
 // resolveStopTime resolves a stop-time value to an absolute timestamp
