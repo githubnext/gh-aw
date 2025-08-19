@@ -17,47 +17,63 @@ func TestParseTimeDelta(t *testing.T) {
 		{
 			name:     "hours only",
 			input:    "+25h",
-			expected: &TimeDelta{Hours: 25},
+			expected: &TimeDelta{Hours: 25, Sign: 1},
 		},
 		{
 			name:     "days only",
 			input:    "+3d",
-			expected: &TimeDelta{Days: 3},
+			expected: &TimeDelta{Days: 3, Sign: 1},
 		},
 		{
 			name:     "minutes only",
 			input:    "+30m",
-			expected: &TimeDelta{Minutes: 30},
+			expected: &TimeDelta{Minutes: 30, Sign: 1},
 		},
 		{
 			name:     "days and hours",
 			input:    "+1d12h",
-			expected: &TimeDelta{Days: 1, Hours: 12},
+			expected: &TimeDelta{Days: 1, Hours: 12, Sign: 1},
 		},
 		{
 			name:     "all units",
 			input:    "+2d5h30m",
-			expected: &TimeDelta{Days: 2, Hours: 5, Minutes: 30},
+			expected: &TimeDelta{Days: 2, Hours: 5, Minutes: 30, Sign: 1},
 		},
 		{
 			name:     "different order",
 			input:    "+5h2d30m",
-			expected: &TimeDelta{Days: 2, Hours: 5, Minutes: 30},
+			expected: &TimeDelta{Days: 2, Hours: 5, Minutes: 30, Sign: 1},
 		},
 		{
 			name:     "single digit",
 			input:    "+1d",
-			expected: &TimeDelta{Days: 1},
+			expected: &TimeDelta{Days: 1, Sign: 1},
 		},
 		{
 			name:     "large numbers",
 			input:    "+100h",
-			expected: &TimeDelta{Hours: 100},
+			expected: &TimeDelta{Hours: 100, Sign: 1},
 		},
 		{
 			name:     "zero values allowed in middle",
 			input:    "+0d5h",
-			expected: &TimeDelta{Days: 0, Hours: 5},
+			expected: &TimeDelta{Days: 0, Hours: 5, Sign: 1},
+		},
+		// Negative cases
+		{
+			name:     "negative hours only",
+			input:    "-24h",
+			expected: &TimeDelta{Hours: 24, Sign: -1},
+		},
+		{
+			name:     "negative days only",
+			input:    "-3d",
+			expected: &TimeDelta{Days: 3, Sign: -1},
+		},
+		{
+			name:     "negative complex",
+			input:    "-1d12h30m",
+			expected: &TimeDelta{Days: 1, Hours: 12, Minutes: 30, Sign: -1},
 		},
 
 		// Error cases
@@ -150,9 +166,9 @@ func TestParseTimeDelta(t *testing.T) {
 					t.Errorf("parseTimeDelta(%q) returned nil result", tt.input)
 					return
 				}
-				if result.Days != tt.expected.Days || result.Hours != tt.expected.Hours || result.Minutes != tt.expected.Minutes {
-					t.Errorf("parseTimeDelta(%q) = {Days: %d, Hours: %d, Minutes: %d}, want {Days: %d, Hours: %d, Minutes: %d}",
-						tt.input, result.Days, result.Hours, result.Minutes, tt.expected.Days, tt.expected.Hours, tt.expected.Minutes)
+				if result.Days != tt.expected.Days || result.Hours != tt.expected.Hours || result.Minutes != tt.expected.Minutes || result.Sign != tt.expected.Sign {
+					t.Errorf("parseTimeDelta(%q) = {Days: %d, Hours: %d, Minutes: %d, Sign: %d}, want {Days: %d, Hours: %d, Minutes: %d, Sign: %d}",
+						tt.input, result.Days, result.Hours, result.Minutes, result.Sign, tt.expected.Days, tt.expected.Hours, tt.expected.Minutes, tt.expected.Sign)
 				}
 			}
 		})
@@ -166,28 +182,33 @@ func TestTimeDeltaToDuration(t *testing.T) {
 		expected time.Duration
 	}{
 		{
-			name:     "hours only",
-			delta:    &TimeDelta{Hours: 25},
+			name:     "positive hours only",
+			delta:    &TimeDelta{Hours: 25, Sign: 1},
 			expected: 25 * time.Hour,
 		},
 		{
-			name:     "days only",
-			delta:    &TimeDelta{Days: 3},
+			name:     "positive days only",
+			delta:    &TimeDelta{Days: 3, Sign: 1},
 			expected: 3 * 24 * time.Hour,
 		},
 		{
-			name:     "minutes only",
-			delta:    &TimeDelta{Minutes: 30},
+			name:     "positive minutes only",
+			delta:    &TimeDelta{Minutes: 30, Sign: 1},
 			expected: 30 * time.Minute,
 		},
 		{
-			name:     "all units",
-			delta:    &TimeDelta{Days: 2, Hours: 5, Minutes: 30},
+			name:     "positive all units",
+			delta:    &TimeDelta{Days: 2, Hours: 5, Minutes: 30, Sign: 1},
 			expected: 2*24*time.Hour + 5*time.Hour + 30*time.Minute,
 		},
 		{
+			name:     "negative hours only",
+			delta:    &TimeDelta{Hours: 24, Sign: -1},
+			expected: -24 * time.Hour,
+		},
+		{
 			name:     "zero values",
-			delta:    &TimeDelta{Days: 0, Hours: 0, Minutes: 0},
+			delta:    &TimeDelta{Days: 0, Hours: 0, Minutes: 0, Sign: 1},
 			expected: 0,
 		},
 	}
@@ -611,4 +632,128 @@ func containsSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// TestIsRelativeTime tests the new isRelativeTime function
+func TestIsRelativeTime(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "positive relative time",
+			input:    "+25h",
+			expected: true,
+		},
+		{
+			name:     "negative relative time",
+			input:    "-24h",
+			expected: true,
+		},
+		{
+			name:     "absolute timestamp",
+			input:    "2025-12-31 23:59:59",
+			expected: false,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "just plus",
+			input:    "+",
+			expected: true,
+		},
+		{
+			name:     "just minus",
+			input:    "-",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isRelativeTime(tt.input)
+			if result != tt.expected {
+				t.Errorf("isRelativeTime(%q) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestResolveRelativeTime tests the new resolveRelativeTime function
+func TestResolveRelativeTime(t *testing.T) {
+	baseTime := time.Date(2025, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name          string
+		timeStr       string
+		referenceTime time.Time
+		expectedTime  time.Time
+		expectError   bool
+		errorMsg      string
+	}{
+		{
+			name:          "negative hours",
+			timeStr:       "-24h",
+			referenceTime: baseTime,
+			expectedTime:  baseTime.Add(-24 * time.Hour),
+		},
+		{
+			name:          "negative days",
+			timeStr:       "-3d",
+			referenceTime: baseTime,
+			expectedTime:  baseTime.Add(-3 * 24 * time.Hour),
+		},
+		{
+			name:          "positive hours",
+			timeStr:       "+25h",
+			referenceTime: baseTime,
+			expectedTime:  baseTime.Add(25 * time.Hour),
+		},
+		{
+			name:          "absolute time standard format",
+			timeStr:       "2025-12-31 23:59:59",
+			referenceTime: baseTime,
+			expectedTime:  time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			name:        "empty string",
+			timeStr:     "",
+			expectError: true,
+			errorMsg:    "empty time value",
+		},
+		{
+			name:        "invalid relative format",
+			timeStr:     "-25x",
+			expectError: true,
+			errorMsg:    "invalid time delta format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := resolveRelativeTime(tt.timeStr, tt.referenceTime)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("resolveRelativeTime(%q, %v) expected error but got none", tt.timeStr, tt.referenceTime)
+					return
+				}
+				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
+					t.Errorf("resolveRelativeTime(%q, %v) error = %v, want to contain %v", tt.timeStr, tt.referenceTime, err.Error(), tt.errorMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("resolveRelativeTime(%q, %v) unexpected error: %v", tt.timeStr, tt.referenceTime, err)
+					return
+				}
+				if !result.Equal(tt.expectedTime) {
+					t.Errorf("resolveRelativeTime(%q, %v) = %v, want %v", tt.timeStr, tt.referenceTime, result, tt.expectedTime)
+				}
+			}
+		})
+	}
 }

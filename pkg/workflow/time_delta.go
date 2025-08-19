@@ -13,30 +13,42 @@ type TimeDelta struct {
 	Hours   int
 	Days    int
 	Minutes int
+	Sign    int // 1 for positive (future), -1 for negative (past)
 }
 
-// parseTimeDelta parses a relative time delta string like "+25h", "+3d", "+1d12h30m", etc.
+// parseTimeDelta parses a relative time delta string like "+25h", "-24h", "+3d", "-1d12h30m", etc.
 // Supported formats:
-// - +25h (25 hours)
-// - +3d (3 days)
-// - +30m (30 minutes)
-// - +1d12h (1 day and 12 hours)
-// - +2d5h30m (2 days, 5 hours, 30 minutes)
+// - +25h (25 hours in the future)
+// - -24h (24 hours in the past)
+// - +3d (3 days in the future)
+// - -3d (3 days in the past)
+// - +30m (30 minutes in the future)
+// - -30m (30 minutes in the past)
+// - +1d12h (1 day and 12 hours in the future)
+// - -1d12h30m (1 day, 12 hours, 30 minutes in the past)
 func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 	if deltaStr == "" {
 		return nil, fmt.Errorf("empty time delta")
 	}
 
-	// Must start with '+'
-	if !strings.HasPrefix(deltaStr, "+") {
-		return nil, fmt.Errorf("time delta must start with '+', got: %s", deltaStr)
+	var sign int
+	var prefix string
+	
+	// Determine sign and remove prefix
+	if strings.HasPrefix(deltaStr, "+") {
+		sign = 1
+		prefix = "+"
+		deltaStr = deltaStr[1:]
+	} else if strings.HasPrefix(deltaStr, "-") {
+		sign = -1
+		prefix = "-"
+		deltaStr = deltaStr[1:]
+	} else {
+		return nil, fmt.Errorf("time delta must start with '+' or '-', got: %s", deltaStr)
 	}
 
-	// Remove the '+' prefix
-	deltaStr = deltaStr[1:]
-
 	if deltaStr == "" {
-		return nil, fmt.Errorf("empty time delta after '+'")
+		return nil, fmt.Errorf("empty time delta after '%s'", prefix)
 	}
 
 	// Parse components using regex
@@ -45,7 +57,7 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 	matches := pattern.FindAllStringSubmatch(deltaStr, -1)
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1d12h30m", deltaStr)
+		return nil, fmt.Errorf("invalid time delta format: %s%s. Expected format like %s25h, %s3d, %s1d12h30m", prefix, deltaStr, prefix, prefix, prefix)
 	}
 
 	// Check that all characters are consumed by matches
@@ -54,10 +66,10 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 		consumed += len(match[0])
 	}
 	if consumed != len(deltaStr) {
-		return nil, fmt.Errorf("invalid time delta format: +%s. Extra characters detected", deltaStr)
+		return nil, fmt.Errorf("invalid time delta format: %s%s. Extra characters detected", prefix, deltaStr)
 	}
 
-	delta := &TimeDelta{}
+	delta := &TimeDelta{Sign: sign}
 	seenUnits := make(map[string]bool)
 
 	for _, match := range matches {
@@ -70,17 +82,17 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 
 		// Check for duplicate units
 		if seenUnits[unit] {
-			return nil, fmt.Errorf("duplicate unit '%s' in time delta: +%s", unit, deltaStr)
+			return nil, fmt.Errorf("duplicate unit '%s' in time delta: %s%s", unit, prefix, deltaStr)
 		}
 		seenUnits[unit] = true
 
 		value, err := strconv.Atoi(valueStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid number '%s' in time delta: +%s", valueStr, deltaStr)
+			return nil, fmt.Errorf("invalid number '%s' in time delta: %s%s", valueStr, prefix, deltaStr)
 		}
 
 		if value < 0 {
-			return nil, fmt.Errorf("negative values not allowed in time delta: +%s", deltaStr)
+			return nil, fmt.Errorf("negative values not allowed in time delta: %s%s", prefix, deltaStr)
 		}
 
 		switch unit {
@@ -91,7 +103,7 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 		case "m":
 			delta.Minutes = value
 		default:
-			return nil, fmt.Errorf("unsupported time unit '%s' in time delta: +%s", unit, deltaStr)
+			return nil, fmt.Errorf("unsupported time unit '%s' in time delta: %s%s", unit, prefix, deltaStr)
 		}
 	}
 
@@ -114,7 +126,7 @@ func (td *TimeDelta) toDuration() time.Duration {
 	duration := time.Duration(td.Days) * 24 * time.Hour
 	duration += time.Duration(td.Hours) * time.Hour
 	duration += time.Duration(td.Minutes) * time.Minute
-	return duration
+	return time.Duration(td.Sign) * duration
 }
 
 // String returns a human-readable representation of the TimeDelta
@@ -132,12 +144,22 @@ func (td *TimeDelta) String() string {
 	if len(parts) == 0 {
 		return "0m"
 	}
-	return "+" + strings.Join(parts, "")
+	
+	prefix := "+"
+	if td.Sign < 0 {
+		prefix = "-"
+	}
+	return prefix + strings.Join(parts, "")
 }
 
 // isRelativeStopTime checks if a stop-time value is a relative time delta
 func isRelativeStopTime(stopTime string) bool {
 	return strings.HasPrefix(stopTime, "+")
+}
+
+// isRelativeTime checks if a time value is a relative time delta (supports both + and -)
+func isRelativeTime(timeStr string) bool {
+	return strings.HasPrefix(timeStr, "+") || strings.HasPrefix(timeStr, "-")
 }
 
 // parseAbsoluteDateTime parses various date-time formats and returns a standardized timestamp
@@ -262,4 +284,40 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 
 	// Parse absolute date-time with flexible format support
 	return parseAbsoluteDateTime(stopTime)
+}
+
+// resolveRelativeTime resolves a relative or absolute time value to an absolute timestamp
+// If the time is relative (starts with '+' or '-'), it calculates the absolute time
+// from the reference time. Otherwise, it parses the absolute time using various formats.
+// Returns the time as a time.Time object instead of a string.
+func resolveRelativeTime(timeStr string, referenceTime time.Time) (time.Time, error) {
+	if timeStr == "" {
+		return time.Time{}, fmt.Errorf("empty time value")
+	}
+
+	if isRelativeTime(timeStr) {
+		// Parse the relative time delta
+		delta, err := parseTimeDelta(timeStr)
+		if err != nil {
+			return time.Time{}, err
+		}
+
+		// Calculate absolute time in UTC
+		absoluteTime := referenceTime.UTC().Add(delta.toDuration())
+		return absoluteTime, nil
+	}
+
+	// Parse absolute date-time with flexible format support
+	absoluteTimeStr, err := parseAbsoluteDateTime(timeStr)
+	if err != nil {
+		return time.Time{}, err
+	}
+	
+	// Convert back to time.Time
+	parsedTime, err := time.Parse("2006-01-02 15:04:05", absoluteTimeStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse resolved time: %w", err)
+	}
+	
+	return parsedTime.UTC(), nil
 }
