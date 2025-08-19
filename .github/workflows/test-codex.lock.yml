@@ -193,12 +193,7 @@ jobs:
           
           ---
           
-          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file specified by the environment variable GITHUB_AW_OUTPUT. This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.
-          
-          Example usage:
-          - If GITHUB_AW_OUTPUT is set, you can write results to that file
-          - The content will be available to other workflows or jobs via the 'output' output
-          - Only write to this file if you have meaningful output to provide
+          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file ${{ env.GITHUB_AW_OUTPUT }}. This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.
           EOF
       - name: Print prompt to step summary
         run: |

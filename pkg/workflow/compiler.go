@@ -29,6 +29,7 @@ func validateExpressionSafety(markdownContent string) error {
 	expressionRegex := regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
 	needsStepsRegex := regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
 	inputsRegex := regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
+	envRegex := regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
 
 	// Find all expressions in the markdown content
 	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
@@ -57,6 +58,9 @@ func validateExpressionSafety(markdownContent string) error {
 			allowed = true
 		} else if inputsRegex.MatchString(expression) {
 			// Check if this expression matches github.event.inputs.* pattern
+			allowed = true
+		} else if (envRegex.MatchString(expression)) {
+			// check if this expression matches env.* pattern
 			allowed = true
 		} else {
 			for _, allowedExpr := range constants.AllowedExpressions {
@@ -1880,12 +1884,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("          \n")
 	yaml.WriteString("          ---\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file specified by the environment variable GITHUB_AW_OUTPUT. This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          Example usage:\n")
-	yaml.WriteString("          - If GITHUB_AW_OUTPUT is set, you can write results to that file\n")
-	yaml.WriteString("          - The content will be available to other workflows or jobs via the 'output' output\n")
-	yaml.WriteString("          - Only write to this file if you have meaningful output to provide\n")
+	yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file ${{ env.GITHUB_AW_OUTPUT }}. This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
 	yaml.WriteString("          EOF\n")
 
 	// Add step to print prompt to GitHub step summary for debugging
