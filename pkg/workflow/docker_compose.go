@@ -69,11 +69,9 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
       - ` + networkName + ``
 
 	// Add environment variables
-	if envVars != nil {
-		for key, value := range envVars {
-			if valueStr, ok := value.(string); ok {
-				compose += "\n      - " + key + "=" + valueStr
-			}
+	for key, value := range envVars {
+		if valueStr, ok := value.(string); ok {
+			compose += "\n      - " + key + "=" + valueStr
 		}
 	}
 

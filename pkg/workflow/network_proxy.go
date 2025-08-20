@@ -2,11 +2,7 @@ package workflow
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-
-	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // needsProxy determines if a tool configuration requires proxy setup
@@ -93,92 +89,7 @@ func generateAllowedDomainsFile(domains []string) string {
 }
 
 // generateProxyFiles generates Squid proxy configuration files for a tool
-func (c *Compiler) generateProxyFiles(markdownPath string, toolName string, toolConfig map[string]any) error {
-	needsProxySetup, allowedDomains := needsProxy(toolConfig)
-	if !needsProxySetup {
-		return nil
-	}
-
-	// Get the directory of the markdown file
-	markdownDir := filepath.Dir(markdownPath)
-
-	// Generate squid.conf
-	squidConfig := generateSquidConfig()
-	squidPath := filepath.Join(markdownDir, "squid.conf")
-	if err := os.WriteFile(squidPath, []byte(squidConfig), 0644); err != nil {
-		return fmt.Errorf("failed to write squid.conf: %w", err)
-	}
-
-	if c.fileTracker != nil {
-		c.fileTracker.TrackCreated(squidPath)
-	}
-
-	// Generate allowed_domains.txt
-	domainsConfig := generateAllowedDomainsFile(allowedDomains)
-	domainsPath := filepath.Join(markdownDir, "allowed_domains.txt")
-	if err := os.WriteFile(domainsPath, []byte(domainsConfig), 0644); err != nil {
-		return fmt.Errorf("failed to write allowed_domains.txt: %w", err)
-	}
-
-	if c.fileTracker != nil {
-		c.fileTracker.TrackCreated(domainsPath)
-	}
-
-	// Get container image and environment variables from MCP config
-	mcpConfig, err := getMCPConfig(toolConfig, toolName)
-	if err != nil {
-		return fmt.Errorf("failed to get MCP config: %w", err)
-	}
-
-	containerImage, hasContainer := mcpConfig["container"]
-	if !hasContainer {
-		return fmt.Errorf("proxy-enabled tool '%s' missing container configuration", toolName)
-	}
-
-	containerStr, ok := containerImage.(string)
-	if !ok {
-		return fmt.Errorf("container image must be a string")
-	}
-
-	var envVars map[string]any
-	if env, hasEnv := mcpConfig["env"]; hasEnv {
-		if envMap, ok := env.(map[string]any); ok {
-			envVars = envMap
-		}
-	}
-
-	// Extract custom proxy args from MCP config if present
-	var customProxyArgs []string
-	if proxyArgsInterface, hasProxyArgs := mcpConfig["proxy_args"]; hasProxyArgs {
-		if proxyArgsSlice, ok := proxyArgsInterface.([]any); ok {
-			for _, arg := range proxyArgsSlice {
-				if argStr, ok := arg.(string); ok {
-					customProxyArgs = append(customProxyArgs, argStr)
-				}
-			}
-		}
-	}
-
-	// Generate docker-compose.yml
-	composeConfig := generateDockerCompose(containerStr, envVars, toolName, customProxyArgs)
-	composePath := filepath.Join(markdownDir, fmt.Sprintf("docker-compose-%s.yml", toolName))
-	if err := os.WriteFile(composePath, []byte(composeConfig), 0644); err != nil {
-		return fmt.Errorf("failed to write docker-compose.yml: %w", err)
-	}
-
-	if c.fileTracker != nil {
-		c.fileTracker.TrackCreated(composePath)
-	}
-
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Generated proxy configuration files for tool '%s'", toolName)))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("  - Squid config: %s", console.ToRelativePath(squidPath))))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("  - Allowed domains: %s", console.ToRelativePath(domainsPath))))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("  - Docker Compose: %s", console.ToRelativePath(composePath))))
-	}
-
-	return nil
-}
+// Removed unused generateProxyFiles; inline generation is used instead.
 
 // generateInlineProxyConfig generates proxy configuration files inline in the workflow
 func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any) {
