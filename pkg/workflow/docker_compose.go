@@ -1,14 +1,17 @@
 package workflow
 
 import (
-	"fmt"
-	"strings"
+    "fmt"
+    "hash/crc32"
+    "strings"
 )
 
 // getStandardProxyArgs returns the standard proxy arguments for all MCP containers
 // This defines the standard interface that all proxy-enabled MCP containers should support
 func getStandardProxyArgs() []string {
-	return []string{"--proxy-url", "http://squid-proxy:3128"}
+    // We no longer rely on CLI flags like --proxy-url.
+    // Leave empty so we don't override container entrypoints.
+    return []string{}
 }
 
 // formatYAMLArray formats a string slice as a YAML array
@@ -26,7 +29,13 @@ func formatYAMLArray(items []string) string {
 
 // generateDockerCompose generates the Docker Compose configuration
 func generateDockerCompose(containerImage string, envVars map[string]any, toolName string, customProxyArgs []string) string {
-	compose := `services:
+    // Derive a stable, non-conflicting subnet and network name for this tool
+    octet := 100 + (int(crc32.ChecksumIEEE([]byte(toolName))) % 100) // 100-199
+    subnet := fmt.Sprintf("172.28.%d.0/24", octet)
+    squidIP := fmt.Sprintf("172.28.%d.10", octet)
+    networkName := "awproxy-" + toolName
+
+    compose := `services:
   squid-proxy:
     image: ubuntu/squid:latest
     container_name: squid-proxy-` + toolName + `
@@ -42,6 +51,9 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    networks:
+      ` + networkName + `:
+        ipv4_address: ` + squidIP + `
 
   ` + toolName + `:
     image: ` + containerImage + `
@@ -50,7 +62,11 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
     tty: true
     environment:
       - PROXY_HOST=squid-proxy
-      - PROXY_PORT=3128`
+      - PROXY_PORT=3128
+      - HTTP_PROXY=http://squid-proxy:3128
+      - HTTPS_PROXY=http://squid-proxy:3128
+    networks:
+      - ` + networkName + ``
 
 	// Add environment variables
 	if envVars != nil {
@@ -70,9 +86,11 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
 		// Use standard proxy args for all MCP containers
 		proxyArgs = getStandardProxyArgs()
 	}
-	
-	compose += `
+    // Only set command if custom args were explicitly provided
+    if len(proxyArgs) > 0 {
+        compose += `
     command: ` + formatYAMLArray(proxyArgs)
+    }
 
 	compose += `
     depends_on:
@@ -81,7 +99,23 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
 
 volumes:
   squid-logs:
+
+networks:
+  ` + networkName + `:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ` + subnet + `
 `
 
-	return compose
+    return compose
+}
+
+// computeProxyNetworkParams returns the subnet CIDR, squid IP and network name for a given tool
+func computeProxyNetworkParams(toolName string) (subnetCIDR string, squidIP string, networkName string) {
+    octet := 100 + (int(crc32.ChecksumIEEE([]byte(toolName))) % 100) // 100-199
+    subnetCIDR = fmt.Sprintf("172.28.%d.0/24", octet)
+    squidIP = fmt.Sprintf("172.28.%d.10", octet)
+    networkName = "awproxy-" + toolName
+    return
 }
