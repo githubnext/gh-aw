@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "esnext",
-    "lib": ["es2022", "dom"],
+    "module": "es2022",
+    "lib": ["es2022"],
     "allowJs": true,
     "checkJs": true,
     "declaration": false,
@@ -31,7 +31,10 @@
     "typeRoots": ["./node_modules/@types", "./pkg/workflow/js/types"]
   },
   "include": [
-    "pkg/workflow/js/**/*"
+    "pkg/workflow/js/**/*.js",
+    "pkg/workflow/js/**/*.cjs",
+    "pkg/workflow/js/**/*.ts",
+    "pkg/workflow/js/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",

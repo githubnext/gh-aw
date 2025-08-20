@@ -1,6 +1,6 @@
-import * as fs from "fs";
-import * as crypto from "crypto";
-import { execSync } from "child_process";
+const fs = require("fs");
+const crypto = require("crypto");
+const { execSync } = require("child_process");
 
 async function main() {
 
