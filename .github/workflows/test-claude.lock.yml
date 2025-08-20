@@ -494,7 +494,7 @@ jobs:
           echo "Base commit SHA: $INITIAL_SHA"
           # Show compact diff information between initial commit and staged files
           echo "Showing compact diff between initial commit and current state:"
-          git diff --stat --cached "$INITIAL_SHA" || true
+          git diff --name-only --cached "$INITIAL_SHA" || true
           echo "---"
           # Check if there are any changes since the initial commit
           if git diff --quiet --cached "$INITIAL_SHA" && git diff --quiet "$INITIAL_SHA" HEAD; then
@@ -508,7 +508,7 @@ jobs:
             ls -la /tmp/aw.patch
           fi
       - name: Upload git patch
-        if: always() && hashFiles('/tmp/aw.patch') != ''
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: aw.patch
