@@ -445,11 +445,6 @@ jobs:
           # Check current git status
           echo "Current git status:"
           git status
-          # Stage any unstaged files
-          git add -A || true
-          # Check updated git status
-          echo "Updated git status:"
-          git status
           # Get the initial commit SHA from the base branch of the pull request
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
             INITIAL_SHA="$GITHUB_BASE_REF"
@@ -457,20 +452,33 @@ jobs:
             INITIAL_SHA="$GITHUB_SHA"
           fi
           echo "Base commit SHA: $INITIAL_SHA"
-          # Show compact diff information between initial commit and staged files
+          # Stage any unstaged files
+          git add -A || true
+          # Check if there are staged files to commit
+          if ! git diff --cached --quiet; then
+            echo "Staged files found, committing them..."
+            git commit -m "[agent] staged files" || true
+            echo "Staged files committed"
+          else
+            echo "No staged files to commit"
+          fi
+          # Check updated git status
+          echo "Updated git status after committing staged files:"
+          git status
+          # Show compact diff information between initial commit and HEAD (committed changes only)
           echo '## Git diff' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          git diff --cached --name-only "$INITIAL_SHA" >> $GITHUB_STEP_SUMMARY || true
+          git diff --name-only "$INITIAL_SHA"..HEAD >> $GITHUB_STEP_SUMMARY || true
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
-          # Check if there are any changes since the initial commit
-          if git diff --quiet --cached "$INITIAL_SHA" && git diff --quiet "$INITIAL_SHA" HEAD; then
-            echo "No changes detected since initial commit (staged or committed)"
-            echo "Skipping patch generation - no changes to create patch from"
+          # Check if there are any committed changes since the initial commit
+          if git diff --quiet "$INITIAL_SHA" HEAD; then
+            echo "No committed changes detected since initial commit"
+            echo "Skipping patch generation - no committed changes to create patch from"
           else
-            echo "Changes detected, generating patch..."
-            # Generate patch from initial commit to current state
+            echo "Committed changes detected, generating patch..."
+            # Generate patch from initial commit to HEAD (committed changes only)
             git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
             echo "Patch file created at /tmp/aw.patch"
             ls -la /tmp/aw.patch
