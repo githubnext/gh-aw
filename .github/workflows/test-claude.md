@@ -12,7 +12,7 @@ engine:
   model: claude-3-5-sonnet-20241022
 timeout_minutes: 10
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   actions: read
 output:
@@ -20,6 +20,9 @@ output:
     title-prefix: "[claude-test] "
     labels: [claude, automation, haiku]
   comment: {}
+  pull-request:
+    title-prefix: "[claude-test] "
+    labels: [claude, automation, bot]
 tools:
   claude:
     allowed:
