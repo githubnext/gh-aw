@@ -447,8 +447,11 @@ jobs:
           git status
           # Stage any unstaged files
           git add -A || true
+          # Check updated git status
+          echo "Updated git status:"
+          git status
           # Get the initial commit SHA from the base branch of the pull request
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
             INITIAL_SHA="$GITHUB_BASE_REF"
           else
             INITIAL_SHA="$GITHUB_SHA"
