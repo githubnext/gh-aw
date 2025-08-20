@@ -1676,7 +1676,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
-	
+
 	// Add each line of the script with proper indentation
 	scriptLines := strings.Split(script, "\n")
 	for _, line := range scriptLines {
@@ -2057,19 +2057,19 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 	if output, exists := frontmatter["output"]; exists {
 		if outputMap, ok := output.(map[string]any); ok {
 			config := &OutputConfig{}
-			
+
 			// Parse issue configuration
 			if issue, exists := outputMap["issue"]; exists {
 				if issueMap, ok := issue.(map[string]any); ok {
 					issueConfig := &IssueConfig{}
-					
+
 					// Parse title-prefix
 					if titlePrefix, exists := issueMap["title-prefix"]; exists {
 						if titlePrefixStr, ok := titlePrefix.(string); ok {
 							issueConfig.TitlePrefix = titlePrefixStr
 						}
 					}
-					
+
 					// Parse labels
 					if labels, exists := issueMap["labels"]; exists {
 						if labelsArray, ok := labels.([]any); ok {
@@ -2082,11 +2082,11 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 							issueConfig.Labels = labelStrings
 						}
 					}
-					
+
 					config.Issue = issueConfig
 				}
 			}
-			
+
 			return config
 		}
 	}
