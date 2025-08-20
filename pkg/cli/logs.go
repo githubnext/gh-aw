@@ -81,6 +81,11 @@ This command fetches workflow runs, downloads their artifacts, and extracts them
 organized folders named by run ID. It also provides an overview table with aggregate
 metrics including duration, token usage, and cost information.
 
+Downloaded artifacts include:
+- aw_info.json: Engine configuration and workflow metadata
+- aw_output.txt: Agent's final output content (available when non-empty)
+- Various log files with execution details and metrics
+
 The agentic-workflow-id is the basename of the markdown file without the .md extension.
 For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
 
@@ -591,6 +596,18 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 		}
 	}
 
+	// Check for aw_output.txt artifact file
+	awOutputPath := filepath.Join(logDir, "aw_output.txt")
+	if _, err := os.Stat(awOutputPath); err == nil {
+		if verbose {
+			// Report that the agentic output file was found
+			fileInfo, statErr := os.Stat(awOutputPath)
+			if statErr == nil {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: aw_output.txt (%s)", formatFileSize(fileInfo.Size()))))
+			}
+		}
+	}
+
 	// Walk through all files in the log directory
 	err := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -862,6 +879,32 @@ func formatNumber(n int) string {
 			return fmt.Sprintf("%.2fB", b)
 		}
 	}
+}
+
+// formatFileSize formats file sizes in a human-readable way (e.g., "1.2 KB", "3.4 MB")
+func formatFileSize(size int64) string {
+	if size == 0 {
+		return "0 B"
+	}
+
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	units := []string{"KB", "MB", "GB", "TB"}
+	if exp >= len(units) {
+		exp = len(units) - 1
+		div = int64(1) << (10 * (exp + 1))
+	}
+
+	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
 // dirExists checks if a directory exists
