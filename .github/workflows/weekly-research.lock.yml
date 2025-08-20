@@ -421,6 +421,9 @@ jobs:
             INITIAL_SHA="$GITHUB_SHA"
           fi
           echo "Base commit SHA: $INITIAL_SHA"
+          # Configure git user for GitHub Actions
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
           # Stage any unstaged files
           git add -A || true
           # Check if there are staged files to commit
