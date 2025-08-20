@@ -176,7 +176,7 @@ Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
 **How It Works:**
 1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
 2. Main job completes and passes output via job output variables
-3. Separate `create_output_issue` job runs with `issues: write` permission
+3. Separate `create_issue` job runs with `issues: write` permission
 4. JavaScript parses the output (first line = title, rest = body)
 5. GitHub issue is created with optional title prefix and labels
 
@@ -432,7 +432,7 @@ Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
 **How It Works:**
 1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
 2. Main job completes and passes output via job output variables
-3. Separate `create_output_issue` job runs with `issues: write` permission
+3. Separate `create_issue` job runs with `issues: write` permission
 4. JavaScript parses the output (first line = title, rest = body)
 5. GitHub issue is created with optional title prefix and labels
 

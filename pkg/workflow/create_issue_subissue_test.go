@@ -91,12 +91,12 @@ Write output to ${{ env.GITHUB_AW_OUTPUT }}.`
 		t.Error("Expected compiled workflow to include parent issue comment")
 	}
 
-	// Verify it still has the standard create_output_issue job structure
-	if !strings.Contains(lockContent, "create_output_issue:") {
-		t.Error("Expected create_output_issue job to be present")
+	// Verify it still has the standard create_issue job structure
+	if !strings.Contains(lockContent, "create_issue:") {
+		t.Error("Expected create_issue job to be present")
 	}
 
 	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write") {
-		t.Error("Expected correct permissions in create_output_issue job")
+		t.Error("Expected correct permissions in create_issue job")
 	}
 }

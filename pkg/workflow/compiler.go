@@ -1487,14 +1487,14 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
 
-	// Build create_output_issue job if output.issue is configured
+	// Build create_issue job if output.issue is configured
 	if data.Output != nil && data.Output.Issue != nil {
 		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
 		if err != nil {
-			return fmt.Errorf("failed to build create_output_issue job: %w", err)
+			return fmt.Errorf("failed to build create_issue job: %w", err)
 		}
 		if err := c.jobManager.AddJob(createIssueJob); err != nil {
-			return fmt.Errorf("failed to add create_output_issue job: %w", err)
+			return fmt.Errorf("failed to add create_issue job: %w", err)
 		}
 	}
 
@@ -1623,7 +1623,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 	return job, nil
 }
 
-// buildCreateOutputIssueJob creates the create_output_issue job
+// buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.Issue == nil {
 		return nil, fmt.Errorf("output.issue configuration is required")
@@ -1666,7 +1666,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	}
 
 	job := &Job{
-		Name:           "create_output_issue",
+		Name:           "create_issue",
 		If:             "", // No conditional execution
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write",

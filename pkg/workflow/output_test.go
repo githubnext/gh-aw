@@ -141,7 +141,7 @@ output:
 
 # Test Output Issue Job Generation
 
-This workflow tests the create_output_issue job generation.
+This workflow tests the create_issue job generation.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue.md")
@@ -166,23 +166,23 @@ This workflow tests the create_output_issue job generation.
 
 	lockContent := string(content)
 
-	// Verify create_output_issue job exists
-	if !strings.Contains(lockContent, "create_output_issue:") {
-		t.Error("Expected 'create_output_issue' job to be in generated workflow")
+	// Verify create_issue job exists
+	if !strings.Contains(lockContent, "create_issue:") {
+		t.Error("Expected 'create_issue' job to be in generated workflow")
 	}
 
 	// Verify job properties
 	if !strings.Contains(lockContent, "timeout-minutes: 10") {
-		t.Error("Expected 10-minute timeout in create_output_issue job")
+		t.Error("Expected 10-minute timeout in create_issue job")
 	}
 
 	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write") {
-		t.Error("Expected correct permissions in create_output_issue job")
+		t.Error("Expected correct permissions in create_issue job")
 	}
 
 	// Verify the job uses github-script
 	if !strings.Contains(lockContent, "uses: actions/github-script@v7") {
-		t.Error("Expected github-script action to be used in create_output_issue job")
+		t.Error("Expected github-script action to be used in create_issue job")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
@@ -196,7 +196,7 @@ This workflow tests the create_output_issue job generation.
 
 	// Verify job dependencies
 	if !strings.Contains(lockContent, "needs: test-output-issue") {
-		t.Error("Expected create_output_issue job to depend on main job")
+		t.Error("Expected create_issue job to depend on main job")
 	}
 
 	t.Logf("Generated workflow content:\n%s", lockContent)

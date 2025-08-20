@@ -518,7 +518,7 @@ jobs:
           path: /tmp/aw.patch
           if-no-files-found: ignore
 
-  create_output_issue:
+  create_issue:
     needs: test-claude
     runs-on: ubuntu-latest
     permissions:

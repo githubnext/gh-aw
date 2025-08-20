@@ -264,14 +264,14 @@ output:
 ### Issue Creation (`output.issue`)
 
 **Behavior:**
-- When `output.issue` is configured, the compiler automatically generates a separate `create_output_issue` job
+- When `output.issue` is configured, the compiler automatically generates a separate `create_issue` job
 - This job runs after the main AI agent job completes
 - The agent's output content flows from the main job to the issue creation job via job output variables
 - The issue creation job parses the output content, using the first non-empty line as the title and the remainder as the body
 - **Important**: With output processing, the main job **does not** need `issues: write` permission since the write operation is performed in the separate job
 
 **Generated Job Properties:**
-- **Job Name**: `create_output_issue`
+- **Job Name**: `create_issue`
 - **Dependencies**: Runs after the main agent job (`needs: [main-job-name]`)
 - **Permissions**: Only the issue creation job has `issues: write` permission
 - **Timeout**: 10-minute timeout to prevent hanging
