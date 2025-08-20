@@ -256,6 +256,9 @@ output:
     title-prefix: "[ai] "           # Optional: prefix for issue titles
     labels: [automation, ai-agent]  # Optional: labels to attach to issues
   comment: {}                       # Create comments on issues/PRs from agent output
+  pull-request:
+    title-prefix: "[ai] "           # Optional: prefix for PR titles
+    labels: [automation, ai-agent]  # Optional: labels to attach to PRs
 ```
 
 ### Issue Creation (`output.issue`)
@@ -335,6 +338,56 @@ Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
 ```
 
 This automatically creates GitHub issues or comments from the agent's analysis without requiring write permissions on the main job.
+
+### Pull Request Creation (`output.pull-request`)
+
+**Behavior:**
+- When `output.pull-request` is configured, the compiler automatically generates a separate `create_output_pull_request` job
+- This job runs after the main AI agent job completes
+- The agent's output content flows from the main job to the pull request creation job via job output variables
+- The job creates a new branch, applies git patches from the agent's output, and creates a pull request
+- **Important**: With output processing, the main job **does not** need `contents: write` permission since the write operation is performed in the separate job
+
+**Generated Job Properties:**
+- **Job Name**: `create_output_pull_request`
+- **Dependencies**: Runs after the main agent job (`needs: [main-job-name]`)
+- **Permissions**: Only the pull request creation job has `contents: write` and `pull-requests: write` permissions
+- **Timeout**: 10-minute timeout to prevent hanging
+- **Environment Variables**: Configuration passed via `GITHUB_AW_PR_TITLE_PREFIX`, `GITHUB_AW_PR_LABELS`, `GITHUB_AW_WORKFLOW_ID`, and `GITHUB_AW_BASE_BRANCH`
+- **Branch Creation**: Uses cryptographic random hex for secure branch naming (`{workflowId}/{randomHex}`)
+- **Git Operations**: Creates branch using git CLI, applies patches, commits changes, and pushes to GitHub
+- **Outputs**: Returns `pr_number` and `pr_url` for downstream jobs
+
+**Configuration:**
+```yaml
+output:
+  pull-request:
+    title-prefix: "[ai] "           # Optional: prefix for PR titles
+    labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+```
+
+**Example workflow using pull request creation:**
+```yaml
+---
+on: push
+permissions:
+  actions: read       # Main job only needs minimal permissions
+engine: claude
+output:
+  pull-request:
+    title-prefix: "[bot] "
+    labels: [automation, ai-generated]
+---
+
+# Code Improvement Agent
+
+Analyze the latest commit and suggest improvements.
+Generate patches and write them to /tmp/aw.patch.
+Write a summary to ${{ env.GITHUB_AW_OUTPUT }} with title and description.
+```
+
+**Required Patch Format:**
+The agent must create git patches in `/tmp/aw.patch` for the changes to be applied. The pull request creation job validates patch existence and content before proceeding.
 
 ## Cache Configuration (`cache:`)
 

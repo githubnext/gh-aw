@@ -12,7 +12,6 @@ engine:
   model: claude-3-5-sonnet-20241022
 timeout_minutes: 10
 permissions:
-  contents: write
   pull-requests: write
   actions: read
 output:
