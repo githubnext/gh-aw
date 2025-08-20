@@ -12,11 +12,10 @@ tools:
     mcp:
       type: stdio
       container: mcp/fetch
-    permissions:
-      network:
-        allowed: 
-          - "example.com"
-          - "httpbin.org"
+      permissions:
+        network:
+          allowed: 
+            - "example.com"
     allowed: 
       - "fetch"
   
@@ -52,4 +51,3 @@ Create a GitHub issue with the test results, documenting:
 - Any security observations or recommendations
 
 The test should demonstrate that MCP containers are properly isolated and can only access explicitly allowed domains through the network proxy.
-

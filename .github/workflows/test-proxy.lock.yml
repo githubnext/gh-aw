@@ -4,15 +4,15 @@
 
 name: "Test Network Permissions"
 on:
-    pull_request:
-        branches:
-            - main
-    workflow_dispatch: null
+  pull_request:
+    branches:
+    - main
+  workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
 run-name: "Test Network Permissions"
@@ -32,123 +32,34 @@ jobs:
     needs: task
     runs-on: ubuntu-latest
     permissions:
-        issues: write
+      issues: write
+    outputs:
+      output: ${{ steps.collect_output.outputs.output }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Setup Proxy Configuration for MCP Network Restrictions
-        run: |
-          echo "Generating proxy configuration files for MCP tools with network restrictions..."
-          
-          # Generate Squid proxy configuration
-          cat > squid.conf << 'EOF'
-          # Squid configuration for egress traffic control
-          # This configuration implements a whitelist-based proxy
-          
-          # Access log and cache configuration
-          access_log /var/log/squid/access.log squid
-          cache_log /var/log/squid/cache.log
-          cache deny all
-          
-          # Port configuration
-          http_port 3128
-          
-          # ACL definitions for allowed domains
-          acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
-          acl localnet src 10.0.0.0/8
-          acl localnet src 172.16.0.0/12
-          acl localnet src 192.168.0.0/16
-          acl SSL_ports port 443
-          acl Safe_ports port 80
-          acl Safe_ports port 443
-          acl CONNECT method CONNECT
-          
-          # Access rules
-          # Deny requests to unknown domains (not in whitelist)
-          http_access deny !allowed_domains
-          http_access deny !Safe_ports
-          http_access deny CONNECT !SSL_ports
-          http_access allow localnet
-          http_access deny all
-          
-          # Disable caching
-          cache deny all
-          
-          # DNS settings
-          dns_nameservers 8.8.8.8 8.8.4.4
-          
-          # Forwarded headers
-          forwarded_for delete
-          via off
-          
-          # Error page customization
-          error_directory /usr/share/squid/errors/English
-          
-          # Logging
-          logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
-          access_log /var/log/squid/access.log combined
-          
-          # Memory and file descriptor limits
-          cache_mem 64 MB
-          maximum_object_size 0 KB
-          
-          EOF
-          
-          # Generate allowed domains file
-          cat > allowed_domains.txt << 'EOF'
-          # Allowed domains for egress traffic
-          # Add one domain per line
-          example.com
-          
-          EOF
-          
-          # Generate Docker Compose configuration for fetch
-          cat > docker-compose-fetch.yml << 'EOF'
-          services:
-            squid-proxy:
-              image: ubuntu/squid:latest
-              container_name: squid-proxy-fetch
-              ports:
-                - "3128:3128"
-              volumes:
-                - ./squid.conf:/etc/squid/squid.conf:ro
-                - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
-                - squid-logs:/var/log/squid
-              healthcheck:
-                test: ["CMD", "squid", "-k", "check"]
-                interval: 30s
-                timeout: 10s
-                retries: 3
-              restart: unless-stopped
-          
-            fetch:
-              image: mcp/fetch
-              container_name: fetch-mcp
-              stdin_open: true
-              tty: true
-              environment:
-                - PROXY_HOST=squid-proxy
-                - PROXY_PORT=3128
-              command: ["--proxy-url", "http://squid-proxy:3128"]
-              depends_on:
-                squid-proxy:
-                  condition: service_healthy
-          
-          volumes:
-            squid-logs:
-          
-          EOF
-          
-          echo "Proxy configuration files generated."
-      - name: Pre-pull images and start Squid proxy
-        run: |
-          set -e
-          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'
-          docker pull ubuntu/squid:latest
-          echo 'Pulling mcp/fetch for tool fetch'
-          docker pull mcp/fetch
-          echo 'Starting squid-proxy service for fetch'
-          docker compose -f docker-compose-fetch.yml up -d squid-proxy
+      - name: Setup agent output
+        id: setup_agent_output
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const crypto = require('crypto');
+            // Generate a random filename for the output file
+            const randomId = crypto.randomBytes(8).toString('hex');
+            const outputFile = `/tmp/aw_output_${randomId}.txt`;
+            // Ensure the /tmp directory exists and create empty output file
+            fs.mkdirSync('/tmp', { recursive: true });
+            fs.writeFileSync(outputFile, '', { mode: 0o644 });
+            // Verify the file was created and is writable
+            if (!fs.existsSync(outputFile)) {
+              throw new Error(`Failed to create output file: ${outputFile}`);
+            }
+            // Set the environment variable for subsequent steps
+            core.exportVariable('GITHUB_AW_OUTPUT', outputFile);
+            console.log('Created agentic output file:', outputFile);
+            // Also set as step output for reference
+            core.setOutput('output_file', outputFile);
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
@@ -158,12 +69,10 @@ jobs:
               "fetch": {
                 "command": "docker",
                 "args": [
-                  "compose",
-                  "-f",
-                  "docker-compose-fetch.yml",
                   "run",
                   "--rm",
-                  "fetch"
+                  "-i",
+                  "mcp/fetch"
                 ]
               },
               "github": {
@@ -184,6 +93,8 @@ jobs:
           }
           EOF
       - name: Create prompt
+        env:
+          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
@@ -210,6 +121,10 @@ jobs:
           
           The test should demonstrate that MCP containers are properly isolated and can only access explicitly allowed domains through the network proxy.
           
+          
+          ---
+          
+          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file "${{ env.GITHUB_AW_OUTPUT }}". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.
           EOF
       - name: Print prompt to step summary
         run: |
@@ -244,12 +159,21 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));
-            console.log('Generated aw_info.json:');
+            // Write to /tmp directory to avoid inclusion in PR
+            const tmpPath = '/tmp/aw_info.json';
+            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
+            console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
+      - name: Upload agentic run info
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw_info.json
+          path: /tmp/aw_info.json
+          if-no-files-found: warn
       - name: Execute Claude Code Action
         id: agentic_execution
-        uses: mossaka/claude-code-base-action-fork@main
+        uses: anthropics/claude-code-base-action@v0.0.56
         with:
           # Allowed tools (sorted):
           # - Glob
@@ -309,9 +233,12 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
           mcp_config: /tmp/mcp-config/mcp-servers.json
           prompt_file: /tmp/aw-prompts/prompt.txt
-          timeout_minutes: "5"
+          timeout_minutes: 5
+        env:
+          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
       - name: Capture Agentic Action logs
         if: always()
         run: |
@@ -340,18 +267,146 @@ jobs:
         with:
           name: workflow-complete
           path: workflow-complete.txt
-      - name: Upload agentic engine logs
+      - name: Collect agent output
+        id: collect_output
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Sanitization function for adversarial LLM outputs
+            function sanitizeContent(content) {
+              if (!content || typeof content !== 'string') {
+                return '';
+              }
+              
+              // Remove control characters (except newlines and tabs)
+              let sanitized = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+              
+              // Limit total length to prevent DoS (0.5MB max)
+              const maxLength = 524288;
+              if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + '\n[Content truncated due to length]';
+              }
+              
+              // Limit number of lines to prevent log flooding (65k max)
+              const lines = sanitized.split('\n');
+              const maxLines = 65000;
+              if (lines.length > maxLines) {
+                sanitized = lines.slice(0, maxLines).join('\n') + '\n[Content truncated due to line count]';
+              }
+              
+              
+              // Remove ANSI escape sequences
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, '');
+              
+              // Trim excessive whitespace
+              return sanitized.trim();
+            }
+            
+            const outputFile = process.env.GITHUB_AW_OUTPUT;
+            if (!outputFile) {
+              console.log('GITHUB_AW_OUTPUT not set, no output to collect');
+              core.setOutput('output', '');
+              return;
+            }
+            if (!fs.existsSync(outputFile)) {
+              console.log('Output file does not exist:', outputFile);
+              core.setOutput('output', '');
+              return;
+            }
+            const outputContent = fs.readFileSync(outputFile, 'utf8');
+            if (outputContent.trim() === '') {
+              console.log('Output file is empty');
+              core.setOutput('output', '');
+            } else {
+              const sanitizedContent = sanitizeContent(outputContent);
+              console.log('Collected agentic output (sanitized):', sanitizedContent.substring(0, 200) + (sanitizedContent.length > 200 ? '...' : ''));
+              core.setOutput('output', sanitizedContent);
+            }
+      - name: Print agent output to step summary
+        env:
+          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
+        run: |
+          echo "## Agent Output" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '``````markdown' >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.GITHUB_AW_OUTPUT }} >> $GITHUB_STEP_SUMMARY
+          echo '``````' >> $GITHUB_STEP_SUMMARY
+      - name: Upload agentic output file
+        if: always() && steps.collect_output.outputs.output != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw_output.txt
+          path: ${{ env.GITHUB_AW_OUTPUT }}
+          if-no-files-found: warn
+      - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-network-permissions.log
           path: /tmp/test-network-permissions.log
           if-no-files-found: warn
-      - name: Upload agentic run info
+      - name: Generate git patch
+        if: always()
+        run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          # Get the initial commit SHA from the base branch of the pull request
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
+            INITIAL_SHA="$GITHUB_BASE_REF"
+          else
+            INITIAL_SHA="$GITHUB_SHA"
+          fi
+          echo "Base commit SHA: $INITIAL_SHA"
+          # Configure git user for GitHub Actions
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          # Stage any unstaged files
+          git add -A || true
+          # Check if there are staged files to commit
+          if ! git diff --cached --quiet; then
+            echo "Staged files found, committing them..."
+            git commit -m "[agent] staged files" || true
+            echo "Staged files committed"
+          else
+            echo "No staged files to commit"
+          fi
+          # Check updated git status
+          echo "Updated git status after committing staged files:"
+          git status
+          # Show compact diff information between initial commit and HEAD (committed changes only)
+          echo '## Git diff' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          git diff --name-only "$INITIAL_SHA"..HEAD >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          # Check if there are any committed changes since the initial commit
+          if git diff --quiet "$INITIAL_SHA" HEAD; then
+            echo "No committed changes detected since initial commit"
+            echo "Skipping patch generation - no committed changes to create patch from"
+          else
+            echo "Committed changes detected, generating patch..."
+            # Generate patch from initial commit to HEAD (committed changes only)
+            git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
+            echo "Patch file created at /tmp/aw.patch"
+            ls -la /tmp/aw.patch
+            # Show the first 50 lines of the patch for review
+            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            head -50 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            echo '...' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload git patch
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aw_info.json
-          path: aw_info.json
-          if-no-files-found: warn
+          name: aw.patch
+          path: /tmp/aw.patch
+          if-no-files-found: ignore
 
