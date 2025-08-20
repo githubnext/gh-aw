@@ -419,55 +419,55 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 
 // hasNetworkPermissions checks if a tool configuration has network permissions
 func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
-    extract := func(perms any) (bool, []string) {
-        permsMap, ok := perms.(map[string]any)
-        if !ok {
-            return false, nil
-        }
-        network, hasNetwork := permsMap["network"]
-        if !hasNetwork {
-            return false, nil
-        }
-        networkMap, ok := network.(map[string]any)
-        if !ok {
-            return false, nil
-        }
-        allowed, hasAllowed := networkMap["allowed"]
-        if !hasAllowed {
-            return false, nil
-        }
-        allowedSlice, ok := allowed.([]any)
-        if !ok {
-            return false, nil
-        }
-        var domains []string
-        for _, item := range allowedSlice {
-            if str, ok := item.(string); ok {
-                domains = append(domains, str)
-            }
-        }
-        return len(domains) > 0, domains
-    }
+	extract := func(perms any) (bool, []string) {
+		permsMap, ok := perms.(map[string]any)
+		if !ok {
+			return false, nil
+		}
+		network, hasNetwork := permsMap["network"]
+		if !hasNetwork {
+			return false, nil
+		}
+		networkMap, ok := network.(map[string]any)
+		if !ok {
+			return false, nil
+		}
+		allowed, hasAllowed := networkMap["allowed"]
+		if !hasAllowed {
+			return false, nil
+		}
+		allowedSlice, ok := allowed.([]any)
+		if !ok {
+			return false, nil
+		}
+		var domains []string
+		for _, item := range allowedSlice {
+			if str, ok := item.(string); ok {
+				domains = append(domains, str)
+			}
+		}
+		return len(domains) > 0, domains
+	}
 
-    // First, check top-level permissions
-    if permissions, hasPerms := toolConfig["permissions"]; hasPerms {
-        if ok, domains := extract(permissions); ok {
-            return true, domains
-        }
-    }
+	// First, check top-level permissions
+	if permissions, hasPerms := toolConfig["permissions"]; hasPerms {
+		if ok, domains := extract(permissions); ok {
+			return true, domains
+		}
+	}
 
-    // Then, check permissions nested under mcp (alternate schema used in some configs)
-    if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
-        if m, ok := mcpSection.(map[string]any); ok {
-            if permissions, hasPerms := m["permissions"]; hasPerms {
-                if ok, domains := extract(permissions); ok {
-                    return true, domains
-                }
-            }
-        }
-    }
+	// Then, check permissions nested under mcp (alternate schema used in some configs)
+	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+		if m, ok := mcpSection.(map[string]any); ok {
+			if permissions, hasPerms := m["permissions"]; hasPerms {
+				if ok, domains := extract(permissions); ok {
+					return true, domains
+				}
+			}
+		}
+	}
 
-    return false, nil
+	return false, nil
 }
 
 // validateMCPRequirements validates the specific requirements for MCP configuration

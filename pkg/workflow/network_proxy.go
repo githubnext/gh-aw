@@ -31,7 +31,7 @@ func needsProxy(toolConfig map[string]any) (bool, []string) {
 
 // generateSquidConfig generates the Squid proxy configuration
 func generateSquidConfig() string {
-    return `# Squid configuration for egress traffic control
+	return `# Squid configuration for egress traffic control
 # This configuration implements a whitelist-based proxy
 
 # Access log and cache configuration
