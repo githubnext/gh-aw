@@ -1,0 +1,40 @@
+package workflow
+
+import "strings"
+
+// generateGitPatchStep generates a step that creates and uploads a git patch of changes
+func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Generate git patch\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          # Check current git status\n")
+	yaml.WriteString("          echo \"Current git status:\"\n")
+	yaml.WriteString("          git status\n")
+	yaml.WriteString("          # Stage any unstaged files\n")
+	yaml.WriteString("          git add -A || true\n")
+	yaml.WriteString("          # Get the initial commit SHA from when the workflow started\n")
+	yaml.WriteString("          INITIAL_SHA=\"${{ github.sha }}\"\n")
+	yaml.WriteString("          echo \"Initial commit SHA: $INITIAL_SHA\"\n")
+	yaml.WriteString("          # Show compact diff information between initial commit and staged files\n")
+	yaml.WriteString("          echo \"Showing compact diff between initial commit and current state:\"\n")
+	yaml.WriteString("          git diff --stat \"$INITIAL_SHA\" HEAD || true\n")
+	yaml.WriteString("          echo \"---\"\n")
+	yaml.WriteString("          # Check if there are any changes since the initial commit\n")
+	yaml.WriteString("          if git diff --quiet \"$INITIAL_SHA\" HEAD; then\n")
+	yaml.WriteString("            echo \"No changes detected since initial commit\"\n")
+	yaml.WriteString("            echo \"Skipping patch generation - no changes to create patch from\"\n")
+	yaml.WriteString("          else\n")
+	yaml.WriteString("            echo \"Changes detected, generating patch...\"\n")
+	yaml.WriteString("            # Generate patch from initial commit to current state\n")
+	yaml.WriteString("            git format-patch \"$INITIAL_SHA\"..HEAD --stdout > /tmp/aw.patch || echo \"Failed to generate patch\" > /tmp/aw.patch\n")
+	yaml.WriteString("            echo \"Patch file created at /tmp/aw.patch\"\n")
+	yaml.WriteString("            ls -la /tmp/aw.patch\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("      - name: Upload git patch\n")
+	yaml.WriteString("        if: always() && hashFiles('/tmp/aw.patch') != ''\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw.patch\n")
+	yaml.WriteString("          path: /tmp/aw.patch\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
+}
