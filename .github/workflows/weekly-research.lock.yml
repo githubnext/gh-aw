@@ -429,8 +429,8 @@ jobs:
           # Show compact diff information between initial commit and staged files
           echo '## Git diff' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
-          echo '```diff' >> $GITHUB_STEP_SUMMARY
-          git diff --cached "$INITIAL_SHA" >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          git diff --cached --name-only "$INITIAL_SHA" >> $GITHUB_STEP_SUMMARY || true
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
           # Check if there are any changes since the initial commit
