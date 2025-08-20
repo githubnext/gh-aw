@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // isMCPType checks if a type string represents an MCP-compatible type

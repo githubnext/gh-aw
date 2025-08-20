@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -16,70 +15,9 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
-	"gopkg.in/yaml.v3"
 )
-
-// validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
-// are in the allowed list and returns an error if any unauthorized expressions are found
-func validateExpressionSafety(markdownContent string) error {
-	// Regular expression to match GitHub Actions expressions: ${{ ... }}
-	// Use (?s) flag to enable dotall mode so . matches newlines to capture multiline expressions
-	// Use non-greedy matching with .*? to handle nested braces properly
-	expressionRegex := regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
-	needsStepsRegex := regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
-	inputsRegex := regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
-
-	// Find all expressions in the markdown content
-	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
-
-	var unauthorizedExpressions []string
-
-	for _, match := range matches {
-		if len(match) < 2 {
-			continue
-		}
-
-		// Extract the expression content (everything between ${{ and }})
-		expression := strings.TrimSpace(match[1])
-
-		// Reject expressions that span multiple lines (contain newlines)
-		if strings.Contains(match[1], "\n") {
-			unauthorizedExpressions = append(unauthorizedExpressions, expression)
-			continue
-		}
-
-		// Check if this expression is in the allowed list
-		allowed := false
-
-		// Check if this expression starts with "needs." or "steps." and is a simple property access
-		if needsStepsRegex.MatchString(expression) {
-			allowed = true
-		} else if inputsRegex.MatchString(expression) {
-			// Check if this expression matches github.event.inputs.* pattern
-			allowed = true
-		} else {
-			for _, allowedExpr := range constants.AllowedExpressions {
-				if expression == allowedExpr {
-					allowed = true
-					break
-				}
-			}
-		}
-
-		if !allowed {
-			unauthorizedExpressions = append(unauthorizedExpressions, expression)
-		}
-	}
-
-	// If we found unauthorized expressions, return an error
-	if len(unauthorizedExpressions) > 0 {
-		return fmt.Errorf("unauthorized expressions: %v. allowed: %v",
-			unauthorizedExpressions, constants.AllowedExpressions)
-	}
-
-	return nil
-}
 
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
@@ -196,7 +134,7 @@ type WorkflowData struct {
 	AllowedTools     string
 	AI               string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig     *EngineConfig // Extended engine configuration
-	MaxRuns          string
+	MaxTurns         string
 	StopTime         string
 	Alias            string         // for @alias trigger support
 	AliasOtherEvents map[string]any // for merging alias with other events
@@ -204,6 +142,31 @@ type WorkflowData struct {
 	Jobs             map[string]any // custom job configurations with dependencies
 	Cache            string         // cache configuration
 	NeedsTextOutput  bool           // whether the workflow uses ${{ needs.task.outputs.text }}
+	Output           *OutputConfig  // output configuration for automatic output routes
+}
+
+// OutputConfig holds configuration for automatic output routes
+type OutputConfig struct {
+	Issue       *IssueConfig       `yaml:"issue,omitempty"`
+	Comment     *CommentConfig     `yaml:"comment,omitempty"`
+	PullRequest *PullRequestConfig `yaml:"pull-request,omitempty"`
+}
+
+// IssueConfig holds configuration for creating GitHub issues from agent output
+type IssueConfig struct {
+	TitlePrefix string   `yaml:"title-prefix,omitempty"`
+	Labels      []string `yaml:"labels,omitempty"`
+}
+
+// CommentConfig holds configuration for creating GitHub issue/PR comments from agent output
+type CommentConfig struct {
+	// Empty struct for now, as per requirements, but structured for future expansion
+}
+
+// PullRequestConfig holds configuration for creating GitHub pull requests from agent output
+type PullRequestConfig struct {
+	TitlePrefix string   `yaml:"title-prefix,omitempty"`
+	Labels      []string `yaml:"labels,omitempty"`
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -481,7 +444,12 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Parse frontmatter and markdown
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
-		return nil, c.createFrontmatterError(markdownPath, string(content), err)
+		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
+		frontmatterStart := 2
+		if result != nil && result.FrontmatterStart > 0 {
+			frontmatterStart = result.FrontmatterStart
+		}
+		return nil, c.createFrontmatterError(markdownPath, string(content), err, frontmatterStart)
 	}
 
 	if len(result.Frontmatter) == 0 {
@@ -594,6 +562,11 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Validate max-turns support for the current engine
+	if err := c.validateMaxTurnsSupport(result.Frontmatter, agenticEngine); err != nil {
+		return nil, fmt.Errorf("max-turns not supported: %w", err)
+	}
+
 	// Process @include directives in markdown content
 	markdownContent, err := parser.ExpandIncludes(result.Markdown, markdownDir, false)
 	if err != nil {
@@ -640,11 +613,31 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
-	workflowData.MaxRuns = c.extractYAMLValue(result.Frontmatter, "max-runs")
+	workflowData.MaxTurns = c.extractYAMLValue(result.Frontmatter, "max-turns")
 	workflowData.StopTime = c.extractYAMLValue(result.Frontmatter, "stop-time")
+
+	// Resolve relative stop-time to absolute time if needed
+	if workflowData.StopTime != "" {
+		resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
+		if err != nil {
+			return nil, fmt.Errorf("invalid stop-time format: %w", err)
+		}
+		originalStopTime := c.extractYAMLValue(result.Frontmatter, "stop-time")
+		workflowData.StopTime = resolvedStopTime
+
+		if c.verbose && isRelativeStopTime(originalStopTime) {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-time to: %s", resolvedStopTime)))
+		} else if c.verbose && originalStopTime != resolvedStopTime {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-time from '%s' to: %s", originalStopTime, resolvedStopTime)))
+		}
+	}
+
 	workflowData.Alias = c.extractAliasName(result.Frontmatter)
 	workflowData.AIReaction = c.extractYAMLValue(result.Frontmatter, "ai-reaction")
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
+
+	// Parse output configuration
+	workflowData.Output = c.extractOutputConfig(result.Frontmatter)
 
 	// Check if "alias" is used as a trigger in the "on" section
 	var hasAlias bool
@@ -786,6 +779,12 @@ func (c *Compiler) extractYAMLValue(frontmatter map[string]any, key string) stri
 			return str
 		}
 		if num, ok := value.(int); ok {
+			return fmt.Sprintf("%d", num)
+		}
+		if num, ok := value.(int64); ok {
+			return fmt.Sprintf("%d", num)
+		}
+		if num, ok := value.(uint64); ok {
 			return fmt.Sprintf("%d", num)
 		}
 		if float, ok := value.(float64); ok {
@@ -949,7 +948,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		data.Permissions = `permissions:
   contents: read
   issues: read
-  pull_requests: read
+  pull-requests: read
   discussions: read
   deployments: read
   models: read`
@@ -963,7 +962,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.TimeoutMinutes == "" {
-		data.TimeoutMinutes = `timeout_minutes: "5"`
+		data.TimeoutMinutes = `timeout_minutes: 5`
 	}
 
 	if data.RunsOn == "" {
@@ -1422,6 +1421,13 @@ func (c *Compiler) generateYAML(data *WorkflowData) (string, error) {
 	yaml.WriteString("# This file was automatically generated by gh-aw. DO NOT EDIT.\n")
 	yaml.WriteString("# To update this file, edit the corresponding .md file and run:\n")
 	yaml.WriteString("#   " + constants.CLIExtensionPrefix + " compile\n")
+
+	// Add stop-time comment if configured
+	if data.StopTime != "" {
+		yaml.WriteString("#\n")
+		yaml.WriteString(fmt.Sprintf("# Effective stop-time: %s\n", data.StopTime))
+	}
+
 	yaml.WriteString("\n")
 
 	// Write basic workflow structure
@@ -1461,14 +1467,14 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add task job: %w", err)
 	}
 
-	// Build add-reaction job only if ai-reaction is configured
+	// Build add_reaction job only if ai-reaction is configured
 	if data.AIReaction != "" {
 		addReactionJob, err := c.buildAddReactionJob(data)
 		if err != nil {
-			return fmt.Errorf("failed to build add-reaction job: %w", err)
+			return fmt.Errorf("failed to build add_reaction job: %w", err)
 		}
 		if err := c.jobManager.AddJob(addReactionJob); err != nil {
-			return fmt.Errorf("failed to add add-reaction job: %w", err)
+			return fmt.Errorf("failed to add add_reaction job: %w", err)
 		}
 	}
 
@@ -1479,6 +1485,39 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 	}
 	if err := c.jobManager.AddJob(mainJob); err != nil {
 		return fmt.Errorf("failed to add main job: %w", err)
+	}
+
+	// Build create_issue job if output.issue is configured
+	if data.Output != nil && data.Output.Issue != nil {
+		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build create_issue job: %w", err)
+		}
+		if err := c.jobManager.AddJob(createIssueJob); err != nil {
+			return fmt.Errorf("failed to add create_issue job: %w", err)
+		}
+	}
+
+	// Build create_issue_comment job if output.comment is configured
+	if data.Output != nil && data.Output.Comment != nil {
+		createCommentJob, err := c.buildCreateOutputCommentJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
+		}
+		if err := c.jobManager.AddJob(createCommentJob); err != nil {
+			return fmt.Errorf("failed to add create_issue_comment job: %w", err)
+		}
+	}
+
+	// Build create_pull_request job if output.pull-request is configured
+	if data.Output != nil && data.Output.PullRequest != nil {
+		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build create_pull_request job: %w", err)
+		}
+		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
+			return fmt.Errorf("failed to add create_pull_request job: %w", err)
+		}
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
@@ -1551,7 +1590,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	return job, nil
 }
 
-// buildAddReactionJob creates the add-reaction job
+// buildAddReactionJob creates the add_reaction job
 func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
@@ -1572,13 +1611,194 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 	}
 
 	job := &Job{
-		Name:        "add-reaction",
+		Name:        "add_reaction",
 		If:          fmt.Sprintf("if: %s", reactionCondition.Render()),
 		RunsOn:      "runs-on: ubuntu-latest",
 		Permissions: "permissions:\n      contents: write # Read .github\n      issues: write\n      pull-requests: write",
 		Steps:       steps,
 		Outputs:     outputs,
 		Depends:     []string{"task"}, // Depend on the task job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputIssueJob creates the create_issue job
+func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.Output == nil || data.Output.Issue == nil {
+		return nil, fmt.Errorf("output.issue configuration is required")
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create Output Issue\n")
+	steps = append(steps, "        id: create_issue\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	if data.Output.Issue.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.Output.Issue.TitlePrefix))
+	}
+	if len(data.Output.Issue.Labels) > 0 {
+		labelsStr := strings.Join(data.Output.Issue.Labels, ",")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_LABELS: %q\n", labelsStr))
+	}
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	scriptLines := strings.Split(createIssueScript, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) == "" {
+			steps = append(steps, "\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"issue_number": "${{ steps.create_issue.outputs.issue_number }}",
+		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
+	}
+
+	job := &Job{
+		Name:           "create_issue",
+		If:             "", // No conditional execution
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      issues: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputCommentJob creates the create_issue_comment job
+func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.Output == nil || data.Output.Comment == nil {
+		return nil, fmt.Errorf("output.comment configuration is required")
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create Output Comment\n")
+	steps = append(steps, "        id: create_comment\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	scriptLines := strings.Split(createCommentScript, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) == "" {
+			steps = append(steps, "\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"comment_id":  "${{ steps.create_comment.outputs.comment_id }}",
+		"comment_url": "${{ steps.create_comment.outputs.comment_url }}",
+	}
+
+	job := &Job{
+		Name:           "create_issue_comment",
+		If:             "if: github.event.issue.number || github.event.pull_request.number", // Only run in issue or PR context
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputPullRequestJob creates the create_pull_request job
+func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.Output == nil || data.Output.PullRequest == nil {
+		return nil, fmt.Errorf("output.pull-request configuration is required")
+	}
+
+	var steps []string
+
+	// Step 1: Download patch artifact
+	steps = append(steps, "      - name: Download patch artifact\n")
+	steps = append(steps, "        uses: actions/download-artifact@v4\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          name: aw.patch\n")
+	steps = append(steps, "          path: /tmp/\n")
+
+	// Step 2: Checkout repository
+	steps = append(steps, "      - name: Checkout repository\n")
+	steps = append(steps, "        uses: actions/checkout@v4\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          fetch-depth: 0\n")
+
+	// Step 3: Create pull request
+	steps = append(steps, "      - name: Create Pull Request\n")
+	steps = append(steps, "        id: create_pull_request\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Pass the workflow ID for branch naming
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_ID: %q\n", mainJobName))
+	// Pass the base branch from GitHub context
+	steps = append(steps, "          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
+	if data.Output.PullRequest.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.Output.PullRequest.TitlePrefix))
+	}
+	if len(data.Output.PullRequest.Labels) > 0 {
+		labelsStr := strings.Join(data.Output.PullRequest.Labels, ",")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
+	}
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	scriptLines := strings.Split(createPullRequestScript, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) == "" {
+			steps = append(steps, "\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"pull_request_number": "${{ steps.create_pull_request.outputs.pull_request_number }}",
+		"pull_request_url":    "${{ steps.create_pull_request.outputs.pull_request_url }}",
+		"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
+	}
+
+	job := &Job{
+		Name:           "create_pull_request",
+		If:             "", // No conditional execution
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: write\n      issues: write\n      pull-requests: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -1606,15 +1826,18 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string) (*Job, error
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
 		Depends:     []string{"task"}, // Depend on the task job
+		Outputs: map[string]string{
+			"output": "${{ steps.collect_output.outputs.output }}",
+		},
 	}
 
 	return job, nil
 }
 
-// generateSafetyChecks generates safety checks for max-runs and stop-time before executing agentic tools
+// generateSafetyChecks generates safety checks for stop-time before executing agentic tools
 func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowData) {
 	// If no safety settings, skip generating safety checks
-	if data.MaxRuns == "" && data.StopTime == "" {
+	if data.StopTime == "" {
 		return
 	}
 
@@ -1626,41 +1849,6 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 	// Extract workflow name for gh workflow commands
 	workflowName := data.Name
 	yaml.WriteString(fmt.Sprintf("          WORKFLOW_NAME=\"%s\"\n", workflowName))
-
-	// Add max-runs check
-	if data.MaxRuns != "" {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Check max-runs limit\n")
-		yaml.WriteString(fmt.Sprintf("          MAX_RUNS=%s\n", data.MaxRuns))
-		yaml.WriteString("          echo \"Checking max-runs limit: $MAX_RUNS\"\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Count successful runs with workflow-complete.txt artifact\n")
-		yaml.WriteString("          echo \"Counting successful workflow runs with workflow-complete.txt artifact...\"\n")
-		yaml.WriteString("          SUCCESSFUL_RUNS=0\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Get completed workflow runs\n")
-		yaml.WriteString("          COMPLETED_RUNS=$(gh run list --workflow \"$WORKFLOW_NAME\" --status completed --json databaseId -L 1000 --jq '.[].databaseId')\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Check each completed run for workflow-complete.txt artifact\n")
-		yaml.WriteString("          for run_id in $COMPLETED_RUNS; do\n")
-		yaml.WriteString("            echo \"Checking run $run_id for workflow-complete.txt artifact...\"\n")
-		yaml.WriteString("            if gh run view $run_id --json artifacts --jq '.artifacts[].name' | grep -q '^workflow-complete.txt$'; then\n")
-		yaml.WriteString("              SUCCESSFUL_RUNS=$((SUCCESSFUL_RUNS + 1))\n")
-		yaml.WriteString("              echo \"  ✓ Run $run_id has workflow-complete.txt artifact\"\n")
-		yaml.WriteString("            else\n")
-		yaml.WriteString("              echo \"  ✗ Run $run_id does not have workflow-complete.txt artifact\"\n")
-		yaml.WriteString("            fi\n")
-		yaml.WriteString("          done\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          echo \"Successful runs count: $SUCCESSFUL_RUNS\"\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          if [ \"$SUCCESSFUL_RUNS\" -ge \"$MAX_RUNS\" ]; then\n")
-		yaml.WriteString("            echo \"Maximum successful runs limit ($MAX_RUNS) reached. Disabling workflow to prevent cost overrun.\"\n")
-		yaml.WriteString("            gh workflow disable \"$WORKFLOW_NAME\"\n")
-		yaml.WriteString("            echo \"Workflow disabled. Current run will continue but no future runs will be triggered.\"\n")
-		yaml.WriteString("            exit 1\n")
-		yaml.WriteString("          fi\n")
-	}
 
 	// Add stop-time check
 	if data.StopTime != "" {
@@ -1679,9 +1867,9 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("            echo \"Stop time: $STOP_TIME\"\n")
 		yaml.WriteString("            \n")
 		yaml.WriteString("            if [ \"$CURRENT_EPOCH\" -ge \"$STOP_EPOCH\" ]; then\n")
-		yaml.WriteString("              echo \"Stop time reached. Disabling workflow to prevent cost overrun.\"\n")
+		yaml.WriteString("              echo \"Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting.\"\n")
 		yaml.WriteString("              gh workflow disable \"$WORKFLOW_NAME\"\n")
-		yaml.WriteString("              echo \"Workflow disabled. Current run will continue but no future runs will be triggered.\"\n")
+		yaml.WriteString("              echo \"Workflow disabled. No future runs will be triggered.\"\n")
 		yaml.WriteString("              exit 1\n")
 		yaml.WriteString("            fi\n")
 		yaml.WriteString("          fi\n")
@@ -1877,6 +2065,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Generate output file setup step
+	c.generateOutputFileSetup(yaml, data)
+
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine)
 
@@ -1884,35 +2075,37 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateSafetyChecks(yaml, data)
 
 	// Add prompt creation step
-	yaml.WriteString("      - name: Create prompt\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
-	yaml.WriteString("          cat > /tmp/aw-prompts/prompt.txt << 'EOF'\n")
-
-	// Add markdown content with proper indentation
-	for _, line := range strings.Split(data.MarkdownContent, "\n") {
-		yaml.WriteString("          " + line + "\n")
-	}
-	yaml.WriteString("          EOF\n")
-
-	// Add step to print prompt to GitHub step summary for debugging
-	yaml.WriteString("      - name: Print prompt to step summary\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          cat /tmp/aw-prompts/prompt.txt >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
+	c.generatePrompt(yaml, data)
 
 	logFile := generateSafeFileName(data.Name)
 	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
 
+	// Generate aw_info.json with agentic run metadata
+	c.generateCreateAwInfo(yaml, data, engine)
+
+	// Upload info to artifact
+	c.generateUploadAwInfo(yaml)
+
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
+	// add workflow_complete.txt
+	c.generateWorkflowComplete(yaml)
+
+	// Add output collection step
+	c.generateOutputCollectionStep(yaml, data)
+
+	// upload agent logs
+	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
+
+	// Add git patch generation step after agentic execution
+	c.generateGitPatchStep(yaml)
+
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
+}
 
+func (c *Compiler) generateWorkflowComplete(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Check if workflow-complete.txt exists, if so upload it\n")
 	yaml.WriteString("        id: check_file\n")
 	yaml.WriteString("        run: |\n")
@@ -1929,20 +2122,56 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: workflow-complete\n")
 	yaml.WriteString("          path: workflow-complete.txt\n")
-	yaml.WriteString("      - name: Upload agentic engine logs\n")
+}
+
+func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {
+	yaml.WriteString("      - name: Upload agent logs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
 	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
 	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Upload agentic run info\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
-	yaml.WriteString("          path: aw_info.json\n")
+	yaml.WriteString("          path: /tmp/aw_info.json\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Create prompt\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
+	yaml.WriteString("          cat > /tmp/aw-prompts/prompt.txt << 'EOF'\n")
+
+	// Add markdown content with proper indentation
+	for _, line := range strings.Split(data.MarkdownContent, "\n") {
+		yaml.WriteString("          " + line + "\n")
+	}
+
+	// Add output instructions for the agent
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ---\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_OUTPUT }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
+	yaml.WriteString("          EOF\n")
+
+	// Add step to print prompt to GitHub step summary for debugging
+	yaml.WriteString("      - name: Print prompt to step summary\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          cat /tmp/aw-prompts/prompt.txt >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
@@ -1971,6 +2200,84 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 		}
 	}
 	return make(map[string]any)
+}
+
+// extractOutputConfig extracts output configuration from frontmatter
+func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig {
+	if output, exists := frontmatter["output"]; exists {
+		if outputMap, ok := output.(map[string]any); ok {
+			config := &OutputConfig{}
+
+			// Parse issue configuration
+			if issue, exists := outputMap["issue"]; exists {
+				if issueMap, ok := issue.(map[string]any); ok {
+					issueConfig := &IssueConfig{}
+
+					// Parse title-prefix
+					if titlePrefix, exists := issueMap["title-prefix"]; exists {
+						if titlePrefixStr, ok := titlePrefix.(string); ok {
+							issueConfig.TitlePrefix = titlePrefixStr
+						}
+					}
+
+					// Parse labels
+					if labels, exists := issueMap["labels"]; exists {
+						if labelsArray, ok := labels.([]any); ok {
+							var labelStrings []string
+							for _, label := range labelsArray {
+								if labelStr, ok := label.(string); ok {
+									labelStrings = append(labelStrings, labelStr)
+								}
+							}
+							issueConfig.Labels = labelStrings
+						}
+					}
+
+					config.Issue = issueConfig
+				}
+			}
+
+			// Parse comment configuration
+			if comment, exists := outputMap["comment"]; exists {
+				if _, ok := comment.(map[string]any); ok {
+					// For now, CommentConfig is an empty struct
+					config.Comment = &CommentConfig{}
+				}
+			}
+
+			// Parse pull-request configuration
+			if pullRequest, exists := outputMap["pull-request"]; exists {
+				if pullRequestMap, ok := pullRequest.(map[string]any); ok {
+					pullRequestConfig := &PullRequestConfig{}
+
+					// Parse title-prefix
+					if titlePrefix, exists := pullRequestMap["title-prefix"]; exists {
+						if titlePrefixStr, ok := titlePrefix.(string); ok {
+							pullRequestConfig.TitlePrefix = titlePrefixStr
+						}
+					}
+
+					// Parse labels
+					if labels, exists := pullRequestMap["labels"]; exists {
+						if labelsArray, ok := labels.([]any); ok {
+							var labelStrings []string
+							for _, label := range labelsArray {
+								if labelStr, ok := label.(string); ok {
+									labelStrings = append(labelStrings, labelStr)
+								}
+							}
+							pullRequestConfig.Labels = labelStrings
+						}
+					}
+
+					config.PullRequest = pullRequestConfig
+				}
+			}
+
+			return config
+		}
+	}
+	return nil
 }
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
@@ -2074,9 +2381,6 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
-	// Generate aw_info.json with agentic run metadata
-	c.generateAgenticInfoStep(yaml, data, engine)
-
 	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig)
 
 	if executionConfig.Command != "" {
@@ -2104,6 +2408,12 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				value := executionConfig.Environment[key]
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
+			// Add GITHUB_AW_OUTPUT environment variable
+			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+		} else {
+			// Add GITHUB_AW_OUTPUT environment variable even if no other env vars
+			yaml.WriteString("        env:\n")
+			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 		}
 	} else if executionConfig.Action != "" {
 
@@ -2133,10 +2443,17 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				if data.TimeoutMinutes != "" {
 					yaml.WriteString("          " + data.TimeoutMinutes + "\n")
 				}
+			} else if key == "max_turns" {
+				if data.MaxTurns != "" {
+					yaml.WriteString(fmt.Sprintf("          max_turns: %s\n", data.MaxTurns))
+				}
 			} else if value != "" {
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
 		}
+		// Add environment section to pass GITHUB_AW_OUTPUT to the action
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 		yaml.WriteString("      - name: Capture Agentic Action logs\n")
 		yaml.WriteString("        if: always()\n")
 		yaml.WriteString("        run: |\n")
@@ -2152,8 +2469,8 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 	}
 }
 
-// generateAgenticInfoStep generates a step that creates aw_info.json with agentic run metadata
-func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
+// generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
+func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
@@ -2207,9 +2524,116 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 
 	yaml.WriteString("            };\n")
 	yaml.WriteString("            \n")
-	yaml.WriteString("            fs.writeFileSync('aw_info.json', JSON.stringify(awInfo, null, 2));\n")
-	yaml.WriteString("            console.log('Generated aw_info.json:');\n")
+	yaml.WriteString("            // Write to /tmp directory to avoid inclusion in PR\n")
+	yaml.WriteString("            const tmpPath = '/tmp/aw_info.json';\n")
+	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
+}
+
+// generateOutputFileSetup generates a step that sets up the GITHUB_AW_OUTPUT environment variable
+func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Setup agent output\n")
+	yaml.WriteString("        id: setup_agent_output\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            const crypto = require('crypto');\n")
+	yaml.WriteString("            // Generate a random filename for the output file\n")
+	yaml.WriteString("            const randomId = crypto.randomBytes(8).toString('hex');\n")
+	yaml.WriteString("            const outputFile = `/tmp/aw_output_${randomId}.txt`;\n")
+	yaml.WriteString("            // Ensure the /tmp directory exists and create empty output file\n")
+	yaml.WriteString("            fs.mkdirSync('/tmp', { recursive: true });\n")
+	yaml.WriteString("            fs.writeFileSync(outputFile, '', { mode: 0o644 });\n")
+	yaml.WriteString("            // Verify the file was created and is writable\n")
+	yaml.WriteString("            if (!fs.existsSync(outputFile)) {\n")
+	yaml.WriteString("              throw new Error(`Failed to create output file: ${outputFile}`);\n")
+	yaml.WriteString("            }\n")
+	yaml.WriteString("            // Set the environment variable for subsequent steps\n")
+	yaml.WriteString("            core.exportVariable('GITHUB_AW_OUTPUT', outputFile);\n")
+	yaml.WriteString("            console.log('Created agentic output file:', outputFile);\n")
+	yaml.WriteString("            // Also set as step output for reference\n")
+	yaml.WriteString("            core.setOutput('output_file', outputFile);\n")
+}
+
+// generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
+func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Collect agent output\n")
+	yaml.WriteString("        id: collect_output\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const fs = require('fs');\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Sanitization function for adversarial LLM outputs\n")
+	yaml.WriteString("            function sanitizeContent(content) {\n")
+	yaml.WriteString("              if (!content || typeof content !== 'string') {\n")
+	yaml.WriteString("                return '';\n")
+	yaml.WriteString("              }\n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              // Remove control characters (except newlines and tabs)\n")
+	yaml.WriteString("              let sanitized = content.replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '');\n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              // Limit total length to prevent DoS (0.5MB max)\n")
+	yaml.WriteString("              const maxLength = 524288;\n")
+	yaml.WriteString("              if (sanitized.length > maxLength) {\n")
+	yaml.WriteString("                sanitized = sanitized.substring(0, maxLength) + '\\n[Content truncated due to length]';\n")
+	yaml.WriteString("              }\n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              // Limit number of lines to prevent log flooding (65k max)\n")
+	yaml.WriteString("              const lines = sanitized.split('\\n');\n")
+	yaml.WriteString("              const maxLines = 65000;\n")
+	yaml.WriteString("              if (lines.length > maxLines) {\n")
+	yaml.WriteString("                sanitized = lines.slice(0, maxLines).join('\\n') + '\\n[Content truncated due to line count]';\n")
+	yaml.WriteString("              }\n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              // Remove ANSI escape sequences\n")
+	yaml.WriteString("              sanitized = sanitized.replace(/\\x1b\\[[0-9;]*[mGKH]/g, '');\n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              // Trim excessive whitespace\n")
+	yaml.WriteString("              return sanitized.trim();\n")
+	yaml.WriteString("            }\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            const outputFile = process.env.GITHUB_AW_OUTPUT;\n")
+	yaml.WriteString("            if (!outputFile) {\n")
+	yaml.WriteString("              console.log('GITHUB_AW_OUTPUT not set, no output to collect');\n")
+	yaml.WriteString("              core.setOutput('output', '');\n")
+	yaml.WriteString("              return;\n")
+	yaml.WriteString("            }\n")
+	yaml.WriteString("            if (!fs.existsSync(outputFile)) {\n")
+	yaml.WriteString("              console.log('Output file does not exist:', outputFile);\n")
+	yaml.WriteString("              core.setOutput('output', '');\n")
+	yaml.WriteString("              return;\n")
+	yaml.WriteString("            }\n")
+	yaml.WriteString("            const outputContent = fs.readFileSync(outputFile, 'utf8');\n")
+	yaml.WriteString("            if (outputContent.trim() === '') {\n")
+	yaml.WriteString("              console.log('Output file is empty');\n")
+	yaml.WriteString("              core.setOutput('output', '');\n")
+	yaml.WriteString("            } else {\n")
+	yaml.WriteString("              const sanitizedContent = sanitizeContent(outputContent);\n")
+	yaml.WriteString("              console.log('Collected agentic output (sanitized):', sanitizedContent.substring(0, 200) + (sanitizedContent.length > 200 ? '...' : ''));\n")
+	yaml.WriteString("              core.setOutput('output', sanitizedContent);\n")
+	yaml.WriteString("            }\n")
+
+	yaml.WriteString("      - name: Print agent output to step summary\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"## Agent Output\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          cat ${{ env.GITHUB_AW_OUTPUT }} >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("      - name: Upload agentic output file\n")
+	yaml.WriteString("        if: always() && steps.collect_output.outputs.output != ''\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw_output.txt\n")
+	yaml.WriteString("          path: ${{ env.GITHUB_AW_OUTPUT }}\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+
 }
 
 // validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
@@ -2227,6 +2651,26 @@ func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine Age
 			}
 		}
 	}
+
+	return nil
+}
+
+// validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
+func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine AgenticEngine) error {
+	// Check if max-turns is specified in the frontmatter
+	_, hasMaxTurns := frontmatter["max-turns"]
+	if !hasMaxTurns {
+		// No max-turns specified, no validation needed
+		return nil
+	}
+
+	// max-turns is specified, check if the engine supports it
+	if !engine.SupportsMaxTurns() {
+		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
+	}
+
+	// Engine supports max-turns - additional validation could be added here if needed
+	// For now, we rely on JSON schema validation for format checking
 
 	return nil
 }

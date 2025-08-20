@@ -1,4 +1,4 @@
-# 🤖 GitHub Agentic Workflows
+# ✨ GitHub Agentic Workflows
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions. From [GitHub Next](https://githubnext.com/).
 
@@ -18,10 +18,16 @@ Now, add a weekly research report to your repo (this adds [this sample](https://
 ```bash
 gh aw add weekly-research -r githubnext/agentics --pr
 ```
+This command will create a PR to your repo adding several files including `.github/workflows/weekly-research.md` and `.github/workflows/weekly-research.lock.yml`:
 
-This command will create a PR to your repo adding several files including `.github/workflows/weekly-research.md` and `.github/workflows/weekly-research.lock.yml`.
+```
+.github/
+└── workflows/
+  ├── weekly-research.md # Agentic Workflow
+  └── weekly-research.lock.yml # Compiled GitHub Actions Workflow
+```
 
-Your repository will also need an ANTHROPIC_API_KEY (for Claude) or OPENAI_API_KEY (for Codex) Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
+Your repository will also need an `ANTHROPIC_API_KEY` (for Anthropic Claude) or `OPENAI_API_KEY` (for OpenAI Codex) Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
 
 ```bash
 # For Claude engine (default)
@@ -50,11 +56,16 @@ on:
     types: [opened]
 
 permissions:
-  issues: write
+  contents: read      # Minimal permissions for main job
 
 tools:
   github:
     allowed: [add_issue_comment]
+
+output:
+  issue:
+    title-prefix: "[triage] "
+    labels: [automation, triage]
 
 timeout_minutes: 5
 ---
@@ -65,6 +76,7 @@ Analyze issue #${{ github.event.issue.number }} and help with triage:
 
 1. Read the issue content
 2. Post a helpful comment summarizing the issue
+3. Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} for automatic issue creation
 
 Keep responses concise and helpful.
 ```
@@ -72,6 +84,23 @@ Keep responses concise and helpful.
 > **💡 Learn more**: For complete workflow configuration details, see the [Documentation](docs/index.md)
 
 > **📚 Workflow commands**: See [Commands Documentation](docs/commands.md) for complete workflow management commands including `list`, `status`, `enable`, `disable`, and more.
+
+> **🤖 Teach AI** how write agentic workflows with [custom instructions](docs/vscode.md#copilot-instructions).
+
+## 📂 Available Demonstrator Workflows from "[The Agentics](https://github.com/githubnext/agentics?tab=readme-ov-file#-the-agentics)"
+
+### Research & Planning Workflows
+- [📚 Weekly Research](https://github.com/githubnext/agentics?tab=readme-ov-file#-weekly-research) - Collect research updates and industry trends
+- [👥 Daily Team Status](https://github.com/githubnext/agentics?tab=readme-ov-file#-daily-team-status) - Assess repository activity and create status reports
+- [📋 Daily Plan](https://github.com/githubnext/agentics?tab=readme-ov-file#-daily-plan) - Update planning issues for team coordination
+- [🏷️ Issue Triage](https://github.com/githubnext/agentics?tab=readme-ov-file#️-issue-triage) - Triage issues and pull requests
+
+### Coding & Development Workflows
+- [📦 Daily Dependency Updater](https://github.com/githubnext/agentics?tab=readme-ov-file#-daily-dependency-updater) - Update dependencies and create pull requests
+- [📖 Regular Documentation Update](https://github.com/githubnext/agentics?tab=readme-ov-file#-regular-documentation-update) - Update documentation automatically
+- [🔍 Daily QA](https://github.com/githubnext/agentics?tab=readme-ov-file#-daily-qa) - Perform quality assurance tasks
+- [🔍 Daily Accessibility Review](https://github.com/githubnext/agentics?tab=readme-ov-file#-daily-accessibility-review) - Review application accessibility
+
 
 ## 📖 Deep Dive
 
@@ -153,6 +182,11 @@ Security is a key consideration when using agentic workflows. Please see the [Se
 
 > [!CAUTION]
 > GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
+
+## 💬 Share Feedback
+
+We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
+and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord).
 
 ## 🔗 Related Projects
 

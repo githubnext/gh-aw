@@ -25,6 +25,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			experimental:           false,
 			supportsToolsWhitelist: true,
 			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
+			supportsMaxTurns:       true, // Claude supports max-turns feature
 		},
 	}
 }
@@ -48,9 +49,10 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 			"prompt_file":       "/tmp/aw-prompts/prompt.txt",
 			"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
 			"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
-			"claude_env":        "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            DEBUG: true",
+			"claude_env":        "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}",
 			"allowed_tools":     "", // Will be filled in during generation
 			"timeout_minutes":   "", // Will be filled in during generation
+			"max_turns":         "", // Will be filled in during generation
 		},
 		Environment: map[string]string{
 			"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",

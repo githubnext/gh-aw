@@ -6,8 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
+
+func GetWorkflowDir() string {
+	return filepath.Join(".github", "workflows")
+}
 
 // ResolveWorkflowName converts an agentic workflow ID to the GitHub Actions workflow name.
 // It normalizes the input by removing .md and .lock.yml extensions, then finds the
@@ -29,7 +33,7 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 	normalizedName := normalizeWorkflowName(workflowInput)
 
 	// Get the workflows directory
-	workflowsDir := filepath.Join(".github", "workflows")
+	workflowsDir := GetWorkflowDir()
 
 	// Check if the agentic workflow markdown file exists
 	mdFile := filepath.Join(workflowsDir, normalizedName+".md")

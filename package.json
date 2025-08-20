@@ -1,0 +1,12 @@
+{
+  "devDependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.1",
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck"
+  }
+}

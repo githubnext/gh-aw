@@ -57,7 +57,20 @@ jobs:
             echo "Error: Found uncommitted changes in workflow files:"
             exit 1
           fi
-          
+  js:
+    name: Build JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
   lint:
     name: Lint Code
     runs-on: ubuntu-latest

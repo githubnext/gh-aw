@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "lib": ["es2022"],
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": false,
+    "outDir": "./dist/js",
+    "rootDir": "./pkg/workflow/js",
+    "strict": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": false,
+    "noImplicitThis": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "allowUnreachableCode": true,
+    "allowUnusedLabels": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "isolatedModules": false,
+    "allowUmdGlobalAccess": true,
+    "typeRoots": ["./node_modules/@types", "./pkg/workflow/js/types"]
+  },
+  "include": [
+    "pkg/workflow/js/**/*.js",
+    "pkg/workflow/js/**/*.cjs",
+    "pkg/workflow/js/**/*.ts",
+    "pkg/workflow/js/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

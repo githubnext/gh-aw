@@ -153,16 +153,15 @@ func listAgenticEngines(verbose bool) error {
 		return nil
 	}
 
-	fmt.Println(console.FormatListHeader("Available Agentic Engines"))
-	fmt.Println(console.FormatListHeader("========================"))
-
+	// Build table configuration
+	var headers []string
 	if verbose {
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n", "ID", "Display Name", "Status", "MCP", "HTTP Transport", "Description")
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n", "--", "------------", "------", "---", "-------------", "-----------")
+		headers = []string{"ID", "Display Name", "Status", "MCP", "HTTP Transport", "Description"}
 	} else {
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n", "ID", "Display Name", "Status", "MCP", "HTTP Transport")
-		fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n", "--", "------------", "------", "---", "-------------")
+		headers = []string{"ID", "Display Name", "Status", "MCP", "HTTP Transport"}
 	}
+
+	var rows [][]string
 
 	for _, engineID := range engines {
 		engine, err := registry.GetEngine(engineID)
@@ -191,24 +190,36 @@ func listAgenticEngines(verbose bool) error {
 			httpTransport = "Yes"
 		}
 
+		// Build row data
+		var row []string
 		if verbose {
-			fmt.Printf("%-15s %-20s %-12s %-8s %-12s %s\n",
+			row = []string{
 				engine.GetID(),
 				engine.GetDisplayName(),
 				status,
 				mcpSupport,
 				httpTransport,
-				engine.GetDescription())
-
+				engine.GetDescription(),
+			}
 		} else {
-			fmt.Printf("%-15s %-20s %-12s %-8s %-12s\n",
+			row = []string{
 				engine.GetID(),
 				engine.GetDisplayName(),
 				status,
 				mcpSupport,
-				httpTransport)
+				httpTransport,
+			}
 		}
+		rows = append(rows, row)
 	}
+
+	// Render the table
+	tableConfig := console.TableConfig{
+		Title:   "Available Agentic Engines",
+		Headers: headers,
+		Rows:    rows,
+	}
+	fmt.Print(console.RenderTable(tableConfig))
 
 	fmt.Println()
 	return nil
@@ -533,10 +544,16 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 	}
 
 	if markdownFile != "" {
-		if verbose {
-			fmt.Printf("Compiling %s\n", markdownFile)
+		// Resolve workflow ID or file path to actual file path
+		resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to resolve workflow: %w", err)
 		}
-		if err := compiler.CompileWorkflow(markdownFile); err != nil {
+
+		if verbose {
+			fmt.Printf("Compiling %s\n", resolvedFile)
+		}
+		if err := compiler.CompileWorkflow(resolvedFile); err != nil {
 			return err
 		}
 
@@ -1097,10 +1114,9 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		fmt.Printf("Successfully fetched %d GitHub workflows\n", len(githubWorkflows))
 	}
 
-	fmt.Println("Workflow Status:")
-	fmt.Println("================")
-	fmt.Printf("%-30s %-12s %-12s %-10s\n", "Name", "Installed", "Up-to-date", "Status")
-	fmt.Printf("%-30s %-12s %-12s %-10s\n", "----", "---------", "----------", "------")
+	// Build table configuration
+	headers := []string{"Name", "Installed", "Up-to-date", "Status", "Time Remaining"}
+	var rows [][]string
 
 	for _, file := range mdFiles {
 		base := filepath.Base(file)
@@ -1115,6 +1131,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
 		compiled := "No"
 		upToDate := "N/A"
+		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
 			compiled = "Yes"
@@ -1126,6 +1143,11 @@ func StatusWorkflows(pattern string, verbose bool) error {
 				upToDate = "No"
 			} else {
 				upToDate = "Yes"
+			}
+
+			// Extract stop-time from lock file
+			if stopTime := extractStopTimeFromLockFile(lockFile); stopTime != "" {
+				timeRemaining = calculateTimeRemaining(stopTime)
 			}
 		}
 
@@ -1139,10 +1161,82 @@ func StatusWorkflows(pattern string, verbose bool) error {
 			}
 		}
 
-		fmt.Printf("%-30s %-12s %-12s %-10s\n", name, compiled, upToDate, status)
+		// Build row data
+		row := []string{name, compiled, upToDate, status, timeRemaining}
+		rows = append(rows, row)
 	}
 
+	// Render the table
+	tableConfig := console.TableConfig{
+		Title:   "Workflow Status",
+		Headers: headers,
+		Rows:    rows,
+	}
+	fmt.Print(console.RenderTable(tableConfig))
+
 	return nil
+}
+
+// extractStopTimeFromLockFile extracts the STOP_TIME value from a compiled workflow lock file
+func extractStopTimeFromLockFile(lockFilePath string) string {
+	content, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return ""
+	}
+
+	// Look for the STOP_TIME line in the safety checks section
+	// Pattern: STOP_TIME="YYYY-MM-DD HH:MM:SS"
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "STOP_TIME=") {
+			// Extract the value between quotes
+			start := strings.Index(line, `"`) + 1
+			end := strings.LastIndex(line, `"`)
+			if start > 0 && end > start {
+				return line[start:end]
+			}
+		}
+	}
+	return ""
+}
+
+// calculateTimeRemaining calculates and formats the time remaining until stop-time
+func calculateTimeRemaining(stopTimeStr string) string {
+	if stopTimeStr == "" {
+		return "N/A"
+	}
+
+	// Parse the stop time
+	stopTime, err := time.Parse("2006-01-02 15:04:05", stopTimeStr)
+	if err != nil {
+		return "Invalid"
+	}
+
+	now := time.Now()
+	remaining := stopTime.Sub(now)
+
+	// If already past the stop time
+	if remaining <= 0 {
+		return "Expired"
+	}
+
+	// Format the remaining time in a human-readable way
+	days := int(remaining.Hours() / 24)
+	hours := int(remaining.Hours()) % 24
+	minutes := int(remaining.Minutes()) % 60
+
+	if days > 0 {
+		if days == 1 {
+			return fmt.Sprintf("%dd %dh", days, hours)
+		}
+		return fmt.Sprintf("%dd %dh", days, hours)
+	} else if hours > 0 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	} else if minutes > 0 {
+		return fmt.Sprintf("%dm", minutes)
+	} else {
+		return "< 1m"
+	}
 }
 
 // EnableWorkflows enables workflows matching a pattern
@@ -2940,6 +3034,12 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 			fmt.Printf("Created temporary workflow file: %s\n", tmpFile.Name())
 		}
 
+		defer func() {
+			if err := os.Remove(tmpFile.Name()); err != nil && verbose {
+				fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", tmpFile.Name(), err)
+			}
+		}()
+
 		return tmpFile.Name(), nil
 	} else {
 		// It's a local file, return the source path
@@ -2966,15 +3066,6 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 	workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to resolve workflow: %w", err)
-	}
-
-	// Check if we created a temporary file that needs cleanup
-	if strings.HasPrefix(workflowFile, os.TempDir()) {
-		defer func() {
-			if err := os.Remove(workflowFile); err != nil && verbose {
-				fmt.Printf("Warning: Failed to clean up temporary file %s: %v\n", workflowFile, err)
-			}
-		}()
 	}
 
 	// Check if the workflow is runnable (has workflow_dispatch trigger)

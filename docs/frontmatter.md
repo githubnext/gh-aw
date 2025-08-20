@@ -18,12 +18,14 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 
 **Agentic-Specific Properties:**
-- `engine`: AI executor to use (`claude`, `codex`, etc.)
-- `tools`: Tools configuration (GitHub tools, Engine-specific tools, MCP servers etc.)
-- `max-runs`: Maximum number of workflow runs before auto-disable
-- `stop-time`: Deadline timestamp when workflow should stop running
+- `engine`: AI engine configuration (claude/codex)
+- `tools`: Available tools and MCP servers for the AI engine  
+- `stop-time`: Deadline when workflow should stop running (absolute or relative time)
+- `max-turns`: Maximum number of chat iterations per run
+- `alias`: Alias name for the workflow
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
+- `output`: Output processing configuration for automatic issue creation and comment posting
 
 ## Trigger Events (`on:`)
 
@@ -186,31 +188,43 @@ engine:
 
 ## Cost Control Options
 
-### Maximum Runs (`max-runs:`)
+### Maximum Turns (`max-turns:`)
 
-Automatically disable workflow after a number of successful runs:
+Limit the number of chat iterations within a single agentic run:
 
 ```yaml
-max-runs: 10
+max-turns: 5
 ```
 
 **Behavior:**
-1. Counts successful runs with `workflow-complete.txt` artifact
-2. Disables workflow when limit reached using `gh workflow disable`
-3. Allows current run to complete
+1. Passes the limit to the AI engine (e.g., Claude Code action)
+2. Engine stops iterating when the turn limit is reached
+3. Helps prevent runaway chat loops and control costs
+4. Only applies to engines that support turn limiting (currently Claude)
 
 ### Stop Time (`stop-time:`)
 
 Automatically disable workflow after a deadline:
 
+**Relative time delta (calculated from compilation time):**
 ```yaml
-stop-time: "2025-12-31 23:59:59"
+stop-time: "+25h"      # 25 hours from now
 ```
 
-**Behavior:**
-1. Checks deadline before each run
-2. Disables workflow if deadline passed
-3. Allows current run to complete
+**Supported absolute date formats:**
+- Standard: `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD`
+- US format: `MM/DD/YYYY HH:MM:SS`, `MM/DD/YYYY`  
+- European: `DD/MM/YYYY HH:MM:SS`, `DD/MM/YYYY`
+- Readable: `January 2, 2006`, `2 January 2006`, `Jan 2, 2006`
+- Ordinals: `1st June 2025`, `June 1st 2025`, `23rd December 2025`
+- ISO 8601: `2006-01-02T15:04:05Z`
+
+**Supported delta units:**
+- `d` - days
+- `h` - hours
+- `m` - minutes
+
+Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
 
 ## Visual Feedback (`ai-reaction:`)
 
@@ -231,6 +245,149 @@ ai-reaction: "eyes"
 - `eyes` (👀)
 
 **Note**: Using this feature results in the addition of ".github/actions/reaction/action.yml" file to the repository when the workflow is compiled.
+
+## Output Processing (`output:`)
+
+Configure automatic output processing from AI agent results:
+
+```yaml
+output:
+  issue:
+    title-prefix: "[ai] "           # Optional: prefix for issue titles
+    labels: [automation, ai-agent]  # Optional: labels to attach to issues
+  comment: {}                       # Create comments on issues/PRs from agent output
+  pull-request:
+    title-prefix: "[ai] "           # Optional: prefix for PR titles
+    labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+```
+
+### Issue Creation (`output.issue`)
+
+**Behavior:**
+- When `output.issue` is configured, the compiler automatically generates a separate `create_issue` job
+- This job runs after the main AI agent job completes
+- The agent's output content flows from the main job to the issue creation job via job output variables
+- The issue creation job parses the output content, using the first non-empty line as the title and the remainder as the body
+- **Important**: With output processing, the main job **does not** need `issues: write` permission since the write operation is performed in the separate job
+
+**Generated Job Properties:**
+- **Job Name**: `create_issue`
+- **Dependencies**: Runs after the main agent job (`needs: [main-job-name]`)
+- **Permissions**: Only the issue creation job has `issues: write` permission
+- **Timeout**: 10-minute timeout to prevent hanging
+- **Environment Variables**: Configuration passed via `GITHUB_AW_ISSUE_TITLE_PREFIX` and `GITHUB_AW_ISSUE_LABELS`
+- **Outputs**: Returns `issue_number` and `issue_url` for downstream jobs
+
+### Comment Creation (`output.comment`)
+
+**Behavior:**
+- When `output.comment` is configured, the compiler automatically generates a separate `create_issue_comment` job
+- This job runs after the main AI agent job completes and **only** if the workflow is triggered by an issue or pull request event
+- The agent's output content flows from the main job to the comment creation job via job output variables
+- The comment creation job posts the entire agent output as a comment on the triggering issue or pull request
+- **Conditional Execution**: The job automatically skips if not running in an issue or pull request context
+
+**Generated Job Properties:**
+- **Job Name**: `create_issue_comment`
+- **Dependencies**: Runs after the main agent job (`needs: [main-job-name]`)
+- **Conditional**: Only runs when `github.event.issue.number || github.event.pull_request.number` is present
+- **Permissions**: Only the comment creation job has `issues: write` and `pull-requests: write` permissions
+- **Timeout**: 10-minute timeout to prevent hanging
+- **Outputs**: Returns `comment_id` and `comment_url` for downstream jobs
+
+**Example workflow using issue creation:**
+```yaml
+---
+on: push
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, code-review]
+---
+
+# Code Analysis Agent
+
+Analyze the latest commit and provide insights.
+Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
+```
+
+**Example workflow using comment creation:**
+```yaml
+---
+on:
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  comment: {}
+---
+
+# Issue/PR Analysis Agent
+
+Analyze the issue or pull request and provide feedback.
+Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
+```
+
+This automatically creates GitHub issues or comments from the agent's analysis without requiring write permissions on the main job.
+
+### Pull Request Creation (`output.pull-request`)
+
+**Behavior:**
+- When `output.pull-request` is configured, the compiler automatically generates a separate `create_output_pull_request` job
+- This job runs after the main AI agent job completes
+- The agent's output content flows from the main job to the pull request creation job via job output variables
+- The job creates a new branch, applies git patches from the agent's output, and creates a pull request
+- **Important**: With output processing, the main job **does not** need `contents: write` permission since the write operation is performed in the separate job
+
+**Generated Job Properties:**
+- **Job Name**: `create_output_pull_request`
+- **Dependencies**: Runs after the main agent job (`needs: [main-job-name]`)
+- **Permissions**: Only the pull request creation job has `contents: write` and `pull-requests: write` permissions
+- **Timeout**: 10-minute timeout to prevent hanging
+- **Environment Variables**: Configuration passed via `GITHUB_AW_PR_TITLE_PREFIX`, `GITHUB_AW_PR_LABELS`, `GITHUB_AW_WORKFLOW_ID`, and `GITHUB_AW_BASE_BRANCH`
+- **Branch Creation**: Uses cryptographic random hex for secure branch naming (`{workflowId}/{randomHex}`)
+- **Git Operations**: Creates branch using git CLI, applies patches, commits changes, and pushes to GitHub
+- **Outputs**: Returns `pr_number` and `pr_url` for downstream jobs
+
+**Configuration:**
+```yaml
+output:
+  pull-request:
+    title-prefix: "[ai] "           # Optional: prefix for PR titles
+    labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+```
+
+**Example workflow using pull request creation:**
+```yaml
+---
+on: push
+permissions:
+  actions: read       # Main job only needs minimal permissions
+engine: claude
+output:
+  pull-request:
+    title-prefix: "[bot] "
+    labels: [automation, ai-generated]
+---
+
+# Code Improvement Agent
+
+Analyze the latest commit and suggest improvements.
+Generate patches and write them to /tmp/aw.patch.
+Write a summary to ${{ env.GITHUB_AW_OUTPUT }} with title and description.
+```
+
+**Required Patch Format:**
+The agent must create git patches in `/tmp/aw.patch` for the changes to be applied. The pull request creation job validates patch existence and content before proceeding.
 
 ## Cache Configuration (`cache:`)
 
@@ -287,7 +444,52 @@ concurrency:
   cancel-in-progress: true
 ```
 
-Defaults to single instance per workflow.
+#### Enhanced Concurrency Policies
+
+GitHub Agentic Workflows automatically generates enhanced concurrency policies based on workflow trigger types to provide better isolation and resource management. Different workflow types receive different concurrency groups and cancellation behavior:
+
+| Trigger Type | Concurrency Group | Cancellation | Description |
+|--------------|-------------------|--------------|-------------|
+| `issues` | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}` | ❌ | Issue workflows include issue number for isolation |
+| `pull_request` | `gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number \|\| github.ref }}` | ✅ | PR workflows include PR number with cancellation |
+| `discussion` | `gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}` | ❌ | Discussion workflows include discussion number |
+| Mixed issue/PR | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ✅ | Mixed workflows handle both contexts with cancellation |
+| Alias workflows | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ❌ | Alias workflows handle both contexts without cancellation |
+| Other triggers | `gh-aw-${{ github.workflow }}` | ❌ | Default behavior for schedule, push, etc. |
+
+**Benefits:**
+- **Better Isolation**: Workflows operating on different issues/PRs can run concurrently
+- **Conflict Prevention**: No interference between unrelated workflow executions  
+- **Resource Management**: Pull request workflows can cancel previous runs when updated
+- **Predictable Behavior**: Consistent concurrency rules based on trigger type
+
+**Examples:**
+
+```yaml
+# Issue workflow - no cancellation, isolated by issue number
+on:
+  issues:
+    types: [opened, edited]
+# Generates: group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+
+# PR workflow - with cancellation, isolated by PR number  
+on:
+  pull_request:
+    types: [opened, synchronize]
+# Generates: group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+#           cancel-in-progress: true
+
+# Mixed workflow - handles both issues and PRs with cancellation
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, synchronize]
+# Generates: group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+#           cancel-in-progress: true
+```
+
+If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
 
 ### Environment Variables
 
@@ -326,8 +528,8 @@ on:
     name: issue-bot
 
 permissions:
-  issues: write
-  contents: read
+  contents: read      # Main job permissions (no issues: write needed)
+  actions: read
 
 engine:
   id: claude
@@ -336,13 +538,17 @@ engine:
 
 tools:
   github:
-    allowed: [get_issue, add_issue_comment, update_issue]
+    allowed: [get_issue, add_issue_comment]
+
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, ai-analysis]
 
 cache:
   key: deps-${{ hashFiles('**/package-lock.json') }}
   path: node_modules
 
-max-runs: 100
 stop-time: "2025-12-31 23:59:59"
 ai-reaction: "rocket"
 
@@ -363,6 +569,8 @@ if: github.event.issue.state == 'open'
 
 Analyze and respond to issues with full context awareness.
 Current issue text: "${{ needs.task.outputs.text }}"
+
+Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} for automatic issue creation.
 ```
 
 ## Related Documentation

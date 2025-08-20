@@ -3,6 +3,13 @@
 > [!CAUTION]
 > GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
 
+Security is foundational -- Agentic Workflows inherits GitHub Actions' sandboxing model, scoped permissions, and auditable execution. The attack surface of agentic automation can be subtle (prompt injection, tool invocation side‑effects, data exfiltration), so we bias toward explicit constraints over implicit trust: least‑privilege tokens, allow‑listed tools, and execution paths that always leave human‑visible artifacts (comments, PRs, logs) instead of silent mutation.
+
+A core reason for building Agentic Workflows as a research demonstrator is to closely track emerging security controls in agentic engines under near‑identical inputs, so differences in behavior and guardrails are comparable. Alongside engine evolution, we are working on our own mechanisms:
+highly restricted substitutions, MCP proxy filtering, and hooks‑based security checks that can veto or require review before effectful steps run.
+
+We aim for strong, declarative guardrails -- clear policies the workflow author can review and version -- rather than opaque heuristics. Lock files are fully reviewable so teams can see exactly what was resolved and executed. This will keep evolving; we would love to hear ideas and critique from the community on additional controls, evaluation methods, and red‑team patterns.
+
 This material documents some notes on the security of using partially-automated agentic workflows.
 
 ## Before You Begin
@@ -20,26 +27,29 @@ Understanding the security risks in agentic workflows helps inform protective me
 
 ### Primary Threats
 
-- **Command execution**: Agentic workflows are, executed in the partially-sandboxed environment of GitHub Actions. By default, they are configured disallow the execution of arbitrary shell commands. However, they may optionally be manually configured to allow specific commands, and if so they will not ask for confirmation before executing these specific commands as part of the GitHub Actions workflow run. If these configuration options are used inappropriately, or on sensitive code, an attacker might use this capability to make the agent fetch and run malicious code to exfiltrate data or perform unauthorized execution within this environment.
+- **Command execution**: Agentic workflows are, executed in the partially-sandboxed environment of GitHub Actions. By default, they are configured to disallow the execution of arbitrary shell commands. However, they may optionally be manually configured to allow specific commands, and if so they will not ask for confirmation before executing these specific commands as part of the GitHub Actions workflow run. If these configuration options are used inappropriately, or on sensitive code, an attacker might use this capability to make the agent fetch and run malicious code to exfiltrate data or perform unauthorized execution within this environment.
 - **Malicious inputs**: Attackers can craft inputs that poison an agent. Agentic workflows often pull data from many sources, including GitHub Issues, PRs, comments and code. If considered untrusted, e.g. in an open source setting, any of those inputs could carry a hidden payload for AI. Agentic workflows are designed to minimize the risk of malicious inputs by restricting the expressions that can be used in workflow markdown content. This means inputs such as GitHub Issues and Pull Requests must be accessed via the GitHub MCP, however the returned data can, in principle, be used to manipulate the AI's behavior if not properly assessed and sanitized.
 - **Tool exposure**: By default, Agentic Workflows are configured to have no access to MCPs except the GitHub MCP in read-only mode. However unconstrained use of 3rd-party MCP tools can enable data exfiltration or privilege escalation.
-- **Supply chain attacks and other generic GitHub Actions threats**: Unpinned Actions, npm packages and container images are vulnerable to tampering
+- **Supply chain attacks and other generic GitHub Actions threats**: Unpinned Actions, npm packages and container images are vulnerable to tampering. These threats are generic to all GitHub Actions workflows, and Agentic Workflows are no exception.
 
 ### Core Security Principles
 
 The fundamental principle of security for Agentic Workflows is that they are GitHub Actions workflows and should be reviewed with the same rigour and rules that are applied to all GitHub Actions. See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use).
 
 This means they inherit the security model of GitHub Actions, which includes:
+
 - **Isolated copy of the repository** - each workflow runs in a separate copy of the repository, so it cannot access other repositories or workflows
 - **Read-only defaults** for forked PRs
 - **Restricted secret access** - secrets are not available in forked PRs by default
 - **Explicit permissions** - all permissions default to `none` unless explicitly set
 
-In addition, the compilation step of Agentic Workflows enforces additional security measures: 
+In addition, the compilation step of Agentic Workflows enforces additional security measures:
+
 - **Expression restrictions** - only a limited set of expressions are allowed in the workflow frontmatter, preventing arbitrary code execution
-- **Tool allowlisting** - only explicitly allowed tools can be used in the workflow
 - **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
 - **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
+- **Limit workflow longevity** - workflows can be configured to stop triggering after a certain time period
+- **Limit chat iterations** - workflows can be configured to limit the number of chat iterations per run, preventing runaway loops and excessive resource consumption
 
 Apply these principles consistently across all workflow components:
 
@@ -56,26 +66,49 @@ Configure GitHub Actions with defense in depth:
 
 #### Permission Configuration
 
-Set minimal top-level permissions and elevate only where necessary:
+Set minimal permissions for the agentic processing:
 
 ```yaml
+# Applies to the agentic processing
 permissions:
-  contents: read  # Minimal baseline
-  # All others default to none
-
-jobs:
-  comment:
-    permissions:
-      issues: write  # Job-scoped elevation
+  issues: write
+  contents: read
 ```
 
 ### Human in the Loop
 
-GitHub Actions workflows are not designed to be fully autonomous. Some critical operations should always involve human review:
+GitHub Actions workflows are designed to be steps within a larger process. Some critical operations should always involve human review:
+
 - **Approval gates**: Use manual approval steps for high-risk operations like deployments, secret management, or external tool invocations
 - **Pull requests require humans**: GitHub Actions cannot approve or merge pull requests. This means a human will always be involved in reviewing and merging pull requests that contain agentic workflows.
-- **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via a pull request.
+- **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via an output issue or pull request.
 - **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
+
+### Limit operations
+
+#### Limit workflow longevity by `stop-time:`
+
+Use `stop-time:` to limit the time of operation of an agentic workflow. For example, using
+
+```yaml
+stop-time: +7d
+```
+
+will mean the agentic workflow no longer operates 7 days after time of compilation.
+
+#### Limit workflow runs by `max-turns:`
+
+Use `max-turns:` to limit the number of chat iterations per run. This prevents runaway loops and excessive resource consumption. For example:
+
+```yaml
+max-turns: 5
+```
+
+This limits the workflow to a maximum of 5 interactions with the AI engine per run.
+
+#### Monitor costs by `gh aw logs`
+
+Use `gh aw logs` to monitor the costs of running agentic workflows. This command provides insights into the number of turns, tokens used, and other metrics that can help you understand the cost implications of your workflows. Reported information may differ based on the AI engine used (e.g., Claude vs. Codex).
 
 ### MCP Tool Hardening
 
@@ -99,18 +132,39 @@ tools:
     allowed: [fetch]
 ```
 
-#### Access Control Strategy
+#### Tool Allow/Disallow Examples
 
-Start with empty allowlists and grant permissions incrementally:
+Configure explicit allow-lists for tools. See also `docs/tools.md` for full options.
+
+- Minimal GitHub tool set (read + specific writes):
 
 ```yaml
 tools:
   github:
-    allowed: [add_issue_comment]  # Minimal required verbs
-  web:
-    mcp:
-      allowed: [fetch]
-  container: my-registry/my-image@sha256:abc123...
+    allowed: [get_issue, add_issue_comment]
+```
+
+- Restricted Claude bash and editing:
+
+```yaml
+engine: claude
+tools:
+  claude:
+    allowed:
+      Edit:
+      Write:
+      Bash: ["echo", "git status"]   # keep tight; avoid wildcards
+```
+
+- Dangerous patterns to avoid:
+
+```yaml
+tools:
+  github:
+    allowed: ["*"]            # Too broad
+  claude:
+    allowed:
+      Bash: [":*"]           # Unrestricted shell access
 ```
 
 #### Egress Filtering
@@ -126,11 +180,25 @@ Protect against model manipulation through layered defenses:
 - **Input sanitization**: Minimize untrusted content exposure; strip embedded commands when not required for functionality
 - **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
 
+## Engine Security Notes
+
+Different agentic engines have distinct defaults and operational surfaces.
+
+#### `engine: claude`
+
+- Restrict `claude.allowed` to only the needed capabilities (Edit/Write/WebFetch/Bash with a short list)
+- Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
+
+#### Security posture differences with Codex
+
+Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors. In both cases, tool allow-lists and pinned dependencies are your primary controls.
+
 ## See also
 
 - [Tools Configuration](tools.md)
 - [MCPs](mcps.md)
 - [Secrets Management](secrets.md)
+- [Workflow Structure](workflow-structure.md)
 
 ## References
 

@@ -124,6 +124,9 @@ gh aw inspect workflow-name
 # Filter inspection to specific servers by name
 gh aw inspect workflow-name --server server-name
 
+# Show detailed information about a specific tool (requires --server)
+gh aw inspect workflow-name --server server-name --tool tool-name
+
 # Enable verbose output with connection details
 gh aw inspect workflow-name --verbose
 
@@ -134,6 +137,7 @@ gh aw inspect workflow-name --inspector
 **Key Features:**
 - Server discovery and connection testing
 - Tool and capability inspection
+- Detailed tool information with `--tool` flag
 - Permission analysis
 - Multi-protocol support (stdio, Docker, HTTP)
 - Web inspector integration
@@ -156,7 +160,8 @@ gh aw compile --auto-compile
 ```
 
 ## 👀 Watch Mode for Development
-The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time.
+The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in Visual Studio Code](./vscode.md).
+
 ```bash
 # Watch all workflow files in .github/workflows/ for changes
 gh aw compile --watch
@@ -166,16 +171,6 @@ gh aw compile --watch --verbose
 
 # Watch with auto-compile workflow generation
 gh aw compile --watch --auto-compile --verbose
-
-# Watch mode features:
-# - Real-time monitoring of .github/workflows/*.md files
-# - Automatic recompilation when markdown files are modified, created, or deleted
-# - Debounced file system events (300ms) to prevent excessive compilation
-# - Selective compilation - only recompiles changed files for better performance
-# - Automatic cleanup of .lock.yml files when corresponding .md files are deleted
-# - Graceful shutdown with Ctrl+C (SIGINT/SIGTERM handling)
-# - Enhanced error handling with console formatting
-# - Immediate feedback with success/error messages using emojis
 ```
 
 ## 📦 Package Management

@@ -16,8 +16,8 @@ import (
 )
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
-func InspectWorkflowMCP(workflowFile string, serverFilter string, verbose bool) error {
-	workflowsDir := filepath.Join(".github", "workflows")
+func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool) error {
+	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, show available workflow files with MCP configs
 	if workflowFile == "" {
@@ -102,14 +102,18 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, verbose bool) 
 	}
 
 	// Inspect each MCP server
-	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) to inspect", len(mcpConfigs))))
+	if toolFilter != "" {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s), looking for tool '%s'", len(mcpConfigs), toolFilter)))
+	} else {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) to inspect", len(mcpConfigs))))
+	}
 	fmt.Println()
 
 	for i, config := range mcpConfigs {
 		if i > 0 {
 			fmt.Println()
 		}
-		if err := inspectMCPServer(config, verbose); err != nil {
+		if err := inspectMCPServer(config, toolFilter, verbose); err != nil {
 			fmt.Println(console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("Failed to inspect MCP server '%s': %v", config.Name, err),
@@ -188,6 +192,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 // NewInspectCommand creates the inspect command
 func NewInspectCommand() *cobra.Command {
 	var serverFilter string
+	var toolFilter string
 	var spawnInspector bool
 
 	cmd := &cobra.Command{
@@ -202,6 +207,7 @@ Examples:
   gh aw inspect                    # List workflows with MCP servers
   gh aw inspect weekly-research    # Inspect MCP servers in weekly-research.md  
   gh aw inspect repomind --server repo-mind  # Inspect only the repo-mind server
+  gh aw inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw inspect weekly-research -v # Verbose output with detailed connection info
   gh aw inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
 
@@ -224,16 +230,22 @@ The command will:
 				verbose = verbose || parentVerbose
 			}
 
+			// Validate that tool flag requires server flag
+			if toolFilter != "" && serverFilter == "" {
+				return fmt.Errorf("--tool flag requires --server flag to be specified")
+			}
+
 			// Handle spawn inspector flag
 			if spawnInspector {
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, verbose)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose)
 		},
 	}
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "Filter to inspect only the specified MCP server")
+	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed connection information")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
 
@@ -254,7 +266,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
-		workflowsDir := filepath.Join(".github", "workflows")
+		workflowsDir := workflow.GetWorkflowDir()
 
 		// Normalize the workflow file path
 		if !strings.HasSuffix(workflowFile, ".md") {
@@ -278,18 +290,18 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 		// Parse the workflow file to extract MCP configurations
 		content, err := os.ReadFile(workflowPath)
 		if err != nil {
-			return fmt.Errorf("failed to read workflow file: %w", err)
+			return err
 		}
 
 		workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
 		if err != nil {
-			return fmt.Errorf("failed to parse workflow file: %w", err)
+			return err
 		}
 
 		// Extract MCP configurations
 		mcpConfigs, err = parser.ExtractMCPConfigurations(workflowData.Frontmatter, serverFilter)
 		if err != nil {
-			return fmt.Errorf("failed to extract MCP configurations: %w", err)
+			return err
 		}
 
 		if len(mcpConfigs) > 0 {
@@ -388,6 +400,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 			fmt.Println()
 		} else {
 			fmt.Println(console.FormatWarningMessage("No MCP servers found in workflow"))
+			return nil
 		}
 	}
 

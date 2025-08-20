@@ -8,13 +8,14 @@ import (
 
 // Job represents a GitHub Actions job with all its properties
 type Job struct {
-	Name        string
-	RunsOn      string
-	If          string
-	Permissions string
-	Steps       []string
-	Depends     []string // Job dependencies (needs clause)
-	Outputs     map[string]string
+	Name           string
+	RunsOn         string
+	If             string
+	Permissions    string
+	TimeoutMinutes int
+	Steps          []string
+	Depends        []string // Job dependencies (needs clause)
+	Outputs        map[string]string
 }
 
 // JobManager manages a collection of jobs and handles dependency validation
@@ -169,6 +170,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 	// Add permissions section
 	if job.Permissions != "" {
 		yaml.WriteString(fmt.Sprintf("    %s\n", job.Permissions))
+	}
+
+	// Add timeout_minutes if specified
+	if job.TimeoutMinutes > 0 {
+		yaml.WriteString(fmt.Sprintf("    timeout-minutes: %d\n", job.TimeoutMinutes))
 	}
 
 	// Add outputs section

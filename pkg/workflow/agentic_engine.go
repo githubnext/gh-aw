@@ -29,6 +29,9 @@ type AgenticEngine interface {
 	// SupportsHTTPTransport returns true if this engine supports HTTP transport for MCP servers
 	SupportsHTTPTransport() bool
 
+	// SupportsMaxTurns returns true if this engine supports the max-turns feature
+	SupportsMaxTurns() bool
+
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
 	GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep
 
@@ -68,6 +71,7 @@ type BaseEngine struct {
 	experimental           bool
 	supportsToolsWhitelist bool
 	supportsHTTPTransport  bool
+	supportsMaxTurns       bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -92,6 +96,10 @@ func (e *BaseEngine) SupportsToolsWhitelist() bool {
 
 func (e *BaseEngine) SupportsHTTPTransport() bool {
 	return e.supportsHTTPTransport
+}
+
+func (e *BaseEngine) SupportsMaxTurns() bool {
+	return e.supportsMaxTurns
 }
 
 // EngineRegistry manages available agentic engines

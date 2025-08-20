@@ -20,6 +20,10 @@ tools:
 
 All tools declared in included components are merged into the final workflow.
 
+> [!TIP]
+> You can inspect the tools available for an Agentic Workflow by running <br/>
+> `gh aw inspect <workflow-file>`
+
 ## GitHub Tools (`github:`)
 
 Configure which GitHub API operations are allowed for your workflow.
@@ -50,7 +54,7 @@ The system automatically includes comprehensive default read-only GitHub tools. 
 
 ## Claude Tools (`claude:`)
 
-Available when using `engine: claude`. Configure Claude-specific capabilities and tools.
+Available when using `engine: claude` (it is the default engine). Configure Claude-specific capabilities and tools.
 
 ### Basic Claude Tools
 

@@ -202,7 +202,7 @@ func buildConditionTree(existingCondition string, draftCondition string) Conditi
 	return &AndNode{Left: existingNode, Right: draftNode}
 }
 
-// buildReactionCondition creates a condition tree for the add-reaction job
+// buildReactionCondition creates a condition tree for the add_reaction job
 func buildReactionCondition() ConditionNode {
 	// Build a list of event types that should trigger reactions using the new expression nodes
 	var terms []ConditionNode

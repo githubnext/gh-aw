@@ -3,17 +3,31 @@ on:
   push:
     branches: 
       - "*claude*"
+  pull_request:
+    branches: 
+      - "*claude*"
   workflow_dispatch:
 engine: 
   id: claude
   model: claude-3-5-sonnet-20241022
 timeout_minutes: 10
 permissions:
-  contents: read
   pull-requests: write
-  issues: read
   actions: read
+  contents: read
+output:
+  issue:
+    title-prefix: "[claude-test] "
+    labels: [claude, automation, haiku]
+  comment: {}
+  pull-request:
+    title-prefix: "[claude-test] "
+    labels: [claude, automation, bot]
 tools:
+  claude:
+    allowed:
+      Write:
+      Bash: ["echo", "ls", "git status"]  # Allowed bash commands
   time:
     mcp:
       type: stdio
@@ -101,6 +115,34 @@ Your comment should include:
 - The detailed analysis sections outlined above
 - Proper markdown formatting for readability
 - Clear structure with headers and bullet points
+
+### Action Output: Create a Haiku
+
+**IMPORTANT**: After completing your PR analysis and posting your comment, please create a haiku about the changes you analyzed and write it to the action output. The haiku should capture the essence of the pull request in a creative and poetic way.
+
+Write your haiku to the file "${{ env.GITHUB_AW_OUTPUT }}" (use the `Write` tool). This will make it available as a workflow output that other jobs can access.
+
+Make your haiku relevant to the specific changes you analyzed in this PR. Be creative and thoughtful in your poetic interpretation of the code changes.
+
+### Additional Task: Random Quote Generation
+
+**IMPORTANT**: After creating your haiku, please generate a random inspirational quote about software development, coding, or technology and append it to a new file called "quote.md". 
+
+1. Create an inspiring, original quote that would resonate with developers
+2. Format it nicely in markdown with the quote and attribution to "Claude AI"
+3. Use the `Write` tool to append this quote to the file "quote.md"
+4. If the file already exists, add your new quote below the existing content with a separator
+
+Example format:
+```markdown
+> "Your generated inspirational quote here."
+> 
+> — Claude AI
+
+---
+```
+
+The quote should be thoughtful, original, and relevant to software development, innovation, or the collaborative nature of coding. Be creative and inspiring!
 
 ### Security Guidelines
 

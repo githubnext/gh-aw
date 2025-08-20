@@ -63,6 +63,7 @@ deps:
 .PHONY: deps-dev
 deps-dev: deps copy-copilot-to-claude
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	npm install --package-lock-only
 
 # Run linter
 .PHONY: golint
@@ -102,6 +103,12 @@ validate-workflows:
 fmt:
 	go fmt ./...
 
+# Run TypeScript compiler on JavaScript files
+.PHONY: js
+js:
+	echo "Running TypeScript compiler..."; \
+	npm run typecheck
+
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
@@ -124,7 +131,7 @@ install: build
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build
-	./$(BINARY_NAME) compile --validate
+	./$(BINARY_NAME) compile --validate --instructions
 
 # Run development server
 .PHONY: dev
@@ -135,10 +142,10 @@ dev: build
 watch: build
 	./$(BINARY_NAME) compile --watch
 
-# Create and push a minor release (increments patch version)
-.PHONY: minor-release
-minor-release:
-	@echo "Creating minor release..."
+# Create and push a patch release (increments patch version)
+.PHONY: patch-release
+patch-release:
+	@echo "Creating patch release..."
 	@LATEST_TAG=$$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0"); \
 	echo "Current latest tag: $$LATEST_TAG"; \
 	VERSION_NUMS=$$(echo "$$LATEST_TAG" | sed 's/^v//'); \
@@ -164,6 +171,35 @@ minor-release:
 			;; \
 	esac
 
+# Create and push a minor release (increments minor version, resets patch to 0)
+.PHONY: minor-release
+minor-release:
+	@echo "Creating minor release..."
+	@LATEST_TAG=$$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0"); \
+	echo "Current latest tag: $$LATEST_TAG"; \
+	VERSION_NUMS=$$(echo "$$LATEST_TAG" | sed 's/^v//'); \
+	MAJOR=$$(echo "$$VERSION_NUMS" | cut -d. -f1); \
+	MINOR=$$(echo "$$VERSION_NUMS" | cut -d. -f2); \
+	PATCH=$$(echo "$$VERSION_NUMS" | cut -d. -f3); \
+	MAJOR=$${MAJOR:-0}; MINOR=$${MINOR:-0}; PATCH=$${PATCH:-0}; \
+	NEW_MINOR=$$((MINOR + 1)); \
+	NEW_VERSION="v$$MAJOR.$$NEW_MINOR.0"; \
+	echo "New version will be: $$NEW_VERSION"; \
+	printf "Create and push release $$NEW_VERSION? [y/N] "; \
+	read REPLY; \
+	case "$$REPLY" in \
+		[Yy]|[Yy][Ee][Ss]) \
+			echo "Creating tag $$NEW_VERSION..."; \
+			git tag -a "$$NEW_VERSION" -m "Release $$NEW_VERSION"; \
+			echo "Pushing tag to origin..."; \
+			git push origin "$$NEW_VERSION"; \
+			echo "Release $$NEW_VERSION created and pushed successfully!"; \
+			;; \
+		*) \
+			echo "Release cancelled."; \
+			;; \
+	esac
+
 # Copy copilot instructions to Claude instructions file
 .PHONY: copy-copilot-to-claude
 copy-copilot-to-claude:
@@ -173,7 +209,7 @@ copy-copilot-to-claude:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test recompile
+agent-finish: deps-dev fmt lint js build test recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -196,5 +232,6 @@ help:
 	@echo "  recompile        - Recompile all workflow files (depends on build)"
 	@echo "  copy-copilot-to-claude - Copy copilot instructions to Claude instructions file"
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
-	@echo "  minor-release    - Create and push minor release (increments patch version)"
+	@echo "  patch-release    - Create and push patch release (increments patch version)"
+	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"
 	@echo "  help             - Show this help message"

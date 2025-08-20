@@ -37,14 +37,17 @@ ehthumbs.db
 Thumbs.db
 
 # Go binary for this project
-gh-aw
-gh-aw-darwin-amd64
-gh-aw-darwin-arm64
-gh-aw-linux-amd64
-gh-aw-linux-arm64
+/gh-aw
+/gh-aw-darwin-amd64
+/gh-aw-darwin-arm64
+/gh-aw-linux-amd64
+/gh-aw-linux-arm64
 
 # credentials
 .credentials/
 
 coverage.html
 logs/
+
+.github/instructions/github-agentic-workflows.instructions.md
+node_modules/

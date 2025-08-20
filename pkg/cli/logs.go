@@ -81,6 +81,12 @@ This command fetches workflow runs, downloads their artifacts, and extracts them
 organized folders named by run ID. It also provides an overview table with aggregate
 metrics including duration, token usage, and cost information.
 
+Downloaded artifacts include:
+- aw_info.json: Engine configuration and workflow metadata
+- aw_output.txt: Agent's final output content (available when non-empty)
+- aw.patch: Git patch of changes made during execution
+- Various log files with execution details and metrics
+
 The agentic-workflow-id is the basename of the markdown file without the .md extension.
 For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
 
@@ -90,6 +96,11 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 runs
   ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Filter runs after date
   ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Filter runs before date
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w          # Filter runs from last week
+  ` + constants.CLIExtensionPrefix + ` logs --end-date -1d            # Filter runs until yesterday
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
+  ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
+  ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
   ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
@@ -121,9 +132,48 @@ Examples:
 			startDate, _ := cmd.Flags().GetString("start-date")
 			endDate, _ := cmd.Flags().GetString("end-date")
 			outputDir, _ := cmd.Flags().GetString("output")
+			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, verbose); err != nil {
+			// Resolve relative dates to absolute dates for GitHub CLI
+			now := time.Now()
+			if startDate != "" {
+				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+						Type:    "error",
+						Message: fmt.Sprintf("invalid start-date format '%s': %v", startDate, err),
+					}))
+					os.Exit(1)
+				}
+				startDate = resolvedStartDate
+			}
+			if endDate != "" {
+				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+						Type:    "error",
+						Message: fmt.Sprintf("invalid end-date format '%s': %v", endDate, err),
+					}))
+					os.Exit(1)
+				}
+				endDate = resolvedEndDate
+			}
+
+			// Validate engine parameter using the engine registry
+			if engine != "" {
+				registry := workflow.GetGlobalEngineRegistry()
+				if !registry.IsValidEngine(engine) {
+					supportedEngines := registry.GetSupportedEngines()
+					fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+						Type:    "error",
+						Message: fmt.Sprintf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", ")),
+					}))
+					os.Exit(1)
+				}
+			}
+
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -135,15 +185,16 @@ Examples:
 
 	// Add flags to logs command
 	logsCmd.Flags().IntP("count", "c", 20, "Maximum number of workflow runs to fetch")
-	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD)")
-	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD)")
+	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
+	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
+	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir string, verbose bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -183,7 +234,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		runs, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to list workflow runs: %w", err)
+			return err
 		}
 
 		if len(runs) == 0 {
@@ -219,6 +270,43 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			if result.Error != nil {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
 				continue
+			}
+
+			// Apply engine filtering if specified
+			if engine != "" {
+				// Check if the run's engine matches the filter
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+
+				var engineMatches bool
+				if detectedEngine != nil {
+					// Get the engine ID to compare with the filter
+					registry := workflow.GetGlobalEngineRegistry()
+					for _, supportedEngine := range []string{"claude", "codex"} {
+						if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
+							engineMatches = (supportedEngine == engine)
+							break
+						}
+					}
+				}
+
+				if !engineMatches {
+					if verbose {
+						engineName := "unknown"
+						if detectedEngine != nil {
+							// Try to get a readable name for the detected engine
+							registry := workflow.GetGlobalEngineRegistry()
+							for _, supportedEngine := range []string{"claude", "codex"} {
+								if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
+									engineName = supportedEngine
+									break
+								}
+							}
+						}
+						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+					}
+					continue
+				}
 			}
 
 			// Update run with metrics and path
@@ -384,16 +472,27 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	}
 
 	cmd := exec.Command("gh", args...)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 
 	// Stop spinner
 	if !verbose {
 		spinner.Stop()
 	}
 	if err != nil {
-		// Check for authentication errors
-		if strings.Contains(err.Error(), "exit status 4") {
+		// Check for authentication errors - GitHub CLI can return different exit codes and messages
+		errMsg := err.Error()
+		outputMsg := string(output)
+		combinedMsg := errMsg + " " + outputMsg
+		if strings.Contains(combinedMsg, "exit status 4") ||
+			strings.Contains(combinedMsg, "exit status 1") ||
+			strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
+			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
+			strings.Contains(combinedMsg, "authentication required") ||
+			strings.Contains(outputMsg, "gh auth login") {
 			return nil, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+		}
+		if len(output) > 0 {
+			return nil, fmt.Errorf("failed to list workflow runs: %s", string(output))
 		}
 		return nil, fmt.Errorf("failed to list workflow runs: %w", err)
 	}
@@ -494,6 +593,30 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			detectedEngine = engine
 			if verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Detected engine from aw_info.json: %s", engine.GetID())))
+			}
+		}
+	}
+
+	// Check for aw_output.txt artifact file
+	awOutputPath := filepath.Join(logDir, "aw_output.txt")
+	if _, err := os.Stat(awOutputPath); err == nil {
+		if verbose {
+			// Report that the agentic output file was found
+			fileInfo, statErr := os.Stat(awOutputPath)
+			if statErr == nil {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: aw_output.txt (%s)", formatFileSize(fileInfo.Size()))))
+			}
+		}
+	}
+
+	// Check for aw.patch artifact file
+	awPatchPath := filepath.Join(logDir, "aw.patch")
+	if _, err := os.Stat(awPatchPath); err == nil {
+		if verbose {
+			// Report that the git patch file was found
+			fileInfo, statErr := os.Stat(awPatchPath)
+			if statErr == nil {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", formatFileSize(fileInfo.Size()))))
 			}
 		}
 	}
@@ -769,6 +892,32 @@ func formatNumber(n int) string {
 			return fmt.Sprintf("%.2fB", b)
 		}
 	}
+}
+
+// formatFileSize formats file sizes in a human-readable way (e.g., "1.2 KB", "3.4 MB")
+func formatFileSize(size int64) string {
+	if size == 0 {
+		return "0 B"
+	}
+
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	units := []string{"KB", "MB", "GB", "TB"}
+	if exp >= len(units) {
+		exp = len(units) - 1
+		div = int64(1) << (10 * (exp + 1))
+	}
+
+	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
 // dirExists checks if a directory exists

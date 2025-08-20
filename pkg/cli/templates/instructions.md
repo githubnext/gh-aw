@@ -73,9 +73,33 @@ The YAML frontmatter supports these fields:
   - `github:` - GitHub API tools
   - `claude:` - Claude-specific tools  
   - Custom tool names for MCP servers
+
+- **`output:`** - Output processing configuration
+  - `issue:` - Automatic GitHub issue creation from agent output
+    ```yaml
+    output:
+      issue:
+        title-prefix: "[ai] "           # Optional: prefix for issue titles  
+        labels: [automation, ai-agent]  # Optional: labels to attach to issues
+    ```
+    **Important**: When using `output.issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
+  - `comment:` - Automatic comment creation on issues/PRs from agent output
+    ```yaml
+    output:
+      comment: {}
+    ```
+    **Important**: When using `output.comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
+  - `pull-request:` - Automatic pull request creation from agent output with git patches
+    ```yaml
+    output:
+      pull-request:
+        title-prefix: "[ai] "           # Optional: prefix for PR titles
+        labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+    ```
+    **Important**: When using `output.pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions. The agent must create git patches in `/tmp/aw.patch`.
   
-- **`max-runs:`** - Maximum workflow runs before auto-disable (integer)
-- **`stop-time:`** - Deadline timestamp for workflow (string: "YYYY-MM-DD HH:MM:SS")
+- **`max-turns:`** - Maximum chat iterations per run (integer)
+- **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 
@@ -117,6 +141,44 @@ cache:
 - `lookup-only:` - Only check cache existence (boolean)
 
 Cache steps are automatically added to the workflow job and the cache configuration is removed from the final `.lock.yml` file.
+
+## Output Processing and Issue Creation
+
+### Automatic GitHub Issue Creation
+
+Use the `output.issue` configuration to automatically create GitHub issues from AI agent output:
+
+```yaml
+---
+on: push
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, ai-generated]
+---
+
+# Code Analysis Agent
+
+Analyze the latest code changes and provide insights.
+Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+```
+
+**Key Benefits:**
+- **Permission Separation**: The main job doesn't need `issues: write` permission
+- **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
+- **Job Dependencies**: Issue creation only happens after the AI agent completes successfully
+- **Output Variables**: The created issue number and URL are available to downstream jobs
+
+**How It Works:**
+1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
+2. Main job completes and passes output via job output variables
+3. Separate `create_issue` job runs with `issues: write` permission
+4. JavaScript parses the output (first line = title, rest = body)
+5. GitHub issue is created with optional title prefix and labels
 
 ## Trigger Patterns
 
@@ -310,21 +372,144 @@ permissions:
   metadata: read
 ```
 
-### Issue Management Pattern  
+### Direct Issue Management Pattern  
 ```yaml
 permissions:
   contents: read
   issues: write
-  models: read
 ```
 
-### PR Review Pattern
+### Output Processing Pattern (Recommended)
+```yaml
+permissions:
+  contents: read      # Main job minimal permissions
+  actions: read
+output:
+  issue:
+    title-prefix: "[ai] "
+    labels: [automation]
+  # OR for pull requests:
+  # pull-request:
+  #   title-prefix: "[ai] " 
+  #   labels: [automation]
+  # OR for comments:
+  # comment: {}
+```
+
+**Note**: With output processing, the main job doesn't need `issues: write`, `pull-requests: write`, or `contents: write` permissions. The separate output creation jobs automatically get the required permissions.
+
+## Output Processing Examples
+
+### Automatic GitHub Issue Creation
+
+Use the `output.issue` configuration to automatically create GitHub issues from AI agent output:
+
+```yaml
+---
+on: push
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, ai-generated]
+---
+
+# Code Analysis Agent
+
+Analyze the latest code changes and provide insights.
+Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+```
+
+**Key Benefits:**
+- **Permission Separation**: The main job doesn't need `issues: write` permission
+- **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
+- **Job Dependencies**: Issue creation only happens after the AI agent completes successfully
+- **Output Variables**: The created issue number and URL are available to downstream jobs
+
+**How It Works:**
+1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
+2. Main job completes and passes output via job output variables
+3. Separate `create_issue` job runs with `issues: write` permission
+4. JavaScript parses the output (first line = title, rest = body)
+5. GitHub issue is created with optional title prefix and labels
+
+### Automatic Pull Request Creation
+
+Use the `output.pull-request` configuration to automatically create pull requests from AI agent output:
+
+```yaml
+---
+on: push
+permissions:
+  actions: read       # Main job only needs minimal permissions
+engine: claude
+output:
+  pull-request:
+    title-prefix: "[bot] "
+    labels: [automation, ai-generated]
+---
+
+# Code Improvement Agent
+
+Analyze the latest code and suggest improvements.
+Generate git patches in /tmp/aw.patch and write summary to ${{ env.GITHUB_AW_OUTPUT }}.
+```
+
+**Key Features:**
+- **Secure Branch Naming**: Uses cryptographic random hex instead of user-provided titles
+- **Git CLI Integration**: Leverages git CLI commands for branch creation and patch application
+- **Environment-based Configuration**: Resolves base branch from GitHub Action context
+- **Fail-Fast Error Handling**: Validates required environment variables and patch file existence
+
+**How It Works:**
+1. AI agent creates git patches in `/tmp/aw.patch` and writes title/description to `${{ env.GITHUB_AW_OUTPUT }}`
+2. Main job completes and passes output via job output variables
+3. Separate `create_output_pull_request` job runs with `contents: write` and `pull-requests: write` permissions
+4. Job creates a new branch using `{workflowId}/{randomHex}` pattern
+5. Git patches are applied using `git apply`
+6. Changes are committed and pushed to the new branch
+7. Pull request is created with parsed title/body and optional labels
+
+### Automatic Comment Creation
+
+Use the `output.comment` configuration to automatically create comments from AI agent output:
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  comment: {}
+---
+
+# Issue Analysis Agent
+
+Analyze the issue and provide feedback.
+Write your analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+```
+
+**How It Works:**
+1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
+2. Main job completes and passes output via job output variables
+3. Separate `create_issue_comment` job runs with `issues: write` and `pull-requests: write` permissions
+4. Job posts the entire agent output as a comment on the triggering issue or pull request
+5. Automatically skips if not running in an issue or pull request context
+
+## Permission Patterns
+
+### Read-Only Pattern
 ```yaml
 permissions:
   contents: read
-  pull-requests: write
-  checks: read
-  statuses: read
+  metadata: read
 ```
 
 ### Full Repository Access
@@ -407,6 +592,64 @@ tools:
 Respond to @helper-bot mentions with helpful information.
 ```
 
+## Workflow Monitoring and Analysis
+
+### Logs and Metrics
+
+Monitor workflow execution and costs using the `logs` command:
+
+```bash
+# Download logs for all agentic workflows
+gh aw logs
+
+# Download logs for a specific workflow
+gh aw logs weekly-research
+
+# Filter logs by AI engine type
+gh aw logs --engine claude           # Only Claude workflows
+gh aw logs --engine codex            # Only Codex workflows
+
+# Limit number of runs and filter by date (absolute dates)
+gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31
+
+# Filter by date using delta time syntax (relative dates)
+gh aw logs --start-date -1w          # Last week's runs
+gh aw logs --end-date -1d            # Up to yesterday
+gh aw logs --start-date -1mo         # Last month's runs
+gh aw logs --start-date -2w3d        # 2 weeks 3 days ago
+
+# Download to custom directory
+gh aw logs -o ./workflow-logs
+```
+
+#### Delta Time Syntax for Date Filtering
+
+The `--start-date` and `--end-date` flags support delta time syntax for relative dates:
+
+**Supported Time Units:**
+- **Days**: `-1d`, `-7d`
+- **Weeks**: `-1w`, `-4w` 
+- **Months**: `-1mo`, `-6mo`
+- **Hours/Minutes**: `-12h`, `-30m` (for sub-day precision)
+- **Combinations**: `-1mo2w3d`, `-2w5d12h`
+
+**Examples:**
+```bash
+# Get runs from the last week
+gh aw logs --start-date -1w
+
+# Get runs up to yesterday  
+gh aw logs --end-date -1d
+
+# Get runs from the last month
+gh aw logs --start-date -1mo
+
+# Complex combinations work too
+gh aw logs --start-date -2w3d --end-date -1d
+```
+
+Delta time calculations use precise date arithmetic that accounts for varying month lengths and daylight saving time transitions.
+
 ## Security Considerations
 
 ### Cross-Prompt Injection Protection
@@ -428,6 +671,37 @@ permissions:
   models: read      # Typically needed for AI workflows
 ```
 
+## Debugging and Inspection
+
+### MCP Server Inspection
+
+Use the `inspect` command to analyze and debug MCP servers in workflows:
+
+```bash
+# List workflows with MCP configurations
+gh aw inspect
+
+# Inspect MCP servers in a specific workflow
+gh aw inspect workflow-name
+
+# Filter to a specific MCP server
+gh aw inspect workflow-name --server server-name
+
+# Show detailed information about a specific tool
+gh aw inspect workflow-name --server server-name --tool tool-name
+
+# Enable verbose output with connection details
+gh aw inspect workflow-name --verbose
+```
+
+The `--tool` flag provides detailed information about a specific tool, including:
+- Tool name, title, and description
+- Input schema and parameters
+- Whether the tool is allowed in the workflow configuration
+- Annotations and additional metadata
+
+**Note**: The `--tool` flag requires the `--server` flag to specify which MCP server contains the tool.
+
 ## Compilation Process
 
 Agentic workflows compile to GitHub Actions YAML:
@@ -436,16 +710,27 @@ Agentic workflows compile to GitHub Actions YAML:
 - Tool configurations are processed
 - GitHub Actions syntax is generated
 
+### Compilation Commands
+
+- **`gh aw compile`** - Compile all workflow files in `.github/workflows/`
+- **`gh aw compile <workflow-id>`** - Compile a specific workflow by ID (filename without extension)
+  - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
+  - Supports partial matching and fuzzy search for workflow names
+- **`gh aw compile --verbose`** - Show detailed compilation and validation messages
+
 ## Best Practices
 
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
 3. **Include security notices** for workflows processing user content  
 4. **Use @include directives** for common patterns and security boilerplate
-5. **Test with `gh aw compile`** before committing
+5. **Test with `gh aw compile`** before committing (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
-7. **Set `max-runs`** for cost-sensitive workflows
-8. **Use specific tool permissions** rather than broad access
+7. **Set `stop-time`** for cost-sensitive workflows
+8. **Set `max-turns`** to limit chat iterations and prevent runaway loops
+9. **Use specific tool permissions** rather than broad access
+10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
+11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
 
 ## Validation
 
@@ -456,4 +741,4 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 - **Invalid enum values** - e.g., `engine` must be "claude" or "codex"
 - **Missing required fields** - Some triggers require specific configuration
 
-Use `gh aw compile --verbose` to see detailed validation messages.
+Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.

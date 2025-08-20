@@ -15,7 +15,7 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	// Test the DownloadWorkflowLogs function
 	// This should either fail with auth error (if not authenticated)
 	// or succeed with no results (if authenticated but no workflows match)
-	err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", false)
+	err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", "", false)
 
 	// If GitHub CLI is authenticated, the function may succeed but find no results
 	// If not authenticated, it should return an auth error
@@ -731,5 +731,143 @@ input_tokens: 2000`
 	// Without engine-specific parsing, should return 0
 	if metrics.TokenUsage != 0 {
 		t.Errorf("Expected token usage 0 (no aw_info.json), got %d", metrics.TokenUsage)
+	}
+}
+
+func TestDownloadWorkflowLogsWithEngineFilter(t *testing.T) {
+	// Test that the engine filter parameter is properly validated and passed through
+	tests := []struct {
+		name        string
+		engine      string
+		expectError bool
+		errorText   string
+	}{
+		{
+			name:        "valid claude engine",
+			engine:      "claude",
+			expectError: false,
+		},
+		{
+			name:        "valid codex engine",
+			engine:      "codex",
+			expectError: false,
+		},
+		{
+			name:        "empty engine (no filter)",
+			engine:      "",
+			expectError: false,
+		},
+		{
+			name:        "invalid engine",
+			engine:      "gpt",
+			expectError: true,
+			errorText:   "invalid engine value 'gpt'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This function should validate the engine parameter
+			// If invalid, it would exit in the actual command but we can't test that easily
+			// So we just test that valid engines don't cause immediate errors
+			if !tt.expectError {
+				// For valid engines, test that the function can be called without panic
+				// It may still fail with auth errors, which is expected
+				err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", tt.engine, false)
+
+				// Clean up any created directories
+				os.RemoveAll("./test-logs")
+
+				// If there's an error, it should be auth or workflow-related, not parameter validation
+				if err != nil {
+					errMsg := strings.ToLower(err.Error())
+					if strings.Contains(errMsg, "invalid engine") {
+						t.Errorf("Got engine validation error for valid engine '%s': %v", tt.engine, err)
+					}
+				}
+			}
+		})
+	}
+}
+func TestLogsCommandFlags(t *testing.T) {
+	// Test that the logs command has the expected flags including the new engine flag
+	cmd := NewLogsCommand()
+
+	// Check that all expected flags are present
+	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine"}
+
+	for _, flagName := range expectedFlags {
+		flag := cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			t.Errorf("Expected flag '%s' not found in logs command", flagName)
+		}
+	}
+
+	// Test engine flag specifically
+	engineFlag := cmd.Flags().Lookup("engine")
+	if engineFlag == nil {
+		t.Fatal("Engine flag not found")
+	}
+
+	if engineFlag.Usage != "Filter logs by agentic engine type (claude, codex)" {
+		t.Errorf("Unexpected engine flag usage text: %s", engineFlag.Usage)
+	}
+
+	if engineFlag.DefValue != "" {
+		t.Errorf("Expected engine flag default value to be empty, got: %s", engineFlag.DefValue)
+	}
+}
+
+func TestFormatFileSize(t *testing.T) {
+	tests := []struct {
+		size     int64
+		expected string
+	}{
+		{0, "0 B"},
+		{100, "100 B"},
+		{1024, "1.0 KB"},
+		{1536, "1.5 KB"},          // 1.5 * 1024
+		{1048576, "1.0 MB"},       // 1024 * 1024
+		{2097152, "2.0 MB"},       // 2 * 1024 * 1024
+		{1073741824, "1.0 GB"},    // 1024^3
+		{1099511627776, "1.0 TB"}, // 1024^4
+	}
+
+	for _, tt := range tests {
+		result := formatFileSize(tt.size)
+		if result != tt.expected {
+			t.Errorf("formatFileSize(%d) = %q, expected %q", tt.size, result, tt.expected)
+		}
+	}
+}
+
+func TestExtractLogMetricsWithAwOutputFile(t *testing.T) {
+	// Create a temporary directory with aw_output.txt
+	tmpDir := t.TempDir()
+
+	// Create aw_output.txt file
+	awOutputPath := filepath.Join(tmpDir, "aw_output.txt")
+	awOutputContent := "This is the agent's output content.\nIt contains multiple lines."
+	err := os.WriteFile(awOutputPath, []byte(awOutputContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create aw_output.txt: %v", err)
+	}
+
+	// Test that extractLogMetrics doesn't fail with aw_output.txt present
+	metrics, err := extractLogMetrics(tmpDir, false)
+	if err != nil {
+		t.Fatalf("extractLogMetrics failed: %v", err)
+	}
+
+	// Without an engine, should return empty metrics but not error
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no engine), got %d", metrics.TokenUsage)
+	}
+
+	// Test verbose mode to ensure it detects the file
+	// We can't easily test the console output, but we can ensure it doesn't error
+	metrics, err = extractLogMetrics(tmpDir, true)
+	if err != nil {
+		t.Fatalf("extractLogMetrics in verbose mode failed: %v", err)
 	}
 }
