@@ -102,6 +102,9 @@ var checkTeamMemberTemplate string
 //go:embed js/create_issue.js
 var createIssueScript string
 
+//go:embed js/create_comment.js
+var createCommentScript string
+
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
 	verbose        bool
@@ -216,13 +219,19 @@ type WorkflowData struct {
 
 // OutputConfig holds configuration for automatic output routes
 type OutputConfig struct {
-	Issue *IssueConfig `yaml:"issue,omitempty"`
+	Issue   *IssueConfig   `yaml:"issue,omitempty"`
+	Comment *CommentConfig `yaml:"comment,omitempty"`
 }
 
 // IssueConfig holds configuration for creating GitHub issues from agent output
 type IssueConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
+}
+
+// CommentConfig holds configuration for creating GitHub issue/PR comments from agent output
+type CommentConfig struct {
+	// Empty struct for now, as per requirements, but structured for future expansion
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1554,6 +1563,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
+	// Build create_issue_comment job if output.comment is configured
+	if data.Output != nil && data.Output.Comment != nil {
+		createCommentJob, err := c.buildCreateOutputCommentJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
+		}
+		if err := c.jobManager.AddJob(createCommentJob); err != nil {
+			return fmt.Errorf("failed to add create_issue_comment job: %w", err)
+		}
+	}
+
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -1707,6 +1727,58 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 		If:             "", // No conditional execution
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputCommentJob creates the create_issue_comment job
+func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData) (*Job, error) {
+	if data.Output == nil || data.Output.Comment == nil {
+		return nil, fmt.Errorf("output.comment configuration is required")
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create Output Comment\n")
+	steps = append(steps, "        id: create_comment\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Determine the main job name to get output from
+	mainJobName := c.generateJobName(data.Name)
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_CONTENT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	scriptLines := strings.Split(createCommentScript, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) == "" {
+			steps = append(steps, "\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"comment_id":  "${{ steps.create_comment.outputs.comment_id }}",
+		"comment_url": "${{ steps.create_comment.outputs.comment_url }}",
+	}
+
+	job := &Job{
+		Name:           "create_issue_comment",
+		If:             "if: github.event.issue.number || github.event.pull_request.number", // Only run in issue or PR context
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
@@ -2090,6 +2162,14 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 					}
 
 					config.Issue = issueConfig
+				}
+			}
+
+			// Parse comment configuration
+			if comment, exists := outputMap["comment"]; exists {
+				if _, ok := comment.(map[string]any); ok {
+					// For now, CommentConfig is an empty struct
+					config.Comment = &CommentConfig{}
 				}
 			}
 
