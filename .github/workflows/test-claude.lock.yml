@@ -37,7 +37,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: write
       pull-requests: write
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -463,6 +462,9 @@ jobs:
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@v7
+        env:
+          GITHUB_AW_ISSUE_TITLE_PREFIX: "[claude-test] "
+          GITHUB_AW_ISSUE_LABELS: "claude,automation,haiku"
         with:
           script: |
             const fs = require('fs');
@@ -522,26 +524,18 @@ jobs:
               title = 'Agent Output';
             }
 
-            // Apply title prefix if provided
-
-            const titlePrefix = "[claude-test] ";
+            // Apply title prefix if provided via environment variable
+            const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
             if (titlePrefix && !title.startsWith(titlePrefix)) {
               title = titlePrefix + title;
             }
 
-
             // Prepare the body content
             const body = bodyLines.join('\n').trim();
 
-            // Prepare labels array
-            const labels = [
-
-              "claude",
-              "automation",
-              "haiku",
-
-            ].filter(label => label); // Remove any empty entries
-
+            // Parse labels from environment variable (comma-separated string)
+            const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+            const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
 
             console.log('Creating issue with title:', title);
             console.log('Labels:', labels);

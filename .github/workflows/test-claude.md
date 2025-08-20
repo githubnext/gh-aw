@@ -14,7 +14,6 @@ timeout_minutes: 10
 permissions:
   contents: read
   pull-requests: write
-  issues: write
   actions: read
 output:
   issue:

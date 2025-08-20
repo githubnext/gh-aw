@@ -185,13 +185,13 @@ This workflow tests the create_output_issue job generation.
 		t.Error("Expected github-script action to be used in create_output_issue job")
 	}
 
-	// Verify JavaScript content includes our configuration
-	if !strings.Contains(lockContent, "const titlePrefix = \"[genai] \"") {
-		t.Error("Expected title prefix to be rendered in JavaScript")
+	// Verify JavaScript content includes environment variables for configuration
+	if !strings.Contains(lockContent, "GITHUB_AW_ISSUE_TITLE_PREFIX: \"[genai] \"") {
+		t.Error("Expected title prefix to be set as environment variable")
 	}
 
-	if !strings.Contains(lockContent, "\"copilot\"") {
-		t.Error("Expected copilot label to be rendered in JavaScript")
+	if !strings.Contains(lockContent, "GITHUB_AW_ISSUE_LABELS: \"copilot\"") {
+		t.Error("Expected copilot label to be set as environment variable")
 	}
 
 	// Verify job dependencies

@@ -102,6 +102,19 @@ validate-workflows:
 fmt:
 	go fmt ./...
 
+# Run TypeScript compiler on JavaScript files
+.PHONY: js
+js:
+	@if command -v tsc >/dev/null 2>&1; then \
+		echo "Running TypeScript compiler..."; \
+		tsc --noEmit; \
+		echo "✓ TypeScript check completed"; \
+	else \
+		echo "TypeScript compiler (tsc) is not installed. Install it with:"; \
+		echo "  npm install -g typescript"; \
+		echo "Skipping TypeScript check."; \
+	fi
+
 # Check formatting
 .PHONY: fmt-check
 fmt-check:

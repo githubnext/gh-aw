@@ -55,26 +55,18 @@ if (!title) {
   title = 'Agent Output';
 }
 
-// Apply title prefix if provided
-{{if .TitlePrefix}}
-const titlePrefix = {{.TitlePrefix | toJSON}};
+// Apply title prefix if provided via environment variable
+const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
 if (titlePrefix && !title.startsWith(titlePrefix)) {
   title = titlePrefix + title;
 }
-{{end}}
 
 // Prepare the body content
 const body = bodyLines.join('\n').trim();
 
-// Prepare labels array
-const labels = [
-{{if .Labels}}
-{{range .Labels}}  {{. | toJSON}},
-{{end}}
-].filter(label => label); // Remove any empty entries
-{{else}}
-];
-{{end}}
+// Parse labels from environment variable (comma-separated string)
+const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
 
 console.log('Creating issue with title:', title);
 console.log('Labels:', labels);

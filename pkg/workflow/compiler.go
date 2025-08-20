@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -1664,21 +1663,26 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 		return nil, fmt.Errorf("output.issue configuration is required")
 	}
 
-	// Generate the JavaScript script for creating the issue
-	script, err := c.renderCreateIssueScript(data.Output.Issue)
-	if err != nil {
-		return nil, fmt.Errorf("failed to render issue creation script: %w", err)
-	}
-
 	var steps []string
 	steps = append(steps, "      - name: Create Output Issue\n")
 	steps = append(steps, "        id: create_issue\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	if data.Output.Issue.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.Output.Issue.TitlePrefix))
+	}
+	if len(data.Output.Issue.Labels) > 0 {
+		labelsStr := strings.Join(data.Output.Issue.Labels, ",")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_LABELS: %q\n", labelsStr))
+	}
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	scriptLines := strings.Split(script, "\n")
+	scriptLines := strings.Split(createIssueScript, "\n")
 	for _, line := range scriptLines {
 		if strings.TrimSpace(line) == "" {
 			steps = append(steps, "\n")
@@ -2485,30 +2489,4 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Ag
 	// For now, we rely on JSON schema validation for format checking
 
 	return nil
-}
-
-// renderCreateIssueScript renders the JavaScript template for creating GitHub issues
-func (c *Compiler) renderCreateIssueScript(config *IssueConfig) (string, error) {
-	// Create template functions
-	funcMap := template.FuncMap{
-		"toJSON": func(v interface{}) string {
-			jsonBytes, _ := json.Marshal(v)
-			return string(jsonBytes)
-		},
-	}
-
-	// Parse the JavaScript template
-	tmpl, err := template.New("create_issue").Funcs(funcMap).Parse(createIssueScript)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse JavaScript template: %w", err)
-	}
-
-	// Render the template with the issue configuration
-	var buffer strings.Builder
-	err = tmpl.Execute(&buffer, config)
-	if err != nil {
-		return "", fmt.Errorf("failed to render JavaScript template: %w", err)
-	}
-
-	return buffer.String(), nil
 }
