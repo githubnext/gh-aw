@@ -427,9 +427,12 @@ jobs:
           fi
           echo "Base commit SHA: $INITIAL_SHA"
           # Show compact diff information between initial commit and staged files
-          echo "Showing compact diff between initial commit and current state:"
-          git diff --name-only --cached "$INITIAL_SHA" || true
-          echo "---"
+          echo '## Git diff' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '```diff' >> $GITHUB_STEP_SUMMARY
+          git diff --cached "$INITIAL_SHA" >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
           # Check if there are any changes since the initial commit
           if git diff --quiet --cached "$INITIAL_SHA" && git diff --quiet "$INITIAL_SHA" HEAD; then
             echo "No changes detected since initial commit (staged or committed)"
