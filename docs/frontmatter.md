@@ -25,6 +25,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `alias`: Alias name for the workflow
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
+- `output`: Output processing configuration for automatic issue creation
 
 ## Trigger Events (`on:`)
 
@@ -245,6 +246,54 @@ ai-reaction: "eyes"
 
 **Note**: Using this feature results in the addition of ".github/actions/reaction/action.yml" file to the repository when the workflow is compiled.
 
+## Output Processing (`output:`)
+
+Configure automatic output processing from AI agent results:
+
+```yaml
+output:
+  issue:
+    title-prefix: "[ai] "           # Optional: prefix for issue titles
+    labels: [automation, ai-agent]  # Optional: labels to attach to issues
+```
+
+**Behavior:**
+- When `output.issue` is configured, the compiler automatically generates a separate `create_output_issue` job
+- This job runs after the main AI agent job completes
+- The agent's output content flows from the main job to the issue creation job via job output variables
+- The issue creation job parses the output content, using the first non-empty line as the title and the remainder as the body
+- **Important**: With output processing, the main job **does not** need `issues: write` permission since the write operation is performed in the separate job
+
+**Generated Job Properties:**
+- **Job Name**: `create_output_issue`
+- **Dependencies**: Runs after the main agent job (`needs: [main-job-name]`)
+- **Permissions**: Only the issue creation job has `issues: write` permission
+- **Timeout**: 10-minute timeout to prevent hanging
+- **Environment Variables**: Configuration passed via `GITHUB_AW_ISSUE_TITLE_PREFIX` and `GITHUB_AW_ISSUE_LABELS`
+- **Outputs**: Returns `issue_number` and `issue_url` for downstream jobs
+
+**Example workflow using output processing:**
+```yaml
+---
+on: push
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, code-review]
+---
+
+# Code Analysis Agent
+
+Analyze the latest commit and provide insights.
+Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
+```
+
+This automatically creates GitHub issues from the agent's analysis without requiring `issues: write` permission on the main job.
+
 ## Cache Configuration (`cache:`)
 
 Cache configuration using GitHub Actions `actions/cache` syntax:
@@ -384,8 +433,8 @@ on:
     name: issue-bot
 
 permissions:
-  issues: write
-  contents: read
+  contents: read      # Main job permissions (no issues: write needed)
+  actions: read
 
 engine:
   id: claude
@@ -394,7 +443,12 @@ engine:
 
 tools:
   github:
-    allowed: [get_issue, add_issue_comment, update_issue]
+    allowed: [get_issue, add_issue_comment]
+
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, ai-analysis]
 
 cache:
   key: deps-${{ hashFiles('**/package-lock.json') }}
@@ -420,6 +474,8 @@ if: github.event.issue.state == 'open'
 
 Analyze and respond to issues with full context awareness.
 Current issue text: "${{ needs.task.outputs.text }}"
+
+Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} for automatic issue creation.
 ```
 
 ## Related Documentation

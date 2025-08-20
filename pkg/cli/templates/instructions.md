@@ -73,6 +73,16 @@ The YAML frontmatter supports these fields:
   - `github:` - GitHub API tools
   - `claude:` - Claude-specific tools  
   - Custom tool names for MCP servers
+
+- **`output:`** - Output processing configuration
+  - `issue:` - Automatic GitHub issue creation from agent output
+    ```yaml
+    output:
+      issue:
+        title-prefix: "[ai] "           # Optional: prefix for issue titles  
+        labels: [automation, ai-agent]  # Optional: labels to attach to issues
+    ```
+    **Important**: When using `output.issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
   
 - **`max-turns:`** - Maximum chat iterations per run (integer)
 - **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
@@ -117,6 +127,44 @@ cache:
 - `lookup-only:` - Only check cache existence (boolean)
 
 Cache steps are automatically added to the workflow job and the cache configuration is removed from the final `.lock.yml` file.
+
+## Output Processing and Issue Creation
+
+### Automatic GitHub Issue Creation
+
+Use the `output.issue` configuration to automatically create GitHub issues from AI agent output:
+
+```yaml
+---
+on: push
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, ai-generated]
+---
+
+# Code Analysis Agent
+
+Analyze the latest code changes and provide insights.
+Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+```
+
+**Key Benefits:**
+- **Permission Separation**: The main job doesn't need `issues: write` permission
+- **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
+- **Job Dependencies**: Issue creation only happens after the AI agent completes successfully
+- **Output Variables**: The created issue number and URL are available to downstream jobs
+
+**How It Works:**
+1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
+2. Main job completes and passes output via job output variables
+3. Separate `create_output_issue` job runs with `issues: write` permission
+4. JavaScript parses the output (first line = title, rest = body)
+5. GitHub issue is created with optional title prefix and labels
 
 ## Trigger Patterns
 
@@ -310,11 +358,63 @@ permissions:
   metadata: read
 ```
 
-### Issue Management Pattern  
+### Direct Issue Management Pattern  
 ```yaml
 permissions:
   contents: read
   issues: write
+```
+
+### Output Processing Pattern (Recommended)
+```yaml
+permissions:
+  contents: read      # Main job minimal permissions
+  actions: read
+output:
+  issue:
+    title-prefix: "[ai] "
+    labels: [automation]
+```
+
+**Note**: With output processing, the main job doesn't need `issues: write` permission. The separate issue creation job automatically gets the required permissions.
+
+## Output Processing and Issue Creation
+
+### Automatic GitHub Issue Creation
+
+Use the `output.issue` configuration to automatically create GitHub issues from AI agent output:
+
+```yaml
+---
+on: push
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  issue:
+    title-prefix: "[analysis] "
+    labels: [automation, ai-generated]
+---
+
+# Code Analysis Agent
+
+Analyze the latest code changes and provide insights.
+Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+```
+
+**Key Benefits:**
+- **Permission Separation**: The main job doesn't need `issues: write` permission
+- **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
+- **Job Dependencies**: Issue creation only happens after the AI agent completes successfully
+- **Output Variables**: The created issue number and URL are available to downstream jobs
+
+**How It Works:**
+1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
+2. Main job completes and passes output via job output variables
+3. Separate `create_output_issue` job runs with `issues: write` permission
+4. JavaScript parses the output (first line = title, rest = body)
+5. GitHub issue is created with optional title prefix and labels
   models: read
 ```
 

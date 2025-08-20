@@ -56,11 +56,16 @@ on:
     types: [opened]
 
 permissions:
-  issues: write
+  contents: read      # Minimal permissions for main job
 
 tools:
   github:
     allowed: [add_issue_comment]
+
+output:
+  issue:
+    title-prefix: "[triage] "
+    labels: [automation, triage]
 
 timeout_minutes: 5
 ---
@@ -71,6 +76,7 @@ Analyze issue #${{ github.event.issue.number }} and help with triage:
 
 1. Read the issue content
 2. Post a helpful comment summarizing the issue
+3. Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} for automatic issue creation
 
 Keep responses concise and helpful.
 ```
