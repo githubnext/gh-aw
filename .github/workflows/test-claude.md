@@ -14,6 +14,7 @@ timeout_minutes: 10
 permissions:
   pull-requests: write
   actions: read
+  contents: read
 output:
   issue:
     title-prefix: "[claude-test] "
