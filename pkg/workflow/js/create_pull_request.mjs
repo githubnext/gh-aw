@@ -15,13 +15,9 @@ async function main() {
     throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
   }
 
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputContent) {
-    throw new Error('GITHUB_AW_AGENT_OUTPUT environment variable is required');
-  }
-
+  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   if (outputContent.trim() === '') {
-    throw new Error('Agent output content is empty');
+    console.log('Agent output content is empty');
   }
 
   // Check if patch file exists and has valid content
