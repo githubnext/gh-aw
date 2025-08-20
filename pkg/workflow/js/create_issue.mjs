@@ -107,6 +107,12 @@ async function main() {
   // Set output for other jobs to use
   core.setOutput('issue_number', issue.number);
   core.setOutput('issue_url', issue.html_url);
+  // write issue to summary
+  await core.summary.addRaw(`
 
+## GitHub Issue
+- Issue ID: ${issue.number}
+- Issue URL: ${issue.html_url}
+`).write();
 }
 await main();

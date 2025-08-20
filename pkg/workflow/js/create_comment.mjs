@@ -67,13 +67,12 @@ async function main() {
   core.setOutput('comment_url', comment.html_url);
 
   // write comment id, url to the github_step_summary
-  const summary = `
-### GitHub Comment
+  await core.summary.addRaw(`
+
+## GitHub Comment
 - Comment ID: ${comment.id}
 - Comment URL: ${comment.html_url}
-`;
-
-  core.summary.addSection('GitHub Comment', summary);
+`).write();
 
 }
 await main();

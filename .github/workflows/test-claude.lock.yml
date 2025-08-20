@@ -647,7 +647,13 @@ jobs:
               // Set output for other jobs to use
               core.setOutput('issue_number', issue.number);
               core.setOutput('issue_url', issue.html_url);
+              // write issue to summary
+              await core.summary.addRaw(`
 
+            ## GitHub Issue
+            - Issue ID: ${issue.number}
+            - Issue URL: ${issue.html_url}
+            `).write();
             }
             await main();
 
@@ -740,13 +746,12 @@ jobs:
               core.setOutput('comment_url', comment.html_url);
 
               // write comment id, url to the github_step_summary
-              const summary = `
-            ### GitHub Comment
+              await core.summary.addRaw(`
+
+            ## GitHub Comment
             - Comment ID: ${comment.id}
             - Comment URL: ${comment.html_url}
-            `;
-
-              core.summary.addSection('GitHub Comment', summary);
+            `).write();
 
             }
             await main();
@@ -928,6 +933,16 @@ jobs:
               core.setOutput('pull_request_number', pullRequest.number);
               core.setOutput('pull_request_url', pullRequest.html_url);
               core.setOutput('branch_name', branchName);
+
+              // Write summary to GitHub Actions summary
+              await core.summary
+                .addRaw(`
+
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+            - **Branch**: \`${branchName}\`
+            - **Base Branch**: \`${baseBranch}\`
+            `).write();
             }
             await main();
 

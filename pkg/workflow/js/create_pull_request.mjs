@@ -143,5 +143,15 @@ async function main() {
   core.setOutput('pull_request_number', pullRequest.number);
   core.setOutput('pull_request_url', pullRequest.html_url);
   core.setOutput('branch_name', branchName);
+
+  // Write summary to GitHub Actions summary
+  await core.summary
+    .addRaw(`
+
+## Pull Request
+- **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+- **Branch**: \`${branchName}\`
+- **Base Branch**: \`${baseBranch}\`
+`).write();
 }
 await main();
