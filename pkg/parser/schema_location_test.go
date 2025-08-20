@@ -199,3 +199,77 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperties(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		filePath    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "invalid permissions with additional property shows location",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"contents":     "read",
+					"invalid_perm": "write",
+				},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "/test/workflow.md:1:1:",
+		},
+		{
+			name: "invalid trigger with additional property shows location",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches":     []string{"main"},
+						"invalid_prop": "value",
+					},
+				},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "/test/workflow.md:1:1:",
+		},
+		{
+			name: "invalid tools configuration with additional property shows location",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed":      []string{"create_issue"},
+						"invalid_prop": "value",
+					},
+				},
+			},
+			filePath:    "/test/workflow.md",
+			wantErr:     true,
+			errContains: "/test/workflow.md:1:1:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(tt.frontmatter, tt.filePath)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() expected error, got nil")
+				return
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Errorf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() error = %v", err)
+				return
+			}
+
+			if tt.wantErr && err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ValidateMainWorkflowFrontmatterWithSchemaAndLocation() error = %v, expected to contain %v", err, tt.errContains)
+				}
+			}
+		})
+	}
+}
