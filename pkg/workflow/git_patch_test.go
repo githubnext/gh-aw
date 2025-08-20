@@ -91,7 +91,7 @@ Please do the following tasks:
 	}
 
 	// Verify it skips patch generation when no changes
-	if !strings.Contains(lockContent, "Skipping patch generation - no changes to create patch from") {
+	if !strings.Contains(lockContent, "Skipping patch generation - no committed changes to create patch from") {
 		t.Error("Expected message about skipping patch generation when no changes")
 	}
 
