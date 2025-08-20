@@ -539,16 +539,46 @@ jobs:
             console.log('Labels:', labels);
             console.log('Body length:', body.length);
 
+            // Check if we're in an issue context (triggered by an issue event)
+            const parentIssueNumber = context.payload?.issue?.number;
+            let finalBody = body;
+
+            if (parentIssueNumber) {
+              console.log('Detected issue context, parent issue #' + parentIssueNumber);
+
+              // Add reference to parent issue in the child issue body
+              if (finalBody.trim()) {
+                finalBody = `Related to #${parentIssueNumber}\n\n${finalBody}`;
+              } else {
+                finalBody = `Related to #${parentIssueNumber}`;
+              }
+            }
+
             // Create the issue using GitHub API
             const { data: issue } = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: title,
-              body: body,
+              body: finalBody,
               labels: labels
             });
 
             console.log('Created issue #' + issue.number + ': ' + issue.html_url);
+
+            // If we have a parent issue, add a comment to it referencing the new child issue
+            if (parentIssueNumber) {
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parentIssueNumber,
+                  body: `Created related issue: #${issue.number}`
+                });
+                console.log('Added comment to parent issue #' + parentIssueNumber);
+              } catch (error) {
+                console.log('Warning: Could not add comment to parent issue:', error.message);
+              }
+            }
 
             // Set output for other jobs to use
             core.setOutput('issue_number', issue.number);
