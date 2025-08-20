@@ -241,7 +241,7 @@ jobs:
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Execute Claude Code Action
         id: agentic_execution
-        uses: anthropics/claude-code-base-action@v0.0.56
+        uses: mossaka/claude-code-base-action-fork@main
         with:
           # Allowed tools (sorted):
           # - Glob
@@ -301,7 +301,6 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            DEBUG: true
           mcp_config: /tmp/mcp-config/mcp-servers.json
           prompt_file: /tmp/aw-prompts/prompt.txt
           timeout_minutes: "5"
