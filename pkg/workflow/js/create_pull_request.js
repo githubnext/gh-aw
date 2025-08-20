@@ -3,19 +3,38 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
-// Read the agent output content from environment variable
+// Environment validation - fail early if required variables are missing
+const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+if (!workflowId) {
+  throw new Error('GITHUB_AW_WORKFLOW_ID environment variable is required');
+}
+
+const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+if (!baseBranch) {
+  throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
+}
+
 const outputContent = process.env.AGENT_OUTPUT_CONTENT;
 if (!outputContent) {
-  console.log('No AGENT_OUTPUT_CONTENT environment variable found');
-  return;
+  throw new Error('AGENT_OUTPUT_CONTENT environment variable is required');
 }
 
 if (outputContent.trim() === '') {
-  console.log('Agent output content is empty');
-  return;
+  throw new Error('Agent output content is empty');
+}
+
+// Check if patch file exists and has valid content
+if (!fs.existsSync('/tmp/aw.patch')) {
+  throw new Error('No patch file found - cannot create pull request without changes');
+}
+
+const patchContent = fs.readFileSync('/tmp/aw.patch', 'utf8');
+if (!patchContent || !patchContent.trim() || patchContent.includes('Failed to generate patch')) {
+  throw new Error('Patch file is empty or contains error message - cannot create pull request without changes');
 }
 
 console.log('Agent output content length:', outputContent.length);
+console.log('Patch content validation passed');
 
 // Parse the output to extract title and body
 const lines = outputContent.split('\n');
@@ -69,89 +88,32 @@ console.log('Body length:', body.length);
 
 // Generate unique branch name using cryptographic random hex
 const randomHex = crypto.randomBytes(8).toString('hex');
-const workflowId = process.env.GITHUB_AW_WORKFLOW_ID || 'workflow';
 const branchName = `${workflowId}/${randomHex}`;
 
 console.log('Generated branch name:', branchName);
-
-// Get the base branch from environment variable
-const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
-if (!baseBranch) {
-  throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
-}
-
 console.log('Base branch:', baseBranch);
 
 // Create a new branch using git CLI
-try {
-  // Configure git (required for commits)
-  execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
-  execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
-  
-  // Create and checkout new branch
-  execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
-  console.log('Created and checked out branch:', branchName);
-} catch (error) {
-  console.error('Failed to create branch with git CLI:', error.message);
-  throw error;
-}
+// Configure git (required for commits)
+execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
+execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
 
-// Note: In a real implementation, we would apply the patch here
-// For now, we'll create a minimal commit to demonstrate the PR creation
-// The actual patch application would require downloading the artifact and applying it
+// Create and checkout new branch
+execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
+console.log('Created and checked out branch:', branchName);
 
-// Check if patch file exists and apply it
-let patchApplied = false;
+// Apply the patch using git CLI
+console.log('Applying patch...');
 
-try {
-  if (fs.existsSync('/tmp/aw.patch')) {
-    console.log('Patch file found, checking contents...');
-    const patchContent = fs.readFileSync('/tmp/aw.patch', 'utf8');
-    
-    if (patchContent && patchContent.trim() && !patchContent.includes('Failed to generate patch')) {
-      console.log('Valid patch content found, applying patch...');
-      
-      // Apply the patch using git apply
-      try {
-        execSync('git apply /tmp/aw.patch', { stdio: 'inherit' });
-        console.log('Patch applied successfully');
-        patchApplied = true;
-      } catch (applyError) {
-        console.log('Failed to apply patch with git apply, trying git am...');
-        try {
-          execSync('git am /tmp/aw.patch', { stdio: 'inherit' });
-          console.log('Patch applied successfully with git am');
-          patchApplied = true;
-        } catch (amError) {
-          console.log('Failed to apply patch with git am:', amError.message);
-          throw new Error(`Failed to apply patch: ${amError.message}`);
-        }
-      }
-    } else {
-      console.log('Patch file is empty or contains error message');
-      throw new Error('Patch file is empty or contains error message - cannot create pull request without changes');
-    }
-  } else {
-    console.log('No patch file found at /tmp/aw.patch');
-    throw new Error('No patch file found - cannot create pull request without changes');
-  }
-} catch (error) {
-  console.error('Error handling patch file:', error.message);
-  throw error;
-}
+// Apply the patch using git apply
+execSync('git apply /tmp/aw.patch', { stdio: 'inherit' });
+console.log('Patch applied successfully');
 
-// Commit the changes if patch was applied
-if (patchApplied) {
-  try {
-    execSync('git add .', { stdio: 'inherit' });
-    execSync(`git commit -m "Add agent output: ${title}"`, { stdio: 'inherit' });
-    execSync(`git push origin ${branchName}`, { stdio: 'inherit' });
-    console.log('Changes committed and pushed');
-  } catch (error) {
-    console.error('Failed to commit and push changes:', error.message);
-    throw error;
-  }
-}
+// Commit and push the changes
+execSync('git add .', { stdio: 'inherit' });
+execSync(`git commit -m "Add agent output: ${title}"`, { stdio: 'inherit' });
+execSync(`git push origin ${branchName}`, { stdio: 'inherit' });
+console.log('Changes committed and pushed');
 
 // Create the pull request
 const { data: pullRequest } = await github.rest.pulls.create({
@@ -167,17 +129,13 @@ console.log('Created pull request #' + pullRequest.number + ': ' + pullRequest.h
 
 // Add labels if specified
 if (labels.length > 0) {
-  try {
-    await github.rest.issues.addLabels({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      issue_number: pullRequest.number,
-      labels: labels
-    });
-    console.log('Added labels to pull request:', labels);
-  } catch (error) {
-    console.log('Warning: Could not add labels to pull request:', error.message);
-  }
+  await github.rest.issues.addLabels({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: pullRequest.number,
+    labels: labels
+  });
+  console.log('Added labels to pull request:', labels);
 }
 
 // Set output for other jobs to use
