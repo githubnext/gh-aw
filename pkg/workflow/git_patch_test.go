@@ -7,6 +7,20 @@ import (
 	"testing"
 )
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func TestGitPatchGeneration(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
@@ -51,8 +65,8 @@ Please do the following tasks:
 	lockContent := string(content)
 
 	// Verify git patch generation step exists
-	if !strings.Contains(lockContent, "- name: Generate git patch of changes") {
-		t.Error("Expected 'Generate git patch of changes' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Generate git patch") {
+		t.Error("Expected 'Generate git patch' step to be in generated workflow")
 	}
 
 	// Verify the git patch step contains the expected commands
@@ -64,7 +78,7 @@ Please do the following tasks:
 		t.Error("Expected 'git add -A || true' command in git patch step")
 	}
 
-	if !strings.Contains(lockContent, "INITIAL_SHA=\"${{ github.sha }}\"") {
+	if !strings.Contains(lockContent, "INITIAL_SHA=\"$GITHUB_SHA\"") {
 		t.Error("Expected INITIAL_SHA variable assignment in git patch step")
 	}
 
@@ -105,13 +119,13 @@ Please do the following tasks:
 	}
 
 	// Verify the git patch step runs with 'if: always()'
-	gitPatchIndex := strings.Index(lockContent, "- name: Generate git patch of changes")
+	gitPatchIndex := strings.Index(lockContent, "- name: Generate git patch")
 	if gitPatchIndex == -1 {
 		t.Fatal("Git patch step not found")
 	}
 
 	// Find the next step after git patch step
-	nextStepStart := gitPatchIndex + len("- name: Generate git patch of changes")
+	nextStepStart := gitPatchIndex + len("- name: Generate git patch")
 	stepEnd := strings.Index(lockContent[nextStepStart:], "- name:")
 	if stepEnd == -1 {
 		stepEnd = len(lockContent) - nextStepStart

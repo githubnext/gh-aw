@@ -55,8 +55,8 @@ This workflow tests the agentic output collection functionality.
 	lockContent := string(content)
 
 	// Verify pre-step: Setup agentic output file step exists
-	if !strings.Contains(lockContent, "- name: Setup Agent Output File (GITHUB_AW_OUTPUT)") {
-		t.Error("Expected 'Setup Agent Output File (GITHUB_AW_OUTPUT)' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Setup agent output") {
+		t.Error("Expected 'Setup agent output' step to be in generated workflow")
 	}
 
 	// Verify the step uses github-script and sets up the output file
@@ -87,8 +87,8 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify post-step: Collect agentic output step exists
-	if !strings.Contains(lockContent, "- name: Collect agentic output") {
-		t.Error("Expected 'Collect agentic output' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Collect agent output") {
+		t.Error("Expected 'Collect agent output' step to be in generated workflow")
 	}
 
 	if !strings.Contains(lockContent, "id: collect_output") {
@@ -146,9 +146,9 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify step order: setup should come before agentic execution, collection should come after
-	setupIndex := strings.Index(lockContent, "- name: Setup Agent Output File (GITHUB_AW_OUTPUT)")
-	executeIndex := strings.Index(lockContent, "- name: Execute Claude Code")
-	collectIndex := strings.Index(lockContent, "- name: Collect agentic output")
+	setupIndex := strings.Index(lockContent, "- name: Setup agent output")
+	executeIndex := strings.Index(lockContent, "- name: Execute Claude Code Action")
+	collectIndex := strings.Index(lockContent, "- name: Collect agent output")
 	uploadIndex := strings.Index(lockContent, "- name: Upload agentic output file")
 
 	// If "Execute Claude Code" isn't found, try alternative step names

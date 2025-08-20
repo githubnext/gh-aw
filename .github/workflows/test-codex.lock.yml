@@ -384,9 +384,13 @@ jobs:
           git status
           # Stage any unstaged files
           git add -A || true
-          # Get the initial commit SHA from when the workflow started
-          INITIAL_SHA="${{ github.sha }}"
-          echo "Initial commit SHA: $INITIAL_SHA"
+          # Get the initial commit SHA from the base branch of the pull request
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            INITIAL_SHA="$GITHUB_BASE_REF"
+          else
+            INITIAL_SHA="$GITHUB_SHA"
+          fi
+          echo "Base commit SHA: $INITIAL_SHA"
           # Show compact diff information between initial commit and staged files
           echo "Showing compact diff between initial commit and current state:"
           git diff --stat "$INITIAL_SHA" HEAD || true
