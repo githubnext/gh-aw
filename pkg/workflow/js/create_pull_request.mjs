@@ -1,5 +1,4 @@
 async function main() {
-
   // Required Node.js modules
   const fs = require('fs');
   const crypto = require('crypto');
@@ -145,3 +144,4 @@ async function main() {
   core.setOutput('pull_request_url', pullRequest.html_url);
   core.setOutput('branch_name', branchName);
 }
+await main();

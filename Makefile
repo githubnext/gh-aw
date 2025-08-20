@@ -63,6 +63,7 @@ deps:
 .PHONY: deps-dev
 deps-dev: deps copy-copilot-to-claude
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	npm install --package-lock-only
 
 # Run linter
 .PHONY: golint
@@ -105,15 +106,8 @@ fmt:
 # Run TypeScript compiler on JavaScript files
 .PHONY: js
 js:
-	@if command -v tsc >/dev/null 2>&1; then \
-		echo "Running TypeScript compiler..."; \
-		tsc --noEmit; \
-		echo "✓ TypeScript check completed"; \
-	else \
-		echo "TypeScript compiler (tsc) is not installed. Install it with:"; \
-		echo "  npm install -g typescript"; \
-		echo "Skipping TypeScript check."; \
-	fi
+	echo "Running TypeScript compiler..."; \
+	npm run typecheck
 
 # Check formatting
 .PHONY: fmt-check
@@ -215,7 +209,7 @@ copy-copilot-to-claude:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build test recompile
+agent-finish: deps-dev fmt lint js build test recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target

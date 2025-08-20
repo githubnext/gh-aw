@@ -538,114 +538,118 @@ jobs:
           GITHUB_AW_ISSUE_LABELS: "claude,automation,haiku"
         with:
           script: |
-            // Read the agent output content from environment variable
-            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-            if (!outputContent) {
-              console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
-              return;
-            }
-
-            if (outputContent.trim() === '') {
-              console.log('Agent output content is empty');
-              return;
-            }
-
-            console.log('Agent output content length:', outputContent.length);
-
-            // Parse the output to extract title and body
-            const lines = outputContent.split('\n');
-            let title = '';
-            let bodyLines = [];
-            let foundTitle = false;
-
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i].trim();
-
-              // Skip empty lines until we find the title
-              if (!foundTitle && line === '') {
-                continue;
+            async function main() {
+              // Read the agent output content from environment variable
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+                return;
               }
 
-              // First non-empty line becomes the title
-              if (!foundTitle && line !== '') {
-                // Remove markdown heading syntax if present
-                title = line.replace(/^#+\s*/, '').trim();
-                foundTitle = true;
-                continue;
+              if (outputContent.trim() === '') {
+                console.log('Agent output content is empty');
+                return;
               }
 
-              // Everything else goes into the body
-              if (foundTitle) {
-                bodyLines.push(lines[i]); // Keep original formatting
+              console.log('Agent output content length:', outputContent.length);
+
+              // Parse the output to extract title and body
+              const lines = outputContent.split('\n');
+              let title = '';
+              let bodyLines = [];
+              let foundTitle = false;
+
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                // Skip empty lines until we find the title
+                if (!foundTitle && line === '') {
+                  continue;
+                }
+
+                // First non-empty line becomes the title
+                if (!foundTitle && line !== '') {
+                  // Remove markdown heading syntax if present
+                  title = line.replace(/^#+\s*/, '').trim();
+                  foundTitle = true;
+                  continue;
+                }
+
+                // Everything else goes into the body
+                if (foundTitle) {
+                  bodyLines.push(lines[i]); // Keep original formatting
+                }
               }
-            }
 
-            // If no title was found, use a default
-            if (!title) {
-              title = 'Agent Output';
-            }
-
-            // Apply title prefix if provided via environment variable
-            const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-            if (titlePrefix && !title.startsWith(titlePrefix)) {
-              title = titlePrefix + title;
-            }
-
-            // Prepare the body content
-            const body = bodyLines.join('\n').trim();
-
-            // Parse labels from environment variable (comma-separated string)
-            const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-            const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
-
-            console.log('Creating issue with title:', title);
-            console.log('Labels:', labels);
-            console.log('Body length:', body.length);
-
-            // Check if we're in an issue context (triggered by an issue event)
-            const parentIssueNumber = context.payload?.issue?.number;
-            let finalBody = body;
-
-            if (parentIssueNumber) {
-              console.log('Detected issue context, parent issue #' + parentIssueNumber);
-
-              // Add reference to parent issue in the child issue body
-              if (finalBody.trim()) {
-                finalBody = `Related to #${parentIssueNumber}\n\n${finalBody}`;
-              } else {
-                finalBody = `Related to #${parentIssueNumber}`;
+              // If no title was found, use a default
+              if (!title) {
+                title = 'Agent Output';
               }
-            }
 
-            // Create the issue using GitHub API
-            const { data: issue } = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: finalBody,
-              labels: labels
-            });
-
-            console.log('Created issue #' + issue.number + ': ' + issue.html_url);
-
-            // If we have a parent issue, add a comment to it referencing the new child issue
-            if (parentIssueNumber) {
-              try {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: parentIssueNumber,
-                  body: `Created related issue: #${issue.number}`
-                });
-                console.log('Added comment to parent issue #' + parentIssueNumber);
-              } catch (error) {
-                console.log('Warning: Could not add comment to parent issue:', error.message);
+              // Apply title prefix if provided via environment variable
+              const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
               }
-            }
 
-            // Set output for other jobs to use
-            core.setOutput('issue_number', issue.number);
-            core.setOutput('issue_url', issue.html_url);
+              // Prepare the body content
+              const body = bodyLines.join('\n').trim();
+
+              // Parse labels from environment variable (comma-separated string)
+              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
+
+              console.log('Creating issue with title:', title);
+              console.log('Labels:', labels);
+              console.log('Body length:', body.length);
+
+              // Check if we're in an issue context (triggered by an issue event)
+              const parentIssueNumber = context.payload?.issue?.number;
+              let finalBody = body;
+
+              if (parentIssueNumber) {
+                console.log('Detected issue context, parent issue #' + parentIssueNumber);
+
+                // Add reference to parent issue in the child issue body
+                if (finalBody.trim()) {
+                  finalBody = `Related to #${parentIssueNumber}\n\n${finalBody}`;
+                } else {
+                  finalBody = `Related to #${parentIssueNumber}`;
+                }
+              }
+
+              // Create the issue using GitHub API
+              const { data: issue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: finalBody,
+                labels: labels
+              });
+
+              console.log('Created issue #' + issue.number + ': ' + issue.html_url);
+
+              // If we have a parent issue, add a comment to it referencing the new child issue
+              if (parentIssueNumber) {
+                try {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parentIssueNumber,
+                    body: `Created related issue: #${issue.number}`
+                  });
+                  console.log('Added comment to parent issue #' + parentIssueNumber);
+                } catch (error) {
+                  console.log('Warning: Could not add comment to parent issue:', error.message);
+                }
+              }
+
+              // Set output for other jobs to use
+              core.setOutput('issue_number', issue.number);
+              core.setOutput('issue_url', issue.html_url);
+
+            }
+            await main();
 
   create_issue_comment:
     needs: test-claude
@@ -667,72 +671,85 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude.outputs.output }}
         with:
           script: |
-            // Read the agent output content from environment variable
-            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-            if (!outputContent) {
-              console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
-              return;
-            }
-
-            if (outputContent.trim() === '') {
-              console.log('Agent output content is empty');
-              return;
-            }
-
-            console.log('Agent output content length:', outputContent.length);
-
-            // Check if we're in an issue or pull request context
-            const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
-            const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
-
-            if (!isIssueContext && !isPRContext) {
-              console.log('Not running in issue or pull request context, skipping comment creation');
-              return;
-            }
-
-            // Determine the issue/PR number and comment endpoint
-            let issueNumber;
-            let commentEndpoint;
-
-            if (isIssueContext) {
-              if (context.payload.issue) {
-                issueNumber = context.payload.issue.number;
-                commentEndpoint = 'issues';
-              } else {
-                console.log('Issue context detected but no issue found in payload');
+            async function main() {
+              // Read the agent output content from environment variable
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
                 return;
               }
-            } else if (isPRContext) {
-              if (context.payload.pull_request) {
-                issueNumber = context.payload.pull_request.number;
-                commentEndpoint = 'issues'; // PR comments use the issues API endpoint
-              } else {
-                console.log('Pull request context detected but no pull request found in payload');
+
+              if (outputContent.trim() === '') {
+                console.log('Agent output content is empty');
                 return;
               }
+
+              console.log('Agent output content length:', outputContent.length);
+
+              // Check if we're in an issue or pull request context
+              const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
+              const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
+
+              if (!isIssueContext && !isPRContext) {
+                console.log('Not running in issue or pull request context, skipping comment creation');
+                return;
+              }
+
+              // Determine the issue/PR number and comment endpoint
+              let issueNumber;
+              let commentEndpoint;
+
+              if (isIssueContext) {
+                if (context.payload.issue) {
+                  issueNumber = context.payload.issue.number;
+                  commentEndpoint = 'issues';
+                } else {
+                  console.log('Issue context detected but no issue found in payload');
+                  return;
+                }
+              } else if (isPRContext) {
+                if (context.payload.pull_request) {
+                  issueNumber = context.payload.pull_request.number;
+                  commentEndpoint = 'issues'; // PR comments use the issues API endpoint
+                } else {
+                  console.log('Pull request context detected but no pull request found in payload');
+                  return;
+                }
+              }
+
+              if (!issueNumber) {
+                console.log('Could not determine issue or pull request number');
+                return;
+              }
+
+              console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+              console.log('Comment content length:', outputContent.length);
+
+              // Create the comment using GitHub API
+              const { data: comment } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: outputContent
+              });
+
+              console.log('Created comment #' + comment.id + ': ' + comment.html_url);
+
+              // Set output for other jobs to use
+              core.setOutput('comment_id', comment.id);
+              core.setOutput('comment_url', comment.html_url);
+
+              // write comment id, url to the github_step_summary
+              const summary = `
+            ### GitHub Comment
+            - Comment ID: ${comment.id}
+            - Comment URL: ${comment.html_url}
+            `;
+
+              core.summary.addSection('GitHub Comment', summary);
+
             }
-
-            if (!issueNumber) {
-              console.log('Could not determine issue or pull request number');
-              return;
-            }
-
-            console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-            console.log('Comment content length:', outputContent.length);
-
-            // Create the comment using GitHub API
-            const { data: comment } = await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              body: outputContent
-            });
-
-            console.log('Created comment #' + comment.id + ': ' + comment.html_url);
-
-            // Set output for other jobs to use
-            core.setOutput('comment_id', comment.id);
-            core.setOutput('comment_url', comment.html_url);
+            await main();
 
   create_pull_request:
     needs: test-claude
@@ -766,148 +783,151 @@ jobs:
           GITHUB_AW_PR_LABELS: "claude,automation,bot"
         with:
           script: |
-            // Required Node.js modules
-            const fs = require('fs');
-            const crypto = require('crypto');
-            const { execSync } = require('child_process');
+            async function main() {
+              // Required Node.js modules
+              const fs = require('fs');
+              const crypto = require('crypto');
+              const { execSync } = require('child_process');
 
-            // Environment validation - fail early if required variables are missing
-            const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
-            if (!workflowId) {
-              throw new Error('GITHUB_AW_WORKFLOW_ID environment variable is required');
-            }
-
-            const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
-            if (!baseBranch) {
-              throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
-            }
-
-            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-            if (!outputContent) {
-              throw new Error('GITHUB_AW_AGENT_OUTPUT environment variable is required');
-            }
-
-            if (outputContent.trim() === '') {
-              throw new Error('Agent output content is empty');
-            }
-
-            // Check if patch file exists and has valid content
-            if (!fs.existsSync('/tmp/aw.patch')) {
-              throw new Error('No patch file found - cannot create pull request without changes');
-            }
-
-            const patchContent = fs.readFileSync('/tmp/aw.patch', 'utf8');
-            if (!patchContent || !patchContent.trim() || patchContent.includes('Failed to generate patch')) {
-              throw new Error('Patch file is empty or contains error message - cannot create pull request without changes');
-            }
-
-            console.log('Agent output content length:', outputContent.length);
-            console.log('Patch content validation passed');
-
-            // Parse the output to extract title and body
-            const lines = outputContent.split('\n');
-            let title = '';
-            let bodyLines = [];
-            let foundTitle = false;
-
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i].trim();
-
-              // Skip empty lines until we find the title
-              if (!foundTitle && line === '') {
-                continue;
+              // Environment validation - fail early if required variables are missing
+              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error('GITHUB_AW_WORKFLOW_ID environment variable is required');
               }
 
-              // First non-empty line becomes the title
-              if (!foundTitle && line !== '') {
-                // Remove markdown heading syntax if present
-                title = line.replace(/^#+\s*/, '').trim();
-                foundTitle = true;
-                continue;
+              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
               }
 
-              // Everything else goes into the body
-              if (foundTitle) {
-                bodyLines.push(lines[i]); // Keep original formatting
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                throw new Error('GITHUB_AW_AGENT_OUTPUT environment variable is required');
               }
-            }
 
-            // If no title was found, use a default
-            if (!title) {
-              title = 'Agent Output';
-            }
+              if (outputContent.trim() === '') {
+                throw new Error('Agent output content is empty');
+              }
 
-            // Apply title prefix if provided via environment variable
-            const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
-            if (titlePrefix && !title.startsWith(titlePrefix)) {
-              title = titlePrefix + title;
-            }
+              // Check if patch file exists and has valid content
+              if (!fs.existsSync('/tmp/aw.patch')) {
+                throw new Error('No patch file found - cannot create pull request without changes');
+              }
 
-            // Prepare the body content
-            const body = bodyLines.join('\n').trim();
+              const patchContent = fs.readFileSync('/tmp/aw.patch', 'utf8');
+              if (!patchContent || !patchContent.trim() || patchContent.includes('Failed to generate patch')) {
+                throw new Error('Patch file is empty or contains error message - cannot create pull request without changes');
+              }
 
-            // Parse labels from environment variable (comma-separated string)
-            const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
-            const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
+              console.log('Agent output content length:', outputContent.length);
+              console.log('Patch content validation passed');
 
-            console.log('Creating pull request with title:', title);
-            console.log('Labels:', labels);
-            console.log('Body length:', body.length);
+              // Parse the output to extract title and body
+              const lines = outputContent.split('\n');
+              let title = '';
+              let bodyLines = [];
+              let foundTitle = false;
 
-            // Generate unique branch name using cryptographic random hex
-            const randomHex = crypto.randomBytes(8).toString('hex');
-            const branchName = `${workflowId}/${randomHex}`;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
 
-            console.log('Generated branch name:', branchName);
-            console.log('Base branch:', baseBranch);
+                // Skip empty lines until we find the title
+                if (!foundTitle && line === '') {
+                  continue;
+                }
 
-            // Create a new branch using git CLI
-            // Configure git (required for commits)
-            execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
-            execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
+                // First non-empty line becomes the title
+                if (!foundTitle && line !== '') {
+                  // Remove markdown heading syntax if present
+                  title = line.replace(/^#+\s*/, '').trim();
+                  foundTitle = true;
+                  continue;
+                }
 
-            // Create and checkout new branch
-            execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
-            console.log('Created and checked out branch:', branchName);
+                // Everything else goes into the body
+                if (foundTitle) {
+                  bodyLines.push(lines[i]); // Keep original formatting
+                }
+              }
 
-            // Apply the patch using git CLI
-            console.log('Applying patch...');
+              // If no title was found, use a default
+              if (!title) {
+                title = 'Agent Output';
+              }
 
-            // Apply the patch using git apply
-            execSync('git apply /tmp/aw.patch', { stdio: 'inherit' });
-            console.log('Patch applied successfully');
+              // Apply title prefix if provided via environment variable
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
 
-            // Commit and push the changes
-            execSync('git add .', { stdio: 'inherit' });
-            execSync(`git commit -m "Add agent output: ${title}"`, { stdio: 'inherit' });
-            execSync(`git push origin ${branchName}`, { stdio: 'inherit' });
-            console.log('Changes committed and pushed');
+              // Prepare the body content
+              const body = bodyLines.join('\n').trim();
 
-            // Create the pull request
-            const { data: pullRequest } = await github.rest.pulls.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              head: branchName,
-              base: baseBranch
-            });
+              // Parse labels from environment variable (comma-separated string)
+              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+              const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
 
-            console.log('Created pull request #' + pullRequest.number + ': ' + pullRequest.html_url);
+              console.log('Creating pull request with title:', title);
+              console.log('Labels:', labels);
+              console.log('Body length:', body.length);
 
-            // Add labels if specified
-            if (labels.length > 0) {
-              await github.rest.issues.addLabels({
+              // Generate unique branch name using cryptographic random hex
+              const randomHex = crypto.randomBytes(8).toString('hex');
+              const branchName = `${workflowId}/${randomHex}`;
+
+              console.log('Generated branch name:', branchName);
+              console.log('Base branch:', baseBranch);
+
+              // Create a new branch using git CLI
+              // Configure git (required for commits)
+              execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
+              execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
+
+              // Create and checkout new branch
+              execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
+              console.log('Created and checked out branch:', branchName);
+
+              // Apply the patch using git CLI
+              console.log('Applying patch...');
+
+              // Apply the patch using git apply
+              execSync('git apply /tmp/aw.patch', { stdio: 'inherit' });
+              console.log('Patch applied successfully');
+
+              // Commit and push the changes
+              execSync('git add .', { stdio: 'inherit' });
+              execSync(`git commit -m "Add agent output: ${title}"`, { stdio: 'inherit' });
+              execSync(`git push origin ${branchName}`, { stdio: 'inherit' });
+              console.log('Changes committed and pushed');
+
+              // Create the pull request
+              const { data: pullRequest } = await github.rest.pulls.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: pullRequest.number,
-                labels: labels
+                title: title,
+                body: body,
+                head: branchName,
+                base: baseBranch
               });
-              console.log('Added labels to pull request:', labels);
-            }
 
-            // Set output for other jobs to use
-            core.setOutput('pull_request_number', pullRequest.number);
-            core.setOutput('pull_request_url', pullRequest.html_url);
-            core.setOutput('branch_name', branchName);
+              console.log('Created pull request #' + pullRequest.number + ': ' + pullRequest.html_url);
+
+              // Add labels if specified
+              if (labels.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pullRequest.number,
+                  labels: labels
+                });
+                console.log('Added labels to pull request:', labels);
+              }
+
+              // Set output for other jobs to use
+              core.setOutput('pull_request_number', pullRequest.number);
+              core.setOutput('pull_request_url', pullRequest.html_url);
+              core.setOutput('branch_name', branchName);
+            }
+            await main();
 
