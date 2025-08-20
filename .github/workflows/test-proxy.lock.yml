@@ -173,7 +173,7 @@ jobs:
           if-no-files-found: warn
       - name: Execute Claude Code Action
         id: agentic_execution
-        uses: anthropics/claude-code-base-action@v0.0.56
+        uses: mossaka/claude-code-base-action-fork@main
         with:
           # Allowed tools (sorted):
           # - Glob
