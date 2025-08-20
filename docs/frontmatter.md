@@ -25,7 +25,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `alias`: Alias name for the workflow
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
-- `output`: Output processing configuration for automatic issue creation
+- `output`: Output processing configuration for automatic issue creation and comment posting
 
 ## Trigger Events (`on:`)
 
@@ -255,7 +255,10 @@ output:
   issue:
     title-prefix: "[ai] "           # Optional: prefix for issue titles
     labels: [automation, ai-agent]  # Optional: labels to attach to issues
+  comment: {}                       # Create comments on issues/PRs from agent output
 ```
+
+### Issue Creation (`output.issue`)
 
 **Behavior:**
 - When `output.issue` is configured, the compiler automatically generates a separate `create_output_issue` job
@@ -272,7 +275,24 @@ output:
 - **Environment Variables**: Configuration passed via `GITHUB_AW_ISSUE_TITLE_PREFIX` and `GITHUB_AW_ISSUE_LABELS`
 - **Outputs**: Returns `issue_number` and `issue_url` for downstream jobs
 
-**Example workflow using output processing:**
+### Comment Creation (`output.comment`)
+
+**Behavior:**
+- When `output.comment` is configured, the compiler automatically generates a separate `create_issue_comment` job
+- This job runs after the main AI agent job completes and **only** if the workflow is triggered by an issue or pull request event
+- The agent's output content flows from the main job to the comment creation job via job output variables
+- The comment creation job posts the entire agent output as a comment on the triggering issue or pull request
+- **Conditional Execution**: The job automatically skips if not running in an issue or pull request context
+
+**Generated Job Properties:**
+- **Job Name**: `create_issue_comment`
+- **Dependencies**: Runs after the main agent job (`needs: [main-job-name]`)
+- **Conditional**: Only runs when `github.event.issue.number || github.event.pull_request.number` is present
+- **Permissions**: Only the comment creation job has `issues: write` and `pull-requests: write` permissions
+- **Timeout**: 10-minute timeout to prevent hanging
+- **Outputs**: Returns `comment_id` and `comment_url` for downstream jobs
+
+**Example workflow using issue creation:**
 ```yaml
 ---
 on: push
@@ -292,7 +312,29 @@ Analyze the latest commit and provide insights.
 Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
 ```
 
-This automatically creates GitHub issues from the agent's analysis without requiring `issues: write` permission on the main job.
+**Example workflow using comment creation:**
+```yaml
+---
+on:
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read      # Main job only needs minimal permissions
+  actions: read
+engine: claude
+output:
+  comment: {}
+---
+
+# Issue/PR Analysis Agent
+
+Analyze the issue or pull request and provide feedback.
+Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
+```
+
+This automatically creates GitHub issues or comments from the agent's analysis without requiring write permissions on the main job.
 
 ## Cache Configuration (`cache:`)
 

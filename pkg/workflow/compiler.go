@@ -102,6 +102,9 @@ var checkTeamMemberTemplate string
 //go:embed js/create_issue.js
 var createIssueScript string
 
+//go:embed js/create_comment.js
+var createCommentScript string
+
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
 	verbose        bool
@@ -216,13 +219,19 @@ type WorkflowData struct {
 
 // OutputConfig holds configuration for automatic output routes
 type OutputConfig struct {
-	Issue *IssueConfig `yaml:"issue,omitempty"`
+	Issue   *IssueConfig   `yaml:"issue,omitempty"`
+	Comment *CommentConfig `yaml:"comment,omitempty"`
 }
 
 // IssueConfig holds configuration for creating GitHub issues from agent output
 type IssueConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
+}
+
+// CommentConfig holds configuration for creating GitHub issue/PR comments from agent output
+type CommentConfig struct {
+	// Empty struct for now, as per requirements, but structured for future expansion
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1554,6 +1563,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
+	// Build create_issue_comment job if output.comment is configured
+	if data.Output != nil && data.Output.Comment != nil {
+		createCommentJob, err := c.buildCreateOutputCommentJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
+		}
+		if err := c.jobManager.AddJob(createCommentJob); err != nil {
+			return fmt.Errorf("failed to add create_issue_comment job: %w", err)
+		}
+	}
+
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -1707,6 +1727,58 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 		If:             "", // No conditional execution
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputCommentJob creates the create_issue_comment job
+func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData) (*Job, error) {
+	if data.Output == nil || data.Output.Comment == nil {
+		return nil, fmt.Errorf("output.comment configuration is required")
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create Output Comment\n")
+	steps = append(steps, "        id: create_comment\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Determine the main job name to get output from
+	mainJobName := c.generateJobName(data.Name)
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_CONTENT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	scriptLines := strings.Split(createCommentScript, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) == "" {
+			steps = append(steps, "\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"comment_id":  "${{ steps.create_comment.outputs.comment_id }}",
+		"comment_url": "${{ steps.create_comment.outputs.comment_url }}",
+	}
+
+	job := &Job{
+		Name:           "create_issue_comment",
+		If:             "if: github.event.issue.number || github.event.pull_request.number", // Only run in issue or PR context
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
@@ -1961,6 +2033,76 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateSafetyChecks(yaml, data)
 
 	// Add prompt creation step
+	c.generatePrompt(yaml, data)
+
+	logFile := generateSafeFileName(data.Name)
+	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
+
+	// Generate aw_info.json with agentic run metadata
+	c.generateCreateAwInfo(yaml, data, engine)
+
+	// Upload info to artifact
+	c.generateUploadAwInfo(yaml)
+
+	// Add AI execution step using the agentic engine
+	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
+
+	// add workflow_complete.txt
+	c.generateWorkflowComplete(yaml)
+
+	// Add output collection step
+	c.generateOutputCollectionStep(yaml, data)
+
+	// upload agent logs
+	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
+
+	// Add git patch generation step after agentic execution
+	c.generateGitPatchStep(yaml)
+
+	// Add post-steps (if any) after AI execution
+	c.generatePostSteps(yaml, data)
+}
+
+func (c *Compiler) generateWorkflowComplete(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Check if workflow-complete.txt exists, if so upload it\n")
+	yaml.WriteString("        id: check_file\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          if [ -f workflow-complete.txt ]; then\n")
+	yaml.WriteString("            echo \"File exists\"\n")
+	yaml.WriteString("            echo \"upload=true\" >> $GITHUB_OUTPUT\n")
+	yaml.WriteString("          else\n")
+	yaml.WriteString("            echo \"File does not exist\"\n")
+	yaml.WriteString("            echo \"upload=false\" >> $GITHUB_OUTPUT\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("      - name: Upload workflow-complete.txt\n")
+	yaml.WriteString("        if: steps.check_file.outputs.upload == 'true'\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: workflow-complete\n")
+	yaml.WriteString("          path: workflow-complete.txt\n")
+}
+
+func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {
+	yaml.WriteString("      - name: Upload agent logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
+	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Upload agentic run info\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw_info.json\n")
+	yaml.WriteString("          path: /tmp/aw_info.json\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Create prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
@@ -1988,46 +2130,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          cat /tmp/aw-prompts/prompt.txt >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
-
-	logFile := generateSafeFileName(data.Name)
-	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
-
-	// Add AI execution step using the agentic engine
-	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
-
-	// Add post-steps (if any) after AI execution
-	c.generatePostSteps(yaml, data)
-
-	yaml.WriteString("      - name: Check if workflow-complete.txt exists, if so upload it\n")
-	yaml.WriteString("        id: check_file\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          if [ -f workflow-complete.txt ]; then\n")
-	yaml.WriteString("            echo \"File exists\"\n")
-	yaml.WriteString("            echo \"upload=true\" >> $GITHUB_OUTPUT\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"File does not exist\"\n")
-	yaml.WriteString("            echo \"upload=false\" >> $GITHUB_OUTPUT\n")
-	yaml.WriteString("          fi\n")
-	yaml.WriteString("      - name: Upload workflow-complete.txt\n")
-	yaml.WriteString("        if: steps.check_file.outputs.upload == 'true'\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: workflow-complete\n")
-	yaml.WriteString("          path: workflow-complete.txt\n")
-	yaml.WriteString("      - name: Upload agentic engine logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
-	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
-	yaml.WriteString("          if-no-files-found: warn\n")
-	yaml.WriteString("      - name: Upload agentic run info\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: aw_info.json\n")
-	yaml.WriteString("          path: /tmp/aw_info.json\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
@@ -2090,6 +2192,14 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 					}
 
 					config.Issue = issueConfig
+				}
+			}
+
+			// Parse comment configuration
+			if comment, exists := outputMap["comment"]; exists {
+				if _, ok := comment.(map[string]any); ok {
+					// For now, CommentConfig is an empty struct
+					config.Comment = &CommentConfig{}
 				}
 			}
 
@@ -2200,9 +2310,6 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
-	// Generate aw_info.json with agentic run metadata
-	c.generateAgenticInfoStep(yaml, data, engine)
-
 	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig)
 
 	if executionConfig.Command != "" {
@@ -2289,13 +2396,10 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          # Ensure log file exists\n")
 		yaml.WriteString("          touch " + logFile + "\n")
 	}
-
-	// Add output collection step
-	c.generateOutputCollectionStep(yaml, data)
 }
 
-// generateAgenticInfoStep generates a step that creates aw_info.json with agentic run metadata
-func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
+// generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
+func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
@@ -2358,7 +2462,7 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 
 // generateOutputFileSetup generates a step that sets up the GITHUB_AW_OUTPUT environment variable
 func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Setup Agent Output File (GITHUB_AW_OUTPUT)\n")
+	yaml.WriteString("      - name: Setup agent output\n")
 	yaml.WriteString("        id: setup_agent_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
@@ -2384,7 +2488,7 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *Workflow
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Collect agentic output\n")
+	yaml.WriteString("      - name: Collect agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")

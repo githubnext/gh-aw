@@ -46,7 +46,7 @@ jobs:
           node-version: '24'
       - name: Install Codex
         run: npm install -g @openai/codex
-      - name: Setup Agent Output File (GITHUB_AW_OUTPUT)
+      - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
         with:
@@ -257,6 +257,13 @@ jobs:
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
+      - name: Upload agentic run info
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw_info.json
+          path: /tmp/aw_info.json
+          if-no-files-found: warn
       - name: Run Codex
         run: |
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
@@ -273,7 +280,23 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
-      - name: Collect agentic output
+      - name: Check if workflow-complete.txt exists, if so upload it
+        id: check_file
+        run: |
+          if [ -f workflow-complete.txt ]; then
+            echo "File exists"
+            echo "upload=true" >> $GITHUB_OUTPUT
+          else
+            echo "File does not exist"
+            echo "upload=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Upload workflow-complete.txt
+        if: steps.check_file.outputs.upload == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-complete
+          path: workflow-complete.txt
+      - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
         with:
@@ -346,34 +369,54 @@ jobs:
           name: aw_output.txt
           path: ${{ env.GITHUB_AW_OUTPUT }}
           if-no-files-found: warn
-      - name: Check if workflow-complete.txt exists, if so upload it
-        id: check_file
-        run: |
-          if [ -f workflow-complete.txt ]; then
-            echo "File exists"
-            echo "upload=true" >> $GITHUB_OUTPUT
-          else
-            echo "File does not exist"
-            echo "upload=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Upload workflow-complete.txt
-        if: steps.check_file.outputs.upload == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: workflow-complete
-          path: workflow-complete.txt
-      - name: Upload agentic engine logs
+      - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-codex.log
           path: /tmp/test-codex.log
           if-no-files-found: warn
-      - name: Upload agentic run info
+      - name: Generate git patch
+        if: always()
+        run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          # Stage any unstaged files
+          git add -A || true
+          # Check updated git status
+          echo "Updated git status:"
+          git status
+          # Get the initial commit SHA from the base branch of the pull request
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
+            INITIAL_SHA="$GITHUB_BASE_REF"
+          else
+            INITIAL_SHA="$GITHUB_SHA"
+          fi
+          echo "Base commit SHA: $INITIAL_SHA"
+          # Show compact diff information between initial commit and staged files
+          echo '## Git diff' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          git diff --cached --name-only "$INITIAL_SHA" >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          # Check if there are any changes since the initial commit
+          if git diff --quiet --cached "$INITIAL_SHA" && git diff --quiet "$INITIAL_SHA" HEAD; then
+            echo "No changes detected since initial commit (staged or committed)"
+            echo "Skipping patch generation - no changes to create patch from"
+          else
+            echo "Changes detected, generating patch..."
+            # Generate patch from initial commit to current state
+            git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
+            echo "Patch file created at /tmp/aw.patch"
+            ls -la /tmp/aw.patch
+          fi
+      - name: Upload git patch
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aw_info.json
-          path: /tmp/aw_info.json
-          if-no-files-found: warn
+          name: aw.patch
+          path: /tmp/aw.patch
+          if-no-files-found: ignore
 
