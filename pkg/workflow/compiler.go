@@ -1467,14 +1467,14 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add task job: %w", err)
 	}
 
-	// Build add-reaction job only if ai-reaction is configured
+	// Build add_reaction job only if ai-reaction is configured
 	if data.AIReaction != "" {
 		addReactionJob, err := c.buildAddReactionJob(data)
 		if err != nil {
-			return fmt.Errorf("failed to build add-reaction job: %w", err)
+			return fmt.Errorf("failed to build add_reaction job: %w", err)
 		}
 		if err := c.jobManager.AddJob(addReactionJob); err != nil {
-			return fmt.Errorf("failed to add add-reaction job: %w", err)
+			return fmt.Errorf("failed to add add_reaction job: %w", err)
 		}
 	}
 
@@ -1590,7 +1590,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	return job, nil
 }
 
-// buildAddReactionJob creates the add-reaction job
+// buildAddReactionJob creates the add_reaction job
 func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
@@ -1611,7 +1611,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 	}
 
 	job := &Job{
-		Name:        "add-reaction",
+		Name:        "add_reaction",
 		If:          fmt.Sprintf("if: %s", reactionCondition.Render()),
 		RunsOn:      "runs-on: ubuntu-latest",
 		Permissions: "permissions:\n      contents: write # Read .github\n      issues: write\n      pull-requests: write",
@@ -1794,7 +1794,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		Name:           "create_pull_request",
 		If:             "", // No conditional execution
 		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    "permissions:\n      contents: write\n      pull-requests: write",
+		Permissions:    "permissions:\n      contents: write\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,

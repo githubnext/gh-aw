@@ -3339,7 +3339,7 @@ Test workflow with ai-reaction.
 
 	// Check for reaction-specific content in generated YAML
 	expectedStrings := []string{
-		"add-reaction:",
+		"add_reaction:",
 		"mode: add",
 		"reaction: eyes",
 		"uses: ./.github/actions/reaction",
@@ -3351,10 +3351,10 @@ Test workflow with ai-reaction.
 		}
 	}
 
-	// Verify three jobs are created (task, add-reaction, main)
+	// Verify three jobs are created (task, add_reaction, main)
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (task, add-reaction, main), found %d", jobCount)
+		t.Errorf("Expected 3 jobs (task, add_reaction, main), found %d", jobCount)
 	}
 }
 
@@ -3412,7 +3412,7 @@ Test workflow without explicit ai-reaction (should not create reaction action).
 
 	// Check that reaction-specific content is NOT in generated YAML
 	unexpectedStrings := []string{
-		"add-reaction:",
+		"add_reaction:",
 		"uses: ./.github/actions/reaction",
 		"mode: add",
 	}
@@ -3423,7 +3423,7 @@ Test workflow without explicit ai-reaction (should not create reaction action).
 		}
 	}
 
-	// Verify only two jobs are created (task and main, no add-reaction)
+	// Verify only two jobs are created (task and main, no add_reaction)
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 2 {
 		t.Errorf("Expected 2 jobs (task, main), found %d", jobCount)

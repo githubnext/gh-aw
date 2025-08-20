@@ -780,6 +780,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
       pull-requests: write
     timeout-minutes: 10
     outputs:

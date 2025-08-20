@@ -125,7 +125,7 @@ This test validates that alias conditions are applied correctly based on event t
 			}
 
 			if tt.expectedEventAware {
-				// Should contain event-aware condition with event_name checks (but not just in add-reaction job)
+				// Should contain event-aware condition with event_name checks (but not just in add_reaction job)
 				expectedPattern := "github.event_name == 'issues'"
 				if !strings.Contains(lockContentStr, expectedPattern) {
 					t.Errorf("Expected event-aware condition containing '%s' but not found", expectedPattern)
