@@ -365,8 +365,6 @@ jobs:
                 sanitized = lines.slice(0, maxLines).join('\n') + '\n[Content truncated due to line count]';
               }
               
-              // Remove potential shell injection patterns
-              sanitized = sanitized.replace(/\$\([^)]*\)/g, '[shell-command-removed]');
               
               // Remove ANSI escape sequences
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, '');

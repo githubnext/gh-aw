@@ -2284,8 +2284,6 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("                sanitized = lines.slice(0, maxLines).join('\\n') + '\\n[Content truncated due to line count]';\n")
 	yaml.WriteString("              }\n")
 	yaml.WriteString("              \n")
-	yaml.WriteString("              // Remove potential shell injection patterns\n")
-	yaml.WriteString("              sanitized = sanitized.replace(/\\$\\([^)]*\\)/g, '[shell-command-removed]');\n")
 	yaml.WriteString("              \n")
 	yaml.WriteString("              // Remove ANSI escape sequences\n")
 	yaml.WriteString("              sanitized = sanitized.replace(/\\x1b\\[[0-9;]*[mGKH]/g, '');\n")
