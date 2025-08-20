@@ -1,7 +1,7 @@
 // Read the agent output content from environment variable
-const outputContent = process.env.AGENT_OUTPUT_CONTENT;
+const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
 if (!outputContent) {
-  console.log('No AGENT_OUTPUT_CONTENT environment variable found');
+  console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
   return;
 }
 

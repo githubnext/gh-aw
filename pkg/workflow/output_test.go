@@ -334,7 +334,7 @@ This workflow tests the create_issue_comment job generation.
 	}
 
 	// Verify JavaScript content includes environment variable for agent output
-	if !strings.Contains(lockContent, "AGENT_OUTPUT_CONTENT:") {
+	if !strings.Contains(lockContent, "GITHUB_AW_AGENT_OUTPUT:") {
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 

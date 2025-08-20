@@ -14,9 +14,9 @@ if (!baseBranch) {
   throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
 }
 
-const outputContent = process.env.AGENT_OUTPUT_CONTENT;
+const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
 if (!outputContent) {
-  throw new Error('AGENT_OUTPUT_CONTENT environment variable is required');
+  throw new Error('GITHUB_AW_AGENT_OUTPUT environment variable is required');
 }
 
 if (outputContent.trim() === '') {

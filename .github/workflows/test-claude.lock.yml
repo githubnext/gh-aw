@@ -533,15 +533,15 @@ jobs:
         id: create_issue
         uses: actions/github-script@v7
         env:
-          AGENT_OUTPUT_CONTENT: ${{ needs.test-claude.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude.outputs.output }}
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[claude-test] "
           GITHUB_AW_ISSUE_LABELS: "claude,automation,haiku"
         with:
           script: |
             // Read the agent output content from environment variable
-            const outputContent = process.env.AGENT_OUTPUT_CONTENT;
+            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
             if (!outputContent) {
-              console.log('No AGENT_OUTPUT_CONTENT environment variable found');
+              console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
               return;
             }
 
@@ -664,13 +664,13 @@ jobs:
         id: create_comment
         uses: actions/github-script@v7
         env:
-          AGENT_OUTPUT_CONTENT: ${{ needs.test-claude.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude.outputs.output }}
         with:
           script: |
             // Read the agent output content from environment variable
-            const outputContent = process.env.AGENT_OUTPUT_CONTENT;
+            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
             if (!outputContent) {
-              console.log('No AGENT_OUTPUT_CONTENT environment variable found');
+              console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
               return;
             }
 
@@ -759,7 +759,7 @@ jobs:
         id: create_pull_request
         uses: actions/github-script@v7
         env:
-          AGENT_OUTPUT_CONTENT: ${{ needs.test-claude.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude.outputs.output }}
           GITHUB_AW_WORKFLOW_ID: "test-claude"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_TITLE_PREFIX: "[claude-test] "
@@ -782,9 +782,9 @@ jobs:
               throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
             }
 
-            const outputContent = process.env.AGENT_OUTPUT_CONTENT;
+            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
             if (!outputContent) {
-              throw new Error('AGENT_OUTPUT_CONTENT environment variable is required');
+              throw new Error('GITHUB_AW_AGENT_OUTPUT environment variable is required');
             }
 
             if (outputContent.trim() === '') {
