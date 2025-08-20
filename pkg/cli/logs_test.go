@@ -817,3 +817,57 @@ func TestLogsCommandFlags(t *testing.T) {
 		t.Errorf("Expected engine flag default value to be empty, got: %s", engineFlag.DefValue)
 	}
 }
+
+func TestFormatFileSize(t *testing.T) {
+	tests := []struct {
+		size     int64
+		expected string
+	}{
+		{0, "0 B"},
+		{100, "100 B"},
+		{1024, "1.0 KB"},
+		{1536, "1.5 KB"},          // 1.5 * 1024
+		{1048576, "1.0 MB"},       // 1024 * 1024
+		{2097152, "2.0 MB"},       // 2 * 1024 * 1024
+		{1073741824, "1.0 GB"},    // 1024^3
+		{1099511627776, "1.0 TB"}, // 1024^4
+	}
+
+	for _, tt := range tests {
+		result := formatFileSize(tt.size)
+		if result != tt.expected {
+			t.Errorf("formatFileSize(%d) = %q, expected %q", tt.size, result, tt.expected)
+		}
+	}
+}
+
+func TestExtractLogMetricsWithAwOutputFile(t *testing.T) {
+	// Create a temporary directory with aw_output.txt
+	tmpDir := t.TempDir()
+
+	// Create aw_output.txt file
+	awOutputPath := filepath.Join(tmpDir, "aw_output.txt")
+	awOutputContent := "This is the agent's output content.\nIt contains multiple lines."
+	err := os.WriteFile(awOutputPath, []byte(awOutputContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create aw_output.txt: %v", err)
+	}
+
+	// Test that extractLogMetrics doesn't fail with aw_output.txt present
+	metrics, err := extractLogMetrics(tmpDir, false)
+	if err != nil {
+		t.Fatalf("extractLogMetrics failed: %v", err)
+	}
+
+	// Without an engine, should return empty metrics but not error
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 (no engine), got %d", metrics.TokenUsage)
+	}
+
+	// Test verbose mode to ensure it detects the file
+	// We can't easily test the console output, but we can ensure it doesn't error
+	metrics, err = extractLogMetrics(tmpDir, true)
+	if err != nil {
+		t.Fatalf("extractLogMetrics in verbose mode failed: %v", err)
+	}
+}

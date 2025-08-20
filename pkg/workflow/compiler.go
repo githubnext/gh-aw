@@ -2451,6 +2451,13 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          cat ${{ env.GITHUB_AW_OUTPUT }} >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("      - name: Upload agentic output file\n")
+	yaml.WriteString("        if: always() && steps.collect_output.outputs.output != ''\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw_output.txt\n")
+	yaml.WriteString("          path: ${{ env.GITHUB_AW_OUTPUT }}\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
 
 }
 

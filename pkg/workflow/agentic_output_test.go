@@ -117,10 +117,39 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected job output declaration for 'output'")
 	}
 
+	// Verify artifact upload step: Upload agentic output file step exists
+	if !strings.Contains(lockContent, "- name: Upload agentic output file") {
+		t.Error("Expected 'Upload agentic output file' step to be in generated workflow")
+	}
+
+	// Verify the upload step uses actions/upload-artifact@v4
+	if !strings.Contains(lockContent, "uses: actions/upload-artifact@v4") {
+		t.Error("Expected upload-artifact action to be used for artifact upload step")
+	}
+
+	// Verify the artifact upload configuration
+	if !strings.Contains(lockContent, "name: aw_output.txt") {
+		t.Error("Expected artifact name to be 'aw_output.txt'")
+	}
+
+	if !strings.Contains(lockContent, "path: ${{ env.GITHUB_AW_OUTPUT }}") {
+		t.Error("Expected artifact path to use GITHUB_AW_OUTPUT environment variable")
+	}
+
+	if !strings.Contains(lockContent, "if-no-files-found: warn") {
+		t.Error("Expected if-no-files-found: warn configuration for artifact upload")
+	}
+
+	// Verify the upload step condition checks for non-empty output
+	if !strings.Contains(lockContent, "if: always() && steps.collect_output.outputs.output != ''") {
+		t.Error("Expected upload step to check for non-empty output from collection step")
+	}
+
 	// Verify step order: setup should come before agentic execution, collection should come after
 	setupIndex := strings.Index(lockContent, "- name: Setup Agent Output File (GITHUB_AW_OUTPUT)")
 	executeIndex := strings.Index(lockContent, "- name: Execute Claude Code")
 	collectIndex := strings.Index(lockContent, "- name: Collect agentic output")
+	uploadIndex := strings.Index(lockContent, "- name: Upload agentic output file")
 
 	// If "Execute Claude Code" isn't found, try alternative step names
 	if executeIndex == -1 {
@@ -130,7 +159,7 @@ This workflow tests the agentic output collection functionality.
 		executeIndex = strings.Index(lockContent, "uses: githubnext/claude-action")
 	}
 
-	if setupIndex == -1 || executeIndex == -1 || collectIndex == -1 {
+	if setupIndex == -1 || executeIndex == -1 || collectIndex == -1 || uploadIndex == -1 {
 		t.Fatal("Could not find expected steps in generated workflow")
 	}
 
@@ -142,6 +171,10 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Collection step should appear after agentic execution step")
 	}
 
-	t.Logf("Step order verified: Setup (%d) < Execute (%d) < Collect (%d)",
-		setupIndex, executeIndex, collectIndex)
+	if uploadIndex <= collectIndex {
+		t.Error("Upload step should appear after collection step")
+	}
+
+	t.Logf("Step order verified: Setup (%d) < Execute (%d) < Collect (%d) < Upload (%d)",
+		setupIndex, executeIndex, collectIndex, uploadIndex)
 }

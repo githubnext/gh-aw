@@ -371,6 +371,13 @@ jobs:
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat ${{ env.GITHUB_AW_OUTPUT }} >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
+      - name: Upload agentic output file
+        if: always() && steps.collect_output.outputs.output != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw_output.txt
+          path: ${{ env.GITHUB_AW_OUTPUT }}
+          if-no-files-found: warn
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
