@@ -1907,13 +1907,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)
 
-	// Generate proxy configuration files inline for proxy-enabled tools
-	// These files will be used automatically by docker compose when MCP tools run
-	if len(proxyTools) > 0 {
-		yaml.WriteString("      - name: Setup Proxy Configuration for MCP Network Restrictions\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          echo \"Generating proxy configuration files for MCP tools with network restrictions...\"\n")
-		yaml.WriteString("          \n")
+    // Generate proxy configuration files inline for proxy-enabled tools
+    // These files will be used automatically by docker compose when MCP tools run
+    if len(proxyTools) > 0 {
+        yaml.WriteString("      - name: Setup Proxy Configuration for MCP Network Restrictions\n")
+        yaml.WriteString("        run: |\n")
+        yaml.WriteString("          echo \"Generating proxy configuration files for MCP tools with network restrictions...\"\n")
+        yaml.WriteString("          \n")
 
 		// Generate proxy configurations inline for each proxy-enabled tool
 		for _, toolName := range proxyTools {
@@ -1922,8 +1922,31 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 		}
 
-		yaml.WriteString("          echo \"Proxy configuration files generated. Services will start automatically when MCP tools are used.\"\n")
-	}
+        yaml.WriteString("          echo \"Proxy configuration files generated.\"\n")
+
+        // Pre-pull images and start squid proxy ahead of time to avoid timeouts
+        yaml.WriteString("      - name: Pre-pull images and start Squid proxy\n")
+        yaml.WriteString("        run: |\n")
+        yaml.WriteString("          set -e\n")
+        yaml.WriteString("          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'\n")
+        yaml.WriteString("          docker pull ubuntu/squid:latest\n")
+
+        // Pull each tool's container image if specified, and bring up squid service
+        for _, toolName := range proxyTools {
+            if toolConfig, ok := tools[toolName].(map[string]any); ok {
+                if mcpConf, err := getMCPConfig(toolConfig, toolName); err == nil {
+                    if containerVal, hasContainer := mcpConf["container"]; hasContainer {
+                        if containerStr, ok := containerVal.(string); ok && containerStr != "" {
+                            yaml.WriteString(fmt.Sprintf("          echo 'Pulling %s for tool %s'\n", containerStr, toolName))
+                            yaml.WriteString(fmt.Sprintf("          docker pull %s\n", containerStr))
+                        }
+                    }
+                }
+                yaml.WriteString(fmt.Sprintf("          echo 'Starting squid-proxy service for %s'\n", toolName))
+                yaml.WriteString(fmt.Sprintf("          docker compose -f docker-compose-%s.yml up -d squid-proxy\n", toolName))
+            }
+        }
+    }
 
 	// If no MCP tools, no configuration needed
 	if len(mcpTools) == 0 {

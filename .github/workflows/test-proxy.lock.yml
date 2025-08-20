@@ -99,7 +99,6 @@ jobs:
           # Allowed domains for egress traffic
           # Add one domain per line
           example.com
-          httpbin.org
           
           EOF
           
@@ -140,7 +139,16 @@ jobs:
           
           EOF
           
-          echo "Proxy configuration files generated. Services will start automatically when MCP tools are used."
+          echo "Proxy configuration files generated."
+      - name: Pre-pull images and start Squid proxy
+        run: |
+          set -e
+          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'
+          docker pull ubuntu/squid:latest
+          echo 'Pulling mcp/fetch for tool fetch'
+          docker pull mcp/fetch
+          echo 'Starting squid-proxy service for fetch'
+          docker compose -f docker-compose-fetch.yml up -d squid-proxy
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config

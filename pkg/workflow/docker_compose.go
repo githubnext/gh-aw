@@ -8,7 +8,7 @@ import (
 // getStandardProxyArgs returns the standard proxy arguments for all MCP containers
 // This defines the standard interface that all proxy-enabled MCP containers should support
 func getStandardProxyArgs() []string {
-	return []string{"--proxy-url", "http://squid-proxy:3128", "--ignore-robots-txt"}
+	return []string{"--proxy-url", "http://squid-proxy:3128"}
 }
 
 // formatYAMLArray formats a string slice as a YAML array
