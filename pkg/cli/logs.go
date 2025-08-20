@@ -84,6 +84,7 @@ metrics including duration, token usage, and cost information.
 Downloaded artifacts include:
 - aw_info.json: Engine configuration and workflow metadata
 - aw_output.txt: Agent's final output content (available when non-empty)
+- aw.patch: Git patch of changes made during execution
 - Various log files with execution details and metrics
 
 The agentic-workflow-id is the basename of the markdown file without the .md extension.
@@ -604,6 +605,18 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			fileInfo, statErr := os.Stat(awOutputPath)
 			if statErr == nil {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: aw_output.txt (%s)", formatFileSize(fileInfo.Size()))))
+			}
+		}
+	}
+
+	// Check for aw.patch artifact file
+	awPatchPath := filepath.Join(logDir, "aw.patch")
+	if _, err := os.Stat(awPatchPath); err == nil {
+		if verbose {
+			// Report that the git patch file was found
+			fileInfo, statErr := os.Stat(awPatchPath)
+			if statErr == nil {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", formatFileSize(fileInfo.Size()))))
 			}
 		}
 	}

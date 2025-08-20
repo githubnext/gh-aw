@@ -2033,6 +2033,76 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateSafetyChecks(yaml, data)
 
 	// Add prompt creation step
+	c.generatePrompt(yaml, data)
+
+	logFile := generateSafeFileName(data.Name)
+	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
+
+	// Generate aw_info.json with agentic run metadata
+	c.generateCreateAwInfo(yaml, data, engine)
+
+	// Upload info to artifact
+	c.generateUploadAwInfo(yaml)
+
+	// Add AI execution step using the agentic engine
+	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
+
+	// add workflow_complete.txt
+	c.generateWorkflowComplete(yaml)
+
+	// Add output collection step
+	c.generateOutputCollectionStep(yaml, data)
+
+	// upload agent logs
+	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
+
+	// Add git patch generation step after agentic execution
+	c.generateGitPatchStep(yaml)
+
+	// Add post-steps (if any) after AI execution
+	c.generatePostSteps(yaml, data)
+}
+
+func (c *Compiler) generateWorkflowComplete(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Check if workflow-complete.txt exists, if so upload it\n")
+	yaml.WriteString("        id: check_file\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          if [ -f workflow-complete.txt ]; then\n")
+	yaml.WriteString("            echo \"File exists\"\n")
+	yaml.WriteString("            echo \"upload=true\" >> $GITHUB_OUTPUT\n")
+	yaml.WriteString("          else\n")
+	yaml.WriteString("            echo \"File does not exist\"\n")
+	yaml.WriteString("            echo \"upload=false\" >> $GITHUB_OUTPUT\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("      - name: Upload workflow-complete.txt\n")
+	yaml.WriteString("        if: steps.check_file.outputs.upload == 'true'\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: workflow-complete\n")
+	yaml.WriteString("          path: workflow-complete.txt\n")
+}
+
+func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {
+	yaml.WriteString("      - name: Upload agent logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
+	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Upload agentic run info\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: aw_info.json\n")
+	yaml.WriteString("          path: /tmp/aw_info.json\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Create prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
@@ -2060,46 +2130,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          cat /tmp/aw-prompts/prompt.txt >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
-
-	logFile := generateSafeFileName(data.Name)
-	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
-
-	// Add AI execution step using the agentic engine
-	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
-
-	// Add post-steps (if any) after AI execution
-	c.generatePostSteps(yaml, data)
-
-	yaml.WriteString("      - name: Check if workflow-complete.txt exists, if so upload it\n")
-	yaml.WriteString("        id: check_file\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          if [ -f workflow-complete.txt ]; then\n")
-	yaml.WriteString("            echo \"File exists\"\n")
-	yaml.WriteString("            echo \"upload=true\" >> $GITHUB_OUTPUT\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"File does not exist\"\n")
-	yaml.WriteString("            echo \"upload=false\" >> $GITHUB_OUTPUT\n")
-	yaml.WriteString("          fi\n")
-	yaml.WriteString("      - name: Upload workflow-complete.txt\n")
-	yaml.WriteString("        if: steps.check_file.outputs.upload == 'true'\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: workflow-complete\n")
-	yaml.WriteString("          path: workflow-complete.txt\n")
-	yaml.WriteString("      - name: Upload agentic engine logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
-	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
-	yaml.WriteString("          if-no-files-found: warn\n")
-	yaml.WriteString("      - name: Upload agentic run info\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: aw_info.json\n")
-	yaml.WriteString("          path: /tmp/aw_info.json\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
@@ -2280,9 +2310,6 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
-	// Generate aw_info.json with agentic run metadata
-	c.generateAgenticInfoStep(yaml, data, engine)
-
 	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig)
 
 	if executionConfig.Command != "" {
@@ -2369,13 +2396,10 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          # Ensure log file exists\n")
 		yaml.WriteString("          touch " + logFile + "\n")
 	}
-
-	// Add output collection step
-	c.generateOutputCollectionStep(yaml, data)
 }
 
-// generateAgenticInfoStep generates a step that creates aw_info.json with agentic run metadata
-func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
+// generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
+func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
@@ -2438,7 +2462,7 @@ func (c *Compiler) generateAgenticInfoStep(yaml *strings.Builder, data *Workflow
 
 // generateOutputFileSetup generates a step that sets up the GITHUB_AW_OUTPUT environment variable
 func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Setup Agent Output File (GITHUB_AW_OUTPUT)\n")
+	yaml.WriteString("      - name: Setup agent output\n")
 	yaml.WriteString("        id: setup_agent_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
@@ -2464,7 +2488,7 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *Workflow
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Collect agentic output\n")
+	yaml.WriteString("      - name: Collect agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
