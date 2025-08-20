@@ -14,8 +14,12 @@ timeout_minutes: 10
 permissions:
   contents: read
   pull-requests: write
-  issues: read
+  issues: write
   actions: read
+output:
+  issue:
+    title-prefix: "[claude-test] "
+    labels: [claude, automation, haiku]
 tools:
   claude:
     allowed:
