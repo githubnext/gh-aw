@@ -16,9 +16,7 @@ permissions:
   pull-requests: write
   actions: read
 output:
-  issue:
-    title-prefix: "[claude-test] "
-    labels: [claude, automation, haiku]
+  comment: {}
 tools:
   claude:
     allowed:
