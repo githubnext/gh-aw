@@ -33,11 +33,7 @@ func TestListWorkflowsVerbose(t *testing.T) {
 
 func TestAddWorkflow(t *testing.T) {
 	// Clean up any existing .github/workflows for this test
-	defer func() {
-		if err := os.RemoveAll(".github"); err != nil {
-			t.Logf("Warning: Failed to clean up .github directory: %v", err)
-		}
-	}()
+	defer os.RemoveAll(".github")
 
 	tests := []struct {
 		name        string
@@ -92,11 +88,7 @@ func TestAddWorkflowForce(t *testing.T) {
 
 func TestCompileWorkflows(t *testing.T) {
 	// Clean up any existing .github/workflows for this test
-	defer func() {
-		if err := os.RemoveAll(".github"); err != nil {
-			t.Logf("Warning: Failed to clean up .github directory: %v", err)
-		}
-	}()
+	defer os.RemoveAll(".github")
 
 	tests := []struct {
 		name         string
@@ -174,11 +166,7 @@ func TestRunWorkflowOnGitHub(t *testing.T) {
 }
 
 func TestAllCommandsExist(t *testing.T) {
-	defer func() {
-		if err := os.RemoveAll(".github"); err != nil {
-			t.Logf("Warning: Failed to clean up .github directory: %v", err)
-		}
-	}()
+	defer os.RemoveAll(".github")
 
 	// Test that all expected functions exist and can be called
 	// This helps ensure the interface is stable
@@ -211,11 +199,7 @@ func TestAllCommandsExist(t *testing.T) {
 
 func TestAddWorkflowWithPR(t *testing.T) {
 	// Clean up any existing .github/workflows for this test
-	defer func() {
-		if err := os.RemoveAll(".github"); err != nil {
-			t.Logf("Warning: Failed to clean up .github directory: %v", err)
-		}
-	}()
+	defer os.RemoveAll(".github")
 
 	// Test with nonexistent workflow (should fail early due to workflow not found or repo access)
 	err := AddWorkflowWithRepoAndPR("nonexistent-workflow", 1, false, "", "", "", false)
@@ -244,11 +228,7 @@ func TestInstallPackage(t *testing.T) {
 
 	// Mock the getPackagesDir function by temporarily changing directory
 	originalDir, _ := os.Getwd()
-	defer func() {
-		if err := os.Chdir(originalDir); err != nil {
-			t.Logf("Warning: Failed to restore working directory: %v", err)
-		}
-	}()
+	defer os.Chdir(originalDir)
 
 	tests := []struct {
 		name        string
@@ -450,12 +430,8 @@ func TestNewWorkflow(t *testing.T) {
 			expectedError: true,
 			setup: func(t *testing.T) {
 				// Create an existing workflow file
-				if err := os.MkdirAll(".github/workflows", 0755); err != nil {
-					t.Fatalf("Failed to create workflows directory: %v", err)
-				}
-				if err := os.WriteFile(".github/workflows/existing-workflow.md", []byte("test"), 0644); err != nil {
-					t.Fatalf("Failed to create existing workflow file: %v", err)
-				}
+				os.MkdirAll(".github/workflows", 0755)
+				os.WriteFile(".github/workflows/existing-workflow.md", []byte("test"), 0644)
 			},
 		},
 		{
@@ -572,11 +548,7 @@ func TestSetVersionInfo(t *testing.T) {
 // Test AddWorkflowWithRepo function
 func TestAddWorkflowWithRepo(t *testing.T) {
 	// Clean up any existing .github/workflows for this test
-	defer func() {
-		if err := os.RemoveAll(".github"); err != nil {
-			t.Logf("Warning: Failed to clean up .github directory: %v", err)
-		}
-	}()
+	defer os.RemoveAll(".github")
 
 	tests := []struct {
 		name        string

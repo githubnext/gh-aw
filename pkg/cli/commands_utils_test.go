@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -454,5 +455,585 @@ Final content.`
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = findIncludesInContent(content, "", false)
+	}
+}
+
+func TestCopyMarkdownFiles(t *testing.T) {
+	tests := []struct {
+		name           string
+		sourceFiles    map[string]string // path -> content
+		expectedTarget map[string]string // relative path -> content
+		verbose        bool
+		expectError    bool
+	}{
+		{
+			name: "copy single markdown file",
+			sourceFiles: map[string]string{
+				"workflow.md": `# Test Workflow
+This is a test workflow.`,
+			},
+			expectedTarget: map[string]string{
+				"workflow.md": `# Test Workflow
+This is a test workflow.`,
+			},
+			verbose:     false,
+			expectError: false,
+		},
+		{
+			name: "copy multiple markdown files",
+			sourceFiles: map[string]string{
+				"daily.md": `# Daily Workflow
+Daily tasks`,
+				"weekly.md": `# Weekly Workflow
+Weekly tasks`,
+			},
+			expectedTarget: map[string]string{
+				"daily.md": `# Daily Workflow
+Daily tasks`,
+				"weekly.md": `# Weekly Workflow
+Weekly tasks`,
+			},
+			verbose:     false,
+			expectError: false,
+		},
+		{
+			name: "copy markdown files in subdirectories",
+			sourceFiles: map[string]string{
+				"workflows/daily.md": `# Daily
+Content`,
+				"workflows/weekly.md": `# Weekly
+Content`,
+				"shared/utils.md": `# Utils
+Shared content`,
+			},
+			expectedTarget: map[string]string{
+				"workflows/daily.md": `# Daily
+Content`,
+				"workflows/weekly.md": `# Weekly
+Content`,
+				"shared/utils.md": `# Utils
+Shared content`,
+			},
+			verbose:     true,
+			expectError: false,
+		},
+		{
+			name: "skip non-markdown files",
+			sourceFiles: map[string]string{
+				"workflow.md": `# Test Workflow`,
+				"config.yaml": `name: test`,
+				"readme.txt":  `This is a readme`,
+				"script.sh":   `#!/bin/bash\necho "hello"`,
+			},
+			expectedTarget: map[string]string{
+				"workflow.md": `# Test Workflow`,
+			},
+			verbose:     false,
+			expectError: false,
+		},
+		{
+			name: "handle empty source directory",
+			sourceFiles: map[string]string{
+				"not-markdown.txt": `This won't be copied`,
+			},
+			expectedTarget: map[string]string{},
+			verbose:        false,
+			expectError:    false,
+		},
+		{
+			name: "copy nested markdown files with complex structure",
+			sourceFiles: map[string]string{
+				"level1/workflow1.md":               `# Level 1 Workflow 1`,
+				"level1/level2/workflow2.md":        `# Level 2 Workflow 2`,
+				"level1/level2/level3/workflow3.md": `# Level 3 Workflow 3`,
+				"other.txt":                         `Not copied`,
+			},
+			expectedTarget: map[string]string{
+				"level1/workflow1.md":               `# Level 1 Workflow 1`,
+				"level1/level2/workflow2.md":        `# Level 2 Workflow 2`,
+				"level1/level2/level3/workflow3.md": `# Level 3 Workflow 3`,
+			},
+			verbose:     false,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary source and target directories
+			sourceDir := t.TempDir()
+			targetDir := t.TempDir()
+
+			// Create source files
+			for path, content := range tt.sourceFiles {
+				fullPath := filepath.Join(sourceDir, path)
+				// Create directory if needed
+				dir := filepath.Dir(fullPath)
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatalf("Failed to create source directory %s: %v", dir, err)
+				}
+				// Write file
+				if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+					t.Fatalf("Failed to create source file %s: %v", fullPath, err)
+				}
+			}
+
+			// Test the function
+			err := copyMarkdownFiles(sourceDir, targetDir, tt.verbose)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+				return
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+					return
+				}
+			}
+
+			// Verify expected files were copied
+			for expectedPath, expectedContent := range tt.expectedTarget {
+				fullTargetPath := filepath.Join(targetDir, expectedPath)
+
+				// Check if file exists
+				if _, err := os.Stat(fullTargetPath); os.IsNotExist(err) {
+					t.Errorf("Expected file %s was not copied", expectedPath)
+					continue
+				}
+
+				// Check file content
+				content, err := os.ReadFile(fullTargetPath)
+				if err != nil {
+					t.Errorf("Failed to read copied file %s: %v", expectedPath, err)
+					continue
+				}
+
+				if string(content) != expectedContent {
+					t.Errorf("File %s content mismatch:\nExpected: %q\nGot: %q",
+						expectedPath, expectedContent, string(content))
+				}
+			}
+
+			// Verify no unexpected files were copied (check that only .md files exist)
+			err = filepath.Walk(targetDir, func(path string, info os.FileInfo, walkErr error) error {
+				if walkErr != nil {
+					return walkErr
+				}
+
+				if !info.IsDir() {
+					relPath, err := filepath.Rel(targetDir, path)
+					if err != nil {
+						return err
+					}
+
+					// All files in target should be .md files
+					if !strings.HasSuffix(relPath, ".md") {
+						t.Errorf("Unexpected non-markdown file copied: %s", relPath)
+					}
+				}
+				return nil
+			})
+
+			if err != nil {
+				t.Errorf("Error walking target directory: %v", err)
+			}
+		})
+	}
+}
+
+func TestCopyMarkdownFiles_ErrorScenarios(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func() (sourceDir, targetDir string, cleanup func())
+		expectError bool
+		errorText   string
+	}{
+		{
+			name: "nonexistent source directory",
+			setup: func() (string, string, func()) {
+				targetDir := t.TempDir()
+				return "/nonexistent/source", targetDir, func() {}
+			},
+			expectError: true,
+			errorText:   "no such file or directory",
+		},
+		{
+			name: "permission denied on target directory",
+			setup: func() (string, string, func()) {
+				sourceDir := t.TempDir()
+				targetDir := t.TempDir()
+
+				// Create a source file
+				sourceFile := filepath.Join(sourceDir, "test.md")
+				os.WriteFile(sourceFile, []byte("# Test"), 0644)
+
+				// Make target directory read-only
+				os.Chmod(targetDir, 0444)
+
+				cleanup := func() {
+					os.Chmod(targetDir, 0755) // Restore permissions for cleanup
+				}
+
+				return sourceDir, targetDir, cleanup
+			},
+			expectError: true,
+			errorText:   "permission denied",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sourceDir, targetDir, cleanup := tt.setup()
+			defer cleanup()
+
+			err := copyMarkdownFiles(sourceDir, targetDir, false)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if tt.errorText != "" && !containsIgnoreCase(err.Error(), tt.errorText) {
+					t.Errorf("Expected error containing %q, got: %v", tt.errorText, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+func TestIsRunnable(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		expected    bool
+		expectError bool
+	}{
+		{
+			name: "workflow with schedule trigger",
+			content: `---
+on:
+  schedule:
+    - cron: "0 9 * * *"
+---
+# Test Workflow
+This workflow runs on schedule.`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "workflow with workflow_dispatch trigger",
+			content: `---
+on:
+  workflow_dispatch:
+---
+# Manual Workflow
+This workflow can be triggered manually.`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "workflow with both schedule and workflow_dispatch",
+			content: `---
+on:
+  schedule:
+    - cron: "0 9 * * 1"  
+  workflow_dispatch:
+  push:
+    branches: [main]
+---
+# Mixed Triggers Workflow`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "workflow with only push trigger (not runnable)",
+			content: `---
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+---
+# CI Workflow
+This is not runnable via schedule or manual dispatch.`,
+			expected:    false,
+			expectError: false,
+		},
+		{
+			name: "workflow with no 'on' section (defaults to runnable)",
+			content: `---
+name: Default Workflow
+---
+# Default Workflow
+No on section means it defaults to runnable.`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "workflow with cron trigger (alternative schedule format)",
+			content: `---
+on:
+  cron: "0 */6 * * *"
+---
+# Cron Workflow
+Uses cron format directly.`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "case insensitive schedule detection",
+			content: `---
+on:
+  SCHEDULE:
+    - cron: "0 12 * * 0"
+---
+# Case Test Workflow`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "case insensitive workflow_dispatch detection",
+			content: `---
+on:
+  WORKFLOW_DISPATCH:
+---
+# Case Test Manual Workflow`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "complex on section with schedule buried in text",
+			content: `---
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 0"  # Weekly
+  issues:
+    types: [opened]
+---
+# Complex Workflow`,
+			expected:    true,
+			expectError: false,
+		},
+		{
+			name: "empty on section (not runnable)",
+			content: `---
+on: {}
+---
+# Empty On Section`,
+			expected:    false,
+			expectError: false,
+		},
+		{
+			name: "malformed frontmatter",
+			content: `---
+invalid yaml structure {
+on:
+  schedule
+---
+# Malformed YAML`,
+			expected:    false,
+			expectError: true,
+		},
+		{
+			name: "no frontmatter at all (defaults to runnable)",
+			content: `# Simple Markdown
+This file has no frontmatter.
+Just plain markdown content.`,
+			expected:    true,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary test file
+			tmpDir := t.TempDir()
+			filePath := filepath.Join(tmpDir, "test-workflow.md")
+
+			err := os.WriteFile(filePath, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to create test file: %v", err)
+			}
+
+			// Test the function
+			result, err := IsRunnable(filePath)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("Expected %v, got %v", tt.expected, result)
+				}
+			}
+		})
+	}
+}
+
+func TestIsRunnable_FileErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		filePath  string
+		expectErr bool
+	}{
+		{
+			name:      "nonexistent file",
+			filePath:  "/nonexistent/path/workflow.md",
+			expectErr: true,
+		},
+		{
+			name:      "empty file path",
+			filePath:  "",
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := IsRunnable(tt.filePath)
+
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+				// Result should be false when there's an error
+				if result {
+					t.Errorf("Expected false result on error, got true")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestFindMatchingLockFile(t *testing.T) {
+	// Change to a temporary directory and create .github/workflows structure
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	err = os.Chdir(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+	defer func() {
+		os.Chdir(originalDir)
+	}()
+
+	// Create .github/workflows directory
+	workflowsDir := ".github/workflows"
+	err = os.MkdirAll(workflowsDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Set up test lock files
+	lockFiles := []string{
+		"daily-test-coverage.lock.yml",
+		"weekly-research.lock.yml",
+		"monthly-report.lock.yml",
+		"my_custom_daily.lock.yml",
+		"complex-workflow-name.lock.yml",
+		"simple.lock.yml",
+		"another-test.lock.yml",
+		"test-integration.lock.yml",
+	}
+
+	for _, fileName := range lockFiles {
+		filePath := filepath.Join(workflowsDir, fileName)
+		err := os.WriteFile(filePath, []byte("# Mock lock file content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create lock file %s: %v", fileName, err)
+		}
+	}
+
+	tests := []struct {
+		name         string
+		workflowName string
+		verbose      bool
+		expected     string
+	}{
+		{
+			name:         "exact suffix match with underscore",
+			workflowName: "daily",
+			verbose:      false,
+			expected:     "my_custom_daily.lock.yml",
+		},
+		{
+			name:         "contains match when no suffix match",
+			workflowName: "test",
+			verbose:      false,
+			expected:     "another-test.lock.yml", // First match found (alphabetical order)
+		},
+		{
+			name:         "no match found",
+			workflowName: "nonexistent",
+			verbose:      false,
+			expected:     "",
+		},
+		{
+			name:         "exact filename match",
+			workflowName: "simple",
+			verbose:      false,
+			expected:     "simple.lock.yml",
+		},
+		{
+			name:         "complex workflow name match",
+			workflowName: "complex-workflow-name",
+			verbose:      false,
+			expected:     "complex-workflow-name.lock.yml",
+		},
+		{
+			name:         "partial match at beginning",
+			workflowName: "daily",
+			verbose:      true,                       // Test verbose mode
+			expected:     "my_custom_daily.lock.yml", // Suffix match takes priority
+		},
+		{
+			name:         "multiple possible matches - suffix priority",
+			workflowName: "test",
+			verbose:      false,
+			expected:     "another-test.lock.yml", // Contains match (suffix match not found, alphabetical order)
+		},
+		{
+			name:         "case sensitive matching",
+			workflowName: "Daily",
+			verbose:      false,
+			expected:     "", // Should not match "daily"
+		},
+		{
+			name:         "empty workflow name",
+			workflowName: "",
+			verbose:      false,
+			expected:     "another-test.lock.yml", // First file that contains empty string (alphabetical order)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := findMatchingLockFile(tt.workflowName, tt.verbose)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
 	}
 }

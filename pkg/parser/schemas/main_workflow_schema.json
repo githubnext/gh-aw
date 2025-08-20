@@ -39,7 +39,52 @@
             },
             "push": {
               "description": "Push event trigger",
-              "additionalProperties": true
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "branches": {
+                  "type": "array", 
+                  "description": "Branches to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "branches-ignore": {
+                  "type": "array",
+                  "description": "Branches to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths": {
+                  "type": "array",
+                  "description": "Paths to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths-ignore": {
+                  "type": "array",
+                  "description": "Paths to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "description": "Tags to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags-ignore": {
+                  "type": "array",
+                  "description": "Tags to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
             },
             "pull_request": {
               "description": "Pull request event trigger",
@@ -85,15 +130,37 @@
                   "description": "Filter by draft state. Set to false to ignore draft PRs"
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             },
             "issues": {
               "description": "Issues event trigger",
-              "additionalProperties": true
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of issue events",
+                  "items": {
+                    "type": "string",
+                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
+                  }
+                }
+              }
             },
             "issue_comment": {
               "description": "Issue comment event trigger",
-              "additionalProperties": true
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of issue comment events",
+                  "items": {
+                    "type": "string",
+                    "enum": ["created", "edited", "deleted"]
+                  }
+                }
+              }
             },
             "schedule": {
               "type": "array",
@@ -106,54 +173,148 @@
                     "description": "Cron expression for schedule"
                   }
                 },
-                "additionalProperties": true
+                "required": ["cron"],
+                "additionalProperties": false
               }
             },
             "workflow_dispatch": {
               "description": "Manual workflow dispatch trigger",
-              "additionalProperties": true
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple workflow dispatch trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "inputs": {
+                      "type": "object",
+                      "description": "Input parameters for manual dispatch",
+                      "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "description": {
+                            "type": "string",
+                            "description": "Input description"
+                          },
+                          "required": {
+                            "type": "boolean",
+                            "description": "Whether input is required"
+                          },
+                          "default": {
+                            "type": "string",
+                            "description": "Default value"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["string", "choice", "boolean"],
+                            "description": "Input type"
+                          },
+                          "options": {
+                            "type": "array",
+                            "description": "Options for choice type",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
             },
             "workflow_run": {
               "description": "Workflow run trigger",
-              "additionalProperties": true
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "workflows": {
+                  "type": "array",
+                  "description": "List of workflows to trigger on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "types": {
+                  "type": "array",
+                  "description": "Types of workflow run events",
+                  "items": {
+                    "type": "string",
+                    "enum": ["completed", "requested"]
+                  }
+                },
+                "branches": {
+                  "type": "array",
+                  "description": "Branches to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "branches-ignore": {
+                  "type": "array",
+                  "description": "Branches to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
             },
             "release": {
               "description": "Release event trigger",
-              "additionalProperties": true
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of release events",
+                  "items": {
+                    "type": "string",
+                    "enum": ["published", "unpublished", "created", "edited", "deleted", "prereleased", "released"]
+                  }
+                }
+              }
+            },
+            "pull_request_review_comment": {
+              "description": "Pull request review comment event trigger",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of pull request review comment events",
+                  "items": {
+                    "type": "string",
+                    "enum": ["created", "edited", "deleted"]
+                  }
+                }
+              }
             }
           },
-          "additionalProperties": true
+          "additionalProperties": false
         }
       ]
     },
     "permissions": {
-      "description": "Permissions for the workflow",
+      "description": "You can modify the default permissions granted to the GITHUB_TOKEN, adding or removing access as required, so that you only allow the minimum required access.",
       "oneOf": [
         {
           "type": "string",
+          "enum": ["read-all", "write-all", "read", "write"],
           "description": "Simple permissions string"
         },
         {
           "type": "object",
           "description": "Detailed permissions object",
+          "additionalProperties": false,
           "properties": {
-            "contents": {
-              "type": "string",
-              "enum": ["read", "write", "none"]
-            },
-            "issues": {
-              "type": "string", 
-              "enum": ["read", "write", "none"]
-            },
-            "pull-requests": {
-              "type": "string",
-              "enum": ["read", "write", "none"]
-            },
-            "discussions": {
-              "type": "string",
-              "enum": ["read", "write", "none"]
-            },
             "actions": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
+            },
+            "attestations": {
               "type": "string",
               "enum": ["read", "write", "none"]
             },
@@ -161,11 +322,7 @@
               "type": "string",
               "enum": ["read", "write", "none"]
             },
-            "statuses": {
-              "type": "string",
-              "enum": ["read", "write", "none"]
-            },
-            "models": {
+            "contents": {
               "type": "string",
               "enum": ["read", "write", "none"]
             },
@@ -173,18 +330,186 @@
               "type": "string",
               "enum": ["read", "write", "none"]
             },
+            "discussions": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
+            },
+            "id-token": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
+            },
+            "issues": {
+              "type": "string", 
+              "enum": ["read", "write", "none"]
+            },
+            "models": {
+              "type": "string",
+              "enum": ["read", "none"]
+            },
+            "packages": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
+            },
+            "pages": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
+            },
+            "pull-requests": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
+            },
+            "repository-projects": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
+            },
             "security-events": {
               "type": "string",
               "enum": ["read", "write", "none"]
+            },
+            "statuses": {
+              "type": "string",
+              "enum": ["read", "write", "none"]
             }
-          },
-          "additionalProperties": true
+          }
         }
       ]
     },
     "run-name": {
       "type": "string",
       "description": "Custom run name for the workflow"
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Default settings that will apply to all jobs in the workflow",
+      "additionalProperties": false,
+      "properties": {
+        "run": {
+          "type": "object",
+          "description": "Default shell and working directory",
+          "additionalProperties": false,
+          "properties": {
+            "shell": {
+              "type": "string",
+              "description": "Default shell for run steps"
+            },
+            "working-directory": {
+              "type": "string",
+              "description": "Default working directory for run steps"
+            }
+          }
+        }
+      }
+    },
+    "jobs": {
+      "type": "object",
+      "description": "Groups together all the jobs that run in the workflow",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Job definition",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the job"
+          },
+          "runs-on": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Runner type as string"
+              },
+              {
+                "type": "array",
+                "description": "Runner type as array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "description": "Runner type as object",
+                "additionalProperties": false
+              }
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "description": "Job steps",
+            "items": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "if": {
+            "type": "string",
+            "description": "Conditional execution for the job"
+          },
+          "needs": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Single job dependency"
+              },
+              {
+                "type": "array",
+                "description": "Multiple job dependencies",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "env": {
+            "type": "object",
+            "description": "Environment variables for the job",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "$ref": "#/properties/permissions"
+          },
+          "timeout-minutes": {
+            "type": "integer",
+            "description": "Job timeout in minutes"
+          },
+          "strategy": {
+            "type": "object",
+            "description": "Matrix strategy for the job",
+            "additionalProperties": false
+          },
+          "continue-on-error": {
+            "type": "boolean",
+            "description": "Continue workflow on job failure"
+          },
+          "container": {
+            "type": "object",
+            "description": "Container to run the job in",
+            "additionalProperties": false
+          },
+          "services": {
+            "type": "object",
+            "description": "Service containers for the job",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "outputs": {
+            "type": "object",
+            "description": "Job outputs",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "defaults": {
+            "$ref": "#/properties/defaults"
+          },
+          "concurrency": {
+            "$ref": "#/properties/concurrency"
+          }
+        }
+      }
     },
     "runs-on": {
       "oneOf": [
@@ -202,7 +527,20 @@
         {
           "type": "object",
           "description": "Runner type as object",
-          "additionalProperties": true
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "Runner group"
+            },
+            "labels": {
+              "type": "array",
+              "description": "Runner labels",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       ]
     },
@@ -219,7 +557,18 @@
         {
           "type": "object",
           "description": "Concurrency configuration object",
-          "additionalProperties": true
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "Concurrency group name"
+            },
+            "cancel-in-progress": {
+              "type": "boolean",
+              "description": "Cancel in-progress jobs in the same concurrency group"
+            }
+          },
+          "required": ["group"]
         }
       ]
     },
@@ -243,11 +592,49 @@
     },
     "steps": {
       "description": "Custom workflow steps",
-      "additionalProperties": true
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          }
+        }
+      ]
     },
     "post-steps": {
       "description": "Custom workflow steps to run after AI execution",
-      "additionalProperties": true
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          }
+        }
+      ]
     },
     "engine": {
       "description": "AI engine configuration",
@@ -282,7 +669,45 @@
     },
     "claude": {
       "description": "Claude-specific configuration",
-      "additionalProperties": true
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Claude model to use"
+        },
+        "version": {
+          "type": "string",
+          "description": "Claude version"
+        },
+        "allowed": {
+          "description": "Allowed Claude tools",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
     },
     "tools": {
       "type": "object",
@@ -305,9 +730,17 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "use_docker_mcp": {
+                  "type": "boolean",
+                  "description": "Whether to use Docker MCP for GitHub tools"
+                },
+                "docker_image_version": {
+                  "type": "string",
+                  "description": "Docker image version for GitHub MCP server"
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             }
           ]
         },
@@ -333,12 +766,24 @@
                     },
                     {
                       "type": "object",
-                      "additionalProperties": true
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        ]
+                      }
                     }
                   ]
                 }
               },
-              "additionalProperties": true
+              "additionalProperties": false
             }
           ]
         }
@@ -366,7 +811,7 @@
                 }
               }
             },
-            "additionalProperties": true
+            "additionalProperties": false
           }
         ]
       }

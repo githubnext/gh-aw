@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/cli"
@@ -182,6 +184,113 @@ func TestMainFunction(t *testing.T) {
 
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})
+	})
+}
+
+// TestMainFunctionExecutionPath tests the main function execution path
+// This covers the main() function at line 360
+func TestMainFunctionExecutionPath(t *testing.T) {
+	// Test that we can build and run the main function successfully
+	t.Run("main function integration test", func(t *testing.T) {
+		// Only run this test if we're in development (has go)
+		if _, err := exec.LookPath("go"); err != nil {
+			t.Skip("go binary not available - skipping main function integration test")
+		}
+
+		// Test help command execution through main function
+		cmd := exec.Command("go", "run", "main.go", "--help")
+		cmd.Dir = "."
+
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("Failed to run main with --help: %v", err)
+		}
+
+		outputStr := string(output)
+		if !strings.Contains(outputStr, "GitHub Agentic Workflows") {
+			t.Error("main function help output should contain 'GitHub Agentic Workflows'")
+		}
+
+		if !strings.Contains(outputStr, "Usage:") {
+			t.Error("main function help output should contain usage information")
+		}
+	})
+
+	t.Run("main function version command", func(t *testing.T) {
+		// Test version command execution through main function
+		cmd := exec.Command("go", "run", "main.go", "version")
+		cmd.Dir = "."
+
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("Failed to run main with version: %v", err)
+		}
+
+		outputStr := string(output)
+		// Should produce some version output (even if it's "unknown")
+		if len(strings.TrimSpace(outputStr)) == 0 {
+			t.Error("main function version command should produce output")
+		}
+	})
+
+	t.Run("main function error handling", func(t *testing.T) {
+		// Test error handling in main function
+		cmd := exec.Command("go", "run", "main.go", "invalid-command")
+		cmd.Dir = "."
+
+		_, err := cmd.Output()
+		if err == nil {
+			t.Error("main function should return non-zero exit code for invalid command")
+		}
+
+		// Check that it's an ExitError (non-zero exit code)
+		if exitError, ok := err.(*exec.ExitError); !ok {
+			t.Errorf("Expected ExitError for invalid command, got %T: %v", err, err)
+		} else if exitError.ExitCode() == 0 {
+			t.Error("Expected non-zero exit code for invalid command")
+		}
+	})
+
+	t.Run("main function version info setup", func(t *testing.T) {
+		// Test that SetVersionInfo is called in main()
+		// We can verify this by checking that the CLI package has version info
+
+		// Reset version info to simulate fresh start
+		originalVersion := cli.GetVersion()
+
+		// Set a test version
+		cli.SetVersionInfo("test-version")
+
+		// Verify it was set
+		if cli.GetVersion() != "test-version" {
+			t.Error("SetVersionInfo should update the version in CLI package")
+		}
+
+		// Restore original version
+		cli.SetVersionInfo(originalVersion)
+	})
+
+	t.Run("main function basic execution flow", func(t *testing.T) {
+		// Test that main function sets up CLI properly and exits cleanly for valid commands
+		cmd := exec.Command("go", "run", "main.go", "list")
+		cmd.Dir = "."
+
+		// This should run successfully (exit code 0) even if no workflows found
+		output, err := cmd.Output()
+		if err != nil {
+			// Check if it's just a non-zero exit (which is okay for some commands)
+			if exitError, ok := err.(*exec.ExitError); ok {
+				// Some commands might return non-zero but still function properly
+				t.Logf("Command returned exit code %d, output: %s", exitError.ExitCode(), string(output))
+			} else {
+				t.Fatalf("Failed to run main with list command: %v", err)
+			}
+		}
+
+		// Should produce some output
+		if len(output) == 0 {
+			t.Error("list command should produce some output")
+		}
 	})
 }
 

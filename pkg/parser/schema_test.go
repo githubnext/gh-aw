@@ -279,6 +279,197 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr:     true,
 			errContains: "missing property 'key'",
 		},
+		// Test cases for additional properties validation
+		{
+			name: "invalid permissions with additional property",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"contents":     "read",
+					"invalid_perm": "write",
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_perm' not allowed",
+		},
+		{
+			name: "invalid on trigger with additional properties",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches":     []string{"main"},
+						"invalid_prop": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid schedule with additional properties",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []map[string]any{
+						{
+							"cron":         "0 9 * * *",
+							"invalid_prop": "value",
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid workflow_dispatch with additional properties",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_dispatch": map[string]any{
+						"inputs": map[string]any{
+							"test_input": map[string]any{
+								"description": "Test input",
+								"type":        "string",
+							},
+						},
+						"invalid_prop": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid concurrency with additional properties",
+			frontmatter: map[string]any{
+				"concurrency": map[string]any{
+					"group":              "test-group",
+					"cancel-in-progress": true,
+					"invalid_prop":       "value",
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid runs-on object with additional properties",
+			frontmatter: map[string]any{
+				"runs-on": map[string]any{
+					"group":        "test-group",
+					"labels":       []string{"ubuntu-latest"},
+					"invalid_prop": "value",
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid github tools with additional properties",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed":      []string{"create_issue"},
+						"invalid_prop": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid claude tools with additional properties",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"claude": map[string]any{
+						"allowed":      []string{"WebFetch"},
+						"invalid_prop": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid custom tool with additional properties",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"customTool": map[string]any{
+						"allowed": []string{"function1"},
+						"mcp": map[string]any{
+							"type":    "stdio",
+							"command": "my-tool",
+						},
+						"invalid_prop": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid claude configuration with additional properties",
+			frontmatter: map[string]any{
+				"claude": map[string]any{
+					"model":        "claude-3",
+					"invalid_prop": "value",
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "invalid output configuration with additional properties",
+			frontmatter: map[string]any{
+				"output": map[string]any{
+					"issue": map[string]any{
+						"title-prefix": "[ai] ",
+						"invalid_prop": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
+		{
+			name: "valid new GitHub Actions properties - permissions with new properties",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"contents":            "read",
+					"attestations":        "write",
+					"id-token":            "write",
+					"packages":            "read",
+					"pages":               "write",
+					"repository-projects": "none",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid GitHub Actions defaults property",
+			frontmatter: map[string]any{
+				"on": "push",
+				"defaults": map[string]any{
+					"run": map[string]any{
+						"shell":             "bash",
+						"working-directory": "/app",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid defaults with additional properties",
+			frontmatter: map[string]any{
+				"defaults": map[string]any{
+					"run": map[string]any{
+						"shell":        "bash",
+						"invalid_prop": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_prop' not allowed",
+		},
 	}
 
 	for _, tt := range tests {
