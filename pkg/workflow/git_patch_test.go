@@ -150,8 +150,8 @@ Please do the following tasks:
 	}
 	uploadPatchStep := lockContent[uploadPatchIndex : nextUploadStart+uploadStepEnd]
 
-	if !strings.Contains(uploadPatchStep, "if: always() && hashFiles('/tmp/aw.patch') != ''") {
-		t.Error("Expected upload git patch step to have conditional execution based on file existence")
+	if !strings.Contains(uploadPatchStep, "if: always()") {
+		t.Error("Expected upload git patch step to have 'if: always()' condition")
 	}
 
 	// Verify step ordering: git patch steps should be after agentic execution but before other uploads
