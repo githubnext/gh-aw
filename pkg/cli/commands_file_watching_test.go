@@ -23,7 +23,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		defer os.Chdir(oldDir)
 
 		compiler := &workflow.Compiler{}
-		
+
 		err := watchAndCompileWorkflows("", compiler, false, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should require git repository")
@@ -48,7 +48,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		}
 
 		compiler := &workflow.Compiler{}
-		
+
 		err := watchAndCompileWorkflows("", compiler, false, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should require .github/workflows directory")
@@ -75,7 +75,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		os.MkdirAll(workflowsDir, 0755)
 
 		compiler := &workflow.Compiler{}
-		
+
 		err := watchAndCompileWorkflows("nonexistent.md", compiler, false, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should error for nonexistent specific file")
@@ -106,7 +106,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		os.WriteFile(testFile, []byte("# Test Workflow\n\nTest content"), 0644)
 
 		compiler := &workflow.Compiler{}
-		
+
 		// Test that function can be set up (we'll use a context to cancel quickly)
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
@@ -139,7 +139,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		os.MkdirAll(workflowsDir, 0755)
 
 		compiler := &workflow.Compiler{}
-		
+
 		err := compileAllWorkflowFiles(compiler, workflowsDir, true, false)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles should handle empty directory: %v", err)
@@ -179,9 +179,9 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 	t.Run("compile all handles glob error", func(t *testing.T) {
 		// Use a malformed glob pattern that will cause filepath.Glob to error
 		invalidDir := "/tmp/[invalid"
-		
+
 		compiler := &workflow.Compiler{}
-		
+
 		err := compileAllWorkflowFiles(compiler, invalidDir, false, false)
 		if err == nil {
 			t.Error("compileAllWorkflowFiles should handle glob errors")
@@ -242,9 +242,9 @@ func TestCompileModifiedFiles(t *testing.T) {
 		// Create test files with different modification times
 		file1 := filepath.Join(workflowsDir, "recent.md")
 		file2 := filepath.Join(workflowsDir, "old.md")
-		
+
 		content := "---\nengine: claude\n---\n# Test\n\nTest content"
-		
+
 		os.WriteFile(file1, []byte(content), 0644)
 		os.WriteFile(file2, []byte(content), 0644)
 
@@ -255,12 +255,12 @@ func TestCompileModifiedFiles(t *testing.T) {
 		compiler := workflow.NewCompiler(false, "", "test")
 
 		// Test with recent files - compileModifiedFiles takes a slice of files
-		modifiedFiles := []string{file1}  // Only include the recent file
+		modifiedFiles := []string{file1} // Only include the recent file
 		compileModifiedFiles(compiler, modifiedFiles, true, false)
-		
+
 		// Check that the recent file was compiled
 		recentLock := filepath.Join(workflowsDir, "recent.lock.yml")
-		
+
 		if _, err := os.Stat(recentLock); os.IsNotExist(err) {
 			t.Error("Recent file should have been compiled")
 		}
@@ -329,7 +329,7 @@ func TestHandleFileDeleted(t *testing.T) {
 
 	t.Run("handle deleted non-markdown file", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Test with a non-markdown file
 		txtFile := filepath.Join(tempDir, "test.txt")
 
@@ -371,7 +371,11 @@ func TestHandleFileDeleted(t *testing.T) {
 		// Create a lock file in a read-only directory (simulate permission error)
 		readOnlyDir := filepath.Join(tempDir, "readonly")
 		os.MkdirAll(readOnlyDir, 0555) // read-only
-		defer os.Chmod(readOnlyDir, 0755) // restore permissions for cleanup
+		defer func() {
+			if err := os.Chmod(readOnlyDir, 0755); err != nil {
+				t.Errorf("Failed to restore permissions: %v", err)
+			}
+		}() // restore permissions for cleanup
 
 		markdownFile := filepath.Join(readOnlyDir, "readonly-test.md")
 

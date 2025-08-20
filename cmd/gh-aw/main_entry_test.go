@@ -200,7 +200,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		// Test help command execution through main function
 		cmd := exec.Command("go", "run", "main.go", "--help")
 		cmd.Dir = "."
-		
+
 		output, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("Failed to run main with --help: %v", err)
@@ -220,7 +220,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		// Test version command execution through main function
 		cmd := exec.Command("go", "run", "main.go", "version")
 		cmd.Dir = "."
-		
+
 		output, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("Failed to run main with version: %v", err)
@@ -237,7 +237,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		// Test error handling in main function
 		cmd := exec.Command("go", "run", "main.go", "invalid-command")
 		cmd.Dir = "."
-		
+
 		_, err := cmd.Output()
 		if err == nil {
 			t.Error("main function should return non-zero exit code for invalid command")
@@ -254,18 +254,18 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 	t.Run("main function version info setup", func(t *testing.T) {
 		// Test that SetVersionInfo is called in main()
 		// We can verify this by checking that the CLI package has version info
-		
+
 		// Reset version info to simulate fresh start
 		originalVersion := cli.GetVersion()
-		
+
 		// Set a test version
 		cli.SetVersionInfo("test-version")
-		
+
 		// Verify it was set
 		if cli.GetVersion() != "test-version" {
 			t.Error("SetVersionInfo should update the version in CLI package")
 		}
-		
+
 		// Restore original version
 		cli.SetVersionInfo(originalVersion)
 	})
@@ -274,7 +274,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		// Test that main function sets up CLI properly and exits cleanly for valid commands
 		cmd := exec.Command("go", "run", "main.go", "list")
 		cmd.Dir = "."
-		
+
 		// This should run successfully (exit code 0) even if no workflows found
 		output, err := cmd.Output()
 		if err != nil {
@@ -286,7 +286,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 				t.Fatalf("Failed to run main with list command: %v", err)
 			}
 		}
-		
+
 		// Should produce some output
 		if len(output) == 0 {
 			t.Error("list command should produce some output")
