@@ -59,7 +59,7 @@ async function main() {
     console.log('Detected issue context, parent issue #' + parentIssueNumber);
 
     // Add reference to parent issue in the child issue body
-    bodyLines.push(`Related to #${parentIssueNumber}`;
+    bodyLines.push(`Related to #${parentIssueNumber}`);
   }
 
   // Add AI disclaimer with run id, run htmlurl

@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as crypto from "crypto";
-import { execSync } from "child_process":
+import { execSync } from "child_process";
 
 async function main() {
 
