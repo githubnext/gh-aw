@@ -140,6 +140,11 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected if-no-files-found: warn configuration for artifact upload")
 	}
 
+	// Verify the upload step condition checks for non-empty output
+	if !strings.Contains(lockContent, "if: always() && steps.collect_output.outputs.output != ''") {
+		t.Error("Expected upload step to check for non-empty output from collection step")
+	}
+
 	// Verify step order: setup should come before agentic execution, collection should come after
 	setupIndex := strings.Index(lockContent, "- name: Setup Agent Output File (GITHUB_AW_OUTPUT)")
 	executeIndex := strings.Index(lockContent, "- name: Execute Claude Code")
