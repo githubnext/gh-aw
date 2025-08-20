@@ -503,6 +503,31 @@
           }
         }
       ]
+    },
+    "output": {
+      "type": "object",
+      "description": "Output configuration for automatic output routes",
+      "properties": {
+        "issue": {
+          "type": "object",
+          "description": "Configuration for creating GitHub issues from agent output",
+          "properties": {
+            "title-prefix": {
+              "type": "string",
+              "description": "Optional prefix for the issue title"
+            },
+            "labels": {
+              "type": "array",
+              "description": "Optional list of labels to attach to the issue",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

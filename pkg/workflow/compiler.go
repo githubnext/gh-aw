@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -98,6 +99,9 @@ var computeTextActionTemplate string
 
 //go:embed templates/check_team_member.yaml
 var checkTeamMemberTemplate string
+
+//go:embed js/create_issue.js
+var createIssueScript string
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
@@ -208,6 +212,18 @@ type WorkflowData struct {
 	Jobs             map[string]any // custom job configurations with dependencies
 	Cache            string         // cache configuration
 	NeedsTextOutput  bool           // whether the workflow uses ${{ needs.task.outputs.text }}
+	Output           *OutputConfig  // output configuration for automatic output routes
+}
+
+// OutputConfig holds configuration for automatic output routes
+type OutputConfig struct {
+	Issue *IssueConfig `yaml:"issue,omitempty"`
+}
+
+// IssueConfig holds configuration for creating GitHub issues from agent output
+type IssueConfig struct {
+	TitlePrefix string   `yaml:"title-prefix,omitempty"`
+	Labels      []string `yaml:"labels,omitempty"`
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -676,6 +692,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Alias = c.extractAliasName(result.Frontmatter)
 	workflowData.AIReaction = c.extractYAMLValue(result.Frontmatter, "ai-reaction")
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
+
+	// Parse output configuration
+	workflowData.Output = c.extractOutputConfig(result.Frontmatter)
 
 	// Check if "alias" is used as a trigger in the "on" section
 	var hasAlias bool
@@ -1525,6 +1544,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
 
+	// Build create_output_issue job if output.issue is configured
+	if data.Output != nil && data.Output.Issue != nil {
+		createIssueJob, err := c.buildCreateOutputIssueJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build create_output_issue job: %w", err)
+		}
+		if err := c.jobManager.AddJob(createIssueJob); err != nil {
+			return fmt.Errorf("failed to add create_output_issue job: %w", err)
+		}
+	}
+
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -1623,6 +1653,58 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 		Steps:       steps,
 		Outputs:     outputs,
 		Depends:     []string{"task"}, // Depend on the task job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputIssueJob creates the create_output_issue job
+func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
+	if data.Output == nil || data.Output.Issue == nil {
+		return nil, fmt.Errorf("output.issue configuration is required")
+	}
+
+	// Generate the JavaScript script for creating the issue
+	script, err := c.renderCreateIssueScript(data.Output.Issue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render issue creation script: %w", err)
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create Output Issue\n")
+	steps = append(steps, "        id: create_issue\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+	
+	// Add each line of the script with proper indentation
+	scriptLines := strings.Split(script, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) == "" {
+			steps = append(steps, "\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"issue_number": "${{ steps.create_issue.outputs.issue_number }}",
+		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
+	}
+
+	// Determine the main job name to depend on
+	mainJobName := c.generateJobName(data.Name)
+
+	job := &Job{
+		Name:           "create_output_issue",
+		If:             "", // No conditional execution
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      issues: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -1968,6 +2050,47 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 		}
 	}
 	return make(map[string]any)
+}
+
+// extractOutputConfig extracts output configuration from frontmatter
+func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig {
+	if output, exists := frontmatter["output"]; exists {
+		if outputMap, ok := output.(map[string]any); ok {
+			config := &OutputConfig{}
+			
+			// Parse issue configuration
+			if issue, exists := outputMap["issue"]; exists {
+				if issueMap, ok := issue.(map[string]any); ok {
+					issueConfig := &IssueConfig{}
+					
+					// Parse title-prefix
+					if titlePrefix, exists := issueMap["title-prefix"]; exists {
+						if titlePrefixStr, ok := titlePrefix.(string); ok {
+							issueConfig.TitlePrefix = titlePrefixStr
+						}
+					}
+					
+					// Parse labels
+					if labels, exists := issueMap["labels"]; exists {
+						if labelsArray, ok := labels.([]any); ok {
+							var labelStrings []string
+							for _, label := range labelsArray {
+								if labelStr, ok := label.(string); ok {
+									labelStrings = append(labelStrings, labelStr)
+								}
+							}
+							issueConfig.Labels = labelStrings
+						}
+					}
+					
+					config.Issue = issueConfig
+				}
+			}
+			
+			return config
+		}
+	}
+	return nil
 }
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
@@ -2362,4 +2485,30 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Ag
 	// For now, we rely on JSON schema validation for format checking
 
 	return nil
+}
+
+// renderCreateIssueScript renders the JavaScript template for creating GitHub issues
+func (c *Compiler) renderCreateIssueScript(config *IssueConfig) (string, error) {
+	// Create template functions
+	funcMap := template.FuncMap{
+		"toJSON": func(v interface{}) string {
+			jsonBytes, _ := json.Marshal(v)
+			return string(jsonBytes)
+		},
+	}
+
+	// Parse the JavaScript template
+	tmpl, err := template.New("create_issue").Funcs(funcMap).Parse(createIssueScript)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse JavaScript template: %w", err)
+	}
+
+	// Render the template with the issue configuration
+	var buffer strings.Builder
+	err = tmpl.Execute(&buffer, config)
+	if err != nil {
+		return "", fmt.Errorf("failed to render JavaScript template: %w", err)
+	}
+
+	return buffer.String(), nil
 }
