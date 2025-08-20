@@ -412,6 +412,10 @@ jobs:
       - name: Generate git patch of changes
         if: always()
         run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          
           # Stage any unstaged files
           git add -A || true
           
@@ -421,23 +425,21 @@ jobs:
           # Check if there are any changes since the initial commit
           if git diff --quiet "$INITIAL_SHA" HEAD; then
             echo "No changes detected since initial commit"
-            # Create an empty patch file to indicate no changes
-            echo "No changes since commit $INITIAL_SHA" > /tmp/aw.patch
+            echo "Skipping patch generation - no changes to create patch from"
           else
             echo "Changes detected, generating patch..."
             # Generate patch from initial commit to current state
             git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
+            echo "Patch file created at /tmp/aw.patch"
+            ls -la /tmp/aw.patch
           fi
-          
-          echo "Patch file created at /tmp/aw.patch"
-          ls -la /tmp/aw.patch
       - name: Upload git patch
-        if: always()
+        if: always() && hashFiles('/tmp/aw.patch') != ''
         uses: actions/upload-artifact@v4
         with:
           name: aw.patch
           path: /tmp/aw.patch
-          if-no-files-found: warn
+          if-no-files-found: ignore
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |

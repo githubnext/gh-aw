@@ -56,6 +56,10 @@ Please do the following tasks:
 	}
 
 	// Verify the git patch step contains the expected commands
+	if !strings.Contains(lockContent, "git status") {
+		t.Error("Expected 'git status' command in git patch step")
+	}
+
 	if !strings.Contains(lockContent, "git add -A || true") {
 		t.Error("Expected 'git add -A || true' command in git patch step")
 	}
@@ -70,6 +74,11 @@ Please do the following tasks:
 
 	if !strings.Contains(lockContent, "/tmp/aw.patch") {
 		t.Error("Expected '/tmp/aw.patch' path in git patch step")
+	}
+
+	// Verify it skips patch generation when no changes
+	if !strings.Contains(lockContent, "Skipping patch generation - no changes to create patch from") {
+		t.Error("Expected message about skipping patch generation when no changes")
 	}
 
 	// Verify git patch upload step exists
@@ -91,6 +100,10 @@ Please do the following tasks:
 		t.Error("Expected artifact path '/tmp/aw.patch' in upload step")
 	}
 
+	if !strings.Contains(lockContent, "if-no-files-found: ignore") {
+		t.Error("Expected 'if-no-files-found: ignore' in upload step")
+	}
+
 	// Verify the git patch step runs with 'if: always()'
 	gitPatchIndex := strings.Index(lockContent, "- name: Generate git patch of changes")
 	if gitPatchIndex == -1 {
@@ -109,7 +122,7 @@ Please do the following tasks:
 		t.Error("Expected git patch step to have 'if: always()' condition")
 	}
 
-	// Verify the upload step also runs with 'if: always()'
+	// Verify the upload step runs with conditional logic for file existence
 	uploadPatchIndex := strings.Index(lockContent, "- name: Upload git patch")
 	if uploadPatchIndex == -1 {
 		t.Fatal("Upload git patch step not found")
@@ -123,8 +136,8 @@ Please do the following tasks:
 	}
 	uploadPatchStep := lockContent[uploadPatchIndex : nextUploadStart+uploadStepEnd]
 
-	if !strings.Contains(uploadPatchStep, "if: always()") {
-		t.Error("Expected upload git patch step to have 'if: always()' condition")
+	if !strings.Contains(uploadPatchStep, "if: always() && hashFiles('/tmp/aw.patch') != ''") {
+		t.Error("Expected upload git patch step to have conditional execution based on file existence")
 	}
 
 	// Verify step ordering: git patch steps should be after agentic execution but before other uploads
