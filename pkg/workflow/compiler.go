@@ -1949,6 +1949,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
                 subnetCIDR, squidIP, _ := computeProxyNetworkParams(toolName)
                 yaml.WriteString(fmt.Sprintf("          echo 'Enforcing egress to proxy for %s (subnet %s, squid %s)'\n", toolName, subnetCIDR, squidIP))
                 yaml.WriteString("          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi\n")
+                // Accept established/related connections first (before REJECT)
+                yaml.WriteString("          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT\n")
+                // Accept all egress from Squid IP (before REJECT)
+                yaml.WriteString(fmt.Sprintf("          $SUDO iptables -C DOCKER-USER -s %s -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER -s %s -j ACCEPT\n", squidIP, squidIP))
                 // Allow traffic to squid:3128 from the subnet
                 yaml.WriteString(fmt.Sprintf("          $SUDO iptables -C DOCKER-USER -s %s -d %s -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER -s %s -d %s -p tcp --dport 3128 -j ACCEPT\n", subnetCIDR, squidIP, subnetCIDR, squidIP))
                 // Then reject all other egress from that subnet

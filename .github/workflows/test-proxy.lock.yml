@@ -188,6 +188,8 @@ jobs:
           docker compose -f docker-compose-fetch.yml up -d squid-proxy
           echo 'Enforcing egress to proxy for fetch (subnet 172.28.179.0/24, squid 172.28.179.10)'
           if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi
+          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+          $SUDO iptables -C DOCKER-USER -s 172.28.179.10 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER -s 172.28.179.10 -j ACCEPT
           $SUDO iptables -C DOCKER-USER -s 172.28.179.0/24 -d 172.28.179.10 -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER -s 172.28.179.0/24 -d 172.28.179.10 -p tcp --dport 3128 -j ACCEPT
           $SUDO iptables -C DOCKER-USER -s 172.28.179.0/24 -j REJECT 2>/dev/null || $SUDO iptables -I DOCKER-USER -s 172.28.179.0/24 -j REJECT
       - name: Setup MCPs
