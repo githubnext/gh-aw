@@ -1,3 +1,8 @@
+// Required Node.js modules
+const fs = require('fs');
+const crypto = require('crypto');
+const { execSync } = require('child_process');
+
 // Read the agent output content from environment variable
 const outputContent = process.env.AGENT_OUTPUT_CONTENT;
 if (!outputContent) {
@@ -62,46 +67,32 @@ console.log('Creating pull request with title:', title);
 console.log('Labels:', labels);
 console.log('Body length:', body.length);
 
-// Generate unique branch name based on timestamp and title
-const timestamp = Date.now();
-const sanitizedTitle = title.toLowerCase()
-  .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-  .replace(/\s+/g, '-') // Replace spaces with hyphens
-  .substring(0, 30); // Limit length
-const branchName = `agent-pr-${timestamp}-${sanitizedTitle}`;
+// Generate unique branch name using cryptographic random hex
+const randomHex = crypto.randomBytes(8).toString('hex');
+const workflowId = process.env.GITHUB_AW_WORKFLOW_ID || 'workflow';
+const branchName = `${workflowId}/${randomHex}`;
 
 console.log('Generated branch name:', branchName);
 
-// Get the current default branch to use as base
-const { data: repo } = await github.rest.repos.get({
-  owner: context.repo.owner,
-  repo: context.repo.repo
-});
-const baseBranch = repo.default_branch;
+// Get the base branch from environment variable
+const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+if (!baseBranch) {
+  throw new Error('GITHUB_AW_BASE_BRANCH environment variable is required');
+}
 
 console.log('Base branch:', baseBranch);
 
-// Get the SHA of the base branch
-const { data: baseRef } = await github.rest.git.getRef({
-  owner: context.repo.owner,
-  repo: context.repo.repo,
-  ref: `heads/${baseBranch}`
-});
-const baseSha = baseRef.object.sha;
-
-console.log('Base SHA:', baseSha);
-
-// Create a new branch
+// Create a new branch using git CLI
 try {
-  await github.rest.git.createRef({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    ref: `refs/heads/${branchName}`,
-    sha: baseSha
-  });
-  console.log('Created branch:', branchName);
+  // Configure git (required for commits)
+  execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
+  execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
+  
+  // Create and checkout new branch
+  execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
+  console.log('Created and checked out branch:', branchName);
 } catch (error) {
-  console.error('Failed to create branch:', error.message);
+  console.error('Failed to create branch with git CLI:', error.message);
   throw error;
 }
 
@@ -110,7 +101,6 @@ try {
 // The actual patch application would require downloading the artifact and applying it
 
 // Check if patch file exists and apply it
-const fs = require('fs');
 let patchApplied = false;
 
 try {
@@ -122,7 +112,6 @@ try {
       console.log('Valid patch content found, applying patch...');
       
       // Apply the patch using git apply
-      const { execSync } = require('child_process');
       try {
         execSync('git apply /tmp/aw.patch', { stdio: 'inherit' });
         console.log('Patch applied successfully');
@@ -134,39 +123,32 @@ try {
           console.log('Patch applied successfully with git am');
           patchApplied = true;
         } catch (amError) {
-          console.log('Failed to apply patch with git am, will create manual commit:', amError.message);
+          console.log('Failed to apply patch with git am:', amError.message);
+          throw new Error(`Failed to apply patch: ${amError.message}`);
         }
       }
     } else {
-      console.log('Patch file is empty or contains error message, skipping patch application');
+      console.log('Patch file is empty or contains error message');
+      throw new Error('Patch file is empty or contains error message - cannot create pull request without changes');
     }
   } else {
-    console.log('No patch file found at /tmp/aw.patch, will create manual commit');
+    console.log('No patch file found at /tmp/aw.patch');
+    throw new Error('No patch file found - cannot create pull request without changes');
   }
 } catch (error) {
-  console.log('Error checking for patch file:', error.message);
+  console.error('Error handling patch file:', error.message);
+  throw error;
 }
 
-// If patch wasn't applied, create a simple file to demonstrate the branch has changes
-if (!patchApplied) {
+// Commit the changes if patch was applied
+if (patchApplied) {
   try {
-    // Create a simple file to demonstrate the branch has changes
-    const fileContent = `# Agent Output\n\n${body}\n\nGenerated on: ${new Date().toISOString()}\n`;
-    const encodedContent = Buffer.from(fileContent).toString('base64');
-    
-    // Create a file in the new branch
-    await github.rest.repos.createOrUpdateFileContents({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      path: 'agent-output.md',
-      message: `Add agent output: ${title}`,
-      content: encodedContent,
-      branch: branchName
-    });
-    
-    console.log('Created file in branch');
+    execSync('git add .', { stdio: 'inherit' });
+    execSync(`git commit -m "Add agent output: ${title}"`, { stdio: 'inherit' });
+    execSync(`git push origin ${branchName}`, { stdio: 'inherit' });
+    console.log('Changes committed and pushed');
   } catch (error) {
-    console.error('Failed to create file in branch:', error.message);
+    console.error('Failed to commit and push changes:', error.message);
     throw error;
   }
 }

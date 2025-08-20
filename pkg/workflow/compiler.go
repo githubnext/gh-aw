@@ -1564,7 +1564,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 
 	// Build create_output_issue job if output.issue is configured
 	if data.Output != nil && data.Output.Issue != nil {
-		createIssueJob, err := c.buildCreateOutputIssueJob(data)
+		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_output_issue job: %w", err)
 		}
@@ -1575,7 +1575,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 
 	// Build create_issue_comment job if output.comment is configured
 	if data.Output != nil && data.Output.Comment != nil {
-		createCommentJob, err := c.buildCreateOutputCommentJob(data)
+		createCommentJob, err := c.buildCreateOutputCommentJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
 		}
@@ -1586,7 +1586,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 
 	// Build create_pull_request job if output.pull-request is configured
 	if data.Output != nil && data.Output.PullRequest != nil {
-		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data)
+		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_pull_request job: %w", err)
 		}
@@ -1699,7 +1699,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildCreateOutputIssueJob creates the create_output_issue job
-func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.Issue == nil {
 		return nil, fmt.Errorf("output.issue configuration is required")
 	}
@@ -1708,9 +1708,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 	steps = append(steps, "      - name: Create Output Issue\n")
 	steps = append(steps, "        id: create_issue\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
-
-	// Determine the main job name to get output from
-	mainJobName := c.generateJobName(data.Name)
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -1758,7 +1755,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildCreateOutputCommentJob creates the create_issue_comment job
-func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.Comment == nil {
 		return nil, fmt.Errorf("output.comment configuration is required")
 	}
@@ -1767,9 +1764,6 @@ func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData) (*Job, error)
 	steps = append(steps, "      - name: Create Output Comment\n")
 	steps = append(steps, "        id: create_comment\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
-
-	// Determine the main job name to get output from
-	mainJobName := c.generateJobName(data.Name)
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -1810,7 +1804,7 @@ func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData) (*Job, error)
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
-func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.PullRequest == nil {
 		return nil, fmt.Errorf("output.pull-request configuration is required")
 	}
@@ -1835,13 +1829,14 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData) (*Job, er
 	steps = append(steps, "        id: create_pull_request\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 
-	// Determine the main job name to get output from
-	mainJobName := c.generateJobName(data.Name)
-
 	// Add environment variables
 	steps = append(steps, "        env:\n")
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_CONTENT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Pass the workflow ID for branch naming
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_ID: %q\n", mainJobName))
+	// Pass the base branch from GitHub context
+	steps = append(steps, "          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 	if data.Output.PullRequest.TitlePrefix != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.Output.PullRequest.TitlePrefix))
 	}
