@@ -1,22 +1,12 @@
-const fs = require('fs');
-
-// Read the agent output from the environment variable
-const outputFile = process.env.GITHUB_AW_OUTPUT;
-if (!outputFile) {
-  console.log('No GITHUB_AW_OUTPUT environment variable found');
+// Read the agent output content from environment variable
+const outputContent = process.env.AGENT_OUTPUT_CONTENT;
+if (!outputContent) {
+  console.log('No AGENT_OUTPUT_CONTENT environment variable found');
   return;
 }
 
-// Check if the output file exists
-if (!fs.existsSync(outputFile)) {
-  console.log('Output file does not exist:', outputFile);
-  return;
-}
-
-// Read the output content
-const outputContent = fs.readFileSync(outputFile, 'utf8');
 if (outputContent.trim() === '') {
-  console.log('Output file is empty');
+  console.log('Agent output content is empty');
   return;
 }
 

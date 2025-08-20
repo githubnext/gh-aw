@@ -1668,8 +1668,13 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 	steps = append(steps, "        id: create_issue\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 
+	// Determine the main job name to get output from
+	mainJobName := c.generateJobName(data.Name)
+
 	// Add environment variables
 	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_CONTENT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	if data.Output.Issue.TitlePrefix != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.Output.Issue.TitlePrefix))
 	}
@@ -1696,9 +1701,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData) (*Job, error) {
 		"issue_number": "${{ steps.create_issue.outputs.issue_number }}",
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
-
-	// Determine the main job name to depend on
-	mainJobName := c.generateJobName(data.Name)
 
 	job := &Job{
 		Name:           "create_output_issue",
