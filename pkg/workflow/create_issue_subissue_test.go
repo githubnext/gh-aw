@@ -14,34 +14,24 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 		t.Error("Expected create_issue.js to check for parent issue context")
 	}
 
-	// Test that the script uses GraphQL to get parent issue ID
-	if !strings.Contains(createIssueScript, "repository(owner: $owner, name: $repo) {") {
-		t.Error("Expected create_issue.js to use GraphQL to get parent issue")
-	}
-
-	// Test that the script uses GraphQL createIssue mutation with parentIssueId
-	if !strings.Contains(createIssueScript, "parentIssueId: $parentIssueId") {
-		t.Error("Expected create_issue.js to use parentIssueId in createIssue mutation")
-	}
-
-	// Test that the script has fallback to REST API with text reference
-	if !strings.Contains(createIssueScript, "Error creating sub-issue with GraphQL, falling back") {
-		t.Error("Expected create_issue.js to have fallback error handling")
-	}
-
-	// Test that the fallback still adds text reference for compatibility
+	// Test that the script modifies the body when in issue context
 	if !strings.Contains(createIssueScript, "Related to #${parentIssueNumber}") {
-		t.Error("Expected create_issue.js fallback to add parent issue reference to body")
+		t.Error("Expected create_issue.js to add parent issue reference to body")
+	}
+
+	// Test that the script creates a comment on the parent issue
+	if !strings.Contains(createIssueScript, "github.rest.issues.createComment") {
+		t.Error("Expected create_issue.js to create comment on parent issue")
+	}
+
+	// Test that the script has proper error handling for comment creation
+	if !strings.Contains(createIssueScript, "Warning: Could not add comment to parent issue") {
+		t.Error("Expected create_issue.js to have error handling for parent issue comment")
 	}
 
 	// Test console logging for debugging
 	if !strings.Contains(createIssueScript, "Detected issue context, parent issue") {
 		t.Error("Expected create_issue.js to log when issue context is detected")
-	}
-
-	// Test that it logs successful sub-issue creation
-	if !strings.Contains(createIssueScript, "Successfully linked to parent issue") {
-		t.Error("Expected create_issue.js to log successful sub-issue creation")
 	}
 }
 
@@ -97,12 +87,8 @@ Write output to ${{ env.GITHUB_AW_OUTPUT }}.`
 		t.Error("Expected compiled workflow to include subissue detection")
 	}
 
-	if !strings.Contains(lockContent, "parentIssueId: $parentIssueId") {
-		t.Error("Expected compiled workflow to include GraphQL parentIssueId parameter")
-	}
-
-	if !strings.Contains(lockContent, "Successfully linked to parent issue") {
-		t.Error("Expected compiled workflow to include success logging for sub-issue creation")
+	if !strings.Contains(lockContent, "Created related issue: #${issue.number}") {
+		t.Error("Expected compiled workflow to include parent issue comment")
 	}
 
 	// Verify it still has the standard create_output_issue job structure

@@ -64,161 +64,43 @@ console.log('Body length:', body.length);
 
 // Check if we're in an issue context (triggered by an issue event)
 const parentIssueNumber = context.payload?.issue?.number;
-let issue;
+let finalBody = body;
 
 if (parentIssueNumber) {
   console.log('Detected issue context, parent issue #' + parentIssueNumber);
   
-  try {
-    // Get the parent issue's GraphQL node ID
-    const parentIssueQuery = `
-      query($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) {
-            id
-          }
-        }
-      }
-    `;
-    
-    const parentIssueResult = await github.graphql(parentIssueQuery, {
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      number: parentIssueNumber
-    });
-    
-    const parentIssueId = parentIssueResult.repository.issue.id;
-    console.log('Found parent issue GraphQL ID:', parentIssueId);
-    
-    // Get the repository's GraphQL node ID
-    const repoQuery = `
-      query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          id
-        }
-      }
-    `;
-    
-    const repoResult = await github.graphql(repoQuery, {
-      owner: context.repo.owner,
-      repo: context.repo.repo
-    });
-    
-    const repositoryId = repoResult.repository.id;
-    console.log('Found repository GraphQL ID:', repositoryId);
-    
-    // Create the issue as a sub-issue using GraphQL mutation
-    const createIssueMutation = `
-      mutation($repositoryId: ID!, $title: String!, $body: String, $labelIds: [ID!], $parentIssueId: ID!) {
-        createIssue(input: {
-          repositoryId: $repositoryId,
-          title: $title,
-          body: $body,
-          labelIds: $labelIds,
-          parentIssueId: $parentIssueId
-        }) {
-          issue {
-            id
-            number
-            url
-          }
-        }
-      }
-    `;
-    
-    // Get label IDs if labels are specified
-    let labelIds = [];
-    if (labels && labels.length > 0) {
-      const labelsQuery = `
-        query($owner: String!, $repo: String!) {
-          repository(owner: $owner, name: $repo) {
-            labels(first: 100) {
-              nodes {
-                id
-                name
-              }
-            }
-          }
-        }
-      `;
-      
-      const labelsResult = await github.graphql(labelsQuery, {
-        owner: context.repo.owner,
-        repo: context.repo.repo
-      });
-      
-      const availableLabels = labelsResult.repository.labels.nodes;
-      labelIds = labels
-        .map(label => availableLabels.find(l => l.name.toLowerCase() === label.toLowerCase())?.id)
-        .filter(id => id);
-      
-      console.log('Found label IDs:', labelIds);
-    }
-    
-    const createIssueResult = await github.graphql(createIssueMutation, {
-      repositoryId: repositoryId,
-      title: title,
-      body: body || '',
-      labelIds: labelIds,
-      parentIssueId: parentIssueId
-    });
-    
-    issue = {
-      number: createIssueResult.createIssue.issue.number,
-      html_url: createIssueResult.createIssue.issue.url,
-      id: createIssueResult.createIssue.issue.id
-    };
-    
-    console.log('Created sub-issue #' + issue.number + ': ' + issue.html_url);
-    console.log('Successfully linked to parent issue #' + parentIssueNumber);
-    
-  } catch (error) {
-    console.log('Error creating sub-issue with GraphQL, falling back to regular issue creation:', error.message);
-    
-    // Fallback to regular issue creation with text reference
-    let finalBody = body;
-    if (finalBody.trim()) {
-      finalBody = `Related to #${parentIssueNumber}\n\n${finalBody}`;
-    } else {
-      finalBody = `Related to #${parentIssueNumber}`;
-    }
-    
-    const issueResult = await github.rest.issues.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      title: title,
-      body: finalBody,
-      labels: labels
-    });
-    
-    issue = issueResult.data;
-    console.log('Created regular issue #' + issue.number + ': ' + issue.html_url);
-    
-    // Add a comment to the parent issue
-    try {
-      await github.rest.issues.createComment({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: parentIssueNumber,
-        body: `Created related issue: #${issue.number}`
-      });
-      console.log('Added comment to parent issue #' + parentIssueNumber);
-    } catch (commentError) {
-      console.log('Warning: Could not add comment to parent issue:', commentError.message);
-    }
+  // Add reference to parent issue in the child issue body
+  if (finalBody.trim()) {
+    finalBody = `Related to #${parentIssueNumber}\n\n${finalBody}`;
+  } else {
+    finalBody = `Related to #${parentIssueNumber}`;
   }
-} else {
-  // No parent issue context, create a regular issue
-  const issueResult = await github.rest.issues.create({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    title: title,
-    body: body,
-    labels: labels
-  });
-  
-  issue = issueResult.data;
-  console.log('Created issue #' + issue.number + ': ' + issue.html_url);
+}
+
+// Create the issue using GitHub API
+const { data: issue } = await github.rest.issues.create({
+  owner: context.repo.owner,
+  repo: context.repo.repo,
+  title: title,
+  body: finalBody,
+  labels: labels
+});
+
+console.log('Created issue #' + issue.number + ': ' + issue.html_url);
+
+// If we have a parent issue, add a comment to it referencing the new child issue
+if (parentIssueNumber) {
+  try {
+    await github.rest.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: parentIssueNumber,
+      body: `Created related issue: #${issue.number}`
+    });
+    console.log('Added comment to parent issue #' + parentIssueNumber);
+  } catch (error) {
+    console.log('Warning: Could not add comment to parent issue:', error.message);
+  }
 }
 
 // Set output for other jobs to use
