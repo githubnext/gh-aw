@@ -396,11 +396,11 @@ jobs:
           echo "Base commit SHA: $INITIAL_SHA"
           # Show compact diff information between initial commit and staged files
           echo "Showing compact diff between initial commit and current state:"
-          git diff --stat "$INITIAL_SHA" HEAD || true
+          git diff --stat --cached "$INITIAL_SHA" || true
           echo "---"
           # Check if there are any changes since the initial commit
-          if git diff --quiet "$INITIAL_SHA" HEAD; then
-            echo "No changes detected since initial commit"
+          if git diff --quiet --cached "$INITIAL_SHA" && git diff --quiet "$INITIAL_SHA" HEAD; then
+            echo "No changes detected since initial commit (staged or committed)"
             echo "Skipping patch generation - no changes to create patch from"
           else
             echo "Changes detected, generating patch..."
