@@ -530,6 +530,24 @@
           "type": "object",
           "description": "Configuration for creating GitHub issue/PR comments from agent output",
           "additionalProperties": false
+        },
+        "pull-request": {
+          "type": "object",
+          "description": "Configuration for creating GitHub pull requests from agent output",
+          "properties": {
+            "title-prefix": {
+              "type": "string",
+              "description": "Optional prefix for the pull request title"
+            },
+            "labels": {
+              "type": "array",
+              "description": "Optional list of labels to attach to the pull request",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

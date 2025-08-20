@@ -105,6 +105,9 @@ var createIssueScript string
 //go:embed js/create_comment.js
 var createCommentScript string
 
+//go:embed js/create_pull_request.js
+var createPullRequestScript string
+
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
 	verbose        bool
@@ -219,8 +222,9 @@ type WorkflowData struct {
 
 // OutputConfig holds configuration for automatic output routes
 type OutputConfig struct {
-	Issue   *IssueConfig   `yaml:"issue,omitempty"`
-	Comment *CommentConfig `yaml:"comment,omitempty"`
+	Issue       *IssueConfig       `yaml:"issue,omitempty"`
+	Comment     *CommentConfig     `yaml:"comment,omitempty"`
+	PullRequest *PullRequestConfig `yaml:"pull-request,omitempty"`
 }
 
 // IssueConfig holds configuration for creating GitHub issues from agent output
@@ -232,6 +236,12 @@ type IssueConfig struct {
 // CommentConfig holds configuration for creating GitHub issue/PR comments from agent output
 type CommentConfig struct {
 	// Empty struct for now, as per requirements, but structured for future expansion
+}
+
+// PullRequestConfig holds configuration for creating GitHub pull requests from agent output
+type PullRequestConfig struct {
+	TitlePrefix string   `yaml:"title-prefix,omitempty"`
+	Labels      []string `yaml:"labels,omitempty"`
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1574,6 +1584,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
+	// Build create_pull_request job if output.pull-request is configured
+	if data.Output != nil && data.Output.PullRequest != nil {
+		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build create_pull_request job: %w", err)
+		}
+		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
+			return fmt.Errorf("failed to add create_pull_request job: %w", err)
+		}
+	}
+
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -1779,6 +1800,81 @@ func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData) (*Job, error)
 		If:             "if: github.event.issue.number || github.event.pull_request.number", // Only run in issue or PR context
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputPullRequestJob creates the create_pull_request job
+func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData) (*Job, error) {
+	if data.Output == nil || data.Output.PullRequest == nil {
+		return nil, fmt.Errorf("output.pull-request configuration is required")
+	}
+
+	var steps []string
+
+	// Step 1: Download patch artifact
+	steps = append(steps, "      - name: Download patch artifact\n")
+	steps = append(steps, "        uses: actions/download-artifact@v4\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          name: aw.patch\n")
+	steps = append(steps, "          path: /tmp/\n")
+
+	// Step 2: Checkout repository
+	steps = append(steps, "      - name: Checkout repository\n")
+	steps = append(steps, "        uses: actions/checkout@v4\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          fetch-depth: 0\n")
+
+	// Step 3: Create pull request
+	steps = append(steps, "      - name: Create Pull Request\n")
+	steps = append(steps, "        id: create_pull_request\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Determine the main job name to get output from
+	mainJobName := c.generateJobName(data.Name)
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_CONTENT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	if data.Output.PullRequest.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.Output.PullRequest.TitlePrefix))
+	}
+	if len(data.Output.PullRequest.Labels) > 0 {
+		labelsStr := strings.Join(data.Output.PullRequest.Labels, ",")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
+	}
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	scriptLines := strings.Split(createPullRequestScript, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) == "" {
+			steps = append(steps, "\n")
+		} else {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"pull_request_number": "${{ steps.create_pull_request.outputs.pull_request_number }}",
+		"pull_request_url":    "${{ steps.create_pull_request.outputs.pull_request_url }}",
+		"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
+	}
+
+	job := &Job{
+		Name:           "create_pull_request",
+		If:             "", // No conditional execution
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
@@ -2200,6 +2296,35 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 				if _, ok := comment.(map[string]any); ok {
 					// For now, CommentConfig is an empty struct
 					config.Comment = &CommentConfig{}
+				}
+			}
+
+			// Parse pull-request configuration
+			if pullRequest, exists := outputMap["pull-request"]; exists {
+				if pullRequestMap, ok := pullRequest.(map[string]any); ok {
+					pullRequestConfig := &PullRequestConfig{}
+
+					// Parse title-prefix
+					if titlePrefix, exists := pullRequestMap["title-prefix"]; exists {
+						if titlePrefixStr, ok := titlePrefix.(string); ok {
+							pullRequestConfig.TitlePrefix = titlePrefixStr
+						}
+					}
+
+					// Parse labels
+					if labels, exists := pullRequestMap["labels"]; exists {
+						if labelsArray, ok := labels.([]any); ok {
+							var labelStrings []string
+							for _, label := range labelsArray {
+								if labelStr, ok := label.(string); ok {
+									labelStrings = append(labelStrings, labelStr)
+								}
+							}
+							pullRequestConfig.Labels = labelStrings
+						}
+					}
+
+					config.PullRequest = pullRequestConfig
 				}
 			}
 
