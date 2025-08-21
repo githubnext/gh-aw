@@ -16,7 +16,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 // FileTracker interface for tracking files created during compilation
@@ -43,38 +42,6 @@ type Compiler struct {
 	jobManager     *JobManager     // Manages jobs and dependencies
 	engineRegistry *EngineRegistry // Registry of available agentic engines
 	fileTracker    FileTracker     // Optional file tracker for tracking created files
-}
-
-// generateSafeFileName converts a workflow name to a safe filename for logs
-func generateSafeFileName(name string) string {
-	// Replace spaces and special characters with hyphens
-	result := strings.ReplaceAll(name, " ", "-")
-	result = strings.ReplaceAll(result, "/", "-")
-	result = strings.ReplaceAll(result, "\\", "-")
-	result = strings.ReplaceAll(result, ":", "-")
-	result = strings.ReplaceAll(result, "*", "-")
-	result = strings.ReplaceAll(result, "?", "-")
-	result = strings.ReplaceAll(result, "\"", "-")
-	result = strings.ReplaceAll(result, "<", "-")
-	result = strings.ReplaceAll(result, ">", "-")
-	result = strings.ReplaceAll(result, "|", "-")
-	result = strings.ReplaceAll(result, "@", "-")
-	result = strings.ToLower(result)
-
-	// Remove multiple consecutive hyphens
-	for strings.Contains(result, "--") {
-		result = strings.ReplaceAll(result, "--", "-")
-	}
-
-	// Trim leading/trailing hyphens
-	result = strings.Trim(result, "-")
-
-	// Ensure it's not empty
-	if result == "" {
-		result = "workflow"
-	}
-
-	return result
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -375,54 +342,6 @@ func (h *httpURLLoader) Load(url string) (any, error) {
 	}
 
 	return result, nil
-}
-
-// validateWorkflowSchema validates the generated YAML content against the GitHub Actions workflow schema
-func (c *Compiler) validateWorkflowSchema(yamlContent string) error {
-	// Convert YAML to JSON for validation
-	var workflowData interface{}
-	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
-		return fmt.Errorf("failed to parse generated YAML: %w", err)
-	}
-
-	// Convert to JSON
-	jsonData, err := json.Marshal(workflowData)
-	if err != nil {
-		return fmt.Errorf("failed to convert YAML to JSON: %w", err)
-	}
-
-	// Load GitHub Actions workflow schema from SchemaStore
-	schemaURL := "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
-
-	// Create compiler with HTTP loader
-	loader := jsonschema.NewCompiler()
-	httpLoader := &httpURLLoader{
-		client: &http.Client{Timeout: 30 * time.Second},
-	}
-
-	// Configure the compiler to use HTTP loader for https and http schemes
-	schemeLoader := jsonschema.SchemeURLLoader{
-		"https": httpLoader,
-		"http":  httpLoader,
-	}
-	loader.UseLoader(schemeLoader)
-
-	schema, err := loader.Compile(schemaURL)
-	if err != nil {
-		return fmt.Errorf("failed to load GitHub Actions schema from %s: %w", schemaURL, err)
-	}
-
-	// Validate the JSON data against the schema
-	var jsonObj interface{}
-	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON for validation: %w", err)
-	}
-
-	if err := schema.Validate(jsonObj); err != nil {
-		return fmt.Errorf("workflow schema validation failed: %w", err)
-	}
-
-	return nil
 }
 
 // parseWorkflowFile parses a markdown workflow file and extracts all necessary data
@@ -1048,20 +967,6 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 	existingCondition := strings.TrimPrefix(data.If, "if: ")
 	conditionTree := buildConditionTree(existingCondition, draftCondition.Render())
 	data.If = fmt.Sprintf("if: %s", conditionTree.Render())
-}
-
-// extractToolsFromFrontmatter extracts tools section from frontmatter map
-func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
-	tools, exists := frontmatter["tools"]
-	if !exists {
-		return make(map[string]any)
-	}
-
-	if toolsMap, ok := tools.(map[string]any); ok {
-		return toolsMap
-	}
-
-	return make(map[string]any)
 }
 
 // mergeTools merges two tools maps, combining allowed arrays when keys coincide
@@ -1919,94 +1824,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	engine.RenderMCPConfig(yaml, tools, mcpTools)
 }
 
-func getGitHubDockerImageVersion(githubTool any) string {
-	githubDockerImageVersion := "sha-45e90ae" // Default Docker image version
-	// Extract docker_image_version setting from tool properties
-	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
-			if stringValue, ok := versionSetting.(string); ok {
-				githubDockerImageVersion = stringValue
-			}
-		}
-	}
-	return githubDockerImageVersion
-}
-
-// writeSharedAction writes a shared action file, creating directories as needed and updating only if content differs
-func (c *Compiler) writeSharedAction(markdownPath string, actionPath string, content string, actionName string) error {
-	// Get git root to write action relative to it, fallback to markdown directory for tests
-	gitRoot := filepath.Dir(markdownPath)
-	for {
-		if _, err := os.Stat(filepath.Join(gitRoot, ".git")); err == nil {
-			break
-		}
-		parent := filepath.Dir(gitRoot)
-		if parent == gitRoot {
-			// Reached filesystem root without finding .git - use markdown directory as fallback
-			gitRoot = filepath.Dir(markdownPath)
-			break
-		}
-		gitRoot = parent
-	}
-
-	actionsDir := filepath.Join(gitRoot, ".github", "actions", actionPath)
-	actionFile := filepath.Join(actionsDir, "action.yml")
-
-	// Create directory if it doesn't exist
-	if err := os.MkdirAll(actionsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create actions directory: %w", err)
-	}
-
-	// Write the action file if it doesn't exist or is different
-	if _, err := os.Stat(actionFile); os.IsNotExist(err) {
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Creating shared %s action: %s", actionName, actionFile)))
-		}
-		if err := os.WriteFile(actionFile, []byte(content), 0644); err != nil {
-			return fmt.Errorf("failed to write %s action: %w", actionName, err)
-		}
-		// Track the created file
-		if c.fileTracker != nil {
-			c.fileTracker.TrackCreated(actionFile)
-		}
-	} else {
-		// Check if the content is different and update if needed
-		existing, err := os.ReadFile(actionFile)
-		if err != nil {
-			return fmt.Errorf("failed to read existing action file: %w", err)
-		}
-		if string(existing) != content {
-			if c.verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Updating shared %s action: %s", actionName, actionFile)))
-			}
-			if err := os.WriteFile(actionFile, []byte(content), 0644); err != nil {
-				return fmt.Errorf("failed to update %s action: %w", actionName, err)
-			}
-			// Track the updated file
-			if c.fileTracker != nil {
-				c.fileTracker.TrackCreated(actionFile)
-			}
-		}
-	}
-
-	return nil
-}
-
-// writeReactionAction writes the shared reaction action if ai-reaction is used
-func (c *Compiler) writeReactionAction(markdownPath string) error {
-	return c.writeSharedAction(markdownPath, "reaction", reactionActionTemplate, "reaction")
-}
-
-// writeComputeTextAction writes the shared compute-text action
-func (c *Compiler) writeComputeTextAction(markdownPath string) error {
-	return c.writeSharedAction(markdownPath, "compute-text", computeTextActionTemplate, "compute-text")
-}
-
-// writeCheckTeamMemberAction writes the shared check-team-member action
-func (c *Compiler) writeCheckTeamMemberAction(markdownPath string) error {
-	return c.writeSharedAction(markdownPath, "check-team-member", checkTeamMemberTemplate, "check-team-member")
-}
-
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Add custom steps or default checkout step
@@ -2624,43 +2441,4 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          path: ${{ env.GITHUB_AW_OUTPUT }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
-}
-
-// validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
-func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine AgenticEngine) error {
-	if engine.SupportsHTTPTransport() {
-		// Engine supports HTTP transport, no validation needed
-		return nil
-	}
-
-	// Engine doesn't support HTTP transport, check for HTTP MCP servers
-	for toolName, toolConfig := range tools {
-		if config, ok := toolConfig.(map[string]any); ok {
-			if hasMcp, mcpType := hasMCPConfig(config); hasMcp && mcpType == "http" {
-				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s' (only stdio transport is supported)", toolName, engine.GetID())
-			}
-		}
-	}
-
-	return nil
-}
-
-// validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
-func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine AgenticEngine) error {
-	// Check if max-turns is specified in the frontmatter
-	_, hasMaxTurns := frontmatter["max-turns"]
-	if !hasMaxTurns {
-		// No max-turns specified, no validation needed
-		return nil
-	}
-
-	// max-turns is specified, check if the engine supports it
-	if !engine.SupportsMaxTurns() {
-		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
-	}
-
-	// Engine supports max-turns - additional validation could be added here if needed
-	// For now, we rely on JSON schema validation for format checking
-
-	return nil
 }
