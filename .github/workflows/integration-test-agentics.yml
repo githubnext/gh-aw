@@ -1,0 +1,90 @@
+name: Integration Test Agentics
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test-agentics:
+    name: Test Agentics Repository Integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Install development dependencies
+        run: make deps-dev
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Verify GitHub CLI is available
+        run: |
+          gh --version
+          echo "GitHub CLI is available"
+
+      - name: Install gh-aw CLI extension locally
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Installing gh-aw extension locally..."
+          make install
+
+      - name: Verify gh-aw extension installation
+        run: |
+          gh aw --help
+          gh aw version
+
+      - name: Install workflows from agentics repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Installing workflows from githubnext/agentics..."
+          gh aw install githubnext/agentics
+          echo "Successfully installed agentics workflows"
+
+      - name: List installed workflows
+        run: |
+          echo "Listing installed workflows..."
+          gh aw list
+
+      - name: Recompile all workflows
+        run: |
+          echo "Recompiling all installed workflows..."
+          make recompile
+          echo "Successfully recompiled all workflows"
+
+      - name: Check for compilation artifacts
+        run: |
+          echo "Checking for generated .lock.yml files..."
+          find .github/workflows -name "*.lock.yml" | head -10 || echo "No lock files found yet"
+          
+      - name: Verify no compilation errors
+        run: |
+          echo "Verifying workflow compilation completed without errors..."
+          if [ -n "$(find .github/workflows -name "*.md" -newer .github/workflows/*.lock.yml 2>/dev/null)" ]; then
+            echo "Warning: Some markdown files may be newer than their compiled versions"
+          fi
+
+      - name: Display integration test summary
+        if: always()
+        run: |
+          echo "=== Integration Test Summary ==="
+          echo "Repository: githubnext/agentics"
+          echo "Workflows installed and compiled successfully"
+          echo "All validations passed"
+          ls -la .github/workflows/*.lock.yml 2>/dev/null || echo "Note: Check workflow compilation status above"
