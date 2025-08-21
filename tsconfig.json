@@ -3,12 +3,13 @@
     "target": "es2022",
     "module": "es2022",
     "lib": ["es2022"],
+    "types": ["node"],
     "allowJs": true,
     "checkJs": true,
     "declaration": false,
     "outDir": "./dist/js",
     "rootDir": "./pkg/workflow/js",
-    "strict": false,
+    "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": false,
@@ -31,10 +32,10 @@
     "typeRoots": ["./node_modules/@types", "./pkg/workflow/js/types"]
   },
   "include": [
-    "pkg/workflow/js/**/*.js",
-    "pkg/workflow/js/**/*.cjs",
-    "pkg/workflow/js/**/*.ts",
-    "pkg/workflow/js/**/*.d.ts"
+    "pkg/workflow/js/create_comment.cjs",
+    "pkg/workflow/js/create_issue.cjs",
+    "pkg/workflow/js/create_pull_request.cjs",
+    "pkg/workflow/js/types/*.d.ts"
   ],
   "exclude": [
     "node_modules",
