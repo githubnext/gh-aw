@@ -63,7 +63,7 @@ deps:
 .PHONY: deps-dev
 deps-dev: deps copy-copilot-to-claude
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	npm install --package-lock-only
+	npm ci
 
 # Run linter
 .PHONY: golint
