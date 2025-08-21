@@ -3,6 +3,7 @@
     "target": "es2022",
     "module": "es2022",
     "lib": ["es2022"],
+    "types": ["node"],
     "allowJs": true,
     "checkJs": true,
     "declaration": false,
