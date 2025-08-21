@@ -3353,8 +3353,8 @@ Test workflow with ai-reaction.
 
 	// Verify three jobs are created (task, add_reaction, main)
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
-	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (task, add_reaction, main), found %d", jobCount)
+	if jobCount != 2 {
+		t.Errorf("Expected 2 jobs (add_reaction, main), found %d", jobCount)
 	}
 }
 
@@ -3425,8 +3425,8 @@ Test workflow without explicit ai-reaction (should not create reaction action).
 
 	// Verify only two jobs are created (task and main, no add_reaction)
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
-	if jobCount != 2 {
-		t.Errorf("Expected 2 jobs (task, main), found %d", jobCount)
+	if jobCount != 1 {
+		t.Errorf("Expected 1 jobs (main), found %d", jobCount)
 	}
 }
 

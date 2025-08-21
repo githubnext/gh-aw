@@ -1459,7 +1459,8 @@ func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
 	// Task job is needed if:
 	// 1. Alias is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
-	return data.Alias != "" || data.NeedsTextOutput
+	// 3. If condition is specified (to handle runtime conditions)
+	return data.Alias != "" || data.NeedsTextOutput || data.If != ""
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
