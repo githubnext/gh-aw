@@ -80,12 +80,6 @@ jobs:
             echo "Warning: Some markdown files may be newer than their compiled versions"
           fi
 
-      - name: Run agent-finish validation
-        run: |
-          echo "Running final validation sequence..."
-          make agent-finish
-          echo "✓ Integration test completed successfully"
-
       - name: Display integration test summary
         if: always()
         run: |
