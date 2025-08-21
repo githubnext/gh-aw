@@ -37,13 +37,6 @@ jobs:
           gh --version
           echo "GitHub CLI is available"
 
-      - name: Set up GitHub token for CLI
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Setting up GitHub CLI authentication"
-          gh auth status || gh auth login --with-token <<< "$GITHUB_TOKEN"
-
       - name: Install gh-aw CLI extension locally
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
