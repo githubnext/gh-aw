@@ -14,7 +14,7 @@ async function main() {
   const parentIssueNumber = context.payload?.issue?.number;
   // Parse labels from environment variable (comma-separated string)
   const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-  const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
+  const labels = labelsEnv ? labelsEnv.split(',').map(/** @param {string} label */ label => label.trim()).filter(/** @param {string} label */ label => label) : [];
 
   // Parse the output to extract title and body
   const lines = outputContent.split('\n');
