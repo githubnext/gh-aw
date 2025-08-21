@@ -37,30 +37,23 @@ jobs:
           gh --version
           echo "GitHub CLI is available"
 
-      - name: Install gh-aw CLI extension locally
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify gh-aw binary
         run: |
-          echo "Installing gh-aw extension locally..."
-          make install
-
-      - name: Verify gh-aw extension installation
-        run: |
-          gh aw --help
-          gh aw version
+          ./gh-aw --help
+          ./gh-aw version
 
       - name: Install workflows from agentics repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Installing workflows from githubnext/agentics..."
-          gh aw install githubnext/agentics
+          ./gh-aw install githubnext/agentics
           echo "Successfully installed agentics workflows"
 
       - name: List installed workflows
         run: |
           echo "Listing installed workflows..."
-          gh aw list
+          ./gh-aw list
 
       - name: Recompile all workflows
         run: |
