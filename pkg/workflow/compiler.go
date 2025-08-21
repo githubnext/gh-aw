@@ -1454,23 +1454,35 @@ func (c *Compiler) generateYAML(data *WorkflowData) (string, error) {
 	return yaml.String(), nil
 }
 
+// isTaskJobNeeded determines if the task job is required
+func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
+	// Task job is needed if:
+	// 1. Alias is configured (for team member checking)
+	// 2. Text output is needed (for compute-text action)
+	return data.Alias != "" || data.NeedsTextOutput
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData) error {
 	// Generate job name from workflow name
 	jobName := c.generateJobName(data.Name)
 
-	// Build task job first (preamble job that handles runtime conditions)
-	taskJob, err := c.buildTaskJob(data)
-	if err != nil {
-		return fmt.Errorf("failed to build task job: %w", err)
-	}
-	if err := c.jobManager.AddJob(taskJob); err != nil {
-		return fmt.Errorf("failed to add task job: %w", err)
+	// Build task job only if actually needed (preamble job that handles runtime conditions)
+	var taskJobCreated bool
+	if c.isTaskJobNeeded(data) {
+		taskJob, err := c.buildTaskJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build task job: %w", err)
+		}
+		if err := c.jobManager.AddJob(taskJob); err != nil {
+			return fmt.Errorf("failed to add task job: %w", err)
+		}
+		taskJobCreated = true
 	}
 
 	// Build add_reaction job only if ai-reaction is configured
 	if data.AIReaction != "" {
-		addReactionJob, err := c.buildAddReactionJob(data)
+		addReactionJob, err := c.buildAddReactionJob(data, taskJobCreated)
 		if err != nil {
 			return fmt.Errorf("failed to build add_reaction job: %w", err)
 		}
@@ -1480,7 +1492,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName)
+	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1531,6 +1543,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 
 // buildTaskJob creates the preamble task job that acts as a barrier for runtime conditions
 func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
+	outputs := map[string]string{}
 	var steps []string
 
 	// Add shallow checkout step to access shared actions
@@ -1571,11 +1584,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, "      - name: Compute current body text\n")
 		steps = append(steps, "        id: compute-text\n")
 		steps = append(steps, "        uses: ./.github/actions/compute-text\n")
-	}
-
-	// Set up outputs
-	outputs := map[string]string{}
-	if data.NeedsTextOutput {
+		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
@@ -1592,7 +1601,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildAddReactionJob creates the add_reaction job
-func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
 	var steps []string
@@ -1611,6 +1620,11 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 		"reaction_id": "${{ steps.react.outputs.reaction-id }}",
 	}
 
+	var depends []string
+	if taskJobCreated {
+		depends = []string{"task"} // Depend on the task job only if it exists
+	}
+
 	job := &Job{
 		Name:        "add_reaction",
 		If:          fmt.Sprintf("if: %s", reactionCondition.Render()),
@@ -1618,7 +1632,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 		Permissions: "permissions:\n      contents: write # Read .github\n      issues: write\n      pull-requests: write",
 		Steps:       steps,
 		Outputs:     outputs,
-		Depends:     []string{"task"}, // Depend on the task job
+		Depends:     depends,
 	}
 
 	return job, nil
@@ -1812,7 +1826,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool) (*Job, error) {
 	var steps []string
 
 	// Build step content using the generateMainJobSteps helper method
@@ -1826,13 +1840,18 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string) (*Job, error
 		steps = append(steps, stepsContent)
 	}
 
+	var depends []string
+	if taskJobCreated {
+		depends = []string{"task"} // Depend on the task job only if it exists
+	}
+
 	job := &Job{
 		Name:        jobName,
 		If:          "", // Remove the If condition since task job handles alias checks
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
-		Depends:     []string{"task"}, // Depend on the task job
+		Depends:     depends,
 		Outputs: map[string]string{
 			"output": "${{ steps.collect_output.outputs.output }}",
 		},

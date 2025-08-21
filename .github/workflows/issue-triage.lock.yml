@@ -18,18 +18,7 @@ concurrency:
 run-name: "Agentic Triage"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-          fetch-depth: 1
-
   agentic-triage:
-    needs: task
     runs-on: ubuntu-latest
     permissions:
       actions: read

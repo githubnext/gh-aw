@@ -21,18 +21,7 @@ concurrency:
 run-name: "Test Claude"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github
-          fetch-depth: 1
-
   test-claude:
-    needs: task
     runs-on: ubuntu-latest
     permissions:
       actions: read
