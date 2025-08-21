@@ -2008,12 +2008,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		lines := strings.Split(data.CustomSteps, "\n")
 		if len(lines) > 1 {
 			for _, line := range lines[1:] {
-				// Remove 2 existing spaces, add 6
-				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("    " + line[2:] + "\n")
-				} else {
-					yaml.WriteString("    " + line + "\n")
+				// Skip empty lines
+				if strings.TrimSpace(line) == "" {
+					yaml.WriteString("\n")
+					continue
 				}
+
+				// Simply add 6 spaces for job context indentation
+				yaml.WriteString("      " + line + "\n")
 			}
 		}
 	} else {

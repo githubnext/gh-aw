@@ -4806,3 +4806,213 @@ This workflow has custom permissions that should override defaults.
 		}
 	}
 }
+
+func TestCustomStepsIndentation(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "steps-indentation-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tests := []struct {
+		name        string
+		stepsYAML   string
+		description string
+	}{
+		{
+			name: "standard_2_space_indentation",
+			stepsYAML: `steps:
+  - name: Checkout code
+    uses: actions/checkout@v4
+  - name: Set up Go
+    uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
+      cache: true`,
+			description: "Standard 2-space indentation should be preserved with 6-space base offset",
+		},
+		{
+			name: "odd_3_space_indentation",
+			stepsYAML: `steps:
+   - name: Odd indent
+     uses: actions/checkout@v4
+     with:
+       param: value`,
+			description: "3-space indentation should be normalized to standard format",
+		},
+		{
+			name: "deep_nesting",
+			stepsYAML: `steps:
+  - name: Deep nesting
+    uses: actions/complex@v1
+    with:
+      config:
+        database:
+          host: localhost
+          settings:
+            timeout: 30`,
+			description: "Deep nesting should maintain relative indentation with 6-space base offset",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test workflow with the given steps YAML
+			testContent := fmt.Sprintf(`---
+on: push
+permissions:
+  contents: read
+%s
+engine: claude
+---
+
+# Test Steps Indentation
+
+%s
+`, tt.stepsYAML, tt.description)
+
+			testFile := filepath.Join(tmpDir, fmt.Sprintf("test-%s.md", tt.name))
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			compiler := NewCompiler(false, "", "test")
+
+			// Compile the workflow
+			err = compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Unexpected error compiling workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := filepath.Join(tmpDir, fmt.Sprintf("test-%s.lock.yml", tt.name))
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read generated lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			// Verify the YAML is valid by parsing it
+			var yamlData map[string]interface{}
+			if err := yaml.Unmarshal(content, &yamlData); err != nil {
+				t.Errorf("Generated YAML is not valid: %v\nContent:\n%s", err, lockContent)
+			}
+
+			// Check that custom steps are present and properly indented
+			if !strings.Contains(lockContent, "      - name:") {
+				t.Errorf("Expected to find properly indented step items (6 spaces) in generated content")
+			}
+
+			// Verify step properties have proper indentation (8+ spaces for uses, with, etc.)
+			lines := strings.Split(lockContent, "\n")
+			foundCustomSteps := false
+			for i, line := range lines {
+				// Look for custom step content (not generated workflow infrastructure)
+				if strings.Contains(line, "Checkout code") || strings.Contains(line, "Set up Go") ||
+					strings.Contains(line, "Odd indent") || strings.Contains(line, "Deep nesting") {
+					foundCustomSteps = true
+				}
+
+				// Check indentation for lines containing step properties within custom steps section
+				if foundCustomSteps && (strings.Contains(line, "uses: actions/") || strings.Contains(line, "with:")) {
+					if !strings.HasPrefix(line, "        ") {
+						t.Errorf("Step property at line %d should have 8+ spaces indentation: '%s'", i+1, line)
+					}
+				}
+			}
+
+			if !foundCustomSteps {
+				t.Error("Expected to find custom steps content in generated workflow")
+			}
+		})
+	}
+}
+
+func TestCustomStepsEdgeCases(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "steps-edge-cases-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tests := []struct {
+		name        string
+		stepsYAML   string
+		expectError bool
+		description string
+	}{
+		{
+			name:        "no_custom_steps",
+			stepsYAML:   `# No steps section defined`,
+			expectError: false,
+			description: "Should use default checkout step when no custom steps defined",
+		},
+		{
+			name:        "empty_steps",
+			stepsYAML:   `steps: []`,
+			expectError: false,
+			description: "Empty steps array should be handled gracefully",
+		},
+		{
+			name:        "steps_with_only_whitespace",
+			stepsYAML:   `# No steps defined`,
+			expectError: false,
+			description: "No steps section should use default steps",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := fmt.Sprintf(`---
+on: push
+permissions:
+  contents: read
+%s
+engine: claude
+---
+
+# Test Edge Cases
+
+%s
+`, tt.stepsYAML, tt.description)
+
+			testFile := filepath.Join(tmpDir, fmt.Sprintf("test-%s.md", tt.name))
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			compiler := NewCompiler(false, "", "test")
+			err = compiler.CompileWorkflow(testFile)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error for test '%s', got nil", tt.name)
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
+			}
+
+			if !tt.expectError {
+				// Verify lock file was created and is valid YAML
+				lockFile := filepath.Join(tmpDir, fmt.Sprintf("test-%s.lock.yml", tt.name))
+				content, err := os.ReadFile(lockFile)
+				if err != nil {
+					t.Fatalf("Failed to read generated lock file: %v", err)
+				}
+
+				var yamlData map[string]interface{}
+				if err := yaml.Unmarshal(content, &yamlData); err != nil {
+					t.Errorf("Generated YAML is not valid: %v", err)
+				}
+
+				// For no custom steps, should contain default checkout
+				if tt.name == "no_custom_steps" {
+					lockContent := string(content)
+					if !strings.Contains(lockContent, "- name: Checkout repository") {
+						t.Error("Expected default checkout step when no custom steps defined")
+					}
+				}
+			}
+		})
+	}
+}
