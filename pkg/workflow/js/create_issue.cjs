@@ -98,7 +98,7 @@ async function main() {
       });
       console.log('Added comment to parent issue #' + parentIssueNumber);
     } catch (error) {
-      console.log('Warning: Could not add comment to parent issue:', error.message);
+      console.log('Warning: Could not add comment to parent issue:', error instanceof Error ? error.message : String(error));
     }
   }
 

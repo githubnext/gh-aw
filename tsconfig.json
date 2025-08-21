@@ -8,7 +8,7 @@
     "declaration": false,
     "outDir": "./dist/js",
     "rootDir": "./pkg/workflow/js",
-    "strict": false,
+    "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": false,
@@ -33,7 +33,8 @@
   "include": [
     "pkg/workflow/js/create_comment.cjs",
     "pkg/workflow/js/create_issue.cjs",
-    "pkg/workflow/js/create_pull_request.cjs"
+    "pkg/workflow/js/create_pull_request.cjs",
+    "pkg/workflow/js/types/*.d.ts"
   ],
   "exclude": [
     "node_modules",
