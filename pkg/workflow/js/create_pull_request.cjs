@@ -1,4 +1,6 @@
+/** @type {typeof import("fs")} */
 const fs = require("fs");
+/** @type {typeof import("crypto")} */
 const crypto = require("crypto");
 const { execSync } = require("child_process");
 
@@ -82,7 +84,7 @@ async function main() {
 
   // Parse labels from environment variable (comma-separated string)
   const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
-  const labels = labelsEnv ? labelsEnv.split(',').map(label => label.trim()).filter(label => label) : [];
+  const labels = labelsEnv ? labelsEnv.split(',').map(/** @param {string} label */ label => label.trim()).filter(/** @param {string} label */ label => label) : [];
 
   // Parse draft setting from environment variable (defaults to true)
   const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
