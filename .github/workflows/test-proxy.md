@@ -4,8 +4,8 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-output:
-  issue_comment: {}
+permissions:
+  issues: write # needed to write the output report to an issue
 
 tools:
   fetch:
@@ -45,14 +45,12 @@ Test the MCP network permissions feature to validate that domain restrictions ar
 
 ## Reporting Instructions
 
-If the test runs successfully and network isolation is working correctly:
-- Write a brief summary to ${{ env.GITHUB_AW_OUTPUT }} confirming the test passed
-
 If there are any failures, security issues, or unexpected behaviors:
-- Write a detailed report to ${{ env.GITHUB_AW_OUTPUT }} documenting:
-  - Which domains were successfully accessed vs blocked
-  - Error messages received for blocked domains  
-  - Any security observations or recommendations
-  - Specific failure details that need attention
 
-The test should demonstrate that MCP containers are properly isolated and can only access explicitly allowed domains through the network proxy.
+- Write a detailed report to ${{ env.GITHUB_AW_OUTPUT }} documenting:
+- Which domains were successfully accessed vs blocked
+- Error messages received for blocked domains  
+- Any security observations or recommendations
+- Specific failure details that need attention
+
+Create a GitHub Comment on the pull request with the test results.
