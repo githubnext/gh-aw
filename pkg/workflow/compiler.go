@@ -148,7 +148,7 @@ type WorkflowData struct {
 // OutputConfig holds configuration for automatic output routes
 type OutputConfig struct {
 	Issue          *IssueConfig       `yaml:"issue,omitempty"`
-	Comment        *CommentConfig     `yaml:"comment,omitempty"`
+	IssueComment *CommentConfig     `yaml:"issue_comment,omitempty"`
 	PullRequest    *PullRequestConfig `yaml:"pull-request,omitempty"`
 	Labels         *LabelConfig       `yaml:"labels,omitempty"`
 	AllowedDomains []string           `yaml:"allowed-domains,omitempty"`
@@ -1520,8 +1520,8 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
-	// Build create_issue_comment job if output.comment is configured
-	if data.Output != nil && data.Output.Comment != nil {
+	// Build create_issue_comment job if output.issue_comment is configured
+	if data.Output != nil && data.Output.IssueComment != nil {
 		createCommentJob, err := c.buildCreateOutputCommentJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
@@ -1710,8 +1710,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 // buildCreateOutputCommentJob creates the create_issue_comment job
 func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.Output == nil || data.Output.Comment == nil {
-		return nil, fmt.Errorf("output.comment configuration is required")
+	if data.Output == nil || data.Output.IssueComment == nil {
+		return nil, fmt.Errorf("output.issue_comment configuration is required")
 	}
 
 	var steps []string
@@ -2241,11 +2241,11 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 				}
 			}
 
-			// Parse comment configuration
-			if comment, exists := outputMap["comment"]; exists {
+			// Parse issue_comment configuration
+			if comment, exists := outputMap["issue_comment"]; exists {
 				if _, ok := comment.(map[string]any); ok {
 					// For now, CommentConfig is an empty struct
-					config.Comment = &CommentConfig{}
+					config.IssueComment = &CommentConfig{}
 				}
 			}
 

@@ -210,7 +210,7 @@ func TestOutputCommentConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.comment configuration
+	// Test case with output.issue_comment configuration
 	testContent := `---
 on:
   issues:
@@ -221,15 +221,15 @@ permissions:
   pull-requests: write
 engine: claude
 output:
-  comment: {}
+  issue_comment: {}
 ---
 
-# Test Output Comment Configuration
+# Test Output Issue Comment Configuration
 
-This workflow tests the output.comment configuration parsing.
+This workflow tests the output.issue_comment configuration parsing.
 `
 
-	testFile := filepath.Join(tmpDir, "test-output-comment.md")
+	testFile := filepath.Join(tmpDir, "test-output-issue-comment.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -247,8 +247,8 @@ This workflow tests the output.comment configuration parsing.
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.Output.Comment == nil {
-		t.Fatal("Expected comment configuration to be parsed")
+	if workflowData.Output.IssueComment == nil {
+		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 }
 
@@ -260,7 +260,7 @@ func TestOutputCommentJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.comment configuration
+	// Test case with output.issue_comment configuration
 	testContent := `---
 on:
   issues:
@@ -274,15 +274,15 @@ tools:
     allowed: [get_issue]
 engine: claude
 output:
-  comment: {}
+  issue_comment: {}
 ---
 
-# Test Output Comment Job Generation
+# Test Output Issue Comment Job Generation
 
 This workflow tests the create_issue_comment job generation.
 `
 
-	testFile := filepath.Join(tmpDir, "test-output-comment.md")
+	testFile := filepath.Join(tmpDir, "test-output-issue-comment.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +296,7 @@ This workflow tests the create_issue_comment job generation.
 	}
 
 	// Read the generated lock file
-	lockFile := filepath.Join(tmpDir, "test-output-comment.lock.yml")
+	lockFile := filepath.Join(tmpDir, "test-output-issue-comment.lock.yml")
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -329,7 +329,7 @@ This workflow tests the create_issue_comment job generation.
 	}
 
 	// Verify job dependencies
-	if !strings.Contains(lockContent, "needs: test-output-comment") {
+	if !strings.Contains(lockContent, "needs: test-output-issue-comment") {
 		t.Error("Expected create_issue_comment job to depend on main job")
 	}
 
@@ -349,7 +349,7 @@ func TestOutputCommentJobSkippedForNonIssueEvents(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.comment configuration but push trigger (not issue/PR)
+	// Test case with output.issue_comment configuration but push trigger (not issue/PR)
 	testContent := `---
 on: push
 permissions:
@@ -358,12 +358,12 @@ permissions:
   pull-requests: write
 engine: claude
 output:
-  comment: {}
+  issue_comment: {}
 ---
 
-# Test Output Comment Job Skipping
+# Test Output Issue Comment Job Skipping
 
-This workflow tests that comment job is skipped for non-issue/PR events.
+This workflow tests that issue comment job is skipped for non-issue/PR events.
 `
 
 	testFile := filepath.Join(tmpDir, "test-comment-skip.md")

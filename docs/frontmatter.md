@@ -259,7 +259,7 @@ output:
   issue:
     title-prefix: "[ai] "           # Optional: prefix for issue titles
     labels: [automation, ai-agent]  # Optional: labels to attach to issues
-  comment: {}                       # Create comments on issues/PRs from agent output
+  issue_comment: {}                 # Create comments on issues/PRs from agent output
   pull-request:
     title-prefix: "[ai] "           # Optional: prefix for PR titles
     labels: [automation, ai-agent]  # Optional: labels to attach to PRs
@@ -303,10 +303,10 @@ All agent output is automatically sanitized for security before being processed:
 - **Environment Variables**: Configuration passed via `GITHUB_AW_ISSUE_TITLE_PREFIX` and `GITHUB_AW_ISSUE_LABELS`
 - **Outputs**: Returns `issue_number` and `issue_url` for downstream jobs
 
-### Comment Creation (`output.comment`)
+### Issue Comment Creation (`output.issue_comment`)
 
 **Behavior:**
-- When `output.comment` is configured, the compiler automatically generates a separate `create_issue_comment` job
+- When `output.issue_comment` is configured, the compiler automatically generates a separate `create_issue_comment` job
 - This job runs after the main AI agent job completes and **only** if the workflow is triggered by an issue or pull request event
 - The agent's output content flows from the main job to the comment creation job via job output variables
 - The comment creation job posts the entire agent output as a comment on the triggering issue or pull request
@@ -353,7 +353,7 @@ permissions:
   actions: read
 engine: claude
 output:
-  comment: {}
+  issue_comment: {}
 ---
 
 # Issue/PR Analysis Agent

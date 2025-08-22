@@ -978,7 +978,7 @@
           },
           "additionalProperties": false
         },
-        "comment": {
+        "issue_comment": {
           "type": "object",
           "description": "Configuration for creating GitHub issue/PR comments from agent output",
           "additionalProperties": false
