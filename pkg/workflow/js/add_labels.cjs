@@ -43,7 +43,7 @@ async function main() {
   const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
 
   if (!isIssueContext && !isPRContext) {
-    console.log('Not running in issue or pull request context, skipping label addition');
+    core.setFailed('Not running in issue or pull request context, skipping label addition');
     return;
   }
 
@@ -56,7 +56,7 @@ async function main() {
       issueNumber = context.payload.issue.number;
       contextType = 'issue';
     } else {
-      console.log('Issue context detected but no issue found in payload');
+      core.setFailed('Issue context detected but no issue found in payload');
       return;
     }
   } else if (isPRContext) {
@@ -64,13 +64,13 @@ async function main() {
       issueNumber = context.payload.pull_request.number;
       contextType = 'pull request';
     } else {
-      console.log('Pull request context detected but no pull request found in payload');
+      core.setFailed('Pull request context detected but no pull request found in payload');
       return;
     }
   }
 
   if (!issueNumber) {
-    console.log('Could not determine issue or pull request number');
+    core.setFailed('Could not determine issue or pull request number');
     return;
   }
 
@@ -80,7 +80,7 @@ async function main() {
 
   for (const line of lines) {
     const trimmedLine = line.trim();
-    
+
     // Skip empty lines
     if (trimmedLine === '') {
       continue;
@@ -98,19 +98,15 @@ async function main() {
   console.log('Requested labels:', requestedLabels);
 
   // Validate that all requested labels are in the allowed list
-  const invalidLabels = requestedLabels.filter(label => !allowedLabels.includes(label));
-  if (invalidLabels.length > 0) {
-    core.setFailed(`The following labels are not in the allowed list: ${invalidLabels.join(', ')}. Allowed labels: ${allowedLabels.join(', ')}`);
-    return;
-  }
+  const validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
 
   // Remove duplicates from requested labels
-  const uniqueLabels = [...new Set(requestedLabels)];
+  let uniqueLabels = [...new Set(validLabels)];
 
   // Enforce max-count limit
   if (uniqueLabels.length > maxCount) {
-    core.setFailed(`Too many labels requested (${uniqueLabels.length}). Maximum allowed: ${maxCount}. Labels: ${uniqueLabels.join(', ')}`);
-    return;
+    console.log(`too many labels, keep ${maxCount}`)
+    uniqueLabels = uniqueLabels.slice(0, maxCount);
   }
 
   if (uniqueLabels.length === 0) {

@@ -16,6 +16,8 @@ permissions:
   actions: read
   contents: read
 output:
+  labels:
+    allowed: ["bug", "feature"]
   issue:
     title-prefix: "[claude-test] "
     labels: [claude, automation, haiku]
