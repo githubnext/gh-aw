@@ -39,6 +39,15 @@ build-windows:
 test:
 	go test -v ./...
 
+# Test JavaScript files
+.PHONY: test-js
+test-js:
+	npm run test:js
+
+# Test all code (Go and JavaScript)
+.PHONY: test-all
+test-all: test test-js
+
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
@@ -209,7 +218,7 @@ copy-copilot-to-claude:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint js build test recompile
+agent-finish: deps-dev fmt lint js build test-all recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -218,7 +227,9 @@ help:
 	@echo "Available targets:"
 	@echo "  build            - Build the binary for current platform"
 	@echo "  build-all        - Build binaries for all platforms"
-	@echo "  test             - Run tests"
+	@echo "  test             - Run Go tests"
+	@echo "  test-js          - Run JavaScript tests"
+	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
