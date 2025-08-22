@@ -148,7 +148,7 @@ type WorkflowData struct {
 // OutputConfig holds configuration for automatic output routes
 type OutputConfig struct {
 	Issue          *IssueConfig       `yaml:"issue,omitempty"`
-	IssueComment *CommentConfig     `yaml:"issue_comment,omitempty"`
+	IssueComment   *CommentConfig     `yaml:"issue_comment,omitempty"`
 	PullRequest    *PullRequestConfig `yaml:"pull-request,omitempty"`
 	Labels         *LabelConfig       `yaml:"labels,omitempty"`
 	AllowedDomains []string           `yaml:"allowed-domains,omitempty"`
