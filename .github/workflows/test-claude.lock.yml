@@ -424,30 +424,10 @@ jobs:
                 .replace(/'/g, '&apos;');
               // URI filtering - replace non-https protocols with "(redacted)"
               // Step 1: Temporarily mark HTTPS URLs to protect them
-              const httpsPlaceholder = '___HTTPS_PLACEHOLDER___';
-              const httpsUrls = [];
-              sanitized = sanitized.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match) => {
-                httpsUrls.push(match);
-                return httpsPlaceholder + (httpsUrls.length - 1);
-              });
-              // Step 2: Replace other protocols with "(redacted)"
-              sanitized = sanitized.replace(/\b(?:http:\/\/|ftp:|file:|data:|javascript:|vbscript:|mailto:|tel:|ssh:|ldap:|jdbc:|chrome:|edge:|safari:|firefox:|opera:)[^\s\])}'"<>&\x00-\x1f]+/gi, '(redacted)');
-              // Step 3: Restore HTTPS URLs
-              sanitized = sanitized.replace(new RegExp(httpsPlaceholder + '(\\d+)', 'g'), (match, index) => {
-                return httpsUrls[parseInt(index)];
-              });
+              sanitized = sanitizeUrlProtocols(sanitized);
               // Domain filtering for HTTPS URIs
               // Match https:// URIs and check if domain is in allowlist
-              sanitized = sanitized.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-                // Extract the hostname part (before first slash, colon, or other delimiter)
-                const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
-                // Check if this domain or any parent domain is in the allowlist
-                const isAllowed = allowedDomains.some(allowedDomain => {
-                  const normalizedAllowed = allowedDomain.toLowerCase();
-                  return hostname === normalizedAllowed || hostname.endsWith('.' + normalizedAllowed);
-                });
-                return isAllowed ? match : '(redacted)';
-              });
+              sanitized = sanitizeUrlDomains(sanitized);
               // Limit total length to prevent DoS (0.5MB max)
               const maxLength = 524288;
               if (sanitized.length > maxLength) {
@@ -465,6 +445,37 @@ jobs:
               sanitized = neutralizeBotTriggers(sanitized);
               // Trim excessive whitespace
               return sanitized.trim();
+              /**
+               * Remove unknown domains
+               * @param {string} s - The string to process
+               * @returns {string} The string with unknown domains redacted
+               */
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
+                  // Extract the hostname part (before first slash, colon, or other delimiter)
+                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+                  // Check if this domain or any parent domain is in the allowlist
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith('.' + normalizedAllowed);
+                  });
+                  return isAllowed ? match : '(redacted)';
+                });
+                return s;
+              }
+              /**
+               * Remove unknown protocols except https
+               * @param {string} s - The string to process
+               * @returns {string} The string with non-https protocols redacted
+               */
+              function sanitizeUrlProtocols(s) {
+                // Match both protocol:// and protocol: patterns
+                // This covers URLs like https://example.com, javascript:alert(), mailto:user@domain.com, etc.
+                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+                  // Allow https (case insensitive), redact everything else
+                  return protocol.toLowerCase() === 'https' ? match : '(redacted)';
+                });
+              }
               /**
                * Neutralizes @mentions by wrapping them in backticks
                * @param {string} s - The string to process
