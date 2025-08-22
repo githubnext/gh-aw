@@ -169,7 +169,33 @@ tools:
 
 #### Egress Filtering
 
-A critical guardrail is strict control over outbound network connections. Consider using network proxies to enforce allowlists for outbound hosts.
+A critical guardrail is strict control over outbound network connections. Agentic Workflows now supports declarative network allowlists for containerized MCP servers.
+
+Example (domain allowlist):
+
+```yaml
+tools:
+  fetch:
+    mcp:
+      type: stdio
+      container: mcp/fetch
+      permissions:
+        network:
+          allowed:
+            - "example.com"
+    allowed: ["fetch"]
+```
+
+Enforcement details:
+
+- Compiler generates a per‑tool Squid proxy and Docker network; MCP egress is forced through the proxy via iptables.
+- Only listed domains are reachable; all others are denied at the network layer.
+- Applies to `mcp.container` stdio servers. Non‑container stdio and `type: http` servers are not governed by this control.
+
+Operational guidance:
+
+- Use bare domains (no scheme). Explicitly list each domain you intend to permit.
+- Prefer minimal allowlists; review the compiled `.lock.yml` to verify proxy setup and rules.
 
 ### Agent Security and Prompt Injection Defense
 
