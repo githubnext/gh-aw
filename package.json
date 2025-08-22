@@ -3,10 +3,16 @@
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
     "@types/node": "^24.3.0",
-    "typescript": "^5.9.2"
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "npm run typecheck"
+    "test": "npm run typecheck && vitest run",
+    "test:js": "vitest run",
+    "test:js-watch": "vitest",
+    "test:js-coverage": "vitest run --coverage"
   }
 }
