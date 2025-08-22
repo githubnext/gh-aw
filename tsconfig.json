@@ -32,6 +32,7 @@
     "typeRoots": ["./node_modules/@types", "./pkg/workflow/js/types"]
   },
   "include": [
+    "pkg/workflow/js/add_labels.cjs",
     "pkg/workflow/js/create_comment.cjs",
     "pkg/workflow/js/create_issue.cjs",
     "pkg/workflow/js/create_pull_request.cjs",
