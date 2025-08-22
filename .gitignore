@@ -47,6 +47,7 @@ Thumbs.db
 .credentials/
 
 coverage.html
+coverage/
 logs/
 
 .github/instructions/github-agentic-workflows.instructions.md

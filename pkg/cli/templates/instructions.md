@@ -95,6 +95,7 @@ The YAML frontmatter supports these fields:
       pull-request:
         title-prefix: "[ai] "           # Optional: prefix for PR titles
         labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+        draft: true                     # Optional: create as draft PR (defaults to true)
     ```
     **Important**: When using `output.pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions. The agent must create git patches in `/tmp/aw.patch`.
   
@@ -392,6 +393,7 @@ output:
   # pull-request:
   #   title-prefix: "[ai] " 
   #   labels: [automation]
+  #   draft: false                      # Create non-draft PR
   # OR for comments:
   # comment: {}
 ```
@@ -450,6 +452,7 @@ output:
   pull-request:
     title-prefix: "[bot] "
     labels: [automation, ai-generated]
+    draft: false                        # Create non-draft PR for immediate review
 ---
 
 # Code Improvement Agent

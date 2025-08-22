@@ -953,6 +953,13 @@
       "type": "object",
       "description": "Output configuration for automatic output routes",
       "properties": {
+        "allowed-domains": {
+          "type": "array",
+          "description": "List of allowed domains for URI filtering in agent output",
+          "items": {
+            "type": "string"
+          }
+        },
         "issue": {
           "type": "object",
           "description": "Configuration for creating GitHub issues from agent output",
@@ -971,7 +978,7 @@
           },
           "additionalProperties": false
         },
-        "comment": {
+        "issue_comment": {
           "type": "object",
           "description": "Configuration for creating GitHub issue/PR comments from agent output",
           "additionalProperties": false
@@ -990,8 +997,33 @@
               "items": {
                 "type": "string"
               }
+            },
+            "draft": {
+              "type": "boolean",
+              "description": "Whether to create pull request as draft (defaults to true)"
             }
           },
+          "additionalProperties": false
+        },
+        "labels": {
+          "type": "object",
+          "description": "Configuration for adding labels to issues/PRs from agent output",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "description": "Mandatory list of allowed labels that can be added",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "max-count": {
+              "type": "integer",
+              "description": "Optional maximum number of labels to add (default: 3)",
+              "minimum": 1
+            }
+          },
+          "required": ["allowed"],
           "additionalProperties": false
         }
       },

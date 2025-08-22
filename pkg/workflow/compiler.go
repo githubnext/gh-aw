@@ -147,9 +147,11 @@ type WorkflowData struct {
 
 // OutputConfig holds configuration for automatic output routes
 type OutputConfig struct {
-	Issue       *IssueConfig       `yaml:"issue,omitempty"`
-	Comment     *CommentConfig     `yaml:"comment,omitempty"`
-	PullRequest *PullRequestConfig `yaml:"pull-request,omitempty"`
+	Issue          *IssueConfig       `yaml:"issue,omitempty"`
+	IssueComment   *CommentConfig     `yaml:"issue_comment,omitempty"`
+	PullRequest    *PullRequestConfig `yaml:"pull-request,omitempty"`
+	Labels         *LabelConfig       `yaml:"labels,omitempty"`
+	AllowedDomains []string           `yaml:"allowed-domains,omitempty"`
 }
 
 // IssueConfig holds configuration for creating GitHub issues from agent output
@@ -167,6 +169,13 @@ type CommentConfig struct {
 type PullRequestConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
+	Draft       *bool    `yaml:"draft,omitempty"` // Pointer to distinguish between unset (nil) and explicitly false
+}
+
+// LabelConfig holds configuration for adding labels to issues/PRs from agent output
+type LabelConfig struct {
+	Allowed  []string `yaml:"allowed"`             // Mandatory list of allowed labels
+	MaxCount *int     `yaml:"max-count,omitempty"` // Optional maximum number of labels to add (default: 3)
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1453,23 +1462,36 @@ func (c *Compiler) generateYAML(data *WorkflowData) (string, error) {
 	return yaml.String(), nil
 }
 
+// isTaskJobNeeded determines if the task job is required
+func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
+	// Task job is needed if:
+	// 1. Alias is configured (for team member checking)
+	// 2. Text output is needed (for compute-text action)
+	// 3. If condition is specified (to handle runtime conditions)
+	return data.Alias != "" || data.NeedsTextOutput || data.If != ""
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData) error {
 	// Generate job name from workflow name
 	jobName := c.generateJobName(data.Name)
 
-	// Build task job first (preamble job that handles runtime conditions)
-	taskJob, err := c.buildTaskJob(data)
-	if err != nil {
-		return fmt.Errorf("failed to build task job: %w", err)
-	}
-	if err := c.jobManager.AddJob(taskJob); err != nil {
-		return fmt.Errorf("failed to add task job: %w", err)
+	// Build task job only if actually needed (preamble job that handles runtime conditions)
+	var taskJobCreated bool
+	if c.isTaskJobNeeded(data) {
+		taskJob, err := c.buildTaskJob(data)
+		if err != nil {
+			return fmt.Errorf("failed to build task job: %w", err)
+		}
+		if err := c.jobManager.AddJob(taskJob); err != nil {
+			return fmt.Errorf("failed to add task job: %w", err)
+		}
+		taskJobCreated = true
 	}
 
 	// Build add_reaction job only if ai-reaction is configured
 	if data.AIReaction != "" {
-		addReactionJob, err := c.buildAddReactionJob(data)
+		addReactionJob, err := c.buildAddReactionJob(data, taskJobCreated)
 		if err != nil {
 			return fmt.Errorf("failed to build add_reaction job: %w", err)
 		}
@@ -1479,7 +1501,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName)
+	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1498,8 +1520,8 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
-	// Build create_issue_comment job if output.comment is configured
-	if data.Output != nil && data.Output.Comment != nil {
+	// Build create_issue_comment job if output.issue_comment is configured
+	if data.Output != nil && data.Output.IssueComment != nil {
 		createCommentJob, err := c.buildCreateOutputCommentJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
@@ -1520,6 +1542,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
+	// Build add_labels job if output.labels is configured
+	if data.Output != nil && data.Output.Labels != nil {
+		addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build add_labels job: %w", err)
+		}
+		if err := c.jobManager.AddJob(addLabelsJob); err != nil {
+			return fmt.Errorf("failed to add add_labels job: %w", err)
+		}
+	}
+
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -1530,6 +1563,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 
 // buildTaskJob creates the preamble task job that acts as a barrier for runtime conditions
 func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
+	outputs := map[string]string{}
 	var steps []string
 
 	// Add shallow checkout step to access shared actions
@@ -1570,11 +1604,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, "      - name: Compute current body text\n")
 		steps = append(steps, "        id: compute-text\n")
 		steps = append(steps, "        uses: ./.github/actions/compute-text\n")
-	}
-
-	// Set up outputs
-	outputs := map[string]string{}
-	if data.NeedsTextOutput {
+		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
@@ -1591,7 +1621,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildAddReactionJob creates the add_reaction job
-func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
 	var steps []string
@@ -1610,6 +1640,11 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 		"reaction_id": "${{ steps.react.outputs.reaction-id }}",
 	}
 
+	var depends []string
+	if taskJobCreated {
+		depends = []string{"task"} // Depend on the task job only if it exists
+	}
+
 	job := &Job{
 		Name:        "add_reaction",
 		If:          fmt.Sprintf("if: %s", reactionCondition.Render()),
@@ -1617,7 +1652,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData) (*Job, error) {
 		Permissions: "permissions:\n      contents: write # Read .github\n      issues: write\n      pull-requests: write",
 		Steps:       steps,
 		Outputs:     outputs,
-		Depends:     []string{"task"}, // Depend on the task job
+		Depends:     depends,
 	}
 
 	return job, nil
@@ -1650,14 +1685,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	scriptLines := strings.Split(createIssueScript, "\n")
-	for _, line := range scriptLines {
-		if strings.TrimSpace(line) == "" {
-			steps = append(steps, "\n")
-		} else {
-			steps = append(steps, fmt.Sprintf("            %s\n", line))
-		}
-	}
+	formattedScript := FormatJavaScriptForYAML(createIssueScript)
+	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -1681,8 +1710,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 // buildCreateOutputCommentJob creates the create_issue_comment job
 func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.Output == nil || data.Output.Comment == nil {
-		return nil, fmt.Errorf("output.comment configuration is required")
+	if data.Output == nil || data.Output.IssueComment == nil {
+		return nil, fmt.Errorf("output.issue_comment configuration is required")
 	}
 
 	var steps []string
@@ -1699,14 +1728,8 @@ func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName s
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	scriptLines := strings.Split(createCommentScript, "\n")
-	for _, line := range scriptLines {
-		if strings.TrimSpace(line) == "" {
-			steps = append(steps, "\n")
-		} else {
-			steps = append(steps, fmt.Sprintf("            %s\n", line))
-		}
-	}
+	formattedScript := FormatJavaScriptForYAML(createCommentScript)
+	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -1769,19 +1792,19 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		labelsStr := strings.Join(data.Output.PullRequest.Labels, ",")
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
 	}
+	// Pass draft setting - default to true for backwards compatibility
+	draftValue := true // Default value
+	if data.Output.PullRequest.Draft != nil {
+		draftValue = *data.Output.PullRequest.Draft
+	}
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	scriptLines := strings.Split(createPullRequestScript, "\n")
-	for _, line := range scriptLines {
-		if strings.TrimSpace(line) == "" {
-			steps = append(steps, "\n")
-		} else {
-			steps = append(steps, fmt.Sprintf("            %s\n", line))
-		}
-	}
+	formattedScript := FormatJavaScriptForYAML(createPullRequestScript)
+	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -1805,7 +1828,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool) (*Job, error) {
 	var steps []string
 
 	// Build step content using the generateMainJobSteps helper method
@@ -1819,13 +1842,18 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string) (*Job, error
 		steps = append(steps, stepsContent)
 	}
 
+	var depends []string
+	if taskJobCreated {
+		depends = []string{"task"} // Depend on the task job only if it exists
+	}
+
 	job := &Job{
 		Name:        jobName,
 		If:          "", // Remove the If condition since task job handles alias checks
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
-		Depends:     []string{"task"}, // Depend on the task job
+		Depends:     depends,
 		Outputs: map[string]string{
 			"output": "${{ steps.collect_output.outputs.output }}",
 		},
@@ -2070,12 +2098,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		lines := strings.Split(data.CustomSteps, "\n")
 		if len(lines) > 1 {
 			for _, line := range lines[1:] {
-				// Remove 2 existing spaces, add 6
-				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("    " + line[2:] + "\n")
-				} else {
-					yaml.WriteString("    " + line + "\n")
+				// Skip empty lines
+				if strings.TrimSpace(line) == "" {
+					yaml.WriteString("\n")
+					continue
 				}
+
+				// Simply add 6 spaces for job context indentation
+				yaml.WriteString("      " + line + "\n")
 			}
 		}
 	} else {
@@ -2273,11 +2303,11 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 				}
 			}
 
-			// Parse comment configuration
-			if comment, exists := outputMap["comment"]; exists {
+			// Parse issue_comment configuration
+			if comment, exists := outputMap["issue_comment"]; exists {
 				if _, ok := comment.(map[string]any); ok {
 					// For now, CommentConfig is an empty struct
-					config.Comment = &CommentConfig{}
+					config.IssueComment = &CommentConfig{}
 				}
 			}
 
@@ -2306,7 +2336,73 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 						}
 					}
 
+					// Parse draft
+					if draft, exists := pullRequestMap["draft"]; exists {
+						if draftBool, ok := draft.(bool); ok {
+							pullRequestConfig.Draft = &draftBool
+						}
+					}
+
 					config.PullRequest = pullRequestConfig
+				}
+			}
+
+			// Parse allowed-domains configuration
+			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
+				if domainsArray, ok := allowedDomains.([]any); ok {
+					var domainStrings []string
+					for _, domain := range domainsArray {
+						if domainStr, ok := domain.(string); ok {
+							domainStrings = append(domainStrings, domainStr)
+						}
+					}
+					config.AllowedDomains = domainStrings
+				}
+			}
+
+			// Parse labels configuration
+			if labels, exists := outputMap["labels"]; exists {
+				if labelsMap, ok := labels.(map[string]any); ok {
+					labelConfig := &LabelConfig{}
+
+					// Parse allowed labels (mandatory)
+					if allowed, exists := labelsMap["allowed"]; exists {
+						if allowedArray, ok := allowed.([]any); ok {
+							var allowedStrings []string
+							for _, label := range allowedArray {
+								if labelStr, ok := label.(string); ok {
+									allowedStrings = append(allowedStrings, labelStr)
+								}
+							}
+							labelConfig.Allowed = allowedStrings
+						}
+					}
+
+					// Parse max-count (optional)
+					if maxCount, exists := labelsMap["max-count"]; exists {
+						// Handle different numeric types that YAML parsers might return
+						var maxCountInt int
+						var validMaxCount bool
+						switch v := maxCount.(type) {
+						case int:
+							maxCountInt = v
+							validMaxCount = true
+						case int64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case uint64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case float64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						}
+						if validMaxCount {
+							labelConfig.MaxCount = &maxCountInt
+						}
+					}
+
+					config.Labels = labelConfig
 				}
 			}
 
@@ -2598,60 +2694,19 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("      - name: Collect agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
+
+	// Add environment variables for sanitization configuration
+	if data.Output != nil && len(data.Output.AllowedDomains) > 0 {
+		yaml.WriteString("        env:\n")
+		domainsStr := strings.Join(data.Output.AllowedDomains, ",")
+		yaml.WriteString(fmt.Sprintf("          GITHUB_AW_ALLOWED_DOMAINS: %q\n", domainsStr))
+	}
+
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const fs = require('fs');\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            // Sanitization function for adversarial LLM outputs\n")
-	yaml.WriteString("            function sanitizeContent(content) {\n")
-	yaml.WriteString("              if (!content || typeof content !== 'string') {\n")
-	yaml.WriteString("                return '';\n")
-	yaml.WriteString("              }\n")
-	yaml.WriteString("              \n")
-	yaml.WriteString("              // Remove control characters (except newlines and tabs)\n")
-	yaml.WriteString("              let sanitized = content.replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '');\n")
-	yaml.WriteString("              \n")
-	yaml.WriteString("              // Limit total length to prevent DoS (0.5MB max)\n")
-	yaml.WriteString("              const maxLength = 524288;\n")
-	yaml.WriteString("              if (sanitized.length > maxLength) {\n")
-	yaml.WriteString("                sanitized = sanitized.substring(0, maxLength) + '\\n[Content truncated due to length]';\n")
-	yaml.WriteString("              }\n")
-	yaml.WriteString("              \n")
-	yaml.WriteString("              // Limit number of lines to prevent log flooding (65k max)\n")
-	yaml.WriteString("              const lines = sanitized.split('\\n');\n")
-	yaml.WriteString("              const maxLines = 65000;\n")
-	yaml.WriteString("              if (lines.length > maxLines) {\n")
-	yaml.WriteString("                sanitized = lines.slice(0, maxLines).join('\\n') + '\\n[Content truncated due to line count]';\n")
-	yaml.WriteString("              }\n")
-	yaml.WriteString("              \n")
-	yaml.WriteString("              \n")
-	yaml.WriteString("              // Remove ANSI escape sequences\n")
-	yaml.WriteString("              sanitized = sanitized.replace(/\\x1b\\[[0-9;]*[mGKH]/g, '');\n")
-	yaml.WriteString("              \n")
-	yaml.WriteString("              // Trim excessive whitespace\n")
-	yaml.WriteString("              return sanitized.trim();\n")
-	yaml.WriteString("            }\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            const outputFile = process.env.GITHUB_AW_OUTPUT;\n")
-	yaml.WriteString("            if (!outputFile) {\n")
-	yaml.WriteString("              console.log('GITHUB_AW_OUTPUT not set, no output to collect');\n")
-	yaml.WriteString("              core.setOutput('output', '');\n")
-	yaml.WriteString("              return;\n")
-	yaml.WriteString("            }\n")
-	yaml.WriteString("            if (!fs.existsSync(outputFile)) {\n")
-	yaml.WriteString("              console.log('Output file does not exist:', outputFile);\n")
-	yaml.WriteString("              core.setOutput('output', '');\n")
-	yaml.WriteString("              return;\n")
-	yaml.WriteString("            }\n")
-	yaml.WriteString("            const outputContent = fs.readFileSync(outputFile, 'utf8');\n")
-	yaml.WriteString("            if (outputContent.trim() === '') {\n")
-	yaml.WriteString("              console.log('Output file is empty');\n")
-	yaml.WriteString("              core.setOutput('output', '');\n")
-	yaml.WriteString("            } else {\n")
-	yaml.WriteString("              const sanitizedContent = sanitizeContent(outputContent);\n")
-	yaml.WriteString("              console.log('Collected agentic output (sanitized):', sanitizedContent.substring(0, 200) + (sanitizedContent.length > 200 ? '...' : ''));\n")
-	yaml.WriteString("              core.setOutput('output', sanitizedContent);\n")
-	yaml.WriteString("            }\n")
+
+	// Add each line of the script with proper indentation
+	WriteJavaScriptToYAML(yaml, sanitizeOutputScript)
 
 	yaml.WriteString("      - name: Print agent output to step summary\n")
 	yaml.WriteString("        env:\n")
