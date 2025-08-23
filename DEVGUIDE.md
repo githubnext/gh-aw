@@ -1,10 +1,5 @@
 # Developer Guide
 
-> [!CAUTION]
-> This extension is a research demonstrator. It is in early development and may change significantly. It has not been thoroughly tested. Using agentic workflows in your repository requires careful supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
-
-This guide provides comprehensive information for developers working on gh-aw, including setup, development workflow, testing, and contribution guidelines.
-
 ## Development Environment Setup
 
 ### 1. Clone and Setup Repository

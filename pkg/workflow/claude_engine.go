@@ -35,6 +35,11 @@ func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHub
 	return []GitHubActionStep{}
 }
 
+// GetDeclaredOutputFiles returns the output files that Claude may produce
+func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
+	return []string{"output.txt"}
+}
+
 func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig {
 	// Determine the action version to use
 	actionVersion := DefaultClaudeActionVersion // Default version
