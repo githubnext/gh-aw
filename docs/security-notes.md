@@ -156,7 +156,7 @@ tools:
       Bash: ["echo", "git status"]   # keep tight; avoid wildcards
 ```
 
-- Dangerous patterns to avoid:
+- Patterns to avoid:
 
 ```yaml
 tools:
