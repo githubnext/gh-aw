@@ -2670,23 +2670,9 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *Workflow
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString("            const fs = require('fs');\n")
-	yaml.WriteString("            const crypto = require('crypto');\n")
-	yaml.WriteString("            // Generate a random filename for the output file\n")
-	yaml.WriteString("            const randomId = crypto.randomBytes(8).toString('hex');\n")
-	yaml.WriteString("            const outputFile = `/tmp/aw_output_${randomId}.txt`;\n")
-	yaml.WriteString("            // Ensure the /tmp directory exists and create empty output file\n")
-	yaml.WriteString("            fs.mkdirSync('/tmp', { recursive: true });\n")
-	yaml.WriteString("            fs.writeFileSync(outputFile, '', { mode: 0o644 });\n")
-	yaml.WriteString("            // Verify the file was created and is writable\n")
-	yaml.WriteString("            if (!fs.existsSync(outputFile)) {\n")
-	yaml.WriteString("              throw new Error(`Failed to create output file: ${outputFile}`);\n")
-	yaml.WriteString("            }\n")
-	yaml.WriteString("            // Set the environment variable for subsequent steps\n")
-	yaml.WriteString("            core.exportVariable('GITHUB_AW_OUTPUT', outputFile);\n")
-	yaml.WriteString("            console.log('Created agentic output file:', outputFile);\n")
-	yaml.WriteString("            // Also set as step output for reference\n")
-	yaml.WriteString("            core.setOutput('output_file', outputFile);\n")
+
+	// Use the embedded setup agent output script
+	WriteJavaScriptToYAML(yaml, setupAgentOutputScript)
 }
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
