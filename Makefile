@@ -88,19 +88,6 @@ golint:
 		exit 1; \
 	fi
 
-# Validate auto-compile workflow template
-.PHONY: validate-template
-validate-template:
-	@echo "Validating auto-compile workflow template..."
-	@if command -v actionlint >/dev/null 2>&1; then \
-		actionlint pkg/cli/templates/auto-compile-workflow.yml; \
-	else \
-		echo "actionlint is not installed. Installing..."; \
-		go install github.com/rhysd/actionlint/cmd/actionlint@latest; \
-		actionlint pkg/cli/templates/auto-compile-workflow.yml; \
-	fi
-	@echo "✓ Auto-compile workflow template is valid"
-
 # Validate compiled workflow lock files (models: read not supported yet)
 .PHONY: validate-workflows
 validate-workflows:
@@ -128,7 +115,7 @@ fmt-check:
 
 # Validate all project files
 .PHONY: lint
-lint: fmt-check golint validate-template
+lint: fmt-check golint
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -236,9 +223,8 @@ help:
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-check        - Check code formatting"
-	@echo "  validate-template - Validate auto-compile workflow template"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
-	@echo "  validate         - Run all validations (fmt-check, lint, validate-template, validate-workflows)"
+	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
 	@echo "  recompile        - Recompile all workflow files (depends on build)"
 	@echo "  copy-copilot-to-claude - Copy copilot instructions to Claude instructions file"

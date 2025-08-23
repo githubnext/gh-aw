@@ -80,12 +80,6 @@ gh aw compile --watch
 
 # Watch with verbose output for detailed compilation feedback
 gh aw compile --watch --verbose
-
-# Generate auto-compile workflow for automatic CI/CD integration
-gh aw compile --auto-compile
-
-# Combined development setup: watch + auto-compile + verbose
-gh aw compile --watch --auto-compile --verbose
 ```
 
 **Compilation Process:**
@@ -225,21 +219,6 @@ gh aw mcp-inspect workflow-name --inspector
 
 For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](mcps.md#debugging-and-troubleshooting).
 
-## 🔄 Auto-Compile Workflow Management
-
-The `--auto-compile` flag enables automatic compilation of agentic workflows when markdown files change.
-
-```bash
-# Generate auto-compile workflow that triggers on markdown file changes
-gh aw compile --auto-compile
-```
-
-Auto-compile workflow features:
-- Triggers when .github/workflows/*.md files are modified
-- Automatically compiles markdown files to .lock.yml files
-- Commits and pushes the compiled workflow files
-- Uses locally built gh-aw extension for development workflows
-
 ## 👀 Watch Mode for Development
 The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in Visual Studio Code](./vscode.md).
 
@@ -249,9 +228,6 @@ gh aw compile --watch
 
 # Watch with verbose output for detailed compilation feedback
 gh aw compile --watch --verbose
-
-# Watch with auto-compile workflow generation
-gh aw compile --watch --auto-compile --verbose
 ```
 
 ## 📦 Package Management

@@ -30,79 +30,10 @@ var (
 	version = "dev"
 )
 
-//go:embed templates/auto-compile-workflow.yml
-var autoCompileWorkflowTemplate string
+
 
 //go:embed templates/instructions.md
 var copilotInstructionsTemplate string
-
-// ensureAutoCompileWorkflow checks if the auto-compile workflow exists and is up-to-date
-func ensureAutoCompileWorkflow(verbose bool) error {
-	// Find git root for consistent behavior
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return fmt.Errorf("auto-compile workflow management requires being in a git repository: %w", err)
-	}
-
-	workflowsDir := filepath.Join(gitRoot, ".github/workflows")
-	autoCompileFile := filepath.Join(workflowsDir, "auto-compile-workflows.yml")
-
-	// Check if the workflow file exists
-	needsUpdate := false
-	existingContent := ""
-
-	if content, err := os.ReadFile(autoCompileFile); err != nil {
-		if os.IsNotExist(err) {
-			needsUpdate = true
-			if verbose {
-				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Auto-compile workflow not found, will create: %s", autoCompileFile)))
-			}
-		} else {
-			return fmt.Errorf("failed to read auto-compile workflow: %w", err)
-		}
-	} else {
-		existingContent = string(content)
-
-		// Always use the fast install template (no rebuild)
-		expectedTemplate := autoCompileWorkflowTemplate
-
-		// Check if content matches our expected template
-		if strings.TrimSpace(existingContent) != strings.TrimSpace(expectedTemplate) {
-			needsUpdate = true
-			if verbose {
-				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Auto-compile workflow is outdated, will update: %s", autoCompileFile)))
-			}
-		} else if verbose {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Auto-compile workflow is up-to-date: %s", autoCompileFile)))
-		}
-	}
-
-	// Update the workflow if needed
-	if needsUpdate {
-		// Always use the fast install template (no rebuild)
-		templateToWrite := autoCompileWorkflowTemplate
-
-		// Ensure the workflows directory exists
-		if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create workflows directory: %w", err)
-		}
-
-		// Write the auto-compile workflow
-		if err := os.WriteFile(autoCompileFile, []byte(templateToWrite), 0644); err != nil {
-			return fmt.Errorf("failed to write auto-compile workflow: %w", err)
-		}
-
-		if verbose {
-			if existingContent == "" {
-				fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Created auto-compile workflow: %s", autoCompileFile)))
-			} else {
-				fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Updated auto-compile workflow: %s", autoCompileFile)))
-			}
-		}
-	}
-
-	return nil
-}
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
@@ -531,7 +462,7 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 }
 
 // CompileWorkflows compiles markdown files into GitHub Actions workflow files
-func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, validate bool, autoCompile bool, watch bool, writeInstructions bool) error {
+func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, validate bool, watch bool, writeInstructions bool) error {
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 
@@ -540,7 +471,7 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 
 	if watch {
 		// Watch mode: watch for file changes and recompile automatically
-		return watchAndCompileWorkflows(markdownFile, compiler, verbose, autoCompile)
+		return watchAndCompileWorkflows(markdownFile, compiler, verbose)
 	}
 
 	if markdownFile != "" {
@@ -555,15 +486,6 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 		}
 		if err := compiler.CompileWorkflow(resolvedFile); err != nil {
 			return err
-		}
-
-		// Ensure auto-compile workflow is present and up-to-date if requested
-		if autoCompile {
-			if err := ensureAutoCompileWorkflow(verbose); err != nil {
-				if verbose {
-					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to manage auto-compile workflow: %v", err)))
-				}
-			}
 		}
 
 		// Ensure .gitattributes marks .lock.yml files as generated
@@ -589,15 +511,6 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 	gitRoot, err := findGitRoot()
 	if err != nil {
 		return fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
-	}
-
-	// Ensure auto-compile workflow is present and up-to-date if requested
-	if autoCompile {
-		if err := ensureAutoCompileWorkflow(verbose); err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to manage auto-compile workflow: %v", err)))
-			}
-		}
 	}
 
 	// Compile all markdown files in .github/workflows relative to git root
@@ -658,7 +571,7 @@ func CompileWorkflows(markdownFile string, verbose bool, engineOverride string, 
 }
 
 // watchAndCompileWorkflows watches for changes to workflow files and recompiles them automatically
-func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, verbose bool, autoCompile bool) error {
+func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, verbose bool) error {
 	// Find git root for consistent behavior
 	gitRoot, err := findGitRoot()
 	if err != nil {
@@ -718,7 +631,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Println("🔨 Initial compilation of all workflow files...")
 		}
-		if err := compileAllWorkflowFiles(compiler, workflowsDir, verbose, autoCompile); err != nil {
+		if err := compileAllWorkflowFiles(compiler, workflowsDir, verbose); err != nil {
 			// Always show initial compilation errors, not just in verbose mode
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
@@ -779,7 +692,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 					modifiedFiles = make(map[string]struct{})
 
 					// Compile the modified files
-					compileModifiedFiles(compiler, filesToCompile, verbose, autoCompile)
+					compileModifiedFiles(compiler, filesToCompile, verbose)
 				})
 			}
 
@@ -804,7 +717,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 }
 
 // compileAllWorkflowFiles compiles all markdown files in the workflows directory
-func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool, autoCompile bool) error {
+func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) error {
 	// Find all markdown files
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
@@ -831,15 +744,6 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		}
 	}
 
-	// Handle auto-compile workflow if requested
-	if autoCompile {
-		if err := ensureAutoCompileWorkflow(verbose); err != nil {
-			if verbose {
-				fmt.Printf("⚠️  Failed to manage auto-compile workflow: %v\n", err)
-			}
-		}
-	}
-
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
 		if verbose {
@@ -851,7 +755,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 }
 
 // compileModifiedFiles compiles a list of modified markdown files
-func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose bool, autoCompile bool) {
+func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose bool) {
 	if len(files) == 0 {
 		return
 	}
@@ -879,15 +783,6 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			fmt.Println(err)
 		} else if verbose {
 			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
-		}
-	}
-
-	// Handle auto-compile workflow if requested
-	if autoCompile {
-		if err := ensureAutoCompileWorkflow(verbose); err != nil {
-			if verbose {
-				fmt.Printf("⚠️  Failed to manage auto-compile workflow: %v\n", err)
-			}
 		}
 	}
 

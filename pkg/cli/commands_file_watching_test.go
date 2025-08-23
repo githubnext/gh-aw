@@ -24,7 +24,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		err := watchAndCompileWorkflows("", compiler, false, false)
+		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should require git repository")
 		}
@@ -49,7 +49,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		err := watchAndCompileWorkflows("", compiler, false, false)
+		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should require .github/workflows directory")
 		}
@@ -76,7 +76,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		err := watchAndCompileWorkflows("nonexistent.md", compiler, false, false)
+		err := watchAndCompileWorkflows("nonexistent.md", compiler, false)
 		if err == nil {
 			t.Error("watchAndCompileWorkflows should error for nonexistent specific file")
 		}
@@ -114,7 +114,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		// Run in a goroutine so we can control it with context
 		done := make(chan error, 1)
 		go func() {
-			done <- watchAndCompileWorkflows("test.md", compiler, true, false)
+			done <- watchAndCompileWorkflows("test.md", compiler, true)
 		}()
 
 		select {
@@ -140,7 +140,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		err := compileAllWorkflowFiles(compiler, workflowsDir, true, false)
+		err := compileAllWorkflowFiles(compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles should handle empty directory: %v", err)
 		}
@@ -162,7 +162,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		// Create a basic compiler
 		compiler := workflow.NewCompiler(false, "", "test")
 
-		err := compileAllWorkflowFiles(compiler, workflowsDir, true, false)
+		err := compileAllWorkflowFiles(compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles failed: %v", err)
 		}
@@ -182,7 +182,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		err := compileAllWorkflowFiles(compiler, invalidDir, false, false)
+		err := compileAllWorkflowFiles(compiler, invalidDir, false)
 		if err == nil {
 			t.Error("compileAllWorkflowFiles should handle glob errors")
 		}
@@ -205,7 +205,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		compiler := workflow.NewCompiler(false, "", "test")
 
 		// This should not return an error (it prints errors but continues)
-		err := compileAllWorkflowFiles(compiler, workflowsDir, false, false)
+		err := compileAllWorkflowFiles(compiler, workflowsDir, false)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles should handle compilation errors gracefully: %v", err)
 		}
@@ -224,7 +224,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		compiler := workflow.NewCompiler(false, "", "test")
 
 		// Test verbose mode (should not error)
-		err := compileAllWorkflowFiles(compiler, workflowsDir, true, false)
+		err := compileAllWorkflowFiles(compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles verbose mode failed: %v", err)
 		}
@@ -256,7 +256,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 
 		// Test with recent files - compileModifiedFiles takes a slice of files
 		modifiedFiles := []string{file1} // Only include the recent file
-		compileModifiedFiles(compiler, modifiedFiles, true, false)
+		compileModifiedFiles(compiler, modifiedFiles, true)
 
 		// Check that the recent file was compiled
 		recentLock := filepath.Join(workflowsDir, "recent.lock.yml")
@@ -271,7 +271,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 
 		// Test with empty file list (should not error)
 		emptyFiles := []string{}
-		compileModifiedFiles(compiler, emptyFiles, true, false)
+		compileModifiedFiles(compiler, emptyFiles, true)
 		// Should complete without error
 	})
 
@@ -280,7 +280,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 
 		// Test with invalid file paths
 		invalidFiles := []string{"nonexistent/path/file.md"}
-		compileModifiedFiles(compiler, invalidFiles, false, false)
+		compileModifiedFiles(compiler, invalidFiles, false)
 		// Should handle gracefully without panicking
 	})
 
@@ -298,7 +298,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 
 		// Test verbose mode
 		modifiedFiles := []string{recentFile}
-		compileModifiedFiles(compiler, modifiedFiles, true, false)
+		compileModifiedFiles(compiler, modifiedFiles, true)
 		// Should complete without error
 	})
 }
