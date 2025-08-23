@@ -40,7 +40,7 @@ steps: ...
 Analyze this issue and provide helpful triage comments...
 ```
 
-One crucial difference from traditional agentic prompting is that GitHub Agentic Workflows can contain **both** traditional GitHub Actions steps and agentic natural language instructions. This allows the best of both worlds: traditional steps for deterministic actions, and agentic steps for flexible, context-aware AI-driven actions.
+Another crucial difference from traditional agentic prompting is that GitHub Agentic Workflows can contain triggers, permissions and other declarative elements. This works towards more reliable and more secure agentic programming, setting the AI up to contribute to success, in a partially sandboxed way, at the right time in your team's work.
 
 See [Workflow Structure](workflow-structure.md) and [Frontmatter Options](frontmatter.md) for details of file layout and configuration options.
 
