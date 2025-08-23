@@ -38,7 +38,7 @@ tools:
 
 > [!TIP]
 > You can inspect test your MCP configuration by running <br/>
-> `gh aw inspect <workflow-file>`
+> `gh aw mcp-inspect <workflow-file>`
 
 
 ### Engine Compatibility
@@ -165,7 +165,7 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 
 > [!TIP]
 > You can inspect the tools available for an Agentic Workflow by running <br/>
-> `gh aw inspect <workflow-file>`
+> `gh aw mcp-inspect <workflow-file>`
 
 ### Wildcard Access
 
@@ -198,24 +198,23 @@ tools:
 
 ### MCP Server Inspection
 
-Use the `inspect` command to analyze and troubleshoot MCP configurations:
+Use the `mcp-inspect` command to analyze and troubleshoot MCP configurations:
 
 ```bash
-# List all workflows with MCP configurations
-gh aw inspect
+# List all workflows with MCP servers configured
+gh aw mcp-inspect
 
 # Inspect all MCP servers in a specific workflow
-gh aw inspect my-workflow
+gh aw mcp-inspect my-workflow
 
-# Filter to specific servers
-gh aw inspect my-workflow --server trello-server
+# Inspect a specific MCP server in a workflow
+gh aw mcp-inspect my-workflow --server trello-server
 
-# Verbose output with connection details
-gh aw inspect my-workflow --verbose
+# Enable verbose output for debugging connection issues
+gh aw mcp-inspect my-workflow --verbose
 
 # Launch official MCP inspector web interface
-gh aw inspect my-workflow --inspector
-```
+gh aw mcp-inspect my-workflow --inspector
 
 ### Common Issues and Solutions
 
@@ -241,13 +240,13 @@ Error: Tool 'my_tool' not found
 
 **Solutions**:
 1. Add tool to `allowed` list
-2. Check tool name spelling (use `gh aw inspect` to see available tools)
+2. Check tool name spelling (use `gh aw mcp-inspect` to see available tools)
 3. Verify MCP server is running correctly
 
 ## Related Documentation
 
 - [Tools Configuration](tools.md) - Complete tools reference
-- [Commands](commands.md) - CLI commands including `inspect`
+- [Commands](commands.md) - CLI commands including `mcp-inspect`
 - [Include Directives](include-directives.md) - Modularizing workflows with includes
 - [Secrets Management](secrets.md) - Managing secrets and environment variables
 - [Frontmatter Options](frontmatter.md) - All configuration options

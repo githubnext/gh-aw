@@ -92,7 +92,7 @@ gh aw logs weekly-research
 
 - `gh aw status` — Check workflow installation status
 - `gh aw logs` — Download recent run logs and cost/usage analysis
-- `gh aw inspect` — Inspect MCP servers and tools
+- `gh aw mcp-inspect` — Inspect MCP servers and tools
 - If compilation fails, run `gh aw compile --verbose` for more details and follow the error output.
 
 ### What's next?
