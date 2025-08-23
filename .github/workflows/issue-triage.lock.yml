@@ -502,6 +502,14 @@ jobs:
           name: aw_output.txt
           path: ${{ env.GITHUB_AW_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_outputs
+          path: |
+            output.txt
+          if-no-files-found: ignore
       - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4

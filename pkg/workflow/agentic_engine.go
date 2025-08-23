@@ -32,6 +32,10 @@ type AgenticEngine interface {
 	// SupportsMaxTurns returns true if this engine supports the max-turns feature
 	SupportsMaxTurns() bool
 
+	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
+	// These files will be automatically uploaded as artifacts if they exist
+	GetDeclaredOutputFiles() []string
+
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
 	GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep
 
@@ -100,6 +104,11 @@ func (e *BaseEngine) SupportsHTTPTransport() bool {
 
 func (e *BaseEngine) SupportsMaxTurns() bool {
 	return e.supportsMaxTurns
+}
+
+// GetDeclaredOutputFiles returns an empty list by default (engines can override)
+func (e *BaseEngine) GetDeclaredOutputFiles() []string {
+	return []string{}
 }
 
 // EngineRegistry manages available agentic engines
