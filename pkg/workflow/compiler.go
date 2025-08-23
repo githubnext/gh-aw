@@ -1572,7 +1572,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	var steps []string
 
 	// Add shallow checkout step to access shared actions
-	steps = append(steps, "      - uses: actions/checkout@v4\n")
+	steps = append(steps, "      - uses: actions/checkout@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          sparse-checkout: .github\n")
 	steps = append(steps, "          fetch-depth: 1\n")
@@ -1630,7 +1630,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 	reactionCondition := buildReactionCondition()
 
 	var steps []string
-	steps = append(steps, "      - uses: actions/checkout@v4\n")
+	steps = append(steps, "      - uses: actions/checkout@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          sparse-checkout: .github\n")
 	steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
@@ -1773,7 +1773,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	// Step 2: Checkout repository
 	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, "        uses: actions/checkout@v4\n")
+	steps = append(steps, "        uses: actions/checkout@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 
@@ -2118,7 +2118,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	} else {
 		yaml.WriteString("      - name: Checkout repository\n")
-		yaml.WriteString("        uses: actions/checkout@v4\n")
+		yaml.WriteString("        uses: actions/checkout@v5\n")
 	}
 
 	// Add cache steps if cache configuration is present
