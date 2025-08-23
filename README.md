@@ -47,39 +47,54 @@ You can explore other samples at [githubnext/agentics](https://github.com/github
 
 ## 📝 Agentic Workflow Example
 
-Here's what a simple agentic workflow looks like. This example automatically triages new issues:
+Here's what a simple agentic issue labeller workflow. This example automatically labels an incoming issue.
+The section between `---` at the start is called the frontmatter and contains a superset of GitHub Actions Workflow syntax.
 
 ```markdown
 ---
 on:
   issues:
     types: [opened]
-
-permissions:
-  contents: read      # Minimal permissions for main job
-
-tools:
-  github:
-    allowed: [add_issue_comment]
-
 output:
-  issue:
-    title-prefix: "[triage] "
-    labels: [automation, triage]
-
-timeout_minutes: 5
+  labels:
+    allowed: [bug, feature]
 ---
-
-# Issue Triage
-
-Analyze issue #${{ github.event.issue.number }} and help with triage:
-
-1. Read the issue content
-2. Post a helpful comment summarizing the issue
-3. Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} for automatic issue creation
-
-Keep responses concise and helpful.
+## Issue Labeller
+- analyze issue #${{ github.event.issue.number }} content
+- categorize the content as 'bug' or 'feature'
+- label the issue accordingly
 ```
+
+The compiler will compile this agentic workflow into a GitHub Action Workflow file (`.yml`)
+which splits the agentic execution in two jobs (containers): 
+- the agentic job with `read` permissions only
+- the label creation job with `write` permissions only
+- the output of the agent is sanitized before being passed to the label creation APIs
+
+```yaml
+on:
+  issues:
+    types: [opened]
+jobs:
+  issue-labeller:
+    permissions:
+      contents: read # agent container only has read access
+    outputs:
+      output: # agent output text
+    steps:
+      # setup mcps
+      # run agent with markdown prompt
+      # save outputs
+  add_labels:
+    needs: issue-labeller
+    permissions:
+      issues: write # write access to add labels
+    steps:
+      # sanitize output
+      # use github apis to add labels
+```
+
+The resulting workflow provides a safe execution environment for agentic tasks by isolating permissions and sanitizing outputs.
 
 > **💡 Learn more**: For complete workflow configuration details, see the [Documentation](docs/index.md)
 
