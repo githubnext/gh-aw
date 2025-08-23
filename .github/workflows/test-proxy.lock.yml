@@ -26,29 +26,32 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const crypto = require('crypto');
-            // Generate a random filename for the output file
-            const randomId = crypto.randomBytes(8).toString('hex');
-            const outputFile = `/tmp/aw_output_${randomId}.txt`;
-            // Ensure the /tmp directory exists and create empty output file
-            fs.mkdirSync('/tmp', { recursive: true });
-            fs.writeFileSync(outputFile, '', { mode: 0o644 });
-            // Verify the file was created and is writable
-            if (!fs.existsSync(outputFile)) {
-              throw new Error(`Failed to create output file: ${outputFile}`);
+            function main() {
+              const fs = require('fs');
+              const crypto = require('crypto');
+              // Generate a random filename for the output file
+              const randomId = crypto.randomBytes(8).toString('hex');
+              const outputFile = `/tmp/aw_output_${randomId}.txt`;
+              // Ensure the /tmp directory exists and create empty output file
+              fs.mkdirSync('/tmp', { recursive: true });
+              fs.writeFileSync(outputFile, '', { mode: 0o644 });
+              // Verify the file was created and is writable
+              if (!fs.existsSync(outputFile)) {
+                throw new Error(`Failed to create output file: ${outputFile}`);
+              }
+              // Set the environment variable for subsequent steps
+              core.exportVariable('GITHUB_AW_OUTPUT', outputFile);
+              console.log('Created agentic output file:', outputFile);
+              // Also set as step output for reference
+              core.setOutput('output_file', outputFile);
             }
-            // Set the environment variable for subsequent steps
-            core.exportVariable('GITHUB_AW_OUTPUT', outputFile);
-            console.log('Created agentic output file:', outputFile);
-            // Also set as step output for reference
-            core.setOutput('output_file', outputFile);
+            main();
       - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
           echo "Generating proxy configuration files for MCP tools with network restrictions..."
@@ -544,6 +547,14 @@ jobs:
           name: aw_output.txt
           path: ${{ env.GITHUB_AW_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_outputs
+          path: |
+            output.txt
+          if-no-files-found: ignore
       - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4

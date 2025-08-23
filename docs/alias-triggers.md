@@ -70,7 +70,7 @@ All workflows have access to a special computed `needs.task.outputs.text` value 
 - **PR Reviews**: `review.body`
 - **Other events**: Empty string
 
-**Note**: Using this feature results in the addition of ".github/actions/compute-text/action.yml" file to the repository when the workflow is compiled.
+**Note**: Using this feature results in the addition of `.github/actions/compute-text/action.yml` file to the repository when the workflow is compiled.
 
 ## Related Documentation
 

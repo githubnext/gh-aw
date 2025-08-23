@@ -1,6 +1,6 @@
-# ⚙️ Frontmatter Options for GitHub Actions
+# ⚙️ Frontmatter Options for GitHub Agentic Workflows
 
-This guide covers all available frontmatter configuration options for agentic workflows.
+This guide covers all available frontmatter configuration options for GitHub Agentic Workflows.
 
 ## Overview
 
@@ -17,7 +17,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `if`: Conditional execution of the workflow
 - `steps`: Custom steps for the job
 
-**Agentic-Specific Properties:**
+**Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex)
 - `tools`: Available tools and MCP servers for the AI engine  
 - `stop-time`: Deadline when workflow should stop running (absolute or relative time)
@@ -28,7 +28,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 
 ## Trigger Events (`on:`)
 
-Standard GitHub Actions `on:` trigger section:
+The `on:` section uses standard GitHub Actions syntax to define workflow triggers. Here are some common examples:
 
 ```yaml
 on:
@@ -54,9 +54,11 @@ on:
   workflow_dispatch:
 ```
 
+An additional kind of trigger called `alias:` is supported, see [Alias Triggers](alias-triggers.md) for special `@mention` triggers and context text functionality.
+
 ## Permissions (`permissions:`)
 
-Standard GitHub Actions permissions syntax. See [GitHub Actions permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions).
+The `permissions:` section uses standard GitHub Actions permissions syntax to specify the permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Actions permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions).
 
 ```yaml
 # Specific permissions
@@ -77,7 +79,7 @@ If you specify any permission, unspecified ones are set to `none`.
 
 ## AI Engine (`engine:`)
 
-Specifies which AI engine to use. Defaults to `claude`.
+The `engine:` section specifies which AI engine to use to interpret the markdown section of the workflow, and controls options about how this execution proceeds. Defaults to `claude`.
 
 ```yaml
 engine: claude  # Default: Claude Code
@@ -115,25 +117,9 @@ engine:
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
 - **Codex**: Defaults to `o4-mini` when no model is specified
 
-## Cost Control Options
+## Stop Time (`stop-time:`)
 
-### Maximum Turns (`max-turns:`)
-
-Limit the number of chat iterations within a single agentic run:
-
-```yaml
-max-turns: 5
-```
-
-**Behavior:**
-1. Passes the limit to the AI engine (e.g., Claude Code action)
-2. Engine stops iterating when the turn limit is reached
-3. Helps prevent runaway chat loops and control costs
-4. Only applies to engines that support turn limiting (currently Claude)
-
-### Stop Time (`stop-time:`)
-
-Automatically disable workflow after a deadline:
+This is a cost-control option to automatically disable workflow triggering after a deadline:
 
 **Relative time delta (calculated from compilation time):**
 ```yaml
@@ -155,9 +141,23 @@ stop-time: "+25h"      # 25 hours from now
 
 Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
 
+## Maximum Turns (`max-turns:`)
+
+This is a cost-control option to limit the number of chat iterations within a single agentic run:
+
+```yaml
+max-turns: 5
+```
+
+**Behavior:**
+1. Passes the limit to the AI engine (e.g., Claude Code action)
+2. Engine stops iterating when the turn limit is reached
+3. Helps prevent runaway chat loops and control costs
+4. Only applies to engines that support turn limiting (currently Claude)
+
 ## Visual Feedback (`ai-reaction:`)
 
-Emoji reaction added/removed on triggering GitHub items:
+Adding this option enables emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status.
 
 ```yaml
 ai-reaction: "eyes"
@@ -173,19 +173,22 @@ ai-reaction: "eyes"
 - `rocket` (🚀)
 - `eyes` (👀)
 
-**Note**: Using this feature results in the addition of ".github/actions/reaction/action.yml" file to the repository when the workflow is compiled.
+**Note**: Using this feature results in the addition of `.github/actions/reaction/action.yml` file to the repository when the workflow is compiled.
 
-## Standard GitHub Actions Properties
+## Output Configuration (`output:`)
 
-### Run Configuration
+See [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
 
+## Run Configuration (`run-name:`, `runs-on:`, `timeout_minutes:`)
+
+Standard GitHub Actions properties:
 ```yaml
 run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest
 timeout_minutes: 30                  # Defaults to 15 minutes
 ```
 
-### Concurrency Control
+## Concurrency Control (`concurrency:`)
 
 GitHub Agentic Workflows automatically generates enhanced concurrency policies based on workflow trigger types to provide better isolation and resource management. For example, most workflows produce this:
 
@@ -214,7 +217,7 @@ Different workflow types receive different concurrency groups and cancellation b
 
 If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
 
-### Environment Variables
+## Environment Variables (`env:`)
 
 GitHub Actions standard `env:` syntax:
 
@@ -224,13 +227,15 @@ env:
   SECRET_VAR: ${{ secrets.MY_SECRET }}
 ```
 
-### Conditional Execution
+## Conditional Execution (`if:`)
+
+Standard GitHub Actions `if:` syntax:
 
 ```yaml
 if: github.event_name == 'push'
 ```
 
-### Custom Steps
+## Custom Steps (`steps:`)
 
 Add custom steps before the agentic execution step using GitHub Actions standard `steps:` syntax:
 
@@ -243,11 +248,13 @@ steps:
       node-version: '18'
 ```
 
+If no custom steps are specified, a default step to checkout the repository is added automatically.
+
 ## Cache Configuration (`cache:`)
 
-Cache configuration using GitHub Actions `actions/cache` syntax:
+Cache configuration using standard GitHub Actions `actions/cache` syntax:
 
-### Single Cache
+Single cache:
 ```yaml
 cache:
   key: node-modules-${{ hashFiles('package-lock.json') }}
@@ -256,7 +263,7 @@ cache:
     node-modules-
 ```
 
-### Multiple Caches
+Multiple caches:
 ```yaml
 cache:
   - key: node-modules-${{ hashFiles('package-lock.json') }}
@@ -271,22 +278,6 @@ cache:
       - build-cache-
     fail-on-cache-miss: false
 ```
-
-**Supported Parameters:**
-- `key:` - Cache key (required)
-- `path:` - Files/directories to cache (required, string or array)
-- `restore-keys:` - Fallback keys (string or array)
-- `upload-chunk-size:` - Chunk size for large files (integer)
-- `fail-on-cache-miss:` - Fail if cache not found (boolean)
-- `lookup-only:` - Only check cache existence (boolean)
-
-## Output Configuration (`output:`)
-
-See [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
-
-## Alias Triggers and Context Text
-
-See [Alias Triggers](alias-triggers.md) for special `@mention` triggers and context text functionality.
 
 ## Related Documentation
 
