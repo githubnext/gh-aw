@@ -47,7 +47,7 @@ You can explore other samples at [githubnext/agentics](https://github.com/github
 
 ## 📝 Agentic Workflow Example
 
-Here's what a simple agentic issue labeller workflow. This example automatically labels an incoming issue.
+Here's what a simple agentic issue labeler workflow. This example automatically labels an incoming issue.
 The section between `---` at the start is called the frontmatter and contains a superset of GitHub Actions Workflow syntax.
 
 ```markdown
@@ -76,7 +76,7 @@ on:
   issues:
     types: [opened]
 jobs:
-  issue-labeller:
+  issue-labeler:
     permissions:
       contents: read # agent container only has read access
     outputs:
@@ -86,7 +86,7 @@ jobs:
       # run agent with markdown prompt
       # save outputs
   add_labels:
-    needs: issue-labeller
+    needs: issue-labeler # wait for agent results
     permissions:
       issues: write # write access to add labels
     steps:
