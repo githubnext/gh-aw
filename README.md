@@ -2,8 +2,8 @@
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions. From [GitHub Next](https://githubnext.com/).
 
-> [!CAUTION]
-> This extension is a research demonstrator. It is in early development and may change significantly. It has not been thoroughly tested. Using agentic workflows in your repository requires careful supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
+> [!WARNING]
+> This extension is a research demonstrator. It is in early development and may change significantly. Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
 ## ⚡ Quick Start (30 seconds)
 
@@ -18,14 +18,7 @@ Now, add a weekly research report to your repo (this adds [this sample](https://
 ```bash
 gh aw add weekly-research -r githubnext/agentics --pr
 ```
-This command will create a PR to your repo adding several files including `.github/workflows/weekly-research.md` and `.github/workflows/weekly-research.lock.yml`:
-
-```
-.github/
-└── workflows/
-  ├── weekly-research.md # Agentic Workflow
-  └── weekly-research.lock.yml # Compiled GitHub Actions Workflow
-```
+This command will create a PR to your repo adding several files including `.github/workflows/weekly-research.md` and `.github/workflows/weekly-research.lock.yml`.
 
 Your repository will also need an `ANTHROPIC_API_KEY` (for Anthropic Claude) or `OPENAI_API_KEY` (for OpenAI Codex) Actions secret set up to run workflows that use AI models. You can add this using one of the following commands:
 
@@ -57,15 +50,11 @@ on:
 
 permissions:
   contents: read      # Minimal permissions for main job
+  issues: write      # Needed to add issue comments
 
 tools:
   github:
     allowed: [add_issue_comment]
-
-output:
-  issue:
-    title-prefix: "[triage] "
-    labels: [automation, triage]
 
 timeout_minutes: 5
 ---
@@ -75,17 +64,11 @@ timeout_minutes: 5
 Analyze issue #${{ github.event.issue.number }} and help with triage:
 
 1. Read the issue content
-2. Post a helpful comment summarizing the issue
-3. Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} for automatic issue creation
+2. Study the repository
+3. Post a helpful comment summarizing the issue
 
 Keep responses concise and helpful.
 ```
-
-> **💡 Learn more**: For complete workflow configuration details, see the [Documentation](docs/index.md)
-
-> **📚 Workflow commands**: See [Commands Documentation](docs/commands.md) for complete workflow management commands including `list`, `status`, `enable`, `disable`, and more.
-
-> **🤖 Teach AI** how write agentic workflows with [custom instructions](docs/vscode.md#copilot-instructions).
 
 ## 📂 Available Demonstrator Workflows from "[The Agentics](https://github.com/githubnext/agentics?tab=readme-ov-file#-the-agentics)"
 
@@ -143,7 +126,7 @@ Adding an agentic workflow adds two main files, for example:
 
 Both files are stored in `.github/workflows/` - the first file is the markdown file that defines the workflow, and the second is a lock file that contains the resolved workflow configuration to an actual GitHub Actions workflow.
 
-### Updating after workflow edits
+### You're in control
 
 You are in control of the workflow files in `.github/workflows/` and can adapt them to your needs. If you modify the markdown file, you can compile it to update the lock file:
 
@@ -153,35 +136,15 @@ gh aw compile
 
 You will see the changes reflected in the `.lock.yml` file, which is the actual workflow that will run on GitHub Actions. You should commit changes to both files to your repository.
 
-### Configuring the agentic processor
-
-By default Claude Code is used as the agentic processor. You can configure the agentic processor by editing the frontmatter of the markdown workflow files.
-
-```markdown
-engine: claude  # Default: Claude Code
-engine: codex   # Experimental: OpenAI Codex CLI with MCP support
-```
-
-You can also specify this on the command line when adding or running workflows:
-
-```bash
-# Use Claude (default)
-gh aw add weekly-research --engine claude
-
-# Use Codex (experimental)
-gh aw add weekly-research --engine codex
-```
-
-This will override the `engine` setting in the frontmatter of the markdown file.
-
-> **🔧 Advanced configuration**: For detailed information about permissions, tools, secrets, and all configuration options, see the [Documentation](docs/index.md)
-
-## Security of Agentic Workflows
+### Security of Agentic Workflows
 
 Security is a key consideration when using agentic workflows. Please see the [Security Notes](docs/security-notes.md) for guidelines related to workflow security and handling untrusted inputs.
 
-> [!CAUTION]
-> GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
+> **💡 Learn more**: For complete workflow configuration details, see the [Documentation](docs/index.md)
+
+> **📚 Workflow commands**: See [Commands Documentation](docs/commands.md) for complete workflow management commands including `list`, `status`, `enable`, `disable`, and more.
+
+> **🤖 Teach AI** how write agentic workflows with [custom instructions](docs/vscode.md#copilot-instructions).
 
 ## 💬 Share Feedback
 
