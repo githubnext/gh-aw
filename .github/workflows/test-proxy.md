@@ -21,7 +21,6 @@ tools:
   
   github:
     allowed:
-      - "create_issue"
       - "create_comment"
       - "get_issue"
 
@@ -44,10 +43,14 @@ Test the MCP network permissions feature to validate that domain restrictions ar
 - Verify that all blocked requests fail at the network level (proxy enforcement)
 - Confirm that only example.com is accessible through the Squid proxy
 
-Create a GitHub issue with the test results, documenting:
+## Reporting Instructions
+
+If there are any failures, security issues, or unexpected behaviors:
+
+- Write a detailed report to ${{ env.GITHUB_AW_OUTPUT }} documenting:
 - Which domains were successfully accessed vs blocked
 - Error messages received for blocked domains  
-- Confirmation that network isolation is working correctly
 - Any security observations or recommendations
+- Specific failure details that need attention
 
-The test should demonstrate that MCP containers are properly isolated and can only access explicitly allowed domains through the network proxy.
+Create a GitHub Comment on the pull request with the test results.
