@@ -1516,12 +1516,6 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
-	// Add shallow checkout step to access shared actions
-	steps = append(steps, "      - uses: actions/checkout@v5\n")
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          sparse-checkout: .github\n")
-	steps = append(steps, "          fetch-depth: 1\n")
-
 	// Add team member check for alias workflows, but only when triggered by alias mention
 	if data.Alias != "" {
 		// Build condition that only applies to alias mentions in comment-related events
@@ -1578,7 +1572,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 		Name:        "task",
 		If:          data.If, // Use the existing condition (which may include alias checks)
 		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "permissions:\n      contents: read", // Read permission for checkout
+		Permissions: "", // No permissions needed - task job does not require content access
 		Steps:       steps,
 		Outputs:     outputs,
 	}
@@ -1619,7 +1613,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 		Name:        "add_reaction",
 		If:          fmt.Sprintf("if: %s", reactionCondition.Render()),
 		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "permissions:\n      contents: write # Read .github\n      issues: write\n      pull-requests: write",
+		Permissions: "permissions:\n      issues: write\n      pull-requests: write",
 		Steps:       steps,
 		Outputs:     outputs,
 		Depends:     depends,
