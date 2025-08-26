@@ -1740,10 +1740,10 @@ func TestProcessIncludesOptional(t *testing.T) {
 			expectedOutput: existingContent,
 		},
 		{
-			name:           "regular include missing file",
-			content:        "@include missing.md\n",
-			extractTools:   false,
-			expectError:    true, // Now expects error instead of embedding comment
+			name:         "regular include missing file",
+			content:      "@include missing.md\n",
+			extractTools: false,
+			expectError:  true, // Now expects error instead of embedding comment
 		},
 		{
 			name:           "optional include existing file",
@@ -1764,10 +1764,10 @@ func TestProcessIncludesOptional(t *testing.T) {
 			expectedOutput: "",
 		},
 		{
-			name:           "regular include missing file extract tools",
-			content:        "@include missing.md\n",
-			extractTools:   true,
-			expectError:    true, // Now expects error instead of returning {}
+			name:         "regular include missing file extract tools",
+			content:      "@include missing.md\n",
+			extractTools: true,
+			expectError:  true, // Now expects error instead of returning {}
 		},
 	}
 
