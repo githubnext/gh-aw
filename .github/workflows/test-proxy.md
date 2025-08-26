@@ -4,8 +4,8 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-permissions:
-  issues: write # needed to write the output report to an issue
+output:
+  issue_comment: {}
 
 tools:
   fetch:
@@ -21,7 +21,6 @@ tools:
   
   github:
     allowed:
-      - "create_comment"
       - "get_issue"
 
 engine: claude
@@ -53,4 +52,4 @@ If there are any failures, security issues, or unexpected behaviors:
 - Any security observations or recommendations
 - Specific failure details that need attention
 
-Create a GitHub Comment on the pull request with the test results.
+The test results will be automatically posted as a comment on PR #${{ github.event.pull_request.number }}.
