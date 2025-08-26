@@ -3,7 +3,7 @@
 #   gh aw compile
 
 name: "Agentic Triage"
-on:
+"on":
   issues:
     types:
     - opened

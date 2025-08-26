@@ -3,7 +3,7 @@
 #   gh aw compile
 
 name: "Test Codex"
-on:
+"on":
   push:
     branches:
     - "*codex*"
