@@ -66,14 +66,11 @@ Each workflow consists of:
 ### Example Workflow File
 
 ```markdown
+---
 on:
   issues:
-    types: [opened, edited]
-  issue_comment:
-    types: [created]
+    types: [opened, reopened]
   reaction: "eyes"
-
-engine: claude
 
 permissions:
   issues: write
@@ -82,10 +79,7 @@ permissions:
 tools:
   github:
     allowed: [get_issue, add_issue_comment, list_issue_comments]
-
-cache:
-  key: node-modules-${{ hashFiles('package-lock.json') }}
-  path: node_modules
+---
 
 # Issue Auto-Responder
 
