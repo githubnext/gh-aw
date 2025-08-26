@@ -3,7 +3,7 @@
 #   gh aw compile
 
 name: "Test Network Permissions"
-"on":
+on:
   pull_request:
     branches:
     - main

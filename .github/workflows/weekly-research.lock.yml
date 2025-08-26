@@ -3,7 +3,7 @@
 #   gh aw compile
 
 name: "Weekly Research"
-"on":
+on:
   schedule:
   - cron: 0 9 * * 1
   workflow_dispatch: null
