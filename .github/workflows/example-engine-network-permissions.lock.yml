@@ -43,7 +43,7 @@ jobs:
           import re
           
           # Domain whitelist (populated during generation)
-          ALLOWED_DOMAINS = ["api.github.com"]
+          ALLOWED_DOMAINS = ["docs.github.com"]
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""

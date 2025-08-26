@@ -14,7 +14,7 @@ engine:
   permissions:
     network:
       allowed:
-        - "api.github.com"
+        - "docs.github.com"
 ---
 
 # Secure Web Research Task
