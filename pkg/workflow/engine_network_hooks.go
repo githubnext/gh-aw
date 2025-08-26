@@ -66,9 +66,16 @@ try:
     target = tool_input.get('url') or tool_input.get('query', '')
     domain = extract_domain(target)
     
-    # For WebSearch, be more permissive unless specific domain mentioned
+    # For WebSearch, apply domain restrictions consistently
+    # Only allow if domain is in allowlist or if no domain detected AND allowlist is empty
     if tool_name == 'WebSearch' and not domain:
-        sys.exit(0)  # Allow general searches
+        # Block general searches when domain restrictions are in place
+        if ALLOWED_DOMAINS:
+            print(f"Network access blocked for WebSearch: no specific domain detected", file=sys.stderr)
+            print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
+            sys.exit(2)  # Block general searches when restrictions exist
+        else:
+            sys.exit(0)  # Allow general searches only when no restrictions
     
     if not is_domain_allowed(domain):
         print(f"Network access blocked for domain: {domain}", file=sys.stderr)
@@ -87,14 +94,12 @@ except Exception as e:
 func (g *NetworkHookGenerator) GenerateNetworkHookWorkflowStep(allowedDomains []string) GitHubActionStep {
 	hookScript := g.GenerateNetworkHookScript(allowedDomains)
 
-	// Escape the script content for use in YAML heredoc
-	escapedScript := strings.ReplaceAll(hookScript, "'", "'\"'\"'")
-
+	// No escaping needed for heredoc with 'EOF' - it's literal
 	runContent := fmt.Sprintf(`mkdir -p .claude/hooks
 cat > .claude/hooks/network_permissions.py << 'EOF'
 %s
 EOF
-chmod +x .claude/hooks/network_permissions.py`, escapedScript)
+chmod +x .claude/hooks/network_permissions.py`, hookScript)
 
 	var lines []string
 	lines = append(lines, "      - name: Generate Network Permissions Hook")
