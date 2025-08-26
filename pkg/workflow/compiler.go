@@ -669,9 +669,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		workflowData.AliasOtherEvents = otherEvents
 	} else if (hasReaction || hasStopAfter) && len(otherEvents) > 0 {
 		// Only re-marshal the "on" if we have to
-		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
+		onEventsYAML, err := c.marshalYAMLWithQuoteRemoval(map[string]any{"on": otherEvents}, "on")
 		if err == nil {
-			workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
+			workflowData.On = onEventsYAML
 		} else {
 			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)
 			workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
@@ -720,6 +720,32 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	}
 
 	return yamlStr
+}
+
+// marshalYAMLWithQuoteRemoval marshals a YAML structure and removes quotes from the specified key
+// This is a helper function to ensure consistent quote removal across all YAML marshaling operations
+func (c *Compiler) marshalYAMLWithQuoteRemoval(data map[string]any, key string) (string, error) {
+	yamlBytes, err := yaml.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+
+	yamlStr := string(yamlBytes)
+	// Remove the trailing newline
+	yamlStr = strings.TrimSuffix(yamlStr, "\n")
+
+	// Clean up quoted keys - replace "key": with key:
+	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+	quotedKeyPattern := `"` + key + `":`
+	unquotedKey := key + ":"
+	yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
+
+	// Special handling for "on" section - comment out draft field from pull_request
+	if key == "on" {
+		yamlStr = c.commentOutDraftInOnSection(yamlStr)
+	}
+
+	return yamlStr, nil
 }
 
 // commentOutDraftInOnSection comments out draft fields in pull_request sections within the YAML string
@@ -939,9 +965,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 				}
 
 				// Convert merged events to YAML
-				mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": aliasEventsMap})
+				mergedEventsYAML, err := c.marshalYAMLWithQuoteRemoval(map[string]any{"on": aliasEventsMap}, "on")
 				if err == nil {
-					data.On = strings.TrimSuffix(string(mergedEventsYAML), "\n")
+					data.On = mergedEventsYAML
 				} else {
 					// If conversion fails, just use alias events
 					data.On = aliasEvents
