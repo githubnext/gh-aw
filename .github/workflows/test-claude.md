@@ -6,12 +6,12 @@ on:
   pull_request:
     branches: 
       - "*claude*"
-  workflow_dispatch:
+  workflow_dispatch: {}
+  reaction: eyes
 engine: 
   id: claude
   model: claude-3-5-sonnet-20241022
 timeout_minutes: 10
-ai-reaction: eyes
 permissions:
   pull-requests: write
   actions: read

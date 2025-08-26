@@ -3283,20 +3283,21 @@ func TestTransformImageToDockerCommand(t *testing.T) {
 	}
 }
 
-// TestAIReactionWorkflow tests the ai-reaction functionality
+// TestAIReactionWorkflow tests the reaction functionality
 func TestAIReactionWorkflow(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "ai-reaction-test")
+	tmpDir, err := os.MkdirTemp("", "reaction-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create a test markdown file with ai-reaction
+	// Create a test markdown file with reaction
 	testContent := `---
 on:
   issues:
     types: [opened]
+  reaction: eyes
 permissions:
   contents: read
   issues: write
@@ -3304,16 +3305,15 @@ permissions:
 tools:
   github:
     allowed: [get_issue]
-ai-reaction: eyes
 timeout_minutes: 5
 ---
 
 # AI Reaction Test
 
-Test workflow with ai-reaction.
+Test workflow with reaction.
 `
 
-	testFile := filepath.Join(tmpDir, "test-ai-reaction.md")
+	testFile := filepath.Join(tmpDir, "test-reaction.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -3326,7 +3326,7 @@ Test workflow with ai-reaction.
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
 
-	// Verify ai-reaction field is parsed correctly
+	// Verify reaction field is parsed correctly
 	if workflowData.AIReaction != "eyes" {
 		t.Errorf("Expected AIReaction to be 'eyes', got '%s'", workflowData.AIReaction)
 	}
@@ -3357,16 +3357,16 @@ Test workflow with ai-reaction.
 	}
 }
 
-// TestAIReactionWorkflowWithoutReaction tests that workflows without explicit ai-reaction do not create reaction actions
+// TestAIReactionWorkflowWithoutReaction tests that workflows without explicit reaction do not create reaction actions
 func TestAIReactionWorkflowWithoutReaction(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "no-ai-reaction-test")
+	tmpDir, err := os.MkdirTemp("", "no-reaction-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create a test markdown file without explicit ai-reaction (should not create reaction action)
+	// Create a test markdown file without explicit reaction (should not create reaction action)
 	testContent := `---
 on:
   issues:
@@ -3382,7 +3382,7 @@ timeout_minutes: 5
 
 # No Reaction Test
 
-Test workflow without explicit ai-reaction (should not create reaction action).
+Test workflow without explicit reaction (should not create reaction action).
 `
 
 	testFile := filepath.Join(tmpDir, "test-no-reaction.md")
@@ -3398,7 +3398,7 @@ Test workflow without explicit ai-reaction (should not create reaction action).
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
 
-	// Verify ai-reaction field is empty (not defaulted)
+	// Verify reaction field is empty (not defaulted)
 	if workflowData.AIReaction != "" {
 		t.Errorf("Expected AIReaction to be empty, got '%s'", workflowData.AIReaction)
 	}

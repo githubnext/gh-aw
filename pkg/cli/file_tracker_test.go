@@ -277,18 +277,19 @@ func TestCompileWorkflowWithTracking_SharedActions(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Test 1: Workflow WITH ai-reaction should create shared action
+	// Test 1: Workflow WITH reaction should create shared action
 	workflowWithReaction := `---
 name: Test Workflow With Reaction
-on: push
-ai-reaction: heart
+on: 
+  push: {}
+  reaction: heart
 ---
 
 This is a test workflow.
 
 ## Job: test
 
-This uses ai-reaction.
+This uses reaction.
 `
 
 	workflowFileWithReaction := filepath.Join(tempDir, "test-workflow-with-reaction.md")

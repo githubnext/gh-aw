@@ -66,16 +66,18 @@ Each workflow consists of:
 ### Example Workflow File
 
 ```markdown
----
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+  reaction: "eyes"
+
+engine: claude
 
 permissions:
   issues: write
   contents: read
-
-engine: claude
 
 tools:
   github:
@@ -84,9 +86,6 @@ tools:
 cache:
   key: node-modules-${{ hashFiles('package-lock.json') }}
   path: node_modules
-
-ai-reaction: "eyes"
----
 
 # Issue Auto-Responder
 

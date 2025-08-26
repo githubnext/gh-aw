@@ -20,7 +20,7 @@ func TestTaskAndAddReactionJobsPermissions(t *testing.T) {
 on:
   issues:
     types: [opened]
-ai-reaction: eyes
+  reaction: eyes
 tools:
   github:
     allowed: [list_issues]

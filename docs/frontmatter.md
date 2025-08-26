@@ -20,7 +20,6 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
 - `tools`: Available tools and MCP servers for the AI engine  
-- `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
 - `output`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
 
@@ -67,6 +66,29 @@ on:
 - `m` - minutes
 
 Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
+
+### Visual Feedback (`reaction:`)
+
+You can add a `reaction:` option within the `on:` section to enable emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status:
+
+```yaml
+on:
+  issues:
+    types: [opened]
+  reaction: "eyes"
+```
+
+**Available reactions:**
+- `+1` (👍)
+- `-1` (👎)
+- `laugh` (😄)
+- `confused` (😕)
+- `heart` (❤️)
+- `hooray` (🎉)
+- `rocket` (🚀)
+- `eyes` (👀)
+
+**Note**: This feature uses inline JavaScript code with `actions/github-script@v7` to add reactions, so no additional action files are created in the repository.
 
 **Default behavior** (if no `on:` specified):
 ```yaml
@@ -168,26 +190,6 @@ engine:
 2. Engine stops iterating when the turn limit is reached
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
-
-## Visual Feedback (`ai-reaction:`)
-
-Adding this option enables emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status.
-
-```yaml
-ai-reaction: "eyes"
-```
-
-**Available reactions:**
-- `+1` (👍)
-- `-1` (👎)
-- `laugh` (😄)
-- `confused` (😕)
-- `heart` (❤️)
-- `hooray` (🎉)
-- `rocket` (🚀)
-- `eyes` (👀)
-
-**Note**: This feature uses inline JavaScript code with `actions/github-script@v7` to add reactions, so no additional action files are created in the repository.
 
 ## Output Configuration (`output:`)
 

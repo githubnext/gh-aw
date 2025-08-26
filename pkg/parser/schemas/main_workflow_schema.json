@@ -295,6 +295,11 @@
             "stop-after": {
               "type": "string",
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
+            },
+            "reaction": {
+              "type": "string",
+              "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"],
+              "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes). Defaults to 'eyes' if not specified."
             }
           },
           "additionalProperties": false
@@ -827,11 +832,6 @@
     "alias": {
       "type": "string",
       "description": "Alias name for the workflow"
-    },
-    "ai-reaction": {
-      "type": "string",
-      "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"],
-      "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes). Defaults to 'eyes' if not specified."
     },
     "cache": {
       "description": "Cache configuration for workflow (uses actions/cache syntax)",

@@ -3,14 +3,14 @@
 #   gh aw compile
 
 name: "Test Claude"
-on:
+"on":
   pull_request:
     branches:
     - "*claude*"
   push:
     branches:
     - "*claude*"
-  workflow_dispatch: null
+  workflow_dispatch: {}
 
 permissions: {}
 

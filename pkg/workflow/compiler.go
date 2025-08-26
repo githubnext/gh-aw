@@ -607,18 +607,25 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	workflowData.Alias = c.extractAliasName(result.Frontmatter)
-	workflowData.AIReaction = c.extractYAMLValue(result.Frontmatter, "ai-reaction")
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 
 	// Parse output configuration
 	workflowData.Output = c.extractOutputConfig(result.Frontmatter)
 
 	// Check if "alias" is used as a trigger in the "on" section
+	// Also extract "reaction" from the "on" section
 	var hasAlias bool
 	var otherEvents map[string]any
 	if onValue, exists := result.Frontmatter["on"]; exists {
-		// Check for new format: on.alias
+		// Check for new format: on.alias and on.reaction
 		if onMap, ok := onValue.(map[string]any); ok {
+			// Extract reaction from on section
+			if reactionValue, hasReaction := onMap["reaction"]; hasReaction {
+				if reactionStr, ok := reactionValue.(string); ok {
+					workflowData.AIReaction = reactionStr
+				}
+			}
+
 			if _, hasAliasKey := onMap["alias"]; hasAliasKey {
 				hasAlias = true
 				// Set default alias to filename if not specified in the alias section
@@ -637,13 +644,21 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				// Extract other (non-conflicting) events
 				otherEvents = make(map[string]any)
 				for key, value := range onMap {
-					if key != "alias" {
+					if key != "alias" && key != "reaction" {
 						otherEvents[key] = value
 					}
 				}
 
 				// Clear the On field so applyDefaults will handle alias trigger generation
 				workflowData.On = ""
+			} else {
+				// Extract other events (excluding reaction which is not an event)
+				otherEvents = make(map[string]any)
+				for key, value := range onMap {
+					if key != "reaction" {
+						otherEvents[key] = value
+					}
+				}
 			}
 		}
 	}
@@ -658,6 +673,19 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		// We'll store this and handle it in applyDefaults
 		workflowData.On = "" // This will trigger alias handling in applyDefaults
 		workflowData.AliasOtherEvents = otherEvents
+	} else if !hasAlias && len(otherEvents) > 0 {
+		// If we have events but no alias, we need to preserve the original On field
+		// but we've already extracted the reaction, so rebuild without it
+		if len(otherEvents) > 0 {
+			// Convert other events (without reaction) back to YAML
+			onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
+			if err == nil {
+				workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
+			} else {
+				// Fallback to extracting the original on field
+				workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
+			}
+		}
 	}
 
 	// Apply defaults
