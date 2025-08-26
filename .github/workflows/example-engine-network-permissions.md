@@ -10,11 +10,16 @@ permissions:
 
 engine:
   id: claude
-  model: claude-3-5-sonnet-20241022
   permissions:
     network:
       allowed:
         - "docs.github.com"
+
+tools:
+  claude:
+    allowed:
+      WebFetch:
+      WebSearch:
 ---
 
 # Secure Web Research Task
