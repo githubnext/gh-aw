@@ -1,5 +1,8 @@
 ---
 on:
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
