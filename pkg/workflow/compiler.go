@@ -616,10 +616,16 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Also extract "reaction" from the "on" section
 	var hasAlias bool
 	var hasReaction bool
+	var hasStopAfter bool
 	var otherEvents map[string]any
 	if onValue, exists := result.Frontmatter["on"]; exists {
 		// Check for new format: on.alias and on.reaction
 		if onMap, ok := onValue.(map[string]any); ok {
+			// Check for stop-after in the on section
+			if _, hasStopAfterKey := onMap["stop-after"]; hasStopAfterKey {
+				hasStopAfter = true
+			}
+
 			// Extract reaction from on section
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
@@ -643,25 +649,11 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 					}
 				}
 
-				// Extract other (non-conflicting) events
-				otherEvents = make(map[string]any)
-				for key, value := range onMap {
-					if key != "alias" && key != "reaction" {
-						otherEvents[key] = value
-					}
-				}
-
 				// Clear the On field so applyDefaults will handle alias trigger generation
 				workflowData.On = ""
-			} else if hasReaction {
-				// Extract other events (excluding reaction which is not an event)
-				otherEvents = make(map[string]any)
-				for key, value := range onMap {
-					if key != "reaction" {
-						otherEvents[key] = value
-					}
-				}
 			}
+			// Extract other (non-conflicting) events excluding alias, reaction, and stop-after
+			otherEvents = filterMapKeys(onMap, "alias", "reaction", "stop-after")
 		}
 	}
 
@@ -675,10 +667,8 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		// We'll store this and handle it in applyDefaults
 		workflowData.On = "" // This will trigger alias handling in applyDefaults
 		workflowData.AliasOtherEvents = otherEvents
-	} else if !hasAlias && hasReaction && len(otherEvents) > 0 {
-		// If we have events and reaction but no alias, we need to preserve the On field
-		// but without the reaction field, so rebuild without it
-		// Convert other events (without reaction) back to YAML
+	} else if (hasReaction || hasStopAfter) && len(otherEvents) > 0 {
+		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
 			workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
@@ -820,6 +810,22 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, e
 	default:
 		return "", fmt.Errorf("invalid on: section format")
 	}
+}
+
+// filterMapKeys creates a new map excluding the specified keys
+func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
+	excludeSet := make(map[string]bool)
+	for _, key := range excludeKeys {
+		excludeSet[key] = true
+	}
+
+	result := make(map[string]any)
+	for key, value := range original {
+		if !excludeSet[key] {
+			result[key] = value
+		}
+	}
+	return result
 }
 
 // generateJobName converts a workflow name to a valid YAML job identifier

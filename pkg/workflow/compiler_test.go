@@ -4929,6 +4929,262 @@ engine: claude
 	}
 }
 
+func TestStopAfterCompiledAway(t *testing.T) {
+	// Test that stop-after is properly compiled away and doesn't appear in final YAML
+	tmpDir, err := os.MkdirTemp("", "stop-after-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name             string
+		frontmatter      string
+		shouldNotContain []string // Strings that should NOT appear in the lock file
+		shouldContain    []string // Strings that should appear in the lock file
+		description      string
+	}{
+		{
+			name: "stop-after with workflow_dispatch",
+			frontmatter: `---
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 1-5"
+  stop-after: "+48h"
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---`,
+			shouldNotContain: []string{
+				"stop-after:",
+				"stop-after: +48h",
+				"stop-after: \"+48h\"",
+			},
+			shouldContain: []string{
+				"workflow_dispatch: null",
+				"- cron: 0 2 * * 1-5",
+			},
+			description: "stop-after should be compiled away when used with workflow_dispatch and schedule",
+		},
+		{
+			name: "stop-after with alias trigger",
+			frontmatter: `---
+on:
+  alias:
+    name: test-bot
+  workflow_dispatch:
+  stop-after: "2024-12-31T23:59:59Z"
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---`,
+			shouldNotContain: []string{
+				"stop-after:",
+				"stop-after: 2024-12-31T23:59:59Z",
+				"stop-after: \"2024-12-31T23:59:59Z\"",
+			},
+			shouldContain: []string{
+				"workflow_dispatch: null",
+				"issue_comment:",
+				"issues:",
+				"pull_request:",
+			},
+			description: "stop-after should be compiled away when used with alias triggers",
+		},
+		{
+			name: "stop-after with reaction",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+  reaction: eyes
+  stop-after: "+24h"
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---`,
+			shouldNotContain: []string{
+				"stop-after:",
+				"stop-after: +24h",
+				"stop-after: \"+24h\"",
+			},
+			shouldContain: []string{
+				"issues:",
+				"types:",
+				"- opened",
+			},
+			description: "stop-after should be compiled away when used with reaction",
+		},
+		{
+			name: "stop-after only with schedule",
+			frontmatter: `---
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  stop-after: "+72h"
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---`,
+			shouldNotContain: []string{
+				"stop-after:",
+				"stop-after: +72h",
+				"stop-after: \"+72h\"",
+			},
+			shouldContain: []string{
+				"schedule:",
+				"- cron: 0 9 * * 1",
+			},
+			description: "stop-after should be compiled away when used only with schedule",
+		},
+		{
+			name: "stop-after with both alias and reaction",
+			frontmatter: `---
+on:
+  alias:
+    name: test-bot
+  reaction: heart
+  workflow_dispatch:
+  stop-after: "+36h"
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---`,
+			shouldNotContain: []string{
+				"stop-after:",
+				"stop-after: +36h",
+				"stop-after: \"+36h\"",
+			},
+			shouldContain: []string{
+				"workflow_dispatch: null",
+				"issue_comment:",
+				"issues:",
+				"pull_request:",
+			},
+			description: "stop-after should be compiled away when used with both alias and reaction",
+		},
+		{
+			name: "stop-after with reaction and schedule",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened, edited]
+  reaction: rocket
+  schedule:
+    - cron: "0 8 * * *"
+  stop-after: "+12h"
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---`,
+			shouldNotContain: []string{
+				"stop-after:",
+				"stop-after: +12h",
+				"stop-after: \"+12h\"",
+			},
+			shouldContain: []string{
+				"issues:",
+				"types:",
+				"- opened",
+				"- edited",
+				"schedule:",
+				"- cron: 0 8 * * *",
+			},
+			description: "stop-after should be compiled away when used with reaction and schedule",
+		},
+		{
+			name: "stop-after with alias and schedule",
+			frontmatter: `---
+on:
+  alias:
+    name: scheduler-bot
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+  stop-after: "+96h"
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---`,
+			shouldNotContain: []string{
+				"stop-after:",
+				"stop-after: +96h",
+				"stop-after: \"+96h\"",
+			},
+			shouldContain: []string{
+				"workflow_dispatch: null",
+				"schedule:",
+				"- cron: 0 12 * * *",
+				"issue_comment:",
+				"issues:",
+				"pull_request:",
+			},
+			description: "stop-after should be compiled away when used with alias and schedule",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := tt.frontmatter + `
+
+# Test Stop-After Compilation
+
+This workflow tests that stop-after is properly compiled away.
+`
+
+			testFile := filepath.Join(tmpDir, tt.name+"-workflow.md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			err := compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Unexpected error compiling workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			// Check that strings that should NOT appear are indeed absent
+			for _, shouldNotContain := range tt.shouldNotContain {
+				if strings.Contains(lockContent, shouldNotContain) {
+					t.Errorf("%s: Lock file should NOT contain '%s' but it did.\nLock file content:\n%s", tt.description, shouldNotContain, lockContent)
+				}
+			}
+
+			// Check that expected strings are present
+			for _, shouldContain := range tt.shouldContain {
+				if !strings.Contains(lockContent, shouldContain) {
+					t.Errorf("%s: Expected lock file to contain '%s' but it didn't.\nLock file content:\n%s", tt.description, shouldContain, lockContent)
+				}
+			}
+
+			// Verify the lock file is valid YAML
+			var yamlData map[string]any
+			if err := yaml.Unmarshal(content, &yamlData); err != nil {
+				t.Errorf("%s: Generated YAML is invalid: %v\nContent:\n%s", tt.description, err, lockContent)
+			}
+		})
+	}
+}
+
 func TestCustomStepsEdgeCases(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "steps-edge-cases-test")
 	if err != nil {

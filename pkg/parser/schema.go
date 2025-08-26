@@ -70,7 +70,15 @@ func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) 
 	}
 
 	// Convert frontmatter to JSON and back to normalize types for validation
-	frontmatterJSON, err := json.Marshal(frontmatter)
+	// Handle nil frontmatter as empty object to satisfy schema validation
+	var frontmatterToValidate map[string]any
+	if frontmatter == nil {
+		frontmatterToValidate = make(map[string]any)
+	} else {
+		frontmatterToValidate = frontmatter
+	}
+
+	frontmatterJSON, err := json.Marshal(frontmatterToValidate)
 	if err != nil {
 		return fmt.Errorf("schema validation error for %s: failed to marshal frontmatter: %w", context, err)
 	}
