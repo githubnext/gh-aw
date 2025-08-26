@@ -42,6 +42,7 @@ The YAML frontmatter supports these fields:
   - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
   - Special: `alias:` for @mention triggers
+  - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
   
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `write`, `none`
@@ -67,6 +68,7 @@ The YAML frontmatter supports these fields:
       id: claude                        # Required: agent CLI identifier (claude, codex)
       version: beta                     # Optional: version of the action
       model: claude-3-5-sonnet-20241022 # Optional: LLM model to use
+      max-turns: 5                      # Optional: maximum chat iterations per run
     ```
   
 - **`tools:`** - Tool configuration for AI agent
@@ -99,8 +101,6 @@ The YAML frontmatter supports these fields:
     ```
     **Important**: When using `output.pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions. The agent must create git patches in `/tmp/aw.patch`.
   
-- **`max-turns:`** - Maximum chat iterations per run (integer)
-- **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 
@@ -729,8 +729,8 @@ Agentic workflows compile to GitHub Actions YAML:
 4. **Use @include directives** for common patterns and security boilerplate
 5. **Test with `gh aw compile`** before committing (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
-7. **Set `stop-time`** for cost-sensitive workflows
-8. **Set `max-turns`** to limit chat iterations and prevent runaway loops
+7. **Set `stop-after`** in the `on:` section for cost-sensitive workflows
+8. **Set `max-turns` in engine config** to limit chat iterations and prevent runaway loops
 9. **Use specific tool permissions** rather than broad access
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance

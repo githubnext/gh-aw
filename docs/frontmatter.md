@@ -18,10 +18,8 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 
 **Properties specific to GitHub Agentic Workflows:**
-- `engine`: AI engine configuration (claude/codex)
+- `engine`: AI engine configuration (claude/codex) with optional max-turns setting
 - `tools`: Available tools and MCP servers for the AI engine  
-- `stop-time`: Deadline when workflow should stop running (absolute or relative time)
-- `max-turns`: Maximum number of chat iterations per run
 - `ai-reaction`: Emoji reaction to add/remove on triggering GitHub item
 - `cache`: Cache configuration for workflow dependencies
 - `output`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
@@ -35,6 +33,40 @@ on:
   issues:
     types: [opened]
 ```
+
+### Stop After Configuration (`stop-after:`)
+
+You can add a `stop-after:` option within the `on:` section as a cost-control measure to automatically disable workflow triggering after a deadline:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  stop-after: "+25h"  # 25 hours from compilation time
+```
+
+**Relative time delta (calculated from compilation time):**
+```yaml
+on:
+  issues:
+    types: [opened]
+  stop-after: "+25h"      # 25 hours from now
+```
+
+**Supported absolute date formats:**
+- Standard: `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD`
+- US format: `MM/DD/YYYY HH:MM:SS`, `MM/DD/YYYY`  
+- European: `DD/MM/YYYY HH:MM:SS`, `DD/MM/YYYY`
+- Readable: `January 2, 2006`, `2 January 2006`, `Jan 2, 2006`
+- Ordinals: `1st June 2025`, `June 1st 2025`, `23rd December 2025`
+- ISO 8601: `2006-01-02T15:04:05Z`
+
+**Supported delta units:**
+- `d` - days
+- `h` - hours
+- `m` - minutes
+
+Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
 
 **Default behavior** (if no `on:` specified):
 ```yaml
@@ -106,47 +138,29 @@ engine:
   id: claude                        # Required: engine identifier
   version: beta                     # Optional: version of the action
   model: claude-3-5-sonnet-20241022 # Optional: specific LLM model
+  max-turns: 5                      # Optional: maximum chat iterations per run
 ```
 
 **Fields:**
 - **`id`** (required): Engine identifier (`claude`, `codex`)
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
+- **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
 - **Codex**: Defaults to `o4-mini` when no model is specified
 
-## Stop Time (`stop-time:`)
+## AI Engine (`engine:`)
 
-This is a cost-control option to automatically disable workflow triggering after a deadline:
+**Max-turns Cost Control:**
 
-**Relative time delta (calculated from compilation time):**
-```yaml
-stop-time: "+25h"      # 25 hours from now
-```
-
-**Supported absolute date formats:**
-- Standard: `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD`
-- US format: `MM/DD/YYYY HH:MM:SS`, `MM/DD/YYYY`  
-- European: `DD/MM/YYYY HH:MM:SS`, `DD/MM/YYYY`
-- Readable: `January 2, 2006`, `2 January 2006`, `Jan 2, 2006`
-- Ordinals: `1st June 2025`, `June 1st 2025`, `23rd December 2025`
-- ISO 8601: `2006-01-02T15:04:05Z`
-
-**Supported delta units:**
-- `d` - days
-- `h` - hours
-- `m` - minutes
-
-Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
-
-## Maximum Turns (`max-turns:`)
-
-This is a cost-control option to limit the number of chat iterations within a single agentic run:
+The `max-turns` option is now configured within the engine configuration to limit the number of chat iterations within a single agentic run:
 
 ```yaml
-max-turns: 5
+engine:
+  id: claude
+  max-turns: 5
 ```
 
 **Behavior:**

@@ -79,6 +79,30 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022"},
 		},
 		{
+			name: "object format - with max-turns",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":        "claude",
+					"max-turns": 5,
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", MaxTurns: "5"},
+		},
+		{
+			name: "object format - complete with max-turns",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":        "claude",
+					"version":   "beta",
+					"model":     "claude-3-5-sonnet-20241022",
+					"max-turns": 10,
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "10"},
+		},
+		{
 			name: "object format - missing id",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -119,6 +143,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.Model != test.expectedConfig.Model {
 					t.Errorf("Expected config.Model '%s', got '%s'", test.expectedConfig.Model, config.Model)
+				}
+
+				if config.MaxTurns != test.expectedConfig.MaxTurns {
+					t.Errorf("Expected config.MaxTurns '%s', got '%s'", test.expectedConfig.MaxTurns, config.MaxTurns)
 				}
 			}
 		})

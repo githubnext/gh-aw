@@ -16,7 +16,12 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 		{
 			name: "valid frontmatter with all allowed keys",
 			frontmatter: map[string]any{
-				"on":              "push",
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"main"},
+					},
+					"stop-after": "2024-12-31",
+				},
 				"permissions":     "read",
 				"run-name":        "Test Run",
 				"runs-on":         "ubuntu-latest",
@@ -27,7 +32,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				"steps":           []string{"step1"},
 				"engine":          "claude",
 				"tools":           map[string]any{"github": "test"},
-				"stop-time":       "2024-12-31",
 				"alias":           "test-workflow",
 			},
 			wantErr: false,

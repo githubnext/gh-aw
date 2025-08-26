@@ -17,13 +17,13 @@ func TestStopTimeResolutionIntegration(t *testing.T) {
 		shouldContain  string
 	}{
 		{
-			name: "absolute stop-time unchanged",
+			name: "absolute stop-after unchanged",
 			frontmatter: `---
 engine: claude
 on:
   schedule:
     - cron: "0 9 * * 1"
-stop-time: "2025-12-31 23:59:59"
+  stop-after: "2025-12-31 23:59:59"
 ---`,
 			markdown:       "# Test Workflow\n\nThis is a test workflow.",
 			expectStopTime: true,
@@ -36,7 +36,7 @@ engine: claude
 on:
   schedule:
     - cron: "0 9 * * 1"
-stop-time: "June 1, 2025"
+  stop-after: "June 1, 2025"
 ---`,
 			markdown:       "# Test Workflow\n\nThis is a test workflow.",
 			expectStopTime: true,
@@ -49,7 +49,7 @@ engine: claude
 on:
   schedule:
     - cron: "0 9 * * 1"
-stop-time: "1st June 2025"
+  stop-after: "1st June 2025"
 ---`,
 			markdown:       "# Test Workflow\n\nThis is a test workflow.",
 			expectStopTime: true,
@@ -62,40 +62,40 @@ engine: claude
 on:
   schedule:
     - cron: "0 9 * * 1"
-stop-time: "06/01/2025 15:30"
+  stop-after: "06/01/2025 15:30"
 ---`,
 			markdown:       "# Test Workflow\n\nThis is a test workflow.",
 			expectStopTime: true,
 			shouldContain:  "2025-06-01 15:30:00",
 		},
 		{
-			name: "relative stop-time gets resolved",
+			name: "relative stop-after gets resolved",
 			frontmatter: `---
 engine: claude
 on:
   schedule:
     - cron: "0 9 * * 1"
-stop-time: "+25h"
+  stop-after: "+25h"
 ---`,
 			markdown:       "# Test Workflow\n\nThis is a test workflow.",
 			expectStopTime: true,
 			shouldContain:  "", // We'll check the format but not exact time
 		},
 		{
-			name: "complex relative stop-time gets resolved",
+			name: "complex relative stop-after gets resolved",
 			frontmatter: `---
 engine: claude
 on:
   schedule:
     - cron: "0 9 * * 1"  
-stop-time: "+1d12h30m"
+  stop-after: "+1d12h30m"
 ---`,
 			markdown:       "# Test Workflow\n\nThis is a test workflow.",
 			expectStopTime: true,
 			shouldContain:  "", // We'll check the format but not exact time
 		},
 		{
-			name: "no stop-time specified",
+			name: "no stop-after specified",
 			frontmatter: `---
 engine: claude
 on:
@@ -201,26 +201,18 @@ on:
 	}
 }
 
-func TestStopTimeResolutionError(t *testing.T) {
+func TestDeprecatedStopTimeUsage(t *testing.T) {
 	tests := []struct {
-		name        string
-		stopTime    string
-		expectedErr string
+		name     string
+		stopTime string
 	}{
 		{
-			name:        "invalid relative format",
-			stopTime:    "+invalid",
-			expectedErr: "invalid stop-time format",
+			name:     "absolute stop-time at root level",
+			stopTime: "2025-12-31 23:59:59",
 		},
 		{
-			name:        "invalid absolute format",
-			stopTime:    "not-a-date",
-			expectedErr: "invalid stop-time format",
-		},
-		{
-			name:        "invalid month name",
-			stopTime:    "Foo 1, 2025",
-			expectedErr: "invalid stop-time format",
+			name:     "relative stop-time at root level",
+			stopTime: "+25h",
 		},
 	}
 
@@ -239,7 +231,78 @@ stop-time: "%s"
 
 # Test Workflow
 
-This is a test workflow with invalid stop-time.`, tt.stopTime)
+This workflow uses deprecated stop-time format.`, tt.stopTime)
+
+			err := os.WriteFile(mdFile, []byte(content), 0644)
+			if err != nil {
+				t.Fatalf("Failed to write test file: %v", err)
+			}
+
+			// Compile the workflow - should fail with helpful error
+			compiler := NewCompiler(false, "", "test-version")
+			err = compiler.CompileWorkflow(mdFile)
+			if err == nil {
+				t.Errorf("Expected compilation to fail with deprecated stop-time usage but it succeeded")
+				return
+			}
+
+			expectedError := "'stop-time' is no longer supported at the root level"
+			if !strings.Contains(err.Error(), expectedError) {
+				t.Errorf("Expected error to mention %q but got: %v", expectedError, err)
+			}
+
+			expectedMigrationHint := "Please move it under the 'on:' section and rename to 'stop-after:'"
+			if !strings.Contains(err.Error(), expectedMigrationHint) {
+				t.Errorf("Expected error to contain migration hint %q but got: %v", expectedMigrationHint, err)
+			}
+
+			expectedExample := fmt.Sprintf("stop-after: \"%s\"", tt.stopTime)
+			if !strings.Contains(err.Error(), expectedExample) {
+				t.Errorf("Expected error to contain example with value %q but got: %v", expectedExample, err)
+			}
+		})
+	}
+}
+
+func TestStopTimeResolutionError(t *testing.T) {
+	tests := []struct {
+		name        string
+		stopTime    string
+		expectedErr string
+	}{
+		{
+			name:        "invalid relative format",
+			stopTime:    "+invalid",
+			expectedErr: "invalid stop-after format",
+		},
+		{
+			name:        "invalid absolute format",
+			stopTime:    "not-a-date",
+			expectedErr: "invalid stop-after format",
+		},
+		{
+			name:        "invalid month name",
+			stopTime:    "Foo 1, 2025",
+			expectedErr: "invalid stop-after format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			mdFile := tmpDir + "/test-workflow.md"
+
+			content := fmt.Sprintf(`---
+engine: claude
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  stop-after: "%s"
+---
+
+# Test Workflow
+
+This is a test workflow with invalid stop-after.`, tt.stopTime)
 
 			err := os.WriteFile(mdFile, []byte(content), 0644)
 			if err != nil {
@@ -250,7 +313,7 @@ This is a test workflow with invalid stop-time.`, tt.stopTime)
 			compiler := NewCompiler(false, "", "test-version")
 			err = compiler.CompileWorkflow(mdFile)
 			if err == nil {
-				t.Errorf("Expected compilation to fail with invalid stop-time format %q but it succeeded", tt.stopTime)
+				t.Errorf("Expected compilation to fail with invalid stop-after format %q but it succeeded", tt.stopTime)
 				return
 			}
 

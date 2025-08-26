@@ -1,10 +1,13 @@
 package workflow
 
+import "fmt"
+
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID      string
-	Version string
-	Model   string
+	ID       string
+	Version  string
+	Model    string
+	MaxTurns string
 }
 
 // extractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
@@ -37,6 +40,17 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if model, hasModel := engineObj["model"]; hasModel {
 				if modelStr, ok := model.(string); ok {
 					config.Model = modelStr
+				}
+			}
+
+			// Extract optional 'max-turns' field
+			if maxTurns, hasMaxTurns := engineObj["max-turns"]; hasMaxTurns {
+				if maxTurnsInt, ok := maxTurns.(int); ok {
+					config.MaxTurns = fmt.Sprintf("%d", maxTurnsInt)
+				} else if maxTurnsUint64, ok := maxTurns.(uint64); ok {
+					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
+				} else if maxTurnsStr, ok := maxTurns.(string); ok {
+					config.MaxTurns = maxTurnsStr
 				}
 			}
 
