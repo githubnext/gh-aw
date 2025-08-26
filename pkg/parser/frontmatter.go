@@ -313,31 +313,21 @@ func ProcessIncludes(content, baseDir string, extractTools bool) (string, error)
 			fullPath, err := resolveIncludePath(filePath, baseDir)
 			if err != nil {
 				if isOptional {
-					// For optional includes, show a friendly informational message
+					// For optional includes, show a friendly informational message to stdout
 					if !extractTools {
-						result.WriteString(fmt.Sprintf("<!-- Optional include file not found: %s. You can create this file to configure the workflow. -->\n", filePath))
+						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Optional include file not found: %s. You can create this file to configure the workflow.", filePath)))
 					}
 					continue
 				}
-				if extractTools {
-					result.WriteString("{}\n")
-				} else {
-					strippedError := StripANSI(err.Error())
-					result.WriteString(fmt.Sprintf("\n<!-- Error: %s -->\n\n", strippedError))
-				}
-				continue
+				// For required includes, fail compilation with an error
+				return "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
 
 			// Process the included file
 			includedContent, err := processIncludedFile(fullPath, sectionName, extractTools)
 			if err != nil {
-				if extractTools {
-					result.WriteString("{}\n")
-				} else {
-					strippedError := StripANSI(err.Error())
-					result.WriteString(fmt.Sprintf("\n<!-- Error: %s -->\n\n", strippedError))
-				}
-				continue
+				// For any processing errors, fail compilation
+				return "", fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
 			}
 
 			if extractTools {

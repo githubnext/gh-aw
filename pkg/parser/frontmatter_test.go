@@ -488,7 +488,7 @@ Some content here.
 			content:      "@include nonexistent.md",
 			baseDir:      tempDir,
 			extractTools: false,
-			expected:     "\n<!-- Error: file not found: " + filepath.Join(tempDir, "nonexistent.md") + " -->\n\n",
+			wantErr:      true, // Now expects error instead of embedding comment
 		},
 		{
 			name:         "include file with extra newlines",
@@ -723,8 +723,7 @@ This is just plain markdown content with no frontmatter.`
 			content:      "@include .github/workflows/invalid.md",
 			baseDir:      tempDir,
 			extractTools: false,
-			wantErr:      false,
-			checkContent: "<!-- Error: invalid frontmatter in included file",
+			wantErr:      true, // Now expects error instead of embedding comment
 		},
 		{
 			name:         "invalid non-workflow file inclusion should succeed with warnings",
@@ -1744,7 +1743,7 @@ func TestProcessIncludesOptional(t *testing.T) {
 			name:           "regular include missing file",
 			content:        "@include missing.md\n",
 			extractTools:   false,
-			expectedOutput: "\n<!-- Error: file not found:",
+			expectError:    true, // Now expects error instead of embedding comment
 		},
 		{
 			name:           "optional include existing file",
@@ -1756,7 +1755,7 @@ func TestProcessIncludesOptional(t *testing.T) {
 			name:           "optional include missing file",
 			content:        "@include? missing.md\n",
 			extractTools:   false,
-			expectedOutput: "<!-- Optional include file not found: missing.md. You can create this file to configure the workflow. -->\n",
+			expectedOutput: "", // No content added, friendly message goes to stdout
 		},
 		{
 			name:           "optional include missing file extract tools",
@@ -1768,7 +1767,7 @@ func TestProcessIncludesOptional(t *testing.T) {
 			name:           "regular include missing file extract tools",
 			content:        "@include missing.md\n",
 			extractTools:   true,
-			expectedOutput: "{}\n",
+			expectError:    true, // Now expects error instead of returning {}
 		},
 	}
 
