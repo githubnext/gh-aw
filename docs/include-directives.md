@@ -10,6 +10,14 @@ Include directives allow you to modularize and reuse workflow components across 
 
 Includes files relative to the current markdown file's location.
 
+## Optional Include Syntax
+
+```markdown
+@include? relative/path/to/file.md
+```
+
+Includes files optionally - if the file doesn't exist, no error occurs and a friendly informational comment is added to the workflow. The optional file will be watched for changes in `gh aw compile --watch` mode, so creating the file later will automatically include it.
+
 ## Section-Specific Includes
 
 ```markdown
@@ -80,7 +88,11 @@ When an issue is opened, analyze and respond appropriately.
 
 @include shared/common-tools.md
 
+@include? perf-goals.md
+
 ```
+
+The workflow above includes required shared files and optionally includes `perf-goals.md` if it exists. If `perf-goals.md` doesn't exist, the workflow will compile successfully with a friendly note that you can create the file to configure performance goals for the workflow.
 
 ## Frontmatter Merging
 

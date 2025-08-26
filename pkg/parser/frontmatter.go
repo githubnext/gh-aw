@@ -289,14 +289,15 @@ func ExtractMarkdown(filePath string) (string, error) {
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-	includePattern := regexp.MustCompile(`^@include\s+(.+)$`)
+	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		// Check if this line is an @include directive
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
-			includePath := strings.TrimSpace(matches[1])
+			isOptional := matches[1] == "?"
+			includePath := strings.TrimSpace(matches[2])
 
 			// Handle section references (file.md#Section)
 			var filePath, sectionName string
@@ -311,6 +312,13 @@ func ProcessIncludes(content, baseDir string, extractTools bool) (string, error)
 			// Resolve file path
 			fullPath, err := resolveIncludePath(filePath, baseDir)
 			if err != nil {
+				if isOptional {
+					// For optional includes, show a friendly informational message
+					if !extractTools {
+						result.WriteString(fmt.Sprintf("<!-- Optional include file not found: %s. You can create this file to configure the workflow. -->\n", filePath))
+					}
+					continue
+				}
 				if extractTools {
 					result.WriteString("{}\n")
 				} else {

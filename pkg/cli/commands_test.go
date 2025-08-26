@@ -723,6 +723,30 @@ More content here.
 			expectError:       false,
 			description:       "Include of nonexistent file should still add dependency but not recurse",
 		},
+		{
+			name:              "optional_include_existing",
+			content:           "# Optional Include Existing\n@include? shared/common.md\nMore content.",
+			workflowPath:      workflowsDir + "/optional-existing.md",
+			expectedDepsCount: 1,
+			expectError:       false,
+			description:       "Optional include of existing file should work like regular include",
+		},
+		{
+			name:              "optional_include_missing",
+			content:           "# Optional Include Missing\n@include? shared/optional.md\nMore content.",
+			workflowPath:      workflowsDir + "/optional-missing.md",
+			expectedDepsCount: 1,
+			expectError:       false,
+			description:       "Optional include of missing file should still add dependency",
+		},
+		{
+			name:              "mixed_includes",
+			content:           "# Mixed\n@include shared/common.md\n@include? shared/optional.md\n@include shared/recursive.md",
+			workflowPath:      workflowsDir + "/mixed.md",
+			expectedDepsCount: 4, // common.md + optional.md + recursive.md + recursive.md->common.md
+			expectError:       false,
+			description:       "Mixed regular and optional includes should collect all dependencies",
+		},
 	}
 
 	for _, tt := range tests {
@@ -752,6 +776,31 @@ More content here.
 				}
 				if dep.TargetPath == "" {
 					t.Errorf("Dependency %d has empty TargetPath", i)
+				}
+			}
+
+			// Verify optional flag for specific test cases
+			if tt.name == "optional_include_existing" || tt.name == "optional_include_missing" {
+				if len(deps) > 0 && !deps[0].IsOptional {
+					t.Errorf("Optional include dependency should have IsOptional=true")
+				}
+			}
+			if tt.name == "mixed_includes" {
+				optionalFound := false
+				regularFound := false
+				for _, dep := range deps {
+					if strings.Contains(dep.TargetPath, "optional") && dep.IsOptional {
+						optionalFound = true
+					}
+					if (strings.Contains(dep.TargetPath, "common") || strings.Contains(dep.TargetPath, "recursive")) && !dep.IsOptional {
+						regularFound = true
+					}
+				}
+				if !optionalFound {
+					t.Errorf("Mixed includes should have at least one optional dependency")
+				}
+				if !regularFound {
+					t.Errorf("Mixed includes should have at least one regular dependency")
 				}
 			}
 		})

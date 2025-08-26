@@ -1711,3 +1711,86 @@ func BenchmarkStripANSI(b *testing.B) {
 		})
 	}
 }
+
+func TestProcessIncludesOptional(t *testing.T) {
+	// Create temporary directory structure
+	tempDir, err := os.MkdirTemp("", "test_optional_includes")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create an existing include file
+	existingFile := filepath.Join(tempDir, "existing.md")
+	existingContent := "# Existing Include\nThis file exists."
+	if err := os.WriteFile(existingFile, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing file: %v", err)
+	}
+
+	tests := []struct {
+		name           string
+		content        string
+		extractTools   bool
+		expectedOutput string
+		expectError    bool
+	}{
+		{
+			name:           "regular include existing file",
+			content:        "@include existing.md\n",
+			extractTools:   false,
+			expectedOutput: existingContent,
+		},
+		{
+			name:           "regular include missing file",
+			content:        "@include missing.md\n",
+			extractTools:   false,
+			expectedOutput: "\n<!-- Error: file not found:",
+		},
+		{
+			name:           "optional include existing file",
+			content:        "@include? existing.md\n",
+			extractTools:   false,
+			expectedOutput: existingContent,
+		},
+		{
+			name:           "optional include missing file",
+			content:        "@include? missing.md\n",
+			extractTools:   false,
+			expectedOutput: "<!-- Optional include file not found: missing.md. You can create this file to configure the workflow. -->\n",
+		},
+		{
+			name:           "optional include missing file extract tools",
+			content:        "@include? missing.md\n",
+			extractTools:   true,
+			expectedOutput: "",
+		},
+		{
+			name:           "regular include missing file extract tools",
+			content:        "@include missing.md\n",
+			extractTools:   true,
+			expectedOutput: "{}\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ProcessIncludes(tt.content, tempDir, tt.extractTools)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("ProcessIncludes expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ProcessIncludes unexpected error: %v", err)
+				return
+			}
+
+			if !strings.Contains(result, tt.expectedOutput) {
+				t.Errorf("ProcessIncludes output = %q, expected to contain %q", result, tt.expectedOutput)
+			}
+		})
+	}
+}

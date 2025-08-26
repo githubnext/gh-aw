@@ -603,6 +603,27 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		return fmt.Errorf("failed to watch directory %s: %w", workflowsDir, err)
 	}
 
+	// Also watch subdirectories for include files (recursive watching)
+	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors but continue walking
+		}
+		if info.IsDir() && path != workflowsDir {
+			// Add subdirectories to the watcher
+			if err := watcher.Add(path); err != nil {
+				if verbose {
+					fmt.Printf("Warning: Failed to watch subdirectory %s: %v\n", path, err)
+				}
+			} else if verbose {
+				fmt.Printf("Watching subdirectory: %s\n", path)
+			}
+		}
+		return nil
+	})
+	if err != nil && verbose {
+		fmt.Printf("Warning: Failed to walk subdirectories: %v\n", err)
+	}
+
 	// Always emit the begin pattern for task integration
 	if markdownFile != "" {
 		fmt.Printf("Watching for file changes to %s...\n", markdownFile)
@@ -1593,6 +1614,7 @@ func cancelWorkflowRuns(workflowID int64) error {
 type IncludeDependency struct {
 	SourcePath string // Path in the source (local)
 	TargetPath string // Relative path where it should be copied in .github/workflows
+	IsOptional bool   // Whether this is an optional include (@include?)
 }
 
 // collectIncludeDependencies recursively collects all @include dependencies from a workflow file
@@ -1609,13 +1631,14 @@ func collectIncludeDependencies(content, workflowPath, workflowsDir string) ([]I
 
 // collectIncludesRecursive recursively processes @include directives in content
 func collectIncludesRecursive(content, baseDir, workflowsDir string, dependencies *[]IncludeDependency, seen map[string]bool) error {
-	includePattern := regexp.MustCompile(`^@include\s+(.+)$`)
+	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
-			includePath := strings.TrimSpace(matches[1])
+			isOptional := matches[1] == "?"
+			includePath := strings.TrimSpace(matches[2])
 
 			// Handle section references (file.md#Section)
 			var filePath string
@@ -1635,10 +1658,11 @@ func collectIncludesRecursive(content, baseDir, workflowsDir string, dependencie
 			}
 			seen[fullSourcePath] = true
 
-			// Add dependency
+			// Add dependency (even for optional includes that might not exist yet)
 			dep := IncludeDependency{
 				SourcePath: fullSourcePath,
 				TargetPath: filePath, // Keep relative path for target
+				IsOptional: isOptional,
 			}
 			*dependencies = append(*dependencies, dep)
 
@@ -1688,6 +1712,11 @@ func copyIncludeDependenciesWithForce(dependencies []IncludeDependency, githubWo
 		sourceContent, err = os.ReadFile(dep.SourcePath)
 
 		if err != nil {
+			if dep.IsOptional {
+				// For optional includes, just show an informational message and skip
+				fmt.Printf("Optional include file not found: %s (you can create this file to configure the workflow)\n", dep.TargetPath)
+				continue
+			}
 			fmt.Printf("Warning: Failed to read include file %s: %v\n", dep.SourcePath, err)
 			continue
 		}
@@ -2383,13 +2412,14 @@ func collectPackageIncludeDependencies(content, packagePath string, verbose bool
 
 // collectPackageIncludesRecursive recursively processes @include directives in package content
 func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]IncludeDependency, seen map[string]bool, verbose bool) error {
-	includePattern := regexp.MustCompile(`^@include\s+(.+)$`)
+	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
-			includePath := strings.TrimSpace(matches[1])
+			isOptional := matches[1] == "?"
+			includePath := strings.TrimSpace(matches[2])
 
 			// Handle section references (file.md#Section)
 			var filePath string
@@ -2413,6 +2443,7 @@ func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]In
 			dep := IncludeDependency{
 				SourcePath: fullSourcePath,
 				TargetPath: filePath, // Keep relative path for target
+				IsOptional: isOptional,
 			}
 			*dependencies = append(*dependencies, dep)
 
@@ -2475,6 +2506,13 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 		// Read source content from package
 		sourceContent, err := os.ReadFile(dep.SourcePath)
 		if err != nil {
+			if dep.IsOptional {
+				// For optional includes, just show an informational message and skip
+				if verbose {
+					fmt.Printf("Optional include file not found: %s (you can create this file to configure the workflow)\n", dep.TargetPath)
+				}
+				continue
+			}
 			fmt.Printf("Warning: Failed to read include file %s: %v\n", dep.SourcePath, err)
 			continue
 		}
@@ -2744,13 +2782,13 @@ func findIncludesInContent(content, baseDir string, verbose bool) ([]string, err
 	_ = baseDir // unused parameter for now, keeping for potential future use
 	_ = verbose // unused parameter for now, keeping for potential future use
 	var includes []string
-	includePattern := regexp.MustCompile(`^@include\s+(.+)$`)
+	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
-			includePath := strings.TrimSpace(matches[1])
+			includePath := strings.TrimSpace(matches[2])
 
 			// Handle section references (file.md#Section)
 			var filePath string
