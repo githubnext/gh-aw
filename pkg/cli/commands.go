@@ -3038,7 +3038,8 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 	fmt.Printf("Successfully triggered workflow: %s\n", lockFileName)
 
 	// Try to get the latest run for this workflow to show a direct link
-	if runURL, err := getLatestWorkflowRunURL(lockFileName, verbose); err == nil && runURL != "" {
+	// Add a delay to allow GitHub Actions time to register the new workflow run
+	if runURL, err := getLatestWorkflowRunURLWithRetry(lockFileName, verbose); err == nil && runURL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runURL)
 	} else if verbose && err != nil {
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", err)
@@ -3130,33 +3131,111 @@ func findMatchingLockFile(workflowName string, verbose bool) string {
 	return ""
 }
 
-// getLatestWorkflowRunURL gets the URL for the most recent run of the specified workflow
-func getLatestWorkflowRunURL(lockFileName string, verbose bool) (string, error) {
+// getLatestWorkflowRunURLWithRetry gets the URL for the most recent run of the specified workflow
+// with retry logic to handle timing issues when a workflow has just been triggered
+func getLatestWorkflowRunURLWithRetry(lockFileName string, verbose bool) (string, error) {
+	const maxRetries = 6
+	const initialDelay = 2 * time.Second
+	const maxDelay = 10 * time.Second
+
 	if verbose {
-		fmt.Printf("Getting latest run URL for workflow: %s\n", lockFileName)
+		fmt.Printf("Getting latest run URL for workflow: %s (with retry logic)\n", lockFileName)
 	}
 
-	// Start spinner for network operation
-	spinner := console.NewSpinner("Getting latest workflow run...")
-	if !verbose {
-		spinner.Start()
+	// Capture the current time before we start polling
+	// This helps us identify runs that were created after the workflow was triggered
+	startTime := time.Now().UTC()
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Calculate delay with exponential backoff, capped at maxDelay
+			delay := time.Duration(attempt) * initialDelay
+			if delay > maxDelay {
+				delay = maxDelay
+			}
+
+			if verbose {
+				fmt.Printf("Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
+			} else if attempt == 1 {
+				// Show spinner only starting from second attempt to avoid flickering
+				spinner := console.NewSpinner("Waiting for workflow run to appear...")
+				spinner.Start()
+				time.Sleep(delay)
+				spinner.Stop()
+				continue
+			}
+			time.Sleep(delay)
+		}
+
+		// Get recent runs for this workflow, including creation timestamps
+		runURL, runCreatedAt, err := getLatestWorkflowRunWithTimestamp(lockFileName, verbose)
+		if err != nil {
+			lastErr = err
+			if verbose {
+				fmt.Printf("Attempt %d/%d failed: %v\n", attempt+1, maxRetries, err)
+			}
+			continue
+		}
+
+		// If we found a run and it was created after we started (within 30 seconds tolerance),
+		// it's likely the run we just triggered
+		if !runCreatedAt.IsZero() && runCreatedAt.After(startTime.Add(-30*time.Second)) {
+			if verbose {
+				fmt.Printf("Found recent run created at %v (started polling at %v)\n",
+					runCreatedAt.Format(time.RFC3339), startTime.Format(time.RFC3339))
+			}
+			return runURL, nil
+		}
+
+		if verbose {
+			if runCreatedAt.IsZero() {
+				fmt.Printf("Attempt %d/%d: Found run but no creation timestamp available\n", attempt+1, maxRetries)
+			} else {
+				fmt.Printf("Attempt %d/%d: Found run but it was created at %v (too old)\n",
+					attempt+1, maxRetries, runCreatedAt.Format(time.RFC3339))
+			}
+		}
+
+		// For the first few attempts, if we have a run but it's too old, keep trying
+		if attempt < 3 {
+			lastErr = fmt.Errorf("workflow run appears to be from a previous execution")
+			continue
+		}
+
+		// For later attempts, return what we found even if timing is uncertain
+		if runURL != "" {
+			if verbose {
+				fmt.Printf("Returning workflow run URL after %d attempts (timing uncertain)\n", attempt+1)
+			}
+			return runURL, nil
+		}
 	}
 
-	// Get the most recent run for this workflow
-	cmd := exec.Command("gh", "run", "list", "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion")
+	// If we exhausted all retries, return the last error
+	if lastErr != nil {
+		return "", fmt.Errorf("failed to get workflow run URL after %d attempts: %w", maxRetries, lastErr)
+	}
+
+	return "", fmt.Errorf("no workflow run found after %d attempts", maxRetries)
+}
+
+// getLatestWorkflowRunWithTimestamp gets the URL and creation time for the most recent run
+func getLatestWorkflowRunWithTimestamp(lockFileName string, verbose bool) (string, time.Time, error) {
+	if verbose {
+		fmt.Printf("Fetching latest run with timestamp for workflow: %s\n", lockFileName)
+	}
+
+	// Get the most recent run for this workflow including creation timestamp
+	cmd := exec.Command("gh", "run", "list", "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
 	output, err := cmd.Output()
 
-	// Stop spinner
-	if !verbose {
-		spinner.Stop()
-	}
-
 	if err != nil {
-		return "", fmt.Errorf("failed to get workflow runs: %w", err)
+		return "", time.Time{}, fmt.Errorf("failed to get workflow runs: %w", err)
 	}
 
 	if len(output) == 0 {
-		return "", fmt.Errorf("no runs found for workflow")
+		return "", time.Time{}, fmt.Errorf("no runs found for workflow")
 	}
 
 	// Parse the JSON output
@@ -3165,22 +3244,34 @@ func getLatestWorkflowRunURL(lockFileName string, verbose bool) (string, error) 
 		DatabaseID int64  `json:"databaseId"`
 		Status     string `json:"status"`
 		Conclusion string `json:"conclusion"`
+		CreatedAt  string `json:"createdAt"`
 	}
 
 	if err := json.Unmarshal(output, &runs); err != nil {
-		return "", fmt.Errorf("failed to parse workflow run data: %w", err)
+		return "", time.Time{}, fmt.Errorf("failed to parse workflow run data: %w", err)
 	}
 
 	if len(runs) == 0 {
-		return "", fmt.Errorf("no runs found")
+		return "", time.Time{}, fmt.Errorf("no runs found")
 	}
 
 	run := runs[0]
-	if verbose {
-		fmt.Printf("Found run %d with status: %s\n", run.DatabaseID, run.Status)
+
+	// Parse the creation timestamp
+	var createdAt time.Time
+	if run.CreatedAt != "" {
+		if parsedTime, err := time.Parse(time.RFC3339, run.CreatedAt); err == nil {
+			createdAt = parsedTime
+		} else if verbose {
+			fmt.Printf("Warning: Could not parse creation time '%s': %v\n", run.CreatedAt, err)
+		}
 	}
 
-	return run.URL, nil
+	if verbose {
+		fmt.Printf("Found run %d with status: %s, created at: %s\n", run.DatabaseID, run.Status, run.CreatedAt)
+	}
+
+	return run.URL, createdAt, nil
 }
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes
