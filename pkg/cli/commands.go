@@ -1120,8 +1120,8 @@ func calculateTimeRemaining(stopTimeStr string) string {
 		return "N/A"
 	}
 
-	// Parse the stop time
-	stopTime, err := time.Parse("2006-01-02 15:04:05", stopTimeStr)
+	// Parse the stop time in local timezone
+	stopTime, err := time.ParseInLocation("2006-01-02 15:04:05", stopTimeStr, time.Local)
 	if err != nil {
 		return "Invalid"
 	}
