@@ -139,10 +139,10 @@ func TestNetworkPermissionsHelpers(t *testing.T) {
 			t.Error("Config with empty permissions should not have network permissions")
 		}
 
-		// Test config with empty network permissions
+		// Test config with empty network permissions (empty struct)
 		config.Permissions.Network = &NetworkPermissions{}
-		if HasNetworkPermissions(config) {
-			t.Error("Config with empty network permissions should not have network permissions")
+		if !HasNetworkPermissions(config) {
+			t.Error("Config with empty network permissions struct should have network permissions (deny-all policy)")
 		}
 
 		// Test config with network permissions
@@ -168,15 +168,29 @@ func TestNetworkPermissionsHelpers(t *testing.T) {
 	t.Run("GetAllowedDomains", func(t *testing.T) {
 		// Test nil config
 		domains := GetAllowedDomains(nil)
-		if len(domains) != 0 {
-			t.Error("nil config should return empty domains")
+		if domains != nil {
+			t.Error("nil config should return nil (no restrictions)")
 		}
 
 		// Test config without permissions
 		config := &EngineConfig{ID: "claude"}
 		domains = GetAllowedDomains(config)
+		if domains != nil {
+			t.Error("Config without permissions should return nil (no restrictions)")
+		}
+
+		// Test config with empty network permissions (deny-all policy)
+		config.Permissions = &EnginePermissions{
+			Network: &NetworkPermissions{
+				Allowed: []string{}, // Empty list means deny-all
+			},
+		}
+		domains = GetAllowedDomains(config)
+		if domains == nil {
+			t.Error("Config with empty network permissions should return empty slice (deny-all policy)")
+		}
 		if len(domains) != 0 {
-			t.Error("Config without permissions should return empty domains")
+			t.Errorf("Expected 0 domains for deny-all policy, got %d", len(domains))
 		}
 
 		// Test config with network permissions

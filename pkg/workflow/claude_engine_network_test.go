@@ -123,16 +123,18 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			Model: "claude-3-5-sonnet-20241022",
 			Permissions: &EnginePermissions{
 				Network: &NetworkPermissions{
-					Allowed: []string{}, // Empty allowed list
+					Allowed: []string{}, // Empty allowed list means deny-all policy
 				},
 			},
 		}
 
 		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config)
 
-		// With empty allowed list, we still don't have network permissions
-		if settings, exists := execConfig.Inputs["settings"]; exists {
-			t.Errorf("Settings parameter should not be present with empty network permissions, got '%s'", settings)
+		// With empty allowed list, we should enforce deny-all policy via settings
+		if settings, exists := execConfig.Inputs["settings"]; !exists {
+			t.Error("Settings parameter should be present with empty network permissions (deny-all policy)")
+		} else if settings != ".claude/settings.json" {
+			t.Errorf("Expected settings '.claude/settings.json', got '%s'", settings)
 		}
 	})
 

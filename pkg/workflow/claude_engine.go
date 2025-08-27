@@ -34,7 +34,7 @@ func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHub
 	var steps []GitHubActionStep
 
 	// Check if network permissions are configured
-	if HasNetworkPermissions(engineConfig) {
+	if ShouldEnforceNetworkPermissions(engineConfig) {
 		// Generate network hook generator and settings generator
 		hookGenerator := &NetworkHookGenerator{}
 		settingsGenerator := &ClaudeSettingsGenerator{}
@@ -88,7 +88,7 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 	}
 
 	// Add settings parameter if network permissions are configured
-	if HasNetworkPermissions(engineConfig) {
+	if ShouldEnforceNetworkPermissions(engineConfig) {
 		config.Inputs["settings"] = ".claude/settings.json"
 	}
 

@@ -63,7 +63,12 @@ jobs:
           def is_domain_allowed(domain):
               """Check if domain is allowed."""
               if not domain:
-                  return True
+                  # If no domain detected, allow only if not under deny-all policy
+                  return bool(ALLOWED_DOMAINS)  # False if empty list (deny-all), True if has domains
+              
+              # Empty allowed domains means deny all
+              if not ALLOWED_DOMAINS:
+                  return False
               
               for pattern in ALLOWED_DOMAINS:
                   regex = pattern.replace('.', r'\.').replace('*', '.*')
@@ -84,15 +89,18 @@ jobs:
               domain = extract_domain(target)
               
               # For WebSearch, apply domain restrictions consistently
-              # Only allow if domain is in allowlist or if no domain detected AND allowlist is empty
+              # If no domain detected in search query, check if restrictions are in place
               if tool_name == 'WebSearch' and not domain:
-                  # Block general searches when domain restrictions are in place
-                  if ALLOWED_DOMAINS:
+                  # Since this hook is only generated when network permissions are configured,
+                  # empty ALLOWED_DOMAINS means deny-all policy
+                  if not ALLOWED_DOMAINS:  # Empty list means deny all
+                      print(f"Network access blocked: deny-all policy in effect", file=sys.stderr)
+                      print(f"No domains are allowed for WebSearch", file=sys.stderr)
+                      sys.exit(2)  # Block under deny-all policy
+                  else:
                       print(f"Network access blocked for WebSearch: no specific domain detected", file=sys.stderr)
                       print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
-                      sys.exit(2)  # Block general searches when restrictions exist
-                  else:
-                      sys.exit(0)  # Allow general searches only when no restrictions
+                      sys.exit(2)  # Block general searches when domain allowlist is configured
               
               if not is_domain_allowed(domain):
                   print(f"Network access blocked for domain: {domain}", file=sys.stderr)
@@ -236,7 +244,7 @@ jobs:
           if-no-files-found: warn
       - name: Execute Claude Code Action
         id: agentic_execution
-        uses: mossaka/claude-code-base-action-fork@main
+        uses: anthropics/claude-code-base-action@v0.0.56
         with:
           # Allowed tools (sorted):
           # - Glob

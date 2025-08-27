@@ -12,7 +12,13 @@ type NetworkHookGenerator struct{}
 // GenerateNetworkHookScript generates a Python hook script for network permissions
 func (g *NetworkHookGenerator) GenerateNetworkHookScript(allowedDomains []string) string {
 	// Convert domain list to JSON for embedding in Python
-	domainsJSON, _ := json.Marshal(allowedDomains)
+	// Ensure empty slice becomes [] not null in JSON
+	var domainsJSON []byte
+	if allowedDomains == nil {
+		domainsJSON = []byte("[]")
+	} else {
+		domainsJSON, _ = json.Marshal(allowedDomains)
+	}
 
 	return fmt.Sprintf(`#!/usr/bin/env python3
 """
@@ -46,7 +52,12 @@ def extract_domain(url_or_query):
 def is_domain_allowed(domain):
     """Check if domain is allowed."""
     if not domain:
-        return True
+        # If no domain detected, allow only if not under deny-all policy
+        return bool(ALLOWED_DOMAINS)  # False if empty list (deny-all), True if has domains
+    
+    # Empty allowed domains means deny all
+    if not ALLOWED_DOMAINS:
+        return False
     
     for pattern in ALLOWED_DOMAINS:
         regex = pattern.replace('.', r'\.').replace('*', '.*')
@@ -67,15 +78,18 @@ try:
     domain = extract_domain(target)
     
     # For WebSearch, apply domain restrictions consistently
-    # Only allow if domain is in allowlist or if no domain detected AND allowlist is empty
+    # If no domain detected in search query, check if restrictions are in place
     if tool_name == 'WebSearch' and not domain:
-        # Block general searches when domain restrictions are in place
-        if ALLOWED_DOMAINS:
+        # Since this hook is only generated when network permissions are configured,
+        # empty ALLOWED_DOMAINS means deny-all policy
+        if not ALLOWED_DOMAINS:  # Empty list means deny all
+            print(f"Network access blocked: deny-all policy in effect", file=sys.stderr)
+            print(f"No domains are allowed for WebSearch", file=sys.stderr)
+            sys.exit(2)  # Block under deny-all policy
+        else:
             print(f"Network access blocked for WebSearch: no specific domain detected", file=sys.stderr)
             print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
-            sys.exit(2)  # Block general searches when restrictions exist
-        else:
-            sys.exit(0)  # Allow general searches only when no restrictions
+            sys.exit(2)  # Block general searches when domain allowlist is configured
     
     if not is_domain_allowed(domain):
         print(f"Network access blocked for domain: {domain}", file=sys.stderr)
@@ -114,20 +128,29 @@ chmod +x .claude/hooks/network_permissions.py`, hookScript)
 	return GitHubActionStep(lines)
 }
 
-// HasNetworkPermissions checks if the engine config has network permissions configured
-// and if the engine is Claude (network permissions are only supported for Claude engine)
-func HasNetworkPermissions(engineConfig *EngineConfig) bool {
+// ShouldEnforceNetworkPermissions checks if network permissions should be enforced
+// Returns true if the engine config has a network permissions block configured
+// (regardless of whether the allowed list is empty or has domains)
+func ShouldEnforceNetworkPermissions(engineConfig *EngineConfig) bool {
 	return engineConfig != nil &&
 		engineConfig.ID == "claude" &&
 		engineConfig.Permissions != nil &&
-		engineConfig.Permissions.Network != nil &&
-		len(engineConfig.Permissions.Network.Allowed) > 0
+		engineConfig.Permissions.Network != nil
 }
 
-// GetAllowedDomains extracts the allowed domains from engine config, returns empty slice if none
+// GetAllowedDomains returns the allowed domains from engine config
+// Returns nil if no network permissions configured (unrestricted for backwards compatibility)
+// Returns empty slice if network permissions configured but no domains allowed (deny all)
+// Returns domain list if network permissions configured with allowed domains
 func GetAllowedDomains(engineConfig *EngineConfig) []string {
-	if !HasNetworkPermissions(engineConfig) {
-		return []string{}
+	if !ShouldEnforceNetworkPermissions(engineConfig) {
+		return nil // No restrictions - backwards compatibility
 	}
-	return engineConfig.Permissions.Network.Allowed
+	return engineConfig.Permissions.Network.Allowed // Could be empty for deny-all
+}
+
+// HasNetworkPermissions is deprecated - use ShouldEnforceNetworkPermissions instead
+// Kept for backwards compatibility but will be removed in future versions
+func HasNetworkPermissions(engineConfig *EngineConfig) bool {
+	return ShouldEnforceNetworkPermissions(engineConfig)
 }
