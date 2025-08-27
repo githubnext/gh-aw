@@ -503,7 +503,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "Engine permissions are not supported for codex engine",
+			errContains: "engine permissions are not supported for codex engine",
 		},
 		{
 			name: "valid codex engine without permissions",
