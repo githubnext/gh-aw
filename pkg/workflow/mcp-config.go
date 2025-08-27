@@ -371,7 +371,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 				}
 
 				// Validate MCP configuration requirements (before transformation)
-				if err := validateMCPRequirements(toolName, mcpConfig); err != nil {
+				if err := validateMCPRequirements(toolName, mcpConfig, config); err != nil {
 					return err
 				}
 			}
@@ -471,7 +471,7 @@ func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
 }
 
 // validateMCPRequirements validates the specific requirements for MCP configuration
-func validateMCPRequirements(toolName string, mcpConfig map[string]any) error {
+func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConfig map[string]any) error {
 	// Validate 'type' property
 	mcpType, hasType := mcpConfig["type"]
 	if err := validateStringProperty(toolName, "type", mcpType, hasType); err != nil {
@@ -487,6 +487,25 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any) error {
 	// Validate type is one of the supported types
 	if !isMCPType(typeStr) {
 		return fmt.Errorf("tool '%s' mcp configuration 'type' value must be one of: stdio, http", toolName)
+	}
+
+	// Validate network permissions usage first
+	hasNetPerms, _ := hasNetworkPermissions(toolConfig)
+	if !hasNetPerms {
+		// Also check if permissions are nested in the mcp config itself
+		hasNetPerms, _ = hasNetworkPermissions(map[string]any{"mcp": mcpConfig})
+	}
+	if hasNetPerms {
+		switch typeStr {
+		case "http":
+			return fmt.Errorf("tool '%s' has network permissions configured, but network egress permissions do not apply to remote 'type: http' servers", toolName)
+		case "stdio":
+			// Network permissions only apply to stdio servers with container
+			_, hasContainer := mcpConfig["container"]
+			if !hasContainer {
+				return fmt.Errorf("tool '%s' has network permissions configured, but network egress permissions only apply to stdio MCP servers that specify a 'container'", toolName)
+			}
+		}
 	}
 
 	// Validate type-specific requirements

@@ -212,15 +212,22 @@ tools:
 
 Enforcement in compiled workflows:
 
-- A Squid proxy is generated and pinned to a dedicated Docker network for each proxy‑enabled MCP server.
+- A [Squid proxy](https://www.squid-cache.org/) is generated and pinned to a dedicated Docker network for each proxy‑enabled MCP server.
 - The MCP container is configured with `HTTP_PROXY`/`HTTPS_PROXY` to point at Squid; iptables rules only allow egress to the proxy.
 - The proxy is seeded with an `allowed_domains.txt` built from your `allowed` list; requests to other domains are blocked.
 
 Notes:
 
-- Applies to stdio MCP servers that specify a `container`. Non‑container stdio and remote `type: http` servers do not use this control (at the moment)
+- **Only applies to stdio MCP servers with `container`** - Non‑container stdio and `type: http` servers will cause compilation errors
 - Use bare domains without scheme; list each domain you intend to permit.
 
+### Validation Rules
+
+The compiler enforces these network permission rules:
+
+- ❌ **HTTP servers**: `network egress permissions do not apply to remote 'type: http' servers`
+- ❌ **Non-container stdio**: `network egress permissions only apply to stdio MCP servers that specify a 'container'`  
+- ✅ **Container stdio**: Network permissions work correctly
 
 ## Debugging and Troubleshooting
 

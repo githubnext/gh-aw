@@ -190,7 +190,7 @@ Enforcement details:
 
 - Compiler generates a per‑tool Squid proxy and Docker network; MCP egress is forced through the proxy via iptables.
 - Only listed domains are reachable; all others are denied at the network layer.
-- Applies to `mcp.container` stdio servers. Non‑container stdio and `type: http` servers are not governed by this control.
+- Applies to `mcp.container` stdio servers. Non‑container stdio and `type: http` servers are not supported and will cause compilation errors.
 
 Operational guidance:
 
