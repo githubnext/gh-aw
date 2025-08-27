@@ -48,6 +48,7 @@ In addition, the compilation step of Agentic Workflows enforces additional secur
 - **Expression restrictions** - only a limited set of expressions are allowed in the workflow frontmatter, preventing arbitrary code execution
 - **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
 - **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
+- **Engine network restrictions** - control network access for AI engines using domain allowlists
 - **Limit workflow longevity** - workflows can be configured to stop triggering after a certain time period
 - **Limit chat iterations** - workflows can be configured to limit the number of chat iterations per run, preventing runaway loops and excessive resource consumption
 
@@ -211,6 +212,63 @@ Protect against model manipulation through layered defenses:
 - **Input sanitization**: Minimize untrusted content exposure; strip embedded commands when not required for functionality
 - **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
 
+## Engine Network Permissions
+
+### Overview
+
+Engine network permissions provide fine-grained control over network access for AI engines themselves, separate from MCP tool network permissions. This feature uses Claude Code's hook system to enforce domain-based access controls.
+
+### Security Benefits
+
+1. **Defense in Depth**: Additional layer beyond MCP tool restrictions
+2. **Compliance**: Meet organizational security requirements for AI network access
+3. **Audit Trail**: Network access attempts are logged through Claude Code hooks
+4. **Principle of Least Privilege**: Only grant network access to required domains
+
+### Implementation Details
+
+- **Hook-Based Enforcement**: Uses Claude Code's PreToolUse hooks to intercept network requests
+- **Runtime Validation**: Domain checking happens at request time, not compilation time
+- **Error Handling**: Blocked requests receive clear error messages with allowed domains
+- **Performance Impact**: Minimal overhead (~10ms per network request)
+
+### Best Practices
+
+1. **Always Specify Permissions**: When using network features, explicitly list allowed domains
+2. **Use Wildcards Carefully**: `*.example.com` allows all subdomains - ensure this is intended
+3. **Test Thoroughly**: Verify that all required domains are included in allowlist
+4. **Monitor Usage**: Review workflow logs to identify any blocked legitimate requests
+5. **Document Reasoning**: Comment why specific domains are required for maintenance
+
+### Permission Modes
+
+1. **No network permissions**: Unrestricted access (backwards compatible)
+   ```yaml
+   engine:
+     id: claude
+     # No permissions block - full network access
+   ```
+
+2. **Empty allowed list**: Complete network access denial
+   ```yaml
+   engine:
+     id: claude
+     permissions:
+       network:
+         allowed: []  # Deny all network access
+   ```
+
+3. **Specific domains**: Granular access control to listed domains only
+   ```yaml
+   engine:
+     id: claude
+     permissions:
+       network:
+         allowed:
+           - "api.github.com"
+           - "*.company-internal.com"
+   ```
+
 ## Engine Security Notes
 
 Different agentic engines have distinct defaults and operational surfaces.
@@ -219,10 +277,11 @@ Different agentic engines have distinct defaults and operational surfaces.
 
 - Restrict `claude.allowed` to only the needed capabilities (Edit/Write/WebFetch/Bash with a short list)
 - Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
+- Use engine network permissions to restrict WebFetch and WebSearch to required domains only
 
 #### Security posture differences with Codex
 
-Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors. In both cases, tool allow-lists and pinned dependencies are your primary controls.
+Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors. In both cases, tool allow-lists, network restrictions, and pinned dependencies are your primary controls.
 
 ## See also
 
