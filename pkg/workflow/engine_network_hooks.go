@@ -115,8 +115,10 @@ chmod +x .claude/hooks/network_permissions.py`, hookScript)
 }
 
 // HasNetworkPermissions checks if the engine config has network permissions configured
+// and if the engine is Claude (network permissions are only supported for Claude engine)
 func HasNetworkPermissions(engineConfig *EngineConfig) bool {
 	return engineConfig != nil &&
+		engineConfig.ID == "claude" &&
 		engineConfig.Permissions != nil &&
 		engineConfig.Permissions.Network != nil &&
 		len(engineConfig.Permissions.Network.Allowed) > 0

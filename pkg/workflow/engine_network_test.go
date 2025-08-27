@@ -150,6 +150,19 @@ func TestNetworkPermissionsHelpers(t *testing.T) {
 		if !HasNetworkPermissions(config) {
 			t.Error("Config with network permissions should have network permissions")
 		}
+
+		// Test non-Claude engine with network permissions (should be false)
+		nonClaudeConfig := &EngineConfig{
+			ID: "codex",
+			Permissions: &EnginePermissions{
+				Network: &NetworkPermissions{
+					Allowed: []string{"example.com"},
+				},
+			},
+		}
+		if HasNetworkPermissions(nonClaudeConfig) {
+			t.Error("Non-Claude engine should not have network permissions even if configured")
+		}
 	})
 
 	t.Run("GetAllowedDomains", func(t *testing.T) {
@@ -184,6 +197,20 @@ func TestNetworkPermissionsHelpers(t *testing.T) {
 		}
 		if domains[2] != "api.service.org" {
 			t.Errorf("Expected third domain to be 'api.service.org', got '%s'", domains[2])
+		}
+
+		// Test non-Claude engine with network permissions (should return empty)
+		nonClaudeConfig := &EngineConfig{
+			ID: "codex",
+			Permissions: &EnginePermissions{
+				Network: &NetworkPermissions{
+					Allowed: []string{"example.com", "test.org"},
+				},
+			},
+		}
+		domains = GetAllowedDomains(nonClaudeConfig)
+		if len(domains) != 0 {
+			t.Error("Non-Claude engine should return empty domains even if configured")
 		}
 	})
 }
