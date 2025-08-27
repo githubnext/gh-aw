@@ -212,7 +212,7 @@ engine:
     network:
       allowed:
         - "api.example.com"      # Exact domain match
-        - "*.trusted.com"        # Wildcard subdomain match
+        - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
 ```
 
 ### Security Model
@@ -220,7 +220,7 @@ engine:
 - **Deny by Default**: When network permissions are specified, only listed domains are accessible
 - **Engine vs Tools**: Engine permissions control the AI engine itself, separate from MCP tool permissions
 - **Hook Enforcement**: Uses Claude Code's hook system for runtime network access control
-- **Domain Validation**: Supports exact matches and wildcard patterns for subdomains
+- **Domain Validation**: Supports exact matches and wildcard patterns (`*` matches any characters including dots, allowing nested subdomains)
 
 ### Examples
 
@@ -235,6 +235,7 @@ engine:
         - "httpbin.org"
 
 # Allow all subdomains of a trusted domain
+# Note: "*.github.com" matches api.github.com, subdomain.github.com, and even nested.api.github.com
 engine:
   id: claude
   permissions:

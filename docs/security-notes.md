@@ -235,7 +235,7 @@ Engine network permissions provide fine-grained control over network access for 
 ### Best Practices
 
 1. **Always Specify Permissions**: When using network features, explicitly list allowed domains
-2. **Use Wildcards Carefully**: `*.example.com` allows all subdomains - ensure this is intended
+2. **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`) - ensure this broad access is intended
 3. **Test Thoroughly**: Verify that all required domains are included in allowlist
 4. **Monitor Usage**: Review workflow logs to identify any blocked legitimate requests
 5. **Document Reasoning**: Comment why specific domains are required for maintenance

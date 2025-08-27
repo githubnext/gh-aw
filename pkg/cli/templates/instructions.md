@@ -360,7 +360,7 @@ engine:
 **Important Notes:**
 - Network permissions apply to Claude Code's WebFetch and WebSearch tools
 - When permissions are specified, deny-by-default policy is enforced
-- Only exact domain matches and wildcard patterns (*.) are supported
+- Supports exact domain matches and wildcard patterns (where `*` matches any characters, including nested subdomains)
 - Currently supported for Claude engine only (Codex support planned)
 - Uses Claude Code hooks for enforcement, not network proxies
 
