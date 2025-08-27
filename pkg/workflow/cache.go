@@ -62,22 +62,22 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 			}
 		}
 
-		builder.WriteString(fmt.Sprintf("      - name: %s\n", stepName))
+		fmt.Fprintf(builder, "      - name: %s\n", stepName)
 		builder.WriteString("        uses: actions/cache@v3\n")
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
 		if key, hasKey := cache["key"]; hasKey {
-			builder.WriteString(fmt.Sprintf("          key: %v\n", key))
+			fmt.Fprintf(builder, "          key: %v\n", key)
 		}
 		if path, hasPath := cache["path"]; hasPath {
 			if pathArray, isArray := path.([]any); isArray {
 				builder.WriteString("          path: |\n")
 				for _, p := range pathArray {
-					builder.WriteString(fmt.Sprintf("            %v\n", p))
+					fmt.Fprintf(builder, "            %v\n", p)
 				}
 			} else {
-				builder.WriteString(fmt.Sprintf("          path: %v\n", path))
+				fmt.Fprintf(builder, "          path: %v\n", path)
 			}
 		}
 
@@ -86,20 +86,20 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 			if restoreArray, isArray := restoreKeys.([]any); isArray {
 				builder.WriteString("          restore-keys: |\n")
 				for _, key := range restoreArray {
-					builder.WriteString(fmt.Sprintf("            %v\n", key))
+					fmt.Fprintf(builder, "            %v\n", key)
 				}
 			} else {
-				builder.WriteString(fmt.Sprintf("          restore-keys: %v\n", restoreKeys))
+				fmt.Fprintf(builder, "          restore-keys: %v\n", restoreKeys)
 			}
 		}
 		if uploadChunkSize, hasSize := cache["upload-chunk-size"]; hasSize {
-			builder.WriteString(fmt.Sprintf("          upload-chunk-size: %v\n", uploadChunkSize))
+			fmt.Fprintf(builder, "          upload-chunk-size: %v\n", uploadChunkSize)
 		}
 		if failOnMiss, hasFail := cache["fail-on-cache-miss"]; hasFail {
-			builder.WriteString(fmt.Sprintf("          fail-on-cache-miss: %v\n", failOnMiss))
+			fmt.Fprintf(builder, "          fail-on-cache-miss: %v\n", failOnMiss)
 		}
 		if lookupOnly, hasLookup := cache["lookup-only"]; hasLookup {
-			builder.WriteString(fmt.Sprintf("          lookup-only: %v\n", lookupOnly))
+			fmt.Fprintf(builder, "          lookup-only: %v\n", lookupOnly)
 		}
 	}
 }

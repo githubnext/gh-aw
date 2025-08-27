@@ -254,7 +254,7 @@ func validateEngineSpecificRules(frontmatter map[string]any) error {
 	// Check if codex engine has permissions configured
 	if engineID == "codex" {
 		if _, hasPermissions := engineMap["permissions"]; hasPermissions {
-			return errors.New("Engine permissions are not supported for codex engine. Only Claude engine supports permissions configuration.")
+			return errors.New("engine permissions are not supported for codex engine. Only Claude engine supports permissions configuration")
 		}
 	}
 

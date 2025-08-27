@@ -1918,13 +1918,13 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 
 	// Extract workflow name for gh workflow commands
 	workflowName := data.Name
-	yaml.WriteString(fmt.Sprintf("          WORKFLOW_NAME=\"%s\"\n", workflowName))
+	fmt.Fprintf(yaml, "          WORKFLOW_NAME=\"%s\"\n", workflowName)
 
 	// Add stop-time check
 	if data.StopTime != "" {
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Check stop-time limit\n")
-		yaml.WriteString(fmt.Sprintf("          STOP_TIME=\"%s\"\n", data.StopTime))
+		fmt.Fprintf(yaml, "          STOP_TIME=\"%s\"\n", data.StopTime)
 		yaml.WriteString("          echo \"Checking stop-time limit: $STOP_TIME\"\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Convert stop time to epoch seconds\n")
@@ -2007,26 +2007,26 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				if mcpConf, err := getMCPConfig(toolConfig, toolName); err == nil {
 					if containerVal, hasContainer := mcpConf["container"]; hasContainer {
 						if containerStr, ok := containerVal.(string); ok && containerStr != "" {
-							yaml.WriteString(fmt.Sprintf("          echo 'Pulling %s for tool %s'\n", containerStr, toolName))
-							yaml.WriteString(fmt.Sprintf("          docker pull %s\n", containerStr))
+							fmt.Fprintf(yaml, "          echo 'Pulling %s for tool %s'\n", containerStr, toolName)
+							fmt.Fprintf(yaml, "          docker pull %s\n", containerStr)
 						}
 					}
 				}
-				yaml.WriteString(fmt.Sprintf("          echo 'Starting squid-proxy service for %s'\n", toolName))
-				yaml.WriteString(fmt.Sprintf("          docker compose -f docker-compose-%s.yml up -d squid-proxy\n", toolName))
+				fmt.Fprintf(yaml, "          echo 'Starting squid-proxy service for %s'\n", toolName)
+				fmt.Fprintf(yaml, "          docker compose -f docker-compose-%s.yml up -d squid-proxy\n", toolName)
 
 				// Enforce that egress from this tool's network can only reach the Squid proxy
 				subnetCIDR, squidIP, _ := computeProxyNetworkParams(toolName)
-				yaml.WriteString(fmt.Sprintf("          echo 'Enforcing egress to proxy for %s (subnet %s, squid %s)'\n", toolName, subnetCIDR, squidIP))
+				fmt.Fprintf(yaml, "          echo 'Enforcing egress to proxy for %s (subnet %s, squid %s)'\n", toolName, subnetCIDR, squidIP)
 				yaml.WriteString("          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi\n")
 				// Accept established/related connections first (position 1)
 				yaml.WriteString("          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT\n")
 				// Accept all egress from Squid IP (position 2)
-				yaml.WriteString(fmt.Sprintf("          $SUDO iptables -C DOCKER-USER -s %s -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 2 -s %s -j ACCEPT\n", squidIP, squidIP))
+				fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 2 -s %s -j ACCEPT\n", squidIP, squidIP)
 				// Allow traffic to squid:3128 from the subnet (position 3)
-				yaml.WriteString(fmt.Sprintf("          $SUDO iptables -C DOCKER-USER -s %s -d %s -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 3 -s %s -d %s -p tcp --dport 3128 -j ACCEPT\n", subnetCIDR, squidIP, subnetCIDR, squidIP))
+				fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -d %s -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 3 -s %s -d %s -p tcp --dport 3128 -j ACCEPT\n", subnetCIDR, squidIP, subnetCIDR, squidIP)
 				// Then reject all other egress from that subnet (append to end)
-				yaml.WriteString(fmt.Sprintf("          $SUDO iptables -C DOCKER-USER -s %s -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s %s -j REJECT\n", subnetCIDR, subnetCIDR))
+				fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s %s -j REJECT\n", subnetCIDR, subnetCIDR)
 			}
 		}
 	}
@@ -2167,8 +2167,8 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
-	yaml.WriteString(fmt.Sprintf("          name: %s.log\n", logFile))
-	yaml.WriteString(fmt.Sprintf("          path: %s\n", logFileFull))
+	fmt.Fprintf(yaml, "          name: %s.log\n", logFile)
+	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
@@ -2489,7 +2489,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 
 	if executionConfig.Command != "" {
 		// Command-based execution (e.g., Codex)
-		yaml.WriteString(fmt.Sprintf("      - name: %s\n", executionConfig.StepName))
+		fmt.Fprintf(yaml, "      - name: %s\n", executionConfig.StepName)
 		yaml.WriteString("        run: |\n")
 
 		// Split command into lines and indent them properly
@@ -2510,7 +2510,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 
 			for _, key := range envKeys {
 				value := executionConfig.Environment[key]
-				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
+				fmt.Fprintf(yaml, "          %s: %s\n", key, value)
 			}
 			// Add GITHUB_AW_OUTPUT environment variable for all engines
 			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
@@ -2522,9 +2522,9 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 	} else if executionConfig.Action != "" {
 
 		// Add the main action step
-		yaml.WriteString(fmt.Sprintf("      - name: %s\n", executionConfig.StepName))
+		fmt.Fprintf(yaml, "      - name: %s\n", executionConfig.StepName)
 		yaml.WriteString("        id: agentic_execution\n")
-		yaml.WriteString(fmt.Sprintf("        uses: %s\n", executionConfig.Action))
+		fmt.Fprintf(yaml, "        uses: %s\n", executionConfig.Action)
 		yaml.WriteString("        with:\n")
 
 		// Add inputs in alphabetical order by key
@@ -2541,7 +2541,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 					// Add comment listing all allowed tools for readability
 					comment := c.generateAllowedToolsComment(data.AllowedTools, "          ")
 					yaml.WriteString(comment)
-					yaml.WriteString(fmt.Sprintf("          %s: \"%s\"\n", key, data.AllowedTools))
+					fmt.Fprintf(yaml, "          %s: \"%s\"\n", key, data.AllowedTools)
 				}
 			} else if key == "timeout_minutes" {
 				if data.TimeoutMinutes != "" {
@@ -2549,10 +2549,10 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				}
 			} else if key == "max_turns" {
 				if data.MaxTurns != "" {
-					yaml.WriteString(fmt.Sprintf("          max_turns: %s\n", data.MaxTurns))
+					fmt.Fprintf(yaml, "          max_turns: %s\n", data.MaxTurns)
 				}
 			} else if value != "" {
-				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
+				fmt.Fprintf(yaml, "          %s: %s\n", key, value)
 			}
 		}
 		// Add environment section to pass GITHUB_AW_OUTPUT to the action for all engines
@@ -2590,30 +2590,30 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	} else if data.AI != "" {
 		engineID = data.AI
 	}
-	yaml.WriteString(fmt.Sprintf("              engine_id: \"%s\",\n", engineID))
+	fmt.Fprintf(yaml, "              engine_id: \"%s\",\n", engineID)
 
 	// Engine display name
-	yaml.WriteString(fmt.Sprintf("              engine_name: \"%s\",\n", engine.GetDisplayName()))
+	fmt.Fprintf(yaml, "              engine_name: \"%s\",\n", engine.GetDisplayName())
 
 	// Model information
 	model := ""
 	if data.EngineConfig != nil && data.EngineConfig.Model != "" {
 		model = data.EngineConfig.Model
 	}
-	yaml.WriteString(fmt.Sprintf("              model: \"%s\",\n", model))
+	fmt.Fprintf(yaml, "              model: \"%s\",\n", model)
 
 	// Version information
 	version := ""
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		version = data.EngineConfig.Version
 	}
-	yaml.WriteString(fmt.Sprintf("              version: \"%s\",\n", version))
+	fmt.Fprintf(yaml, "              version: \"%s\",\n", version)
 
 	// Workflow information
-	yaml.WriteString(fmt.Sprintf("              workflow_name: \"%s\",\n", data.Name))
-	yaml.WriteString(fmt.Sprintf("              experimental: %t,\n", engine.IsExperimental()))
-	yaml.WriteString(fmt.Sprintf("              supports_tools_whitelist: %t,\n", engine.SupportsToolsWhitelist()))
-	yaml.WriteString(fmt.Sprintf("              supports_http_transport: %t,\n", engine.SupportsHTTPTransport()))
+	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
+	fmt.Fprintf(yaml, "              experimental: %t,\n", engine.IsExperimental())
+	fmt.Fprintf(yaml, "              supports_tools_whitelist: %t,\n", engine.SupportsToolsWhitelist())
+	fmt.Fprintf(yaml, "              supports_http_transport: %t,\n", engine.SupportsHTTPTransport())
 
 	// Run metadata
 	yaml.WriteString("              run_id: context.runId,\n")
@@ -2657,7 +2657,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	if data.Output != nil && len(data.Output.AllowedDomains) > 0 {
 		yaml.WriteString("        env:\n")
 		domainsStr := strings.Join(data.Output.AllowedDomains, ",")
-		yaml.WriteString(fmt.Sprintf("          GITHUB_AW_ALLOWED_DOMAINS: %q\n", domainsStr))
+		fmt.Fprintf(yaml, "          GITHUB_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 
 	yaml.WriteString("        with:\n")
@@ -2679,7 +2679,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        if: always() && steps.collect_output.outputs.output != ''\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
-	yaml.WriteString(fmt.Sprintf("          name: %s\n", OutputArtifactName))
+	fmt.Fprintf(yaml, "          name: %s\n", OutputArtifactName)
 	yaml.WriteString("          path: ${{ env.GITHUB_AW_OUTPUT }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
@@ -2710,10 +2710,7 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Ag
 	engineSetting, engineConfig := c.extractEngineConfig(frontmatter)
 	_ = engineSetting // Suppress unused variable warning
 
-	hasMaxTurns := false
-	if engineConfig != nil && engineConfig.MaxTurns != "" {
-		hasMaxTurns = true
-	}
+	hasMaxTurns := engineConfig != nil && engineConfig.MaxTurns != ""
 
 	if !hasMaxTurns {
 		// No max-turns specified, no validation needed

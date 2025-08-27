@@ -155,7 +155,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 // renderClaudeMCPConfig generates custom MCP server configuration for a single tool in Claude workflow mcp-servers.json
 func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	yaml.WriteString(fmt.Sprintf("              \"%s\": {\n", toolName))
+	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
 
 	// Use the shared MCP config renderer with JSON format
 	renderer := MCPConfigRenderer{

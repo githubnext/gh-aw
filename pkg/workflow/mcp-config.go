@@ -80,13 +80,13 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if command, exists := mcpConfig["command"]; exists {
 				if cmdStr, ok := command.(string); ok {
 					if renderer.Format == "toml" {
-						yaml.WriteString(fmt.Sprintf("%scommand = \"%s\"\n", renderer.IndentLevel, cmdStr))
+						fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, cmdStr)
 					} else {
 						comma := ","
 						if isLastProperty {
 							comma = ""
 						}
-						yaml.WriteString(fmt.Sprintf("%s\"command\": \"%s\"%s\n", renderer.IndentLevel, cmdStr, comma))
+						fmt.Fprintf(yaml, "%s\"command\": \"%s\"%s\n", renderer.IndentLevel, cmdStr, comma)
 					}
 				}
 			}
@@ -94,29 +94,29 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if args, exists := mcpConfig["args"]; exists {
 				if argsSlice, ok := args.([]any); ok {
 					if renderer.Format == "toml" {
-						yaml.WriteString(fmt.Sprintf("%sargs = [\n", renderer.IndentLevel))
+						fmt.Fprintf(yaml, "%sargs = [\n", renderer.IndentLevel)
 						for _, arg := range argsSlice {
 							if argStr, ok := arg.(string); ok {
-								yaml.WriteString(fmt.Sprintf("%s  \"%s\",\n", renderer.IndentLevel, argStr))
+								fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, argStr)
 							}
 						}
-						yaml.WriteString(fmt.Sprintf("%s]\n", renderer.IndentLevel))
+						fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
 					} else {
 						comma := ","
 						if isLastProperty {
 							comma = ""
 						}
-						yaml.WriteString(fmt.Sprintf("%s\"args\": [\n", renderer.IndentLevel))
+						fmt.Fprintf(yaml, "%s\"args\": [\n", renderer.IndentLevel)
 						for argIndex, arg := range argsSlice {
 							if argStr, ok := arg.(string); ok {
 								argComma := ","
 								if argIndex == len(argsSlice)-1 {
 									argComma = ""
 								}
-								yaml.WriteString(fmt.Sprintf("%s  \"%s\"%s\n", renderer.IndentLevel, argStr, argComma))
+								fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, argStr, argComma)
 							}
 						}
-						yaml.WriteString(fmt.Sprintf("%s]%s\n", renderer.IndentLevel, comma))
+						fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 					}
 				}
 			}
@@ -124,14 +124,14 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if env, exists := mcpConfig["env"]; exists {
 				if envMap, ok := env.(map[string]any); ok {
 					if renderer.Format == "toml" {
-						yaml.WriteString(fmt.Sprintf("%senv = { ", renderer.IndentLevel))
+						fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)
 						first := true
 						for envKey, envValue := range envMap {
 							if !first {
 								yaml.WriteString(", ")
 							}
 							if envStr, ok := envValue.(string); ok {
-								yaml.WriteString(fmt.Sprintf("\"%s\" = \"%s\"", envKey, envStr))
+								fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, envStr)
 							}
 							first = false
 						}
@@ -141,7 +141,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						if isLastProperty {
 							comma = ""
 						}
-						yaml.WriteString(fmt.Sprintf("%s\"env\": {\n", renderer.IndentLevel))
+						fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
 						envKeys := make([]string, 0, len(envMap))
 						for key := range envMap {
 							envKeys = append(envKeys, key)
@@ -152,10 +152,10 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 								if envIndex == len(envKeys)-1 {
 									envComma = ""
 								}
-								yaml.WriteString(fmt.Sprintf("%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, envValue, envComma))
+								fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, envValue, envComma)
 							}
 						}
-						yaml.WriteString(fmt.Sprintf("%s}%s\n", renderer.IndentLevel, comma))
+						fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 					}
 				}
 			}
@@ -166,7 +166,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					if isLastProperty {
 						comma = ""
 					}
-					yaml.WriteString(fmt.Sprintf("%s\"url\": \"%s\"%s\n", renderer.IndentLevel, urlStr, comma))
+					fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, urlStr, comma)
 				}
 			}
 		case "headers":
@@ -176,7 +176,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					if isLastProperty {
 						comma = ""
 					}
-					yaml.WriteString(fmt.Sprintf("%s\"headers\": {\n", renderer.IndentLevel))
+					fmt.Fprintf(yaml, "%s\"headers\": {\n", renderer.IndentLevel)
 					headerKeys := make([]string, 0, len(headersMap))
 					for key := range headersMap {
 						headerKeys = append(headerKeys, key)
@@ -187,10 +187,10 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 							if headerIndex == len(headerKeys)-1 {
 								headerComma = ""
 							}
-							yaml.WriteString(fmt.Sprintf("%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma))
+							fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma)
 						}
 					}
-					yaml.WriteString(fmt.Sprintf("%s}%s\n", renderer.IndentLevel, comma))
+					fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 				}
 			}
 		}

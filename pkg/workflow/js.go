@@ -52,7 +52,7 @@ func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 	for _, line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {
-			yaml.WriteString(fmt.Sprintf("            %s\n", line))
+			fmt.Fprintf(yaml, "            %s\n", line)
 		}
 	}
 }
