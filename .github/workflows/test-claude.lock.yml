@@ -345,7 +345,7 @@ jobs:
           import re
           
           # Domain whitelist (populated during generation)
-          ALLOWED_DOMAINS = null
+          ALLOWED_DOMAINS = []
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
