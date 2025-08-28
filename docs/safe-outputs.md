@@ -26,9 +26,7 @@ output:
     labels: [automation, agent]     # Optional: labels to attach to issues
 ```
 
-**How Your Agent Provides Output:**
-
-Your agentic workflow writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The output should be structured as:
+The agentic part of your workflow should write its content to `${{ env.GITHUB_AW_OUTPUT }}`. The output should be structured as:
 - **First non-empty line**: Becomes the issue title (markdown heading syntax like `# Title` is automatically stripped)
 - **Remaining content**: Becomes the issue body
 
@@ -55,9 +53,7 @@ output:
   issue_comment: {}                 # Create comments on issues/PRs from workflow output
 ```
 
-**How Your Agent Provides Output:**
-
-Your agentic workflow writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The entire content becomes the comment body—no special formatting is required.
+The agentic part of your workflow should writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The entire content becomes the comment body—no special formatting is required.
 
 **Example natural language to generate the output:**
 
@@ -86,9 +82,7 @@ output:
     draft: true                     # Optional: create as draft PR (defaults to true)
 ```
 
-**How Your Agent Provides Output:**
-
-Your agentic workflow provides output in two ways:
+The agentic part of your workflow should provide output in two ways:
 1. **File changes**: Make any file changes in the working directory—these are automatically collected using `git add -A` and committed
 2. **PR description**: Write to `${{ env.GITHUB_AW_OUTPUT }}` with:
    - **First non-empty line**: Becomes the PR title
@@ -105,14 +99,6 @@ Analyze the latest commit and suggest improvements.
 2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}
 ```
 
-**Which Files are Included in Pull Request**
-
-The agentic part of your workflow simply makes file changes, and the system:
-1. Stages changes with `git add -A`
-2. Commits them as "[agent] staged files"
-3. Generates git patches using `git format-patch`
-4. Creates a pull request with these changes
-
 ### Label Addition (`labels:`)
 
 Adding `labels:` to the `output:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the agent's analysis.
@@ -126,9 +112,7 @@ output:
     max-count: 3                        # Optional: maximum number of labels to add (default: 3)
 ```
 
-**How Your Agent Provides Output:**
-
-Your agentic workflow writes labels to add to `${{ env.GITHUB_AW_OUTPUT }}`, one label per line:
+The agentic part of your workflow writes should labels to add to `${{ env.GITHUB_AW_OUTPUT }}`, one label per line:
 ```
 triage
 bug
