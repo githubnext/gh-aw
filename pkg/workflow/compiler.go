@@ -2503,7 +2503,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
-	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig)
+	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.Output != nil)
 
 	if executionConfig.Command != "" {
 		// Command-based execution (e.g., Codex)
@@ -2515,29 +2515,25 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		for _, line := range commandLines {
 			yaml.WriteString("          " + line + "\n")
 		}
+		env := executionConfig.Environment
 
+		if data.Output != nil {
+			env["GITHUB_AW_OUTPUT"] = "${{ env.GITHUB_AW_OUTPUT }}"
+		}
 		// Add environment variables
-		if len(executionConfig.Environment) > 0 {
+		if len(env) > 0 {
 			yaml.WriteString("        env:\n")
 			// Sort environment keys for consistent output
-			envKeys := make([]string, 0, len(executionConfig.Environment))
-			for key := range executionConfig.Environment {
+			envKeys := make([]string, 0, len(env))
+			for key := range env {
 				envKeys = append(envKeys, key)
 			}
 			sort.Strings(envKeys)
 
 			for _, key := range envKeys {
-				value := executionConfig.Environment[key]
+				value := env[key]
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
 			}
-			// Add GITHUB_AW_OUTPUT environment variable only if output feature is used
-			if data.Output != nil {
-				yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
-			}
-		} else if data.Output != nil {
-			// Add GITHUB_AW_OUTPUT environment variable only if output feature is used
-			yaml.WriteString("        env:\n")
-			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 		}
 	} else if executionConfig.Action != "" {
 
@@ -2570,16 +2566,6 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 			} else if key == "max_turns" {
 				if data.MaxTurns != "" {
 					yaml.WriteString(fmt.Sprintf("          max_turns: %s\n", data.MaxTurns))
-				}
-			} else if key == "claude_env" && value != "" {
-				// Special handling for claude_env to conditionally include GITHUB_AW_OUTPUT
-				if data.Output != nil {
-					// Include GITHUB_AW_OUTPUT when output feature is used
-					yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
-				} else {
-					// Exclude GITHUB_AW_OUTPUT when output feature is not used
-					envWithoutOutput := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
-					yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, envWithoutOutput))
 				}
 			} else if value != "" {
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))

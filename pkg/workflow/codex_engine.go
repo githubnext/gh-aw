@@ -46,7 +46,7 @@ func (e *CodexEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHubA
 	}
 }
 
-func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig {
+func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, hasOutput bool) ExecutionConfig {
 	// Use model from engineConfig if available, otherwise default to o4-mini
 	model := "o4-mini"
 	if engineConfig != nil && engineConfig.Model != "" {
@@ -64,13 +64,20 @@ codex exec \
   -c model=%s \
   --full-auto "$INSTRUCTION" 2>&1 | tee %s`, model, logFile)
 
+	env := map[string]string{
+		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
+		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
+	}
+
+	// Add GITHUB_AW_OUTPUT if output is needed
+	if hasOutput {
+		env["GITHUB_AW_OUTPUT"] = "${{ env.GITHUB_AW_OUTPUT }}"
+	}
+
 	return ExecutionConfig{
-		StepName: "Run Codex",
-		Command:  command,
-		Environment: map[string]string{
-			"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
-			"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
-		},
+		StepName:    "Run Codex",
+		Command:     command,
+		Environment: env,
 	}
 }
 

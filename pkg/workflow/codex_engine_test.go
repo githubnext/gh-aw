@@ -47,7 +47,7 @@ func TestCodexEngine(t *testing.T) {
 	}
 
 	// Test execution config
-	config := engine.GetExecutionConfig("test-workflow", "test-log", nil)
+	config := engine.GetExecutionConfig("test-workflow", "test-log", nil, false)
 	if config.StepName != "Run Codex" {
 		t.Errorf("Expected step name 'Run Codex', got '%s'", config.StepName)
 	}

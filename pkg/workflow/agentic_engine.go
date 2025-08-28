@@ -40,7 +40,7 @@ type AgenticEngine interface {
 	GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep
 
 	// GetExecutionConfig returns the configuration for executing this engine
-	GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig
+	GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, hasOutput bool) ExecutionConfig
 
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string)
