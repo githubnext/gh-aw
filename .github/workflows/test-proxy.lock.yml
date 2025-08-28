@@ -21,7 +21,14 @@ jobs:
   test-network-permissions:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
+      contents: read
+      issues: read
+      pull-requests: read
+      discussions: read
+      deployments: read
+      models: read
+    outputs:
+      output: ${{ steps.collect_output.outputs.output }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -210,13 +217,17 @@ jobs:
           - Verify that all blocked requests fail at the network level (proxy enforcement)
           - Confirm that only example.com is accessible through the Squid proxy
           
-          Create a GitHub issue with the test results, documenting:
+          ## Reporting Instructions
+          
+          If there are any failures, security issues, or unexpected behaviors:
+          
+          - Write a detailed report to ${{ env.GITHUB_AW_OUTPUT }} documenting:
           - Which domains were successfully accessed vs blocked
           - Error messages received for blocked domains  
-          - Confirmation that network isolation is working correctly
           - Any security observations or recommendations
+          - Specific failure details that need attention
           
-          The test should demonstrate that MCP containers are properly isolated and can only access explicitly allowed domains through the network proxy.
+          The test results will be automatically posted as a comment on PR #${{ github.event.pull_request.number }}.
           
           EOF
       - name: Print prompt to step summary
@@ -276,8 +287,6 @@ jobs:
           # - Read
           # - Task
           # - mcp__fetch__fetch
-          # - mcp__github__create_comment
-          # - mcp__github__create_issue
           # - mcp__github__download_workflow_run_artifact
           # - mcp__github__get_code_scanning_alert
           # - mcp__github__get_commit
@@ -322,7 +331,7 @@ jobs:
           # - mcp__github__search_pull_requests
           # - mcp__github__search_repositories
           # - mcp__github__search_users
-          allowed_tools: "Glob,Grep,LS,NotebookRead,Read,Task,mcp__fetch__fetch,mcp__github__create_comment,mcp__github__create_issue,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
+          allowed_tools: "Glob,Grep,LS,NotebookRead,Read,Task,mcp__fetch__fetch,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -372,4 +381,96 @@ jobs:
           name: test-network-permissions.log
           path: /tmp/test-network-permissions.log
           if-no-files-found: warn
+
+  create_issue_comment:
+    needs: test-network-permissions
+    if: github.event.issue.number || github.event.pull_request.number
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      comment_id: ${{ steps.create_comment.outputs.comment_id }}
+      comment_url: ${{ steps.create_comment.outputs.comment_url }}
+    steps:
+      - name: Create Output Comment
+        id: create_comment
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-network-permissions.outputs.output }}
+        with:
+          script: |
+            async function main() {
+              // Read the agent output content from environment variable
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+                return;
+              }
+              if (outputContent.trim() === '') {
+                console.log('Agent output content is empty');
+                return;
+              }
+              console.log('Agent output content length:', outputContent.length);
+              // Check if we're in an issue or pull request context
+              const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
+              const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
+              if (!isIssueContext && !isPRContext) {
+                console.log('Not running in issue or pull request context, skipping comment creation');
+                return;
+              }
+              // Determine the issue/PR number and comment endpoint
+              let issueNumber;
+              let commentEndpoint;
+              if (isIssueContext) {
+                if (context.payload.issue) {
+                  issueNumber = context.payload.issue.number;
+                  commentEndpoint = 'issues';
+                } else {
+                  console.log('Issue context detected but no issue found in payload');
+                  return;
+                }
+              } else if (isPRContext) {
+                if (context.payload.pull_request) {
+                  issueNumber = context.payload.pull_request.number;
+                  commentEndpoint = 'issues'; // PR comments use the issues API endpoint
+                } else {
+                  console.log('Pull request context detected but no pull request found in payload');
+                  return;
+                }
+              }
+              if (!issueNumber) {
+                console.log('Could not determine issue or pull request number');
+                return;
+              }
+              let body = outputContent.trim();
+              // Add AI disclaimer with run id, run htmlurl
+              const runId = context.runId;
+              const runUrl = context.payload.repository 
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `https://github.com/actions/runs/${runId}`;  
+              body += `\n\n> Generated by Agentic Workflow Run [${runId}](${runUrl})\n`;
+              console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+              console.log('Comment content length:', body.length);
+              // Create the comment using GitHub API
+              const { data: comment } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: body
+              });
+              console.log('Created comment #' + comment.id + ': ' + comment.html_url);
+              // Set output for other jobs to use
+              core.setOutput('comment_id', comment.id);
+              core.setOutput('comment_url', comment.html_url);
+              // write comment id, url to the github_step_summary
+              await core.summary.addRaw(`
+            ## GitHub Comment
+            - Comment ID: ${comment.id}
+            - Comment URL: ${comment.html_url}
+            `).write();
+            }
+            await main();
 

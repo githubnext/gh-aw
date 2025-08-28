@@ -11,6 +11,9 @@ on:
 engine: 
   id: claude
   model: claude-3-5-sonnet-20241022
+  permissions:
+    network:
+      allowed: []
 timeout_minutes: 10
 permissions:
   pull-requests: write

@@ -15,7 +15,7 @@ Learn about the concepts behind agentic workflows, explore available workflow ty
 
 ## 📚 Samples
 
-Explore ready-to-use agentic workflows for research, development, and automation tasks. See [Sampels](docs/samples.md) for a complete list of demonstrator workflows including:
+Explore ready-to-use agentic workflows for research, development, and automation tasks. See [Samples](docs/samples.md) for a complete list of demonstrator workflows including:
 
 - **Research & Planning**: Weekly research, team status reports, daily planning, and issue triage
 - **Coding & Development**: Dependency updates, documentation maintenance, QA tasks, test coverage improvements, performance optimization, and accessibility reviews
