@@ -70,7 +70,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			Model: "claude-3-5-sonnet-20241022",
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config)
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
 
 		// Verify settings parameter is not present
 		if settings, exists := execConfig.Inputs["settings"]; exists {
@@ -94,7 +94,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			},
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config)
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
 
 		// Verify settings parameter is present
 		if settings, exists := execConfig.Inputs["settings"]; !exists {
@@ -128,7 +128,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			},
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config)
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
 
 		// With empty allowed list, we should enforce deny-all policy via settings
 		if settings, exists := execConfig.Inputs["settings"]; !exists {
@@ -149,7 +149,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			},
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config)
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
 
 		// Verify action version uses config version
 		expectedAction := "anthropics/claude-code-base-action@v1.2.3"
@@ -201,7 +201,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		}
 
 		// Get execution config
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config)
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
 		if execConfig.Inputs["settings"] != ".claude/settings.json" {
 			t.Error("Execution config should reference generated settings file")
 		}
@@ -236,8 +236,8 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 			t.Error("Different engine instances should generate same number of steps")
 		}
 
-		execConfig1 := engine1.GetExecutionConfig("test", "log", config)
-		execConfig2 := engine2.GetExecutionConfig("test", "log", config)
+		execConfig1 := engine1.GetExecutionConfig("test", "log", config, false)
+		execConfig2 := engine2.GetExecutionConfig("test", "log", config, false)
 
 		if execConfig1.Inputs["settings"] != execConfig2.Inputs["settings"] {
 			t.Error("Different engine instances should generate consistent execution configs")
