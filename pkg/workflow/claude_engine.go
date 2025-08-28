@@ -31,8 +31,26 @@ func NewClaudeEngine() *ClaudeEngine {
 }
 
 func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep {
-	// Claude Code doesn't require installation as it uses claude-base-action
-	return []GitHubActionStep{}
+	var steps []GitHubActionStep
+
+	// Check if network permissions are configured
+	if ShouldEnforceNetworkPermissions(engineConfig) {
+		// Generate network hook generator and settings generator
+		hookGenerator := &NetworkHookGenerator{}
+		settingsGenerator := &ClaudeSettingsGenerator{}
+
+		allowedDomains := GetAllowedDomains(engineConfig)
+
+		// Add hook generation step
+		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
+		steps = append(steps, hookStep)
+
+		// Add settings generation step
+		settingsStep := settingsGenerator.GenerateSettingsWorkflowStep()
+		steps = append(steps, settingsStep)
+	}
+
+	return steps
 }
 
 // GetDeclaredOutputFiles returns the output files that Claude may produce
@@ -67,6 +85,11 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 	// Add model configuration if specified
 	if engineConfig != nil && engineConfig.Model != "" {
 		config.Inputs["model"] = engineConfig.Model
+	}
+
+	// Add settings parameter if network permissions are configured
+	if ShouldEnforceNetworkPermissions(engineConfig) {
+		config.Inputs["settings"] = ".claude/settings.json"
 	}
 
 	return config
@@ -132,7 +155,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 // renderClaudeMCPConfig generates custom MCP server configuration for a single tool in Claude workflow mcp-servers.json
 func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	yaml.WriteString(fmt.Sprintf("              \"%s\": {\n", toolName))
+	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
 
 	// Use the shared MCP config renderer with JSON format
 	renderer := MCPConfigRenderer{

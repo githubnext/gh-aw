@@ -69,6 +69,11 @@ The YAML frontmatter supports these fields:
       version: beta                     # Optional: version of the action
       model: claude-3-5-sonnet-20241022 # Optional: LLM model to use
       max-turns: 5                      # Optional: maximum chat iterations per run
+      permissions:                      # Optional: engine-level permissions
+        network:                        # Network access control for Claude Code
+          allowed:                      # List of allowed domains
+            - "example.com"
+            - "*.trusted-domain.com"
     ```
   
 - **`tools:`** - Tool configuration for AI agent
@@ -336,6 +341,40 @@ tools:
       - custom_function_1
       - custom_function_2
 ```
+
+### Engine Network Permissions
+
+Control network access for the Claude Code engine itself (not MCP tools):
+
+```yaml
+engine:
+  id: claude
+  permissions:
+    network:
+      allowed:
+        - "api.github.com"
+        - "*.trusted-domain.com"
+        - "example.com"
+```
+
+**Important Notes:**
+- Network permissions apply to Claude Code's WebFetch and WebSearch tools
+- When permissions are specified, deny-by-default policy is enforced
+- Supports exact domain matches and wildcard patterns (where `*` matches any characters, including nested subdomains)
+- Currently supported for Claude engine only (Codex support planned)
+- Uses Claude Code hooks for enforcement, not network proxies
+
+**Three Permission Modes:**
+1. **No network permissions**: Unrestricted access (backwards compatible)
+2. **Empty allowed list**: Complete network access denial
+   ```yaml
+   engine:
+     id: claude
+     permissions:
+       network:
+         allowed: []  # Deny all network access
+   ```
+3. **Specific domains**: Granular access control to listed domains only
 
 ## @include Directive System
 

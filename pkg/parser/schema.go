@@ -23,12 +23,24 @@ var mcpConfigSchema string
 
 // ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
 func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
-	return validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file")
+	// First run the standard schema validation
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		return err
+	}
+
+	// Then run custom validation for engine-specific rules
+	return validateEngineSpecificRules(frontmatter)
 }
 
 // ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info
 func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
-	return validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath)
+	// First run the standard schema validation with location
+	if err := validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath); err != nil {
+		return err
+	}
+
+	// Then run custom validation for engine-specific rules
+	return validateEngineSpecificRules(frontmatter)
 }
 
 // ValidateIncludedFileFrontmatterWithSchema validates included file frontmatter using JSON schema
@@ -210,4 +222,41 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// validateEngineSpecificRules validates engine-specific rules that are not easily expressed in JSON schema
+func validateEngineSpecificRules(frontmatter map[string]any) error {
+	// Check if engine is configured
+	engine, ok := frontmatter["engine"]
+	if !ok {
+		return nil // No engine specified, nothing to validate
+	}
+
+	// Handle string format engine
+	if engineStr, ok := engine.(string); ok {
+		// String format doesn't support permissions, so no validation needed
+		_ = engineStr
+		return nil
+	}
+
+	// Handle object format engine
+	engineMap, ok := engine.(map[string]any)
+	if !ok {
+		return nil // Invalid engine format, but this should be caught by schema validation
+	}
+
+	// Check engine ID
+	engineID, ok := engineMap["id"].(string)
+	if !ok {
+		return nil // Missing or invalid ID, but this should be caught by schema validation
+	}
+
+	// Check if codex engine has permissions configured
+	if engineID == "codex" {
+		if _, hasPermissions := engineMap["permissions"]; hasPermissions {
+			return errors.New("engine permissions are not supported for codex engine. Only Claude engine supports permissions configuration")
+		}
+	}
+
+	return nil
 }

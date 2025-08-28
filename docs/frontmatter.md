@@ -18,7 +18,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 
 **Properties specific to GitHub Agentic Workflows:**
-- `engine`: AI engine configuration (claude/codex) with optional max-turns setting
+- `engine`: AI engine configuration (claude/codex) with optional max-turns setting and network permissions
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
 - `output`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
@@ -161,6 +161,11 @@ engine:
   version: beta                     # Optional: version of the action
   model: claude-3-5-sonnet-20241022 # Optional: specific LLM model
   max-turns: 5                      # Optional: maximum chat iterations per run
+  permissions:                      # Optional: engine-level permissions (only Claude is supported)
+    network:                        # Network access control
+      allowed:                      # List of allowed domains
+        - "api.example.com"
+        - "*.trusted.com"
 ```
 
 **Fields:**
@@ -168,6 +173,9 @@ engine:
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
+- **`permissions`** (optional): Engine-level permissions
+  - **`network`** (optional): Network access control
+    - **`allowed`** (optional): List of allowed domains for WebFetch and WebSearch
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
@@ -190,6 +198,88 @@ engine:
 2. Engine stops iterating when the turn limit is reached
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
+
+## Engine Network Permissions
+
+> This is only supported by the claude engine today.
+
+Control network access for AI engines using the `permissions` field in the `engine` block:
+
+```yaml
+engine:
+  id: claude
+  permissions:
+    network:
+      allowed:
+        - "api.example.com"      # Exact domain match
+        - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
+```
+
+### Security Model
+
+- **Deny by Default**: When network permissions are specified, only listed domains are accessible
+- **Engine vs Tools**: Engine permissions control the AI engine itself, separate from MCP tool permissions
+- **Hook Enforcement**: Uses Claude Code's hook system for runtime network access control
+- **Domain Validation**: Supports exact matches and wildcard patterns (`*` matches any characters including dots, allowing nested subdomains)
+
+### Examples
+
+```yaml
+# Allow specific APIs only
+engine:
+  id: claude
+  permissions:
+    network:
+      allowed:
+        - "api.github.com"
+        - "httpbin.org"
+
+# Allow all subdomains of a trusted domain
+# Note: "*.github.com" matches api.github.com, subdomain.github.com, and even nested.api.github.com
+engine:
+  id: claude
+  permissions:
+    network:
+      allowed:
+        - "*.company-internal.com"
+        - "public-api.service.com"
+
+# Deny all network access (empty list)
+engine:
+  id: claude
+  permissions:
+    network:
+      allowed: []
+```
+
+### Permission Modes
+
+1. **No network permissions**: Unrestricted access (backwards compatible)
+   ```yaml
+   engine:
+     id: claude
+     # No permissions block - full network access
+   ```
+
+2. **Empty allowed list**: Complete network access denial
+   ```yaml
+   engine:
+     id: claude
+     permissions:
+       network:
+         allowed: []  # Deny all network access
+   ```
+
+3. **Specific domains**: Granular access control to listed domains only
+   ```yaml
+   engine:
+     id: claude
+     permissions:
+       network:
+         allowed:
+           - "trusted-api.com"
+           - "*.safe-domain.org"
+   ```
 
 ## Output Configuration (`output:`)
 

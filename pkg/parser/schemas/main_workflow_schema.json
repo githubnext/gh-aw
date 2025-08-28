@@ -673,6 +673,29 @@
             "max-turns": {
               "type": "integer",
               "description": "Maximum number of chat iterations per run"
+            },
+            "permissions": {
+              "type": "object",
+              "description": "Engine-level permissions configuration",
+              "properties": {
+                "network": {
+                  "type": "object",
+                  "description": "Network access control for the engine",
+                  "properties": {
+                    "allowed": {
+                      "type": "array",
+                      "description": "List of allowed domains for network access",
+                      "items": {
+                        "type": "string",
+                        "description": "Domain name (supports wildcards with * prefix)"
+                      }
+                    }
+                  },
+                  "required": ["allowed"],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
             }
           },
           "required": ["id"],

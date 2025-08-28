@@ -139,7 +139,7 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 	yaml.WriteString("          cat > squid.conf << 'EOF'\n")
 	squidConfigContent := generateSquidConfig()
 	for _, line := range strings.Split(squidConfigContent, "\n") {
-		yaml.WriteString(fmt.Sprintf("          %s\n", line))
+		fmt.Fprintf(yaml, "          %s\n", line)
 	}
 	yaml.WriteString("          EOF\n")
 	yaml.WriteString("          \n")
@@ -149,7 +149,7 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 	yaml.WriteString("          cat > allowed_domains.txt << 'EOF'\n")
 	allowedDomainsContent := generateAllowedDomainsFile(allowedDomains)
 	for _, line := range strings.Split(allowedDomainsContent, "\n") {
-		yaml.WriteString(fmt.Sprintf("          %s\n", line))
+		fmt.Fprintf(yaml, "          %s\n", line)
 	}
 	yaml.WriteString("          EOF\n")
 	yaml.WriteString("          \n")
@@ -167,11 +167,11 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 	}
 
 	// Generate docker-compose.yml inline
-	yaml.WriteString(fmt.Sprintf("          # Generate Docker Compose configuration for %s\n", toolName))
-	yaml.WriteString(fmt.Sprintf("          cat > docker-compose-%s.yml << 'EOF'\n", toolName))
+	fmt.Fprintf(yaml, "          # Generate Docker Compose configuration for %s\n", toolName)
+	fmt.Fprintf(yaml, "          cat > docker-compose-%s.yml << 'EOF'\n", toolName)
 	dockerComposeContent := generateDockerCompose(containerStr, envVars, toolName, customProxyArgs)
 	for _, line := range strings.Split(dockerComposeContent, "\n") {
-		yaml.WriteString(fmt.Sprintf("          %s\n", line))
+		fmt.Fprintf(yaml, "          %s\n", line)
 	}
 	yaml.WriteString("          EOF\n")
 	yaml.WriteString("          \n")
