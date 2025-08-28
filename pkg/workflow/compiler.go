@@ -129,7 +129,6 @@ type WorkflowData struct {
 	AllowedTools     string
 	AI               string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig     *EngineConfig // Extended engine configuration
-	MaxTurns         string
 	StopTime         string
 	Alias            string         // for @alias trigger support
 	AliasOtherEvents map[string]any // for merging alias with other events
@@ -577,11 +576,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
-
-	// Extract max-turns from engine config instead of top-level frontmatter
-	if engineConfig != nil && engineConfig.MaxTurns != "" {
-		workflowData.MaxTurns = engineConfig.MaxTurns
-	}
 
 	// Extract stop-after from the on: section
 	stopAfter, err := c.extractStopAfterFromOn(result.Frontmatter)
@@ -2564,8 +2558,8 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 					yaml.WriteString("          " + data.TimeoutMinutes + "\n")
 				}
 			} else if key == "max_turns" {
-				if data.MaxTurns != "" {
-					yaml.WriteString(fmt.Sprintf("          max_turns: %s\n", data.MaxTurns))
+				if data.EngineConfig != nil && data.EngineConfig.MaxTurns != "" {
+					yaml.WriteString(fmt.Sprintf("          max_turns: %s\n", data.EngineConfig.MaxTurns))
 				}
 			} else if value != "" {
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", key, value))
