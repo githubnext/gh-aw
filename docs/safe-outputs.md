@@ -12,45 +12,21 @@ The `output:` element of your workflow's frontmatter declares that your agentic 
 3. The compiler automatically generates additional jobs that read this output and perform the requested actions
 4. Only these generated jobs receive the necessary write permissions
 
+For example, if you want your agent to create a GitHub issue based on its analysis, you can add the following to your workflow frontmatter:
+
 ```yaml
 output:
-  allowed-domains:                    # Optional: domains allowed in agent output URIs
-    - github.com                      # Default GitHub domains are always included
-    - api.github.com                  # Additional trusted domains can be specified
-    - trusted-domain.com              # URIs from unlisted domains are replaced with "(redacted)"
   issue:
-    title-prefix: "[ai] "           # Optional: prefix for issue titles
-    labels: [automation, ai-agent]  # Optional: labels to attach to issues
-  issue_comment: {}                 # Create comments on issues/PRs from agent output
-  pull-request:
-    title-prefix: "[ai] "           # Optional: prefix for PR titles
-    labels: [automation, ai-agent]  # Optional: labels to attach to PRs
-    draft: true                     # Optional: create as draft PR (defaults to true)
-  labels:
-    allowed: [triage, bug, enhancement] # Mandatory: allowed labels for addition
-    max-count: 3                        # Optional: maximum number of labels to add (default: 3)
 ```
 
-## Security and Sanitization
+This declares that the workflow can create one new issue in the repository - and that's all.
+This is done in a separate, non-agentic job that creates the issue after your main agentic job completes. This second job will implicitly have `issues: write` permissions, but your main job does not need `issues: write` permission, enhancing security.
 
-All agent output is automatically sanitized for security before being processed:
+### Available Output Types
 
-- **XML Character Escaping**: Special characters (`<`, `>`, `&`, `"`, `'`) are escaped to prevent injection attacks
-- **URI Protocol Filtering**: Only HTTPS URIs are allowed; other protocols (HTTP, FTP, file://, javascript:, etc.) are replaced with "(redacted)"
-- **Domain Allowlisting**: HTTPS URIs are checked against the `allowed-domains` list. Unlisted domains are replaced with "(redacted)"
-- **Default Allowed Domains**: When `allowed-domains` is not specified, safe GitHub domains are used by default:
-  - `github.com`
-  - `github.io`
-  - `githubusercontent.com`
-  - `githubassets.com`
-  - `github.dev`
-  - `codespaces.new`
-- **Length and Line Limits**: Content is truncated if it exceeds safety limits (0.5MB or 65,000 lines)
-- **Control Character Removal**: Non-printable characters and ANSI escape sequences are stripped
+## Issue Creation (`issue:`)
 
-## Issue Creation (`output.issue`)
-
-Adding `output.issue` to your workflow declares that the workflow should conclude with the creation of a GitHub issue based on the agent's output.
+Adding `issue:` to the `output:` section of your workflow declares that the workflow should conclude with the creation of a GitHub issue based on the agent's output.
 
 **How Your Agent Provides Output:**
 Your agentic workflow writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The output should be structured as:
@@ -58,21 +34,17 @@ Your agentic workflow writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The o
 - **Remaining content**: Becomes the issue body
 
 **What This Configuration Does:**
-When you add `output.issue` to your frontmatter, the compiler automatically generates a separate `create_issue` job that:
+The compiler automatically generates a separate `create_issue` job that:
 - Runs after your main agentic job completes
 - Reads the content from `${{ env.GITHUB_AW_OUTPUT }}`
 - Parses it to extract title and body
 - Creates a GitHub issue with optional title prefix and labels
 - **Security**: Only this generated job gets `issues: write` permission—your agentic code runs with minimal permissions
 
-**Example workflow using issue creation:**
+**Example using issue creation:**
 ```yaml
 ---
-on: push
-permissions:
-  contents: read      # Main job only needs minimal permissions
-  actions: read
-engine: claude
+...
 output:
   issue:
     title-prefix: "[analysis] "
@@ -88,15 +60,15 @@ The first line of your output will become the issue title.
 The rest will become the issue body.
 ```
 
-## Issue Comment Creation (`output.issue_comment`)
+## Issue Comment Creation (`issue_comment:`)
 
-Adding `output.issue_comment` to your workflow declares that the workflow should conclude with posting a comment on the triggering issue or pull request based on the agent's output.
+Adding `issue_comment:` to the output section of your workflow declares that the workflow should conclude with posting a comment on the triggering issue or pull request based on the agent's output.
 
 **How Your Agent Provides Output:**
 Your agentic workflow writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The entire content becomes the comment body—no special formatting is required.
 
 **What This Configuration Does:**
-When you add `output.issue_comment` to your frontmatter, the compiler automatically generates a separate `create_issue_comment` job that:
+The compiler automatically generates a separate `create_issue_comment` job that:
 - Only runs when triggered by an issue or pull request event
 - Reads the content from `${{ env.GITHUB_AW_OUTPUT }}`
 - Posts the entire output as a comment on the triggering issue or PR
@@ -106,17 +78,9 @@ When you add `output.issue_comment` to your frontmatter, the compiler automatica
 **Example workflow using comment creation:**
 ```yaml
 ---
-on:
-  issues:
-    types: [opened, labeled]
-  pull_request:
-    types: [opened, synchronize]
-permissions:
-  contents: read      # Main job only needs minimal permissions
-  actions: read
-engine: claude
+...
 output:
-  issue_comment: {}
+  issue_comment:
 ---
 
 # Issue/PR Analysis Agent
@@ -129,9 +93,9 @@ Your entire output will be posted as a comment on the triggering issue or PR.
 
 This automatically creates GitHub issues or comments from the agent's analysis without requiring write permissions on the main job.
 
-## Pull Request Creation (`output.pull-request`)
+## Pull Request Creation (`pull-request:`)
 
-Adding `output.pull-request` to your workflow declares that the workflow should conclude with the creation of a pull request containing code changes generated by the agent.
+Adding `pull-request:` to the `output:` section of your workflow declares that the workflow should conclude with the creation of a pull request containing code changes generated by the agent.
 
 **How Your Agent Provides Output:**
 Your agentic workflow provides output in two ways:
@@ -141,7 +105,7 @@ Your agentic workflow provides output in two ways:
    - **Remaining content**: Becomes the PR description
 
 **What This Configuration Does:**
-When you add `output.pull-request` to your frontmatter, the compiler automatically:
+The compiler automatically:
 1. **Adds a git patch generation step** to your main job that:
    - Runs `git add -A` to stage any file changes made by your agent
    - Commits staged files with message "[agent] staged files"
@@ -164,12 +128,9 @@ output:
 ```
 
 **Example workflow using pull request creation:**
-```markdown
+````markdown
 ---
-on: push
-permissions:
-  actions: read       # Main job only needs minimal permissions
-engine: claude
+...
 output:
   pull-request:
     title-prefix: "[bot] "
@@ -197,6 +158,7 @@ Fix coding style issues
 - Fixed indentation in helper functions
 - Added missing documentation
 ```
+````
 
 **Automatic Patch Generation:**
 The workflow automatically handles patch creation—your agent simply makes file changes, and the system:
@@ -205,9 +167,9 @@ The workflow automatically handles patch creation—your agent simply makes file
 3. Generates git patches using `git format-patch`
 4. Validates patch existence and content before proceeding with PR creation
 
-## Label Addition (`output.labels`)
+## Label Addition (`labels:`)
 
-Adding `output.labels` to your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the agent's analysis.
+Adding `labels:` to the `output:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the agent's analysis.
 
 **How Your Agent Provides Output:**
 Your agentic workflow writes labels to add to `${{ env.GITHUB_AW_OUTPUT }}`, one label per line:
@@ -218,7 +180,7 @@ needs-review
 ```
 
 **What This Configuration Does:**
-When you add `output.labels` to your frontmatter, the compiler automatically generates a separate `add_labels` job that:
+The compiler automatically generates a separate `add_labels` job that:
 - Only runs when triggered by an issue or pull request event
 - Reads the labels from `${{ env.GITHUB_AW_OUTPUT }}` (one per line)
 - Validates each label against the mandatory `allowed` list
@@ -254,16 +216,11 @@ needs-review
 **Example workflow using label addition:**
 ```yaml
 ---
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read       # Main job only needs minimal permissions
-engine: claude
+...
+
 output:
   labels:
-    allowed: [triage, bug, enhancement, documentation, needs-review]
+    allowed: [triage, bug, enhancement]
 ---
 
 # Issue Labeling Agent
@@ -273,6 +230,33 @@ Analyze the issue content and determine appropriate labels.
 Write the labels you want to add (one per line) to ${{ env.GITHUB_AW_OUTPUT }}.
 
 Only use labels from the allowed list: triage, bug, enhancement, documentation, needs-review.
+```
+
+## Security and Sanitization
+
+All agent output is automatically sanitized for security before being processed:
+
+- **XML Character Escaping**: Special characters (`<`, `>`, `&`, `"`, `'`) are escaped to prevent injection attacks
+- **URI Protocol Filtering**: Only HTTPS URIs are allowed; other protocols (HTTP, FTP, file://, javascript:, etc.) are replaced with "(redacted)"
+- **Domain Allowlisting**: HTTPS URIs are checked against the `allowed-domains` list. Unlisted domains are replaced with "(redacted)"
+- **Default Allowed Domains**: When `allowed-domains` is not specified, safe GitHub domains are used by default:
+  - `github.com`
+  - `github.io`
+  - `githubusercontent.com`
+  - `githubassets.com`
+  - `github.dev`
+  - `codespaces.new`
+- **Length and Line Limits**: Content is truncated if it exceeds safety limits (0.5MB or 65,000 lines)
+- **Control Character Removal**: Non-printable characters and ANSI escape sequences are stripped
+
+**Configuration:**
+
+```yaml
+output:
+  allowed-domains:                    # Optional: domains allowed in agent output URIs
+    - github.com                      # Default GitHub domains are always included
+    - api.github.com                  # Additional trusted domains can be specified
+    - trusted-domain.com              # URIs from unlisted domains are replaced with "(redacted)"
 ```
 
 ## Related Documentation
