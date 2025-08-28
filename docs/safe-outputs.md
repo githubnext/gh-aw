@@ -32,15 +32,6 @@ Your agentic workflow writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The o
 - **First non-empty line**: Becomes the issue title (markdown heading syntax like `# Title` is automatically stripped)
 - **Remaining content**: Becomes the issue body
 
-**What This Output Option Does:**
-
-The compiler automatically generates a separate `create_issue` job that:
-- Runs after your main agentic job completes
-- Reads the content from `${{ env.GITHUB_AW_OUTPUT }}`
-- Parses it to extract title and body
-- Creates a GitHub issue with optional title prefix and labels
-- **Security**: Only this generated job gets `issues: write` permission—your agentic code runs with minimal permissions
-
 **Example natural language to generate the output:**
 
 ```yaml
@@ -67,15 +58,6 @@ output:
 **How Your Agent Provides Output:**
 
 Your agentic workflow writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The entire content becomes the comment body—no special formatting is required.
-
-**What This Output Option Does:**
-
-The compiler automatically generates a separate `create_issue_comment` job that:
-- Only runs when triggered by an issue or pull request event
-- Reads the content from `${{ env.GITHUB_AW_OUTPUT }}`
-- Posts the entire output as a comment on the triggering issue or PR
-- Automatically skips execution if not running in an issue/PR context
-- **Security**: Only this generated job gets `issues: write` and `pull-requests: write` permissions
 
 **Example natural language to generate the output:**
 
@@ -111,20 +93,6 @@ Your agentic workflow provides output in two ways:
 2. **PR description**: Write to `${{ env.GITHUB_AW_OUTPUT }}` with:
    - **First non-empty line**: Becomes the PR title
    - **Remaining content**: Becomes the PR description
-
-**What This Output Option Does:**
-The compiler automatically:
-1. **Adds a git patch generation step** to your main job that:
-   - Runs `git add -A` to stage any file changes made by your agent
-   - Commits staged files with message "[agent] staged files"
-   - Generates git patches using `git format-patch` and saves to `/tmp/aw.patch`
-2. **Generates a separate `create_pull_request` job** that:
-   - Reads the patches from `/tmp/aw.patch` and validates they exist and are valid
-   - Creates a new branch with cryptographically secure random naming
-   - Applies the git patches to create the code changes
-   - Reads the PR description from `${{ env.GITHUB_AW_OUTPUT }}`
-   - Creates a pull request with optional title prefix, labels, and draft status
-   - **Security**: Only this generated job gets `contents: write`, `issues: write`, and `pull-requests: write` permissions
 
 **Example natural language to generate the output:**
 
@@ -181,17 +149,6 @@ triage
 bug
 needs-review
 ```
-
-**What This Output Option Does:**
-
-The compiler automatically generates a separate `add_labels` job that:
-- Only runs when triggered by an issue or pull request event
-- Reads the labels from `${{ env.GITHUB_AW_OUTPUT }}` (one per line)
-- Validates each label against the mandatory `allowed` list
-- Enforces the `max-count` limit (default: 3 labels)
-- Adds only valid labels to the current issue or pull request
-- **Security**: Only label addition is supported—no removal operations are allowed
-- **Validation**: The job fails if any requested label is not in the `allowed` list
 
 **Agent Output Format:**
 
