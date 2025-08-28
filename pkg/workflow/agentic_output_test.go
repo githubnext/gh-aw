@@ -26,6 +26,9 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+output:
+  labels:
+    allowed: ["bug", "enhancement"]
 ---
 
 # Test Agentic Output Collection
@@ -118,6 +121,9 @@ tools:
   github:
     allowed: [list_issues]
 engine: codex
+output:
+  labels:
+    allowed: ["bug", "enhancement"]
 ---
 
 # Test Codex No Engine Output Collection
