@@ -7,10 +7,9 @@ One of the primary security features of GitHub Agentic Workflows is "safe output
 The `safe-outputs:` element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
 
 **How It Works:**
-1. The agentic part of your workflow runs with minimal read-only permissions
-2. The workflow writes its output to the special known locations such as the file given by the `${{ env.GITHUB_AW_OUTPUT }}` environment variable
-3. The compiler automatically generates additional jobs that read this output and perform the requested actions
-4. Only these generated jobs receive the necessary write permissions
+1. The agentic part of your workflow runs with minimal read-only permissions. It is given additional prompting to write its output to the special known files
+2. The compiler automatically generates additional jobs that read this output and perform the requested actions
+3. Only these generated jobs receive the necessary write permissions
 
 ## Available Output Types
 
@@ -43,7 +42,7 @@ Analyze the latest commit and provide insights.
 Create a new issue with your findings with title "AI Code Analysis" and description "Here are the details of the analysis..."
 ```
 
-The workflow will have additional prompting describing that, to create the issue, the agent should write the issue title on the first line of `${{ env.GITHUB_AW_OUTPUT }}` and the issue body starting from the second line.
+The workflow will have additional prompting describing that, to create the issue, the agent should write the issue title and body to a file.
 
 ### Issue Comment Creation (`add-issue-comment:`)
 
@@ -65,7 +64,7 @@ Analyze the issue or pull request and provide feedback.
 Create an issue comment on the triggering issue or PR starting with the text "Here is my analysis of the issue/PR..."
 ```
 
-The workflow will have additional prompting describing that, to create the issue, the agent should write the comment body to `${{ env.GITHUB_AW_OUTPUT }}`.
+The workflow will have additional prompting describing that, to create the issue, the agent should write the comment body to a special file..
 
 ### Pull Request Creation (`create-pull-request:`)
 
@@ -129,7 +128,7 @@ The agentic part of your workflow should analyze the issue content and determine
 Analyze the issue content and add appropriate labels to the issue.
 ```
 
-The agentic part of your workflow should write labels to `${{ env.GITHUB_AW_OUTPUT }}`, one label per line.
+The agentic part of your workflow will have implicit additional prompting saying that, to add labels to a GitHub issue, you must write labels to a special file, one label per line.
 
 **Safety Features:**
 

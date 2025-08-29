@@ -170,7 +170,7 @@ safe-outputs:
 # Code Analysis Agent
 
 Analyze the latest code changes and provide insights.
-Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+Create an issue with your final analysis.
 ```
 
 **Key Benefits:**
@@ -178,13 +178,6 @@ Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
 - **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
 - **Job Dependencies**: Issue creation only happens after the AI agent completes successfully
 - **Output Variables**: The created issue number and URL are available to downstream jobs
-
-**How It Works:**
-1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
-2. Main job completes and passes output via job output variables
-3. Separate `create-issue` job runs with `issues: write` permission
-4. JavaScript parses the output (first line = title, rest = body)
-5. GitHub issue is created with optional title prefix and labels
 
 ## Trigger Patterns
 
@@ -456,7 +449,7 @@ safe-outputs:
 # Code Analysis Agent
 
 Analyze the latest code changes and provide insights.
-Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+Create an issue with your final analysis.
 ```
 
 **Key Benefits:**
@@ -464,13 +457,6 @@ Write your final analysis to ${{ env.GITHUB_AW_OUTPUT }}.
 - **Automatic Processing**: AI output is automatically parsed and converted to GitHub issues
 - **Job Dependencies**: Issue creation only happens after the AI agent completes successfully
 - **Output Variables**: The created issue number and URL are available to downstream jobs
-
-**How It Works:**
-1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
-2. Main job completes and passes output via job output variables
-3. Separate `create-issue` job runs with `issues: write` permission
-4. JavaScript parses the output (first line = title, rest = body)
-5. GitHub issue is created with optional title prefix and labels
 
 ### Automatic Pull Request Creation
 
@@ -492,7 +478,7 @@ safe-outputs:
 # Code Improvement Agent
 
 Analyze the latest code and suggest improvements.
-Generate git patches in /tmp/aw.patch and write summary to ${{ env.GITHUB_AW_OUTPUT }}.
+Create a pull request with your changes.
 ```
 
 **Key Features:**
@@ -500,15 +486,6 @@ Generate git patches in /tmp/aw.patch and write summary to ${{ env.GITHUB_AW_OUT
 - **Git CLI Integration**: Leverages git CLI commands for branch creation and patch application
 - **Environment-based Configuration**: Resolves base branch from GitHub Action context
 - **Fail-Fast Error Handling**: Validates required environment variables and patch file existence
-
-**How It Works:**
-1. AI agent creates git patches in `/tmp/aw.patch` and writes title/description to `${{ env.GITHUB_AW_OUTPUT }}`
-2. Main job completes and passes output via job output variables
-3. Separate `create_output_pull_request` job runs with `contents: write` and `pull-requests: write` permissions
-4. Job creates a new branch using `{workflowId}/{randomHex}` pattern
-5. Git patches are applied using `git apply`
-6. Changes are committed and pushed to the new branch
-7. Pull request is created with parsed title/body and optional labels
 
 ### Automatic Comment Creation
 
@@ -530,15 +507,8 @@ safe-outputs:
 # Issue Analysis Agent
 
 Analyze the issue and provide feedback.
-Write your analysis to ${{ env.GITHUB_AW_OUTPUT }}.
+Add a comment to the issue with your analysis.
 ```
-
-**How It Works:**
-1. AI agent writes output to `${{ env.GITHUB_AW_OUTPUT }}`
-2. Main job completes and passes output via job output variables
-3. Separate `create_issue_comment` job runs with `issues: write` and `pull-requests: write` permissions
-4. Job posts the entire agent output as a comment on the triggering issue or pull request
-5. Automatically skips if not running in an issue or pull request context
 
 ## Permission Patterns
 
