@@ -8,7 +8,7 @@ The `safe-outputs:` element of your workflow's frontmatter declares that your ag
 
 **How It Works:**
 1. The agentic part of your workflow runs with minimal read-only permissions
-2. The workflow writes its output to the special `${{ env.GITHUB_AW_OUTPUT }}` environment variable
+2. The workflow writes its output to the special known locations such as the file given by the `${{ env.GITHUB_AW_OUTPUT }}` environment variable
 3. The compiler automatically generates additional jobs that read this output and perform the requested actions
 4. Only these generated jobs receive the necessary write permissions
 
@@ -32,9 +32,7 @@ safe-outputs:
     labels: [automation, agent]     # Optional: labels to attach to issues
 ```
 
-The agentic part of your workflow should write its content to `${{ env.GITHUB_AW_OUTPUT }}`. The output should be structured as:
-- **First non-empty line**: Becomes the issue title (markdown heading syntax like `# Title` is automatically stripped)
-- **Remaining content**: Becomes the issue body
+The agentic part of your workflow should describe the issue it wants created.
 
 **Example natural language to generate the output:**
 
@@ -42,11 +40,10 @@ The agentic part of your workflow should write its content to `${{ env.GITHUB_AW
 # Code Analysis Agent
 
 Analyze the latest commit and provide insights.
-Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
-
-The first line of your output will become the issue title.
-The rest will become the issue body.
+Create a new issue with your findings with title "AI Code Analysis" and description "Here are the details of the analysis..."
 ```
+
+The workflow will have additional prompting describing that, to create the issue, the agent should write the issue title on the first line of `${{ env.GITHUB_AW_OUTPUT }}` and the issue body starting from the second line.
 
 ### Issue Comment Creation (`add-issue-comment:`)
 
@@ -57,7 +54,7 @@ safe-outputs:
   add-issue-comment:
 ```
 
-The agentic part of your workflow should writes its content to `${{ env.GITHUB_AW_OUTPUT }}`. The entire content becomes the comment body—no special formatting is required.
+The agentic part of your workflow should describe the comment it wants posted.
 
 **Example natural language to generate the output:**
 
@@ -65,12 +62,10 @@ The agentic part of your workflow should writes its content to `${{ env.GITHUB_A
 # Issue/PR Analysis Agent
 
 Analyze the issue or pull request and provide feedback.
-Write your analysis to ${{ env.GITHUB_AW_OUTPUT }} at the end.
-
-Your entire output will be posted as a comment on the triggering issue or PR.
+Create an issue comment on the triggering issue or PR starting with the text "Here is my analysis of the issue/PR..."
 ```
 
-This automatically creates GitHub issues or comments from the workflow's analysis without requiring write permissions on the main job.
+The workflow will have additional prompting describing that, to create the issue, the agent should write the comment body to `${{ env.GITHUB_AW_OUTPUT }}`.
 
 ### Pull Request Creation (`create-pull-request:`)
 
@@ -91,11 +86,9 @@ safe-outputs:
     draft: true                     # Optional: create as draft PR (defaults to true)
 ```
 
-The agentic part of your workflow should provide output in two ways:
-1. **File changes**: Make any file changes in the working directory—these are automatically collected using `git add -A` and committed
-2. **PR description**: Write to `${{ env.GITHUB_AW_OUTPUT }}` with:
-   - **First non-empty line**: Becomes the PR title
-   - **Remaining content**: Becomes the PR description
+The agentic part of your workflow should instruct to 
+1. **Make code changes**: Make any code changes in the working directory—these are automatically collected using `git add -A` and committed
+2. **Create a pull request**: Describe the pull request title and body you want
 
 **Example natural language to generate the output:**
 
@@ -105,7 +98,7 @@ The agentic part of your workflow should provide output in two ways:
 Analyze the latest commit and suggest improvements.
 
 1. Make any file changes directly in the working directory
-2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}
+2. Create a PR with title "First change" and description "THis is a first change"
 ```
 
 ### Label Addition (`add-issue-labels:`)
@@ -126,12 +119,17 @@ safe-outputs:
     max-count: 3                        # Optional: maximum number of labels to add (default: 3)
 ```
 
-The agentic part of your workflow should write labels to `${{ env.GITHUB_AW_OUTPUT }}`, one label per line:
+The agentic part of your workflow should analyze the issue content and determine appropriate labels. 
+
+**Example of natural language to generate the output:**
+
+```markdown
+# Issue Labeling Agent
+
+Analyze the issue content and add appropriate labels to the issue.
 ```
-triage
-bug
-needs-review
-```
+
+The agentic part of your workflow should write labels to `${{ env.GITHUB_AW_OUTPUT }}`, one label per line.
 
 **Safety Features:**
 
@@ -141,18 +139,6 @@ needs-review
 - If `allowed` is provided, all requested labels must be in the `allowed` list or the job fails with a clear error message. If `allowed` is not provided then any labels are allowed (including creating new labels).
 - Label count is limited by `max-count` setting (default: 3) - exceeding this limit causes job failure
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
-
-**Example natural language to generate the output:**
-
-```markdown
-# Issue Labeling Agent
-
-Analyze the issue content and determine appropriate labels.
-
-Write the labels you want to add (one per line) to ${{ env.GITHUB_AW_OUTPUT }}.
-
-If an `allowed` list is provided, only use labels from the allowed list: triage, bug, enhancement, documentation, needs-review. If no `allowed` list is provided, any labels are permitted (including creating new labels).
-```
 
 ## Security and Sanitization
 
