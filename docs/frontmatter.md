@@ -281,9 +281,9 @@ engine:
            - "*.safe-domain.org"
    ```
 
-## Output Configuration (`output:`)
+## Safe Outputs Configuration (`safe-outputs:`)
 
-See [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
+See [Safe Outputs Processing](safe-outputs.md) for automatic issue creation, comment posting and other safe outputs.
 
 ## Run Configuration (`run-name:`, `runs-on:`, `timeout_minutes:`)
 

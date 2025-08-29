@@ -1029,25 +1029,32 @@
           "additionalProperties": false
         },
         "add-issue-labels": {
-          "type": "object",
-          "description": "Configuration for adding labels to issues/PRs from agentic workflow output",
-          "properties": {
-            "allowed": {
-              "type": "array",
-              "description": "Mandatory list of allowed labels that can be added",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows any labels"
             },
-            "max-count": {
-              "type": "integer",
-              "description": "Optional maximum number of labels to add (default: 3)",
-              "minimum": 1
+            {
+              "type": "object",
+              "description": "Configuration for adding labels to issues/PRs from agentic workflow output",
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be added. If omitted, any labels are allowed (including creating new ones).",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max-count": {
+                  "type": "integer",
+                  "description": "Optional maximum number of labels to add (default: 3)",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
             }
-          },
-          "required": ["allowed"],
-          "additionalProperties": false
+          ]
         }
       },
       "additionalProperties": false

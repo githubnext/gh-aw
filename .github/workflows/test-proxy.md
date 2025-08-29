@@ -4,8 +4,8 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-output:
-  issue_comment: {}
+safe-outputs:
+  add-issue-comment: {}
 
 tools:
   fetch:

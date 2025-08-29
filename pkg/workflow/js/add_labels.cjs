@@ -13,20 +13,22 @@ async function main() {
 
   console.log('Agent output content length:', outputContent.length);
 
-  // Read the allowed labels from environment variable (mandatory)
+  // Read the allowed labels from environment variable (optional)
   const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
-  if (!allowedLabelsEnv) {
-    core.setFailed('GITHUB_AW_LABELS_ALLOWED environment variable is required but missing');
-    return;
+  let allowedLabels = null;
+  
+  if (allowedLabelsEnv && allowedLabelsEnv.trim() !== '') {
+    allowedLabels = allowedLabelsEnv.split(',').map(label => label.trim()).filter(label => label);
+    if (allowedLabels.length === 0) {
+      allowedLabels = null; // Treat empty list as no restrictions
+    }
   }
 
-  const allowedLabels = allowedLabelsEnv.split(',').map(label => label.trim()).filter(label => label);
-  if (allowedLabels.length === 0) {
-    core.setFailed('Allowed labels list is empty. At least one allowed label must be specified');
-    return;
+  if (allowedLabels) {
+    console.log('Allowed labels:', allowedLabels);
+  } else {
+    console.log('No label restrictions - any labels are allowed');
   }
-
-  console.log('Allowed labels:', allowedLabels);
 
   // Read the max-count limit from environment variable (default: 3)
   const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
@@ -97,8 +99,14 @@ async function main() {
 
   console.log('Requested labels:', requestedLabels);
 
-  // Validate that all requested labels are in the allowed list
-  const validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
+  // Validate that all requested labels are in the allowed list (if restrictions are set)
+  let validLabels;
+  if (allowedLabels) {
+    validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
+  } else {
+    // No restrictions, all requested labels are valid
+    validLabels = requestedLabels;
+  }
 
   // Remove duplicates from requested labels
   let uniqueLabels = [...new Set(validLabels)];

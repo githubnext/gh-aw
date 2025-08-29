@@ -131,45 +131,45 @@ type WorkflowData struct {
 	EngineConfig     *EngineConfig // Extended engine configuration
 	MaxTurns         string
 	StopTime         string
-	Alias            string         // for @alias trigger support
-	AliasOtherEvents map[string]any // for merging alias with other events
-	AIReaction       string         // AI reaction type like "eyes", "heart", etc.
-	Jobs             map[string]any // custom job configurations with dependencies
-	Cache            string         // cache configuration
-	NeedsTextOutput  bool           // whether the workflow uses ${{ needs.task.outputs.text }}
-	Output           *OutputConfig  // output configuration for automatic output routes
+	Alias            string             // for @alias trigger support
+	AliasOtherEvents map[string]any     // for merging alias with other events
+	AIReaction       string             // AI reaction type like "eyes", "heart", etc.
+	Jobs             map[string]any     // custom job configurations with dependencies
+	Cache            string             // cache configuration
+	NeedsTextOutput  bool               // whether the workflow uses ${{ needs.task.outputs.text }}
+	SafeOutputs      *SafeOutputsConfig // output configuration for automatic output routes
 }
 
-// OutputConfig holds configuration for automatic output routes
-type OutputConfig struct {
-	Issue          *IssueConfig       `yaml:"create-issue,omitempty"`
-	IssueComment   *CommentConfig     `yaml:"add-issue-comment,omitempty"`
-	PullRequest    *PullRequestConfig `yaml:"create-pull-request,omitempty"`
-	Labels         *LabelConfig       `yaml:"add-issue-labels,omitempty"`
-	AllowedDomains []string           `yaml:"allowed-domains,omitempty"`
+// SafeOutputsConfig holds configuration for automatic output routes
+type SafeOutputsConfig struct {
+	CreateIssue       *CreateIssueConfig       `yaml:"create-issue,omitempty"`
+	AddIssueComment   *AddIssueCommentConfig   `yaml:"add-issue-comment,omitempty"`
+	CreatePullRequest *CreatePullRequestConfig `yaml:"create-pull-request,omitempty"`
+	AddIssueLabels    *AddIssueLabelsConfig    `yaml:"add-issue-labels,omitempty"`
+	AllowedDomains    []string                 `yaml:"allowed-domains,omitempty"`
 }
 
-// IssueConfig holds configuration for creating GitHub issues from agent output
-type IssueConfig struct {
+// CreateIssueConfig holds configuration for creating GitHub issues from agent output
+type CreateIssueConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
 }
 
-// CommentConfig holds configuration for creating GitHub issue/PR comments from agent output
-type CommentConfig struct {
+// AddIssueCommentConfig holds configuration for creating GitHub issue/PR comments from agent output
+type AddIssueCommentConfig struct {
 	// Empty struct for now, as per requirements, but structured for future expansion
 }
 
-// PullRequestConfig holds configuration for creating GitHub pull requests from agent output
-type PullRequestConfig struct {
+// CreatePullRequestConfig holds configuration for creating GitHub pull requests from agent output
+type CreatePullRequestConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
 	Draft       *bool    `yaml:"draft,omitempty"` // Pointer to distinguish between unset (nil) and explicitly false
 }
 
-// LabelConfig holds configuration for adding labels to issues/PRs from agent output
-type LabelConfig struct {
-	Allowed  []string `yaml:"allowed"`             // Mandatory list of allowed labels
+// AddIssueLabelsConfig holds configuration for adding labels to issues/PRs from agent output
+type AddIssueLabelsConfig struct {
+	Allowed  []string `yaml:"allowed,omitempty"`   // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	MaxCount *int     `yaml:"max-count,omitempty"` // Optional maximum number of labels to add (default: 3)
 }
 
@@ -610,7 +610,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 
 	// Parse output configuration
-	workflowData.Output = c.extractOutputConfig(result.Frontmatter)
+	workflowData.SafeOutputs = c.extractOutputConfig(result.Frontmatter)
 
 	// Check if "alias" is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
@@ -1535,7 +1535,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 	}
 
 	// Build create_issue job if output.create_issue is configured
-	if data.Output != nil && data.Output.Issue != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateIssue != nil {
 		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue job: %w", err)
@@ -1546,8 +1546,8 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 	}
 
 	// Build create_issue_comment job if output.add-issue-comment is configured
-	if data.Output != nil && data.Output.IssueComment != nil {
-		createCommentJob, err := c.buildCreateOutputCommentJob(data, jobName)
+	if data.SafeOutputs != nil && data.SafeOutputs.AddIssueComment != nil {
+		createCommentJob, err := c.buildCreateOutputAddIssueCommentJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
 		}
@@ -1557,7 +1557,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 	}
 
 	// Build create_pull_request job if output.create-pull-request is configured
-	if data.Output != nil && data.Output.PullRequest != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequest != nil {
 		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_pull_request job: %w", err)
@@ -1567,8 +1567,8 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
-	// Build add_labels job if output.add-issue-labels is configured
-	if data.Output != nil && data.Output.Labels != nil {
+	// Build add_labels job if output.add-issue-labels is configured (including null/empty)
+	if data.SafeOutputs != nil && data.SafeOutputs.AddIssueLabels != nil {
 		addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build add_labels job: %w", err)
@@ -1699,7 +1699,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.Output == nil || data.Output.Issue == nil {
+	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssue == nil {
 		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
 	}
 
@@ -1712,11 +1712,11 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	steps = append(steps, "        env:\n")
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	if data.Output.Issue.TitlePrefix != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.Output.Issue.TitlePrefix))
+	if data.SafeOutputs.CreateIssue.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssue.TitlePrefix))
 	}
-	if len(data.Output.Issue.Labels) > 0 {
-		labelsStr := strings.Join(data.Output.Issue.Labels, ",")
+	if len(data.SafeOutputs.CreateIssue.Labels) > 0 {
+		labelsStr := strings.Join(data.SafeOutputs.CreateIssue.Labels, ",")
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_LABELS: %q\n", labelsStr))
 	}
 
@@ -1747,14 +1747,14 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	return job, nil
 }
 
-// buildCreateOutputCommentJob creates the create_issue_comment job
-func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.Output == nil || data.Output.IssueComment == nil {
+// buildCreateOutputAddIssueCommentJob creates the create_issue_comment job
+func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.AddIssueComment == nil {
 		return nil, fmt.Errorf("safe-outputs.add-issue-comment configuration is required")
 	}
 
 	var steps []string
-	steps = append(steps, "      - name: Create Output Comment\n")
+	steps = append(steps, "      - name: Add Issue Comment\n")
 	steps = append(steps, "        id: create_comment\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 
@@ -1792,7 +1792,7 @@ func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName s
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.Output == nil || data.Output.PullRequest == nil {
+	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequest == nil {
 		return nil, fmt.Errorf("safe-outputs.pull-request configuration is required")
 	}
 
@@ -1824,17 +1824,17 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_ID: %q\n", mainJobName))
 	// Pass the base branch from GitHub context
 	steps = append(steps, "          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
-	if data.Output.PullRequest.TitlePrefix != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.Output.PullRequest.TitlePrefix))
+	if data.SafeOutputs.CreatePullRequest.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.CreatePullRequest.TitlePrefix))
 	}
-	if len(data.Output.PullRequest.Labels) > 0 {
-		labelsStr := strings.Join(data.Output.PullRequest.Labels, ",")
+	if len(data.SafeOutputs.CreatePullRequest.Labels) > 0 {
+		labelsStr := strings.Join(data.SafeOutputs.CreatePullRequest.Labels, ",")
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
 	}
 	// Pass draft setting - default to true for backwards compatibility
 	draftValue := true // Default value
-	if data.Output.PullRequest.Draft != nil {
-		draftValue = *data.Output.PullRequest.Draft
+	if data.SafeOutputs.CreatePullRequest.Draft != nil {
+		draftValue = *data.SafeOutputs.CreatePullRequest.Draft
 	}
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
 
@@ -2199,7 +2199,33 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 	yaml.WriteString("          \n")
 	yaml.WriteString("          ---\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_OUTPUT }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
+
+	if data.SafeOutputs != nil && data.SafeOutputs.AddIssueComment != nil {
+		yaml.WriteString("          ## Adding a Comment to an Issue or Pull Request\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file \"${{ env.GITHUB_AW_OUTPUT }}\", in markdown.\n")
+		yaml.WriteString("          \n")
+	} else if data.SafeOutputs != nil && data.SafeOutputs.CreateIssue != nil {
+		yaml.WriteString("          ## Issue Creation\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To create an issue on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body to the file \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
+		yaml.WriteString("          \n")
+	} else if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequest != nil {
+		yaml.WriteString("          ## Pull Request Creation\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
+		yaml.WriteString("          Instead:\n")
+		yaml.WriteString("          1. Make any file changes directly in the working directory, making the changes and additions you want, but leaving the changes uncommitted and unstaged.\n")
+		yaml.WriteString("          2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
+		yaml.WriteString("          \n")
+	} else if data.SafeOutputs != nil && data.SafeOutputs.AddIssueLabels != nil {
+		yaml.WriteString("          ## Adding Labels to Issues or Pull Requests\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to \"${{ env.GITHUB_AW_OUTPUT }}\", where each line is a label.\n")
+		yaml.WriteString("          \n")
+	} else {
+		yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_OUTPUT }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
+	}
 	yaml.WriteString("          EOF\n")
 
 	// Add step to print prompt to GitHub step summary for debugging
@@ -2241,15 +2267,15 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 }
 
 // extractOutputConfig extracts output configuration from frontmatter
-func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig {
+func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *SafeOutputsConfig {
 	if output, exists := frontmatter["safe-outputs"]; exists {
 		if outputMap, ok := output.(map[string]any); ok {
-			config := &OutputConfig{}
+			config := &SafeOutputsConfig{}
 
 			// Parse create-issue configuration
 			if issue, exists := outputMap["create-issue"]; exists {
 				if issueMap, ok := issue.(map[string]any); ok {
-					issueConfig := &IssueConfig{}
+					issueConfig := &CreateIssueConfig{}
 
 					// Parse title-prefix
 					if titlePrefix, exists := issueMap["title-prefix"]; exists {
@@ -2271,7 +2297,7 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 						}
 					}
 
-					config.Issue = issueConfig
+					config.CreateIssue = issueConfig
 				}
 			}
 
@@ -2279,14 +2305,14 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 			if comment, exists := outputMap["add-issue-comment"]; exists {
 				if _, ok := comment.(map[string]any); ok {
 					// For now, CommentConfig is an empty struct
-					config.IssueComment = &CommentConfig{}
+					config.AddIssueComment = &AddIssueCommentConfig{}
 				}
 			}
 
 			// Parse create-pull-request configuration
 			if pullRequest, exists := outputMap["create-pull-request"]; exists {
 				if pullRequestMap, ok := pullRequest.(map[string]any); ok {
-					pullRequestConfig := &PullRequestConfig{}
+					pullRequestConfig := &CreatePullRequestConfig{}
 
 					// Parse title-prefix
 					if titlePrefix, exists := pullRequestMap["title-prefix"]; exists {
@@ -2315,7 +2341,7 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 						}
 					}
 
-					config.PullRequest = pullRequestConfig
+					config.CreatePullRequest = pullRequestConfig
 				}
 			}
 
@@ -2335,9 +2361,9 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 			// Parse add-issue-labels configuration
 			if labels, exists := outputMap["add-issue-labels"]; exists {
 				if labelsMap, ok := labels.(map[string]any); ok {
-					labelConfig := &LabelConfig{}
+					labelConfig := &AddIssueLabelsConfig{}
 
-					// Parse allowed labels (mandatory)
+					// Parse allowed labels (optional)
 					if allowed, exists := labelsMap["allowed"]; exists {
 						if allowedArray, ok := allowed.([]any); ok {
 							var allowedStrings []string
@@ -2374,7 +2400,10 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 						}
 					}
 
-					config.Labels = labelConfig
+					config.AddIssueLabels = labelConfig
+				} else if labels == nil {
+					// Handle null case: create empty config (allows any labels)
+					config.AddIssueLabels = &AddIssueLabelsConfig{}
 				}
 			}
 
@@ -2654,9 +2683,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 
 	// Add environment variables for sanitization configuration
-	if data.Output != nil && len(data.Output.AllowedDomains) > 0 {
+	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		yaml.WriteString("        env:\n")
-		domainsStr := strings.Join(data.Output.AllowedDomains, ",")
+		domainsStr := strings.Join(data.SafeOutputs.AllowedDomains, ",")
 		fmt.Fprintf(yaml, "          GITHUB_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 

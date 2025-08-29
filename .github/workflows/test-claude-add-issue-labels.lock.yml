@@ -2,31 +2,127 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Network Permissions"
-on:
-  pull_request:
-    branches:
-    - main
-  workflow_dispatch: null
+name: "Test Claude Add Issue Labels"
+"on":
+  issues:
+    types:
+    - opened
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Test Network Permissions"
+run-name: "Test Claude Add Issue Labels"
 
 jobs:
-  test-network-permissions:
+  add_reaction:
+    if: github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment'
     runs-on: ubuntu-latest
     permissions:
+      issues: write
+      pull-requests: write
+    outputs:
+      reaction_id: ${{ steps.react.outputs.reaction-id }}
+    steps:
+      - name: Add eyes reaction to the triggering item
+        id: react
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_REACTION: eyes
+        with:
+          script: |
+            async function main() {
+              // Read inputs from environment variables
+              const reaction = process.env.GITHUB_AW_REACTION || 'eyes';
+              console.log('Reaction type:', reaction);
+              // Validate reaction type
+              const validReactions = ['+1', '-1', 'laugh', 'confused', 'heart', 'hooray', 'rocket', 'eyes'];
+              if (!validReactions.includes(reaction)) {
+                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(', ')}`);
+                return;
+              }
+              // Determine the API endpoint based on the event type
+              let endpoint;
+              const eventName = context.eventName;
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              try {
+                switch (eventName) {
+                  case 'issues':
+                    const issueNumber = context.payload?.issue?.number;
+                    if (!issueNumber) {
+                      core.setFailed('Issue number not found in event payload');
+                      return;
+                    }
+                    endpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
+                    break;
+                  case 'issue_comment':
+                    const commentId = context.payload?.comment?.id;
+                    if (!commentId) {
+                      core.setFailed('Comment ID not found in event payload');
+                      return;
+                    }
+                    endpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
+                    break;
+                  case 'pull_request':
+                  case 'pull_request_target':
+                    const prNumber = context.payload?.pull_request?.number;
+                    if (!prNumber) {
+                      core.setFailed('Pull request number not found in event payload');
+                      return;
+                    }
+                    // PRs are "issues" for the reactions endpoint
+                    endpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
+                    break;
+                  case 'pull_request_review_comment':
+                    const reviewCommentId = context.payload?.comment?.id;
+                    if (!reviewCommentId) {
+                      core.setFailed('Review comment ID not found in event payload');
+                      return;
+                    }
+                    endpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
+                    break;
+                  default:
+                    core.setFailed(`Unsupported event type: ${eventName}`);
+                    return;
+                }
+                console.log('API endpoint:', endpoint);
+                await addReaction(endpoint, reaction);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error('Failed to add reaction:', errorMessage);
+                core.setFailed(`Failed to add reaction: ${errorMessage}`);
+              }
+            }
+            /**
+             * Add a reaction to a GitHub issue, PR, or comment
+             * @param {string} endpoint - The GitHub API endpoint to add the reaction to
+             * @param {string} reaction - The reaction type to add
+             */
+            async function addReaction(endpoint, reaction) {
+              const response = await github.request('POST ' + endpoint, {
+                content: reaction,
+                headers: {
+                  'Accept': 'application/vnd.github+json'
+                }
+              });
+              const reactionId = response.data?.id;
+              if (reactionId) {
+                console.log(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+                core.setOutput('reaction-id', reactionId.toString());
+              } else {
+                console.log(`Successfully added reaction: ${reaction}`);
+                core.setOutput('reaction-id', '');
+              }
+            }
+            await main();
+
+  test-claude-add-issue-labels:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
       contents: read
-      issues: read
-      pull-requests: read
-      discussions: read
-      deployments: read
-      models: read
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -57,155 +153,12 @@ jobs:
               core.setOutput('output_file', outputFile);
             }
             main();
-      - name: Setup Proxy Configuration for MCP Network Restrictions
-        run: |
-          echo "Generating proxy configuration files for MCP tools with network restrictions..."
-          
-          # Generate Squid proxy configuration
-          cat > squid.conf << 'EOF'
-          # Squid configuration for egress traffic control
-          # This configuration implements a whitelist-based proxy
-          
-          # Access log and cache configuration
-          access_log /var/log/squid/access.log squid
-          cache_log /var/log/squid/cache.log
-          cache deny all
-          
-          # Port configuration
-          http_port 3128
-          
-          # ACL definitions for allowed domains
-          acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
-          acl localnet src 10.0.0.0/8
-          acl localnet src 172.16.0.0/12
-          acl localnet src 192.168.0.0/16
-          acl SSL_ports port 443
-          acl Safe_ports port 80
-          acl Safe_ports port 443
-          acl CONNECT method CONNECT
-          
-          # Access rules
-          # Deny requests to unknown domains (not in whitelist)
-          http_access deny !allowed_domains
-          http_access deny !Safe_ports
-          http_access deny CONNECT !SSL_ports
-          http_access allow localnet
-          http_access deny all
-          
-          # Disable caching
-          cache deny all
-          
-          # DNS settings
-          dns_nameservers 8.8.8.8 8.8.4.4
-          
-          # Forwarded headers
-          forwarded_for delete
-          via off
-          
-          # Error page customization
-          error_directory /usr/share/squid/errors/English
-          
-          # Logging
-          logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
-          access_log /var/log/squid/access.log combined
-          
-          # Memory and file descriptor limits
-          cache_mem 64 MB
-          maximum_object_size 0 KB
-          
-          EOF
-          
-          # Generate allowed domains file
-          cat > allowed_domains.txt << 'EOF'
-          # Allowed domains for egress traffic
-          # Add one domain per line
-          example.com
-          
-          EOF
-          
-          # Generate Docker Compose configuration for fetch
-          cat > docker-compose-fetch.yml << 'EOF'
-          services:
-            squid-proxy:
-              image: ubuntu/squid:latest
-              container_name: squid-proxy-fetch
-              ports:
-                - "3128:3128"
-              volumes:
-                - ./squid.conf:/etc/squid/squid.conf:ro
-                - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
-                - squid-logs:/var/log/squid
-              healthcheck:
-                test: ["CMD", "squid", "-k", "check"]
-                interval: 30s
-                timeout: 10s
-                retries: 3
-              restart: unless-stopped
-              networks:
-                awproxy-fetch:
-                  ipv4_address: 172.28.179.10
-          
-            fetch:
-              image: mcp/fetch
-              container_name: fetch-mcp
-              stdin_open: true
-              tty: true
-              environment:
-                - PROXY_HOST=squid-proxy
-                - PROXY_PORT=3128
-                - HTTP_PROXY=http://squid-proxy:3128
-                - HTTPS_PROXY=http://squid-proxy:3128
-              networks:
-                - awproxy-fetch
-              depends_on:
-                squid-proxy:
-                  condition: service_healthy
-          
-          volumes:
-            squid-logs:
-          
-          networks:
-            awproxy-fetch:
-              driver: bridge
-              ipam:
-                config:
-                  - subnet: 172.28.179.0/24
-          
-          EOF
-          
-          echo "Proxy configuration files generated."
-      - name: Pre-pull images and start Squid proxy
-        run: |
-          set -e
-          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'
-          docker pull ubuntu/squid:latest
-          echo 'Pulling mcp/fetch for tool fetch'
-          docker pull mcp/fetch
-          echo 'Starting squid-proxy service for fetch'
-          docker compose -f docker-compose-fetch.yml up -d squid-proxy
-          echo 'Enforcing egress to proxy for fetch (subnet 172.28.179.0/24, squid 172.28.179.10)'
-          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi
-          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-          $SUDO iptables -C DOCKER-USER -s 172.28.179.10 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 2 -s 172.28.179.10 -j ACCEPT
-          $SUDO iptables -C DOCKER-USER -s 172.28.179.0/24 -d 172.28.179.10 -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 3 -s 172.28.179.0/24 -d 172.28.179.10 -p tcp --dport 3128 -j ACCEPT
-          $SUDO iptables -C DOCKER-USER -s 172.28.179.0/24 -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s 172.28.179.0/24 -j REJECT
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
-              "fetch": {
-                "command": "docker",
-                "args": [
-                  "compose",
-                  "-f",
-                  "docker-compose-fetch.yml",
-                  "run",
-                  "--rm",
-                  "fetch"
-                ]
-              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -229,39 +182,14 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
-          # Test Network Permissions
-          
-          ## Task Description
-          
-          Test the MCP network permissions feature to validate that domain restrictions are properly enforced.
-          
-          - Use the fetch tool to successfully retrieve content from `https://example.com/` (the only allowed domain)
-          - Attempt to access blocked domains and verify they fail with network errors:
-            - `https://httpbin.org/json` 
-            - `https://api.github.com/user`
-            - `https://www.google.com/`
-            - `http://malicious-example.com/`
-          - Verify that all blocked requests fail at the network level (proxy enforcement)
-          - Confirm that only example.com is accessible through the Squid proxy
-          
-          ## Reporting Instructions
-          
-          If there are any failures, security issues, or unexpected behaviors:
-          
-          - Write a detailed report to ${{ env.GITHUB_AW_OUTPUT }} documenting:
-          - Which domains were successfully accessed vs blocked
-          - Error messages received for blocked domains  
-          - Any security observations or recommendations
-          - Specific failure details that need attention
-          
-          The test results will be automatically posted as a comment on PR #${{ github.event.pull_request.number }}.
+          Add the issue labels "quack" and "dog" to the issue.
           
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request
+          ## Adding Labels to Issues or Pull Requests
           
-          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file "${{ env.GITHUB_AW_OUTPUT }}", in markdown.
+          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to "${{ env.GITHUB_AW_OUTPUT }}", where each line is a label.
           
           EOF
       - name: Print prompt to step summary
@@ -280,9 +208,9 @@ jobs:
             const awInfo = {
               engine_id: "claude",
               engine_name: "Claude Code",
-              model: "",
+              model: "claude-3-5-sonnet-20241022",
               version: "",
-              workflow_name: "Test Network Permissions",
+              workflow_name: "Test Claude Add Issue Labels",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -320,9 +248,6 @@ jobs:
           # - NotebookRead
           # - Read
           # - Task
-          # - mcp__fetch__fetch
-          # - mcp__github__create_comment
-          # - mcp__github__create_issue
           # - mcp__github__download_workflow_run_artifact
           # - mcp__github__get_code_scanning_alert
           # - mcp__github__get_commit
@@ -367,14 +292,15 @@ jobs:
           # - mcp__github__search_pull_requests
           # - mcp__github__search_repositories
           # - mcp__github__search_users
-          allowed_tools: "Glob,Grep,LS,NotebookRead,Read,Task,mcp__fetch__fetch,mcp__github__create_comment,mcp__github__create_issue,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
+          allowed_tools: "Glob,Grep,LS,NotebookRead,Read,Task,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
           mcp_config: /tmp/mcp-config/mcp-servers.json
+          model: claude-3-5-sonnet-20241022
           prompt_file: /tmp/aw-prompts/prompt.txt
-          timeout_minutes: 5
+          timeout_minutes: 10
         env:
           GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}
       - name: Capture Agentic Action logs
@@ -382,13 +308,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-network-permissions.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-add-issue-labels.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-network-permissions.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-add-issue-labels.log
           fi
           
           # Ensure log file exists
-          touch /tmp/test-network-permissions.log
+          touch /tmp/test-claude-add-issue-labels.log
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
@@ -571,8 +497,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-network-permissions.log
-          path: /tmp/test-network-permissions.log
+          name: test-claude-add-issue-labels.log
+          path: /tmp/test-claude-add-issue-labels.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -637,8 +563,8 @@ jobs:
           path: /tmp/aw.patch
           if-no-files-found: ignore
 
-  create_issue_comment:
-    needs: test-network-permissions
+  add_labels:
+    needs: test-claude-add-issue-labels
     if: github.event.issue.number || github.event.pull_request.number
     runs-on: ubuntu-latest
     permissions:
@@ -647,14 +573,15 @@ jobs:
       pull-requests: write
     timeout-minutes: 10
     outputs:
-      comment_id: ${{ steps.create_comment.outputs.comment_id }}
-      comment_url: ${{ steps.create_comment.outputs.comment_url }}
+      labels_added: ${{ steps.add_labels.outputs.labels_added }}
     steps:
-      - name: Add Issue Comment
-        id: create_comment
+      - name: Add Labels
+        id: add_labels
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-network-permissions.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-add-issue-labels.outputs.output }}
+          GITHUB_AW_LABELS_ALLOWED: "bug,feature"
+          GITHUB_AW_LABELS_MAX_COUNT: 3
         with:
           script: |
             async function main() {
@@ -669,63 +596,124 @@ jobs:
                 return;
               }
               console.log('Agent output content length:', outputContent.length);
+              // Read the allowed labels from environment variable (optional)
+              const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
+              let allowedLabels = null;
+              if (allowedLabelsEnv && allowedLabelsEnv.trim() !== '') {
+                allowedLabels = allowedLabelsEnv.split(',').map(label => label.trim()).filter(label => label);
+                if (allowedLabels.length === 0) {
+                  allowedLabels = null; // Treat empty list as no restrictions
+                }
+              }
+              if (allowedLabels) {
+                console.log('Allowed labels:', allowedLabels);
+              } else {
+                console.log('No label restrictions - any labels are allowed');
+              }
+              // Read the max-count limit from environment variable (default: 3)
+              const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max-count value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              console.log('Max count:', maxCount);
               // Check if we're in an issue or pull request context
               const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
               const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
               if (!isIssueContext && !isPRContext) {
-                console.log('Not running in issue or pull request context, skipping comment creation');
+                core.setFailed('Not running in issue or pull request context, skipping label addition');
                 return;
               }
-              // Determine the issue/PR number and comment endpoint
+              // Determine the issue/PR number
               let issueNumber;
-              let commentEndpoint;
+              let contextType;
               if (isIssueContext) {
                 if (context.payload.issue) {
                   issueNumber = context.payload.issue.number;
-                  commentEndpoint = 'issues';
+                  contextType = 'issue';
                 } else {
-                  console.log('Issue context detected but no issue found in payload');
+                  core.setFailed('Issue context detected but no issue found in payload');
                   return;
                 }
               } else if (isPRContext) {
                 if (context.payload.pull_request) {
                   issueNumber = context.payload.pull_request.number;
-                  commentEndpoint = 'issues'; // PR comments use the issues API endpoint
+                  contextType = 'pull request';
                 } else {
-                  console.log('Pull request context detected but no pull request found in payload');
+                  core.setFailed('Pull request context detected but no pull request found in payload');
                   return;
                 }
               }
               if (!issueNumber) {
-                console.log('Could not determine issue or pull request number');
+                core.setFailed('Could not determine issue or pull request number');
                 return;
               }
-              let body = outputContent.trim();
-              // Add AI disclaimer with run id, run htmlurl
-              const runId = context.runId;
-              const runUrl = context.payload.repository 
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/actions/runs/${runId}`;  
-              body += `\n\n> Generated by Agentic Workflow Run [${runId}](${runUrl})\n`;
-              console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-              console.log('Comment content length:', body.length);
-              // Create the comment using GitHub API
-              const { data: comment } = await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                body: body
-              });
-              console.log('Created comment #' + comment.id + ': ' + comment.html_url);
-              // Set output for other jobs to use
-              core.setOutput('comment_id', comment.id);
-              core.setOutput('comment_url', comment.html_url);
-              // write comment id, url to the github_step_summary
-              await core.summary.addRaw(`
-            ## GitHub Comment
-            - Comment ID: ${comment.id}
-            - Comment URL: ${comment.html_url}
+              // Parse labels from agent output (one per line, ignore empty lines)
+              const lines = outputContent.split('\n');
+              const requestedLabels = [];
+              for (const line of lines) {
+                const trimmedLine = line.trim();
+                // Skip empty lines
+                if (trimmedLine === '') {
+                  continue;
+                }
+                // Reject lines that start with '-' (removal indication)
+                if (trimmedLine.startsWith('-')) {
+                  core.setFailed(`Label removal is not permitted. Found line starting with '-': ${trimmedLine}`);
+                  return;
+                }
+                requestedLabels.push(trimmedLine);
+              }
+              console.log('Requested labels:', requestedLabels);
+              // Validate that all requested labels are in the allowed list (if restrictions are set)
+              let validLabels;
+              if (allowedLabels) {
+                validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
+              } else {
+                // No restrictions, all requested labels are valid
+                validLabels = requestedLabels;
+              }
+              // Remove duplicates from requested labels
+              let uniqueLabels = [...new Set(validLabels)];
+              // Enforce max-count limit
+              if (uniqueLabels.length > maxCount) {
+                console.log(`too many labels, keep ${maxCount}`)
+                uniqueLabels = uniqueLabels.slice(0, maxCount);
+              }
+              if (uniqueLabels.length === 0) {
+                console.log('No labels to add');
+                core.setOutput('labels_added', '');
+                await core.summary.addRaw(`
+            ## Label Addition
+            No labels were added (no valid labels found in agent output).
             `).write();
+                return;
+              }
+              console.log(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}:`, uniqueLabels);
+              try {
+                // Add labels using GitHub API
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: uniqueLabels
+                });
+                console.log(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
+                // Set output for other jobs to use
+                core.setOutput('labels_added', uniqueLabels.join('\n'));
+                // Write summary
+                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join('\n');
+                await core.summary.addRaw(`
+            ## Label Addition
+            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${issueNumber}:
+            ${labelsListMarkdown}
+            `).write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error('Failed to add labels:', errorMessage);
+                core.setFailed(`Failed to add labels: ${errorMessage}`);
+              }
             }
             await main();
 

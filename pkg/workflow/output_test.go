@@ -47,29 +47,29 @@ This workflow tests the output configuration parsing.
 	}
 
 	// Verify output configuration is parsed correctly
-	if workflowData.Output == nil {
+	if workflowData.SafeOutputs == nil {
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.Output.Issue == nil {
+	if workflowData.SafeOutputs.CreateIssue == nil {
 		t.Fatal("Expected issue configuration to be parsed")
 	}
 
 	// Verify title prefix
 	expectedPrefix := "[genai] "
-	if workflowData.Output.Issue.TitlePrefix != expectedPrefix {
-		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.Output.Issue.TitlePrefix)
+	if workflowData.SafeOutputs.CreateIssue.TitlePrefix != expectedPrefix {
+		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreateIssue.TitlePrefix)
 	}
 
 	// Verify labels
 	expectedLabels := []string{"copilot", "automation"}
-	if len(workflowData.Output.Issue.Labels) != len(expectedLabels) {
-		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.Output.Issue.Labels))
+	if len(workflowData.SafeOutputs.CreateIssue.Labels) != len(expectedLabels) {
+		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreateIssue.Labels))
 	}
 
 	for i, expectedLabel := range expectedLabels {
-		if i >= len(workflowData.Output.Issue.Labels) || workflowData.Output.Issue.Labels[i] != expectedLabel {
-			t.Errorf("Expected label '%s' at index %d, got '%s'", expectedLabel, i, workflowData.Output.Issue.Labels[i])
+		if i >= len(workflowData.SafeOutputs.CreateIssue.Labels) || workflowData.SafeOutputs.CreateIssue.Labels[i] != expectedLabel {
+			t.Errorf("Expected label '%s' at index %d, got '%s'", expectedLabel, i, workflowData.SafeOutputs.CreateIssue.Labels[i])
 		}
 	}
 }
@@ -110,7 +110,7 @@ This workflow has no output configuration.
 	}
 
 	// Verify output configuration is nil
-	if workflowData.Output != nil {
+	if workflowData.SafeOutputs != nil {
 		t.Error("Expected output configuration to be nil when not specified")
 	}
 }
@@ -243,11 +243,11 @@ This workflow tests the output.add-issue-comment configuration parsing.
 	}
 
 	// Verify output configuration is parsed correctly
-	if workflowData.Output == nil {
+	if workflowData.SafeOutputs == nil {
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.Output.IssueComment == nil {
+	if workflowData.SafeOutputs.AddIssueComment == nil {
 		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 }
@@ -441,29 +441,29 @@ This workflow tests the output pull request configuration parsing.
 	}
 
 	// Verify output configuration is parsed correctly
-	if workflowData.Output == nil {
+	if workflowData.SafeOutputs == nil {
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.Output.PullRequest == nil {
+	if workflowData.SafeOutputs.CreatePullRequest == nil {
 		t.Fatal("Expected pull-request configuration to be parsed")
 	}
 
 	// Verify title prefix
 	expectedPrefix := "[agent] "
-	if workflowData.Output.PullRequest.TitlePrefix != expectedPrefix {
-		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.Output.PullRequest.TitlePrefix)
+	if workflowData.SafeOutputs.CreatePullRequest.TitlePrefix != expectedPrefix {
+		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreatePullRequest.TitlePrefix)
 	}
 
 	// Verify labels
 	expectedLabels := []string{"automation", "bot"}
-	if len(workflowData.Output.PullRequest.Labels) != len(expectedLabels) {
-		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.Output.PullRequest.Labels))
+	if len(workflowData.SafeOutputs.CreatePullRequest.Labels) != len(expectedLabels) {
+		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreatePullRequest.Labels))
 	}
 
 	for i, expectedLabel := range expectedLabels {
-		if i >= len(workflowData.Output.PullRequest.Labels) || workflowData.Output.PullRequest.Labels[i] != expectedLabel {
-			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.Output.PullRequest.Labels[i])
+		if i >= len(workflowData.SafeOutputs.CreatePullRequest.Labels) || workflowData.SafeOutputs.CreatePullRequest.Labels[i] != expectedLabel {
+			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.SafeOutputs.CreatePullRequest.Labels[i])
 		}
 	}
 }
@@ -769,23 +769,23 @@ This workflow tests the output labels configuration parsing.
 	}
 
 	// Verify output configuration is parsed correctly
-	if workflowData.Output == nil {
+	if workflowData.SafeOutputs == nil {
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.Output.Labels == nil {
+	if workflowData.SafeOutputs.AddIssueLabels == nil {
 		t.Fatal("Expected labels configuration to be parsed")
 	}
 
 	// Verify allowed labels
 	expectedLabels := []string{"triage", "bug", "enhancement", "needs-review"}
-	if len(workflowData.Output.Labels.Allowed) != len(expectedLabels) {
-		t.Errorf("Expected %d allowed labels, got %d", len(expectedLabels), len(workflowData.Output.Labels.Allowed))
+	if len(workflowData.SafeOutputs.AddIssueLabels.Allowed) != len(expectedLabels) {
+		t.Errorf("Expected %d allowed labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.AddIssueLabels.Allowed))
 	}
 
 	for i, expectedLabel := range expectedLabels {
-		if i >= len(workflowData.Output.Labels.Allowed) || workflowData.Output.Labels.Allowed[i] != expectedLabel {
-			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.Output.Labels.Allowed[i])
+		if i >= len(workflowData.SafeOutputs.AddIssueLabels.Allowed) || workflowData.SafeOutputs.AddIssueLabels.Allowed[i] != expectedLabel {
+			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.SafeOutputs.AddIssueLabels.Allowed[i])
 		}
 	}
 }
@@ -889,6 +889,214 @@ This workflow tests the add_labels job generation.
 	t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
+func TestOutputLabelJobGenerationNoAllowedLabels(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "output-label-no-allowed-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test workflow with no allowed labels (any labels permitted)
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+engine: claude
+safe-outputs:
+  add-issue-labels:
+    max-count: 5
+---
+
+# Test Output Label No Allowed Labels
+
+This workflow tests label addition with no allowed labels restriction.
+Write your labels to ${{ env.GITHUB_AW_OUTPUT }}, one per line.
+`
+
+	testFile := filepath.Join(tmpDir, "test-label-no-allowed.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockContent := string(lockBytes)
+
+	// Verify job has conditional execution
+	if !strings.Contains(lockContent, "if: github.event.issue.number || github.event.pull_request.number") {
+		t.Error("Expected add_labels job to have conditional execution")
+	}
+
+	// Verify JavaScript content includes environment variables for configuration
+	if !strings.Contains(lockContent, "GITHUB_AW_AGENT_OUTPUT:") {
+		t.Error("Expected agent output content to be passed as environment variable")
+	}
+
+	// Verify empty allowed labels environment variable is set
+	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_ALLOWED: \"\"") {
+		t.Error("Expected empty allowed labels to be set as environment variable")
+	}
+
+	// Verify max-count is set correctly
+	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 5") {
+		t.Error("Expected max-count to be set correctly")
+	}
+
+	t.Logf("Generated workflow content:\n%s", lockContent)
+}
+
+func TestOutputLabelJobGenerationNullConfig(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "output-label-null-config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test workflow with null add-issue-labels configuration
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+engine: claude
+safe-outputs:
+  add-issue-labels:
+---
+
+# Test Output Label Null Config
+
+This workflow tests label addition with null configuration (any labels allowed).
+Write your labels to ${{ env.GITHUB_AW_OUTPUT }}, one per line.
+`
+
+	testFile := filepath.Join(tmpDir, "test-label-null-config.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockContent := string(lockBytes)
+
+	// Verify add_labels job exists
+	if !strings.Contains(lockContent, "add_labels:") {
+		t.Error("Expected 'add_labels' job to be in generated workflow")
+	}
+
+	// Verify job has conditional execution
+	if !strings.Contains(lockContent, "if: github.event.issue.number || github.event.pull_request.number") {
+		t.Error("Expected add_labels job to have conditional execution")
+	}
+
+	// Verify JavaScript content includes environment variables for configuration
+	if !strings.Contains(lockContent, "GITHUB_AW_AGENT_OUTPUT:") {
+		t.Error("Expected agent output content to be passed as environment variable")
+	}
+
+	// Verify empty allowed labels environment variable is set
+	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_ALLOWED: \"\"") {
+		t.Error("Expected empty allowed labels to be set as environment variable")
+	}
+
+	// Verify default max-count is set correctly
+	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 3") {
+		t.Error("Expected default max-count to be set correctly")
+	}
+
+	t.Logf("Generated workflow content:\n%s", lockContent)
+}
+
+func TestOutputLabelConfigNullParsing(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "output-label-null-parsing-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case with null add-issue-labels configuration
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+safe-outputs:
+  add-issue-labels:
+---
+
+# Test Output Label Null Configuration Parsing
+
+This workflow tests the output labels null configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-labels-null.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.parseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with null labels config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.AddIssueLabels == nil {
+		t.Fatal("Expected labels configuration to be parsed (not nil)")
+	}
+
+	// Verify allowed labels is empty (no restrictions)
+	if len(workflowData.SafeOutputs.AddIssueLabels.Allowed) != 0 {
+		t.Errorf("Expected 0 allowed labels for null config, got %d", len(workflowData.SafeOutputs.AddIssueLabels.Allowed))
+	}
+
+	// Verify max-count is nil (will use default)
+	if workflowData.SafeOutputs.AddIssueLabels.MaxCount != nil {
+		t.Errorf("Expected max-count to be nil for null config, got %d", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
+	}
+}
+
 func TestOutputLabelConfigMaxCountParsing(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "output-label-max-count-test")
@@ -932,34 +1140,34 @@ This workflow tests the output labels max-count configuration parsing.
 	}
 
 	// Verify output configuration is parsed correctly
-	if workflowData.Output == nil {
+	if workflowData.SafeOutputs == nil {
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.Output.Labels == nil {
+	if workflowData.SafeOutputs.AddIssueLabels == nil {
 		t.Fatal("Expected labels configuration to be parsed")
 	}
 
 	// Verify allowed labels
 	expectedLabels := []string{"triage", "bug", "enhancement", "needs-review"}
-	if len(workflowData.Output.Labels.Allowed) != len(expectedLabels) {
-		t.Errorf("Expected %d allowed labels, got %d", len(expectedLabels), len(workflowData.Output.Labels.Allowed))
+	if len(workflowData.SafeOutputs.AddIssueLabels.Allowed) != len(expectedLabels) {
+		t.Errorf("Expected %d allowed labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.AddIssueLabels.Allowed))
 	}
 
 	for i, expectedLabel := range expectedLabels {
-		if i >= len(workflowData.Output.Labels.Allowed) || workflowData.Output.Labels.Allowed[i] != expectedLabel {
-			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.Output.Labels.Allowed[i])
+		if i >= len(workflowData.SafeOutputs.AddIssueLabels.Allowed) || workflowData.SafeOutputs.AddIssueLabels.Allowed[i] != expectedLabel {
+			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.SafeOutputs.AddIssueLabels.Allowed[i])
 		}
 	}
 
 	// Verify max-count
-	if workflowData.Output.Labels.MaxCount == nil {
+	if workflowData.SafeOutputs.AddIssueLabels.MaxCount == nil {
 		t.Fatal("Expected max-count to be parsed")
 	}
 
 	expectedMaxCount := 5
-	if *workflowData.Output.Labels.MaxCount != expectedMaxCount {
-		t.Errorf("Expected max-count to be %d, got %d", expectedMaxCount, *workflowData.Output.Labels.MaxCount)
+	if *workflowData.SafeOutputs.AddIssueLabels.MaxCount != expectedMaxCount {
+		t.Errorf("Expected max-count to be %d, got %d", expectedMaxCount, *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
 	}
 }
 
@@ -1005,8 +1213,8 @@ This workflow tests the default max-count behavior.
 	}
 
 	// Verify max-count is nil (will use default in job generation)
-	if workflowData.Output.Labels.MaxCount != nil {
-		t.Errorf("Expected max-count to be nil (default), got %d", *workflowData.Output.Labels.MaxCount)
+	if workflowData.SafeOutputs.AddIssueLabels.MaxCount != nil {
+		t.Errorf("Expected max-count to be nil (default), got %d", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
 	}
 }
 
@@ -1201,7 +1409,7 @@ func TestOutputLabelConfigMissingAllowed(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with missing allowed field (should fail)
+	// Test case with missing allowed field (should now succeed)
 	testContent := `---
 on:
   issues:
@@ -1216,7 +1424,7 @@ safe-outputs:
 
 # Test Output Label Missing Allowed
 
-This workflow tests validation of missing allowed field.
+This workflow tests that missing allowed field is now optional.
 `
 
 	testFile := filepath.Join(tmpDir, "test-label-missing.md")
@@ -1226,13 +1434,15 @@ This workflow tests validation of missing allowed field.
 
 	compiler := NewCompiler(false, "", "test")
 
-	// Compile the workflow - should fail with missing allowed labels
+	// Compile the workflow - should now succeed with missing allowed labels
 	err = compiler.CompileWorkflow(testFile)
-	if err == nil {
-		t.Fatal("Expected error when compiling workflow with missing allowed labels")
+	if err != nil {
+		t.Fatalf("Expected compilation to succeed with missing allowed labels, got error: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "missing property 'allowed'") {
-		t.Errorf("Expected schema validation error about missing required property, got: %v", err)
+	// Verify the workflow was compiled successfully
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
+		t.Fatal("Expected lock file to be created")
 	}
 }

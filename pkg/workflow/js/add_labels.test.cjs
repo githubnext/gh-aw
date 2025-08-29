@@ -91,26 +91,70 @@ describe('add_labels.cjs', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should fail when allowed labels are not provided', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+    it('should work when allowed labels are not provided (any labels allowed)', async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ncustom-label';
       delete process.env.GITHUB_AW_LABELS_ALLOWED;
       
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+      
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
       
-      expect(mockCore.setFailed).toHaveBeenCalledWith('GITHUB_AW_LABELS_ALLOWED environment variable is required but missing');
-      expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith('No label restrictions - any labels are allowed');
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: 'testowner',
+        repo: 'testrepo',
+        issue_number: 123,
+        labels: ['bug', 'enhancement', 'custom-label']
+      });
+      
+      consoleSpy.mockRestore();
     });
 
-    it('should fail when allowed labels list is empty', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+    it('should work when allowed labels list is empty (any labels allowed)', async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ncustom-label';
       process.env.GITHUB_AW_LABELS_ALLOWED = '   ';
+      
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+      
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
       
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Allowed labels list is empty. At least one allowed label must be specified');
-      expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith('No label restrictions - any labels are allowed');
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: 'testowner',
+        repo: 'testrepo',
+        issue_number: 123,
+        labels: ['bug', 'enhancement', 'custom-label']
+      });
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should enforce allowed labels when restrictions are set', async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ncustom-label\ndocumentation';
+      process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
+      
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+      
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+      
+      expect(consoleSpy).toHaveBeenCalledWith('Allowed labels:', ['bug', 'enhancement']);
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: 'testowner',
+        repo: 'testrepo',
+        issue_number: 123,
+        labels: ['bug', 'enhancement'] // 'custom-label' and 'documentation' filtered out
+      });
+      
+      consoleSpy.mockRestore();
     });
 
     it('should fail when max count is invalid', async () => {
