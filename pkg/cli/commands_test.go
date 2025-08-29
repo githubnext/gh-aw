@@ -516,9 +516,7 @@ func TestNewWorkflow(t *testing.T) {
 						"# Trigger - when should this workflow run?",
 						"on:",
 						"permissions:",
-						"tools:",
-						"github:",
-						"allowed:",
+						"safe-outputs:",
 						"# " + test.workflowName,
 						"workflow_dispatch:",
 					}
