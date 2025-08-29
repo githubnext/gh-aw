@@ -474,6 +474,56 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr:     true,
 			errContains: "additional properties 'invalid_prop' not allowed",
 		},
+		{
+			name: "valid claude engine with network permissions",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "claude",
+					"permissions": map[string]any{
+						"network": map[string]any{
+							"allowed": []string{"example.com", "*.trusted.com"},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid codex engine with permissions",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id": "codex",
+					"permissions": map[string]any{
+						"network": map[string]any{
+							"allowed": []string{"example.com"},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "engine permissions are not supported for codex engine",
+		},
+		{
+			name: "valid codex engine without permissions",
+			frontmatter: map[string]any{
+				"on": "push",
+				"engine": map[string]any{
+					"id":    "codex",
+					"model": "gpt-4o",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid codex string engine (no permissions possible)",
+			frontmatter: map[string]any{
+				"on":     "push",
+				"engine": "codex",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

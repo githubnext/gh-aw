@@ -194,6 +194,41 @@ tools:
         X-Custom-Key: "${secrets.CUSTOM_KEY}"
 ```
 
+## Network Egress Permissions
+
+Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `mcp.permissions.network.allowed`.
+
+```yaml
+tools:
+  fetch:
+    mcp:
+      container: mcp/fetch
+      permissions:
+        network:
+          allowed:
+            - "example.com"
+    allowed: ["fetch"]
+```
+
+Enforcement in compiled workflows:
+
+- A [Squid proxy](https://www.squid-cache.org/) is generated and pinned to a dedicated Docker network for each proxy‑enabled MCP server.
+- The MCP container is configured with `HTTP_PROXY`/`HTTPS_PROXY` to point at Squid; iptables rules only allow egress to the proxy.
+- The proxy is seeded with an `allowed_domains.txt` built from your `allowed` list; requests to other domains are blocked.
+
+Notes:
+
+- **Only applies to stdio MCP servers with `container`** - Non‑container stdio and `type: http` servers will cause compilation errors
+- Use bare domains without scheme; list each domain you intend to permit.
+
+### Validation Rules
+
+The compiler enforces these network permission rules:
+
+- ❌ **HTTP servers**: `network egress permissions do not apply to remote 'type: http' servers`
+- ❌ **Non-container stdio**: `network egress permissions only apply to stdio MCP servers that specify a 'container'`  
+- ✅ **Container stdio**: Network permissions work correctly
+
 ## Debugging and Troubleshooting
 
 ### MCP Server Inspection

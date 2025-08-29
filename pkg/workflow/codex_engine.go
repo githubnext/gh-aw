@@ -170,7 +170,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml
 func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any) error {
 	yaml.WriteString("          \n")
-	yaml.WriteString(fmt.Sprintf("          [mcp_servers.%s]\n", toolName))
+	fmt.Fprintf(yaml, "          [mcp_servers.%s]\n", toolName)
 
 	// Use the shared MCP config renderer with TOML format
 	renderer := MCPConfigRenderer{

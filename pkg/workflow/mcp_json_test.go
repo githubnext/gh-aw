@@ -320,6 +320,81 @@ func TestValidateMCPConfigs(t *testing.T) {
 			wantErr: true,
 			errMsg:  "missing property 'url'",
 		},
+		{
+			name: "network permissions with HTTP type should fail",
+			tools: map[string]any{
+				"httpWithNetPerms": map[string]any{
+					"mcp": map[string]any{
+						"type": "http",
+						"url":  "https://example.com",
+					},
+					"permissions": map[string]any{
+						"network": map[string]any{
+							"allowed": []any{"example.com"},
+						},
+					},
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "network egress permissions do not apply to remote 'type: http' servers",
+		},
+		{
+			name: "network permissions with stdio non-container should fail",
+			tools: map[string]any{
+				"stdioNonContainerWithNetPerms": map[string]any{
+					"mcp": map[string]any{
+						"type":    "stdio",
+						"command": "python",
+					},
+					"permissions": map[string]any{
+						"network": map[string]any{
+							"allowed": []any{"example.com"},
+						},
+					},
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "network egress permissions only apply to stdio MCP servers that specify a 'container'",
+		},
+		{
+			name: "network permissions with stdio container should pass",
+			tools: map[string]any{
+				"stdioContainerWithNetPerms": map[string]any{
+					"mcp": map[string]any{
+						"type":      "stdio",
+						"container": "mcp/fetch",
+					},
+					"permissions": map[string]any{
+						"network": map[string]any{
+							"allowed": []any{"example.com"},
+						},
+					},
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "network permissions in mcp section with HTTP type should fail",
+			tools: map[string]any{
+				"httpWithMcpNetPerms": map[string]any{
+					"mcp": map[string]any{
+						"type": "http",
+						"url":  "https://example.com",
+						"permissions": map[string]any{
+							"network": map[string]any{
+								"allowed": []any{"example.com"},
+							},
+						},
+					},
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "network egress permissions do not apply to remote 'type: http' servers",
+		},
 	}
 
 	for _, tt := range tests {

@@ -1411,7 +1411,8 @@ func TestCalculateTimeRemaining(t *testing.T) {
 	// Test with future time - this will test the logic but the exact result depends on current time
 	t.Run("future time formatting", func(t *testing.T) {
 		// Create a time 2 hours and 30 minutes in the future
-		futureTime := time.Now().Add(2*time.Hour + 30*time.Minute)
+		// Add a small buffer to account for execution time
+		futureTime := time.Now().Add(2*time.Hour + 30*time.Minute + 1*time.Second)
 		stopTimeStr := futureTime.Format("2006-01-02 15:04:05")
 
 		result := calculateTimeRemaining(stopTimeStr)

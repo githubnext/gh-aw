@@ -4,10 +4,21 @@ import "fmt"
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID       string
-	Version  string
-	Model    string
-	MaxTurns string
+	ID          string
+	Version     string
+	Model       string
+	MaxTurns    string
+	Permissions *EnginePermissions `yaml:"permissions,omitempty"`
+}
+
+// EnginePermissions represents the permissions configuration for an engine
+type EnginePermissions struct {
+	Network *NetworkPermissions `yaml:"network,omitempty"`
+}
+
+// NetworkPermissions represents network access permissions
+type NetworkPermissions struct {
+	Allowed []string `yaml:"allowed,omitempty"`
 }
 
 // extractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
@@ -51,6 +62,31 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'permissions' field
+			if permissions, hasPermissions := engineObj["permissions"]; hasPermissions {
+				if permissionsObj, ok := permissions.(map[string]any); ok {
+					config.Permissions = &EnginePermissions{}
+
+					// Extract network permissions
+					if network, hasNetwork := permissionsObj["network"]; hasNetwork {
+						if networkObj, ok := network.(map[string]any); ok {
+							config.Permissions.Network = &NetworkPermissions{}
+
+							// Extract allowed domains
+							if allowed, hasAllowed := networkObj["allowed"]; hasAllowed {
+								if allowedSlice, ok := allowed.([]any); ok {
+									for _, domain := range allowedSlice {
+										if domainStr, ok := domain.(string); ok {
+											config.Permissions.Network.Allowed = append(config.Permissions.Network.Allowed, domainStr)
+										}
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 
