@@ -58,11 +58,17 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{"output.txt"}
 }
 
-func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig) ExecutionConfig {
+func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, hasOutput bool) ExecutionConfig {
 	// Determine the action version to use
 	actionVersion := DefaultClaudeActionVersion // Default version
 	if engineConfig != nil && engineConfig.Version != "" {
 		actionVersion = engineConfig.Version
+	}
+
+	// Build claude_env based on hasOutput parameter
+	claudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
+	if hasOutput {
+		claudeEnv += "\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}"
 	}
 
 	config := ExecutionConfig{
@@ -72,13 +78,10 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 			"prompt_file":       "/tmp/aw-prompts/prompt.txt",
 			"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
 			"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
-			"claude_env":        "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}",
+			"claude_env":        claudeEnv,
 			"allowed_tools":     "", // Will be filled in during generation
 			"timeout_minutes":   "", // Will be filled in during generation
 			"max_turns":         "", // Will be filled in during generation
-		},
-		Environment: map[string]string{
-			"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
 		},
 	}
 

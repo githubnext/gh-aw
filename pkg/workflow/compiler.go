@@ -129,7 +129,6 @@ type WorkflowData struct {
 	AllowedTools     string
 	AI               string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig     *EngineConfig // Extended engine configuration
-	MaxTurns         string
 	StopTime         string
 	Alias            string             // for @alias trigger support
 	AliasOtherEvents map[string]any     // for merging alias with other events
@@ -577,11 +576,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
-
-	// Extract max-turns from engine config instead of top-level frontmatter
-	if engineConfig != nil && engineConfig.MaxTurns != "" {
-		workflowData.MaxTurns = engineConfig.MaxTurns
-	}
 
 	// Extract stop-after from the on: section
 	stopAfter, err := c.extractStopAfterFromOn(result.Frontmatter)
@@ -1887,8 +1881,12 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	}
 
 	// Build outputs for all engines (GITHUB_AW_OUTPUT functionality)
-	outputs := map[string]string{
-		"output": "${{ steps.collect_output.outputs.output }}",
+	// Only include output if the workflow actually uses the output feature
+	var outputs map[string]string
+	if data.Output != nil {
+		outputs = map[string]string{
+			"output": "${{ steps.collect_output.outputs.output }}",
+		}
 	}
 
 	job := &Job{
@@ -2098,8 +2096,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Generate output file setup step for all engines (GITHUB_AW_OUTPUT functionality)
-	c.generateOutputFileSetup(yaml, data)
+	// Generate output file setup step only if output feature is used (GITHUB_AW_OUTPUT functionality)
+	if data.Output != nil {
+		c.generateOutputFileSetup(yaml, data)
+	}
 
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine)
@@ -2125,8 +2125,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// add workflow_complete.txt
 	c.generateWorkflowComplete(yaml)
 
-	// Add output collection step for all engines (GITHUB_AW_OUTPUT functionality)
-	c.generateOutputCollectionStep(yaml, data)
+	// Add output collection step only if output feature is used (GITHUB_AW_OUTPUT functionality)
+	if data.Output != nil {
+		c.generateOutputCollectionStep(yaml, data)
+	}
 
 	// Add engine-declared output files collection (if any)
 	if len(engine.GetDeclaredOutputFiles()) > 0 {
@@ -2136,8 +2138,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
-	// Add git patch generation step after agentic execution
-	c.generateGitPatchStep(yaml)
+	// Add git patch generation step only if output feature is used
+	if data.Output != nil {
+		c.generateGitPatchStep(yaml)
+	}
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
@@ -2184,8 +2188,13 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
 	yaml.WriteString("      - name: Create prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+
+	// Only add GITHUB_AW_OUTPUT environment variable if output feature is used
+	if data.Output != nil {
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+	}
+
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
 	yaml.WriteString("          cat > /tmp/aw-prompts/prompt.txt << 'EOF'\n")
@@ -2195,37 +2204,40 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 		yaml.WriteString("          " + line + "\n")
 	}
 
-	// Add output instructions for all engines (GITHUB_AW_OUTPUT functionality)
-	yaml.WriteString("          \n")
-	yaml.WriteString("          ---\n")
-	yaml.WriteString("          \n")
+	if data.SafeOutputs != nil {
+		// Add output instructions for all engines (GITHUB_AW_OUTPUT functionality)
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ---\n")
+		yaml.WriteString("          \n")
 
-	if data.SafeOutputs != nil && data.SafeOutputs.AddIssueComment != nil {
-		yaml.WriteString("          ## Adding a Comment to an Issue or Pull Request\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file \"${{ env.GITHUB_AW_OUTPUT }}\", in markdown.\n")
-		yaml.WriteString("          \n")
-	} else if data.SafeOutputs != nil && data.SafeOutputs.CreateIssue != nil {
-		yaml.WriteString("          ## Issue Creation\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          To create an issue on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body to the file \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
-		yaml.WriteString("          \n")
-	} else if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequest != nil {
-		yaml.WriteString("          ## Pull Request Creation\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
-		yaml.WriteString("          Instead:\n")
-		yaml.WriteString("          1. Make any file changes directly in the working directory, making the changes and additions you want, but leaving the changes uncommitted and unstaged.\n")
-		yaml.WriteString("          2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
-		yaml.WriteString("          \n")
-	} else if data.SafeOutputs != nil && data.SafeOutputs.AddIssueLabels != nil {
-		yaml.WriteString("          ## Adding Labels to Issues or Pull Requests\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to \"${{ env.GITHUB_AW_OUTPUT }}\", where each line is a label.\n")
-		yaml.WriteString("          \n")
-	} else {
-		yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_OUTPUT }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
+		if data.SafeOutputs.AddIssueComment != nil {
+			yaml.WriteString("          ## Adding a Comment to an Issue or Pull Request\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file \"${{ env.GITHUB_AW_OUTPUT }}\", in markdown.\n")
+			yaml.WriteString("          \n")
+		} else if data.SafeOutputs.CreateIssue != nil {
+			yaml.WriteString("          ## Issue Creation\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create an issue on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body to the file \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
+			yaml.WriteString("          \n")
+		} else if data.SafeOutputs.CreatePullRequest != nil {
+			yaml.WriteString("          ## Pull Request Creation\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
+			yaml.WriteString("          Instead:\n")
+			yaml.WriteString("          1. Make any file changes directly in the working directory, making the changes and additions you want, but leaving the changes uncommitted and unstaged.\n")
+			yaml.WriteString("          2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
+			yaml.WriteString("          \n")
+		} else if data.SafeOutputs.AddIssueLabels != nil {
+			yaml.WriteString("          ## Adding Labels to Issues or Pull Requests\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to \"${{ env.GITHUB_AW_OUTPUT }}\", where each line is a label.\n")
+			yaml.WriteString("          \n")
+		} else {
+			yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_OUTPUT }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
+		}
 	}
+
 	yaml.WriteString("          EOF\n")
 
 	// Add step to print prompt to GitHub step summary for debugging
@@ -2514,7 +2526,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
-	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig)
+	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.Output != nil)
 
 	if executionConfig.Command != "" {
 		// Command-based execution (e.g., Codex)
@@ -2526,27 +2538,25 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		for _, line := range commandLines {
 			yaml.WriteString("          " + line + "\n")
 		}
+		env := executionConfig.Environment
 
+		if data.Output != nil {
+			env["GITHUB_AW_OUTPUT"] = "${{ env.GITHUB_AW_OUTPUT }}"
+		}
 		// Add environment variables
-		if len(executionConfig.Environment) > 0 {
+		if len(env) > 0 {
 			yaml.WriteString("        env:\n")
 			// Sort environment keys for consistent output
-			envKeys := make([]string, 0, len(executionConfig.Environment))
-			for key := range executionConfig.Environment {
+			envKeys := make([]string, 0, len(env))
+			for key := range env {
 				envKeys = append(envKeys, key)
 			}
 			sort.Strings(envKeys)
 
 			for _, key := range envKeys {
-				value := executionConfig.Environment[key]
+				value := env[key]
 				fmt.Fprintf(yaml, "          %s: %s\n", key, value)
 			}
-			// Add GITHUB_AW_OUTPUT environment variable for all engines
-			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
-		} else {
-			// Add GITHUB_AW_OUTPUT environment variable even if no other env vars
-			yaml.WriteString("        env:\n")
-			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 		}
 	} else if executionConfig.Action != "" {
 
@@ -2577,16 +2587,18 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 					yaml.WriteString("          " + data.TimeoutMinutes + "\n")
 				}
 			} else if key == "max_turns" {
-				if data.MaxTurns != "" {
-					fmt.Fprintf(yaml, "          max_turns: %s\n", data.MaxTurns)
+				if data.EngineConfig != nil && data.EngineConfig.MaxTurns != "" {
+					fmt.Fprintf(yaml, "          max_turns: %s\n", data.EngineConfig.MaxTurns)
 				}
 			} else if value != "" {
 				fmt.Fprintf(yaml, "          %s: %s\n", key, value)
 			}
 		}
-		// Add environment section to pass GITHUB_AW_OUTPUT to the action for all engines
-		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+		// Add environment section to pass GITHUB_AW_OUTPUT to the action only if output feature is used
+		if data.Output != nil {
+			yaml.WriteString("        env:\n")
+			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+		}
 		yaml.WriteString("      - name: Capture Agentic Action logs\n")
 		yaml.WriteString("        if: always()\n")
 		yaml.WriteString("        run: |\n")

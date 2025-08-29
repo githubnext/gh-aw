@@ -36,7 +36,7 @@ func TestClaudeEngine(t *testing.T) {
 	}
 
 	// Test execution config
-	config := engine.GetExecutionConfig("test-workflow", "test-log", nil)
+	config := engine.GetExecutionConfig("test-workflow", "test-log", nil, false)
 	if config.StepName != "Execute Claude Code Action" {
 		t.Errorf("Expected step name 'Execute Claude Code Action', got '%s'", config.StepName)
 	}
@@ -62,7 +62,7 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected mcp_config input, got '%s'", config.Inputs["mcp_config"])
 	}
 
-	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}"
+	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
 	if config.Inputs["claude_env"] != expectedClaudeEnv {
 		t.Errorf("Expected claude_env input '%s', got '%s'", expectedClaudeEnv, config.Inputs["claude_env"])
 	}
@@ -79,10 +79,18 @@ func TestClaudeEngine(t *testing.T) {
 	if _, hasMaxTurns := config.Inputs["max_turns"]; !hasMaxTurns {
 		t.Error("Expected max_turns input to be present")
 	}
+}
 
-	// Check environment variables
-	if config.Environment["GH_TOKEN"] != "${{ secrets.GITHUB_TOKEN }}" {
-		t.Errorf("Expected GH_TOKEN environment variable, got '%s'", config.Environment["GH_TOKEN"])
+func TestClaudeEngineWithOutput(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test execution config with hasOutput=true
+	config := engine.GetExecutionConfig("test-workflow", "test-log", nil, true)
+
+	// Should include GITHUB_AW_OUTPUT when hasOutput=true
+	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}"
+	if config.Inputs["claude_env"] != expectedClaudeEnv {
+		t.Errorf("Expected claude_env input with output '%s', got '%s'", expectedClaudeEnv, config.Inputs["claude_env"])
 	}
 }
 
@@ -101,7 +109,7 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.workflowName, func(t *testing.T) {
-			config := engine.GetExecutionConfig(tc.workflowName, tc.logFile, nil)
+			config := engine.GetExecutionConfig(tc.workflowName, tc.logFile, nil, false)
 
 			// Verify the configuration is consistent regardless of input
 			if config.StepName != "Execute Claude Code Action" {
@@ -133,7 +141,7 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 		Model:   "claude-3-5-sonnet-20241022",
 	}
 
-	config := engine.GetExecutionConfig("test-workflow", "test-log", engineConfig)
+	config := engine.GetExecutionConfig("test-workflow", "test-log", engineConfig, false)
 
 	// Check that the version is correctly used in the action
 	expectedAction := "anthropics/claude-code-base-action@v1.2.3"
@@ -156,7 +164,7 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 		Model: "claude-3-5-sonnet-20241022",
 	}
 
-	config := engine.GetExecutionConfig("test-workflow", "test-log", engineConfig)
+	config := engine.GetExecutionConfig("test-workflow", "test-log", engineConfig, false)
 
 	// Check that default version is used
 	expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
