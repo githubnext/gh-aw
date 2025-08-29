@@ -3490,9 +3490,12 @@ permissions:
   issues: write
   pull-requests: write
 
-# Tools - what APIs and tools can the AI use?
-output:
+# Outputs - what APIs and tools can the AI use?
+safe-outputs:
   create-issue:
+  # create-pull-request:
+  # add-issue-comment:
+  # add-issue-labels:
 
 ---
 

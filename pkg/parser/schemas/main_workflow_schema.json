@@ -984,22 +984,30 @@
           }
         },
         "create-issue": {
-          "type": "object",
-          "description": "Configuration for creating GitHub issues from agentic workflow output",
-          "properties": {
-            "title-prefix": {
-              "type": "string",
-              "description": "Optional prefix for the issue title"
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub issues from agentic workflow output",
+              "properties": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for the issue title"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Optional list of labels to attach to the issue",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
             },
-            "labels": {
-              "type": "array",
-              "description": "Optional list of labels to attach to the issue",
-              "items": {
-                "type": "string"
-              }
+            {
+              "type": "null",
+              "description": "Enable issue creation with default configuration"
             }
-          },
-          "additionalProperties": false
+          ]
         },
         "add-issue-comment": {
           "oneOf": [
@@ -1015,26 +1023,34 @@
           ]
         },
         "create-pull-request": {
-          "type": "object",
-          "description": "Configuration for creating GitHub pull requests from agentic workflow output",
-          "properties": {
-            "title-prefix": {
-              "type": "string",
-              "description": "Optional prefix for the pull request title"
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub pull requests from agentic workflow output",
+              "properties": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for the pull request title"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Optional list of labels to attach to the pull request",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "draft": {
+                  "type": "boolean",
+                  "description": "Whether to create pull request as draft (defaults to true)"
+                }
+              },
+              "additionalProperties": false
             },
-            "labels": {
-              "type": "array",
-              "description": "Optional list of labels to attach to the pull request",
-              "items": {
-                "type": "string"
-              }
-            },
-            "draft": {
-              "type": "boolean",
-              "description": "Whether to create pull request as draft (defaults to true)"
+            {
+              "type": "null",
+              "description": "Enable pull request creation with default configuration"
             }
-          },
-          "additionalProperties": false
+          ]
         },
         "add-issue-labels": {
           "oneOf": [

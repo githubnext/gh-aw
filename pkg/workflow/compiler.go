@@ -2311,6 +2311,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 
 					config.CreateIssue = issueConfig
+				} else if issue == nil {
+					// Handle null case: create empty config
+					config.CreateIssue = &CreateIssueConfig{}
 				}
 			}
 
@@ -2358,6 +2361,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 
 					config.CreatePullRequest = pullRequestConfig
+				} else if pullRequest == nil {
+					// Handle null case: create empty config
+					config.CreatePullRequest = &CreatePullRequestConfig{}
 				}
 			}
 

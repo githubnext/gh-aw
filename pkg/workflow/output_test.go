@@ -115,6 +115,91 @@ This workflow has no output configuration.
 	}
 }
 
+func TestOutputConfigNull(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "output-config-null-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case with null values for create-issue and create-pull-request
+	testContent := `---
+on: push
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+safe-outputs:
+  create-issue:
+  create-pull-request:
+  add-issue-comment:
+  add-issue-labels:
+---
+
+# Test Null Output Configuration
+
+This workflow tests the null output configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-null-output-config.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.parseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with null output config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	// Verify create-issue configuration is parsed with empty values
+	if workflowData.SafeOutputs.CreateIssue == nil {
+		t.Fatal("Expected create-issue configuration to be parsed with null value")
+	}
+	if workflowData.SafeOutputs.CreateIssue.TitlePrefix != "" {
+		t.Errorf("Expected empty title prefix for null create-issue, got '%s'", workflowData.SafeOutputs.CreateIssue.TitlePrefix)
+	}
+	if len(workflowData.SafeOutputs.CreateIssue.Labels) != 0 {
+		t.Errorf("Expected empty labels for null create-issue, got %v", workflowData.SafeOutputs.CreateIssue.Labels)
+	}
+
+	// Verify create-pull-request configuration is parsed with empty values
+	if workflowData.SafeOutputs.CreatePullRequest == nil {
+		t.Fatal("Expected create-pull-request configuration to be parsed with null value")
+	}
+	if workflowData.SafeOutputs.CreatePullRequest.TitlePrefix != "" {
+		t.Errorf("Expected empty title prefix for null create-pull-request, got '%s'", workflowData.SafeOutputs.CreatePullRequest.TitlePrefix)
+	}
+	if len(workflowData.SafeOutputs.CreatePullRequest.Labels) != 0 {
+		t.Errorf("Expected empty labels for null create-pull-request, got %v", workflowData.SafeOutputs.CreatePullRequest.Labels)
+	}
+
+	// Verify add-issue-comment configuration is parsed with empty values
+	if workflowData.SafeOutputs.AddIssueComment == nil {
+		t.Fatal("Expected add-issue-comment configuration to be parsed with null value")
+	}
+
+	// Verify add-issue-labels configuration is parsed with empty values
+	if workflowData.SafeOutputs.AddIssueLabels == nil {
+		t.Fatal("Expected add-issue-labels configuration to be parsed with null value")
+	}
+	if len(workflowData.SafeOutputs.AddIssueLabels.Allowed) != 0 {
+		t.Errorf("Expected empty allowed labels for null add-issue-labels, got %v", workflowData.SafeOutputs.AddIssueLabels.Allowed)
+	}
+	if workflowData.SafeOutputs.AddIssueLabels.MaxCount != nil {
+		t.Errorf("Expected nil MaxCount for null add-issue-labels, got %v", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
+	}
+}
+
 func TestOutputIssueJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "output-issue-job-test")
