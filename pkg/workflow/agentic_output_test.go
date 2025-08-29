@@ -26,8 +26,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: ["bug", "enhancement"]
 ---
 
@@ -82,7 +82,7 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify prompt contains output instructions
-	if !strings.Contains(lockContent, "**IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file") {
+	if !strings.Contains(lockContent, "## Adding Labels to Issues or Pull Requests") {
 		t.Error("Expected output instructions to be injected into prompt")
 	}
 
@@ -121,8 +121,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: codex
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: ["bug", "enhancement"]
 ---
 
