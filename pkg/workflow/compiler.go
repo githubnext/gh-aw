@@ -604,7 +604,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 
 	// Parse output configuration
-	workflowData.SafeOutputs = c.extractOutputConfig(result.Frontmatter)
+	workflowData.SafeOutputs = c.extractSafeOutputsConfig(result.Frontmatter)
 
 	// Check if "alias" is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
@@ -1528,50 +1528,51 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
 
-	// Build create_issue job if output.create_issue is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.CreateIssue != nil {
-		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build create_issue job: %w", err)
+	if data.SafeOutputs != nil {
+		// Build create_issue job if output.create_issue is configured
+		if data.SafeOutputs.CreateIssue != nil {
+			createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build create_issue job: %w", err)
+			}
+			if err := c.jobManager.AddJob(createIssueJob); err != nil {
+				return fmt.Errorf("failed to add create_issue job: %w", err)
+			}
 		}
-		if err := c.jobManager.AddJob(createIssueJob); err != nil {
-			return fmt.Errorf("failed to add create_issue job: %w", err)
+
+		// Build create_issue_comment job if output.add-issue-comment is configured
+		if data.SafeOutputs.AddIssueComment != nil {
+			createCommentJob, err := c.buildCreateOutputAddIssueCommentJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build create_issue_comment job: %w", err)
+			}
+			if err := c.jobManager.AddJob(createCommentJob); err != nil {
+				return fmt.Errorf("failed to add create_issue_comment job: %w", err)
+			}
+		}
+
+		// Build create_pull_request job if output.create-pull-request is configured
+		if data.SafeOutputs.CreatePullRequest != nil {
+			createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build create_pull_request job: %w", err)
+			}
+			if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
+				return fmt.Errorf("failed to add create_pull_request job: %w", err)
+			}
+		}
+
+		// Build add_labels job if output.add-issue-labels is configured (including null/empty)
+		if data.SafeOutputs.AddIssueLabels != nil {
+			addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build add_labels job: %w", err)
+			}
+			if err := c.jobManager.AddJob(addLabelsJob); err != nil {
+				return fmt.Errorf("failed to add add_labels job: %w", err)
+			}
 		}
 	}
-
-	// Build create_issue_comment job if output.add-issue-comment is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.AddIssueComment != nil {
-		createCommentJob, err := c.buildCreateOutputAddIssueCommentJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
-		}
-		if err := c.jobManager.AddJob(createCommentJob); err != nil {
-			return fmt.Errorf("failed to add create_issue_comment job: %w", err)
-		}
-	}
-
-	// Build create_pull_request job if output.create-pull-request is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequest != nil {
-		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build create_pull_request job: %w", err)
-		}
-		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
-			return fmt.Errorf("failed to add create_pull_request job: %w", err)
-		}
-	}
-
-	// Build add_labels job if output.add-issue-labels is configured (including null/empty)
-	if data.SafeOutputs != nil && data.SafeOutputs.AddIssueLabels != nil {
-		addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build add_labels job: %w", err)
-		}
-		if err := c.jobManager.AddJob(addLabelsJob); err != nil {
-			return fmt.Errorf("failed to add add_labels job: %w", err)
-		}
-	}
-
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -1883,7 +1884,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	// Build outputs for all engines (GITHUB_AW_OUTPUT functionality)
 	// Only include output if the workflow actually uses the output feature
 	var outputs map[string]string
-	if data.Output != nil {
+	if data.SafeOutputs != nil {
 		outputs = map[string]string{
 			"output": "${{ steps.collect_output.outputs.output }}",
 		}
@@ -2097,7 +2098,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Generate output file setup step only if output feature is used (GITHUB_AW_OUTPUT functionality)
-	if data.Output != nil {
+	if data.SafeOutputs != nil {
 		c.generateOutputFileSetup(yaml, data)
 	}
 
@@ -2126,7 +2127,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateWorkflowComplete(yaml)
 
 	// Add output collection step only if output feature is used (GITHUB_AW_OUTPUT functionality)
-	if data.Output != nil {
+	if data.SafeOutputs != nil {
 		c.generateOutputCollectionStep(yaml, data)
 	}
 
@@ -2139,7 +2140,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
 	// Add git patch generation step only if output feature is used
-	if data.Output != nil {
+	if data.SafeOutputs != nil {
 		c.generateGitPatchStep(yaml)
 	}
 
@@ -2190,7 +2191,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 	yaml.WriteString("      - name: Create prompt\n")
 
 	// Only add GITHUB_AW_OUTPUT environment variable if output feature is used
-	if data.Output != nil {
+	if data.SafeOutputs != nil {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 	}
@@ -2278,8 +2279,8 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 	return make(map[string]any)
 }
 
-// extractOutputConfig extracts output configuration from frontmatter
-func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *SafeOutputsConfig {
+// extractSafeOutputsConfig extracts output configuration from frontmatter
+func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
 	if output, exists := frontmatter["safe-outputs"]; exists {
 		if outputMap, ok := output.(map[string]any); ok {
 			config := &SafeOutputsConfig{}
@@ -2526,7 +2527,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
-	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.Output != nil)
+	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.SafeOutputs != nil)
 
 	if executionConfig.Command != "" {
 		// Command-based execution (e.g., Codex)
@@ -2540,7 +2541,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		}
 		env := executionConfig.Environment
 
-		if data.Output != nil {
+		if data.SafeOutputs != nil {
 			env["GITHUB_AW_OUTPUT"] = "${{ env.GITHUB_AW_OUTPUT }}"
 		}
 		// Add environment variables
@@ -2595,7 +2596,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 			}
 		}
 		// Add environment section to pass GITHUB_AW_OUTPUT to the action only if output feature is used
-		if data.Output != nil {
+		if data.SafeOutputs != nil {
 			yaml.WriteString("        env:\n")
 			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
 		}

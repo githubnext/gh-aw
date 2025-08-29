@@ -54,7 +54,7 @@ func TestAllowedDomainsParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewCompiler(false, "", "test")
-			config := c.extractOutputConfig(tt.frontmatter)
+			config := c.extractSafeOutputsConfig(tt.frontmatter)
 
 			if tt.expectedDomains == nil {
 				if config == nil {
@@ -98,7 +98,7 @@ func TestAllowedDomainsInWorkflow(t *testing.T) {
 		},
 	}
 
-	config := c.extractOutputConfig(frontmatter)
+	config := c.extractSafeOutputsConfig(frontmatter)
 	if config == nil {
 		t.Fatal("Expected output config, but got nil")
 	}
