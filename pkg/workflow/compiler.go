@@ -2319,6 +2319,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if _, ok := comment.(map[string]any); ok {
 					// For now, CommentConfig is an empty struct
 					config.AddIssueComment = &AddIssueCommentConfig{}
+				} else if comment == nil {
+					// Handle null case: create empty config
+					config.AddIssueComment = &AddIssueCommentConfig{}
 				}
 			}
 

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 safe-outputs:
-  add-issue-comment: {}
+  add-issue-comment:
 
 tools:
   fetch:

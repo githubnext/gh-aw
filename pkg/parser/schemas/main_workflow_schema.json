@@ -1002,9 +1002,17 @@
           "additionalProperties": false
         },
         "add-issue-comment": {
-          "type": "object",
-          "description": "Configuration for creating GitHub issue/PR comments from agentic workflow output",
-          "additionalProperties": false
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub issue/PR comments from agentic workflow output",
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue comment creation with default configuration"
+            }
+          ]
         },
         "create-pull-request": {
           "type": "object",

@@ -412,17 +412,9 @@ permissions:
 permissions:
   contents: read      # Main job minimal permissions
   actions: read
+
 safe-outputs:
-  create-issue:
-    title-prefix: "[ai] "
-    labels: [automation]
-  # OR for pull requests:
-  # create-pull-request:
-  #   title-prefix: "[ai] " 
-  #   labels: [automation]
-  #   draft: false                      # Create non-draft PR
-  # OR for comments:
-  # add-issue-comment: {}
+  create-issue:       # Automatic issue creation
 ```
 
 **Note**: With output processing, the main job doesn't need `issues: write`, `pull-requests: write`, or `contents: write` permissions. The separate output creation jobs automatically get the required permissions.

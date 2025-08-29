@@ -17,12 +17,6 @@ permissions:
   actions: read
   contents: read
 safe-outputs:
-  add-issue-labels:
-    allowed: ["bug", "feature"]
-  create-issue:
-    title-prefix: "[claude-test] "
-    labels: [claude, automation, haiku]
-  add-issue-comment: {}
   create-pull-request:
     title-prefix: "[claude-test] "
     labels: [claude, automation, bot]

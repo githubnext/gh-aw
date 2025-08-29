@@ -221,7 +221,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comment: {}
+  add-issue-comment:
 ---
 
 # Test Output Issue Comment Configuration
@@ -252,6 +252,56 @@ This workflow tests the output.add-issue-comment configuration parsing.
 	}
 }
 
+func TestOutputCommentConfigParsingNull(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "output-comment-config-null-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case with output.add-issue-comment: null (no {} brackets)
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+safe-outputs:
+  add-issue-comment:
+---
+
+# Test Output Issue Comment Configuration with Null Value
+
+This workflow tests the output.add-issue-comment configuration parsing with null value.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-issue-comment-null.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.parseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with null output comment config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.AddIssueComment == nil {
+		t.Fatal("Expected issue_comment configuration to be parsed even with null value")
+	}
+}
+
 func TestOutputCommentJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "output-comment-job-test")
@@ -274,7 +324,7 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-comment: {}
+  add-issue-comment:
 ---
 
 # Test Output Issue Comment Job Generation
@@ -358,7 +408,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comment: {}
+  add-issue-comment:
 ---
 
 # Test Output Issue Comment Job Skipping

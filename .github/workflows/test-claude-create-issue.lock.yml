@@ -2,123 +2,19 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude Add Issue Labels"
-"on":
-  issues:
-    types:
-    - opened
+name: "Test Claude Create Issue"
+on:
+  workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Claude Add Issue Labels"
+run-name: "Test Claude Create Issue"
 
 jobs:
-  add_reaction:
-    if: github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: actions/github-script@v7
-        env:
-          GITHUB_AW_REACTION: eyes
-        with:
-          script: |
-            async function main() {
-              // Read inputs from environment variables
-              const reaction = process.env.GITHUB_AW_REACTION || 'eyes';
-              console.log('Reaction type:', reaction);
-              // Validate reaction type
-              const validReactions = ['+1', '-1', 'laugh', 'confused', 'heart', 'hooray', 'rocket', 'eyes'];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(', ')}`);
-                return;
-              }
-              // Determine the API endpoint based on the event type
-              let endpoint;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case 'issues':
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed('Issue number not found in event payload');
-                      return;
-                    }
-                    endpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    break;
-                  case 'issue_comment':
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed('Comment ID not found in event payload');
-                      return;
-                    }
-                    endpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    break;
-                  case 'pull_request':
-                  case 'pull_request_target':
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed('Pull request number not found in event payload');
-                      return;
-                    }
-                    // PRs are "issues" for the reactions endpoint
-                    endpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    break;
-                  case 'pull_request_review_comment':
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed('Review comment ID not found in event payload');
-                      return;
-                    }
-                    endpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                console.log('API endpoint:', endpoint);
-                await addReaction(endpoint, reaction);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error('Failed to add reaction:', errorMessage);
-                core.setFailed(`Failed to add reaction: ${errorMessage}`);
-              }
-            }
-            /**
-             * Add a reaction to a GitHub issue, PR, or comment
-             * @param {string} endpoint - The GitHub API endpoint to add the reaction to
-             * @param {string} reaction - The reaction type to add
-             */
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request('POST ' + endpoint, {
-                content: reaction,
-                headers: {
-                  'Accept': 'application/vnd.github+json'
-                }
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                console.log(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput('reaction-id', reactionId.toString());
-              } else {
-                console.log(`Successfully added reaction: ${reaction}`);
-                core.setOutput('reaction-id', '');
-              }
-            }
-            await main();
-
-  test-claude-add-issue-labels:
+  test-claude-create-issue:
     runs-on: ubuntu-latest
     permissions:
       issues: read
@@ -181,14 +77,16 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
-          Add the issue labels "quack" and "dog" to the issue.
+          Create an issue with title "Hello" and body "World"
+          
+          Add a haiku about GitHub Actions and AI to the issue body.
           
           
           ---
           
-          ## Adding Labels to Issues or Pull Requests
+          ## Issue Creation
           
-          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to "${{ env.GITHUB_AW_OUTPUT }}", where each line is a label.
+          To create an issue on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body to the file "${{ env.GITHUB_AW_OUTPUT }}", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.
           
           EOF
       - name: Print prompt to step summary
@@ -209,7 +107,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude Add Issue Labels",
+              workflow_name: "Test Claude Create Issue",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -306,13 +204,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-add-issue-labels.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-create-issue.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-add-issue-labels.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-create-issue.log
           fi
           
           # Ensure log file exists
-          touch /tmp/test-claude-add-issue-labels.log
+          touch /tmp/test-claude-create-issue.log
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
@@ -495,8 +393,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-add-issue-labels.log
-          path: /tmp/test-claude-add-issue-labels.log
+          name: test-claude-create-issue.log
+          path: /tmp/test-claude-create-issue.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -561,25 +459,24 @@ jobs:
           path: /tmp/aw.patch
           if-no-files-found: ignore
 
-  add_labels:
-    needs: test-claude-add-issue-labels
-    if: github.event.issue.number || github.event.pull_request.number
+  create_issue:
+    needs: test-claude-create-issue
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
-      pull-requests: write
     timeout-minutes: 10
     outputs:
-      labels_added: ${{ steps.add_labels.outputs.labels_added }}
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
-      - name: Add Labels
-        id: add_labels
+      - name: Create Output Issue
+        id: create_issue
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-add-issue-labels.outputs.output }}
-          GITHUB_AW_LABELS_ALLOWED: ""
-          GITHUB_AW_LABELS_MAX_COUNT: 3
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-issue.outputs.output }}
+          GITHUB_AW_ISSUE_TITLE_PREFIX: "[claude-test] "
+          GITHUB_AW_ISSUE_LABELS: "claude,automation,haiku"
         with:
           script: |
             async function main() {
@@ -594,124 +491,92 @@ jobs:
                 return;
               }
               console.log('Agent output content length:', outputContent.length);
-              // Read the allowed labels from environment variable (optional)
-              const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
-              let allowedLabels = null;
-              if (allowedLabelsEnv && allowedLabelsEnv.trim() !== '') {
-                allowedLabels = allowedLabelsEnv.split(',').map(label => label.trim()).filter(label => label);
-                if (allowedLabels.length === 0) {
-                  allowedLabels = null; // Treat empty list as no restrictions
-                }
-              }
-              if (allowedLabels) {
-                console.log('Allowed labels:', allowedLabels);
-              } else {
-                console.log('No label restrictions - any labels are allowed');
-              }
-              // Read the max-count limit from environment variable (default: 3)
-              const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max-count value: ${maxCountEnv}. Must be a positive integer`);
-                return;
-              }
-              console.log('Max count:', maxCount);
-              // Check if we're in an issue or pull request context
-              const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
-              const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
-              if (!isIssueContext && !isPRContext) {
-                core.setFailed('Not running in issue or pull request context, skipping label addition');
-                return;
-              }
-              // Determine the issue/PR number
-              let issueNumber;
-              let contextType;
-              if (isIssueContext) {
-                if (context.payload.issue) {
-                  issueNumber = context.payload.issue.number;
-                  contextType = 'issue';
-                } else {
-                  core.setFailed('Issue context detected but no issue found in payload');
-                  return;
-                }
-              } else if (isPRContext) {
-                if (context.payload.pull_request) {
-                  issueNumber = context.payload.pull_request.number;
-                  contextType = 'pull request';
-                } else {
-                  core.setFailed('Pull request context detected but no pull request found in payload');
-                  return;
-                }
-              }
-              if (!issueNumber) {
-                core.setFailed('Could not determine issue or pull request number');
-                return;
-              }
-              // Parse labels from agent output (one per line, ignore empty lines)
+              // Check if we're in an issue context (triggered by an issue event)
+              const parentIssueNumber = context.payload?.issue?.number;
+              // Parse labels from environment variable (comma-separated string)
+              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              const labels = labelsEnv ? labelsEnv.split(',').map(/** @param {string} label */ label => label.trim()).filter(/** @param {string} label */ label => label) : [];
+              // Parse the output to extract title and body
               const lines = outputContent.split('\n');
-              const requestedLabels = [];
-              for (const line of lines) {
-                const trimmedLine = line.trim();
-                // Skip empty lines
-                if (trimmedLine === '') {
+              let title = '';
+              let bodyLines = [];
+              let foundTitle = false;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                // Skip empty lines until we find the title
+                if (!foundTitle && line === '') {
                   continue;
                 }
-                // Reject lines that start with '-' (removal indication)
-                if (trimmedLine.startsWith('-')) {
-                  core.setFailed(`Label removal is not permitted. Found line starting with '-': ${trimmedLine}`);
-                  return;
+                // First non-empty line becomes the title
+                if (!foundTitle && line !== '') {
+                  // Remove markdown heading syntax if present
+                  title = line.replace(/^#+\s*/, '').trim();
+                  foundTitle = true;
+                  continue;
                 }
-                requestedLabels.push(trimmedLine);
+                // Everything else goes into the body
+                if (foundTitle) {
+                  bodyLines.push(lines[i]); // Keep original formatting
+                }
               }
-              console.log('Requested labels:', requestedLabels);
-              // Validate that all requested labels are in the allowed list (if restrictions are set)
-              let validLabels;
-              if (allowedLabels) {
-                validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
-              } else {
-                // No restrictions, all requested labels are valid
-                validLabels = requestedLabels;
+              // If no title was found, use a default
+              if (!title) {
+                title = 'Agent Output';
               }
-              // Remove duplicates from requested labels
-              let uniqueLabels = [...new Set(validLabels)];
-              // Enforce max-count limit
-              if (uniqueLabels.length > maxCount) {
-                console.log(`too many labels, keep ${maxCount}`)
-                uniqueLabels = uniqueLabels.slice(0, maxCount);
+              // Apply title prefix if provided via environment variable
+              const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
               }
-              if (uniqueLabels.length === 0) {
-                console.log('No labels to add');
-                core.setOutput('labels_added', '');
-                await core.summary.addRaw(`
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
+              if (parentIssueNumber) {
+                console.log('Detected issue context, parent issue #' + parentIssueNumber);
+                // Add reference to parent issue in the child issue body
+                bodyLines.push(`Related to #${parentIssueNumber}`);
+              }
+              // Add AI disclaimer with run id, run htmlurl
+              // Add AI disclaimer with workflow run information
+              const runId = context.runId;
+              const runUrl = context.payload.repository 
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `https://github.com/actions/runs/${runId}`;  
+              bodyLines.push(``, ``, `> Generated by Agentic Workflow Run [${runId}](${runUrl})`, '');
+              // Prepare the body content
+              const body = bodyLines.join('\n').trim();
+              console.log('Creating issue with title:', title);
+              console.log('Labels:', labels);
+              console.log('Body length:', body.length);
+              // Create the issue using GitHub API
+              const { data: issue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: labels
+              });
+              console.log('Created issue #' + issue.number + ': ' + issue.html_url);
+              // If we have a parent issue, add a comment to it referencing the new child issue
+              if (parentIssueNumber) {
+                try {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parentIssueNumber,
+                    body: `Created related issue: #${issue.number}`
+                  });
+                  console.log('Added comment to parent issue #' + parentIssueNumber);
+                } catch (error) {
+                  console.log('Warning: Could not add comment to parent issue:', error instanceof Error ? error.message : String(error));
+                }
+              }
+              // Set output for other jobs to use
+              core.setOutput('issue_number', issue.number);
+              core.setOutput('issue_url', issue.html_url);
+              // write issue to summary
+              await core.summary.addRaw(`
+            ## GitHub Issue
+            - Issue ID: ${issue.number}
+            - Issue URL: ${issue.html_url}
             `).write();
-                return;
-              }
-              console.log(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}:`, uniqueLabels);
-              try {
-                // Add labels using GitHub API
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  labels: uniqueLabels
-                });
-                console.log(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
-                // Set output for other jobs to use
-                core.setOutput('labels_added', uniqueLabels.join('\n'));
-                // Write summary
-                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join('\n');
-                await core.summary.addRaw(`
-            ## Label Addition
-            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${issueNumber}:
-            ${labelsListMarkdown}
-            `).write();
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error('Failed to add labels:', errorMessage);
-                core.setFailed(`Failed to add labels: ${errorMessage}`);
-              }
             }
             await main();
 
