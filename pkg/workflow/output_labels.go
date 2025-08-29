@@ -8,12 +8,12 @@ import (
 // buildCreateOutputLabelJob creates the add_labels job
 func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.Labels == nil {
-		return nil, fmt.Errorf("output.labels configuration is required")
+		return nil, fmt.Errorf("safe-outputs.add-issue-labels configuration is required")
 	}
 
 	// Validate that allowed labels list is not empty
 	if len(data.Output.Labels.Allowed) == 0 {
-		return nil, fmt.Errorf("output.labels.allowed must be non-empty")
+		return nil, fmt.Errorf("safe-outputs.add-issue-labels.allowed must be non-empty")
 	}
 
 	// Get max-count with default of 3

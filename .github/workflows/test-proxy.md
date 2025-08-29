@@ -23,7 +23,6 @@ tools:
     allowed:
       - "create_issue"
       - "create_comment"
-      - "get_issue"
 
 engine: claude
 runs-on: ubuntu-latest

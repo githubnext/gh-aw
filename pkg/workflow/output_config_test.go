@@ -20,17 +20,17 @@ func TestAllowedDomainsParsing(t *testing.T) {
 		{
 			name: "output config with allowed-domains",
 			frontmatter: map[string]any{
-				"output": map[string]any{
+				"safe-outputs": map[string]any{
 					"allowed-domains": []any{"example.com", "trusted.org"},
 				},
 			},
 			expectedDomains: []string{"example.com", "trusted.org"},
 		},
 		{
-			name: "output config with issue and allowed-domains",
+			name: "output config with create-issue and allowed-domains",
 			frontmatter: map[string]any{
-				"output": map[string]any{
-					"issue": map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue": map[string]any{
 						"title-prefix": "[auto] ",
 					},
 					"allowed-domains": []any{"github.com", "api.github.com"},
@@ -41,8 +41,8 @@ func TestAllowedDomainsParsing(t *testing.T) {
 		{
 			name: "output config without allowed-domains",
 			frontmatter: map[string]any{
-				"output": map[string]any{
-					"issue": map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue": map[string]any{
 						"title-prefix": "[auto] ",
 					},
 				},
@@ -93,7 +93,7 @@ func TestAllowedDomainsInWorkflow(t *testing.T) {
 	// Test workflow with allowed domains
 	frontmatter := map[string]any{
 		"engine": "claude",
-		"output": map[string]any{
+		"safe-outputs": map[string]any{
 			"allowed-domains": []any{"example.com", "trusted.org"},
 		},
 	}

@@ -21,7 +21,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
-- `output`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
+- `safe-outputs`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
 
 ## Trigger Events (`on:`)
 

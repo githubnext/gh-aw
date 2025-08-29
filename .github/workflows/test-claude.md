@@ -16,14 +16,14 @@ permissions:
   pull-requests: write
   actions: read
   contents: read
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: ["bug", "feature"]
-  issue:
+  create-issue:
     title-prefix: "[claude-test] "
     labels: [claude, automation, haiku]
-  issue_comment: {}
-  pull-request:
+  add-issue-comment:
+  create-pull-request:
     title-prefix: "[claude-test] "
     labels: [claude, automation, bot]
 tools:

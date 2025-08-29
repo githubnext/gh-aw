@@ -15,15 +15,15 @@ func TestOutputConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.issue configuration
+	// Test case with create-issue configuration
 	testContent := `---
 on: push
 permissions:
   contents: read
   issues: write
 engine: claude
-output:
-  issue:
+safe-outputs:
+  create-issue:
     title-prefix: "[genai] "
     labels: [copilot, automation]
 ---
@@ -123,7 +123,7 @@ func TestOutputIssueJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.issue configuration
+	// Test case with create-issue configuration
 	testContent := `---
 on: push
 permissions:
@@ -133,15 +133,15 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
-output:
-  issue:
+safe-outputs:
+  create-issue:
     title-prefix: "[genai] "
     labels: [copilot]
 ---
 
 # Test Output Issue Job Generation
 
-This workflow tests the create_issue job generation.
+This workflow tests the create-issue job generation.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue.md")
@@ -210,7 +210,7 @@ func TestOutputCommentConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.issue_comment configuration
+	// Test case with output.add-issue-comment configuration
 	testContent := `---
 on:
   issues:
@@ -220,13 +220,13 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
-output:
-  issue_comment: {}
+safe-outputs:
+  add-issue-comment: {}
 ---
 
 # Test Output Issue Comment Configuration
 
-This workflow tests the output.issue_comment configuration parsing.
+This workflow tests the output.add-issue-comment configuration parsing.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue-comment.md")
@@ -260,7 +260,7 @@ func TestOutputCommentJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.issue_comment configuration
+	// Test case with output.add-issue-comment configuration
 	testContent := `---
 on:
   issues:
@@ -273,8 +273,8 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
-output:
-  issue_comment: {}
+safe-outputs:
+  add-issue-comment: {}
 ---
 
 # Test Output Issue Comment Job Generation
@@ -349,7 +349,7 @@ func TestOutputCommentJobSkippedForNonIssueEvents(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.issue_comment configuration but push trigger (not issue/PR)
+	// Test case with add-issue-comment configuration but push trigger (not issue/PR)
 	testContent := `---
 on: push
 permissions:
@@ -357,8 +357,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
-output:
-  issue_comment: {}
+safe-outputs:
+  add-issue-comment: {}
 ---
 
 # Test Output Issue Comment Job Skipping
@@ -409,15 +409,15 @@ func TestOutputPullRequestConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.pull-request configuration
+	// Test case with create-pull-request configuration
 	testContent := `---
 on: push
 permissions:
   contents: read
   pull-requests: write
 engine: claude
-output:
-  pull-request:
+safe-outputs:
+  create-pull-request:
     title-prefix: "[agent] "
     labels: [automation, bot]
 ---
@@ -476,7 +476,7 @@ func TestOutputPullRequestJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.pull-request configuration
+	// Test case with create-pull-request configuration
 	testContent := `---
 on: push
 permissions:
@@ -486,8 +486,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
-output:
-  pull-request:
+safe-outputs:
+  create-pull-request:
     title-prefix: "[agent] "
     labels: [automation]
 ---
@@ -507,7 +507,7 @@ This workflow tests the create_pull_request job generation.
 	// Compile the workflow
 	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
-		t.Fatalf("Unexpected error compiling workflow with output pull-request: %v", err)
+		t.Fatalf("Unexpected error compiling workflow with output create-pull-request: %v", err)
 	}
 
 	// Read the generated lock file
@@ -585,7 +585,7 @@ func TestOutputPullRequestDraftFalse(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.pull-request configuration with draft: false
+	// Test case with create-pull-request configuration with draft: false
 	testContent := `---
 on: push
 permissions:
@@ -595,8 +595,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
-output:
-  pull-request:
+safe-outputs:
+  create-pull-request:
     title-prefix: "[agent] "
     labels: [automation]
     draft: false
@@ -660,7 +660,7 @@ func TestOutputPullRequestDraftTrue(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.pull-request configuration with draft: true
+	// Test case with create-pull-request configuration with draft: true
 	testContent := `---
 on: push
 permissions:
@@ -670,8 +670,8 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
-output:
-  pull-request:
+safe-outputs:
+  create-pull-request:
     title-prefix: "[agent] "
     labels: [automation]
     draft: true
@@ -735,7 +735,7 @@ func TestOutputLabelConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.labels configuration
+	// Test case with add-issue-labels configuration
 	testContent := `---
 on:
   issues:
@@ -745,8 +745,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: [triage, bug, enhancement, needs-review]
 ---
 
@@ -798,7 +798,7 @@ func TestOutputLabelJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.labels configuration
+	// Test case with add-issue-labels configuration
 	testContent := `---
 on:
   issues:
@@ -811,8 +811,8 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
 ---
 
@@ -897,7 +897,7 @@ func TestOutputLabelConfigMaxCountParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.labels configuration including max-count
+	// Test case with add-issue-labels configuration including max-count
 	testContent := `---
 on:
   issues:
@@ -907,8 +907,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: [triage, bug, enhancement, needs-review]
     max-count: 5
 ---
@@ -971,7 +971,7 @@ func TestOutputLabelConfigDefaultMaxCount(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.labels configuration without max-count (should use default)
+	// Test case with add-issue-labels configuration without max-count (should use default)
 	testContent := `---
 on:
   issues:
@@ -981,8 +981,8 @@ permissions:
   issues: write
   pull-requests: write
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
 ---
 
@@ -1018,7 +1018,7 @@ func TestOutputLabelJobGenerationWithMaxCount(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.labels configuration including max-count
+	// Test case with add-issue-labels configuration including max-count
 	testContent := `---
 on:
   issues:
@@ -1031,8 +1031,8 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
     max-count: 2
 ---
@@ -1090,7 +1090,7 @@ func TestOutputLabelJobGenerationWithDefaultMaxCount(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.labels configuration without max-count (should use default of 3)
+	// Test case with add-issue-labels configuration without max-count (should use default of 3)
 	testContent := `---
 on:
   issues:
@@ -1103,8 +1103,8 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
 ---
 
@@ -1165,8 +1165,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: []
 ---
 
@@ -1210,8 +1210,8 @@ permissions:
   contents: read
   issues: write
 engine: claude
-output:
-  labels: {}
+safe-outputs:
+  add-issue-labels: {}
 ---
 
 # Test Output Label Missing Allowed

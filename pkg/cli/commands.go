@@ -3491,19 +3491,8 @@ permissions:
   pull-requests: write
 
 # Tools - what APIs and tools can the AI use?
-tools:
-  github:
-    allowed:
-      - get_issue
-      - add_issue_comment
-      - create_issue
-      - get_pull_request
-      - get_file_contents
-
-# Advanced options (uncomment to use):
-# engine: claude  # AI engine (default: claude)
-# timeout_minutes: 30  # Max runtime (default: 15)
-# runs-on: ubuntu-latest  # Runner type (default: ubuntu-latest)
+output:
+  create-issue:
 
 ---
 

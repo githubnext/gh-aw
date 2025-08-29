@@ -949,20 +949,20 @@
         }
       ]
     },
-    "output": {
+    "safe-outputs": {
       "type": "object",
-      "description": "Output configuration for automatic output routes",
+      "description": "Output configuration for automatic safe outputs",
       "properties": {
         "allowed-domains": {
           "type": "array",
-          "description": "List of allowed domains for URI filtering in agent output",
+          "description": "List of allowed domains for URI filtering in agentic workflow output",
           "items": {
             "type": "string"
           }
         },
-        "issue": {
+        "create-issue": {
           "type": "object",
-          "description": "Configuration for creating GitHub issues from agent output",
+          "description": "Configuration for creating GitHub issues from agentic workflow output",
           "properties": {
             "title-prefix": {
               "type": "string",
@@ -978,14 +978,14 @@
           },
           "additionalProperties": false
         },
-        "issue_comment": {
+        "add-issue-comment": {
           "type": "object",
-          "description": "Configuration for creating GitHub issue/PR comments from agent output",
+          "description": "Configuration for creating GitHub issue/PR comments from agentic workflow output",
           "additionalProperties": false
         },
-        "pull-request": {
+        "create-pull-request": {
           "type": "object",
-          "description": "Configuration for creating GitHub pull requests from agent output",
+          "description": "Configuration for creating GitHub pull requests from agentic workflow output",
           "properties": {
             "title-prefix": {
               "type": "string",
@@ -1005,9 +1005,9 @@
           },
           "additionalProperties": false
         },
-        "labels": {
+        "add-issue-labels": {
           "type": "object",
-          "description": "Configuration for adding labels to issues/PRs from agent output",
+          "description": "Configuration for adding labels to issues/PRs from agentic workflow output",
           "properties": {
             "allowed": {
               "type": "array",

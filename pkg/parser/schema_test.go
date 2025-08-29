@@ -421,10 +421,10 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "additional properties 'invalid_prop' not allowed",
 		},
 		{
-			name: "invalid output configuration with additional properties",
+			name: "invalid safe-outputs configuration with additional properties",
 			frontmatter: map[string]any{
-				"output": map[string]any{
-					"issue": map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue": map[string]any{
 						"title-prefix": "[ai] ",
 						"invalid_prop": "value",
 					},

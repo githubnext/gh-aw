@@ -78,7 +78,8 @@ permissions:
 
 tools:
   github:
-    allowed: [get_issue, add_issue_comment, list_issue_comments]
+    allowed:
+    - add_issue_comment
 ---
 
 # Issue Auto-Responder

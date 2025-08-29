@@ -142,10 +142,10 @@ type WorkflowData struct {
 
 // OutputConfig holds configuration for automatic output routes
 type OutputConfig struct {
-	Issue          *IssueConfig       `yaml:"issue,omitempty"`
-	IssueComment   *CommentConfig     `yaml:"issue_comment,omitempty"`
-	PullRequest    *PullRequestConfig `yaml:"pull-request,omitempty"`
-	Labels         *LabelConfig       `yaml:"labels,omitempty"`
+	Issue          *IssueConfig       `yaml:"create-issue,omitempty"`
+	IssueComment   *CommentConfig     `yaml:"add-issue-comment,omitempty"`
+	PullRequest    *PullRequestConfig `yaml:"create-pull-request,omitempty"`
+	Labels         *LabelConfig       `yaml:"add-issue-labels,omitempty"`
 	AllowedDomains []string           `yaml:"allowed-domains,omitempty"`
 }
 
@@ -1534,7 +1534,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
 
-	// Build create_issue job if output.issue is configured
+	// Build create_issue job if output.create_issue is configured
 	if data.Output != nil && data.Output.Issue != nil {
 		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
 		if err != nil {
@@ -1545,7 +1545,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
-	// Build create_issue_comment job if output.issue_comment is configured
+	// Build create_issue_comment job if output.add-issue-comment is configured
 	if data.Output != nil && data.Output.IssueComment != nil {
 		createCommentJob, err := c.buildCreateOutputCommentJob(data, jobName)
 		if err != nil {
@@ -1556,7 +1556,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
-	// Build create_pull_request job if output.pull-request is configured
+	// Build create_pull_request job if output.create-pull-request is configured
 	if data.Output != nil && data.Output.PullRequest != nil {
 		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
 		if err != nil {
@@ -1567,7 +1567,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 		}
 	}
 
-	// Build add_labels job if output.labels is configured
+	// Build add_labels job if output.add-issue-labels is configured
 	if data.Output != nil && data.Output.Labels != nil {
 		addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
 		if err != nil {
@@ -1700,7 +1700,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.Issue == nil {
-		return nil, fmt.Errorf("output.issue configuration is required")
+		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
 	}
 
 	var steps []string
@@ -1750,7 +1750,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 // buildCreateOutputCommentJob creates the create_issue_comment job
 func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.IssueComment == nil {
-		return nil, fmt.Errorf("output.issue_comment configuration is required")
+		return nil, fmt.Errorf("safe-outputs.add-issue-comment configuration is required")
 	}
 
 	var steps []string
@@ -1793,7 +1793,7 @@ func (c *Compiler) buildCreateOutputCommentJob(data *WorkflowData, mainJobName s
 // buildCreateOutputPullRequestJob creates the create_pull_request job
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.Output == nil || data.Output.PullRequest == nil {
-		return nil, fmt.Errorf("output.pull-request configuration is required")
+		return nil, fmt.Errorf("safe-outputs.pull-request configuration is required")
 	}
 
 	var steps []string
@@ -2242,12 +2242,12 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 
 // extractOutputConfig extracts output configuration from frontmatter
 func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig {
-	if output, exists := frontmatter["output"]; exists {
+	if output, exists := frontmatter["safe-outputs"]; exists {
 		if outputMap, ok := output.(map[string]any); ok {
 			config := &OutputConfig{}
 
-			// Parse issue configuration
-			if issue, exists := outputMap["issue"]; exists {
+			// Parse create-issue configuration
+			if issue, exists := outputMap["create-issue"]; exists {
 				if issueMap, ok := issue.(map[string]any); ok {
 					issueConfig := &IssueConfig{}
 
@@ -2275,16 +2275,16 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 				}
 			}
 
-			// Parse issue_comment configuration
-			if comment, exists := outputMap["issue_comment"]; exists {
+			// Parse add-issue-comment configuration
+			if comment, exists := outputMap["add-issue-comment"]; exists {
 				if _, ok := comment.(map[string]any); ok {
 					// For now, CommentConfig is an empty struct
 					config.IssueComment = &CommentConfig{}
 				}
 			}
 
-			// Parse pull-request configuration
-			if pullRequest, exists := outputMap["pull-request"]; exists {
+			// Parse create-pull-request configuration
+			if pullRequest, exists := outputMap["create-pull-request"]; exists {
 				if pullRequestMap, ok := pullRequest.(map[string]any); ok {
 					pullRequestConfig := &PullRequestConfig{}
 
@@ -2332,8 +2332,8 @@ func (c *Compiler) extractOutputConfig(frontmatter map[string]any) *OutputConfig
 				}
 			}
 
-			// Parse labels configuration
-			if labels, exists := outputMap["labels"]; exists {
+			// Parse add-issue-labels configuration
+			if labels, exists := outputMap["add-issue-labels"]; exists {
 				if labelsMap, ok := labels.(map[string]any); ok {
 					labelConfig := &LabelConfig{}
 

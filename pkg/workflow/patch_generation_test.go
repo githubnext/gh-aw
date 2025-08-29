@@ -15,14 +15,14 @@ func TestPullRequestPatchGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.pull-request configuration
+	// Test case with create-pull-request configuration
 	testContent := `---
 on: push
 permissions:
   contents: read
 engine: claude
-output:
-  pull-request:
+safe-outputs:
+  create-pull-request:
     title-prefix: "[test] "
 ---
 
