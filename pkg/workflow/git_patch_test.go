@@ -29,8 +29,8 @@ func TestGitPatchGeneration(t *testing.T) {
 	testMarkdown := `---
 on:
   workflow_dispatch:
-output:
-  labels:
+safe-outputs:
+  add-issue-labels:
     allowed: ["bug", "enhancement"]
 ---
 
