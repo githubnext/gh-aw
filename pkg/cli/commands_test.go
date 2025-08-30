@@ -165,6 +165,32 @@ func TestRunWorkflowOnGitHub(t *testing.T) {
 	}
 }
 
+func TestRunWorkflowsOnGitHub(t *testing.T) {
+	// Test with empty workflow list
+	err := RunWorkflowsOnGitHub([]string{}, 0, false)
+	if err == nil {
+		t.Error("RunWorkflowsOnGitHub should return error for empty workflow list")
+	}
+
+	// Test with workflow list containing empty name
+	err = RunWorkflowsOnGitHub([]string{"valid-workflow", ""}, 0, false)
+	if err == nil {
+		t.Error("RunWorkflowsOnGitHub should return error for workflow list containing empty name")
+	}
+
+	// Test with nonexistent workflows (this will fail but gracefully)
+	err = RunWorkflowsOnGitHub([]string{"nonexistent-workflow1", "nonexistent-workflow2"}, 0, false)
+	if err == nil {
+		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflows")
+	}
+
+	// Test with negative repeat seconds (should work as 0)
+	err = RunWorkflowsOnGitHub([]string{"nonexistent-workflow"}, -1, false)
+	if err == nil {
+		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflow regardless of repeat value")
+	}
+}
+
 func TestGetLatestWorkflowRunWithTimestamp(t *testing.T) {
 	// Test with non-existent workflow - should handle gracefully
 	url, createdAt, err := getLatestWorkflowRunWithTimestamp("nonexistent-workflow.lock.yml", false)
@@ -215,6 +241,7 @@ func TestAllCommandsExist(t *testing.T) {
 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                                        // Should handle missing directory gracefully
 		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                                                      // Should handle missing directory gracefully
 		{func() error { return RunWorkflowOnGitHub("", false) }, true, "RunWorkflowOnGitHub"},                                              // Should error with empty workflow name
+		{func() error { return RunWorkflowsOnGitHub([]string{}, 0, false) }, true, "RunWorkflowsOnGitHub"},                                 // Should error with empty workflow list
 	}
 
 	for _, test := range tests {

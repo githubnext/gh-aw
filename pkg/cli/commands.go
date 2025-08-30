@@ -3086,6 +3086,91 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 	return nil
 }
 
+// RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating at intervals
+func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, verbose bool) error {
+	if len(workflowNames) == 0 {
+		return fmt.Errorf("at least one workflow name or ID is required")
+	}
+
+	// Validate all workflows exist and are runnable before starting
+	for _, workflowName := range workflowNames {
+		if workflowName == "" {
+			return fmt.Errorf("workflow name cannot be empty")
+		}
+
+		// Check if workflow exists and is runnable
+		workflowFile, err := resolveWorkflowFile(workflowName, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to resolve workflow '%s': %w", workflowName, err)
+		}
+
+		runnable, err := IsRunnable(workflowFile)
+		if err != nil {
+			return fmt.Errorf("failed to check if workflow '%s' is runnable: %w", workflowName, err)
+		}
+
+		if !runnable {
+			return fmt.Errorf("workflow '%s' cannot be run on GitHub Actions - it must have 'workflow_dispatch' trigger", workflowName)
+		}
+	}
+
+	// Function to run all workflows once
+	runAllWorkflows := func() error {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Running %d workflow(s)...", len(workflowNames))))
+
+		for i, workflowName := range workflowNames {
+			if len(workflowNames) > 1 {
+				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
+			}
+
+			if err := RunWorkflowOnGitHub(workflowName, verbose); err != nil {
+				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
+			}
+
+			// Add a small delay between workflows to avoid overwhelming GitHub API
+			if i < len(workflowNames)-1 {
+				time.Sleep(1 * time.Second)
+			}
+		}
+
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully triggered %d workflow(s)", len(workflowNames))))
+		return nil
+	}
+
+	// Run workflows once
+	if err := runAllWorkflows(); err != nil {
+		return err
+	}
+
+	// If repeat is specified, set up a ticker
+	if repeatSeconds > 0 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Repeating every %d seconds. Press Ctrl+C to stop.", repeatSeconds)))
+
+		ticker := time.NewTicker(time.Duration(repeatSeconds) * time.Second)
+		defer ticker.Stop()
+
+		// Set up signal handling for graceful shutdown
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+		for {
+			select {
+			case <-ticker.C:
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Repeating workflow run at %s", time.Now().Format("2006-01-02 15:04:05"))))
+				if err := runAllWorkflows(); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Error during repeat: %v", err)))
+					// Continue running on error during repeat
+				}
+			case <-sigChan:
+				fmt.Println(console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
 // IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)
 func IsRunnable(markdownPath string) (bool, error) {
 	// Read the file

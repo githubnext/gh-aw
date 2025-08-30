@@ -217,22 +217,27 @@ var compileCmd = &cobra.Command{
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run <workflow-id-or-name>",
-	Short: "Run an agentic workflow on GitHub Actions",
-	Long: `Run an agentic workflow on GitHub Actions using the workflow_dispatch trigger.
+	Use:   "run <workflow-id-or-name>...",
+	Short: "Run one or more agentic workflows on GitHub Actions",
+	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
-This command accepts either a workflow ID or an agentic workflow name.
-The workflow must have been added as an action and compiled.
+This command accepts one or more workflow IDs or agentic workflow names.
+The workflows must have been added as actions and compiled.
 
 This command only works with workflows that have workflow_dispatch triggers.
-It executes 'gh workflow run <workflow-lock-file>' to trigger the workflow on GitHub Actions.`,
-	Args: cobra.ExactArgs(1),
+It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
+
+Examples:
+  gh aw run weekly-research
+  gh aw run weekly-research daily-plan
+  gh aw run weekly-research --repeat 3600  # Run every hour`,
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		workflowIdOrName := args[0]
-		if err := cli.RunWorkflowOnGitHub(workflowIdOrName, verbose); err != nil {
+		repeatSeconds, _ := cmd.Flags().GetInt("repeat")
+		if err := cli.RunWorkflowsOnGitHub(args, repeatSeconds, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
-				Message: fmt.Sprintf("running workflow on GitHub Actions: %v", err),
+				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
 			}))
 			os.Exit(1)
 		}
@@ -337,6 +342,9 @@ func init() {
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+
+	// Add flags to run command
+	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
 
 	// Add all commands to root
 	rootCmd.AddCommand(listCmd)

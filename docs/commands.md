@@ -14,6 +14,8 @@ gh aw add samples/weekly-research.md -r githubnext/agentics  # Add workflow and 
 gh aw compile                                                # Recompile to GitHub Actions
 gh aw status                                                 # Check status
 gh aw run weekly-research                                    # Execute workflow
+gh aw run weekly-research daily-plan                        # Execute multiple workflows
+gh aw run weekly-research --repeat 3600                     # Execute workflow every hour
 gh aw logs weekly-research                                   # View execution logs
 ```
 
@@ -102,8 +104,14 @@ These commands control the execution and state of your compiled agentic workflow
 
 **Workflow Execution:**
 ```bash
-# Run a workflow immediately in GitHub Actions
+# Run a single workflow immediately in GitHub Actions
 gh aw run WorkflowName
+
+# Run multiple workflows immediately in GitHub Actions
+gh aw run WorkflowName1 WorkflowName2 WorkflowName3
+
+# Run workflows and repeat every 3 minutes
+gh aw run WorkflowName --repeat 180
 
 # Run workflow with specific input parameters (if supported)
 gh aw run weekly-research --input priority=high
