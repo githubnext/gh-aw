@@ -33,6 +33,12 @@ var checkTeamMemberScript string
 //go:embed js/add_reaction.cjs
 var addReactionScript string
 
+//go:embed js/parse_claude_log.cjs
+var parseClaudeLogScript string
+
+//go:embed js/parse_codex_log.cjs
+var parseCodexLogScript string
+
 // FormatJavaScriptForYAML formats a JavaScript script with proper indentation for embedding in YAML
 func FormatJavaScriptForYAML(script string) []string {
 	var formattedLines []string
@@ -54,5 +60,17 @@ func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 		if strings.TrimSpace(line) != "" {
 			fmt.Fprintf(yaml, "            %s\n", line)
 		}
+	}
+}
+
+// GetLogParserScript returns the JavaScript content for a log parser by name
+func GetLogParserScript(name string) string {
+	switch name {
+	case "parse_claude_log":
+		return parseClaudeLogScript
+	case "parse_codex_log":
+		return parseCodexLogScript
+	default:
+		return ""
 	}
 }

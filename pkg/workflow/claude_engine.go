@@ -350,3 +350,8 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 
 	return metrics
 }
+
+// GetLogParserScript returns the JavaScript script name for parsing Claude logs
+func (e *ClaudeEngine) GetLogParserScript() string {
+	return "parse_claude_log"
+}

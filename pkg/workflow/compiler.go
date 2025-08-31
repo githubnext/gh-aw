@@ -2143,6 +2143,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateEngineOutputCollection(yaml, engine)
 	}
 
+	// parse agent logs for GITHUB_STEP_SUMMARY
+	c.generateLogParsing(yaml, engine, logFileFull)
+
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
@@ -2182,6 +2185,34 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string
 	fmt.Fprintf(yaml, "          name: %s.log\n", logFile)
 	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
 	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine AgenticEngine, logFileFull string) {
+	parserScriptName := engine.GetLogParserScript()
+	if parserScriptName == "" {
+		// Skip log parsing if engine doesn't provide a parser
+		return
+	}
+
+	logParserScript := GetLogParserScript(parserScriptName)
+	if logParserScript == "" {
+		// Skip if parser script not found
+		return
+	}
+
+	yaml.WriteString("      - name: Parse agent logs for step summary\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          AGENT_LOG_FILE: %s\n", logFileFull)
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Inline the JavaScript code with proper indentation
+	steps := FormatJavaScriptForYAML(logParserScript)
+	for _, step := range steps {
+		yaml.WriteString(step)
+	}
 }
 
 func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
