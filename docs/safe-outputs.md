@@ -61,7 +61,7 @@ The agentic part of your workflow should describe the comment it wants posted.
 # Issue/PR Analysis Agent
 
 Analyze the issue or pull request and provide feedback.
-Create an issue comment on the triggering issue or PR starting with the text "Here is my analysis of the issue/PR..."
+Create an issue comment on the triggering issue or PR starting with the text "Here is my analysis /PR..."
 ```
 
 The workflow will have additional prompting describing that, to create the issue, the agent should write the comment body to a special file..

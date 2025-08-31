@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude Create Issue"
+name: "Test Codex Create Issue"
 on:
   workflow_dispatch: null
 
@@ -11,10 +11,10 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Claude Create Issue"
+run-name: "Test Codex Create Issue"
 
 jobs:
-  test-claude-create-issue:
+  test-codex-create-issue:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,6 +28,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Codex
+        run: npm install -g @openai/codex
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
@@ -56,25 +62,21 @@ jobs:
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
-          {
-            "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-45e90ae"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-                }
-              }
-            }
-          }
+          cat > /tmp/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
+          
+          [mcp_servers.github]
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "ghcr.io/github/github-mcp-server:sha-45e90ae"
+          ]
+          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
           EOF
       - name: Create prompt
         env:
@@ -82,7 +84,7 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
-          Create an issue with title "Hello from Claude" and body "World"
+          Create an issue with title "Hello from Codex" and body "World"
           
           Add a haiku about GitHub Actions and AI to the issue body.
           
@@ -108,14 +110,14 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
+              engine_id: "codex",
+              engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Test Claude Create Issue",
-              experimental: false,
+              workflow_name: "Test Codex Create Issue",
+              experimental: true,
               supports_tools_whitelist: true,
-              supports_http_transport: true,
+              supports_http_transport: false,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
@@ -139,86 +141,22 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
-      - name: Execute Claude Code Action
-        id: agentic_execution
-        uses: anthropics/claude-code-base-action@v0.0.56
-        with:
-          # Allowed tools (sorted):
-          # - ExitPlanMode
-          # - Glob
-          # - Grep
-          # - LS
-          # - NotebookRead
-          # - Read
-          # - Task
-          # - TodoWrite
-          # - Write
-          # - mcp__github__download_workflow_run_artifact
-          # - mcp__github__get_code_scanning_alert
-          # - mcp__github__get_commit
-          # - mcp__github__get_dependabot_alert
-          # - mcp__github__get_discussion
-          # - mcp__github__get_discussion_comments
-          # - mcp__github__get_file_contents
-          # - mcp__github__get_issue
-          # - mcp__github__get_issue_comments
-          # - mcp__github__get_job_logs
-          # - mcp__github__get_me
-          # - mcp__github__get_notification_details
-          # - mcp__github__get_pull_request
-          # - mcp__github__get_pull_request_comments
-          # - mcp__github__get_pull_request_diff
-          # - mcp__github__get_pull_request_files
-          # - mcp__github__get_pull_request_reviews
-          # - mcp__github__get_pull_request_status
-          # - mcp__github__get_secret_scanning_alert
-          # - mcp__github__get_tag
-          # - mcp__github__get_workflow_run
-          # - mcp__github__get_workflow_run_logs
-          # - mcp__github__get_workflow_run_usage
-          # - mcp__github__list_branches
-          # - mcp__github__list_code_scanning_alerts
-          # - mcp__github__list_commits
-          # - mcp__github__list_dependabot_alerts
-          # - mcp__github__list_discussion_categories
-          # - mcp__github__list_discussions
-          # - mcp__github__list_issues
-          # - mcp__github__list_notifications
-          # - mcp__github__list_pull_requests
-          # - mcp__github__list_secret_scanning_alerts
-          # - mcp__github__list_tags
-          # - mcp__github__list_workflow_jobs
-          # - mcp__github__list_workflow_run_artifacts
-          # - mcp__github__list_workflow_runs
-          # - mcp__github__list_workflows
-          # - mcp__github__search_code
-          # - mcp__github__search_issues
-          # - mcp__github__search_orgs
-          # - mcp__github__search_pull_requests
-          # - mcp__github__search_repositories
-          # - mcp__github__search_users
-          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_env: |
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            GITHUB_AW_SAFE_OUTPUT: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
-          mcp_config: /tmp/mcp-config/mcp-servers.json
-          prompt_file: /tmp/aw-prompts/prompt.txt
-          timeout_minutes: 5
+      - name: Run Codex
+        run: |
+          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/mcp-config
+          
+          # Create log directory outside git repo
+          mkdir -p /tmp/aw-logs
+          
+          # Run codex with log capture
+          codex exec \
+            -c model=o4-mini \
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-create-issue.log
         env:
           GITHUB_AW_SAFE_OUTPUT: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
-      - name: Capture Agentic Action logs
-        if: always()
-        run: |
-          # Copy the detailed execution file from Agentic Action if available
-          if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-create-issue.log
-          else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-create-issue.log
-          fi
-          
-          # Ensure log file exists
-          touch /tmp/test-claude-create-issue.log
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
@@ -389,27 +327,16 @@ jobs:
           name: aw_output.txt
           path: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
           if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent_outputs
-          path: |
-            output.txt
-          if-no-files-found: ignore
-      - name: Clean up engine output files
-        run: |
-          rm -f output.txt
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-claude-create-issue.log
+          AGENT_LOG_FILE: /tmp/test-codex-create-issue.log
         with:
           script: |
             function main() {
               const fs = require('fs');
               try {
-                // Get the log file path from environment
                 const logFile = process.env.AGENT_LOG_FILE;
                 if (!logFile) {
                   console.log('No agent log file specified');
@@ -419,63 +346,72 @@ jobs:
                   console.log(`Log file not found: ${logFile}`);
                   return;
                 }
-                const logContent = fs.readFileSync(logFile, 'utf8');
-                const markdown = parseClaudeLog(logContent);
-                // Append to GitHub step summary
-                core.summary.addRaw(markdown).write();
+                const content = fs.readFileSync(logFile, 'utf8');
+                const parsedLog = parseCodexLog(content);
+                if (parsedLog) {
+                  core.summary.addRaw(parsedLog).write();
+                  console.log('Codex log parsed successfully');
+                } else {
+                  console.log('Failed to parse Codex log');
+                }
               } catch (error) {
-                console.error('Error parsing Claude log:', error.message);
                 core.setFailed(error.message);
               }
             }
-            function parseClaudeLog(logContent) {
+            function parseCodexLog(logContent) {
               try {
-                const logEntries = JSON.parse(logContent);
-                if (!Array.isArray(logEntries)) {
-                  return '## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n';
-                }
+                const lines = logContent.split('\n');
                 let markdown = '## 🤖 Commands and Tools\n\n';
-                const toolUsePairs = new Map(); // Map tool_use_id to tool_result
-                const commandSummary = []; // For the succinct summary
-                // First pass: collect tool results by tool_use_id
-                for (const entry of logEntries) {
-                  if (entry.type === 'user' && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === 'tool_result' && content.tool_use_id) {
-                        toolUsePairs.set(content.tool_use_id, content);
+                const commandSummary = [];
+                // First pass: collect commands for summary
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  // Detect tool usage and exec commands
+                  if (line.includes('] tool ') && line.includes('(')) {
+                    // Extract tool name
+                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
+                    if (toolMatch) {
+                      const toolName = toolMatch[1];
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('success in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failure in') || nextLine.includes('error in') || nextLine.includes('failed in')) {
+                          statusIcon = '❌';
+                          break;
+                        }
+                      }
+                      if (toolName.includes('.')) {
+                        // Format as provider::method
+                        const parts = toolName.split('.');
+                        const provider = parts[0];
+                        const method = parts.slice(1).join('_');
+                        commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
+                      } else {
+                        commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
                       }
                     }
-                  }
-                }
-                // Collect all tool uses for summary
-                for (const entry of logEntries) {
-                  if (entry.type === 'assistant' && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === 'tool_use') {
-                        const toolName = content.name;
-                        const input = content.input || {};
-                        // Skip internal tools - only show external commands and API calls
-                        if (['Read', 'Write', 'Edit', 'MultiEdit', 'LS', 'Grep', 'Glob', 'TodoWrite'].includes(toolName)) {
-                          continue; // Skip internal file operations and searches
-                        }
-                        // Find the corresponding tool result to get status
-                        const toolResult = toolUsePairs.get(content.id);
-                        let statusIcon = '❓';
-                        if (toolResult) {
-                          statusIcon = toolResult.is_error === true ? '❌' : '✅';
-                        }
-                        // Add to command summary (only external tools)
-                        if (toolName === 'Bash') {
-                          const formattedCommand = formatBashCommand(input.command || '');
-                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-                        } else if (toolName.startsWith('mcp__')) {
-                          const mcpName = formatMcpName(toolName);
-                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-                        } else {
-                          // Handle other external tools (if any)
-                          commandSummary.push(`* ${statusIcon} ${toolName}`);
+                  } else if (line.includes('] exec ')) {
+                    // Extract exec command
+                    const execMatch = line.match(/exec (.+?) in/);
+                    if (execMatch) {
+                      const formattedCommand = formatBashCommand(execMatch[1]);
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('succeeded in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failed in') || nextLine.includes('error')) {
+                          statusIcon = '❌';
+                          break;
                         }
                       }
+                      commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
                     }
                   }
                 }
@@ -487,163 +423,110 @@ jobs:
                 } else {
                   markdown += 'No commands or tools used.\n';
                 }
-                // Add Information section from the last entry with result metadata
+                // Add Information section
                 markdown += '\n## 📊 Information\n\n';
-                // Find the last entry with metadata
-                const lastEntry = logEntries[logEntries.length - 1];
-                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
-                  if (lastEntry.num_turns) {
-                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
-                  }
-                  if (lastEntry.duration_ms) {
-                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
-                    const minutes = Math.floor(durationSec / 60);
-                    const seconds = durationSec % 60;
-                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
-                  }
-                  if (lastEntry.total_cost_usd) {
-                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
-                  }
-                  if (lastEntry.usage) {
-                    const usage = lastEntry.usage;
-                    if (usage.input_tokens || usage.output_tokens) {
-                      markdown += `**Token Usage:**\n`;
-                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
-                      markdown += '\n';
-                    }
-                  }
-                  if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
-                    markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                // Extract metadata from Codex logs
+                let totalTokens = 0;
+                const tokenMatches = logContent.match(/tokens used: (\d+)/g);
+                if (tokenMatches) {
+                  for (const match of tokenMatches) {
+                    const tokens = parseInt(match.match(/(\d+)/)[1]);
+                    totalTokens += tokens;
                   }
                 }
+                if (totalTokens > 0) {
+                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+                }
+                // Count tool calls and exec commands
+                const toolCalls = (logContent.match(/\] tool /g) || []).length;
+                const execCommands = (logContent.match(/\] exec /g) || []).length;
+                if (toolCalls > 0) {
+                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+                }
+                if (execCommands > 0) {
+                  markdown += `**Commands Executed:** ${execCommands}\n\n`;
+                }
                 markdown += '\n## 🤖 Reasoning\n\n';
-                // Second pass: process assistant messages in sequence
-                for (const entry of logEntries) {
-                  if (entry.type === 'assistant' && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === 'text' && content.text) {
-                        // Add reasoning text directly (no header)
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + '\n\n';
-                        }
-                      } else if (content.type === 'tool_use') {
-                        // Process tool use with its result
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUse(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
+                // Second pass: process full conversation flow with interleaved reasoning, tools, and commands
+                let inThinkingSection = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  // Skip metadata lines
+                  if (line.includes('OpenAI Codex') || line.startsWith('--------') || 
+                      line.includes('workdir:') || line.includes('model:') || 
+                      line.includes('provider:') || line.includes('approval:') || 
+                      line.includes('sandbox:') || line.includes('reasoning effort:') || 
+                      line.includes('reasoning summaries:') || line.includes('tokens used:')) {
+                    continue;
+                  }
+                  // Process thinking sections
+                  if (line.includes('] thinking')) {
+                    inThinkingSection = true;
+                    continue;
+                  }
+                  // Process tool calls
+                  if (line.includes('] tool ') && line.includes('(')) {
+                    inThinkingSection = false;
+                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
+                    if (toolMatch) {
+                      const toolName = toolMatch[1];
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('success in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failure in') || nextLine.includes('error in') || nextLine.includes('failed in')) {
+                          statusIcon = '❌';
+                          break;
                         }
                       }
+                      if (toolName.includes('.')) {
+                        const parts = toolName.split('.');
+                        const provider = parts[0];
+                        const method = parts.slice(1).join('_');
+                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
+                      } else {
+                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
+                      }
                     }
+                    continue;
+                  }
+                  // Process exec commands
+                  if (line.includes('] exec ')) {
+                    inThinkingSection = false;
+                    const execMatch = line.match(/exec (.+?) in/);
+                    if (execMatch) {
+                      const formattedCommand = formatBashCommand(execMatch[1]);
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('succeeded in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failed in') || nextLine.includes('error')) {
+                          statusIcon = '❌';
+                          break;
+                        }
+                      }
+                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
+                    }
+                    continue;
+                  }
+                  // Process thinking content
+                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith('[2025-')) {
+                    const trimmed = line.trim();
+                    // Add thinking content directly
+                    markdown += `${trimmed}\n\n`;
                   }
                 }
                 return markdown;
               } catch (error) {
-                return `## Agent Log Summary\n\nError parsing Claude log: ${error.message}\n`;
+                console.error('Error parsing Codex log:', error);
+                return '## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n';
               }
-            }
-            function formatToolUse(toolUse, toolResult) {
-              const toolName = toolUse.name;
-              const input = toolUse.input || {};
-              // Skip TodoWrite except the very last one (we'll handle this separately)
-              if (toolName === 'TodoWrite') {
-                return ''; // Skip for now, would need global context to find the last one
-              }
-              // Helper function to determine status icon
-              function getStatusIcon() {
-                if (toolResult) {
-                  return toolResult.is_error === true ? '❌' : '✅';
-                }
-                return '❓'; // Unknown by default
-              }
-              let markdown = '';
-              const statusIcon = getStatusIcon();
-              switch (toolName) {
-                case 'Bash':
-                  const command = input.command || '';
-                  const description = input.description || '';
-                  // Format the command to be single line
-                  const formattedCommand = formatBashCommand(command);
-                  if (description) {
-                    markdown += `${description}:\n\n`;
-                  }
-                  markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-                  break;
-                case 'Read':
-                  const filePath = input.file_path || input.path || '';
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ''); // Remove /home/runner/work/repo/repo/ prefix
-                  markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
-                  break;
-                case 'Write':
-                case 'Edit':
-                case 'MultiEdit':
-                  const writeFilePath = input.file_path || input.path || '';
-                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-                  markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
-                  break;
-                case 'Grep':
-                case 'Glob':
-                  const query = input.query || input.pattern || '';
-                  markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
-                  break;
-                case 'LS':
-                  const lsPath = input.path || '';
-                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-                  markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
-                  break;
-                default:
-                  // Handle MCP calls and other tools
-                  if (toolName.startsWith('mcp__')) {
-                    const mcpName = formatMcpName(toolName);
-                    const params = formatMcpParameters(input);
-                    markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
-                  } else {
-                    // Generic tool formatting - show the tool name and main parameters
-                    const keys = Object.keys(input);
-                    if (keys.length > 0) {
-                      // Try to find the most important parameter
-                      const mainParam = keys.find(k => ['query', 'command', 'path', 'file_path', 'content'].includes(k)) || keys[0];
-                      const value = String(input[mainParam] || '');
-                      if (value) {
-                        markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
-                      } else {
-                        markdown += `${statusIcon} ${toolName}\n\n`;
-                      }
-                    } else {
-                      markdown += `${statusIcon} ${toolName}\n\n`;
-                    }
-                  }
-              }
-              return markdown;
-            }
-            function formatMcpName(toolName) {
-              // Convert mcp__github__search_issues to github::search_issues
-              if (toolName.startsWith('mcp__')) {
-                const parts = toolName.split('__');
-                if (parts.length >= 3) {
-                  const provider = parts[1]; // github, etc.
-                  const method = parts.slice(2).join('_'); // search_issues, etc.
-                  return `${provider}::${method}`;
-                }
-              }
-              return toolName;
-            }
-            function formatMcpParameters(input) {
-              const keys = Object.keys(input);
-              if (keys.length === 0) return '';
-              const paramStrs = [];
-              for (const key of keys.slice(0, 4)) { // Show up to 4 parameters
-                const value = String(input[key] || '');
-                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
-              }
-              if (keys.length > 4) {
-                paramStrs.push('...');
-              }
-              return paramStrs.join(', ');
             }
             function formatBashCommand(command) {
               if (!command) return '';
@@ -671,15 +554,15 @@ jobs:
             }
             // Export for testing
             if (typeof module !== 'undefined' && module.exports) {
-              module.exports = { parseClaudeLog, formatToolUse, formatBashCommand, truncateString };
+              module.exports = { parseCodexLog, formatBashCommand, truncateString };
             }
             main();
       - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-create-issue.log
-          path: /tmp/test-claude-create-issue.log
+          name: test-codex-create-issue.log
+          path: /tmp/test-codex-create-issue.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -745,7 +628,7 @@ jobs:
           if-no-files-found: ignore
 
   create_issue:
-    needs: test-claude-create-issue
+    needs: test-codex-create-issue
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -759,9 +642,9 @@ jobs:
         id: create_issue
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-issue.outputs.output }}
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[claude-test] "
-          GITHUB_AW_ISSUE_LABELS: "claude,automation,haiku"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-create-issue.outputs.output }}
+          GITHUB_AW_ISSUE_TITLE_PREFIX: "[codex-test] "
+          GITHUB_AW_ISSUE_LABELS: "codex,automation,haiku"
         with:
           script: |
             async function main() {

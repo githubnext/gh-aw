@@ -89,7 +89,7 @@ Analyze the issue #${{ github.event.issue.number }} on GitHub.
 1. Determine if it's a bug report, feature request, or question
 2. Add appropriate labels based on the content
 3. Provide a helpful initial response with:
-   - Acknowledgment of the issue
+   - Acknowledgment 
    - Request for additional information if needed
    - Links to relevant documentation
 ```
@@ -136,7 +136,7 @@ The following GitHub Actions context expressions are permitted in the markdown c
 - `${{ github.event.deployment_status.id }}` - The ID of the deployment status that triggered the workflow
 - `${{ github.event.head_commit.id }}` - The ID of the head commit for the push event
 - `${{ github.event.installation.id }}` - The ID of the GitHub App installation
-- `${{ github.event.issue.number }}` - The number of the issue that triggered the workflow
+- `${{ github.event.issue.number }}` - The number  that triggered the workflow
 - `${{ github.event.label.id }}` - The ID of the label that triggered the workflow
 - `${{ github.event.milestone.id }}` - The ID of the milestone that triggered the workflow
 - `${{ github.event.organization.id }}` - The ID of the organization that triggered the workflow

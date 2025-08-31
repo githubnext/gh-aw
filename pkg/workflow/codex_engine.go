@@ -69,9 +69,9 @@ codex exec \
 		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
 
-	// Add GITHUB_AW_OUTPUT if output is needed
+	// Add GITHUB_AW_SAFE_OUTPUT if output is needed
 	if hasOutput {
-		env["GITHUB_AW_OUTPUT"] = "${{ env.GITHUB_AW_OUTPUT }}"
+		env["GITHUB_AW_SAFE_OUTPUT"] = "${{ env.GITHUB_AW_SAFE_OUTPUT }}"
 	}
 
 	return ExecutionConfig{
