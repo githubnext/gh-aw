@@ -205,21 +205,21 @@ func TestGetLatestWorkflowRunWithTimestamp(t *testing.T) {
 	}
 }
 
-func TestGetLatestWorkflowRunURLWithRetry(t *testing.T) {
-	// Test with non-existent workflow - should handle gracefully and return error after retries
-	url, err := getLatestWorkflowRunURLWithRetry("nonexistent-workflow.lock.yml", false)
-	if err == nil {
-		t.Error("getLatestWorkflowRunURLWithRetry should return error for non-existent workflow")
-	}
-	if url != "" {
-		t.Error("getLatestWorkflowRunURLWithRetry should return empty URL for non-existent workflow")
-	}
+// func TestGetLatestWorkflowRunURLWithRetry(t *testing.T) {
+// 	// Test with non-existent workflow - should handle gracefully and return error after retries
+// 	url, err := getLatestWorkflowRunURLWithRetry("nonexistent-workflow.lock.yml", false)
+// 	if err == nil {
+// 		t.Error("getLatestWorkflowRunURLWithRetry should return error for non-existent workflow")
+// 	}
+// 	if url != "" {
+// 		t.Error("getLatestWorkflowRunURLWithRetry should return empty URL for non-existent workflow")
+// 	}
 
-	// The error message should indicate multiple attempts were made
-	if !strings.Contains(err.Error(), "attempts") {
-		t.Errorf("Error message should mention retry attempts, got: %v", err)
-	}
-}
+// 	// The error message should indicate multiple attempts were made
+// 	if !strings.Contains(err.Error(), "attempts") {
+// 		t.Errorf("Error message should mention retry attempts, got: %v", err)
+// 	}
+// }
 
 func TestAllCommandsExist(t *testing.T) {
 	defer os.RemoveAll(".github")

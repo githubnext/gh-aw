@@ -348,19 +348,26 @@ jobs:
                       if (content.type === 'tool_use') {
                         const toolName = content.name;
                         const input = content.input || {};
-                        // Add to command summary (only include relevant tools)
+                        // Skip internal tools - only show external commands and API calls
+                        if (['Read', 'Write', 'Edit', 'MultiEdit', 'LS', 'Grep', 'Glob', 'TodoWrite'].includes(toolName)) {
+                          continue; // Skip internal file operations and searches
+                        }
+                        // Find the corresponding tool result to get status
+                        const toolResult = toolUsePairs.get(content.id);
+                        let statusIcon = '❓';
+                        if (toolResult) {
+                          statusIcon = toolResult.is_error === true ? '❌' : '✅';
+                        }
+                        // Add to command summary (only external tools)
                         if (toolName === 'Bash') {
                           const formattedCommand = formatBashCommand(input.command || '');
-                          // Find the corresponding tool result to get status
-                          const toolResult = toolUsePairs.get(content.id);
-                          let statusIcon = '❓';
-                          if (toolResult) {
-                            statusIcon = toolResult.is_error === false ? '✅' : '❌';
-                          }
                           commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
                         } else if (toolName.startsWith('mcp__')) {
                           const mcpName = formatMcpName(toolName);
-                          commandSummary.push(`* \`${mcpName}(...)\``);
+                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+                        } else {
+                          // Handle other external tools (if any)
+                          commandSummary.push(`* ${statusIcon} ${toolName}`);
                         }
                       }
                     }
@@ -373,28 +380,6 @@ jobs:
                   }
                 } else {
                   markdown += 'No commands or tools used.\n';
-                }
-                markdown += '\n## 🤖 Reasoning\n\n';
-                // Second pass: process assistant messages in sequence
-                for (const entry of logEntries) {
-                  if (entry.type === 'assistant' && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === 'text' && content.text) {
-                        // Add reasoning text directly (no header)
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + '\n\n';
-                        }
-                      } else if (content.type === 'tool_use') {
-                        // Process tool use with its result
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUse(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
-                        }
-                      }
-                    }
-                  }
                 }
                 // Add Information section from the last entry with result metadata
                 markdown += '\n## 📊 Information\n\n';
@@ -418,6 +403,7 @@ jobs:
                     if (usage.input_tokens || usage.output_tokens) {
                       markdown += `**Token Usage:**\n`;
                       if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
                       if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
                       if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
                       markdown += '\n';
@@ -425,6 +411,28 @@ jobs:
                   }
                   if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
                     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                  }
+                }
+                markdown += '\n## 🤖 Reasoning\n\n';
+                // Second pass: process assistant messages in sequence
+                for (const entry of logEntries) {
+                  if (entry.type === 'assistant' && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === 'text' && content.text) {
+                        // Add reasoning text directly (no header)
+                        const text = content.text.trim();
+                        if (text && text.length > 0) {
+                          markdown += text + '\n\n';
+                        }
+                      } else if (content.type === 'tool_use') {
+                        // Process tool use with its result
+                        const toolResult = toolUsePairs.get(content.id);
+                        const toolMarkdown = formatToolUse(content, toolResult);
+                        if (toolMarkdown) {
+                          markdown += toolMarkdown;
+                        }
+                      }
+                    }
                   }
                 }
                 return markdown;
@@ -439,49 +447,54 @@ jobs:
               if (toolName === 'TodoWrite') {
                 return ''; // Skip for now, would need global context to find the last one
               }
+              // Helper function to determine status icon
+              function getStatusIcon() {
+                if (toolResult) {
+                  return toolResult.is_error === true ? '❌' : '✅';
+                }
+                return '❓'; // Unknown by default
+              }
               let markdown = '';
+              const statusIcon = getStatusIcon();
               switch (toolName) {
                 case 'Bash':
                   const command = input.command || '';
                   const description = input.description || '';
-                  // Determine success/failure status
-                  let statusIcon = '❓'; // Unknown by default
-                  if (toolResult) {
-                    statusIcon = toolResult.is_error === false ? '✅' : '❌';
-                  }
+                  // Format the command to be single line
+                  const formattedCommand = formatBashCommand(command);
                   if (description) {
                     markdown += `${description}:\n\n`;
                   }
-                  markdown += `${statusIcon} \`${command}\`\n\n`;
+                  markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
                   break;
                 case 'Read':
                   const filePath = input.file_path || input.path || '';
                   const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ''); // Remove /home/runner/work/repo/repo/ prefix
-                  markdown += `Read \`${relativePath}\`\n\n`;
+                  markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
                   break;
                 case 'Write':
                 case 'Edit':
                 case 'MultiEdit':
                   const writeFilePath = input.file_path || input.path || '';
                   const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-                  markdown += `Write \`${writeRelativePath}\`\n\n`;
+                  markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
                   break;
                 case 'Grep':
                 case 'Glob':
                   const query = input.query || input.pattern || '';
-                  markdown += `Search for \`${truncateString(query, 80)}\`\n\n`;
+                  markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
                   break;
                 case 'LS':
                   const lsPath = input.path || '';
                   const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-                  markdown += `LS: ${lsRelativePath || lsPath}\n\n`;
+                  markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
                   break;
                 default:
                   // Handle MCP calls and other tools
                   if (toolName.startsWith('mcp__')) {
                     const mcpName = formatMcpName(toolName);
                     const params = formatMcpParameters(input);
-                    markdown += `${mcpName}(${params})\n\n`;
+                    markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
                   } else {
                     // Generic tool formatting - show the tool name and main parameters
                     const keys = Object.keys(input);
@@ -490,12 +503,12 @@ jobs:
                       const mainParam = keys.find(k => ['query', 'command', 'path', 'file_path', 'content'].includes(k)) || keys[0];
                       const value = String(input[mainParam] || '');
                       if (value) {
-                        markdown += `${toolName}: ${truncateString(value, 100)}\n\n`;
+                        markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
                       } else {
-                        markdown += `${toolName}\n\n`;
+                        markdown += `${statusIcon} ${toolName}\n\n`;
                       }
                     } else {
-                      markdown += `${toolName}\n\n`;
+                      markdown += `${statusIcon} ${toolName}\n\n`;
                     }
                   }
               }

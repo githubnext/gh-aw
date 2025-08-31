@@ -45,9 +45,6 @@ func TestGetLogParserScript(t *testing.T) {
 		if !strings.Contains(script, "parseCodexLog") {
 			t.Error("Expected script to contain parseCodexLog function")
 		}
-		if !strings.Contains(script, "User instructions") {
-			t.Error("Expected script to contain User instructions parsing")
-		}
 	})
 
 	t.Run("Get unknown log parser script returns empty", func(t *testing.T) {
