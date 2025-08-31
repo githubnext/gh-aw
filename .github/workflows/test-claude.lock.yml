@@ -348,7 +348,7 @@ jobs:
                 throw new Error(`Failed to create output file: ${outputFile}`);
               }
               // Set the environment variable for subsequent steps
-              core.exportVariable('GITHUB_AW_SAFE_OUTPUT', outputFile);
+              core.exportVariable('GITHUB_AW_SAFE_OUTPUTS', outputFile);
               console.log('Created agentic output file:', outputFile);
               // Also set as step output for reference
               core.setOutput('output_file', outputFile);
@@ -393,7 +393,7 @@ jobs:
           EOF
       - name: Create prompt
         env:
-          GITHUB_AW_SAFE_OUTPUT: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
@@ -535,10 +535,10 @@ jobs:
           
           ## Pull Request Creation
           
-          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to "${{ env.GITHUB_AW_SAFE_OUTPUT }}", where the first line of the file is the title , and the rest of the file is the body , in markdown.
+          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", where the first line of the file is the title , and the rest of the file is the body , in markdown.
           Instead:
           1. Make any file changes directly in the working directory, making the changes and additions you want.
-          2. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then uncommit them.          3. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then reverse that and leave then unstaged.          4. Carefully check there are no extra unstaged files lying around - log files, emphemeral test files etc. If there are remove them.          5. Write a PR title and description to ${{ env.GITHUB_AW_SAFE_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.          
+          2. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then uncommit them.          3. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then reverse that and leave then unstaged.          4. Carefully check there are no extra unstaged files lying around - log files, emphemeral test files etc. If there are remove them.          5. Write a PR title and description to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.          
           EOF
       - name: Print prompt to step summary
         run: |
@@ -651,13 +651,13 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            GITHUB_AW_SAFE_OUTPUT: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
+            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           mcp_config: /tmp/mcp-config/mcp-servers.json
           model: claude-3-5-sonnet-20241022
           prompt_file: /tmp/aw-prompts/prompt.txt
           timeout_minutes: 10
         env:
-          GITHUB_AW_SAFE_OUTPUT: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Capture Agentic Action logs
         if: always()
         run: |
@@ -802,9 +802,9 @@ jobs:
             }
             async function main() {
               const fs = require("fs");
-              const outputFile = process.env.GITHUB_AW_SAFE_OUTPUT;
+              const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
               if (!outputFile) {
-                console.log('GITHUB_AW_SAFE_OUTPUT not set, no output to collect');
+                console.log('GITHUB_AW_SAFE_OUTPUTS not set, no output to collect');
                 core.setOutput('output', '');
                 return;
               }
@@ -826,19 +826,19 @@ jobs:
             await main();
       - name: Print agent output to step summary
         env:
-          GITHUB_AW_SAFE_OUTPUT: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           echo "## Agent Output" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
-          cat ${{ env.GITHUB_AW_SAFE_OUTPUT }} >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
       - name: Upload agentic output file
         if: always() && steps.collect_output.outputs.output != ''
         uses: actions/upload-artifact@v4
         with:
           name: aw_output.txt
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUT }}
+          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
