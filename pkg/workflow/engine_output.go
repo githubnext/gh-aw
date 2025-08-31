@@ -14,7 +14,6 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 	// Create a single upload step that handles all declared output files
 	// The action will ignore missing files automatically with if-no-files-found: ignore
 	yaml.WriteString("      - name: Upload engine output files\n")
-	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_outputs\n")
@@ -26,4 +25,11 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 	}
 
 	yaml.WriteString("          if-no-files-found: ignore\n")
+
+	// Add cleanup step to remove output files after upload
+	yaml.WriteString("      - name: Clean up engine output files\n")
+	yaml.WriteString("        run: |\n")
+	for _, file := range outputFiles {
+		yaml.WriteString("          rm -f " + file + "\n")
+	}
 }

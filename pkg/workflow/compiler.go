@@ -2282,8 +2282,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
 			yaml.WriteString("          Instead:\n")
-			yaml.WriteString("          1. Make any file changes directly in the working directory, making the changes and additions you want, but leaving the changes uncommitted and unstaged.\n")
-			yaml.WriteString("          2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
+			yaml.WriteString("          1. Make any file changes directly in the working directory, making the changes and additions you want.\n")
+			yaml.WriteString("          2. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then uncommit them.")
+			yaml.WriteString("          3. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then reverse that and leave then unstaged.")
+			yaml.WriteString("          4. Carefully check there are no extra unstaged files lying around - log files, emphemeral test files etc. If there are remove them.")
+			yaml.WriteString("          5. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
 			yaml.WriteString("          \n")
 		} else if data.SafeOutputs.AddIssueLabels != nil {
 			yaml.WriteString("          ## Adding Labels to Issues or Pull Requests\n")

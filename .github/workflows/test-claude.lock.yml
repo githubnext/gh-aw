@@ -537,8 +537,8 @@ jobs:
           
           To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to "${{ env.GITHUB_AW_OUTPUT }}", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.
           Instead:
-          1. Make any file changes directly in the working directory, making the changes and additions you want, but leaving the changes uncommitted and unstaged.
-          2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.          
+          1. Make any file changes directly in the working directory, making the changes and additions you want.
+          2. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then uncommit them.          3. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then reverse that and leave then unstaged.          4. Carefully check there are no extra unstaged files lying around - log files, emphemeral test files etc. If there are remove them.          5. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.          
           EOF
       - name: Print prompt to step summary
         run: |
@@ -841,13 +841,15 @@ jobs:
           path: ${{ env.GITHUB_AW_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: agent_outputs
           path: |
             output.txt
           if-no-files-found: ignore
+      - name: Clean up engine output files
+        run: |
+          rm -f output.txt
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v7
