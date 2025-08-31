@@ -45,12 +45,28 @@ function parseCodexLog(logContent) {
         const toolMatch = line.match(/\] tool ([^(]+)\(/);
         if (toolMatch) {
           const toolName = toolMatch[1];
+          
+          // Look ahead to find the result status
+          let statusIcon = '❓'; // Unknown by default
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            const nextLine = lines[j];
+            if (nextLine.includes('success in')) {
+              statusIcon = '✅';
+              break;
+            } else if (nextLine.includes('failure in') || nextLine.includes('error in') || nextLine.includes('failed in')) {
+              statusIcon = '❌';
+              break;
+            }
+          }
+          
           if (toolName.includes('.')) {
             // Format as provider::method
             const parts = toolName.split('.');
             const provider = parts[0];
             const method = parts.slice(1).join('_');
-            commandSummary.push(`* \`${provider}::${method}(...)\``);
+            commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
+          } else {
+            commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
           }
         }
       } else if (line.includes('] exec ')) {
@@ -58,7 +74,21 @@ function parseCodexLog(logContent) {
         const execMatch = line.match(/exec (.+?) in/);
         if (execMatch) {
           const formattedCommand = formatBashCommand(execMatch[1]);
-          commandSummary.push(`* \`${formattedCommand}\``);
+          
+          // Look ahead to find the result status
+          let statusIcon = '❓'; // Unknown by default
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            const nextLine = lines[j];
+            if (nextLine.includes('succeeded in')) {
+              statusIcon = '✅';
+              break;
+            } else if (nextLine.includes('failed in') || nextLine.includes('error')) {
+              statusIcon = '❌';
+              break;
+            }
+          }
+          
+          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
         }
       }
     }
@@ -70,6 +100,35 @@ function parseCodexLog(logContent) {
       }
     } else {
       markdown += 'No commands or tools used.\n';
+    }
+    
+    // Add Information section
+    markdown += '\n## 📊 Information\n\n';
+    
+    // Extract metadata from Codex logs
+    let totalTokens = 0;
+    const tokenMatches = logContent.match(/tokens used: (\d+)/g);
+    if (tokenMatches) {
+      for (const match of tokenMatches) {
+        const tokens = parseInt(match.match(/(\d+)/)[1]);
+        totalTokens += tokens;
+      }
+    }
+    
+    if (totalTokens > 0) {
+      markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+    }
+    
+    // Count tool calls and exec commands
+    const toolCalls = (logContent.match(/\] tool /g) || []).length;
+    const execCommands = (logContent.match(/\] exec /g) || []).length;
+    
+    if (toolCalls > 0) {
+      markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+    }
+    
+    if (execCommands > 0) {
+      markdown += `**Commands Executed:** ${execCommands}\n\n`;
     }
     
     markdown += '\n## 🤖 Reasoning\n\n';
@@ -101,13 +160,27 @@ function parseCodexLog(logContent) {
         const toolMatch = line.match(/\] tool ([^(]+)\(/);
         if (toolMatch) {
           const toolName = toolMatch[1];
+          
+          // Look ahead to find the result status
+          let statusIcon = '❓'; // Unknown by default
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            const nextLine = lines[j];
+            if (nextLine.includes('success in')) {
+              statusIcon = '✅';
+              break;
+            } else if (nextLine.includes('failure in') || nextLine.includes('error in') || nextLine.includes('failed in')) {
+              statusIcon = '❌';
+              break;
+            }
+          }
+          
           if (toolName.includes('.')) {
             const parts = toolName.split('.');
             const provider = parts[0];
             const method = parts.slice(1).join('_');
-            markdown += `${provider}::${method}(...)\n\n`;
+            markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
           } else {
-            markdown += `${toolName}(...)\n\n`;
+            markdown += `${statusIcon} ${toolName}(...)\n\n`;
           }
         }
         continue;
@@ -119,7 +192,21 @@ function parseCodexLog(logContent) {
         const execMatch = line.match(/exec (.+?) in/);
         if (execMatch) {
           const formattedCommand = formatBashCommand(execMatch[1]);
-          markdown += `Run command: \`${formattedCommand}\`\n\n`;
+          
+          // Look ahead to find the result status
+          let statusIcon = '❓'; // Unknown by default
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            const nextLine = lines[j];
+            if (nextLine.includes('succeeded in')) {
+              statusIcon = '✅';
+              break;
+            } else if (nextLine.includes('failed in') || nextLine.includes('error')) {
+              statusIcon = '❌';
+              break;
+            }
+          }
+          
+          markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
         }
         continue;
       }
@@ -130,35 +217,6 @@ function parseCodexLog(logContent) {
         // Add thinking content directly
         markdown += `${trimmed}\n\n`;
       }
-    }
-    
-    // Add Information section
-    markdown += '\n## 📊 Information\n\n';
-    
-    // Extract metadata from Codex logs
-    let totalTokens = 0;
-    const tokenMatches = logContent.match(/tokens used: (\d+)/g);
-    if (tokenMatches) {
-      for (const match of tokenMatches) {
-        const tokens = parseInt(match.match(/(\d+)/)[1]);
-        totalTokens += tokens;
-      }
-    }
-    
-    if (totalTokens > 0) {
-      markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
-    }
-    
-    // Count tool calls and exec commands
-    const toolCalls = (logContent.match(/\] tool /g) || []).length;
-    const execCommands = (logContent.match(/\] exec /g) || []).length;
-    
-    if (toolCalls > 0) {
-      markdown += `**Tool Calls:** ${toolCalls}\n\n`;
-    }
-    
-    if (execCommands > 0) {
-      markdown += `**Commands Executed:** ${execCommands}\n\n`;
     }
     
     return markdown;

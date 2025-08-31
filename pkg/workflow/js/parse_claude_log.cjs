@@ -57,13 +57,28 @@ function parseClaudeLog(logContent) {
             const toolName = content.name;
             const input = content.input || {};
             
-            // Add to command summary (only include relevant tools)
+            // Skip internal tools - only show external commands and API calls
+            if (['Read', 'Write', 'Edit', 'MultiEdit', 'LS', 'Grep', 'Glob', 'TodoWrite'].includes(toolName)) {
+              continue; // Skip internal file operations and searches
+            }
+            
+            // Find the corresponding tool result to get status
+            const toolResult = toolUsePairs.get(content.id);
+            let statusIcon = '❓';
+            if (toolResult) {
+              statusIcon = toolResult.is_error === true ? '❌' : '✅';
+            }
+            
+            // Add to command summary (only external tools)
             if (toolName === 'Bash') {
               const formattedCommand = formatBashCommand(input.command || '');
-              commandSummary.push(`* \`${formattedCommand}\``);
+              commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
             } else if (toolName.startsWith('mcp__')) {
               const mcpName = formatMcpName(toolName);
-              commandSummary.push(`* \`${mcpName}(...)\``);
+              commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+            } else {
+              // Handle other external tools (if any)
+              commandSummary.push(`* ${statusIcon} ${toolName}`);
             }
           }
         }
@@ -77,30 +92,6 @@ function parseClaudeLog(logContent) {
       }
     } else {
       markdown += 'No commands or tools used.\n';
-    }
-    
-    markdown += '\n## 🤖 Reasoning\n\n';
-    
-    // Second pass: process assistant messages in sequence
-    for (const entry of logEntries) {
-      if (entry.type === 'assistant' && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === 'text' && content.text) {
-            // Add reasoning text directly (no header)
-            const text = content.text.trim();
-            if (text && text.length > 0) {
-              markdown += text + '\n\n';
-            }
-          } else if (content.type === 'tool_use') {
-            // Process tool use with its result
-            const toolResult = toolUsePairs.get(content.id);
-            const toolMarkdown = formatToolUse(content, toolResult);
-            if (toolMarkdown) {
-              markdown += toolMarkdown;
-            }
-          }
-        }
-      }
     }
     
     // Add Information section from the last entry with result metadata
@@ -140,6 +131,30 @@ function parseClaudeLog(logContent) {
       }
     }
     
+    markdown += '\n## 🤖 Reasoning\n\n';
+    
+    // Second pass: process assistant messages in sequence
+    for (const entry of logEntries) {
+      if (entry.type === 'assistant' && entry.message?.content) {
+        for (const content of entry.message.content) {
+          if (content.type === 'text' && content.text) {
+            // Add reasoning text directly (no header)
+            const text = content.text.trim();
+            if (text && text.length > 0) {
+              markdown += text + '\n\n';
+            }
+          } else if (content.type === 'tool_use') {
+            // Process tool use with its result
+            const toolResult = toolUsePairs.get(content.id);
+            const toolMarkdown = formatToolUse(content, toolResult);
+            if (toolMarkdown) {
+              markdown += toolMarkdown;
+            }
+          }
+        }
+      }
+    }
+    
     return markdown;
     
   } catch (error) {
@@ -156,33 +171,35 @@ function formatToolUse(toolUse, toolResult) {
     return ''; // Skip for now, would need global context to find the last one
   }
   
+  // Helper function to determine status icon
+  function getStatusIcon() {
+    if (toolResult) {
+      return toolResult.is_error === true ? '❌' : '✅';
+    }
+    return '❓'; // Unknown by default
+  }
+  
   let markdown = '';
+  const statusIcon = getStatusIcon();
   
   switch (toolName) {
     case 'Bash':
       const command = input.command || '';
       const description = input.description || '';
       
-      if (description) {
-        markdown += `${description}:\n`;
-      }
-      markdown += '```bash\n';
-      markdown += `> ${command}\n`;
+      // Format the command to be single line
+      const formattedCommand = formatBashCommand(command);
       
-      // Add result/output if available
-      if (toolResult && toolResult.content) {
-        const output = String(toolResult.content).trim();
-        if (output) {
-          markdown += truncateString(output, 200) + '\n';
-        }
+      if (description) {
+        markdown += `${description}:\n\n`;
       }
-      markdown += '```\n\n';
+      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
       break;
 
     case 'Read':
       const filePath = input.file_path || input.path || '';
       const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ''); // Remove /home/runner/work/repo/repo/ prefix
-      markdown += `Read \`${relativePath}\`\n\n`;
+      markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
       break;
 
     case 'Write':
@@ -190,27 +207,20 @@ function formatToolUse(toolUse, toolResult) {
     case 'MultiEdit':
       const writeFilePath = input.file_path || input.path || '';
       const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-      const writeContent = input.content || input.new_string || '';
       
-      markdown += `Write \`${writeRelativePath}\`\n`;
-      if (writeContent) {
-        markdown += '```\n';
-        markdown += truncateString(writeContent, 300) + '\n';
-        markdown += '```\n';
-      }
-      markdown += '\n';
+      markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
       break;
 
     case 'Grep':
     case 'Glob':
       const query = input.query || input.pattern || '';
-      markdown += `Search for \`${truncateString(query, 80)}\`\n\n`;
+      markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
       break;
 
     case 'LS':
       const lsPath = input.path || '';
       const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-      markdown += `LS: ${lsRelativePath || lsPath}\n\n`;
+      markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
       break;
 
     default:
@@ -218,7 +228,7 @@ function formatToolUse(toolUse, toolResult) {
       if (toolName.startsWith('mcp__')) {
         const mcpName = formatMcpName(toolName);
         const params = formatMcpParameters(input);
-        markdown += `${mcpName}(${params})\n\n`;
+        markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
       } else {
         // Generic tool formatting - show the tool name and main parameters
         const keys = Object.keys(input);
@@ -228,12 +238,12 @@ function formatToolUse(toolUse, toolResult) {
           const value = String(input[mainParam] || '');
           
           if (value) {
-            markdown += `${toolName}: ${truncateString(value, 100)}\n\n`;
+            markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
           } else {
-            markdown += `${toolName}\n\n`;
+            markdown += `${statusIcon} ${toolName}\n\n`;
           }
         } else {
-          markdown += `${toolName}\n\n`;
+          markdown += `${statusIcon} ${toolName}\n\n`;
         }
       }
   }
