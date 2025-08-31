@@ -88,7 +88,9 @@ on:
 - `rocket` (🚀)
 - `eyes` (👀)
 
-**Note**: This feature uses inline JavaScript code with `actions/github-script@v7` to add reactions, so no additional action files are created in the repository.
+**Enhanced functionality**: When using the `reaction:` feature with alias workflows, the system will also automatically edit the triggering comment to include a link to the workflow run. This provides users with immediate feedback and easy access to view the workflow execution. For non-alias workflows, only the reaction is added without comment editing.
+
+**Note**: This feature uses inline JavaScript code with `actions/github-script@v7` to add reactions and edit comments, so no additional action files are created in the repository.
 
 **Default behavior** (if no `on:` specified):
 ```yaml

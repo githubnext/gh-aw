@@ -33,6 +33,9 @@ var checkTeamMemberScript string
 //go:embed js/add_reaction.cjs
 var addReactionScript string
 
+//go:embed js/add_reaction_and_edit_comment.cjs
+var addReactionAndEditCommentScript string
+
 //go:embed js/parse_claude_log.cjs
 var parseClaudeLogScript string
 

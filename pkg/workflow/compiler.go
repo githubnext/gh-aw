@@ -1689,12 +1689,15 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_REACTION: %s\n", data.AIReaction))
+	if data.Alias != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ALIAS: %s\n", data.Alias))
+	}
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(addReactionScript)
+	formattedScript := FormatJavaScriptForYAML(addReactionAndEditCommentScript)
 	steps = append(steps, formattedScript...)
 
 	outputs := map[string]string{

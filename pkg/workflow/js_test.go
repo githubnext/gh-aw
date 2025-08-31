@@ -172,6 +172,8 @@ func TestEmbeddedScriptsNotEmpty(t *testing.T) {
 		{"sanitizeOutputScript", sanitizeOutputScript},
 		{"addLabelsScript", addLabelsScript},
 		{"setupAgentOutputScript", setupAgentOutputScript},
+		{"addReactionScript", addReactionScript},
+		{"addReactionAndEditCommentScript", addReactionAndEditCommentScript},
 	}
 
 	for _, tt := range tests {

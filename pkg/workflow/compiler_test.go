@@ -3431,6 +3431,162 @@ Test workflow without explicit reaction (should not create reaction action).
 	}
 }
 
+// TestAIReactionWithCommentEditFunctionality tests that the enhanced reaction script includes comment editing
+func TestAIReactionWithCommentEditFunctionality(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "reaction-edit-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test markdown file with reaction
+	testContent := `---
+on:
+  issue_comment:
+    types: [created]
+  reaction: eyes
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+tools:
+  github:
+    allowed: [get_issue]
+---
+
+# AI Reaction with Comment Edit Test
+
+Test workflow with reaction and comment editing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-reaction-edit.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.parseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify reaction field is parsed correctly
+	if workflowData.AIReaction != "eyes" {
+		t.Errorf("Expected AIReaction to be 'eyes', got '%s'", workflowData.AIReaction)
+	}
+
+	// Generate YAML and verify it contains the enhanced reaction script
+	yamlContent, err := compiler.generateYAML(workflowData)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check for enhanced reaction functionality in generated YAML
+	expectedStrings := []string{
+		"add_reaction:",
+		"GITHUB_AW_REACTION: eyes",
+		"uses: actions/github-script@v7",
+		"editCommentWithWorkflowLink", // This should be in the new script
+		"runUrl =",                    // This should be in the new script for workflow run URL
+		"Comment update endpoint",     // This should be logged in the new script
+		"GITHUB_AW_ALIAS",             // This should check for alias environment variable
+		"shouldEditComment = alias",   // This should conditionally edit based on alias
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(yamlContent, expected) {
+			t.Errorf("Generated YAML does not contain expected string: %s", expected)
+		}
+	}
+
+	// Verify that the script includes comment editing logic but doesn't fail for non-comment events
+	if !strings.Contains(yamlContent, "shouldEditComment") {
+		t.Error("Generated YAML should contain shouldEditComment logic")
+	}
+
+	// Verify the script handles different event types appropriately
+	if !strings.Contains(yamlContent, "issue_comment") {
+		t.Error("Generated YAML should reference issue_comment event handling")
+	}
+}
+
+// TestAliasReactionWithCommentEdit tests alias workflows with reaction and comment editing
+func TestAliasReactionWithCommentEdit(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "alias-reaction-edit-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test markdown file with alias and reaction
+	testContent := `---
+on:
+  alias:
+    name: test-bot
+  reaction: eyes
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+tools:
+  github:
+    allowed: [get_issue]
+---
+
+# Alias Bot with Reaction Test
+
+Test alias workflow with reaction and comment editing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-alias-bot.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.parseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify alias and reaction fields are parsed correctly
+	if workflowData.Alias != "test-bot" {
+		t.Errorf("Expected Alias to be 'test-bot', got '%s'", workflowData.Alias)
+	}
+	if workflowData.AIReaction != "eyes" {
+		t.Errorf("Expected AIReaction to be 'eyes', got '%s'", workflowData.AIReaction)
+	}
+
+	// Generate YAML and verify it contains both alias and reaction environment variables
+	yamlContent, err := compiler.generateYAML(workflowData)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check for both environment variables in the generated YAML
+	expectedEnvVars := []string{
+		"GITHUB_AW_REACTION: eyes",
+		"GITHUB_AW_ALIAS: test-bot",
+	}
+
+	for _, expected := range expectedEnvVars {
+		if !strings.Contains(yamlContent, expected) {
+			t.Errorf("Generated YAML does not contain expected environment variable: %s", expected)
+		}
+	}
+
+	// Verify the script contains alias-aware comment editing logic
+	if !strings.Contains(yamlContent, "shouldEditComment = alias") {
+		t.Error("Generated YAML should contain alias-aware comment editing logic")
+	}
+}
+
 // TestPullRequestDraftFilter tests the pull_request draft: false filter functionality
 func TestPullRequestDraftFilter(t *testing.T) {
 	// Create temporary directory for test files
