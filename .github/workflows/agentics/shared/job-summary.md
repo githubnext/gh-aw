@@ -2,9 +2,6 @@
 tools:
   claude:
     allowed:
-      Edit:
-      MultiEdit:
-      Write:
       Bash:
       - "echo:*"
 ---

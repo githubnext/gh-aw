@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	// OutputArtifactName is the standard name for GITHUB_AW_OUTPUT artifact
+	// OutputArtifactName is the standard name for GITHUB_AW_SAFE_OUTPUTS artifact
 	OutputArtifactName = "aw_output.txt"
 )
 
@@ -517,7 +517,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 		// Apply default GitHub MCP tools (only for engines that support MCP)
 		if agenticEngine.SupportsToolsWhitelist() {
-			tools = c.applyDefaultGitHubMCPTools(tools)
+			tools = c.applyDefaultGitHubMCPAndClaudeTools(tools)
 		}
 
 		if c.verbose && len(tools) > 0 {
@@ -1110,8 +1110,8 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 	return mergedTools, nil
 }
 
-// applyDefaultGitHubMCPTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]any {
+// applyDefaultGitHubMCPAndClaudeTools adds default read-only GitHub MCP tools, creating github tool if not present
+func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
 	// Define the default read-only GitHub MCP tools
@@ -1225,7 +1225,11 @@ func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]a
 		"TodoWrite",
 		"LS",
 		"Read",
+		"Write",
+		"Edit",
+		"MultiEdit",
 		"NotebookRead",
+		"NotebookWrite",
 	}
 
 	// Ensure claude section exists with the new format
@@ -1392,9 +1396,9 @@ func (c *Compiler) computeAllowedTools(tools map[string]any, safeOutputs *SafeOu
 		}
 
 		// If no general Write permission and SafeOutputs is configured,
-		// add specific write permission for GITHUB_AW_OUTPUT
+		// add specific write permission for GITHUB_AW_SAFE_OUTPUTS
 		if !hasGeneralWrite {
-			allowedTools = append(allowedTools, "Write(${{ env.GITHUB_AW_OUTPUT }})")
+			allowedTools = append(allowedTools, "Write(${{ env.GITHUB_AW_SAFE_OUTPUTS }})")
 		}
 	}
 
@@ -1908,7 +1912,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		depends = []string{"task"} // Depend on the task job only if it exists
 	}
 
-	// Build outputs for all engines (GITHUB_AW_OUTPUT functionality)
+	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
 	// Only include output if the workflow actually uses the output feature
 	var outputs map[string]string
 	if data.SafeOutputs != nil {
@@ -2124,7 +2128,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Generate output file setup step only if output feature is used (GITHUB_AW_OUTPUT functionality)
+	// Generate output file setup step only if output feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
 		c.generateOutputFileSetup(yaml, data)
 	}
@@ -2153,7 +2157,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// add workflow_complete.txt
 	c.generateWorkflowComplete(yaml)
 
-	// Add output collection step only if output feature is used (GITHUB_AW_OUTPUT functionality)
+	// Add output collection step only if output feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
 		c.generateOutputCollectionStep(yaml, data)
 	}
@@ -2248,10 +2252,10 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
 	yaml.WriteString("      - name: Create prompt\n")
 
-	// Only add GITHUB_AW_OUTPUT environment variable if output feature is used
+	// Only add GITHUB_AW_SAFE_OUTPUTS environment variable if output feature is used
 	if data.SafeOutputs != nil {
 		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	}
 
 	yaml.WriteString("        run: |\n")
@@ -2264,7 +2268,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 	}
 
 	if data.SafeOutputs != nil {
-		// Add output instructions for all engines (GITHUB_AW_OUTPUT functionality)
+		// Add output instructions for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          ---\n")
 		yaml.WriteString("          \n")
@@ -2272,28 +2276,28 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 		if data.SafeOutputs.AddIssueComment != nil {
 			yaml.WriteString("          ## Adding a Comment to an Issue or Pull Request\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file \"${{ env.GITHUB_AW_OUTPUT }}\", in markdown.\n")
+			yaml.WriteString("          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", in markdown.\n")
 			yaml.WriteString("          \n")
 		} else if data.SafeOutputs.CreateIssue != nil {
 			yaml.WriteString("          ## Issue Creation\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To create an issue on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body to the file \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
+			yaml.WriteString("          To create an issue on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
 			yaml.WriteString("          \n")
 		} else if data.SafeOutputs.CreatePullRequest != nil {
 			yaml.WriteString("          ## Pull Request Creation\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to \"${{ env.GITHUB_AW_OUTPUT }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
+			yaml.WriteString("          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body of the pull request description to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", where the first line of the file is the title of the issue, and the rest of the file is the body of the issue, in markdown.\n")
 			yaml.WriteString("          Instead:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory, making the changes and additions you want, but leaving the changes uncommitted and unstaged.\n")
-			yaml.WriteString("          2. Write a PR title and description to ${{ env.GITHUB_AW_OUTPUT }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
+			yaml.WriteString("          2. Write a PR title and description to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
 			yaml.WriteString("          \n")
 		} else if data.SafeOutputs.AddIssueLabels != nil {
 			yaml.WriteString("          ## Adding Labels to Issues or Pull Requests\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to \"${{ env.GITHUB_AW_OUTPUT }}\", where each line is a label.\n")
+			yaml.WriteString("          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", where each line is a label.\n")
 			yaml.WriteString("          \n")
 		} else {
-			yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_OUTPUT }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
+			yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
 		}
 	}
 
@@ -2609,7 +2613,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		env := executionConfig.Environment
 
 		if data.SafeOutputs != nil {
-			env["GITHUB_AW_OUTPUT"] = "${{ env.GITHUB_AW_OUTPUT }}"
+			env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 		}
 		// Add environment variables
 		if len(env) > 0 {
@@ -2662,10 +2666,10 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				fmt.Fprintf(yaml, "          %s: %s\n", key, value)
 			}
 		}
-		// Add environment section to pass GITHUB_AW_OUTPUT to the action only if output feature is used
+		// Add environment section to pass GITHUB_AW_SAFE_OUTPUTS to the action only if output feature is used
 		if data.SafeOutputs != nil {
 			yaml.WriteString("        env:\n")
-			yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+			yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 		}
 		yaml.WriteString("      - name: Capture Agentic Action logs\n")
 		yaml.WriteString("        if: always()\n")
@@ -2744,7 +2748,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
 }
 
-// generateOutputFileSetup generates a step that sets up the GITHUB_AW_OUTPUT environment variable
+// generateOutputFileSetup generates a step that sets up the GITHUB_AW_SAFE_OUTPUTS environment variable
 func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Setup agent output\n")
 	yaml.WriteString("        id: setup_agent_output\n")
@@ -2777,19 +2781,19 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Print agent output to step summary\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}\n")
+	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          echo \"## Agent Output\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          cat ${{ env.GITHUB_AW_OUTPUT }} >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("      - name: Upload agentic output file\n")
 	yaml.WriteString("        if: always() && steps.collect_output.outputs.output != ''\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", OutputArtifactName)
-	yaml.WriteString("          path: ${{ env.GITHUB_AW_OUTPUT }}\n")
+	yaml.WriteString("          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 }

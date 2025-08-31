@@ -130,9 +130,9 @@ function sanitizeContent(content) {
 
 async function main() {
   const fs = require("fs");
-  const outputFile = process.env.GITHUB_AW_OUTPUT;
+  const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
   if (!outputFile) {
-    console.log('GITHUB_AW_OUTPUT not set, no output to collect');
+    console.log('GITHUB_AW_SAFE_OUTPUTS not set, no output to collect');
     core.setOutput('output', '');
     return;
   }

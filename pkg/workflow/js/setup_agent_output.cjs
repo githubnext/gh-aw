@@ -16,7 +16,7 @@ function main() {
   }
 
   // Set the environment variable for subsequent steps
-  core.exportVariable('GITHUB_AW_OUTPUT', outputFile);
+  core.exportVariable('GITHUB_AW_SAFE_OUTPUTS', outputFile);
   console.log('Created agentic output file:', outputFile);
 
   // Also set as step output for reference

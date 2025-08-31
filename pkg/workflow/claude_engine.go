@@ -68,7 +68,7 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 	// Build claude_env based on hasOutput parameter
 	claudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
 	if hasOutput {
-		claudeEnv += "\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}"
+		claudeEnv += "\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	}
 
 	config := ExecutionConfig{

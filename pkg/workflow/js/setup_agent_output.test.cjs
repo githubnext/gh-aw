@@ -50,7 +50,7 @@ describe('setup_agent_output.cjs', () => {
       
       // Check that exportVariable was called with the correct pattern
       expect(mockCore.exportVariable).toHaveBeenCalledWith(
-        'GITHUB_AW_OUTPUT',
+        'GITHUB_AW_SAFE_OUTPUTS',
         expect.stringMatching(/^\/tmp\/aw_output_[0-9a-f]{16}\.txt$/)
       );
       

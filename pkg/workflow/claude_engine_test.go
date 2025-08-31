@@ -87,8 +87,8 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 	// Test execution config with hasOutput=true
 	config := engine.GetExecutionConfig("test-workflow", "test-log", nil, true)
 
-	// Should include GITHUB_AW_OUTPUT when hasOutput=true
-	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_OUTPUT: ${{ env.GITHUB_AW_OUTPUT }}"
+	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true
+	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	if config.Inputs["claude_env"] != expectedClaudeEnv {
 		t.Errorf("Expected claude_env input with output '%s', got '%s'", expectedClaudeEnv, config.Inputs["claude_env"])
 	}

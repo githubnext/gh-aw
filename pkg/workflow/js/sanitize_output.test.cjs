@@ -19,7 +19,7 @@ describe('sanitize_output.cjs', () => {
     vi.clearAllMocks();
     
     // Reset environment variables
-    delete process.env.GITHUB_AW_OUTPUT;
+    delete process.env.GITHUB_AW_SAFE_OUTPUTS;
     delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
     
     // Read the script content
@@ -452,22 +452,22 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       delete global.fs;
     });
 
-    it('should handle missing GITHUB_AW_OUTPUT environment variable', async () => {
-      delete process.env.GITHUB_AW_OUTPUT;
+    it('should handle missing GITHUB_AW_SAFE_OUTPUTS environment variable', async () => {
+      delete process.env.GITHUB_AW_SAFE_OUTPUTS;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
       
-      expect(consoleSpy).toHaveBeenCalledWith('GITHUB_AW_OUTPUT not set, no output to collect');
+      expect(consoleSpy).toHaveBeenCalledWith('GITHUB_AW_SAFE_OUTPUTS not set, no output to collect');
       expect(mockCore.setOutput).toHaveBeenCalledWith('output', '');
       
       consoleSpy.mockRestore();
     });
 
     it('should handle non-existent output file', async () => {
-      process.env.GITHUB_AW_OUTPUT = '/tmp/non-existent-file.txt';
+      process.env.GITHUB_AW_SAFE_OUTPUTS = '/tmp/non-existent-file.txt';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -483,7 +483,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     it('should handle empty output file', async () => {
       const testFile = '/tmp/test-empty-output.txt';
       fs.writeFileSync(testFile, '   \n  \t  \n  ');
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -501,7 +501,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const testContent = 'Hello @user! This fixes #123. Link: http://bad.com and https://github.com/repo';
       const testFile = '/tmp/test-output.txt';
       fs.writeFileSync(testFile, testContent);
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -531,7 +531,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const longContent = 'x'.repeat(250); // More than 200 chars to trigger truncation
       const testFile = '/tmp/test-long-output.txt';
       fs.writeFileSync(testFile, longContent);
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -562,7 +562,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
         throw new Error('Permission denied');
       });
       
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -591,7 +591,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const binaryData = Buffer.from([0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD]);
       const testFile = '/tmp/test-binary.txt';
       fs.writeFileSync(testFile, binaryData);
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -610,7 +610,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const whitespaceContent = '   \n\n\t\t  \r\n  ';
       const testFile = '/tmp/test-whitespace.txt';
       fs.writeFileSync(testFile, whitespaceContent);
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -631,7 +631,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       
       const testFile = '/tmp/test-large-mixed.txt';
       fs.writeFileSync(testFile, repeatedContent);
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
@@ -658,7 +658,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const shortContent = 'Short message with @user';
       const testFile = '/tmp/test-short.txt';
       fs.writeFileSync(testFile, shortContent);
-      process.env.GITHUB_AW_OUTPUT = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       
