@@ -39,6 +39,7 @@
 
 **Token Usage:**
 - Input: 524
+- Cache Creation: 205,212
 - Cache Read: 11,952,146
 - Output: 21,703
 
