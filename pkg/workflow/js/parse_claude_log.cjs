@@ -34,7 +34,7 @@ function parseClaudeLog(logContent) {
       return '## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n';
     }
     
-    let markdown = '## 🤖 Agent Reasoning Sequence\n\n';
+    let markdown = '## 🤖 Commands and Tools\n\n';
     const toolUsePairs = new Map(); // Map tool_use_id to tool_result
     const commandSummary = []; // For the succinct summary
     
@@ -60,24 +60,26 @@ function parseClaudeLog(logContent) {
             // Add to command summary (only include relevant tools)
             if (toolName === 'Bash') {
               const formattedCommand = formatBashCommand(input.command || '');
-              commandSummary.push(`\`${formattedCommand}\``);
+              commandSummary.push(`* \`${formattedCommand}\``);
             } else if (toolName.startsWith('mcp__')) {
               const mcpName = formatMcpName(toolName);
-              commandSummary.push(`\`${mcpName}(...)\``);
+              commandSummary.push(`* \`${mcpName}(...)\``);
             }
           }
         }
       }
     }
     
-    // Add command summary at the top
+    // Add command summary
     if (commandSummary.length > 0) {
-      markdown += '### Commands and Tools\n\n';
       for (const cmd of commandSummary) {
-        markdown += `* ${cmd}\n`;
+        markdown += `${cmd}\n`;
       }
-      markdown += '\n';
+    } else {
+      markdown += 'No commands or tools used.\n';
     }
+    
+    markdown += '\n## 🤖 Reasoning\n\n';
     
     // Second pass: process assistant messages in sequence
     for (const entry of logEntries) {
@@ -98,6 +100,43 @@ function parseClaudeLog(logContent) {
             }
           }
         }
+      }
+    }
+    
+    // Add Information section from the last entry with result metadata
+    markdown += '\n## 📊 Information\n\n';
+    
+    // Find the last entry with metadata
+    const lastEntry = logEntries[logEntries.length - 1];
+    if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
+      if (lastEntry.num_turns) {
+        markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
+      }
+      
+      if (lastEntry.duration_ms) {
+        const durationSec = Math.round(lastEntry.duration_ms / 1000);
+        const minutes = Math.floor(durationSec / 60);
+        const seconds = durationSec % 60;
+        markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
+      }
+      
+      if (lastEntry.total_cost_usd) {
+        markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
+      }
+      
+      if (lastEntry.usage) {
+        const usage = lastEntry.usage;
+        if (usage.input_tokens || usage.output_tokens) {
+          markdown += `**Token Usage:**\n`;
+          if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+          if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+          if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+          markdown += '\n';
+        }
+      }
+      
+      if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
+        markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
       }
     }
     

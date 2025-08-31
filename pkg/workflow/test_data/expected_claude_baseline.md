@@ -1,6 +1,4 @@
-## 🤖 Agent Reasoning Sequence
-
-### Commands and Tools
+## 🤖 Commands and Tools
 
 * `echo $GITHUB_STEP_SUMMARY`
 * `github::search_issues(...)`
@@ -30,6 +28,8 @@
 * `git push -u origin daily-perf-improver-json-serialization`
 * `gh pr create --repo fsprojects/FSharp.Data --title "Daily Perf Improver: Optimiz...`
 * `github::add_issue_comment(...)`
+
+## 🤖 Reasoning
 
 I'll execute the Daily Perf Improver workflow. Let me start by creating a todo list to track the steps.
 
@@ -690,3 +690,17 @@ I have successfully completed the Daily Perf Improver workflow for the FSharp.Da
 The optimization replaces character-by-character `TextWriter.Write()` calls with bulk `Substring()` operations, batching unescaped characters for more efficient serialization while maintaining identical output format and escaping behavior.
 
 The pull request is ready for maintainer review and represents the first successful implementation from the Round 1 performance improvement roadmap targeting JSON serialization optimizations.
+
+
+## 📊 Information
+
+**Turns:** 215
+
+**Duration:** 16m 38s
+
+**Total Cost:** $6.7567
+
+**Token Usage:**
+- Input: 524
+- Cache Read: 11,952,146
+- Output: 21,703
