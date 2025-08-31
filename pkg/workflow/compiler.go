@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -517,7 +518,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 		// Apply default GitHub MCP tools (only for engines that support MCP)
 		if agenticEngine.SupportsToolsWhitelist() {
-			tools = c.applyDefaultGitHubMCPTools(tools)
+			tools = c.applyDefaultGitHubMCPAndClaudeTools(tools)
 		}
 
 		if c.verbose && len(tools) > 0 {
@@ -1110,8 +1111,8 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 	return mergedTools, nil
 }
 
-// applyDefaultGitHubMCPTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]any {
+// applyDefaultGitHubMCPAndClaudeTools adds default read-only GitHub MCP tools, creating github tool if not present
+func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
 	// Define the default read-only GitHub MCP tools
@@ -1383,18 +1384,15 @@ func (c *Compiler) computeAllowedTools(tools map[string]any, safeOutputs *SafeOu
 	// Handle SafeOutputs requirement for file write access
 	if safeOutputs != nil {
 		// Check if a general "Write" permission is already granted
-		hasGeneralWrite := false
-		for _, tool := range allowedTools {
-			if tool == "Write" {
-				hasGeneralWrite = true
-				break
-			}
-		}
+		hasGeneralWrite := slices.Contains(allowedTools, "Write")
 
 		// If no general Write permission and SafeOutputs is configured,
 		// add specific write permission for GITHUB_AW_OUTPUT
 		if !hasGeneralWrite {
-			allowedTools = append(allowedTools, "Write(${{ env.GITHUB_AW_OUTPUT }})")
+			allowedTools = append(allowedTools, "Write")
+			// Ideally we would only give permission to the exact file, but that doesn't seem
+			// to be working with Claude. See https://github.com/githubnext/gh-aw/issues/244#issuecomment-3240319103
+			//allowedTools = append(allowedTools, "Write(${{ env.GITHUB_AW_OUTPUT }})")
 		}
 	}
 

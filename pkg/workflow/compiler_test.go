@@ -1088,7 +1088,7 @@ func TestApplyDefaultGitHubMCPTools_DefaultClaudeTools(t *testing.T) {
 				tools[k] = v
 			}
 
-			result := compiler.applyDefaultGitHubMCPTools(tools)
+			result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools)
 
 			// Check that all expected top-level tools are present
 			for _, expectedTool := range tt.expectedTopLevelTools {
@@ -1206,7 +1206,7 @@ func TestDefaultClaudeToolsList(t *testing.T) {
 		},
 	}
 
-	result := compiler.applyDefaultGitHubMCPTools(tools)
+	result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools)
 
 	// Verify the claude section was created
 	claudeSection, hasClaudeSection := result["claude"]
@@ -1266,7 +1266,7 @@ func TestDefaultClaudeToolsIntegrationWithComputeAllowedTools(t *testing.T) {
 	}
 
 	// Apply default tools first
-	toolsWithDefaults := compiler.applyDefaultGitHubMCPTools(tools)
+	toolsWithDefaults := compiler.applyDefaultGitHubMCPAndClaudeTools(tools)
 
 	// Verify that the claude section was created with default tools (new format)
 	claudeSection, hasClaudeSection := toolsWithDefaults["claude"]
@@ -5295,7 +5295,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssue: &CreateIssueConfig{},
 			},
-			expected: "Read,Write(${{ env.GITHUB_AW_OUTPUT }})",
+			expected: "Read,Write",
 		},
 		{
 			name: "SafeOutputs with general Write permission - should not add specific Write",
@@ -5338,7 +5338,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				AddIssueComment:   &AddIssueCommentConfig{},
 				CreatePullRequest: &CreatePullRequestConfig{},
 			},
-			expected: "Bash,Write(${{ env.GITHUB_AW_OUTPUT }})",
+			expected: "Bash,Write",
 		},
 		{
 			name: "SafeOutputs with MCP tools",
@@ -5355,7 +5355,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssue: &CreateIssueConfig{},
 			},
-			expected: "Read,Write(${{ env.GITHUB_AW_OUTPUT }}),mcp__github__create_issue,mcp__github__create_pull_request",
+			expected: "Read,Write,mcp__github__create_issue,mcp__github__create_pull_request",
 		},
 	}
 
