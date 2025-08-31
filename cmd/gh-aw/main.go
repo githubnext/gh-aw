@@ -60,19 +60,20 @@ var listCmd = &cobra.Command{
 }
 
 var addCmd = &cobra.Command{
-	Use:   "add <workflow>",
-	Short: "Add a workflow from the components to .github/workflows",
-	Long: `Add a workflow from the components to .github/workflows.
+	Use:   "add <workflow>...",
+	Short: "Add one or more workflows from the components to .github/workflows",
+	Long: `Add one or more workflows from the components to .github/workflows.
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` add weekly-research
+  ` + constants.CLIExtensionPrefix + ` add ci-doctor daily-perf-improver
   ` + constants.CLIExtensionPrefix + ` add weekly-research -n my-custom-name
   ` + constants.CLIExtensionPrefix + ` add weekly-research -r githubnext/agentics
   ` + constants.CLIExtensionPrefix + ` add weekly-research --pr
-  ` + constants.CLIExtensionPrefix + ` add weekly-research --force
+  ` + constants.CLIExtensionPrefix + ` add weekly-research daily-plan --force
 
 The -r flag allows you to install and use workflows from a specific repository.
-The -n flag allows you to specify a custom name for the workflow file.
+The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --pr flag automatically creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.
 It's a shortcut for:
@@ -80,7 +81,7 @@ It's a shortcut for:
   ` + constants.CLIExtensionPrefix + ` add weekly-research`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		workflow := args[0]
+		workflows := args
 		numberFlag, _ := cmd.Flags().GetInt("number")
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		repoFlag, _ := cmd.Flags().GetString("repo")
@@ -93,12 +94,12 @@ It's a shortcut for:
 		}
 
 		if prFlag {
-			if err := cli.AddWorkflowWithRepoAndPR(workflow, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag); err != nil {
+			if err := cli.AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, true); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 		} else {
-			if err := cli.AddWorkflowWithRepo(workflow, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag); err != nil {
+			if err := cli.AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, false); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}

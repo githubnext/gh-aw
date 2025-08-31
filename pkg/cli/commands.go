@@ -154,10 +154,38 @@ func listAgenticEngines(verbose bool) error {
 	return nil
 }
 
-// AddWorkflowWithRepo adds a workflow from components to .github/workflows
-// with optional repository installation
-func AddWorkflowWithRepo(workflow string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool) error {
-	// If repo spec is specified, install it first
+// AddWorkflows adds one or more workflows from components to .github/workflows
+// with optional repository installation and PR creation
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool, createPR bool) error {
+	if len(workflows) == 0 {
+		return fmt.Errorf("at least one workflow name is required")
+	}
+
+	for i, workflow := range workflows {
+		if workflow == "" {
+			return fmt.Errorf("workflow name cannot be empty (workflow %d)", i+1)
+		}
+	}
+
+	// If creating a PR, check prerequisites
+	if createPR {
+		// Check if GitHub CLI is available
+		if !isGHCLIAvailable() {
+			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
+		}
+
+		// Check if we're in a git repository
+		if !isGitRepo() {
+			return fmt.Errorf("not in a git repository - PR creation requires a git repository")
+		}
+
+		// Check no other changes are present
+		if err := checkCleanWorkingDirectory(verbose); err != nil {
+			return fmt.Errorf("working directory is not clean: %w", err)
+		}
+	}
+
+	// If repo spec is specified, install it first (only once for all workflows)
 	if repoSpec != "" {
 		repo, _, err := parseRepoSpec(repoSpec)
 		if err != nil {
@@ -165,49 +193,70 @@ func AddWorkflowWithRepo(workflow string, number int, verbose bool, engineOverri
 		}
 
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflow...", repoSpec)))
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflows...", repoSpec)))
 		}
 		// Install as global package (not local) to match the behavior expected
 		if err := InstallPackage(repoSpec, false, verbose); err != nil {
 			return fmt.Errorf("failed to install repository %s: %w", repoSpec, err)
 		}
 
-		// Prepend the repo to the workflow name to form a qualified name
-		// This ensures we use the workflow from the newly installed package
-		workflow = fmt.Sprintf("%s/%s", repo, workflow)
+		// Prepend the repo to each workflow name to form qualified names
+		for i, workflow := range workflows {
+			workflows[i] = fmt.Sprintf("%s/%s", repo, workflow)
+		}
 	}
 
-	// Call AddWorkflowWithTracking directly with a new tracker
+	// Handle PR creation workflow
+	if createPR {
+		return addWorkflowsWithPR(workflows, number, verbose, engineOverride, name, force)
+	}
+
+	// Handle normal workflow addition
+	return addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force)
+}
+
+// addWorkflowsNormal handles normal workflow addition without PR creation
+func addWorkflowsNormal(workflows []string, number int, verbose bool, engineOverride string, name string, force bool) error {
+	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
 		// If we can't create a tracker (e.g., not in git repo), fall back to non-tracking behavior
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Could not create file tracker: %v", err)))
 		}
-		return AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, nil)
+		tracker = nil
 	}
 
-	return AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, tracker)
+	if len(workflows) > 1 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Adding %d workflow(s)...", len(workflows))))
+	}
+
+	// Add each workflow
+	for i, workflow := range workflows {
+		if len(workflows) > 1 {
+			fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), workflow)))
+		}
+
+		// For multiple workflows, only use the name flag for the first one
+		currentName := ""
+		if i == 0 && name != "" {
+			currentName = name
+		}
+
+		if err := AddWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, tracker); err != nil {
+			return fmt.Errorf("failed to add workflow '%s': %w", workflow, err)
+		}
+	}
+
+	if len(workflows) > 1 {
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully added all %d workflows", len(workflows))))
+	}
+
+	return nil
 }
 
-// AddWorkflowWithRepoAndPR adds a workflow from components to .github/workflows
-// with optional repository installation and creates a PR
-func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool) error {
-	// Check if GitHub CLI is available
-	if !isGHCLIAvailable() {
-		return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
-	}
-
-	// Check if we're in a git repository
-	if !isGitRepo() {
-		return fmt.Errorf("not in a git repository - PR creation requires a git repository")
-	}
-
-	// Check no other changes are present
-	if err := checkCleanWorkingDirectory(verbose); err != nil {
-		return fmt.Errorf("working directory is not clean: %w", err)
-	}
-
+// addWorkflowsWithPR handles workflow addition with PR creation
+func addWorkflowsWithPR(workflows []string, number int, verbose bool, engineOverride string, name string, force bool) error {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -216,7 +265,17 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 
 	// Create temporary branch with random 4-digit number
 	randomNum := rand.Intn(9000) + 1000 // Generate number between 1000-9999
-	branchName := fmt.Sprintf("add-workflow-%s-%04d", strings.ReplaceAll(workflow, "/", "-"), randomNum)
+	var branchName string
+	if len(workflows) == 1 {
+		branchName = fmt.Sprintf("add-workflow-%s-%04d", strings.ReplaceAll(workflows[0], "/", "-"), randomNum)
+	} else {
+		workflowNames := strings.Join(workflows, "-")
+		if len(workflowNames) > 50 { // Truncate long branch names
+			workflowNames = workflowNames[:47] + "..."
+		}
+		branchName = fmt.Sprintf("add-workflows-%s-%04d", strings.ReplaceAll(workflowNames, "/", "-"), randomNum)
+	}
+
 	if err := createAndSwitchBranch(branchName, verbose); err != nil {
 		return fmt.Errorf("failed to create branch %s: %w", branchName, err)
 	}
@@ -229,46 +288,50 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 
 	// Ensure we switch back to original branch on exit
 	defer func() {
-		if err := switchBranch(currentBranch, verbose); err != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to original branch %s: %v", currentBranch, err)))
+		if switchErr := switchBranch(currentBranch, verbose); switchErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to branch %s: %v", currentBranch, switchErr)))
 		}
 	}()
 
-	// If repo spec is specified, install it first
-	if repoSpec != "" {
-		repo, _, err := parseRepoSpec(repoSpec)
-		if err != nil {
-			return fmt.Errorf("invalid repository specification: %w", err)
-		}
-
-		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflow...", repoSpec)))
-		}
-		// Install as global package (not local) to match the behavior expected
-		if err := InstallPackage(repoSpec, false, verbose); err != nil {
-			return fmt.Errorf("failed to install repository %s: %w", repoSpec, err)
-		}
-
-		// Prepend the repo to the workflow name to form a qualified name
-		// This ensures we use the workflow from the newly installed package
-		workflow = fmt.Sprintf("%s/%s", repo, workflow)
-	}
-
-	// Add workflow files using tracking logic
-	if err := AddWorkflowWithTracking(workflow, number, verbose, engineOverride, name, force, tracker); err != nil {
+	// Add workflows using the normal function logic
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force); err != nil {
+		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
 		}
-		return fmt.Errorf("failed to add workflow: %w", err)
+		return fmt.Errorf("failed to add workflows: %w", err)
 	}
 
-	// Commit changes (all tracked files should already be staged)
-	commitMessage := fmt.Sprintf("Add workflow: %s", workflow)
+	// Stage all files before creating PR
+	if err := tracker.StageAllFiles(verbose); err != nil {
+		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+		}
+		return fmt.Errorf("failed to stage workflow files: %w", err)
+	}
+
+	// Update .gitattributes and stage it if modified
+	if err := stageGitAttributesIfChanged(); err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to stage .gitattributes: %v", err)))
+	}
+
+	// Commit changes
+	var commitMessage, prTitle, prBody string
+	if len(workflows) == 1 {
+		commitMessage = fmt.Sprintf("Add workflow: %s", workflows[0])
+		prTitle = fmt.Sprintf("Add workflow: %s", workflows[0])
+		prBody = fmt.Sprintf("Automatically created PR to add workflow: %s", workflows[0])
+	} else {
+		commitMessage = fmt.Sprintf("Add workflows: %s", strings.Join(workflows, ", "))
+		prTitle = fmt.Sprintf("Add workflows: %s", strings.Join(workflows, ", "))
+		prBody = fmt.Sprintf("Automatically created PR to add workflows: %s", strings.Join(workflows, ", "))
+	}
+
 	if err := commitChanges(commitMessage, verbose); err != nil {
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
 		}
-		return fmt.Errorf("failed to commit changes: %w", err)
+		return fmt.Errorf("failed to commit files: %w", err)
 	}
 
 	// Push branch
@@ -280,8 +343,6 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 	}
 
 	// Create PR
-	prTitle := fmt.Sprintf("Add workflow: %s", workflow)
-	prBody := fmt.Sprintf("Automatically created PR to add workflow: %s", workflow)
 	if err := createPR(branchName, prTitle, prBody, verbose); err != nil {
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
@@ -296,8 +357,55 @@ func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineO
 		return fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
 	}
 
-	fmt.Printf("Successfully created PR for workflow: %s\n", workflow)
+	if len(workflows) == 1 {
+		fmt.Printf("Successfully created PR for workflow: %s\n", workflows[0])
+	} else {
+		fmt.Printf("Successfully created PR for workflows: %s\n", strings.Join(workflows, ", "))
+	}
 	return nil
+}
+
+// Legacy function wrappers for backwards compatibility
+// These can be removed once all tests are updated
+
+// AddWorkflowWithRepo adds a workflow from components to .github/workflows
+// with optional repository installation
+// Deprecated: Use AddWorkflows instead
+func AddWorkflowWithRepo(workflow string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool) error {
+	// Handle empty workflow name like the original function (show help, don't error)
+	if workflow == "" {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("No components path specified. Usage: "+constants.CLIExtensionPrefix+" add <name>"))
+		// Show available workflows using the same logic as ListWorkflows
+		return ListWorkflows(false)
+	}
+	return AddWorkflows([]string{workflow}, number, verbose, engineOverride, repoSpec, name, force, false)
+}
+
+// AddWorkflowWithRepoAndPR adds a workflow from components to .github/workflows
+// with optional repository installation and creates a PR
+// Deprecated: Use AddWorkflows instead
+func AddWorkflowWithRepoAndPR(workflow string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool) error {
+	// Handle empty workflow name like the original function (show help, don't error)
+	if workflow == "" {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("No components path specified. Usage: "+constants.CLIExtensionPrefix+" add <name>"))
+		// Show available workflows using the same logic as ListWorkflows
+		return ListWorkflows(false)
+	}
+	return AddWorkflows([]string{workflow}, number, verbose, engineOverride, repoSpec, name, force, true)
+}
+
+// AddMultipleWorkflowsWithRepo adds multiple workflows from components to .github/workflows
+// with optional repository installation
+// Deprecated: Use AddWorkflows instead
+func AddMultipleWorkflowsWithRepo(workflows []string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool) error {
+	return AddWorkflows(workflows, number, verbose, engineOverride, repoSpec, name, force, false)
+}
+
+// AddMultipleWorkflowsWithRepoAndPR adds multiple workflows from components to .github/workflows
+// with optional repository installation and creates a PR
+// Deprecated: Use AddWorkflows instead
+func AddMultipleWorkflowsWithRepoAndPR(workflows []string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool) error {
+	return AddWorkflows(workflows, number, verbose, engineOverride, repoSpec, name, force, true)
 }
 
 // AddWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
