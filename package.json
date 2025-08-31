@@ -9,7 +9,7 @@
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^0.34.6"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -17,5 +17,8 @@
     "test:js": "vitest run",
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "vite": "^4.5.14"
   }
 }

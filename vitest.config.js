@@ -13,8 +13,5 @@ export default defineConfig({
       include: ['pkg/workflow/js/**/*.cjs'],
       exclude: ['pkg/workflow/js/**/*.test.{js,cjs}']
     }
-  },
-  esbuild: {
-    target: 'node16'
   }
 });
