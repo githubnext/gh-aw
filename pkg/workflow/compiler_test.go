@@ -469,7 +469,7 @@ func TestComputeAllowedTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.computeAllowedTools(tt.tools)
+			result := compiler.computeAllowedTools(tt.tools, nil)
 
 			// Since map iteration order is not guaranteed, we need to check if
 			// the expected tools are present (for simple cases)
@@ -1299,7 +1299,7 @@ func TestDefaultClaudeToolsIntegrationWithComputeAllowedTools(t *testing.T) {
 	}
 
 	// Compute allowed tools
-	allowedTools := compiler.computeAllowedTools(toolsWithDefaults)
+	allowedTools := compiler.computeAllowedTools(toolsWithDefaults, nil)
 
 	// Verify that default Claude tools appear in the allowed tools string
 	for _, expectedTool := range expectedClaudeTools {
@@ -1422,7 +1422,7 @@ func TestComputeAllowedToolsWithCustomMCP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.computeAllowedTools(tt.tools)
+			result := compiler.computeAllowedTools(tt.tools, nil)
 
 			// Check that all expected tools are present
 			for _, expectedTool := range tt.expected {
@@ -1651,7 +1651,7 @@ func TestComputeAllowedToolsWithClaudeSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.computeAllowedTools(tt.tools)
+			result := compiler.computeAllowedTools(tt.tools, nil)
 
 			// Split both expected and result into slices and check each tool is present
 			expectedTools := strings.Split(tt.expected, ",")
@@ -5268,6 +5268,136 @@ engine: claude
 					if !strings.Contains(lockContent, "- name: Checkout repository") {
 						t.Error("Expected default checkout step when no custom steps defined")
 					}
+				}
+			}
+		})
+	}
+}
+
+func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		safeOutputs *SafeOutputsConfig
+		expected    string
+	}{
+		{
+			name: "SafeOutputs with no tools - should add Write permission",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Read": nil,
+					},
+				},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssue: &CreateIssueConfig{},
+			},
+			expected: "Read,Write(${{ env.GITHUB_AW_OUTPUT }})",
+		},
+		{
+			name: "SafeOutputs with general Write permission - should not add specific Write",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Read":  nil,
+						"Write": nil,
+					},
+				},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssue: &CreateIssueConfig{},
+			},
+			expected: "Read,Write",
+		},
+		{
+			name: "No SafeOutputs - should not add Write permission",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Read": nil,
+					},
+				},
+			},
+			safeOutputs: nil,
+			expected:    "Read",
+		},
+		{
+			name: "SafeOutputs with multiple output types",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Bash": nil,
+					},
+				},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssue:       &CreateIssueConfig{},
+				AddIssueComment:   &AddIssueCommentConfig{},
+				CreatePullRequest: &CreatePullRequestConfig{},
+			},
+			expected: "Bash,Write(${{ env.GITHUB_AW_OUTPUT }})",
+		},
+		{
+			name: "SafeOutputs with MCP tools",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Read": nil,
+					},
+				},
+				"github": map[string]any{
+					"allowed": []any{"create_issue", "create_pull_request"},
+				},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssue: &CreateIssueConfig{},
+			},
+			expected: "Read,Write(${{ env.GITHUB_AW_OUTPUT }}),mcp__github__create_issue,mcp__github__create_pull_request",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.computeAllowedTools(tt.tools, tt.safeOutputs)
+
+			// Split both expected and result into slices and check each tool is present
+			expectedTools := strings.Split(tt.expected, ",")
+			resultTools := strings.Split(result, ",")
+
+			// Check that all expected tools are present
+			for _, expectedTool := range expectedTools {
+				if expectedTool == "" {
+					continue // Skip empty strings
+				}
+				found := false
+				for _, actualTool := range resultTools {
+					if actualTool == expectedTool {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected tool '%s' not found in result '%s'", expectedTool, result)
+				}
+			}
+
+			// Check that no unexpected tools are present
+			for _, actual := range resultTools {
+				if actual == "" {
+					continue // Skip empty strings
+				}
+				found := false
+				for _, expected := range expectedTools {
+					if expected == actual {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Unexpected tool '%s' found in result '%s'", actual, result)
 				}
 			}
 		})

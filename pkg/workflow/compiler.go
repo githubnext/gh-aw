@@ -679,7 +679,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
 
 	// Compute allowed tools
-	workflowData.AllowedTools = c.computeAllowedTools(tools)
+	workflowData.AllowedTools = c.computeAllowedTools(tools, workflowData.SafeOutputs)
 
 	return workflowData, nil
 }
@@ -1281,7 +1281,7 @@ func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 }
 
 // computeAllowedTools computes the comma-separated list of allowed tools for Claude
-func (c *Compiler) computeAllowedTools(tools map[string]any) string {
+func (c *Compiler) computeAllowedTools(tools map[string]any, safeOutputs *SafeOutputsConfig) string {
 	var allowedTools []string
 
 	// Process claude-specific tools from the claude section (new format only)
@@ -1377,6 +1377,24 @@ func (c *Compiler) computeAllowedTools(tools map[string]any) string {
 					}
 				}
 			}
+		}
+	}
+
+	// Handle SafeOutputs requirement for file write access
+	if safeOutputs != nil {
+		// Check if a general "Write" permission is already granted
+		hasGeneralWrite := false
+		for _, tool := range allowedTools {
+			if tool == "Write" {
+				hasGeneralWrite = true
+				break
+			}
+		}
+
+		// If no general Write permission and SafeOutputs is configured,
+		// add specific write permission for GITHUB_AW_OUTPUT
+		if !hasGeneralWrite {
+			allowedTools = append(allowedTools, "Write(${{ env.GITHUB_AW_OUTPUT }})")
 		}
 	}
 
