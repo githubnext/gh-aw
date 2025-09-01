@@ -256,7 +256,27 @@ jobs:
           
           ## Adding a Comment to an Issue or Pull Request
           
-          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", in markdown.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
+          
+          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.
+          
+          ### Available Output Types:
+          
+          **Adding a Comment to an Issue or Pull Request**
+          ```json
+          {"type": "add-issue-comment", "body": "Your comment content in markdown"}
+          ```
+          
+          **Example JSONL file content:**
+          ```
+          {"type": "add-issue-comment", "body": "This is related to the issue above."}
+          ```
+          
+          **Important Notes:**
+          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions
+          - Each JSON object must be on its own line
+          - Only include output types that are configured for this workflow
+          - The content of this file will be automatically processed and executed
           
           EOF
       - name: Print prompt to step summary
@@ -403,6 +423,9 @@ jobs:
       - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":true}"
         with:
           script: |
             /**
@@ -440,10 +463,8 @@ jobs:
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&apos;');
               // URI filtering - replace non-https protocols with "(redacted)"
-              // Step 1: Temporarily mark HTTPS URLs to protect them
               sanitized = sanitizeUrlProtocols(sanitized);
               // Domain filtering for HTTPS URIs
-              // Match https:// URIs and check if domain is in allowlist
               sanitized = sanitizeUrlDomains(sanitized);
               // Limit total length to prevent DoS (0.5MB max)
               const maxLength = 524288;
@@ -468,7 +489,7 @@ jobs:
                * @returns {string} The string with unknown domains redacted
                */
               function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
+                return s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
                   // Extract the hostname part (before first slash, colon, or other delimiter)
                   const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
                   // Check if this domain or any parent domain is in the allowlist
@@ -478,7 +499,6 @@ jobs:
                   });
                   return isAllowed ? match : '(redacted)';
                 });
-                return s;
               }
               /**
                * Remove unknown protocols except https
@@ -487,7 +507,6 @@ jobs:
                */
               function sanitizeUrlProtocols(s) {
                 // Match both protocol:// and protocol: patterns
-                // This covers URLs like https://example.com, javascript:alert(), mailto:user@domain.com, etc.
                 return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
                   // Allow https (case insensitive), redact everything else
                   return protocol.toLowerCase() === 'https' ? match : '(redacted)';
@@ -517,6 +536,7 @@ jobs:
             async function main() {
               const fs = require("fs");
               const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
+              const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
               if (!outputFile) {
                 console.log('GITHUB_AW_SAFE_OUTPUTS not set, no output to collect');
                 core.setOutput('output', '');
@@ -531,20 +551,136 @@ jobs:
               if (outputContent.trim() === '') {
                 console.log('Output file is empty');
                 core.setOutput('output', '');
-              } else {
-                const sanitizedContent = sanitizeContent(outputContent);
-                console.log('Collected agentic output (sanitized):', sanitizedContent.substring(0, 200) + (sanitizedContent.length > 200 ? '...' : ''));
-                core.setOutput('output', sanitizedContent);
+                return;
               }
+              console.log('Raw output content length:', outputContent.length);
+              // Parse the safe-outputs configuration
+              let expectedOutputTypes = {};
+              if (safeOutputsConfig) {
+                try {
+                  expectedOutputTypes = JSON.parse(safeOutputsConfig);
+                  console.log('Expected output types:', Object.keys(expectedOutputTypes));
+                } catch (error) {
+                  console.log('Warning: Could not parse safe-outputs config:', error.message);
+                }
+              }
+              // Parse JSONL content
+              const lines = outputContent.trim().split('\n');
+              const parsedItems = [];
+              const errors = [];
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line === '') continue; // Skip empty lines
+                try {
+                  const item = JSON.parse(line);
+                  // Validate that the item has a 'type' field
+                  if (!item.type) {
+                    errors.push(`Line ${i + 1}: Missing required 'type' field`);
+                    continue;
+                  }
+                  // Validate against expected output types
+                  const itemType = item.type;
+                  if (!expectedOutputTypes[itemType]) {
+                    errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(', ')}`);
+                    continue;
+                  }
+                  // Check for duplicates based on type (since current format allows only one of each)
+                  const existingItem = parsedItems.find(existing => existing.type === itemType);
+                  if (existingItem) {
+                    errors.push(`Line ${i + 1}: Duplicate output type '${itemType}'. Only one item of each type is currently allowed.`);
+                    continue;
+                  }
+                  // Basic validation based on type
+                  switch (itemType) {
+                    case 'create-issue':
+                      if (!item.title || typeof item.title !== 'string') {
+                        errors.push(`Line ${i + 1}: create-issue requires a 'title' string field`);
+                        continue;
+                      }
+                      if (!item.body || typeof item.body !== 'string') {
+                        errors.push(`Line ${i + 1}: create-issue requires a 'body' string field`);
+                        continue;
+                      }
+                      // Sanitize text content
+                      item.title = sanitizeContent(item.title);
+                      item.body = sanitizeContent(item.body);
+                      // Sanitize labels if present
+                      if (item.labels && Array.isArray(item.labels)) {
+                        item.labels = item.labels.map(label => typeof label === 'string' ? sanitizeContent(label) : label);
+                      }
+                      break;
+                    case 'add-issue-comment':
+                      if (!item.body || typeof item.body !== 'string') {
+                        errors.push(`Line ${i + 1}: add-issue-comment requires a 'body' string field`);
+                        continue;
+                      }
+                      // Sanitize text content
+                      item.body = sanitizeContent(item.body);
+                      break;
+                    case 'create-pull-request':
+                      if (!item.title || typeof item.title !== 'string') {
+                        errors.push(`Line ${i + 1}: create-pull-request requires a 'title' string field`);
+                        continue;
+                      }
+                      if (!item.body || typeof item.body !== 'string') {
+                        errors.push(`Line ${i + 1}: create-pull-request requires a 'body' string field`);
+                        continue;
+                      }
+                      // Sanitize text content
+                      item.title = sanitizeContent(item.title);
+                      item.body = sanitizeContent(item.body);
+                      // Sanitize labels if present
+                      if (item.labels && Array.isArray(item.labels)) {
+                        item.labels = item.labels.map(label => typeof label === 'string' ? sanitizeContent(label) : label);
+                      }
+                      break;
+                    case 'add-issue-labels':
+                      if (!item.labels || !Array.isArray(item.labels)) {
+                        errors.push(`Line ${i + 1}: add-issue-labels requires a 'labels' array field`);
+                        continue;
+                      }
+                      if (item.labels.some(label => typeof label !== 'string')) {
+                        errors.push(`Line ${i + 1}: add-issue-labels labels array must contain only strings`);
+                        continue;
+                      }
+                      // Sanitize label strings
+                      item.labels = item.labels.map(label => sanitizeContent(label));
+                      break;
+                    default:
+                      errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
+                      continue;
+                  }
+                  console.log(`Line ${i + 1}: Valid ${itemType} item`);
+                  parsedItems.push(item);
+                } catch (error) {
+                  errors.push(`Line ${i + 1}: Invalid JSON - ${error.message}`);
+                }
+              }
+              // Report validation results
+              if (errors.length > 0) {
+                console.log('Validation errors found:');
+                errors.forEach(error => console.log(`  - ${error}`));
+                // For now, we'll continue with valid items but log the errors
+                // In the future, we might want to fail the workflow for invalid items
+              }
+              console.log(`Successfully parsed ${parsedItems.length} valid output items`);
+              // Set the parsed and validated items as output
+              const validatedOutput = {
+                items: parsedItems,
+                errors: errors
+              };
+              core.setOutput('output', JSON.stringify(validatedOutput));
+              core.setOutput('raw_output', outputContent);
             }
+            // Call the main function
             await main();
       - name: Print agent output to step summary
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
-          echo "## Agent Output" >> $GITHUB_STEP_SUMMARY
+          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````markdown' >> $GITHUB_STEP_SUMMARY
+          echo '``````json' >> $GITHUB_STEP_SUMMARY
           cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
       - name: Upload agentic output file
@@ -930,7 +1066,7 @@ jobs:
         with:
           script: |
             async function main() {
-              // Read the agent output content from environment variable
+              // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
                 console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
@@ -941,6 +1077,25 @@ jobs:
                 return;
               }
               console.log('Agent output content length:', outputContent.length);
+              // Parse the validated output JSON
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                console.log('Error parsing agent output JSON:', error instanceof Error ? error.message : String(error));
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                console.log('No valid items found in agent output');
+                return;
+              }
+              // Find the add-issue-comment item
+              const commentItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'add-issue-comment');
+              if (!commentItem) {
+                console.log('No add-issue-comment item found in agent output');
+                return;
+              }
+              console.log('Found add-issue-comment item:', { bodyLength: commentItem.body.length });
               // Check if we're in an issue or pull request context
               const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
               const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
@@ -972,7 +1127,8 @@ jobs:
                 console.log('Could not determine issue or pull request number');
                 return;
               }
-              let body = outputContent.trim();
+              // Extract body from the JSON item
+              let body = commentItem.body.trim();
               // Add AI disclaimer with run id, run htmlurl
               const runId = context.runId;
               const runUrl = context.payload.repository 

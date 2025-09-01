@@ -35,33 +35,32 @@ async function main() {
   console.log('Agent output content length:', outputContent.length);
   console.log('Patch content validation passed');
 
-  // Parse the output to extract title and body
-  const lines = outputContent.split('\n');
-  let title = '';
-  let bodyLines = [];
-  let foundTitle = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    // Skip empty lines until we find the title
-    if (!foundTitle && line === '') {
-      continue;
-    }
-
-    // First non-empty line becomes the title
-    if (!foundTitle && line !== '') {
-      // Remove markdown heading syntax if present
-      title = line.replace(/^#+\s*/, '').trim();
-      foundTitle = true;
-      continue;
-    }
-
-    // Everything else goes into the body
-    if (foundTitle) {
-      bodyLines.push(lines[i]); // Keep original formatting
-    }
+  // Parse the validated output JSON
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    console.log('Error parsing agent output JSON:', error instanceof Error ? error.message : String(error));
+    return;
   }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    console.log('No valid items found in agent output');
+    return;
+  }
+
+  // Find the create-pull-request item
+  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'create-pull-request');
+  if (!pullRequestItem) {
+    console.log('No create-pull-request item found in agent output');
+    return;
+  }
+
+  console.log('Found create-pull-request item:', { title: pullRequestItem.title, bodyLength: pullRequestItem.body.length });
+
+  // Extract title and body from the JSON item
+  let title = pullRequestItem.title.trim();
+  let bodyLines = pullRequestItem.body.split('\n');
 
   // If no title was found, use a default
   if (!title) {

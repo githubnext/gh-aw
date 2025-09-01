@@ -1,5 +1,5 @@
 async function main() {
-  // Read the agent output content from environment variable
+  // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
     console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
@@ -12,6 +12,29 @@ async function main() {
   }
 
   console.log('Agent output content length:', outputContent.length);
+
+  // Parse the validated output JSON
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    console.log('Error parsing agent output JSON:', error instanceof Error ? error.message : String(error));
+    return;
+  }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    console.log('No valid items found in agent output');
+    return;
+  }
+
+  // Find the add-issue-comment item
+  const commentItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'add-issue-comment');
+  if (!commentItem) {
+    console.log('No add-issue-comment item found in agent output');
+    return;
+  }
+
+  console.log('Found add-issue-comment item:', { bodyLength: commentItem.body.length });
 
   // Check if we're in an issue or pull request context
   const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
@@ -49,8 +72,8 @@ async function main() {
     return;
   }
 
-
-  let body = outputContent.trim();
+  // Extract body from the JSON item
+  let body = commentItem.body.trim();
   // Add AI disclaimer with run id, run htmlurl
   const runId = context.runId;
   const runUrl = context.payload.repository 

@@ -18,8 +18,8 @@ var createCommentScript string
 //go:embed js/compute_text.cjs
 var computeTextScript string
 
-//go:embed js/sanitize_output.cjs
-var sanitizeOutputScript string
+//go:embed js/collect_ndjson_output.cjs
+var collectJSONLOutputScript string
 
 //go:embed js/add_labels.cjs
 var addLabelsScript string

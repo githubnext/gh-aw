@@ -119,7 +119,13 @@ describe('create_pull_request.cjs', () => {
   it('should create pull request successfully with valid input', async () => {
     mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = 'test-workflow';
     mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = 'main';
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = '# New Feature\n\nThis adds a new feature to the codebase.';
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-pull-request',
+        title: 'New Feature',
+        body: 'This adds a new feature to the codebase.'
+      }]
+    });
     
     const mockPullRequest = {
       number: 123,
@@ -160,7 +166,13 @@ describe('create_pull_request.cjs', () => {
   it('should handle labels correctly', async () => {
     mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = 'test-workflow';
     mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = 'main';
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = 'PR with labels';
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-pull-request',
+        title: 'PR with labels',
+        body: 'PR with labels'
+      }]
+    });
     mockDependencies.process.env.GITHUB_AW_PR_LABELS = 'enhancement, automated, needs-review';
     
     const mockPullRequest = {
@@ -187,7 +199,13 @@ describe('create_pull_request.cjs', () => {
   it('should respect draft setting from environment', async () => {
     mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = 'test-workflow';
     mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = 'main';
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = 'Non-draft PR';
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-pull-request',
+        title: 'Non-draft PR',
+        body: 'Non-draft PR'
+      }]
+    });
     mockDependencies.process.env.GITHUB_AW_PR_DRAFT = 'false';
     
     const mockPullRequest = {
@@ -208,7 +226,13 @@ describe('create_pull_request.cjs', () => {
   it('should include run information in PR body', async () => {
     mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = 'test-workflow';
     mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = 'main';
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = '# Test PR Title\n\nTest PR content with detailed body information.';
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-pull-request',
+        title: 'Test PR Title',
+        body: 'Test PR content with detailed body information.'
+      }]
+    });
     
     const mockPullRequest = {
       number: 202,

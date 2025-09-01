@@ -1,5 +1,5 @@
 async function main() {
-  // Read the agent output content from environment variable
+  // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
     console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
@@ -9,44 +9,51 @@ async function main() {
     console.log('Agent output content is empty');
     return;
   }
+  
   console.log('Agent output content length:', outputContent.length);
-  // Check if we're in an issue context (triggered by an issue event)
-  const parentIssueNumber = context.payload?.issue?.number;
-  // Parse labels from environment variable (comma-separated string)
-  const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-  const labels = labelsEnv ? labelsEnv.split(',').map(/** @param {string} label */ label => label.trim()).filter(/** @param {string} label */ label => label) : [];
-
-  // Parse the output to extract title and body
-  const lines = outputContent.split('\n');
-  let title = '';
-  let bodyLines = [];
-  let foundTitle = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    // Skip empty lines until we find the title
-    if (!foundTitle && line === '') {
-      continue;
-    }
-
-    // First non-empty line becomes the title
-    if (!foundTitle && line !== '') {
-      // Remove markdown heading syntax if present
-      title = line.replace(/^#+\s*/, '').trim();
-      foundTitle = true;
-      continue;
-    }
-
-    // Everything else goes into the body
-    if (foundTitle) {
-      bodyLines.push(lines[i]); // Keep original formatting
-    }
+  
+  // Parse the validated output JSON
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    console.log('Error parsing agent output JSON:', error instanceof Error ? error.message : String(error));
+    return;
   }
 
-  // If no title was found, use a default
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    console.log('No valid items found in agent output');
+    return;
+  }
+
+  // Find the create-issue item
+  const createIssueItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'create-issue');
+  if (!createIssueItem) {
+    console.log('No create-issue item found in agent output');
+    return;
+  }
+
+  console.log('Found create-issue item:', { title: createIssueItem.title, bodyLength: createIssueItem.body.length });
+
+  // Check if we're in an issue context (triggered by an issue event)
+  const parentIssueNumber = context.payload?.issue?.number;
+  
+  // Parse labels from environment variable (comma-separated string) or from the JSON item
+  const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+  let labels = labelsEnv ? labelsEnv.split(',').map(/** @param {string} label */ label => label.trim()).filter(/** @param {string} label */ label => label) : [];
+  
+  // If the item has labels, use those instead (or merge them)
+  if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+    labels = [...labels, ...createIssueItem.labels].filter(Boolean);
+  }
+
+  // Extract title and body from the JSON item
+  let title = createIssueItem.title ? createIssueItem.title.trim() : '';
+  let bodyLines = createIssueItem.body.split('\n');
+
+  // If no title was found, use the body content as title (or a default)
   if (!title) {
-    title = 'Agent Output';
+    title = createIssueItem.body || 'Agent Output';
   }
 
   // Apply title prefix if provided via environment variable

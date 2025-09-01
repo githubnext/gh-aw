@@ -1,5 +1,5 @@
 async function main() {
-  // Read the agent output content from environment variable
+  // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
     console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
@@ -12,6 +12,29 @@ async function main() {
   }
 
   console.log('Agent output content length:', outputContent.length);
+
+  // Parse the validated output JSON
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    console.log('Error parsing agent output JSON:', error instanceof Error ? error.message : String(error));
+    return;
+  }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    console.log('No valid items found in agent output');
+    return;
+  }
+
+  // Find the add-issue-labels item
+  const labelsItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'add-issue-labels');
+  if (!labelsItem) {
+    console.log('No add-issue-labels item found in agent output');
+    return;
+  }
+
+  console.log('Found add-issue-labels item:', { labelsCount: labelsItem.labels.length });
 
   // Read the allowed labels from environment variable (optional)
   const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
@@ -76,33 +99,22 @@ async function main() {
     return;
   }
 
-  // Parse labels from agent output (one per line, ignore empty lines)
-  const lines = outputContent.split('\n');
-  const requestedLabels = [];
+  // Extract labels from the JSON item
+  const requestedLabels = labelsItem.labels || [];
+  console.log('Requested labels:', requestedLabels);
 
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-
-    // Skip empty lines
-    if (trimmedLine === '') {
-      continue;
-    }
-
-    // Reject lines that start with '-' (removal indication)
-    if (trimmedLine.startsWith('-')) {
-      core.setFailed(`Label removal is not permitted. Found line starting with '-': ${trimmedLine}`);
+  // Check for label removal attempts (labels starting with '-')
+  for (const label of requestedLabels) {
+    if (label.startsWith('-')) {
+      core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
       return;
     }
-
-    requestedLabels.push(trimmedLine);
   }
-
-  console.log('Requested labels:', requestedLabels);
 
   // Validate that all requested labels are in the allowed list (if restrictions are set)
   let validLabels;
   if (allowedLabels) {
-    validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
+    validLabels = requestedLabels.filter(/** @param {string} label */ label => allowedLabels.includes(label));
   } else {
     // No restrictions, all requested labels are valid
     validLabels = requestedLabels;

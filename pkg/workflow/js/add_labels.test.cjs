@@ -92,7 +92,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should work when allowed labels are not provided (any labels allowed)', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ncustom-label';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'custom-label']
+        }]
+      });
       delete process.env.GITHUB_AW_LABELS_ALLOWED;
       
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
@@ -114,7 +119,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should work when allowed labels list is empty (any labels allowed)', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ncustom-label';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'custom-label']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = '   ';
       
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
@@ -136,7 +146,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should enforce allowed labels when restrictions are set', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ncustom-label\ndocumentation';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'custom-label', 'documentation']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
@@ -158,7 +173,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should fail when max count is invalid', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       process.env.GITHUB_AW_LABELS_MAX_COUNT = 'invalid';
       
@@ -170,7 +190,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should fail when max count is zero', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       process.env.GITHUB_AW_LABELS_MAX_COUNT = '0';
       
@@ -182,7 +207,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should use default max count when not specified', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\nfeature\ndocumentation';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'feature', 'documentation']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement,feature,documentation';
       delete process.env.GITHUB_AW_LABELS_MAX_COUNT;
       
@@ -205,7 +235,12 @@ describe('add_labels.cjs', () => {
 
   describe('Context validation', () => {
     it('should fail when not in issue or PR context', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       global.context.eventName = 'push';
       
@@ -217,7 +252,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should work with issue_comment event', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       global.context.eventName = 'issue_comment';
       
@@ -232,7 +272,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should work with pull_request event', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       global.context.eventName = 'pull_request';
       global.context.payload.pull_request = { number: 456 };
@@ -254,7 +299,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should work with pull_request_review event', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       global.context.eventName = 'pull_request_review';
       global.context.payload.pull_request = { number: 789 };
@@ -276,7 +326,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should fail when issue context detected but no issue in payload', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       global.context.eventName = 'issues';
       delete global.context.payload.issue;
@@ -289,7 +344,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should fail when PR context detected but no PR in payload', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       global.context.eventName = 'pull_request';
       delete global.context.payload.issue;
@@ -305,7 +365,12 @@ describe('add_labels.cjs', () => {
 
   describe('Label parsing and validation', () => {
     it('should parse labels from agent output and add valid ones', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ndocumentation';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'documentation']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement,feature';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -328,7 +393,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should skip empty lines in agent output', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\n\n\nenhancement\n\n';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -347,7 +417,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should fail when line starts with dash (removal indication)', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\n-enhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', '-enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       // Execute the script
@@ -358,7 +433,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should remove duplicate labels', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\nbug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -377,7 +457,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should enforce max count limit', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\nfeature\ndocumentation\nquestion';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'feature', 'documentation', 'question']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement,feature,documentation,question';
       process.env.GITHUB_AW_LABELS_MAX_COUNT = '2';
       
@@ -398,7 +483,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should skip when no valid labels found', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'invalid\nanother-invalid';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['invalid', 'another-invalid']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -417,7 +507,12 @@ describe('add_labels.cjs', () => {
 
   describe('GitHub API integration', () => {
     it('should successfully add labels to issue', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement,feature';
       
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
@@ -448,7 +543,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should successfully add labels to pull request', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       global.context.eventName = 'pull_request';
       global.context.payload.pull_request = { number: 456 };
@@ -472,7 +572,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should handle GitHub API errors', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const apiError = new Error('Label does not exist');
@@ -490,7 +595,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should handle non-Error objects in catch block', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const stringError = 'Something went wrong';
@@ -510,7 +620,12 @@ describe('add_labels.cjs', () => {
 
   describe('Output and logging', () => {
     it('should log agent output content length', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -518,13 +633,18 @@ describe('add_labels.cjs', () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
       
-      expect(consoleSpy).toHaveBeenCalledWith('Agent output content length:', 15);
+      expect(consoleSpy).toHaveBeenCalledWith('Agent output content length:', 70);
       
       consoleSpy.mockRestore();
     });
 
     it('should log allowed labels and max count', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement,feature';
       process.env.GITHUB_AW_LABELS_MAX_COUNT = '5';
       
@@ -540,7 +660,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should log requested labels', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement\ninvalid';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement', 'invalid']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -554,7 +679,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should log final labels being added', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -570,7 +700,12 @@ describe('add_labels.cjs', () => {
 
   describe('Edge cases', () => {
     it('should handle whitespace in allowed labels', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug\nenhancement';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug', 'enhancement']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = ' bug , enhancement , feature ';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -590,7 +725,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should handle empty entries in allowed labels', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,,enhancement,';
       
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -604,7 +744,12 @@ describe('add_labels.cjs', () => {
     });
 
     it('should handle single label output', async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = 'bug';
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [{
+          type: 'add-issue-labels',
+          labels: ['bug']
+        }]
+      });
       process.env.GITHUB_AW_LABELS_ALLOWED = 'bug,enhancement';
       
       mockGithub.rest.issues.addLabels.mockResolvedValue({});

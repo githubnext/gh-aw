@@ -87,7 +87,12 @@ describe('create_issue.cjs', () => {
   });
 
   it('should create issue with default title when only body content provided', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = 'This is the issue body content';
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-issue',
+        body: 'This is the issue body content'
+      }]
+    });
     
     const mockIssue = {
       number: 456,
@@ -116,7 +121,13 @@ describe('create_issue.cjs', () => {
   });
 
   it('should extract title from markdown heading', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = '# Bug Report\n\nThis is a detailed bug description\n\nSteps to reproduce:\n1. Step one';
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-issue',
+        title: 'Bug Report',
+        body: 'This is a detailed bug description\n\nSteps to reproduce:\n1. Step one'
+      }]
+    });
     
     const mockIssue = {
       number: 789,
@@ -139,7 +150,13 @@ describe('create_issue.cjs', () => {
   });
 
   it('should handle labels from environment variable', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = 'Issue with labels';
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-issue',
+        title: 'Issue with labels',
+        body: 'Issue with labels'
+      }]
+    });
     process.env.GITHUB_AW_ISSUE_LABELS = 'bug, enhancement, high-priority';
     
     const mockIssue = {
@@ -161,7 +178,13 @@ describe('create_issue.cjs', () => {
   });
 
   it('should apply title prefix when provided', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = 'Simple issue title';
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-issue', 
+        title: 'Simple issue title',
+        body: 'Simple issue title'
+      }]
+    });
     process.env.GITHUB_AW_ISSUE_TITLE_PREFIX = '[AUTO] ';
     
     const mockIssue = {
@@ -183,7 +206,13 @@ describe('create_issue.cjs', () => {
   });
 
   it('should handle parent issue context and create comment', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = 'Child issue content';
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-issue',
+        title: 'Child issue content',
+        body: 'Child issue content'
+      }]
+    });
     global.context.payload.issue = { number: 555 };
     
     const mockIssue = {
@@ -215,7 +244,13 @@ describe('create_issue.cjs', () => {
   });
 
   it('should handle empty labels gracefully', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = 'Issue without labels';
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-issue',
+        title: 'Issue without labels',
+        body: 'Issue without labels'
+      }]
+    });
     process.env.GITHUB_AW_ISSUE_LABELS = '  , , ';
     
     const mockIssue = {
@@ -237,7 +272,13 @@ describe('create_issue.cjs', () => {
   });
 
   it('should include run information in issue body', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = 'Test issue content';
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [{
+        type: 'create-issue',
+        title: 'Test issue content',
+        body: 'Test issue content'
+      }]
+    });
     
     const mockIssue = {
       number: 404,

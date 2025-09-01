@@ -2263,36 +2263,112 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 		yaml.WriteString("          \n")
 		yaml.WriteString("          ---\n")
 		yaml.WriteString("          \n")
+		yaml.WriteString("          ## ")
+		written := false
+		if data.SafeOutputs.AddIssueComment != nil {
+			yaml.WriteString("Adding a Comment to an Issue or Pull Request")
+			written = true
+		}
+		if data.SafeOutputs.CreateIssue != nil {
+			if written {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("Creating an Issue")
+		}
+		if data.SafeOutputs.CreatePullRequest != nil {
+			if written {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("Creating a Pull Request")
+		}
+
+		if data.SafeOutputs.AddIssueLabels != nil {
+			if written {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("Adding Labels to Issues or Pull Requests")
+		}
+		yaml.WriteString("\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead write JSON objects to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ### Available Output Types:\n")
+		yaml.WriteString("          \n")
 
 		if data.SafeOutputs.AddIssueComment != nil {
-			yaml.WriteString("          ## Adding a Comment to an Issue or Pull Request\n")
+			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"add-issue-comment\", \"body\": \"Your comment content in markdown\"}\n")
+			yaml.WriteString("          ```\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To add a comment to an issue or pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write the issue comment you want to make to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", in markdown.\n")
-			yaml.WriteString("          \n")
-		} else if data.SafeOutputs.CreateIssue != nil {
-			yaml.WriteString("          ## Issue Creation\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create an issue on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead, write to the title and issue body to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", where the first line of the file is the title , and the rest of the file is the body, in markdown.\n")
-			yaml.WriteString("          \n")
-		} else if data.SafeOutputs.CreatePullRequest != nil {
-			yaml.WriteString("          ## Pull Request Creation\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create a pull request on GitHub, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API.\n")
-			yaml.WriteString("          Instead:\n")
-			yaml.WriteString("          1. Make any file changes directly in the working directory, making the changes and additions you want.\n")
-			yaml.WriteString("          2. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then uncommit them.")
-			yaml.WriteString("          3. Leave the changes uncommitted and unstaged. If you've committed your changes earlier then reverse that and leave then unstaged.")
-			yaml.WriteString("          4. Carefully check there are no extra unstaged files lying around - log files, emphemeral test files etc. If there are remove them.")
-			yaml.WriteString("          5. Write a PR title and description to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, where the first line of the file is the title of the pull request, and the rest of the file is the body of the pull request, in markdown.")
-			yaml.WriteString("          \n")
-		} else if data.SafeOutputs.AddIssueLabels != nil {
-			yaml.WriteString("          ## Adding Labels to Issues or Pull Requests\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To add labels to an issue or pull request on GitHub, do NOT attempt to use MCP tools, do NOT attempt to use `gh` and do NOT attempt to use the GitHub API. Instead, write the list of labels, one on each line, to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", where each line is a label.\n")
-			yaml.WriteString("          \n")
-		} else {
-			yaml.WriteString("          **IMPORTANT**: If you need to provide output that should be captured as a workflow output variable, write it to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". This file is available for you to write any output that should be exposed from this workflow. The content of this file will be made available as the 'output' workflow output.\n")
 		}
+
+		if data.SafeOutputs.CreateIssue != nil {
+			yaml.WriteString("          **Creating an Issue**\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"create-issue\", \"title\": \"Issue title\", \"body\": \"Issue body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreatePullRequest != nil {
+			yaml.WriteString("          **Creating a Pull Request**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a pull request:\n")
+			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
+			yaml.WriteString("          2. Leave the changes uncommitted and unstaged\n")
+			yaml.WriteString("          3. Write the PR specification:\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"create-pull-request\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.AddIssueLabels != nil {
+			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"add-issue-labels\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          \n")
+		}
+
+		yaml.WriteString("          **Example JSONL file content:**\n")
+		yaml.WriteString("          ```\n")
+
+		// Generate conditional examples based on enabled SafeOutputs
+		exampleCount := 0
+		if data.SafeOutputs.CreateIssue != nil {
+			yaml.WriteString("          {\"type\": \"create-issue\", \"title\": \"Bug Report\", \"body\": \"Found an issue with...\"}\n")
+			exampleCount++
+		}
+		if data.SafeOutputs.AddIssueComment != nil {
+			yaml.WriteString("          {\"type\": \"add-issue-comment\", \"body\": \"This is related to the issue above.\"}\n")
+			exampleCount++
+		}
+		if data.SafeOutputs.CreatePullRequest != nil {
+			yaml.WriteString("          {\"type\": \"create-pull-request\", \"title\": \"Fix typo\", \"body\": \"Corrected spelling mistake in documentation\"}\n")
+			exampleCount++
+		}
+		if data.SafeOutputs.AddIssueLabels != nil {
+			yaml.WriteString("          {\"type\": \"add-issue-labels\", \"labels\": [\"bug\", \"priority-high\"]}\n")
+			exampleCount++
+		}
+
+		// If no SafeOutputs are enabled, show a generic example
+		if exampleCount == 0 {
+			yaml.WriteString("          # No safe outputs configured for this workflow\n")
+		}
+
+		yaml.WriteString("          ```\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          **Important Notes:**\n")
+		yaml.WriteString("          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions\n")
+		yaml.WriteString("          - Each JSON object must be on its own line\n")
+		yaml.WriteString("          - Only include output types that are configured for this workflow\n")
+		yaml.WriteString("          - The content of this file will be automatically processed and executed\n")
+		yaml.WriteString("          \n")
 	}
 
 	yaml.WriteString("          EOF\n")
@@ -2760,9 +2836,34 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 
-	// Add environment variables for sanitization configuration
+	// Add environment variables for JSONL validation
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+
+	// Pass the safe-outputs configuration for validation
+	if data.SafeOutputs != nil {
+		// Create a simplified config object for validation
+		safeOutputsConfig := make(map[string]interface{})
+		if data.SafeOutputs.CreateIssue != nil {
+			safeOutputsConfig["create-issue"] = true
+		}
+		if data.SafeOutputs.AddIssueComment != nil {
+			safeOutputsConfig["add-issue-comment"] = true
+		}
+		if data.SafeOutputs.CreatePullRequest != nil {
+			safeOutputsConfig["create-pull-request"] = true
+		}
+		if data.SafeOutputs.AddIssueLabels != nil {
+			safeOutputsConfig["add-issue-labels"] = true
+		}
+
+		// Convert to JSON string for environment variable
+		configJSON, _ := json.Marshal(safeOutputsConfig)
+		fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", string(configJSON))
+	}
+
+	// Add allowed domains configuration for sanitization
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
-		yaml.WriteString("        env:\n")
 		domainsStr := strings.Join(data.SafeOutputs.AllowedDomains, ",")
 		fmt.Fprintf(yaml, "          GITHUB_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
@@ -2771,15 +2872,15 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          script: |\n")
 
 	// Add each line of the script with proper indentation
-	WriteJavaScriptToYAML(yaml, sanitizeOutputScript)
+	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
 
 	yaml.WriteString("      - name: Print agent output to step summary\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Agent Output\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo \"## Agent Output (JSONL)\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````json' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("      - name: Upload agentic output file\n")
