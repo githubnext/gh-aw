@@ -7,6 +7,9 @@ describe('collect_ndjson_output.cjs', () => {
   let collectScript;
 
   beforeEach(() => {
+    // Save original console before mocking
+    global.originalConsole = global.console;
+    
     // Mock console methods
     global.console = {
       log: vi.fn(),
@@ -31,15 +34,25 @@ describe('collect_ndjson_output.cjs', () => {
     // Clean up any test files
     const testFiles = ['/tmp/test-ndjson-output.txt'];
     testFiles.forEach(file => {
-      if (fs.existsSync(file)) {
-        fs.unlinkSync(file);
+      try {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+      } catch (error) {
+        // Ignore cleanup errors
       }
     });
 
-    // Clean up globals
-    delete global.fs;
-    delete global.core;
-    delete global.console;
+    // Clean up globals safely - don't delete console as vitest may still need it
+    if (typeof global !== 'undefined') {
+      delete global.fs;
+      delete global.core;
+      // Restore original console instead of deleting
+      if (global.originalConsole) {
+        global.console = global.originalConsole;
+        delete global.originalConsole;
+      }
+    }
   });
 
   it('should handle missing GITHUB_AW_SAFE_OUTPUTS environment variable', async () => {
