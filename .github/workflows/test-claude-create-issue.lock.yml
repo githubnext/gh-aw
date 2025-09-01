@@ -16,20 +16,7 @@ run-name: "Test Claude Create Issue"
 jobs:
   test-claude-create-issue:
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      attestations: read
-      checks: read
-      contents: read
-      deployments: read
-      discussions: read
-      issues: read
-      models: read
-      packages: read
-      pages: read
-      pull-requests: read
-      security-events: read
-      statuses: read
+    permissions: read-all
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:

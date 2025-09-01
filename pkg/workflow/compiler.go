@@ -974,20 +974,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.Permissions == "" {
-		data.Permissions = `permissions:
-  actions: read
-  attestations: read
-  checks: read
-  contents: read
-  deployments: read
-  discussions: read
-  issues: read
-  models: read
-  packages: read
-  pages: read
-  pull-requests: read
-  security-events: read
-  statuses: read`
+		data.Permissions = `permissions: read-all`
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module

@@ -4752,14 +4752,7 @@ This workflow should get default permissions applied automatically.
 
 	// Verify that default permissions are present in the generated workflow
 	expectedDefaultPermissions := []string{
-		"contents: read",
-		"issues: read",
-		"pull-requests: read",
-		"discussions: read",
-		"deployments: read",
-		"actions: read",
-		"checks: read",
-		"statuses: read",
+		"read-all",
 	}
 
 	for _, expectedPerm := range expectedDefaultPermissions {
@@ -4812,29 +4805,12 @@ This workflow should get default permissions applied automatically.
 	}
 
 	// Verify permissions is a map
-	permissionsMap, ok := permissions.(map[string]interface{})
+	permissionsValue, ok := permissions.(string)
 	if !ok {
-		t.Fatal("Permissions section is not a map")
+		t.Fatal("Permissions section is not a string")
 	}
-
-	// Verify each expected default permission exists and has correct value
-	expectedPermissionsMap := map[string]string{
-		"contents":      "read",
-		"issues":        "read",
-		"pull-requests": "read",
-		"discussions":   "read",
-		"deployments":   "read",
-	}
-
-	for key, expectedValue := range expectedPermissionsMap {
-		actualValue, exists := permissionsMap[key]
-		if !exists {
-			t.Errorf("Expected permission '%s' not found in permissions map", key)
-			continue
-		}
-		if actualValue != expectedValue {
-			t.Errorf("Expected permission '%s' to have value '%s', but got '%v'", key, expectedValue, actualValue)
-		}
+	if permissionsValue != "read-all" {
+		t.Fatal("Default permissions not read-all")
 	}
 }
 

@@ -20,20 +20,7 @@ run-name: "Test Proxy"
 jobs:
   test-proxy:
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      attestations: read
-      checks: read
-      contents: read
-      deployments: read
-      discussions: read
-      issues: read
-      models: read
-      packages: read
-      pages: read
-      pull-requests: read
-      security-events: read
-      statuses: read
+    permissions: read-all
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
