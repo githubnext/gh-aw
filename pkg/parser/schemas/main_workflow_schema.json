@@ -1009,6 +1009,38 @@
             }
           ]
         },
+        "create-issues": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub issues from agentic workflow output (plural form)",
+              "properties": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for the issue title"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Optional list of labels to attach to the issue",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to create (default: 10)",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue creation with default configuration (max: 10)"
+            }
+          ]
+        },
         "add-issue-comment": {
           "oneOf": [
             {
@@ -1019,6 +1051,27 @@
             {
               "type": "null",
               "description": "Enable issue comment creation with default configuration"
+            }
+          ]
+        },
+        "add-issue-comments": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub issue/PR comments from agentic workflow output (plural form)",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of comments to create (default: 10)",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue comment creation with default configuration (max: 10)"
             }
           ]
         },

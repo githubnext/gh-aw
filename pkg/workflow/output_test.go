@@ -51,25 +51,25 @@ This workflow tests the output configuration parsing.
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.CreateIssue == nil {
+	if workflowData.SafeOutputs.CreateIssues == nil {
 		t.Fatal("Expected issue configuration to be parsed")
 	}
 
 	// Verify title prefix
 	expectedPrefix := "[genai] "
-	if workflowData.SafeOutputs.CreateIssue.TitlePrefix != expectedPrefix {
-		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreateIssue.TitlePrefix)
+	if workflowData.SafeOutputs.CreateIssues.TitlePrefix != expectedPrefix {
+		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreateIssues.TitlePrefix)
 	}
 
 	// Verify labels
 	expectedLabels := []string{"copilot", "automation"}
-	if len(workflowData.SafeOutputs.CreateIssue.Labels) != len(expectedLabels) {
-		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreateIssue.Labels))
+	if len(workflowData.SafeOutputs.CreateIssues.Labels) != len(expectedLabels) {
+		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreateIssues.Labels))
 	}
 
 	for i, expectedLabel := range expectedLabels {
-		if i >= len(workflowData.SafeOutputs.CreateIssue.Labels) || workflowData.SafeOutputs.CreateIssue.Labels[i] != expectedLabel {
-			t.Errorf("Expected label '%s' at index %d, got '%s'", expectedLabel, i, workflowData.SafeOutputs.CreateIssue.Labels[i])
+		if i >= len(workflowData.SafeOutputs.CreateIssues.Labels) || workflowData.SafeOutputs.CreateIssues.Labels[i] != expectedLabel {
+			t.Errorf("Expected label '%s' at index %d, got '%s'", expectedLabel, i, workflowData.SafeOutputs.CreateIssues.Labels[i])
 		}
 	}
 }
@@ -162,29 +162,29 @@ This workflow tests the null output configuration parsing.
 	}
 
 	// Verify create-issue configuration is parsed with empty values
-	if workflowData.SafeOutputs.CreateIssue == nil {
+	if workflowData.SafeOutputs.CreateIssues == nil {
 		t.Fatal("Expected create-issue configuration to be parsed with null value")
 	}
-	if workflowData.SafeOutputs.CreateIssue.TitlePrefix != "" {
-		t.Errorf("Expected empty title prefix for null create-issue, got '%s'", workflowData.SafeOutputs.CreateIssue.TitlePrefix)
+	if workflowData.SafeOutputs.CreateIssues.TitlePrefix != "" {
+		t.Errorf("Expected empty title prefix for null create-issue, got '%s'", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
 	}
-	if len(workflowData.SafeOutputs.CreateIssue.Labels) != 0 {
-		t.Errorf("Expected empty labels for null create-issue, got %v", workflowData.SafeOutputs.CreateIssue.Labels)
+	if len(workflowData.SafeOutputs.CreateIssues.Labels) != 0 {
+		t.Errorf("Expected empty labels for null create-issue, got %v", workflowData.SafeOutputs.CreateIssues.Labels)
 	}
 
 	// Verify create-pull-request configuration is parsed with empty values
-	if workflowData.SafeOutputs.CreatePullRequest == nil {
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
 		t.Fatal("Expected create-pull-request configuration to be parsed with null value")
 	}
-	if workflowData.SafeOutputs.CreatePullRequest.TitlePrefix != "" {
-		t.Errorf("Expected empty title prefix for null create-pull-request, got '%s'", workflowData.SafeOutputs.CreatePullRequest.TitlePrefix)
+	if workflowData.SafeOutputs.CreatePullRequests.TitlePrefix != "" {
+		t.Errorf("Expected empty title prefix for null create-pull-request, got '%s'", workflowData.SafeOutputs.CreatePullRequests.TitlePrefix)
 	}
-	if len(workflowData.SafeOutputs.CreatePullRequest.Labels) != 0 {
-		t.Errorf("Expected empty labels for null create-pull-request, got %v", workflowData.SafeOutputs.CreatePullRequest.Labels)
+	if len(workflowData.SafeOutputs.CreatePullRequests.Labels) != 0 {
+		t.Errorf("Expected empty labels for null create-pull-request, got %v", workflowData.SafeOutputs.CreatePullRequests.Labels)
 	}
 
 	// Verify add-issue-comment configuration is parsed with empty values
-	if workflowData.SafeOutputs.AddIssueComment == nil {
+	if workflowData.SafeOutputs.AddIssueComments == nil {
 		t.Fatal("Expected add-issue-comment configuration to be parsed with null value")
 	}
 
@@ -332,7 +332,7 @@ This workflow tests the output.add-issue-comment configuration parsing.
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComment == nil {
+	if workflowData.SafeOutputs.AddIssueComments == nil {
 		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 }
@@ -382,7 +382,7 @@ This workflow tests the output.add-issue-comment configuration parsing with null
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComment == nil {
+	if workflowData.SafeOutputs.AddIssueComments == nil {
 		t.Fatal("Expected issue_comment configuration to be parsed even with null value")
 	}
 }
@@ -580,25 +580,25 @@ This workflow tests the output pull request configuration parsing.
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.CreatePullRequest == nil {
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
 		t.Fatal("Expected pull-request configuration to be parsed")
 	}
 
 	// Verify title prefix
 	expectedPrefix := "[agent] "
-	if workflowData.SafeOutputs.CreatePullRequest.TitlePrefix != expectedPrefix {
-		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreatePullRequest.TitlePrefix)
+	if workflowData.SafeOutputs.CreatePullRequests.TitlePrefix != expectedPrefix {
+		t.Errorf("Expected title prefix '%s', got '%s'", expectedPrefix, workflowData.SafeOutputs.CreatePullRequests.TitlePrefix)
 	}
 
 	// Verify labels
 	expectedLabels := []string{"automation", "bot"}
-	if len(workflowData.SafeOutputs.CreatePullRequest.Labels) != len(expectedLabels) {
-		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreatePullRequest.Labels))
+	if len(workflowData.SafeOutputs.CreatePullRequests.Labels) != len(expectedLabels) {
+		t.Errorf("Expected %d labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.CreatePullRequests.Labels))
 	}
 
 	for i, expectedLabel := range expectedLabels {
-		if i >= len(workflowData.SafeOutputs.CreatePullRequest.Labels) || workflowData.SafeOutputs.CreatePullRequest.Labels[i] != expectedLabel {
-			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.SafeOutputs.CreatePullRequest.Labels[i])
+		if i >= len(workflowData.SafeOutputs.CreatePullRequests.Labels) || workflowData.SafeOutputs.CreatePullRequests.Labels[i] != expectedLabel {
+			t.Errorf("Expected label[%d] to be '%s', got '%s'", i, expectedLabel, workflowData.SafeOutputs.CreatePullRequests.Labels[i])
 		}
 	}
 }

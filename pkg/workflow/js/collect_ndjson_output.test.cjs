@@ -194,7 +194,7 @@ describe('collect_ndjson_output.cjs', () => {
     expect(parsedOutput.errors[0]).toContain('Invalid JSON');
   });
 
-  it('should reject duplicate output types', async () => {
+  it('should allow multiple items of supported types up to limits', async () => {
     const testFile = '/tmp/test-ndjson-output.txt';
     const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
 {"type": "create-issue", "title": "Second Issue", "body": "Second body"}`;
@@ -210,10 +210,35 @@ describe('collect_ndjson_output.cjs', () => {
     expect(outputCall).toBeDefined();
     
     const parsedOutput = JSON.parse(outputCall[1]);
-    expect(parsedOutput.items).toHaveLength(1);
+    expect(parsedOutput.items).toHaveLength(2); // Both items should be allowed
     expect(parsedOutput.items[0].title).toBe('First Issue');
-    expect(parsedOutput.errors).toHaveLength(1);
-    expect(parsedOutput.errors[0]).toContain('Duplicate output type');
+    expect(parsedOutput.items[1].title).toBe('Second Issue');
+    expect(parsedOutput.errors).toHaveLength(0); // No errors for multiple items within limits
+  });
+
+  it('should respect max limits from config', async () => {
+    const testFile = '/tmp/test-ndjson-output.txt';
+    const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
+{"type": "create-issue", "title": "Second Issue", "body": "Second body"}
+{"type": "create-issue", "title": "Third Issue", "body": "Third body"}`;
+    
+    fs.writeFileSync(testFile, ndjsonContent);
+    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+    // Set max to 2 for create-issue
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"max": 2}}';
+    
+    await eval(`(async () => { ${collectScript} })()`);
+    
+    const setOutputCalls = mockCore.setOutput.mock.calls;
+    const outputCall = setOutputCalls.find(call => call[0] === 'output');
+    expect(outputCall).toBeDefined();
+    
+    const parsedOutput = JSON.parse(outputCall[1]);
+    expect(parsedOutput.items).toHaveLength(2); // Only first 2 items should be allowed
+    expect(parsedOutput.items[0].title).toBe('First Issue');
+    expect(parsedOutput.items[1].title).toBe('Second Issue');
+    expect(parsedOutput.errors).toHaveLength(1); // Error for the third item exceeding max
+    expect(parsedOutput.errors[0]).toContain('Too many items of type \'create-issue\'. Maximum allowed: 2');
   });
 
   it('should skip empty lines', async () => {

@@ -1,130 +1,157 @@
-/**
- * Sanitizes content for safe output in GitHub Actions
- * @param {string} content - The content to sanitize
- * @returns {string} The sanitized content
- */
-function sanitizeContent(content) {
-  if (!content || typeof content !== 'string') {
-    return '';
-  }
-
-  // Read allowed domains from environment variable
-  const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-  const defaultAllowedDomains = [
-    'github.com',
-    'github.io',
-    'githubusercontent.com',
-    'githubassets.com',
-    'github.dev',
-    'codespaces.new'
-  ];
-
-  const allowedDomains = allowedDomainsEnv
-    ? allowedDomainsEnv.split(',').map(d => d.trim()).filter(d => d)
-    : defaultAllowedDomains;
-
-  let sanitized = content;
-
-  // Neutralize @mentions to prevent unintended notifications
-  sanitized = neutralizeMentions(sanitized);
-
-  // Remove control characters (except newlines and tabs)
-  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-
-  // XML character escaping
-  sanitized = sanitized
-    .replace(/&/g, '&amp;')   // Must be first to avoid double-escaping
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-
-  // URI filtering - replace non-https protocols with "(redacted)"
-  sanitized = sanitizeUrlProtocols(sanitized);
-
-  // Domain filtering for HTTPS URIs
-  sanitized = sanitizeUrlDomains(sanitized);
-
-  // Limit total length to prevent DoS (0.5MB max)
-  const maxLength = 524288;
-  if (sanitized.length > maxLength) {
-    sanitized = sanitized.substring(0, maxLength) + '\n[Content truncated due to length]';
-  }
-
-  // Limit number of lines to prevent log flooding (65k max)
-  const lines = sanitized.split('\n');
-  const maxLines = 65000;
-  if (lines.length > maxLines) {
-    sanitized = lines.slice(0, maxLines).join('\n') + '\n[Content truncated due to line count]';
-  }
-
-  // Remove ANSI escape sequences
-  sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, '');
-
-  // Neutralize common bot trigger phrases
-  sanitized = neutralizeBotTriggers(sanitized);
-
-  // Trim excessive whitespace
-  return sanitized.trim();
-
-  /**
-   * Remove unknown domains
-   * @param {string} s - The string to process
-   * @returns {string} The string with unknown domains redacted
-   */
-  function sanitizeUrlDomains(s) {
-    return s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-      // Extract the hostname part (before first slash, colon, or other delimiter)
-      const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
-
-      // Check if this domain or any parent domain is in the allowlist
-      const isAllowed = allowedDomains.some(allowedDomain => {
-        const normalizedAllowed = allowedDomain.toLowerCase();
-        return hostname === normalizedAllowed || hostname.endsWith('.' + normalizedAllowed);
-      });
-
-      return isAllowed ? match : '(redacted)';
-    });
-  }
-
-  /**
-   * Remove unknown protocols except https
-   * @param {string} s - The string to process
-   * @returns {string} The string with non-https protocols redacted
-   */
-  function sanitizeUrlProtocols(s) {
-    // Match both protocol:// and protocol: patterns
-    return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-      // Allow https (case insensitive), redact everything else
-      return protocol.toLowerCase() === 'https' ? match : '(redacted)';
-    });
-  }
-
-  /**
-   * Neutralizes @mentions by wrapping them in backticks
-   * @param {string} s - The string to process
-   * @returns {string} The string with neutralized mentions
-   */
-  function neutralizeMentions(s) {
-    // Replace @name or @org/team outside code with `@name`
-    return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-      (_m, p1, p2) => `${p1}\`@${p2}\``);
-  }
-
-  /**
-   * Neutralizes bot trigger phrases by wrapping them in backticks
-   * @param {string} s - The string to process
-   * @returns {string} The string with neutralized bot triggers
-   */
-  function neutralizeBotTriggers(s) {
-    // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-    return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi,
-      (match, action, ref) => `\`${action} #${ref}\``);
-  }
-}
-
 async function main() {
   const fs = require("fs");
+  
+  /**
+   * Sanitizes content for safe output in GitHub Actions
+   * @param {string} content - The content to sanitize
+   * @returns {string} The sanitized content
+   */
+  function sanitizeContent(content) {
+    if (!content || typeof content !== 'string') {
+      return '';
+    }
+
+    // Read allowed domains from environment variable
+    const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+    const defaultAllowedDomains = [
+      'github.com',
+      'github.io',
+      'githubusercontent.com',
+      'githubassets.com',
+      'github.dev',
+      'codespaces.new'
+    ];
+
+    const allowedDomains = allowedDomainsEnv
+      ? allowedDomainsEnv.split(',').map(d => d.trim()).filter(d => d)
+      : defaultAllowedDomains;
+
+    let sanitized = content;
+
+    // Neutralize @mentions to prevent unintended notifications
+    sanitized = neutralizeMentions(sanitized);
+
+    // Remove control characters (except newlines and tabs)
+    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+    // XML character escaping
+    sanitized = sanitized
+      .replace(/&/g, '&amp;')   // Must be first to avoid double-escaping
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+
+    // URI filtering - replace non-https protocols with "(redacted)"
+    sanitized = sanitizeUrlProtocols(sanitized);
+
+    // Domain filtering for HTTPS URIs
+    sanitized = sanitizeUrlDomains(sanitized);
+
+    // Limit total length to prevent DoS (0.5MB max)
+    const maxLength = 524288;
+    if (sanitized.length > maxLength) {
+      sanitized = sanitized.substring(0, maxLength) + '\n[Content truncated due to length]';
+    }
+
+    // Limit number of lines to prevent log flooding (65k max)
+    const lines = sanitized.split('\n');
+    const maxLines = 65000;
+    if (lines.length > maxLines) {
+      sanitized = lines.slice(0, maxLines).join('\n') + '\n[Content truncated due to line count]';
+    }
+
+    // Remove ANSI escape sequences
+    sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, '');
+
+    // Neutralize common bot trigger phrases
+    sanitized = neutralizeBotTriggers(sanitized);
+
+    // Trim excessive whitespace
+    return sanitized.trim();
+
+    /**
+     * Remove unknown domains
+     * @param {string} s - The string to process
+     * @returns {string} The string with unknown domains redacted
+     */
+    function sanitizeUrlDomains(s) {
+      return s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
+        // Extract the hostname part (before first slash, colon, or other delimiter)
+        const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+
+        // Check if this domain or any parent domain is in the allowlist
+        const isAllowed = allowedDomains.some(allowedDomain => {
+          const normalizedAllowed = allowedDomain.toLowerCase();
+          return hostname === normalizedAllowed || hostname.endsWith('.' + normalizedAllowed);
+        });
+
+        return isAllowed ? match : '(redacted)';
+      });
+    }
+
+    /**
+     * Remove unknown protocols except https
+     * @param {string} s - The string to process
+     * @returns {string} The string with non-https protocols redacted
+     */
+    function sanitizeUrlProtocols(s) {
+      // Match both protocol:// and protocol: patterns
+      return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+        // Allow https (case insensitive), redact everything else
+        return protocol.toLowerCase() === 'https' ? match : '(redacted)';
+      });
+    }
+
+    /**
+     * Neutralizes @mentions by wrapping them in backticks
+     * @param {string} s - The string to process
+     * @returns {string} The string with neutralized mentions
+     */
+    function neutralizeMentions(s) {
+      // Replace @name or @org/team outside code with `@name`
+      return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+        (_m, p1, p2) => `${p1}\`@${p2}\``);
+    }
+
+    /**
+     * Neutralizes bot trigger phrases by wrapping them in backticks
+     * @param {string} s - The string to process
+     * @returns {string} The string with neutralized bot triggers
+     */
+    function neutralizeBotTriggers(s) {
+      // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
+      return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi,
+        (match, action, ref) => `\`${action} #${ref}\``);
+    }
+  }
+  
+  /**
+   * Gets the maximum allowed count for a given output type
+   * @param {string} itemType - The output item type
+   * @param {Object} config - The safe-outputs configuration
+   * @returns {number} The maximum allowed count
+   */
+  function getMaxAllowedForType(itemType, config) {
+    // Check if max is explicitly specified in config
+    if (config && config[itemType] && typeof config[itemType] === 'object' && config[itemType].max) {
+      return config[itemType].max;
+    }
+    
+    // Use default limits for plural-supported types
+    switch (itemType) {
+      case 'create-issue':
+        return 10; // Allow multiple issues
+      case 'add-issue-comment':
+        return 10; // Allow multiple comments
+      case 'create-pull-request':
+        return 1;  // Only one pull request allowed
+      case 'add-issue-labels':
+        return 1;  // Only one labels operation allowed
+      default:
+        return 1;  // Default to single item for unknown types
+    }
+  }
   const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
   const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
   
@@ -185,10 +212,11 @@ async function main() {
         continue;
       }
 
-      // Check for duplicates based on type (since current format allows only one of each)
-      const existingItem = parsedItems.find(existing => existing.type === itemType);
-      if (existingItem) {
-        errors.push(`Line ${i + 1}: Duplicate output type '${itemType}'. Only one item of each type is currently allowed.`);
+      // Check for too many items of the same type
+      const typeCount = parsedItems.filter(existing => existing.type === itemType).length;
+      const maxAllowed = getMaxAllowedForType(itemType, expectedOutputTypes);
+      if (typeCount >= maxAllowed) {
+        errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
         continue;
       }
 

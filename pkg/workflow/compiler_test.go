@@ -5428,7 +5428,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				},
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssue: &CreateIssueConfig{},
+				CreateIssues: &CreateIssuesConfig{Max: 1},
 			},
 			expected: "Read,Write",
 		},
@@ -5443,7 +5443,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				},
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssue: &CreateIssueConfig{},
+				CreateIssues: &CreateIssuesConfig{Max: 1},
 			},
 			expected: "Read,Write",
 		},
@@ -5469,9 +5469,9 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				},
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssue:       &CreateIssueConfig{},
-				AddIssueComment:   &AddIssueCommentConfig{},
-				CreatePullRequest: &CreatePullRequestConfig{},
+				CreateIssues:       &CreateIssuesConfig{Max: 1},
+				AddIssueComments:   &AddIssueCommentsConfig{Max: 1},
+				CreatePullRequests: &CreatePullRequestsConfig{Max: 1},
 			},
 			expected: "Bash,Write",
 		},
@@ -5488,7 +5488,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				},
 			},
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssue: &CreateIssueConfig{},
+				CreateIssues: &CreateIssuesConfig{Max: 1},
 			},
 			expected: "Read,Write,mcp__github__create_issue,mcp__github__create_pull_request",
 		},

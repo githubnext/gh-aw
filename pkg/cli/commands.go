@@ -3685,9 +3685,13 @@ permissions:
 
 # Outputs - what APIs and tools can the AI use?
 safe-outputs:
-  create-issue:
-  # create-pull-request:
-  # add-issue-comment:
+  create-issue:          # Creates exactly one issue
+  # create-issues:       # Creates multiple issues (default max: 10)
+  #   max: 5             # Optional: specify maximum number
+  # create-pull-request: # Creates exactly one pull request
+  # add-issue-comment:   # Adds exactly one comment
+  # add-issue-comments:  # Adds multiple comments (default max: 10)
+  #   max: 2             # Optional: specify maximum number
   # add-issue-labels:
 
 ---
