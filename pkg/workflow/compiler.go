@@ -114,30 +114,30 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
-	Name             string
-	On               string
-	Permissions      string
-	Concurrency      string
-	RunName          string
-	Env              string
-	If               string
-	TimeoutMinutes   string
-	CustomSteps      string
-	PostSteps        string // steps to run after AI execution
-	RunsOn           string
-	Tools            map[string]any
-	MarkdownContent  string
-	AllowedTools     string
-	AI               string        // "claude" or "codex" (for backwards compatibility)
-	EngineConfig     *EngineConfig // Extended engine configuration
-	StopTime         string
-	Alias            string             // for @alias trigger support
-	AliasOtherEvents map[string]any     // for merging alias with other events
-	AIReaction       string             // AI reaction type like "eyes", "heart", etc.
-	Jobs             map[string]any     // custom job configurations with dependencies
-	Cache            string             // cache configuration
-	NeedsTextOutput  bool               // whether the workflow uses ${{ needs.task.outputs.text }}
-	SafeOutputs      *SafeOutputsConfig // output configuration for automatic output routes
+	Name               string
+	On                 string
+	Permissions        string
+	Concurrency        string
+	RunName            string
+	Env                string
+	If                 string
+	TimeoutMinutes     string
+	CustomSteps        string
+	PostSteps          string // steps to run after AI execution
+	RunsOn             string
+	Tools              map[string]any
+	MarkdownContent    string
+	AllowedTools       string
+	AI                 string        // "claude" or "codex" (for backwards compatibility)
+	EngineConfig       *EngineConfig // Extended engine configuration
+	StopTime           string
+	Command            string             // for /command trigger support
+	CommandOtherEvents map[string]any     // for merging command with other events
+	AIReaction         string             // AI reaction type like "eyes", "heart", etc.
+	Jobs               map[string]any     // custom job configurations with dependencies
+	Cache              string             // cache configuration
+	NeedsTextOutput    bool               // whether the workflow uses ${{ needs.task.outputs.text }}
+	SafeOutputs        *SafeOutputsConfig // output configuration for automatic output routes
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -609,20 +609,20 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
-	workflowData.Alias = c.extractAliasName(result.Frontmatter)
+	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 
 	// Parse output configuration
 	workflowData.SafeOutputs = c.extractSafeOutputsConfig(result.Frontmatter)
 
-	// Check if "alias" is used as a trigger in the "on" section
+	// Check if "command" is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
-	var hasAlias bool
+	var hasCommand bool
 	var hasReaction bool
 	var hasStopAfter bool
 	var otherEvents map[string]any
 	if onValue, exists := result.Frontmatter["on"]; exists {
-		// Check for new format: on.alias and on.reaction
+		// Check for new format: on.command and on.reaction
 		if onMap, ok := onValue.(map[string]any); ok {
 			// Check for stop-after in the on section
 			if _, hasStopAfterKey := onMap["stop-after"]; hasStopAfterKey {
@@ -637,39 +637,39 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				}
 			}
 
-			if _, hasAliasKey := onMap["alias"]; hasAliasKey {
-				hasAlias = true
-				// Set default alias to filename if not specified in the alias section
-				if workflowData.Alias == "" {
+			if _, hasCommandKey := onMap["command"]; hasCommandKey {
+				hasCommand = true
+				// Set default command to filename if not specified in the command section
+				if workflowData.Command == "" {
 					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Alias = baseName
+					workflowData.Command = baseName
 				}
 				// Check for conflicting events
 				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
 				for _, eventName := range conflictingEvents {
 					if _, hasConflict := onMap[eventName]; hasConflict {
-						return nil, fmt.Errorf("cannot use 'alias' with '%s' in the same workflow", eventName)
+						return nil, fmt.Errorf("cannot use 'command' with '%s' in the same workflow", eventName)
 					}
 				}
 
-				// Clear the On field so applyDefaults will handle alias trigger generation
+				// Clear the On field so applyDefaults will handle command trigger generation
 				workflowData.On = ""
 			}
-			// Extract other (non-conflicting) events excluding alias, reaction, and stop-after
-			otherEvents = filterMapKeys(onMap, "alias", "reaction", "stop-after")
+			// Extract other (non-conflicting) events excluding command, reaction, and stop-after
+			otherEvents = filterMapKeys(onMap, "command", "reaction", "stop-after")
 		}
 	}
 
-	// Clear alias field if no alias trigger was found
-	if !hasAlias {
-		workflowData.Alias = ""
+	// Clear command field if no command trigger was found
+	if !hasCommand {
+		workflowData.Command = ""
 	}
 
 	// Store other events for merging in applyDefaults
-	if hasAlias && len(otherEvents) > 0 {
+	if hasCommand && len(otherEvents) > 0 {
 		// We'll store this and handle it in applyDefaults
-		workflowData.On = "" // This will trigger alias handling in applyDefaults
-		workflowData.AliasOtherEvents = otherEvents
+		workflowData.On = "" // This will trigger command handling in applyDefaults
+		workflowData.CommandOtherEvents = otherEvents
 	} else if (hasReaction || hasStopAfter) && len(otherEvents) > 0 {
 		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
@@ -863,14 +863,14 @@ func (c *Compiler) generateJobName(workflowName string) string {
 	}
 
 	return jobName
-} // extractAliasName extracts the alias name from frontmatter using the new nested format
-func (c *Compiler) extractAliasName(frontmatter map[string]any) string {
-	// Check new format: on.alias.name
+} // extractCommandName extracts the command name from frontmatter using the new nested format
+func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
+	// Check new format: on.command.name
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
-			if aliasValue, hasAlias := onMap["alias"]; hasAlias {
-				if aliasMap, ok := aliasValue.(map[string]any); ok {
-					if nameValue, hasName := aliasMap["name"]; hasName {
+			if commandValue, hasCommand := onMap["command"]; hasCommand {
+				if commandMap, ok := commandValue.(map[string]any); ok {
+					if nameValue, hasName := commandMap["name"]; hasName {
 						if nameStr, ok := nameValue.(string); ok {
 							return nameStr
 						}
@@ -885,19 +885,19 @@ func (c *Compiler) extractAliasName(frontmatter map[string]any) string {
 
 // applyDefaults applies default values for missing workflow sections
 func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
-	// Check if this is an alias trigger workflow (by checking if user specified "on.alias")
-	isAliasTrigger := false
+	// Check if this is a command trigger workflow (by checking if user specified "on.command")
+	isCommandTrigger := false
 	if data.On == "" {
-		// Check the original frontmatter for alias trigger
+		// Check the original frontmatter for command trigger
 		content, err := os.ReadFile(markdownPath)
 		if err == nil {
 			result, err := parser.ExtractFrontmatterFromContent(string(content))
 			if err == nil {
 				if onValue, exists := result.Frontmatter["on"]; exists {
-					// Check for new format: on.alias
+					// Check for new format: on.command
 					if onMap, ok := onValue.(map[string]any); ok {
-						if _, hasAlias := onMap["alias"]; hasAlias {
-							isAliasTrigger = true
+						if _, hasCommand := onMap["command"]; hasCommand {
+							isCommandTrigger = true
 						}
 					}
 				}
@@ -906,9 +906,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.On == "" {
-		if isAliasTrigger {
-			// Generate alias-specific GitHub Actions events (updated to include reopened and pull_request)
-			aliasEvents := `on:
+		if isCommandTrigger {
+			// Generate command-specific GitHub Actions events (updated to include reopened and pull_request)
+			commandEvents := `on:
   issues:
     types: [opened, edited, reopened]
   issue_comment:
@@ -919,9 +919,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
     types: [created, edited]`
 
 			// Check if there are other events to merge
-			if len(data.AliasOtherEvents) > 0 {
-				// Merge alias events with other events
-				aliasEventsMap := map[string]any{
+			if len(data.CommandOtherEvents) > 0 {
+				// Merge command events with other events
+				commandEventsMap := map[string]any{
 					"issues": map[string]any{
 						"types": []string{"opened", "edited", "reopened"},
 					},
@@ -936,30 +936,30 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 					},
 				}
 
-				// Merge other events into alias events
-				for key, value := range data.AliasOtherEvents {
-					aliasEventsMap[key] = value
+				// Merge other events into command events
+				for key, value := range data.CommandOtherEvents {
+					commandEventsMap[key] = value
 				}
 
 				// Convert merged events to YAML
-				mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": aliasEventsMap})
+				mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
 				if err == nil {
 					data.On = strings.TrimSuffix(string(mergedEventsYAML), "\n")
 				} else {
-					// If conversion fails, just use alias events
-					data.On = aliasEvents
+					// If conversion fails, just use command events
+					data.On = commandEvents
 				}
 			} else {
-				data.On = aliasEvents
+				data.On = commandEvents
 			}
 
-			// Add conditional logic to check for alias in issue content
-			// Use event-aware condition that only applies alias checks to comment-related events
-			hasOtherEvents := len(data.AliasOtherEvents) > 0
-			aliasConditionTree := buildEventAwareAliasCondition(data.Alias, hasOtherEvents)
+			// Add conditional logic to check for command in issue content
+			// Use event-aware condition that only applies command checks to comment-related events
+			hasOtherEvents := len(data.CommandOtherEvents) > 0
+			commandConditionTree := buildEventAwareCommandCondition(data.Command, hasOtherEvents)
 
 			if data.If == "" {
-				data.If = fmt.Sprintf("if: %s", aliasConditionTree.Render())
+				data.If = fmt.Sprintf("if: %s", commandConditionTree.Render())
 			}
 		} else {
 			data.On = `on:
@@ -986,7 +986,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
-	data.Concurrency = GenerateConcurrencyConfig(data, isAliasTrigger)
+	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger)
 
 	if data.RunName == "" {
 		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)
@@ -1504,10 +1504,10 @@ func (c *Compiler) generateYAML(data *WorkflowData) (string, error) {
 // isTaskJobNeeded determines if the task job is required
 func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
 	// Task job is needed if:
-	// 1. Alias is configured (for team member checking)
+	// 1. Command is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
-	return data.Alias != "" || data.NeedsTextOutput || data.If != ""
+	return data.Command != "" || data.NeedsTextOutput || data.If != ""
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
@@ -1606,24 +1606,24 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
-	// Add team member check for alias workflows, but only when triggered by alias mention
-	if data.Alias != "" {
-		// Build condition that only applies to alias mentions in comment-related events
-		aliasCondition := buildAliasOnlyCondition(data.Alias)
-		aliasConditionStr := aliasCondition.Render()
+	// Add team member check for command workflows, but only when triggered by command mention
+	if data.Command != "" {
+		// Build condition that only applies to command mentions in comment-related events
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
 
 		// Build the validation condition using expression nodes
-		// Since the check-team-member step is gated by alias condition, we check if it ran and returned 'false'
-		// This avoids running validation when the step didn't run at all (non-alias triggers)
+		// Since the check-team-member step is gated by command condition, we check if it ran and returned 'false'
+		// This avoids running validation when the step didn't run at all (non-command triggers)
 		validationCondition := BuildEquals(
 			BuildPropertyAccess("steps.check-team-member.outputs.is_team_member"),
 			BuildStringLiteral("false"),
 		)
 		validationConditionStr := validationCondition.Render()
 
-		steps = append(steps, "      - name: Check team membership for alias workflow\n")
+		steps = append(steps, "      - name: Check team membership for command workflow\n")
 		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", aliasConditionStr))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", commandConditionStr))
 		steps = append(steps, "        uses: actions/github-script@v7\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
@@ -1638,7 +1638,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, "      - name: Validate team membership\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", validationConditionStr))
 		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          echo \"❌ Access denied: Only team members can trigger alias workflows\"\n")
+		steps = append(steps, "          echo \"❌ Access denied: Only team members can trigger command workflows\"\n")
 		steps = append(steps, "          echo \"User ${{ github.actor }} is not a team member\"\n")
 		steps = append(steps, "          exit 1\n")
 	}
@@ -1689,8 +1689,8 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_REACTION: %s\n", data.AIReaction))
-	if data.Alias != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ALIAS: %s\n", data.Alias))
+	if data.Command != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMAND: %s\n", data.Command))
 	}
 
 	steps = append(steps, "        with:\n")

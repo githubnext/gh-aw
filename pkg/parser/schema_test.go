@@ -32,7 +32,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				"steps":           []string{"step1"},
 				"engine":          "claude",
 				"tools":           map[string]any{"github": "test"},
-				"alias":           "test-workflow",
+				"command":         "test-workflow",
 			},
 			wantErr: false,
 		},
@@ -194,11 +194,11 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid frontmatter with alias trigger",
+			name: "valid frontmatter with command trigger",
 			frontmatter: map[string]any{
 				"on": map[string]any{
-					"alias": map[string]any{
-						"name": "test-alias",
+					"command": map[string]any{
+						"name": "test-command",
 					},
 				},
 				"permissions": map[string]any{

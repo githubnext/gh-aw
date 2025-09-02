@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude Alias"
+name: "Test Codex Command"
 on:
   issues:
     types: [opened, edited, reopened]
@@ -18,18 +18,18 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Test Claude Alias"
+run-name: "Test Codex Command"
 
 jobs:
   task:
-    if: ((contains(github.event.issue.body, '@test-claude-alias')) || (contains(github.event.comment.body, '@test-claude-alias'))) || (contains(github.event.pull_request.body, '@test-claude-alias'))
+    if: ((contains(github.event.issue.body, '/test-codex-command')) || (contains(github.event.comment.body, '/test-codex-command'))) || (contains(github.event.pull_request.body, '/test-codex-command'))
     runs-on: ubuntu-latest
     outputs:
       text: ${{ steps.compute-text.outputs.text }}
     steps:
-      - name: Check team membership for alias workflow
+      - name: Check team membership for command workflow
         id: check-team-member
-        if: contains(github.event.issue.body, '@test-claude-alias') || contains(github.event.comment.body, '@test-claude-alias') || contains(github.event.pull_request.body, '@test-claude-alias')
+        if: contains(github.event.issue.body, '/test-codex-command') || contains(github.event.comment.body, '/test-codex-command') || contains(github.event.pull_request.body, '/test-codex-command')
         uses: actions/github-script@v7
         with:
           script: |
@@ -61,7 +61,7 @@ jobs:
       - name: Validate team membership
         if: steps.check-team-member.outputs.is_team_member == 'false'
         run: |
-          echo "❌ Access denied: Only team members can trigger alias workflows"
+          echo "❌ Access denied: Only team members can trigger command workflows"
           echo "User ${{ github.actor }} is not a team member"
           exit 1
       - name: Compute current body text
@@ -267,7 +267,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_REACTION: eyes
-          GITHUB_AW_ALIAS: test-claude-alias
+          GITHUB_AW_COMMAND: test-codex-command
         with:
           script: |
             async function main() {
@@ -424,7 +424,7 @@ jobs:
             }
             await main();
 
-  test-claude-alias:
+  test-codex-command:
     needs: task
     runs-on: ubuntu-latest
     permissions: read-all
@@ -487,7 +487,7 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
-          Add a reply comment to issue #${{ github.event.issue.number }} answering the question "${{ needs.task.outputs.text }}" given the context of the repo, starting with saying you're Claude. If there is no alias write out a haiku about the repo.
+          Add a reply comment to issue #${{ github.event.issue.number }} answering the question "${{ needs.task.outputs.text }}" given the context of the repo, starting with saying you're Codex. If there is no command write out a haiku about the repo.
           
           
           ---
@@ -535,7 +535,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude Alias",
+              workflow_name: "Test Codex Command",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -635,13 +635,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-alias.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-codex-command.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-alias.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-codex-command.log
           fi
           
           # Ensure log file exists
-          touch /tmp/test-claude-alias.log
+          touch /tmp/test-codex-command.log
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
@@ -972,7 +972,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-claude-alias.log
+          AGENT_LOG_FILE: /tmp/test-codex-command.log
         with:
           script: |
             function main() {
@@ -1247,8 +1247,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-alias.log
-          path: /tmp/test-claude-alias.log
+          name: test-codex-command.log
+          path: /tmp/test-codex-command.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -1314,7 +1314,7 @@ jobs:
           if-no-files-found: ignore
 
   create_issue_comment:
-    needs: test-claude-alias
+    needs: test-codex-command
     if: github.event.issue.number || github.event.pull_request.number
     runs-on: ubuntu-latest
     permissions:
@@ -1330,7 +1330,7 @@ jobs:
         id: create_comment
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-alias.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-command.outputs.output }}
         with:
           script: |
             async function main() {

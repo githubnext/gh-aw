@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestTeamMemberCheckForAliasWorkflows tests that team member checks are only added to alias workflows
-func TestTeamMemberCheckForAliasWorkflows(t *testing.T) {
+// TestTeamMemberCheckForCommandWorkflows tests that team member checks are only added to command workflows
+func TestTeamMemberCheckForCommandWorkflows(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "workflow-team-member-test")
 	if err != nil {
@@ -25,10 +25,10 @@ func TestTeamMemberCheckForAliasWorkflows(t *testing.T) {
 		expectTeamMemberCheck bool
 	}{
 		{
-			name: "alias workflow should include team member check",
+			name: "command workflow should include team member check",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: test-bot
 tools:
   github:
@@ -37,11 +37,11 @@ tools:
 
 # Test Bot
 Test workflow content.`,
-			filename:              "alias-workflow.md",
+			filename:              "command-workflow.md",
 			expectTeamMemberCheck: true,
 		},
 		{
-			name: "non-alias workflow should not include team member check",
+			name: "non-command workflow should not include team member check",
 			frontmatter: `---
 on:
   push:
@@ -73,10 +73,10 @@ Test workflow content.`,
 			expectTeamMemberCheck: false,
 		},
 		{
-			name: "alias with other events should include team member check",
+			name: "command with other events should include team member check",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: multi-bot
   workflow_dispatch:
 tools:
@@ -90,10 +90,10 @@ Test workflow content.`,
 			expectTeamMemberCheck: true,
 		},
 		{
-			name: "alias with push events should have conditional team member check",
+			name: "command with push events should have conditional team member check",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: docs-bot
   push:
     branches: [main]
@@ -134,31 +134,31 @@ Test workflow content.`,
 			lockContentStr := string(lockContent)
 
 			// Check for team member check
-			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for alias workflow")
+			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for command workflow")
 
 			if tt.expectTeamMemberCheck {
 				if !hasTeamMemberCheck {
-					t.Errorf("Expected team member check in alias workflow but not found")
+					t.Errorf("Expected team member check in command workflow but not found")
 				}
 				// Also verify the validation step is present
 				if !strings.Contains(lockContentStr, "Validate team membership") {
 					t.Errorf("Expected team membership validation step but not found")
 				}
 				// Check for the specific failure message
-				if !strings.Contains(lockContentStr, "Only team members can trigger alias workflows") {
+				if !strings.Contains(lockContentStr, "Only team members can trigger command workflows") {
 					t.Errorf("Expected team member check failure message but not found")
 				}
 				// Verify that team member check has a conditional that only runs for alias mentions
 				if !strings.Contains(lockContentStr, "if: contains(github.event.issue.body") {
 					t.Errorf("Expected team member check to have alias-only condition but not found")
 				}
-				// Verify that the condition only checks for alias mentions (not other event types)
-				aliasConditionCount := strings.Count(lockContentStr, "contains(github.event")
-				if aliasConditionCount < 2 { // Should have conditions for issue.body, comment.body, etc.
-					t.Errorf("Expected multiple alias content checks but found %d", aliasConditionCount)
+				// Verify that the condition only checks for command mentions (not other event types)
+				commandConditionCount := strings.Count(lockContentStr, "contains(github.event")
+				if commandConditionCount < 2 { // Should have conditions for issue.body, comment.body, etc.
+					t.Errorf("Expected multiple command content checks but found %d", commandConditionCount)
 				}
 				// Find the team member check section and ensure it doesn't have github.event_name logic
-				teamMemberCheckStart := strings.Index(lockContentStr, "Check team membership for alias workflow")
+				teamMemberCheckStart := strings.Index(lockContentStr, "Check team membership for command workflow")
 				teamMemberCheckEnd := strings.Index(lockContentStr[teamMemberCheckStart:], "Compute current body text")
 				if teamMemberCheckStart != -1 && teamMemberCheckEnd != -1 {
 					teamMemberSection := lockContentStr[teamMemberCheckStart : teamMemberCheckStart+teamMemberCheckEnd]
@@ -168,7 +168,7 @@ Test workflow content.`,
 				}
 			} else {
 				if hasTeamMemberCheck {
-					t.Errorf("Did not expect team member check in non-alias workflow but found it")
+					t.Errorf("Did not expect team member check in non-command workflow but found it")
 				}
 			}
 		})

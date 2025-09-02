@@ -602,9 +602,9 @@ This is a test workflow.
 	}
 }
 
-func TestAliasSection(t *testing.T) {
+func TestCommandSection(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-alias-test")
+	tmpDir, err := os.MkdirTemp("", "workflow-command-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -613,55 +613,56 @@ func TestAliasSection(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name          string
-		frontmatter   string
-		filename      string
-		expectedOn    string
-		expectedIf    string
-		expectedAlias string
+		name            string
+		frontmatter     string
+		filename        string
+		expectedOn      string
+		expectedIf      string
+		expectedCommand string
 	}{
 		{
-			name: "alias trigger",
+			name: "command trigger",
 			frontmatter: `---
 on:
-  alias:
+  command:
+    name: test-bot
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:      "test-bot.md",
-			expectedOn:    "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:    "if: ((contains(github.event.issue.body, '@test-bot')) || (contains(github.event.comment.body, '@test-bot'))) || (contains(github.event.pull_request.body, '@test-bot'))",
-			expectedAlias: "test-bot",
+			filename:        "test-bot.md",
+			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedIf:      "if: ((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot'))",
+			expectedCommand: "test-bot",
 		},
 		{
-			name: "new format alias trigger",
+			name: "new format command trigger",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: new-bot
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:      "test-new-format.md",
-			expectedOn:    "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:    "if: ((contains(github.event.issue.body, '@new-bot')) || (contains(github.event.comment.body, '@new-bot'))) || (contains(github.event.pull_request.body, '@new-bot'))",
-			expectedAlias: "new-bot",
+			filename:        "test-new-format.md",
+			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedIf:      "if: ((contains(github.event.issue.body, '/new-bot')) || (contains(github.event.comment.body, '/new-bot'))) || (contains(github.event.pull_request.body, '/new-bot'))",
+			expectedCommand: "new-bot",
 		},
 		{
-			name: "new format alias trigger no name defaults to filename",
+			name: "new format command trigger no name defaults to filename",
 			frontmatter: `---
 on:
-  alias: {}
+  command: {}
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:      "default-name-bot.md",
-			expectedOn:    "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:    "if: ((contains(github.event.issue.body, '@default-name-bot')) || (contains(github.event.comment.body, '@default-name-bot'))) || (contains(github.event.pull_request.body, '@default-name-bot'))",
-			expectedAlias: "default-name-bot",
+			filename:        "default-name-bot.md",
+			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedIf:      "if: ((contains(github.event.issue.body, '/default-name-bot')) || (contains(github.event.comment.body, '/default-name-bot'))) || (contains(github.event.pull_request.body, '/default-name-bot'))",
+			expectedCommand: "default-name-bot",
 		},
 	}
 
@@ -669,9 +670,9 @@ tools:
 		t.Run(tt.name, func(t *testing.T) {
 			testContent := tt.frontmatter + `
 
-# Test Alias Workflow
+# Test Command Workflow
 
-This is a test workflow for alias triggering.
+This is a test workflow for command triggering.
 `
 
 			testFile := filepath.Join(tmpDir, tt.filename)
@@ -704,14 +705,14 @@ This is a test workflow for alias triggering.
 				t.Errorf("Expected lock file to contain '%s' but it didn't.\nContent:\n%s", tt.expectedIf, lockContent)
 			}
 
-			// The alias is validated during compilation and should be present in the if condition
+			// The command is validated during compilation and should be present in the if condition
 		})
 	}
 }
 
-func TestAliasWithOtherEvents(t *testing.T) {
+func TestCommandWithOtherEvents(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-alias-merge-test")
+	tmpDir, err := os.MkdirTemp("", "workflow-command-merge-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -725,32 +726,32 @@ func TestAliasWithOtherEvents(t *testing.T) {
 		filename         string
 		expectedOn       string
 		expectedIf       string
-		expectedAlias    string
+		expectedCommand  string
 		shouldError      bool
 		expectedErrorMsg string
 	}{
 		{
-			name: "alias with workflow_dispatch",
+			name: "command with workflow_dispatch",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: test-bot
   workflow_dispatch:
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:      "alias-with-dispatch.md",
-			expectedOn:    "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
-			expectedIf:    "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '@test-bot')) || (contains(github.event.comment.body, '@test-bot'))) || (contains(github.event.pull_request.body, '@test-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
-			expectedAlias: "test-bot",
-			shouldError:   false,
+			filename:        "command-with-dispatch.md",
+			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
+			expectedIf:      "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedCommand: "test-bot",
+			shouldError:     false,
 		},
 		{
-			name: "alias with schedule",
+			name: "command with schedule",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: schedule-bot
   schedule:
     - cron: "0 9 * * 1"
@@ -758,17 +759,17 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:      "alias-with-schedule.md",
-			expectedOn:    "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
-			expectedIf:    "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '@schedule-bot')) || (contains(github.event.comment.body, '@schedule-bot'))) || (contains(github.event.pull_request.body, '@schedule-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
-			expectedAlias: "schedule-bot",
-			shouldError:   false,
+			filename:        "command-with-schedule.md",
+			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
+			expectedIf:      "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/schedule-bot')) || (contains(github.event.comment.body, '/schedule-bot'))) || (contains(github.event.pull_request.body, '/schedule-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedCommand: "schedule-bot",
+			shouldError:     false,
 		},
 		{
-			name: "alias with multiple compatible events",
+			name: "command with multiple compatible events",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: multi-bot
   workflow_dispatch:
   push:
@@ -777,17 +778,17 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:      "alias-with-multiple.md",
-			expectedOn:    "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
-			expectedIf:    "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '@multi-bot')) || (contains(github.event.comment.body, '@multi-bot'))) || (contains(github.event.pull_request.body, '@multi-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
-			expectedAlias: "multi-bot",
-			shouldError:   false,
+			filename:        "command-with-multiple.md",
+			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
+			expectedIf:      "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/multi-bot')) || (contains(github.event.comment.body, '/multi-bot'))) || (contains(github.event.pull_request.body, '/multi-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedCommand: "multi-bot",
+			shouldError:     false,
 		},
 		{
-			name: "alias with conflicting issues event - should error",
+			name: "command with conflicting issues event - should error",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: conflict-bot
   issues:
     types: [closed]
@@ -795,15 +796,15 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:         "alias-with-issues.md",
+			filename:         "command-with-issues.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'alias' with 'issues'",
+			expectedErrorMsg: "cannot use 'command' with 'issues' in the same workflow",
 		},
 		{
-			name: "alias with conflicting issue_comment event - should error",
+			name: "command with conflicting issue_comment event - should error",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: conflict-bot
   issue_comment:
     types: [deleted]
@@ -811,15 +812,15 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:         "alias-with-issue-comment.md",
+			filename:         "command-with-issue-comment.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'alias' with 'issue_comment'",
+			expectedErrorMsg: "cannot use 'command' with 'issue_comment'",
 		},
 		{
-			name: "alias with conflicting pull_request event - should error",
+			name: "command with conflicting pull_request event - should error",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: conflict-bot
   pull_request:
     types: [closed]
@@ -827,15 +828,15 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:         "alias-with-pull-request.md",
+			filename:         "command-with-pull-request.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'alias' with 'pull_request'",
+			expectedErrorMsg: "cannot use 'command' with 'pull_request'",
 		},
 		{
-			name: "alias with conflicting pull_request_review_comment event - should error",
+			name: "command with conflicting pull_request_review_comment event - should error",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: conflict-bot
   pull_request_review_comment:
     types: [created]
@@ -843,9 +844,9 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:         "alias-with-pull-request-review-comment.md",
+			filename:         "command-with-pull-request-review-comment.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'alias' with 'pull_request_review_comment'",
+			expectedErrorMsg: "cannot use 'command' with 'pull_request_review_comment'",
 		},
 	}
 
@@ -853,9 +854,9 @@ tools:
 		t.Run(tt.name, func(t *testing.T) {
 			testContent := tt.frontmatter + `
 
-# Test Alias with Other Events Workflow
+# Test Command with Other Events Workflow
 
-This is a test workflow for alias merging with other events.
+This is a test workflow for command merging with other events.
 `
 
 			testFile := filepath.Join(tmpDir, tt.filename)
@@ -3492,8 +3493,6 @@ Test workflow with reaction and comment editing.
 		"editCommentWithWorkflowLink", // This should be in the new script
 		"runUrl =",                    // This should be in the new script for workflow run URL
 		"Comment update endpoint",     // This should be logged in the new script
-		"GITHUB_AW_ALIAS",             // This should check for alias environment variable
-		"shouldEditComment = alias",   // This should conditionally edit based on alias
 	}
 
 	for _, expected := range expectedStrings {
@@ -3513,19 +3512,19 @@ Test workflow with reaction and comment editing.
 	}
 }
 
-// TestAliasReactionWithCommentEdit tests alias workflows with reaction and comment editing
-func TestAliasReactionWithCommentEdit(t *testing.T) {
+// TestCommandReactionWithCommentEdit tests command workflows with reaction and comment editing
+func TestCommandReactionWithCommentEdit(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "alias-reaction-edit-test")
+	tmpDir, err := os.MkdirTemp("", "command-reaction-edit-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create a test markdown file with alias and reaction
+	// Create a test markdown file with command and reaction
 	testContent := `---
 on:
-  alias:
+  command:
     name: test-bot
   reaction: eyes
 permissions:
@@ -3537,12 +3536,12 @@ tools:
     allowed: [get_issue]
 ---
 
-# Alias Bot with Reaction Test
+# Command Bot with Reaction Test
 
-Test alias workflow with reaction and comment editing.
+Test command workflow with reaction and comment editing.
 `
 
-	testFile := filepath.Join(tmpDir, "test-alias-bot.md")
+	testFile := filepath.Join(tmpDir, "test-command-bot.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -3555,9 +3554,9 @@ Test alias workflow with reaction and comment editing.
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
 
-	// Verify alias and reaction fields are parsed correctly
-	if workflowData.Alias != "test-bot" {
-		t.Errorf("Expected Alias to be 'test-bot', got '%s'", workflowData.Alias)
+	// Verify command and reaction fields are parsed correctly
+	if workflowData.Command != "test-bot" {
+		t.Errorf("Expected Command to be 'test-bot', got '%s'", workflowData.Command)
 	}
 	if workflowData.AIReaction != "eyes" {
 		t.Errorf("Expected AIReaction to be 'eyes', got '%s'", workflowData.AIReaction)
@@ -3572,7 +3571,7 @@ Test alias workflow with reaction and comment editing.
 	// Check for both environment variables in the generated YAML
 	expectedEnvVars := []string{
 		"GITHUB_AW_REACTION: eyes",
-		"GITHUB_AW_ALIAS: test-bot",
+		"GITHUB_AW_COMMAND: test-bot",
 	}
 
 	for _, expected := range expectedEnvVars {
@@ -5108,10 +5107,10 @@ engine: claude
 			description: "stop-after should be compiled away when used with workflow_dispatch and schedule",
 		},
 		{
-			name: "stop-after with alias trigger",
+			name: "stop-after with command trigger",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: test-bot
   workflow_dispatch:
   stop-after: "2024-12-31T23:59:59Z"
@@ -5182,10 +5181,10 @@ engine: claude
 			description: "stop-after should be compiled away when used only with schedule",
 		},
 		{
-			name: "stop-after with both alias and reaction",
+			name: "stop-after with both command and reaction",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: test-bot
   reaction: heart
   workflow_dispatch:
@@ -5239,10 +5238,10 @@ engine: claude
 			description: "stop-after should be compiled away when used with reaction and schedule",
 		},
 		{
-			name: "stop-after with alias and schedule",
+			name: "stop-after with command and schedule",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: scheduler-bot
   schedule:
     - cron: "0 12 * * *"
