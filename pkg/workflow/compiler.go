@@ -163,7 +163,8 @@ type AddIssueCommentConfig struct {
 
 // AddIssueCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddIssueCommentsConfig struct {
-	Max int `yaml:"max,omitempty"` // Maximum number of comments to create
+	Max    int    `yaml:"max,omitempty"`    // Maximum number of comments to create
+	Target string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 }
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
@@ -1786,6 +1787,10 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 	steps = append(steps, "        env:\n")
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Pass the comment target configuration
+	if data.SafeOutputs.AddIssueComments.Target != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddIssueComments.Target))
+	}
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -1800,9 +1805,19 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 		"comment_url": "${{ steps.create_comment.outputs.comment_url }}",
 	}
 
+	// Determine the job condition based on target configuration
+	var jobCondition string
+	if data.SafeOutputs.AddIssueComments.Target == "*" {
+		// Allow the job to run in any context when target is "*"
+		jobCondition = "if: always()" // This allows the job to run even without triggering issue/PR
+	} else {
+		// Default behavior: only run in issue or PR context
+		jobCondition = "if: github.event.issue.number || github.event.pull_request.number"
+	}
+
 	job := &Job{
 		Name:           "create_issue_comment",
-		If:             "if: github.event.issue.number || github.event.pull_request.number", // Only run in issue or PR context
+		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
@@ -2623,6 +2638,13 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddIssueCommen
 				}
 			}
 		}
+
+		// Parse target field (for both singular and plural forms)
+		if target, exists := configMap["target"]; exists {
+			if targetStr, ok := target.(string); ok {
+				commentsConfig.Target = targetStr
+			}
+		}
 	}
 
 	return commentsConfig
@@ -2981,7 +3003,14 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 			safeOutputsConfig["create-issue"] = true
 		}
 		if data.SafeOutputs.AddIssueComments != nil {
-			safeOutputsConfig["add-issue-comment"] = true
+			// Pass the full comment configuration including target
+			commentConfig := map[string]interface{}{
+				"enabled": true,
+			}
+			if data.SafeOutputs.AddIssueComments.Target != "" {
+				commentConfig["target"] = data.SafeOutputs.AddIssueComments.Target
+			}
+			safeOutputsConfig["add-issue-comment"] = commentConfig
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create-pull-request"] = true

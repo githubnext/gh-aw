@@ -387,6 +387,121 @@ This workflow tests the output.add-issue-comment configuration parsing with null
 	}
 }
 
+func TestOutputCommentConfigTargetParsing(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "output-comment-target-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case with target: "*"
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+safe-outputs:
+  add-issue-comment:
+    target: "*"
+---
+
+# Test Output Issue Comment Target Configuration
+
+This workflow tests the output.add-issue-comment target configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-issue-comment-target.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.parseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with target comment config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.AddIssueComments == nil {
+		t.Fatal("Expected issue_comment configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.AddIssueComments.Target != "*" {
+		t.Fatalf("Expected target to be '*', got '%s'", workflowData.SafeOutputs.AddIssueComments.Target)
+	}
+}
+
+func TestOutputCommentPluralTargetParsing(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "output-comment-plural-target-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case with plural form and target configuration
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+safe-outputs:
+  add-issue-comments:
+    max: 3
+    target: "123"
+---
+
+# Test Output Issue Comments Plural Target Configuration
+
+This workflow tests the add-issue-comments plural target configuration parsing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-output-issue-comments-target.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.parseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with plural target comment config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.AddIssueComments == nil {
+		t.Fatal("Expected issue_comment configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.AddIssueComments.Max != 3 {
+		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.AddIssueComments.Max)
+	}
+
+	if workflowData.SafeOutputs.AddIssueComments.Target != "123" {
+		t.Fatalf("Expected target to be '123', got '%s'", workflowData.SafeOutputs.AddIssueComments.Target)
+	}
+}
+
 func TestOutputCommentJobGeneration(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "output-comment-job-test")

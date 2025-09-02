@@ -11,6 +11,16 @@ The `safe-outputs:` element of your workflow's frontmatter declares that your ag
 2. The compiler automatically generates additional jobs that read this output and perform the requested actions
 3. Only these generated jobs receive the necessary write permissions
 
+For example:
+
+```yaml
+safe-outputs:
+  create-issue:
+  add-issue-comment:
+```
+
+This declares that the workflow should create at most one new issue and add at most one comment to the triggering issue or pull request based on the agentic workflow's output.
+
 ## Available Output Types
 
 ### New Issue Creation (`create-issue:` / `create-issues:`)
@@ -53,7 +63,7 @@ The compiled workflow will have additional prompting describing that, to create 
 
 ### Issue Comment Creation (`add-issue-comment:` / `add-issue-comments:`)
 
-Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments on the triggering issue or pull request based on the workflow's output.
+Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments based on the workflow's output. By default, comments are posted on the triggering issue or pull request, but this can be configured using the `target` option.
 
 **Singular Form (adds exactly one comment):**
 ```yaml
@@ -66,6 +76,16 @@ safe-outputs:
 safe-outputs:
   add-issue-comments:
     max: 3                # Optional: maximum number of comments (default: 10)
+```
+
+**Configuration options:**
+```yaml
+safe-outputs:
+  add-issue-comment:
+    target: "*"                     # Optional: target for comments
+                                    # "triggering" (default) - only comment on triggering issue/PR
+                                    # "*" - allow comments on any issue (requires issue_number in agent output)
+                                    # explicit number - comment on specific issue number
 ```
 
 The agentic part of your workflow should describe the comment(s) it wants posted.

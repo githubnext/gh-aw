@@ -1046,6 +1046,12 @@
             {
               "type": "object",
               "description": "Configuration for creating GitHub issue/PR comments from agentic workflow output",
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
+                }
+              },
               "additionalProperties": false
             },
             {
@@ -1065,6 +1071,10 @@
                   "description": "Maximum number of comments to create (default: 10)",
                   "minimum": 1,
                   "maximum": 100
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
                 }
               },
               "additionalProperties": false

@@ -36,12 +36,17 @@ async function main() {
 
   console.log(`Found ${commentItems.length} add-issue-comment item(s)`);
 
+  // Get the target configuration from environment variable
+  const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+  console.log(`Comment target configuration: ${commentTarget}`);
+
   // Check if we're in an issue or pull request context
   const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
   const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
 
-  if (!isIssueContext && !isPRContext) {
-    console.log('Not running in issue or pull request context, skipping comment creation');
+  // Validate context based on target configuration
+  if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
+    console.log('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
     return;
   }
 
@@ -56,21 +61,45 @@ async function main() {
     let issueNumber;
     let commentEndpoint;
 
-    if (isIssueContext) {
-      if (context.payload.issue) {
-        issueNumber = context.payload.issue.number;
+    if (commentTarget === "*") {
+      // For target "*", we need an explicit issue number from the comment item
+      if (commentItem.issue_number) {
+        issueNumber = parseInt(commentItem.issue_number, 10);
+        if (isNaN(issueNumber) || issueNumber <= 0) {
+          console.log(`Invalid issue number specified: ${commentItem.issue_number}`);
+          continue;
+        }
         commentEndpoint = 'issues';
       } else {
-        console.log('Issue context detected but no issue found in payload');
+        console.log('Target is "*" but no issue_number specified in comment item');
         continue;
       }
-    } else if (isPRContext) {
-      if (context.payload.pull_request) {
-        issueNumber = context.payload.pull_request.number;
-        commentEndpoint = 'issues'; // PR comments use the issues API endpoint
-      } else {
-        console.log('Pull request context detected but no pull request found in payload');
+    } else if (commentTarget && commentTarget !== "triggering") {
+      // Explicit issue number specified in target
+      issueNumber = parseInt(commentTarget, 10);
+      if (isNaN(issueNumber) || issueNumber <= 0) {
+        console.log(`Invalid issue number in target configuration: ${commentTarget}`);
         continue;
+      }
+      commentEndpoint = 'issues';
+    } else {
+      // Default behavior: use triggering issue/PR
+      if (isIssueContext) {
+        if (context.payload.issue) {
+          issueNumber = context.payload.issue.number;
+          commentEndpoint = 'issues';
+        } else {
+          console.log('Issue context detected but no issue found in payload');
+          continue;
+        }
+      } else if (isPRContext) {
+        if (context.payload.pull_request) {
+          issueNumber = context.payload.pull_request.number;
+          commentEndpoint = 'issues'; // PR comments use the issues API endpoint
+        } else {
+          console.log('Pull request context detected but no pull request found in payload');
+          continue;
+        }
       }
     }
 
