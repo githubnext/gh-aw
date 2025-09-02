@@ -2338,7 +2338,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 				yaml.WriteString(", ")
 			}
 			yaml.WriteString("Updating Issues")
-			written = true
 		}
 		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
