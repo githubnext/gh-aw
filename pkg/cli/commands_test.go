@@ -239,7 +239,7 @@ func TestAllCommandsExist(t *testing.T) {
 	}{
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
 		{func() error { return AddWorkflowWithTracking("", 1, false, "", "", false, nil) }, false, "AddWorkflowWithTracking (empty name)"}, // Shows help when empty, doesn't error
-		{func() error { return CompileWorkflows([]string{}, false, "", false, false, false) }, false, "CompileWorkflows"},                          // Should compile existing markdown files successfully
+		{func() error { return CompileWorkflows([]string{}, false, "", false, false, false) }, false, "CompileWorkflows"},                  // Should compile existing markdown files successfully
 		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                                                 // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                                                 // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                                        // Should handle missing directory gracefully
