@@ -141,9 +141,9 @@ async function main() {
     // Use default limits for plural-supported types
     switch (itemType) {
       case 'create-issue':
-        return 1; // Allow multiple issues
+        return 1; // Only one issue allowed
       case 'add-issue-comment':
-        return 1; // Allow multiple comments
+        return 1; // Only one comment allowed
       case 'create-pull-request':
         return 1;  // Only one pull request allowed
       case 'add-issue-label':
