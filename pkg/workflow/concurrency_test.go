@@ -43,16 +43,16 @@ tools:
 			description:      "PR workflows should use dynamic concurrency with PR number and cancellation",
 		},
 		{
-			name: "alias workflow should have dynamic concurrency without cancel",
+			name: "command workflow should have dynamic concurrency without cancel",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: test-bot
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename: "alias-workflow.md",
+			filename: "command-workflow.md",
 			expectedConcurrency: `concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`,
 			shouldHaveCancel: false,

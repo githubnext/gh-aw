@@ -17,20 +17,20 @@
           "type": "object",
           "description": "Complex trigger configuration",
           "properties": {
-            "alias": {
-              "description": "Alias trigger configuration for @mentions",
+            "command": {
+              "description": "Command trigger configuration for /mentions",
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Null alias (defaults to filename)"
+                  "description": "Null command (defaults to filename)"
                 },
                 {
                   "type": "object",
-                  "description": "Alias configuration object",
+                  "description": "Command configuration object",
                   "properties": {
                     "name": {
                       "type": "string",
-                      "description": "Alias name (defaults to filename without .md extension)"
+                      "description": "Command name (defaults to filename without .md extension)"
                     }
                   },
                   "additionalProperties": false
@@ -852,9 +852,9 @@
         ]
       }
     },
-    "alias": {
+    "command": {
       "type": "string",
-      "description": "Alias name for the workflow"
+      "description": "Command name for the workflow"
     },
     "cache": {
       "description": "Cache configuration for workflow (uses actions/cache syntax)",

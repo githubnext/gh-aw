@@ -88,7 +88,7 @@ on:
 - `rocket` (🚀)
 - `eyes` (👀)
 
-**Enhanced functionality**: When using the `reaction:` feature with alias workflows, the system will also automatically edit the triggering comment to include a link to the workflow run. This provides users with immediate feedback and easy access to view the workflow execution. For non-alias workflows, only the reaction is added without comment editing.
+**Enhanced functionality**: When using the `reaction:` feature with command workflows, the system will also automatically edit the triggering comment to include a link to the workflow run. This provides users with immediate feedback and easy access to view the workflow execution. For non-command workflows, only the reaction is added without comment editing.
 
 **Note**: This feature uses inline JavaScript code with `actions/github-script@v7` to add reactions and edit comments, so no additional action files are created in the repository.
 
@@ -110,7 +110,7 @@ on:
   workflow_dispatch:
 ```
 
-An additional kind of trigger called `alias:` is supported, see [Alias Triggers](alias-triggers.md) for special `@mention` triggers and context text functionality.
+An additional kind of trigger called `command:` is supported, see [Command Triggers](command-triggers.md) for special `/mention` triggers and context text functionality.
 
 ## Permissions (`permissions:`)
 

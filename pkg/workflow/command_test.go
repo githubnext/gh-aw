@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-// TestEventAwareAliasConditions tests that alias conditions are properly applied only to comment-related events
-func TestEventAwareAliasConditions(t *testing.T) {
+// TestEventAwareCommandConditions tests that command conditions are properly applied only to comment-related events
+func TestEventAwareCommandConditions(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "workflow-event-aware-alias-test")
+	tmpDir, err := os.MkdirTemp("", "workflow-event-aware-command-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,28 +22,28 @@ func TestEventAwareAliasConditions(t *testing.T) {
 		name                    string
 		frontmatter             string
 		filename                string
-		expectedSimpleCondition bool // true if should use simple condition (alias only)
-		expectedEventAware      bool // true if should use event-aware condition (alias + other events)
+		expectedSimpleCondition bool // true if should use simple condition (command only)
+		expectedEventAware      bool // true if should use event-aware condition (command + other events)
 	}{
 		{
-			name: "alias only should use simple condition",
+			name: "command only should use simple condition",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: simple-bot
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:                "simple-alias.md",
+			filename:                "simple-command.md",
 			expectedSimpleCondition: true,
 			expectedEventAware:      false,
 		},
 		{
-			name: "alias with push should use event-aware condition",
+			name: "command with push should use event-aware condition",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: push-bot
   push:
     branches: [main]
@@ -51,15 +51,15 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:                "alias-with-push.md",
+			filename:                "command-with-push.md",
 			expectedSimpleCondition: false,
 			expectedEventAware:      true,
 		},
 		{
-			name: "alias with schedule should use event-aware condition",
+			name: "command with schedule should use event-aware condition",
 			frontmatter: `---
 on:
-  alias:
+  command:
     name: schedule-bot
   schedule:
     - cron: "0 9 * * 1"
@@ -67,7 +67,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			filename:                "alias-with-schedule.md",
+			filename:                "command-with-schedule.md",
 			expectedSimpleCondition: false,
 			expectedEventAware:      true,
 		},
@@ -77,9 +77,9 @@ tools:
 		t.Run(tt.name, func(t *testing.T) {
 			testContent := tt.frontmatter + `
 
-# Test Event-Aware Alias Conditions
+# Test Event-Aware Command Conditions
 
-This test validates that alias conditions are applied correctly based on event types.
+This test validates that command conditions are applied correctly based on event types.
 `
 
 			testFile := filepath.Join(tmpDir, tt.filename)
@@ -103,24 +103,24 @@ This test validates that alias conditions are applied correctly based on event t
 			lockContentStr := string(lockContent)
 
 			if tt.expectedSimpleCondition {
-				// Should contain simple alias condition (no complex event_name logic in main job)
-				expectedPattern := "contains(github.event.issue.body, '@"
+				// Should contain simple command condition (no complex event_name logic in main job)
+				expectedPattern := "contains(github.event.issue.body, '/"
 				if !strings.Contains(lockContentStr, expectedPattern) {
-					t.Errorf("Expected simple alias condition containing '%s' but not found", expectedPattern)
+					t.Errorf("Expected simple command condition containing '%s' but not found", expectedPattern)
 				}
 
-				// For simple alias workflows, the main job condition should not contain github.event_name logic
+				// For simple command workflows, the main job condition should not contain github.event_name logic
 				// We can check this by looking for any line with "if:" that contains both "contains(" and NOT "github.event_name"
 				lines := strings.Split(lockContentStr, "\n")
-				foundSimpleAliasCondition := false
+				foundSimpleCommandCondition := false
 				for _, line := range lines {
 					if strings.Contains(line, "if:") && strings.Contains(line, "contains(") && !strings.Contains(line, "github.event_name") {
-						foundSimpleAliasCondition = true
+						foundSimpleCommandCondition = true
 						break
 					}
 				}
-				if !foundSimpleAliasCondition {
-					t.Errorf("Expected to find simple alias condition (contains without github.event_name) but not found")
+				if !foundSimpleCommandCondition {
+					t.Errorf("Expected to find simple command condition (contains without github.event_name) but not found")
 				}
 			}
 

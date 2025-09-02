@@ -7,21 +7,21 @@ import (
 
 // GenerateConcurrencyConfig generates the concurrency configuration for a workflow
 // based on its trigger types and characteristics.
-func GenerateConcurrencyConfig(workflowData *WorkflowData, isAliasTrigger bool) string {
+func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool) string {
 	// Don't override if already set
 	if workflowData.Concurrency != "" {
 		return workflowData.Concurrency
 	}
 
 	// Build concurrency group keys
-	keys := buildConcurrencyGroupKeys(workflowData, isAliasTrigger)
+	keys := buildConcurrencyGroupKeys(workflowData, isCommandTrigger)
 	groupValue := strings.Join(keys, "-")
 
 	// Build the concurrency configuration
 	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
 
 	// Add cancel-in-progress if appropriate
-	if shouldEnableCancelInProgress(workflowData, isAliasTrigger) {
+	if shouldEnableCancelInProgress(workflowData, isCommandTrigger) {
 		concurrencyConfig += "\n  cancel-in-progress: true"
 	}
 
@@ -44,11 +44,11 @@ func isDiscussionWorkflow(on string) bool {
 }
 
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
-func buildConcurrencyGroupKeys(workflowData *WorkflowData, isAliasTrigger bool) []string {
+func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
 	keys := []string{"gh-aw", "${{ github.workflow }}"}
 
-	if isAliasTrigger {
-		// For alias workflows: use issue/PR number
+	if isCommandTrigger {
+		// For command workflows: use issue/PR number
 		keys = append(keys, "${{ github.event.issue.number || github.event.pull_request.number }}")
 	} else if isPullRequestWorkflow(workflowData.On) && isIssueWorkflow(workflowData.On) {
 		// Mixed workflows with both issue and PR triggers: use issue/PR number
@@ -74,9 +74,9 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isAliasTrigger bool) 
 }
 
 // shouldEnableCancelInProgress determines if cancel-in-progress should be enabled
-func shouldEnableCancelInProgress(workflowData *WorkflowData, isAliasTrigger bool) bool {
-	// Never enable cancellation for alias workflows
-	if isAliasTrigger {
+func shouldEnableCancelInProgress(workflowData *WorkflowData, isCommandTrigger bool) bool {
+	// Never enable cancellation for command workflows
+	if isCommandTrigger {
 		return false
 	}
 

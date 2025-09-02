@@ -1,43 +1,43 @@
-# 🏷️ Alias Triggers
+# 🏷️ Command Triggers
 
-This guide covers alias triggers and context text functionality for agentic workflows.
+This guide covers command triggers and context text functionality for agentic workflows.
 
-## Special `alias:` Trigger
+## Special `command:` Trigger
 
-GitHub Agentic Workflows add the convenience `alias:` trigger to create workflows that respond to `@mentions` in issues and comments.
+GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/mentions` in issues and comments.
 
 ```yaml
 on:
-  alias:
+  command:
     name: my-bot  # Optional: defaults to filename without .md extension
 ```
 
 This automatically creates:
 - Issue and PR triggers (`opened`, `edited`, `reopened`)
 - Comment triggers (`created`, `edited`)
-- Conditional execution matching `@alias-name` mentions
+- Conditional execution matching `/command-name` mentions
 
-You can combine `alias:` with other events like `workflow_dispatch` or `schedule`:
+You can combine `command:` with other events like `workflow_dispatch` or `schedule`:
 
 ```yaml
 on:
-  alias:
+  command:
     name: my-bot
   workflow_dispatch:
   schedule:
     - cron: "0 9 * * 1"
 ```
 
-**Note**: You cannot combine `alias` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
+**Note**: You cannot combine `command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
 
 **Note**: Using this feature results in the addition of `.github/actions/check-team-member/action.yml` file to the repository when the workflow is compiled. This file is used to check if the user triggering the workflow has appropriate permissions to operate in the repository.
 
-### Example alias workflow
+### Example command workflow
 
 ```markdown
 ---
 on:
-  alias:
+  command:
     name: summarize-issue
 permissions:
   issues: write
@@ -48,7 +48,7 @@ tools:
 
 # Issue Summarizer
 
-When someone mentions @summarize-issue in an issue or comment, 
+When someone mentions /summarize-issue in an issue or comment, 
 analyze and provide a helpful summary.
 
 The current context text is: "${{ needs.task.outputs.text }}"
@@ -74,16 +74,16 @@ All workflows have access to a special computed `needs.task.outputs.text` value 
 
 ## Visual Feedback with Reactions
 
-Alias workflows can provide immediate visual feedback by adding reactions to triggering comments and automatically editing them with workflow run links:
+Command workflows can provide immediate visual feedback by adding reactions to triggering comments and automatically editing them with workflow run links:
 
 ```yaml
 on:
-  alias:
+  command:
     name: my-bot
   reaction: "eyes"
 ```
 
-When someone mentions `@my-bot` in a comment, the workflow will:
+When someone mentions `/my-bot` in a comment, the workflow will:
 1. Add the specified emoji reaction (👀) to the comment
 2. Automatically edit the comment to include a link to the workflow run
 

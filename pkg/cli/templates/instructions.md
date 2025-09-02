@@ -41,7 +41,7 @@ The YAML frontmatter supports these fields:
 - **`on:`** - Workflow triggers (required)
   - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
-  - Special: `alias:` for @mention triggers
+  - Special: `command:` for /mention triggers
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
   
 - **`permissions:`** - GitHub token permissions
@@ -198,14 +198,14 @@ on:
   workflow_dispatch:    # Manual trigger
 ```
 
-### Alias Triggers (@mentions)
+### Command Triggers (/mentions)
 ```yaml
 on:
-  alias:
-    name: my-bot  # Responds to @my-bot in issues/comments
+  command:
+    name: my-bot  # Responds to /my-bot in issues/comments
 ```
 
-This automatically creates conditions to match `@my-bot` mentions in issue bodies and comments.
+This automatically creates conditions to match `/my-bot` mentions in issue bodies and comments.
 
 ### Semi-Active Agent Pattern
 ```yaml
@@ -577,11 +577,11 @@ Research latest developments in ${{ github.repository }}:
 - Create summary issue
 ```
 
-### @mention Response Bot
+### /mention Response Bot
 ```markdown
 ---
 on:
-  alias:
+  command:
     name: helper-bot
 permissions:
   issues: write
@@ -592,7 +592,7 @@ tools:
 
 # Helper Bot
 
-Respond to @helper-bot mentions with helpful information.
+Respond to /helper-bot mentions with helpful information.
 ```
 
 ## Workflow Monitoring and Analysis
