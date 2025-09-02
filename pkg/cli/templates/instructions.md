@@ -107,7 +107,18 @@ The YAML frontmatter supports these fields:
         labels: [automation, ai-agent]  # Optional: labels to attach to PRs
         draft: true                     # Optional: create as draft PR (defaults to true)
     ```
-    When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions. 
+    When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
+  - `update-issue:` - Safe issue updates 
+    ```yaml
+    safe-outputs:
+      update-issue:
+        status: true                    # Optional: allow updating issue status (open/closed)
+        target: "*"                     # Optional: target for updates (default: "triggering")
+        title: true                     # Optional: allow updating issue title
+        body: true                      # Optional: allow updating issue body
+        max: 3                          # Optional: maximum number of issues to update (default: 1)
+    ```
+    When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions. 
   
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)

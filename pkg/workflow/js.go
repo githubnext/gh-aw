@@ -24,6 +24,9 @@ var collectJSONLOutputScript string
 //go:embed js/add_labels.cjs
 var addLabelsScript string
 
+//go:embed js/update_issue.cjs
+var updateIssueScript string
+
 //go:embed js/setup_agent_output.cjs
 var setupAgentOutputScript string
 

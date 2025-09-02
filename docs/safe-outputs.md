@@ -154,6 +154,50 @@ Analyze the issue content and add appropriate labels to the issue.
 
 The agentic part of your workflow will have implicit additional prompting saying that, to add labels to a GitHub issue, you must write labels to a special file, one label per line.
 
+### Issue Updates (`update-issue:`)
+
+Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. You can configure which fields are allowed to be updated.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  update-issue:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  update-issue:
+    status:                             # Optional: presence indicates status can be updated (open/closed)
+    target: "*"                         # Optional: target for updates
+                                        # "triggering" (default) - only update triggering issue
+                                        # "*" - allow updates to any issue (requires issue_number in agent output)
+                                        # explicit number - update specific issue number
+    title:                              # Optional: presence indicates title can be updated
+    body:                               # Optional: presence indicates body can be updated
+    max: 3                              # Optional: maximum number of issues to update (default: 1)
+```
+
+The agentic part of your workflow should analyze the issue and determine what updates to make.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Issue Update Agent
+
+Analyze the issue and update its status, title, or body as needed.
+Update the issue based on your analysis. You can change the title, body content, or status (open/closed).
+```
+
+**Safety Features:**
+
+- Only explicitly enabled fields (`status`, `title`, `body`) can be updated
+- Status values are validated (must be "open" or "closed")
+- Empty or invalid field values are rejected
+- Target configuration controls which issues can be updated for security
+- Update count is limited by `max` setting (default: 1)
+- Only GitHub's `issues.update` API endpoint is used
+
 **Safety Features:**
 
 - Empty lines in coding agent output are ignored

@@ -1097,6 +1097,43 @@
               "additionalProperties": false
             }
           ]
+        },
+        "update-issue": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub issues from agentic workflow output",
+              "properties": {
+                "status": {
+                  "type": "null",
+                  "description": "Allow updating issue status (open/closed) - presence of key indicates field can be updated"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for updates: 'triggering' (default), '*' (any issue), or explicit issue number"
+                },
+                "title": {
+                  "type": "null",
+                  "description": "Allow updating issue title - presence of key indicates field can be updated"
+                },
+                "body": {
+                  "type": "null",
+                  "description": "Allow updating issue body - presence of key indicates field can be updated"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue updating with default configuration"
+            }
+          ]
         }
       },
       "additionalProperties": false

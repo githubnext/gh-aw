@@ -301,6 +301,7 @@ gh aw uninstall org/repo --local
 
 - [Workflow Structure](workflow-structure.md) - Directory layout and file organization
 - [Frontmatter Options](frontmatter.md) - Configuration options for workflows
+- [Safe Outputs](safe-outputs.md) - Secure output processing including issue updates
 - [Tools Configuration](tools.md) - GitHub and MCP server configuration
 - [Include Directives](include-directives.md) - Modularizing workflows with includes
 - [Secrets Management](secrets.md) - Managing secrets and environment variables

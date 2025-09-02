@@ -146,6 +146,7 @@ type SafeOutputsConfig struct {
 	AddIssueComments   *AddIssueCommentsConfig   `yaml:"add-issue-comment,omitempty"`
 	CreatePullRequests *CreatePullRequestsConfig `yaml:"create-pull-request,omitempty"`
 	AddIssueLabels     *AddIssueLabelsConfig     `yaml:"add-issue-label,omitempty"`
+	UpdateIssues       *UpdateIssuesConfig       `yaml:"update-issue,omitempty"`
 	AllowedDomains     []string                  `yaml:"allowed-domains,omitempty"`
 }
 
@@ -179,6 +180,15 @@ type CreatePullRequestsConfig struct {
 type AddIssueLabelsConfig struct {
 	Allowed  []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	MaxCount *int     `yaml:"max,omitempty"`     // Optional maximum number of labels to add (default: 3)
+}
+
+// UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
+type UpdateIssuesConfig struct {
+	Status *bool  `yaml:"status,omitempty"` // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Target string `yaml:"target,omitempty"` // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
+	Title  *bool  `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
+	Body   *bool  `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
+	Max    int    `yaml:"max,omitempty"`    // Maximum number of issues to update (default: 1)
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1592,6 +1602,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 				return fmt.Errorf("failed to add add_labels job: %w", err)
 			}
 		}
+
+		// Build update_issue job if output.update-issue is configured
+		if data.SafeOutputs.UpdateIssues != nil {
+			updateIssueJob, err := c.buildCreateOutputUpdateIssueJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build update_issue job: %w", err)
+			}
+			if err := c.jobManager.AddJob(updateIssueJob); err != nil {
+				return fmt.Errorf("failed to add update_issue job: %w", err)
+			}
+		}
 	}
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
@@ -2309,6 +2330,15 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 				yaml.WriteString(", ")
 			}
 			yaml.WriteString("Adding Labels to Issues or Pull Requests")
+			written = true
+		}
+
+		if data.SafeOutputs.UpdateIssues != nil {
+			if written {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("Updating Issues")
+			written = true
 		}
 		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
@@ -2352,6 +2382,36 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.UpdateIssues != nil {
+			yaml.WriteString("          **Updating an Issue**\n")
+			yaml.WriteString("          ```json\n")
+
+			// Build example based on allowed fields
+			var fields []string
+			if data.SafeOutputs.UpdateIssues.Status != nil {
+				fields = append(fields, "\"status\": \"open\" // or \"closed\"")
+			}
+			if data.SafeOutputs.UpdateIssues.Title != nil {
+				fields = append(fields, "\"title\": \"New issue title\"")
+			}
+			if data.SafeOutputs.UpdateIssues.Body != nil {
+				fields = append(fields, "\"body\": \"Updated issue body in markdown\"")
+			}
+
+			if len(fields) > 0 {
+				yaml.WriteString("          {\"type\": \"update-issue\"")
+				for _, field := range fields {
+					yaml.WriteString(", " + field)
+				}
+				yaml.WriteString("}\n")
+			} else {
+				yaml.WriteString("          {\"type\": \"update-issue\", \"title\": \"New issue title\", \"body\": \"Updated issue body\", \"status\": \"open\"}\n")
+			}
+
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          \n")
 		}
@@ -2519,6 +2579,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle update-issue
+			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
+			if updateIssuesConfig != nil {
+				config.UpdateIssues = updateIssuesConfig
+			}
+
 			return config
 		}
 	}
@@ -2651,6 +2717,50 @@ func (c *Compiler) parseIntValue(value any) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// parseUpdateIssuesConfig handles update-issue configuration
+func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
+	if configData, exists := outputMap["update-issue"]; exists {
+		updateIssuesConfig := &UpdateIssuesConfig{Max: 1} // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := c.parseIntValue(max); ok {
+					updateIssuesConfig.Max = maxInt
+				}
+			}
+
+			// Parse target
+			if target, exists := configMap["target"]; exists {
+				if targetStr, ok := target.(string); ok {
+					updateIssuesConfig.Target = targetStr
+				}
+			}
+
+			// Parse status - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["status"]; exists {
+				// If the key exists, it means we can update the status
+				// We don't care about the value - just that the key is present
+				updateIssuesConfig.Status = new(bool) // Allocate a new bool pointer (defaults to false)
+			}
+
+			// Parse title - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["title"]; exists {
+				updateIssuesConfig.Title = new(bool)
+			}
+
+			// Parse body - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["body"]; exists {
+				updateIssuesConfig.Body = new(bool)
+			}
+		}
+
+		return updateIssuesConfig
+	}
+
+	return nil
 }
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
@@ -2948,6 +3058,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		}
 		if data.SafeOutputs.AddIssueLabels != nil {
 			safeOutputsConfig["add-issue-label"] = true
+		}
+		if data.SafeOutputs.UpdateIssues != nil {
+			safeOutputsConfig["update-issue"] = true
 		}
 
 		// Convert to JSON string for environment variable

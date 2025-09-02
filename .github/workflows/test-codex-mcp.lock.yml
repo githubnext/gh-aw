@@ -513,6 +513,8 @@ jobs:
                     return 1;  // Only one pull request allowed
                   case 'add-issue-label':
                     return 5;  // Only one labels operation allowed
+                  case 'update-issue':
+                    return 1;  // Only one issue update allowed
                   default:
                     return 1;  // Default to single item for unknown types
                 }
@@ -628,6 +630,46 @@ jobs:
                       }
                       // Sanitize label strings
                       item.labels = item.labels.map(label => sanitizeContent(label));
+                      break;
+                    case 'update-issue':
+                      // Check that at least one updateable field is provided
+                      const hasValidField = (item.status !== undefined) || 
+                                            (item.title !== undefined) || 
+                                            (item.body !== undefined);
+                      if (!hasValidField) {
+                        errors.push(`Line ${i + 1}: update-issue requires at least one of: 'status', 'title', or 'body' fields`);
+                        continue;
+                      }
+                      // Validate status if provided
+                      if (item.status !== undefined) {
+                        if (typeof item.status !== 'string' || (item.status !== 'open' && item.status !== 'closed')) {
+                          errors.push(`Line ${i + 1}: update-issue 'status' must be 'open' or 'closed'`);
+                          continue;
+                        }
+                      }
+                      // Validate title if provided
+                      if (item.title !== undefined) {
+                        if (typeof item.title !== 'string') {
+                          errors.push(`Line ${i + 1}: update-issue 'title' must be a string`);
+                          continue;
+                        }
+                        item.title = sanitizeContent(item.title);
+                      }
+                      // Validate body if provided
+                      if (item.body !== undefined) {
+                        if (typeof item.body !== 'string') {
+                          errors.push(`Line ${i + 1}: update-issue 'body' must be a string`);
+                          continue;
+                        }
+                        item.body = sanitizeContent(item.body);
+                      }
+                      // Validate issue_number if provided (for target "*")
+                      if (item.issue_number !== undefined) {
+                        if (typeof item.issue_number !== 'number' && typeof item.issue_number !== 'string') {
+                          errors.push(`Line ${i + 1}: update-issue 'issue_number' must be a number or string`);
+                          continue;
+                        }
+                      }
                       break;
                     default:
                       errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);

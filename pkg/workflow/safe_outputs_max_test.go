@@ -13,6 +13,7 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 				"create-issue":        nil,
 				"add-issue-comment":   nil,
 				"create-pull-request": nil,
+				"update-issue":        nil,
 			},
 		}
 
@@ -41,6 +42,13 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.CreatePullRequests.Max != 1 {
 			t.Errorf("Expected CreatePullRequests.Max to be 1 by default, got %d", config.CreatePullRequests.Max)
 		}
+
+		if config.UpdateIssues == nil {
+			t.Fatal("Expected UpdateIssues to be parsed")
+		}
+		if config.UpdateIssues.Max != 1 {
+			t.Errorf("Expected UpdateIssues.Max to be 1 by default, got %d", config.UpdateIssues.Max)
+		}
 	})
 
 	t.Run("Explicit max values should be used", func(t *testing.T) {
@@ -55,6 +63,9 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 				"create-pull-request": map[string]any{
 					// max parameter is ignored for pull requests
 					"max": 2,
+				},
+				"update-issue": map[string]any{
+					"max": 4,
 				},
 			},
 		}
@@ -84,6 +95,13 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		if config.CreatePullRequests.Max != 1 {
 			t.Errorf("Expected CreatePullRequests.Max to be 1 (max ignored for pull requests), got %d", config.CreatePullRequests.Max)
 		}
+
+		if config.UpdateIssues == nil {
+			t.Fatal("Expected UpdateIssues to be parsed")
+		}
+		if config.UpdateIssues.Max != 4 {
+			t.Errorf("Expected UpdateIssues.Max to be 4, got %d", config.UpdateIssues.Max)
+		}
 	})
 
 	t.Run("Complete configuration with all options", func(t *testing.T) {
@@ -102,6 +120,13 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 					"title-prefix": "[Fix] ",
 					"labels":       []any{"fix"},
 					"draft":        true,
+				},
+				"update-issue": map[string]any{
+					"max":    2,
+					"target": "456",
+					"status": nil,
+					"title":  nil,
+					"body":   nil,
 				},
 			},
 		}
@@ -151,6 +176,26 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		}
 		if config.CreatePullRequests.Draft == nil || *config.CreatePullRequests.Draft != true {
 			t.Errorf("Expected CreatePullRequests.Draft to be true, got %v", config.CreatePullRequests.Draft)
+		}
+
+		// Check update-issue
+		if config.UpdateIssues == nil {
+			t.Fatal("Expected UpdateIssues to be parsed")
+		}
+		if config.UpdateIssues.Max != 2 {
+			t.Errorf("Expected UpdateIssues.Max to be 2, got %d", config.UpdateIssues.Max)
+		}
+		if config.UpdateIssues.Target != "456" {
+			t.Errorf("Expected UpdateIssues.Target to be '456', got '%s'", config.UpdateIssues.Target)
+		}
+		if config.UpdateIssues.Status == nil {
+			t.Error("Expected UpdateIssues.Status to be non-nil (updatable)")
+		}
+		if config.UpdateIssues.Title == nil {
+			t.Error("Expected UpdateIssues.Title to be non-nil (updatable)")
+		}
+		if config.UpdateIssues.Body == nil {
+			t.Error("Expected UpdateIssues.Body to be non-nil (updatable)")
 		}
 	})
 }
