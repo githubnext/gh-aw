@@ -103,7 +103,7 @@ describe('create_comment.cjs', () => {
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
     
-    expect(consoleSpy).toHaveBeenCalledWith('Not running in issue or pull request context, skipping comment creation');
+    expect(consoleSpy).toHaveBeenCalledWith('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
     
     consoleSpy.mockRestore();
