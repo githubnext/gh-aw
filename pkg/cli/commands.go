@@ -580,10 +580,15 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		// For watch mode, we only support a single file for now
 		var markdownFile string
 		if len(markdownFiles) > 0 {
-			markdownFile = markdownFiles[0]
 			if len(markdownFiles) > 1 {
 				fmt.Println(console.FormatWarningMessage("Watch mode only supports a single file, using the first one"))
 			}
+			// Resolve the workflow file to get the full path
+			resolvedFile, err := resolveWorkflowFile(markdownFiles[0], verbose)
+			if err != nil {
+				return fmt.Errorf("failed to resolve workflow '%s': %w", markdownFiles[0], err)
+			}
+			markdownFile = resolvedFile
 		}
 		return watchAndCompileWorkflows(markdownFile, compiler, verbose)
 	}
@@ -3045,7 +3050,12 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 		if verbose {
 			fmt.Printf("Found workflow file at path: %s\n", fileOrWorkflowName)
 		}
-		return fileOrWorkflowName, nil
+		// Return absolute path
+		absPath, err := filepath.Abs(fileOrWorkflowName)
+		if err != nil {
+			return fileOrWorkflowName, nil // fallback to original path
+		}
+		return absPath, nil
 	}
 
 	// If it's not a direct file path, try to resolve it as a workflow name
@@ -3098,8 +3108,12 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 
 		return tmpFile.Name(), nil
 	} else {
-		// It's a local file, return the source path
-		return sourceInfo.SourcePath, nil
+		// It's a local file, make sure we return an absolute path
+		absPath, err := filepath.Abs(sourceInfo.SourcePath)
+		if err != nil {
+			return sourceInfo.SourcePath, nil // fallback to original path
+		}
+		return absPath, nil
 	}
 }
 
