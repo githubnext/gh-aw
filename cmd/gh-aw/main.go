@@ -195,13 +195,19 @@ var disableCmd = &cobra.Command{
 }
 
 var compileCmd = &cobra.Command{
-	Use:   "compile [markdown-file]",
+	Use:   "compile [markdown-file]...",
 	Short: "Compile markdown to YAML workflows",
+	Long: `Compile one or more markdown workflow files to YAML workflows.
+
+If no files are specified, all markdown files in .github/workflows will be compiled.
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` compile                    # Compile all markdown files
+  ` + constants.CLIExtensionPrefix + ` compile weekly-research    # Compile a specific workflow
+  ` + constants.CLIExtensionPrefix + ` compile weekly-research daily-plan  # Compile multiple workflows
+  ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
+  ` + constants.CLIExtensionPrefix + ` compile --watch weekly-research     # Watch and auto-compile`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var file string
-		if len(args) > 0 {
-			file = args[0]
-		}
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
@@ -210,7 +216,7 @@ var compileCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
-		if err := cli.CompileWorkflows(file, verbose, engineOverride, validate, watch, instructions); err != nil {
+		if err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, instructions); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}

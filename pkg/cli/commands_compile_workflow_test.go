@@ -508,7 +508,11 @@ This is a test workflow for backward compatibility.
 			}
 
 			// Test CompileWorkflows function with workflow ID
-			err = CompileWorkflows(tt.workflowID, false, "", false, false, false)
+			var args []string
+			if tt.workflowID != "" {
+				args = []string{tt.workflowID}
+			}
+			err = CompileWorkflows(args, false, "", false, false, false)
 
 			if tt.expectError {
 				if err == nil {
