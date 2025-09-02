@@ -19,33 +19,27 @@ safe-outputs:
   add-issue-comment:
 ```
 
-This declares that the workflow should create at most one new issue and add at most one comment to the triggering issue or pull request based on the agentic workflow's output.
+This declares that the workflow should create at most one new issue and add at most one comment to the triggering issue or pull request based on the agentic workflow's output. To create multiple issues or comments, use the `max` parameter.
 
 ## Available Output Types
 
-### New Issue Creation (`create-issue:` / `create-issues:`)
+### New Issue Creation (`create-issue:`)
 
 Adding issue creation to the `safe-outputs:` section declares that the workflow should conclude with the creation of GitHub issues based on the workflow's output.
 
-**Singular Form (create exactly one issue):**
+**Basic Configuration:**
 ```yaml
 safe-outputs:
   create-issue:
 ```
 
-**Plural Form (create multiple issues):**
-```yaml
-safe-outputs:
-  create-issues:          
-    max: 5                          # Optional: maximum number of issues (default: 10)
-```
-
 **With Configuration:**
 ```yaml
 safe-outputs:
-  create-issue:                      # Singular form
+  create-issue:
     title-prefix: "[ai] "            # Optional: prefix for issue titles
     labels: [automation, agentic]    # Optional: labels to attach to issues
+    max: 5                           # Optional: maximum number of issues (default: 1)
 ```
 
 The agentic part of your workflow should describe the issue(s) it wants created.
@@ -61,27 +55,21 @@ Create new issues with your findings. For each issue, provide a title starting w
 
 The compiled workflow will have additional prompting describing that, to create issues, it should write the issue details to a file.
 
-### Issue Comment Creation (`add-issue-comment:` / `add-issue-comments:`)
+### Issue Comment Creation (`add-issue-comment:`)
 
 Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments based on the workflow's output. By default, comments are posted on the triggering issue or pull request, but this can be configured using the `target` option.
 
-**Singular Form (adds exactly one comment):**
+**Basic Configuration:**
 ```yaml
 safe-outputs:
   add-issue-comment:
 ```
 
-**Plural Form (adds multiple comments):**
-```yaml
-safe-outputs:
-  add-issue-comments:
-    max: 3                # Optional: maximum number of comments (default: 10)
-```
-
-**Configuration options:**
+**With Configuration:**
 ```yaml
 safe-outputs:
   add-issue-comment:
+    max: 3                          # Optional: maximum number of comments (default: 1)
     target: "*"                     # Optional: target for comments
                                     # "triggering" (default) - only comment on triggering issue/PR
                                     # "*" - allow comments on any issue (requires issue_number in agent output)
@@ -136,22 +124,22 @@ Analyze the latest commit and suggest improvements.
 2. Create a pull request for your improvements, with a descriptive title and detailed description of the changes made
 ```
 
-### Label Addition (`add-issue-labels:`)
+### Label Addition (`add-issue-label:`)
 
-Adding `add-issue-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
+Adding `add-issue-label:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
 
 ```yaml
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
 ```
 
 or with further configuration:
 
 ```yaml
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: [triage, bug, enhancement] # Optional: allowed labels for addition.
-    max-count: 3                        # Optional: maximum number of labels to add (default: 3)
+    max: 3                              # Optional: maximum number of labels to add (default: 3)
 ```
 
 The agentic part of your workflow should analyze the issue content and determine appropriate labels. 
@@ -172,7 +160,7 @@ The agentic part of your workflow will have implicit additional prompting saying
 - Lines starting with `-` are rejected (no removal operations allowed)
 - Duplicate labels are automatically removed
 - If `allowed` is provided, all requested labels must be in the `allowed` list or the job fails with a clear error message. If `allowed` is not provided then any labels are allowed (including creating new labels).
-- Label count is limited by `max-count` setting (default: 3) - exceeding this limit causes job failure
+- Label count is limited by `max` setting (default: 3) - exceeding this limit causes job failure
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
 
 ## Security and Sanitization

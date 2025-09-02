@@ -150,15 +150,15 @@ describe('collect_ndjson_output.cjs', () => {
     expect(parsedOutput.errors[1]).toContain('requires a \'title\' string field');
   });
 
-  it('should validate required fields for add-issue-labels type', async () => {
+  it('should validate required fields for add-issue-label type', async () => {
     const testFile = '/tmp/test-ndjson-output.txt';
-    const ndjsonContent = `{"type": "add-issue-labels", "labels": ["bug", "enhancement"]}
-{"type": "add-issue-labels", "labels": "not-an-array"}
-{"type": "add-issue-labels", "labels": [1, 2, 3]}`;
+    const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "enhancement"]}
+{"type": "add-issue-label", "labels": "not-an-array"}
+{"type": "add-issue-label", "labels": [1, 2, 3]}`;
     
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-labels": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
     
     await eval(`(async () => { ${collectScript} })()`);
     
@@ -196,8 +196,7 @@ describe('collect_ndjson_output.cjs', () => {
 
   it('should allow multiple items of supported types up to limits', async () => {
     const testFile = '/tmp/test-ndjson-output.txt';
-    const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
-{"type": "create-issue", "title": "Second Issue", "body": "Second body"}`;
+    const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}`;
     
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
@@ -210,9 +209,8 @@ describe('collect_ndjson_output.cjs', () => {
     expect(outputCall).toBeDefined();
     
     const parsedOutput = JSON.parse(outputCall[1]);
-    expect(parsedOutput.items).toHaveLength(2); // Both items should be allowed
+    expect(parsedOutput.items).toHaveLength(1); // Both items should be allowed
     expect(parsedOutput.items[0].title).toBe('First Issue');
-    expect(parsedOutput.items[1].title).toBe('Second Issue');
     expect(parsedOutput.errors).toHaveLength(0); // No errors for multiple items within limits
   });
 

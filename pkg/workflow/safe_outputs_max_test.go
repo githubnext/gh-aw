@@ -4,10 +4,10 @@ import (
 	"testing"
 )
 
-func TestPluralSafeOutputs(t *testing.T) {
+func TestSafeOutputsMaxConfiguration(t *testing.T) {
 	compiler := &Compiler{}
 
-	t.Run("Singular forms should convert to max: 1", func(t *testing.T) {
+	t.Run("Default configuration should use max: 1", func(t *testing.T) {
 		testSingular := map[string]any{
 			"safe-outputs": map[string]any{
 				"create-issue":        nil,
@@ -25,67 +25,31 @@ func TestPluralSafeOutputs(t *testing.T) {
 			t.Fatal("Expected CreateIssues to be parsed")
 		}
 		if config.CreateIssues.Max != 1 {
-			t.Errorf("Expected CreateIssues.Max to be 1 for singular form, got %d", config.CreateIssues.Max)
+			t.Errorf("Expected CreateIssues.Max to be 1 by default, got %d", config.CreateIssues.Max)
 		}
 
 		if config.AddIssueComments == nil {
 			t.Fatal("Expected AddIssueComments to be parsed")
 		}
 		if config.AddIssueComments.Max != 1 {
-			t.Errorf("Expected AddIssueComments.Max to be 1 for singular form, got %d", config.AddIssueComments.Max)
+			t.Errorf("Expected AddIssueComments.Max to be 1 by default, got %d", config.AddIssueComments.Max)
 		}
 
 		if config.CreatePullRequests == nil {
 			t.Fatal("Expected CreatePullRequests to be parsed")
 		}
 		if config.CreatePullRequests.Max != 1 {
-			t.Errorf("Expected CreatePullRequests.Max to be 1 for singular form, got %d", config.CreatePullRequests.Max)
+			t.Errorf("Expected CreatePullRequests.Max to be 1 by default, got %d", config.CreatePullRequests.Max)
 		}
 	})
 
-	t.Run("Plural forms should default to max: 10", func(t *testing.T) {
-		testPlural := map[string]any{
+	t.Run("Explicit max values should be used", func(t *testing.T) {
+		testWithMax := map[string]any{
 			"safe-outputs": map[string]any{
-				"create-issues":       nil,
-				"add-issue-comments":  nil,
-				"create-pull-request": nil, // Note: singular, not plural
-			},
-		}
-
-		config := compiler.extractSafeOutputsConfig(testPlural)
-		if config == nil {
-			t.Fatal("Expected config to be parsed")
-		}
-
-		if config.CreateIssues == nil {
-			t.Fatal("Expected CreateIssues to be parsed")
-		}
-		if config.CreateIssues.Max != 10 {
-			t.Errorf("Expected CreateIssues.Max to be 10 for plural form, got %d", config.CreateIssues.Max)
-		}
-
-		if config.AddIssueComments == nil {
-			t.Fatal("Expected AddIssueComments to be parsed")
-		}
-		if config.AddIssueComments.Max != 10 {
-			t.Errorf("Expected AddIssueComments.Max to be 10 for plural form, got %d", config.AddIssueComments.Max)
-		}
-
-		if config.CreatePullRequests == nil {
-			t.Fatal("Expected CreatePullRequests to be parsed")
-		}
-		if config.CreatePullRequests.Max != 1 {
-			t.Errorf("Expected CreatePullRequests.Max to be 1 for singular form, got %d", config.CreatePullRequests.Max)
-		}
-	})
-
-	t.Run("Plural forms with explicit max should use provided value", func(t *testing.T) {
-		testPluralMax := map[string]any{
-			"safe-outputs": map[string]any{
-				"create-issues": map[string]any{
+				"create-issue": map[string]any{
 					"max": 3,
 				},
-				"add-issue-comments": map[string]any{
+				"add-issue-comment": map[string]any{
 					"max": 5,
 				},
 				"create-pull-request": map[string]any{
@@ -95,7 +59,7 @@ func TestPluralSafeOutputs(t *testing.T) {
 			},
 		}
 
-		config := compiler.extractSafeOutputsConfig(testPluralMax)
+		config := compiler.extractSafeOutputsConfig(testWithMax)
 		if config == nil {
 			t.Fatal("Expected config to be parsed")
 		}
@@ -122,13 +86,17 @@ func TestPluralSafeOutputs(t *testing.T) {
 		}
 	})
 
-	t.Run("Mixed configurations should work correctly", func(t *testing.T) {
-		testMixed := map[string]any{
+	t.Run("Complete configuration with all options", func(t *testing.T) {
+		testComplete := map[string]any{
 			"safe-outputs": map[string]any{
-				"create-issues": map[string]any{
+				"create-issue": map[string]any{
 					"title-prefix": "[Auto] ",
 					"labels":       []any{"bug", "auto-generated"},
 					"max":          2,
+				},
+				"add-issue-comment": map[string]any{
+					"max":    3,
+					"target": "*",
 				},
 				"create-pull-request": map[string]any{
 					"title-prefix": "[Fix] ",
@@ -138,12 +106,12 @@ func TestPluralSafeOutputs(t *testing.T) {
 			},
 		}
 
-		config := compiler.extractSafeOutputsConfig(testMixed)
+		config := compiler.extractSafeOutputsConfig(testComplete)
 		if config == nil {
 			t.Fatal("Expected config to be parsed")
 		}
 
-		// Check plural create-issues
+		// Check create-issue
 		if config.CreateIssues == nil {
 			t.Fatal("Expected CreateIssues to be parsed")
 		}
@@ -157,12 +125,23 @@ func TestPluralSafeOutputs(t *testing.T) {
 			t.Errorf("Expected CreateIssues.Labels to be ['bug', 'auto-generated'], got %v", config.CreateIssues.Labels)
 		}
 
-		// Check singular create-pull-request (should convert to max: 1)
+		// Check add-issue-comment
+		if config.AddIssueComments == nil {
+			t.Fatal("Expected AddIssueComments to be parsed")
+		}
+		if config.AddIssueComments.Max != 3 {
+			t.Errorf("Expected AddIssueComments.Max to be 3, got %d", config.AddIssueComments.Max)
+		}
+		if config.AddIssueComments.Target != "*" {
+			t.Errorf("Expected AddIssueComments.Target to be '*', got '%s'", config.AddIssueComments.Target)
+		}
+
+		// Check create-pull-request
 		if config.CreatePullRequests == nil {
 			t.Fatal("Expected CreatePullRequests to be parsed")
 		}
 		if config.CreatePullRequests.Max != 1 {
-			t.Errorf("Expected CreatePullRequests.Max to be 1 for singular form, got %d", config.CreatePullRequests.Max)
+			t.Errorf("Expected CreatePullRequests.Max to be 1, got %d", config.CreatePullRequests.Max)
 		}
 		if config.CreatePullRequests.TitlePrefix != "[Fix] " {
 			t.Errorf("Expected CreatePullRequests.TitlePrefix to be '[Fix] ', got '%s'", config.CreatePullRequests.TitlePrefix)
@@ -172,35 +151,6 @@ func TestPluralSafeOutputs(t *testing.T) {
 		}
 		if config.CreatePullRequests.Draft == nil || *config.CreatePullRequests.Draft != true {
 			t.Errorf("Expected CreatePullRequests.Draft to be true, got %v", config.CreatePullRequests.Draft)
-		}
-	})
-
-	t.Run("Should prefer plural form when both singular and plural are present", func(t *testing.T) {
-		testBoth := map[string]any{
-			"safe-outputs": map[string]any{
-				"create-issue": map[string]any{
-					"title-prefix": "[Singular] ",
-				},
-				"create-issues": map[string]any{
-					"title-prefix": "[Plural] ",
-					"max":          5,
-				},
-			},
-		}
-
-		config := compiler.extractSafeOutputsConfig(testBoth)
-		if config == nil {
-			t.Fatal("Expected config to be parsed")
-		}
-
-		if config.CreateIssues == nil {
-			t.Fatal("Expected CreateIssues to be parsed")
-		}
-		if config.CreateIssues.Max != 5 {
-			t.Errorf("Expected CreateIssues.Max to be 5 (from plural form), got %d", config.CreateIssues.Max)
-		}
-		if config.CreateIssues.TitlePrefix != "[Plural] " {
-			t.Errorf("Expected CreateIssues.TitlePrefix to be '[Plural] ' (from plural form), got '%s'", config.CreateIssues.TitlePrefix)
 		}
 	})
 }

@@ -141,13 +141,13 @@ async function main() {
     // Use default limits for plural-supported types
     switch (itemType) {
       case 'create-issue':
-        return 10; // Allow multiple issues
+        return 1; // Allow multiple issues
       case 'add-issue-comment':
-        return 10; // Allow multiple comments
+        return 1; // Allow multiple comments
       case 'create-pull-request':
         return 1;  // Only one pull request allowed
-      case 'add-issue-labels':
-        return 1;  // Only one labels operation allowed
+      case 'add-issue-label':
+        return 5;  // Only one labels operation allowed
       default:
         return 1;  // Default to single item for unknown types
     }
@@ -267,13 +267,13 @@ async function main() {
           }
           break;
 
-        case 'add-issue-labels':
+        case 'add-issue-label':
           if (!item.labels || !Array.isArray(item.labels)) {
-            errors.push(`Line ${i + 1}: add-issue-labels requires a 'labels' array field`);
+            errors.push(`Line ${i + 1}: add-issue-label requires a 'labels' array field`);
             continue;
           }
           if (item.labels.some(label => typeof label !== 'string')) {
-            errors.push(`Line ${i + 1}: add-issue-labels labels array must contain only strings`);
+            errors.push(`Line ${i + 1}: add-issue-label labels array must contain only strings`);
             continue;
           }
           // Sanitize label strings

@@ -27,14 +27,14 @@ async function main() {
     return;
   }
 
-  // Find the add-issue-labels item
-  const labelsItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'add-issue-labels');
+  // Find the add-issue-label item
+  const labelsItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'add-issue-label');
   if (!labelsItem) {
-    console.log('No add-issue-labels item found in agent output');
+    console.log('No add-issue-label item found in agent output');
     return;
   }
 
-  console.log('Found add-issue-labels item:', { labelsCount: labelsItem.labels.length });
+  console.log('Found add-issue-label item:', { labelsCount: labelsItem.labels.length });
 
   // Read the allowed labels from environment variable (optional)
   const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
@@ -53,11 +53,11 @@ async function main() {
     console.log('No label restrictions - any labels are allowed');
   }
 
-  // Read the max-count limit from environment variable (default: 3)
+  // Read the max limit from environment variable (default: 3)
   const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
   const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
   if (isNaN(maxCount) || maxCount < 1) {
-    core.setFailed(`Invalid max-count value: ${maxCountEnv}. Must be a positive integer`);
+    core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
     return;
   }
 
@@ -123,7 +123,7 @@ async function main() {
   // Remove duplicates from requested labels
   let uniqueLabels = [...new Set(validLabels)];
 
-  // Enforce max-count limit
+  // Enforce max limit
   if (uniqueLabels.length > maxCount) {
     console.log(`too many labels, keep ${maxCount}`)
     uniqueLabels = uniqueLabels.slice(0, maxCount);

@@ -135,7 +135,7 @@ safe-outputs:
   create-issue:
   create-pull-request:
   add-issue-comment:
-  add-issue-labels:
+  add-issue-label:
 ---
 
 # Test Null Output Configuration
@@ -188,15 +188,15 @@ This workflow tests the null output configuration parsing.
 		t.Fatal("Expected add-issue-comment configuration to be parsed with null value")
 	}
 
-	// Verify add-issue-labels configuration is parsed with empty values
+	// Verify add-issue-label configuration is parsed with empty values
 	if workflowData.SafeOutputs.AddIssueLabels == nil {
-		t.Fatal("Expected add-issue-labels configuration to be parsed with null value")
+		t.Fatal("Expected add-issue-label configuration to be parsed with null value")
 	}
 	if len(workflowData.SafeOutputs.AddIssueLabels.Allowed) != 0 {
-		t.Errorf("Expected empty allowed labels for null add-issue-labels, got %v", workflowData.SafeOutputs.AddIssueLabels.Allowed)
+		t.Errorf("Expected empty allowed labels for null add-issue-label, got %v", workflowData.SafeOutputs.AddIssueLabels.Allowed)
 	}
 	if workflowData.SafeOutputs.AddIssueLabels.MaxCount != nil {
-		t.Errorf("Expected nil MaxCount for null add-issue-labels, got %v", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
+		t.Errorf("Expected nil MaxCount for null add-issue-label, got %v", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
 	}
 }
 
@@ -442,15 +442,15 @@ This workflow tests the output.add-issue-comment target configuration parsing.
 	}
 }
 
-func TestOutputCommentPluralTargetParsing(t *testing.T) {
+func TestOutputCommentMaxTargetParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-comment-plural-target-test")
+	tmpDir, err := os.MkdirTemp("", "output-comment-max-target-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with plural form and target configuration
+	// Test case with max and target configuration
 	testContent := `---
 on:
   issues:
@@ -461,17 +461,17 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comments:
+  add-issue-comment:
     max: 3
     target: "123"
 ---
 
-# Test Output Issue Comments Plural Target Configuration
+# Test Output Issue Comments Max Target Configuration
 
-This workflow tests the add-issue-comments plural target configuration parsing.
+This workflow tests the add-issue-comment max and target configuration parsing.
 `
 
-	testFile := filepath.Join(tmpDir, "test-output-issue-comments-target.md")
+	testFile := filepath.Join(tmpDir, "test-output-issue-comment-max-target.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -481,7 +481,7 @@ This workflow tests the add-issue-comments plural target configuration parsing.
 	// Parse the workflow data
 	workflowData, err := compiler.parseWorkflowFile(testFile)
 	if err != nil {
-		t.Fatalf("Unexpected error parsing workflow with plural target comment config: %v", err)
+		t.Fatalf("Unexpected error parsing workflow with max target comment config: %v", err)
 	}
 
 	// Verify output configuration is parsed correctly
@@ -985,7 +985,7 @@ func TestOutputLabelConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-labels configuration
+	// Test case with add-issue-label configuration
 	testContent := `---
 on:
   issues:
@@ -996,7 +996,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: [triage, bug, enhancement, needs-review]
 ---
 
@@ -1048,7 +1048,7 @@ func TestOutputLabelJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-labels configuration
+	// Test case with add-issue-label configuration
 	testContent := `---
 on:
   issues:
@@ -1062,7 +1062,7 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: [triage, bug, enhancement]
 ---
 
@@ -1157,8 +1157,8 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-labels:
-    max-count: 5
+  add-issue-label:
+    max: 5
 ---
 
 # Test Output Label No Allowed Labels
@@ -1203,9 +1203,9 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected empty allowed labels to be set as environment variable")
 	}
 
-	// Verify max-count is set correctly
+	// Verify max is set correctly
 	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 5") {
-		t.Error("Expected max-count to be set correctly")
+		t.Error("Expected max to be set correctly")
 	}
 
 	t.Logf("Generated workflow content:\n%s", lockContent)
@@ -1219,7 +1219,7 @@ func TestOutputLabelJobGenerationNullConfig(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test workflow with null add-issue-labels configuration
+	// Test workflow with null add-issue-label configuration
 	testContent := `---
 on:
   issues:
@@ -1229,7 +1229,7 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
 ---
 
 # Test Output Label Null Config
@@ -1279,9 +1279,9 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected empty allowed labels to be set as environment variable")
 	}
 
-	// Verify default max-count is set correctly
+	// Verify default max is set correctly
 	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 3") {
-		t.Error("Expected default max-count to be set correctly")
+		t.Error("Expected default max to be set correctly")
 	}
 
 	t.Logf("Generated workflow content:\n%s", lockContent)
@@ -1295,7 +1295,7 @@ func TestOutputLabelConfigNullParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with null add-issue-labels configuration
+	// Test case with null add-issue-label configuration
 	testContent := `---
 on:
   issues:
@@ -1306,7 +1306,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
 ---
 
 # Test Output Label Null Configuration Parsing
@@ -1341,21 +1341,21 @@ This workflow tests the output labels null configuration parsing.
 		t.Errorf("Expected 0 allowed labels for null config, got %d", len(workflowData.SafeOutputs.AddIssueLabels.Allowed))
 	}
 
-	// Verify max-count is nil (will use default)
+	// Verify max is nil (will use default)
 	if workflowData.SafeOutputs.AddIssueLabels.MaxCount != nil {
-		t.Errorf("Expected max-count to be nil for null config, got %d", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
+		t.Errorf("Expected max to be nil for null config, got %d", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
 	}
 }
 
 func TestOutputLabelConfigMaxCountParsing(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-max-count-test")
+	tmpDir, err := os.MkdirTemp("", "output-label-max-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-labels configuration including max-count
+	// Test case with add-issue-label configuration including max
 	testContent := `---
 on:
   issues:
@@ -1366,17 +1366,17 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: [triage, bug, enhancement, needs-review]
-    max-count: 5
+    max: 5
 ---
 
 # Test Output Label Max Count Configuration
 
-This workflow tests the output labels max-count configuration parsing.
+This workflow tests the output labels max configuration parsing.
 `
 
-	testFile := filepath.Join(tmpDir, "test-output-labels-max-count.md")
+	testFile := filepath.Join(tmpDir, "test-output-labels-max.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -1386,7 +1386,7 @@ This workflow tests the output labels max-count configuration parsing.
 	// Parse the workflow data
 	workflowData, err := compiler.parseWorkflowFile(testFile)
 	if err != nil {
-		t.Fatalf("Unexpected error parsing workflow with output labels max-count config: %v", err)
+		t.Fatalf("Unexpected error parsing workflow with output labels max config: %v", err)
 	}
 
 	// Verify output configuration is parsed correctly
@@ -1410,26 +1410,26 @@ This workflow tests the output labels max-count configuration parsing.
 		}
 	}
 
-	// Verify max-count
+	// Verify max
 	if workflowData.SafeOutputs.AddIssueLabels.MaxCount == nil {
-		t.Fatal("Expected max-count to be parsed")
+		t.Fatal("Expected max to be parsed")
 	}
 
 	expectedMaxCount := 5
 	if *workflowData.SafeOutputs.AddIssueLabels.MaxCount != expectedMaxCount {
-		t.Errorf("Expected max-count to be %d, got %d", expectedMaxCount, *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
+		t.Errorf("Expected max to be %d, got %d", expectedMaxCount, *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
 	}
 }
 
 func TestOutputLabelConfigDefaultMaxCount(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-default-max-count-test")
+	tmpDir, err := os.MkdirTemp("", "output-label-default-max-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-labels configuration without max-count (should use default)
+	// Test case with add-issue-label configuration without max (should use default)
 	testContent := `---
 on:
   issues:
@@ -1440,13 +1440,13 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: [triage, bug, enhancement]
 ---
 
 # Test Output Label Default Max Count
 
-This workflow tests the default max-count behavior.
+This workflow tests the default max behavior.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-labels-default.md")
@@ -1459,24 +1459,24 @@ This workflow tests the default max-count behavior.
 	// Parse the workflow data
 	workflowData, err := compiler.parseWorkflowFile(testFile)
 	if err != nil {
-		t.Fatalf("Unexpected error parsing workflow without max-count: %v", err)
+		t.Fatalf("Unexpected error parsing workflow without max: %v", err)
 	}
 
-	// Verify max-count is nil (will use default in job generation)
+	// Verify max is nil (will use default in job generation)
 	if workflowData.SafeOutputs.AddIssueLabels.MaxCount != nil {
-		t.Errorf("Expected max-count to be nil (default), got %d", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
+		t.Errorf("Expected max to be nil (default), got %d", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
 	}
 }
 
 func TestOutputLabelJobGenerationWithMaxCount(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-job-max-count-test")
+	tmpDir, err := os.MkdirTemp("", "output-label-job-max-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-labels configuration including max-count
+	// Test case with add-issue-label configuration including max
 	testContent := `---
 on:
   issues:
@@ -1490,17 +1490,17 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: [triage, bug, enhancement]
-    max-count: 2
+    max: 2
 ---
 
 # Test Output Label Job Generation with Max Count
 
-This workflow tests the add_labels job generation with max-count.
+This workflow tests the add_labels job generation with max.
 `
 
-	testFile := filepath.Join(tmpDir, "test-output-labels-max-count.md")
+	testFile := filepath.Join(tmpDir, "test-output-labels-max.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -1510,11 +1510,11 @@ This workflow tests the add_labels job generation with max-count.
 	// Compile the workflow
 	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
-		t.Fatalf("Unexpected error compiling workflow with output labels max-count: %v", err)
+		t.Fatalf("Unexpected error compiling workflow with output labels max: %v", err)
 	}
 
 	// Read the generated lock file
-	lockFile := filepath.Join(tmpDir, "test-output-labels-max-count.lock.yml")
+	lockFile := filepath.Join(tmpDir, "test-output-labels-max.lock.yml")
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -1532,9 +1532,9 @@ This workflow tests the add_labels job generation with max-count.
 		t.Error("Expected allowed labels to be set as environment variable")
 	}
 
-	// Verify max-count environment variable is set
+	// Verify max environment variable is set
 	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 2") {
-		t.Error("Expected max-count to be set as environment variable")
+		t.Error("Expected max to be set as environment variable")
 	}
 
 	t.Logf("Generated workflow content:\n%s", lockContent)
@@ -1542,13 +1542,13 @@ This workflow tests the add_labels job generation with max-count.
 
 func TestOutputLabelJobGenerationWithDefaultMaxCount(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "output-label-job-default-max-count-test")
+	tmpDir, err := os.MkdirTemp("", "output-label-job-default-max-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-labels configuration without max-count (should use default of 3)
+	// Test case with add-issue-label configuration without max (should use default of 3)
 	testContent := `---
 on:
   issues:
@@ -1562,16 +1562,16 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: [triage, bug, enhancement]
 ---
 
 # Test Output Label Job Generation with Default Max Count
 
-This workflow tests the add_labels job generation with default max-count.
+This workflow tests the add_labels job generation with default max.
 `
 
-	testFile := filepath.Join(tmpDir, "test-output-labels-default-max-count.md")
+	testFile := filepath.Join(tmpDir, "test-output-labels-default-max.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -1581,11 +1581,11 @@ This workflow tests the add_labels job generation with default max-count.
 	// Compile the workflow
 	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
-		t.Fatalf("Unexpected error compiling workflow with output labels default max-count: %v", err)
+		t.Fatalf("Unexpected error compiling workflow with output labels default max: %v", err)
 	}
 
 	// Read the generated lock file
-	lockFile := filepath.Join(tmpDir, "test-output-labels-default-max-count.lock.yml")
+	lockFile := filepath.Join(tmpDir, "test-output-labels-default-max.lock.yml")
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -1598,9 +1598,9 @@ This workflow tests the add_labels job generation with default max-count.
 		t.Error("Expected 'add_labels' job to be in generated workflow")
 	}
 
-	// Verify max-count environment variable is set to default value of 3
+	// Verify max environment variable is set to default value of 3
 	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 3") {
-		t.Error("Expected max-count to be set to default value of 3 as environment variable")
+		t.Error("Expected max to be set to default value of 3 as environment variable")
 	}
 
 	t.Logf("Generated workflow content:\n%s", lockContent)
@@ -1624,7 +1624,7 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-labels:
+  add-issue-label:
     allowed: []
 ---
 
@@ -1669,7 +1669,7 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-labels: {}
+  add-issue-label: {}
 ---
 
 # Test Output Label Missing Allowed

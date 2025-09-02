@@ -34,7 +34,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	// Pass the allowed labels list (empty string if no restrictions)
 	allowedLabelsStr := strings.Join(allowedLabels, ",")
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_ALLOWED: %q\n", allowedLabelsStr))
-	// Pass the max-count limit
+	// Pass the max limit
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
 	steps = append(steps, "        with:\n")

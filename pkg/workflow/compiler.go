@@ -142,10 +142,10 @@ type WorkflowData struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
-	CreateIssues       *CreateIssuesConfig       `yaml:"create-issues,omitempty"`
-	AddIssueComments   *AddIssueCommentsConfig   `yaml:"add-issue-comments,omitempty"`
-	CreatePullRequests *CreatePullRequestsConfig `yaml:"create-pull-requests,omitempty"`
-	AddIssueLabels     *AddIssueLabelsConfig     `yaml:"add-issue-labels,omitempty"`
+	CreateIssues       *CreateIssuesConfig       `yaml:"create-issue,omitempty"`
+	AddIssueComments   *AddIssueCommentsConfig   `yaml:"add-issue-comment,omitempty"`
+	CreatePullRequests *CreatePullRequestsConfig `yaml:"create-pull-request,omitempty"`
+	AddIssueLabels     *AddIssueLabelsConfig     `yaml:"add-issue-label,omitempty"`
 	AllowedDomains     []string                  `yaml:"allowed-domains,omitempty"`
 }
 
@@ -177,8 +177,8 @@ type CreatePullRequestsConfig struct {
 
 // AddIssueLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddIssueLabelsConfig struct {
-	Allowed  []string `yaml:"allowed,omitempty"`   // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	MaxCount *int     `yaml:"max-count,omitempty"` // Optional maximum number of labels to add (default: 3)
+	Allowed  []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	MaxCount *int     `yaml:"max,omitempty"`     // Optional maximum number of labels to add (default: 3)
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1560,7 +1560,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 			}
 		}
 
-		// Build create_issue_comment job if output.add-issue-comments is configured
+		// Build create_issue_comment job if output.add-issue-comment is configured
 		if data.SafeOutputs.AddIssueComments != nil {
 			createCommentJob, err := c.buildCreateOutputAddIssueCommentJob(data, jobName)
 			if err != nil {
@@ -1571,7 +1571,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 			}
 		}
 
-		// Build create_pull_request job if output.create-pull-requests is configured
+		// Build create_pull_request job if output.create-pull-request is configured
 		if data.SafeOutputs.CreatePullRequests != nil {
 			createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
 			if err != nil {
@@ -1582,7 +1582,7 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 			}
 		}
 
-		// Build add_labels job if output.add-issue-labels is configured (including null/empty)
+		// Build add_labels job if output.add-issue-label is configured (including null/empty)
 		if data.SafeOutputs.AddIssueLabels != nil {
 			addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
 			if err != nil {
@@ -1725,7 +1725,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
-		return nil, fmt.Errorf("safe-outputs.create-issues configuration is required")
+		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
 	}
 
 	var steps []string
@@ -1775,7 +1775,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 // buildCreateOutputAddIssueCommentJob creates the create_issue_comment job
 func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddIssueComments == nil {
-		return nil, fmt.Errorf("safe-outputs.add-issue-comments configuration is required")
+		return nil, fmt.Errorf("safe-outputs.add-issue-comment configuration is required")
 	}
 
 	var steps []string
@@ -1832,7 +1832,7 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 // buildCreateOutputPullRequestJob creates the create_pull_request job
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil {
-		return nil, fmt.Errorf("safe-outputs.create-pull-requests configuration is required")
+		return nil, fmt.Errorf("safe-outputs.create-pull-request configuration is required")
 	}
 
 	var steps []string
@@ -2351,7 +2351,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 		if data.SafeOutputs.AddIssueLabels != nil {
 			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
 			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"add-issue-labels\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
+			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          \n")
 		}
@@ -2374,7 +2374,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			exampleCount++
 		}
 		if data.SafeOutputs.AddIssueLabels != nil {
-			yaml.WriteString("          {\"type\": \"add-issue-labels\", \"labels\": [\"bug\", \"priority-high\"]}\n")
+			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"bug\", \"priority-high\"]}\n")
 			exampleCount++
 		}
 
@@ -2439,19 +2439,19 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 		if outputMap, ok := output.(map[string]any); ok {
 			config := &SafeOutputsConfig{}
 
-			// Handle create-issue and create-issues
+			// Handle create-issue
 			issuesConfig := c.parseIssuesConfig(outputMap)
 			if issuesConfig != nil {
 				config.CreateIssues = issuesConfig
 			}
 
-			// Handle add-issue-comment and add-issue-comments
+			// Handle add-issue-comment
 			commentsConfig := c.parseCommentsConfig(outputMap)
 			if commentsConfig != nil {
 				config.AddIssueComments = commentsConfig
 			}
 
-			// Handle create-pull-request and create-pull-requests
+			// Handle create-pull-request
 			pullRequestsConfig := c.parsePullRequestsConfig(outputMap)
 			if pullRequestsConfig != nil {
 				config.CreatePullRequests = pullRequestsConfig
@@ -2470,8 +2470,8 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Parse add-issue-labels configuration
-			if labels, exists := outputMap["add-issue-labels"]; exists {
+			// Parse add-issue-label configuration
+			if labels, exists := outputMap["add-issue-label"]; exists {
 				if labelsMap, ok := labels.(map[string]any); ok {
 					labelConfig := &AddIssueLabelsConfig{}
 
@@ -2488,8 +2488,8 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
-					// Parse max-count (optional)
-					if maxCount, exists := labelsMap["max-count"]; exists {
+					// Parse max (optional)
+					if maxCount, exists := labelsMap["max"]; exists {
 						// Handle different numeric types that YAML parsers might return
 						var maxCountInt int
 						var validMaxCount bool
@@ -2525,146 +2525,77 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	return nil
 }
 
-// parseIssuesConfig handles both create-issue (singular) and create-issues (plural) configurations
+// parseIssuesConfig handles create-issue configuration
 func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
-	// Check for both singular and plural forms
-	hasSingular := false
-	hasPlural := false
+	if configData, exists := outputMap["create-issue"]; exists {
+		issuesConfig := &CreateIssuesConfig{Max: 1} // Default max is 1
 
-	if _, exists := outputMap["create-issue"]; exists {
-		hasSingular = true
-	}
-	if _, exists := outputMap["create-issues"]; exists {
-		hasPlural = true
-	}
-
-	// Error if both are specified
-	if hasSingular && hasPlural {
-		// This should be caught by validation, but we'll handle it gracefully
-		// Prefer plural form
-		hasSingular = false
-	}
-
-	var configData any
-	var defaultMax int
-
-	if hasPlural {
-		configData = outputMap["create-issues"]
-		defaultMax = 10 // Default for plural form
-	} else if hasSingular {
-		configData = outputMap["create-issue"]
-		defaultMax = 1 // Singular form always has max 1
-	} else {
-		return nil
-	}
-
-	issuesConfig := &CreateIssuesConfig{Max: defaultMax}
-
-	if configMap, ok := configData.(map[string]any); ok {
-		// Parse title-prefix
-		if titlePrefix, exists := configMap["title-prefix"]; exists {
-			if titlePrefixStr, ok := titlePrefix.(string); ok {
-				issuesConfig.TitlePrefix = titlePrefixStr
-			}
-		}
-
-		// Parse labels
-		if labels, exists := configMap["labels"]; exists {
-			if labelsArray, ok := labels.([]any); ok {
-				var labelStrings []string
-				for _, label := range labelsArray {
-					if labelStr, ok := label.(string); ok {
-						labelStrings = append(labelStrings, labelStr)
-					}
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse title-prefix
+			if titlePrefix, exists := configMap["title-prefix"]; exists {
+				if titlePrefixStr, ok := titlePrefix.(string); ok {
+					issuesConfig.TitlePrefix = titlePrefixStr
 				}
-				issuesConfig.Labels = labelStrings
 			}
-		}
 
-		// Parse max (only for plural form)
-		if hasPlural {
+			// Parse labels
+			if labels, exists := configMap["labels"]; exists {
+				if labelsArray, ok := labels.([]any); ok {
+					var labelStrings []string
+					for _, label := range labelsArray {
+						if labelStr, ok := label.(string); ok {
+							labelStrings = append(labelStrings, labelStr)
+						}
+					}
+					issuesConfig.Labels = labelStrings
+				}
+			}
+
+			// Parse max
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := c.parseIntValue(max); ok {
 					issuesConfig.Max = maxInt
 				}
 			}
 		}
+
+		return issuesConfig
 	}
 
-	return issuesConfig
+	return nil
 }
 
-// parseCommentsConfig handles both add-issue-comment (singular) and add-issue-comments (plural) configurations
+// parseCommentsConfig handles add-issue-comment configuration
 func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddIssueCommentsConfig {
-	// Check for both singular and plural forms
-	hasSingular := false
-	hasPlural := false
+	if configData, exists := outputMap["add-issue-comment"]; exists {
+		commentsConfig := &AddIssueCommentsConfig{Max: 1} // Default max is 1
 
-	if _, exists := outputMap["add-issue-comment"]; exists {
-		hasSingular = true
-	}
-	if _, exists := outputMap["add-issue-comments"]; exists {
-		hasPlural = true
-	}
-
-	// Error if both are specified
-	if hasSingular && hasPlural {
-		// This should be caught by validation, but we'll handle it gracefully
-		// Prefer plural form
-		hasSingular = false
-	}
-
-	var configData any
-	var defaultMax int
-
-	if hasPlural {
-		configData = outputMap["add-issue-comments"]
-		defaultMax = 10 // Default for plural form
-	} else if hasSingular {
-		configData = outputMap["add-issue-comment"]
-		defaultMax = 1 // Singular form always has max 1
-	} else {
-		return nil
-	}
-
-	commentsConfig := &AddIssueCommentsConfig{Max: defaultMax}
-
-	if configMap, ok := configData.(map[string]any); ok {
-		// Parse max (only for plural form)
-		if hasPlural {
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := c.parseIntValue(max); ok {
 					commentsConfig.Max = maxInt
 				}
 			}
-		}
 
-		// Parse target field (for both singular and plural forms)
-		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok {
-				commentsConfig.Target = targetStr
+			// Parse target
+			if target, exists := configMap["target"]; exists {
+				if targetStr, ok := target.(string); ok {
+					commentsConfig.Target = targetStr
+				}
 			}
 		}
+
+		return commentsConfig
 	}
 
-	return commentsConfig
+	return nil
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration
 func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePullRequestsConfig {
 	// Check for singular form only
-	hasSingular := false
-	if _, exists := outputMap["create-pull-request"]; exists {
-		hasSingular = true
-	}
-
-	// Check for unsupported plural form and return nil (no error, just ignore)
-	if _, exists := outputMap["create-pull-requests"]; exists {
-		// Plural form is not supported for pull requests - ignore it
-		return nil
-	}
-
-	if !hasSingular {
+	if _, exists := outputMap["create-pull-request"]; !exists {
 		return nil
 	}
 
@@ -3016,7 +2947,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 			safeOutputsConfig["create-pull-request"] = true
 		}
 		if data.SafeOutputs.AddIssueLabels != nil {
-			safeOutputsConfig["add-issue-labels"] = true
+			safeOutputsConfig["add-issue-label"] = true
 		}
 
 		// Convert to JSON string for environment variable
