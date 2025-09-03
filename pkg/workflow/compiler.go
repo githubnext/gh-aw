@@ -1877,9 +1877,20 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
+	// Determine the job condition for command workflows
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+	} else {
+		jobCondition = "" // No conditional execution
+	}
+
 	job := &Job{
 		Name:           "create_issue",
-		If:             "", // No conditional execution
+		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
@@ -1925,13 +1936,33 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 	}
 
 	// Determine the job condition based on target configuration
-	var jobCondition string
+	var baseCondition string
 	if data.SafeOutputs.AddIssueComments.Target == "*" {
 		// Allow the job to run in any context when target is "*"
-		jobCondition = "if: always()" // This allows the job to run even without triggering issue/PR
+		baseCondition = "always()" // This allows the job to run even without triggering issue/PR
 	} else {
 		// Default behavior: only run in issue or PR context
-		jobCondition = "if: github.event.issue.number || github.event.pull_request.number"
+		baseCondition = "github.event.issue.number || github.event.pull_request.number"
+	}
+
+	// If this is a command workflow, combine the command trigger condition with the base condition
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		
+		// Combine command condition with base condition using AND
+		if baseCondition == "always()" {
+			// If base condition is always(), just use the command condition
+			jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		} else {
+			// Combine both conditions with AND
+			jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+		}
+	} else {
+		// No command trigger, just use the base condition
+		jobCondition = fmt.Sprintf("if: %s", baseCondition)
 	}
 
 	job := &Job{
@@ -2010,9 +2041,20 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
 	}
 
+	// Determine the job condition for command workflows
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+	} else {
+		jobCondition = "" // No conditional execution
+	}
+
 	job := &Job{
 		Name:           "create_pull_request",
-		If:             "", // No conditional execution
+		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: write\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required

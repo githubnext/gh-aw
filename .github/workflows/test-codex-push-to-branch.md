@@ -15,7 +15,7 @@ safe-outputs:
 Create a new file called "codex-test-file.md" with the following content:
 
 ```markdown
-# Codex Test File
+# Test Codex Push To Branch
 
 This file was created by the Codex agentic workflow to test the push-to-branch functionality.
 

@@ -15,7 +15,7 @@ safe-outputs:
 Create a new file called "claude-test-file.md" with the following content:
 
 ```markdown
-# Claude Test File
+# Test Claude Push To Branch
 
 This file was created by the Claude agentic workflow to test the push-to-branch functionality.
 
