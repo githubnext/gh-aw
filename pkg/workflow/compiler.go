@@ -464,6 +464,26 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.extractEngineConfig(result.Frontmatter)
 
+	// Extract strict mode setting from frontmatter
+	strictMode := c.extractStrictMode(result.Frontmatter)
+
+	// Apply strict mode: inject deny-all network permissions if strict mode is enabled
+	// and no explicit network permissions are configured
+	if strictMode && engineConfig != nil && engineConfig.ID == "claude" {
+		if engineConfig.Permissions == nil || engineConfig.Permissions.Network == nil {
+			// Initialize permissions structure if needed
+			if engineConfig.Permissions == nil {
+				engineConfig.Permissions = &EnginePermissions{}
+			}
+			if engineConfig.Permissions.Network == nil {
+				// Inject deny-all network permissions (empty allowed list)
+				engineConfig.Permissions.Network = &NetworkPermissions{
+					Allowed: []string{}, // Empty list means deny-all
+				}
+			}
+		}
+	}
+
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting

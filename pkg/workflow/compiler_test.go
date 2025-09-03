@@ -2933,6 +2933,251 @@ func TestGenerateJobName(t *testing.T) {
 	}
 }
 
+func TestStrictModeNetworkPermissions(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tmpDir := t.TempDir()
+
+	t.Run("strict mode disabled with no permissions (default behavior)", func(t *testing.T) {
+		testContent := `---
+on: push
+engine: claude
+strict: false
+---
+
+# Test Workflow
+
+This is a test workflow without network permissions.
+`
+		testFile := filepath.Join(tmpDir, "no-strict-workflow.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Compile the workflow
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected compilation error: %v", err)
+		}
+
+		// Read the compiled output
+		lockFile := filepath.Join(tmpDir, "no-strict-workflow.lock.yml")
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		// Should not contain network hook setup (no restrictions)
+		if strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
+			t.Error("Should not contain network hook setup when strict mode is disabled and no permissions set")
+		}
+		if strings.Contains(string(lockContent), ".claude/settings.json") {
+			t.Error("Should not reference settings.json when strict mode is disabled and no permissions set")
+		}
+	})
+
+	t.Run("strict mode enabled with no explicit permissions (should enforce deny-all)", func(t *testing.T) {
+		testContent := `---
+on: push
+engine: claude
+strict: true
+---
+
+# Test Workflow
+
+This is a test workflow with strict mode but no explicit network permissions.
+`
+		testFile := filepath.Join(tmpDir, "strict-no-perms-workflow.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Compile the workflow
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected compilation error: %v", err)
+		}
+
+		// Read the compiled output
+		lockFile := filepath.Join(tmpDir, "strict-no-perms-workflow.lock.yml")
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		// Should contain network hook setup (deny-all enforcement)
+		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
+			t.Error("Should contain network hook setup when strict mode is enabled")
+		}
+		if !strings.Contains(string(lockContent), ".claude/settings.json") {
+			t.Error("Should reference settings.json when strict mode is enabled")
+		}
+		// Should have empty ALLOWED_DOMAINS array for deny-all
+		if !strings.Contains(string(lockContent), "ALLOWED_DOMAINS = []") {
+			t.Error("Should have empty ALLOWED_DOMAINS array for deny-all policy")
+		}
+	})
+
+	t.Run("strict mode enabled with explicit network permissions (should use explicit permissions)", func(t *testing.T) {
+		testContent := `---
+on: push
+engine:
+  id: claude
+  permissions:
+    network:
+      allowed: ["example.com", "api.github.com"]
+strict: true
+---
+
+# Test Workflow
+
+This is a test workflow with strict mode and explicit network permissions.
+`
+		testFile := filepath.Join(tmpDir, "strict-with-perms-workflow.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Compile the workflow
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected compilation error: %v", err)
+		}
+
+		// Read the compiled output
+		lockFile := filepath.Join(tmpDir, "strict-with-perms-workflow.lock.yml")
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		// Should contain network hook setup with specified domains
+		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
+			t.Error("Should contain network hook setup when strict mode is enabled with explicit permissions")
+		}
+		if !strings.Contains(string(lockContent), `"example.com"`) {
+			t.Error("Should contain example.com in allowed domains")
+		}
+		if !strings.Contains(string(lockContent), `"api.github.com"`) {
+			t.Error("Should contain api.github.com in allowed domains")
+		}
+	})
+
+	t.Run("strict mode not specified (should default to false)", func(t *testing.T) {
+		testContent := `---
+on: push
+engine: claude
+---
+
+# Test Workflow
+
+This is a test workflow without strict mode specified.
+`
+		testFile := filepath.Join(tmpDir, "no-strict-field-workflow.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Compile the workflow
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected compilation error: %v", err)
+		}
+
+		// Read the compiled output
+		lockFile := filepath.Join(tmpDir, "no-strict-field-workflow.lock.yml")
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		// Should not contain network hook setup (default behavior)
+		if strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
+			t.Error("Should not contain network hook setup when strict mode is not specified")
+		}
+	})
+
+	t.Run("strict mode with non-claude engine (should be ignored)", func(t *testing.T) {
+		testContent := `---
+on: push
+engine: codex
+strict: true
+---
+
+# Test Workflow
+
+This is a test workflow with strict mode and codex engine.
+`
+		testFile := filepath.Join(tmpDir, "strict-codex-workflow.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Compile the workflow
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected compilation error: %v", err)
+		}
+
+		// Read the compiled output
+		lockFile := filepath.Join(tmpDir, "strict-codex-workflow.lock.yml")
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		// Should not contain claude-specific network hook setup
+		if strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
+			t.Error("Should not contain network hook setup for non-claude engines")
+		}
+	})
+}
+
+func TestExtractStrictMode(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expected    bool
+	}{
+		{
+			name:        "strict mode true",
+			frontmatter: map[string]any{"strict": true},
+			expected:    true,
+		},
+		{
+			name:        "strict mode false",
+			frontmatter: map[string]any{"strict": false},
+			expected:    false,
+		},
+		{
+			name:        "strict mode not specified",
+			frontmatter: map[string]any{"on": "push"},
+			expected:    false,
+		},
+		{
+			name:        "strict mode as string (should default to false)",
+			frontmatter: map[string]any{"strict": "true"},
+			expected:    false,
+		},
+		{
+			name:        "empty frontmatter",
+			frontmatter: map[string]any{},
+			expected:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.extractStrictMode(tt.frontmatter)
+			if result != tt.expected {
+				t.Errorf("extractStrictMode() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestMCPImageField(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "mcp-container-test")

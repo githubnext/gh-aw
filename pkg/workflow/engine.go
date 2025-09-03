@@ -99,6 +99,16 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 	return "", nil
 }
 
+// extractStrictMode extracts strict mode setting from frontmatter
+func (c *Compiler) extractStrictMode(frontmatter map[string]any) bool {
+	if strict, exists := frontmatter["strict"]; exists {
+		if strictBool, ok := strict.(bool); ok {
+			return strictBool
+		}
+	}
+	return false // Default to false if not specified or not a boolean
+}
+
 // validateEngine validates that the given engine ID is supported
 func (c *Compiler) validateEngine(engineID string) error {
 	if engineID == "" {
