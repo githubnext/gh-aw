@@ -6,7 +6,7 @@ name: "Test Codex Create Issue"
 on:
   workflow_dispatch: null
 
-permissions: read-all
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

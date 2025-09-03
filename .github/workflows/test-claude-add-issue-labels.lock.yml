@@ -9,7 +9,7 @@ name: "Test Claude Add Issue Labels"
     - opened
     - reopened
 
-permissions: read-all
+permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"

@@ -1609,7 +1609,7 @@ func (c *Compiler) generateYAML(data *WorkflowData) (string, error) {
 	// Write basic workflow structure
 	yaml.WriteString(fmt.Sprintf("name: \"%s\"\n", data.Name))
 	yaml.WriteString(data.On + "\n\n")
-	yaml.WriteString(data.Permissions + "\n\n")
+	yaml.WriteString("permissions: {}\n\n")
 	yaml.WriteString(data.Concurrency + "\n\n")
 	yaml.WriteString(data.RunName + "\n\n")
 

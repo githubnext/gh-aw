@@ -9,14 +9,7 @@ on:
     - opened
     - reopened
 
-permissions:
-  actions: read
-  checks: read
-  contents: read
-  issues: write
-  models: read
-  pull-requests: read
-  statuses: read
+permissions: {}
 
 concurrency:
   cancel-in-progress: true
