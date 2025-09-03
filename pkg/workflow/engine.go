@@ -1,6 +1,11 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+)
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
@@ -107,6 +112,44 @@ func (c *Compiler) extractStrictMode(frontmatter map[string]any) bool {
 		}
 	}
 	return false // Default to false if not specified or not a boolean
+}
+
+// validatePermissionsInStrictMode checks permissions in strict mode and warns about write permissions
+func (c *Compiler) validatePermissionsInStrictMode(permissions string) {
+	if permissions == "" {
+		return
+	}
+
+	// Check for write permissions in the permissions string
+	writePermissions := []string{
+		"write-all",
+		"write",
+		"contents: write",
+		"issues: write",
+		"pull-requests: write",
+		"actions: write",
+		"checks: write",
+		"deployments: write",
+		"discussions: write",
+		"packages: write",
+		"pages: write",
+		"repository-projects: write",
+		"security-events: write",
+		"statuses: write",
+		"attestations: write",
+	}
+
+	hasWritePermissions := false
+	for _, writePattern := range writePermissions {
+		if strings.Contains(permissions, writePattern) {
+			hasWritePermissions = true
+			break
+		}
+	}
+
+	if hasWritePermissions {
+		fmt.Println(console.FormatWarningMessage("Strict mode: Found 'write' permissions. Consider using 'read' permissions only for better security."))
+	}
 }
 
 // validateEngine validates that the given engine ID is supported
