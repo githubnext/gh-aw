@@ -13,7 +13,7 @@ on:
   pull_request_review_comment:
     types: [created, edited]
 
-permissions: {}
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"

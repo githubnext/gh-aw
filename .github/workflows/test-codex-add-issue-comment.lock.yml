@@ -9,7 +9,7 @@ name: "Test Codex Add Issue Comment"
     - opened
     - reopened
 
-permissions: {}
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"

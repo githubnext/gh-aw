@@ -8,7 +8,15 @@ on:
   - cron: 0 9 * * 1
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  discussions: read
+  issues: write
+  models: read
+  pull-requests: read
+  statuses: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

@@ -9,7 +9,8 @@ on:
     - main
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"

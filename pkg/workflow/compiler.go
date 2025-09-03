@@ -1023,6 +1023,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string, strict
 			// In strict mode, default to empty permissions instead of read-all
 			// User must explicitly specify permissions in frontmatter
 			fmt.Println(console.FormatWarningMessage("Strict mode enabled: No permissions specified. User must explicitly define permissions in frontmatter."))
+			data.Permissions = `permissions: {}`
 		} else {
 			// Default behavior: use read-all permissions
 			data.Permissions = `permissions: read-all`
@@ -1528,7 +1529,7 @@ func (c *Compiler) generateYAML(data *WorkflowData) (string, error) {
 	// Write basic workflow structure
 	yaml.WriteString(fmt.Sprintf("name: \"%s\"\n", data.Name))
 	yaml.WriteString(data.On + "\n\n")
-	yaml.WriteString("permissions: {}\n\n")
+	yaml.WriteString(data.Permissions + "\n\n")
 	yaml.WriteString(data.Concurrency + "\n\n")
 	yaml.WriteString(data.RunName + "\n\n")
 
