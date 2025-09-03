@@ -189,6 +189,64 @@ This workflow uses the default branch value.
 	}
 }
 
+func TestPushToBranchNullConfig(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with null configuration (push-to-branch: with no value)
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-branch: 
+---
+
+# Test Push to Branch Null Config
+
+This workflow uses null configuration which should default to "triggering".
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-branch-null-config.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	// This should succeed and use default branch "triggering"
+	err := compiler.CompileWorkflow(mdFile)
+	if err != nil {
+		t.Fatalf("Expected compilation to succeed with null config, got error: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := filepath.Join(tmpDir, "test-push-to-branch-null-config.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Check that the default branch "triggering" is used
+	if !strings.Contains(lockContent, `GITHUB_AW_PUSH_BRANCH: "triggering"`) {
+		t.Errorf("Expected default branch 'triggering' to be set in environment variables")
+	}
+
+	// Check that the push_to_branch job is generated
+	if !strings.Contains(lockContent, "push_to_branch:") {
+		t.Errorf("Expected push_to_branch job to be generated")
+	}
+
+	// Check that no target is set (should use default)
+	if strings.Contains(lockContent, "GITHUB_AW_PUSH_TARGET:") {
+		t.Errorf("Expected no target to be set when using null config")
+	}
+}
+
 func TestPushToBranchMinimalConfig(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()

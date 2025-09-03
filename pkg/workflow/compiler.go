@@ -2794,6 +2794,11 @@ func (c *Compiler) parsePushToBranchConfig(outputMap map[string]any) *PushToBran
 			Branch: "triggering", // Default branch value
 		}
 
+		// Handle the case where configData is nil (push-to-branch: with no value)
+		if configData == nil {
+			return pushToBranchConfig
+		}
+
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse branch (optional, defaults to "triggering")
 			if branch, exists := configMap["branch"]; exists {

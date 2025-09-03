@@ -1136,19 +1136,27 @@
           ]
         },
         "push-to-branch": {
-          "type": "object",
-          "description": "Configuration for pushing changes to a specific branch from agentic workflow output",
-          "properties": {
-            "branch": {
-              "type": "string",
-              "description": "The branch to push changes to (defaults to 'triggering')"
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Use default configuration (branch: 'triggering')"
             },
-            "target": {
-              "type": "string",
-              "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
+            {
+              "type": "object",
+              "description": "Configuration for pushing changes to a specific branch from agentic workflow output",
+              "properties": {
+                "branch": {
+                  "type": "string",
+                  "description": "The branch to push changes to (defaults to 'triggering')"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
+                }
+              },
+              "additionalProperties": false
             }
-          },
-          "additionalProperties": false
+          ]
         }
       },
       "additionalProperties": false
