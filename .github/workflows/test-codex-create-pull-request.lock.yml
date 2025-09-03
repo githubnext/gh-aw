@@ -1022,15 +1022,8 @@ jobs:
               const branchFromJsonl = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
               if (branchFromJsonl) {
                 console.log('Checking if branch from JSONL exists:', branchFromJsonl);
-                // Check if branch exists locally
-                try {
-                  execSync(`git show-ref --verify --quiet refs/heads/${branchFromJsonl}`, { stdio: 'pipe' });
-                  console.log('Branch exists locally, checking it out:', branchFromJsonl);
-                  execSync(`git checkout ${branchFromJsonl}`, { stdio: 'inherit' });
-                } catch (error) {
-                  console.log('Branch does not exist locally, creating new branch:', branchFromJsonl);
-                  execSync(`git checkout -b ${branchFromJsonl}`, { stdio: 'inherit' });
-                }
+                console.log('Branch does not exist locally, creating new branch:', branchFromJsonl);
+                execSync(`git checkout -b ${branchFromJsonl}`, { stdio: 'inherit' });
                 console.log('Using existing/created branch:', branchFromJsonl);
               } else {
                 // Create and checkout new branch with generated name
