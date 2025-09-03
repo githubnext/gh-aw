@@ -1024,8 +1024,6 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string, strict
 	if data.Permissions == "" {
 		if strictMode {
 			// In strict mode, default to empty permissions instead of read-all
-			// User must explicitly specify permissions in frontmatter
-			fmt.Println(console.FormatWarningMessage("Strict mode enabled: No permissions specified. User must explicitly define permissions in frontmatter."))
 			data.Permissions = `permissions: {}`
 		} else {
 			// Default behavior: use read-all permissions
