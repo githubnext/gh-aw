@@ -249,6 +249,27 @@ Analyze the pull request and make necessary code improvements.
 - Label count is limited by `max` setting (default: 3) - exceeding this limit causes job failure
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
 
+When `create-pull-request` or `push-to-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
+
+## Automatically Added Tools
+
+When `create-pull-request` or `push-to-branch` are configured, these Claude tools are automatically added:
+
+- **Edit**: Allows editing existing files
+- **MultiEdit**: Allows making multiple edits to files in a single operation
+- **Write**: Allows creating new files or overwriting existing files
+- **NotebookEdit**: Allows editing Jupyter notebook files
+
+Along with the file editing tools, these Git commands are also automatically whitelisted:
+
+- `git checkout:*`
+- `git branch:*`
+- `git switch:*`
+- `git add:*`
+- `git rm:*`
+- `git commit:*`
+- `git merge:*`
+
 ## Security and Sanitization
 
 All coding agent output is automatically sanitized for security before being processed:
