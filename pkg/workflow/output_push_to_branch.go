@@ -76,7 +76,7 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
-		
+
 		// Combine command condition with base condition using AND
 		if baseCondition == "always()" {
 			// If base condition is always(), just use the command condition
