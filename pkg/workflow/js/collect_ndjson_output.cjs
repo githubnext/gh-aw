@@ -263,6 +263,10 @@ async function main() {
           // Sanitize text content
           item.title = sanitizeContent(item.title);
           item.body = sanitizeContent(item.body);
+          // Sanitize branch name if present
+          if (item.branch && typeof item.branch === 'string') {
+            item.branch = sanitizeContent(item.branch);
+          }
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(label => typeof label === 'string' ? sanitizeContent(label) : label);

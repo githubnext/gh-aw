@@ -91,7 +91,7 @@ jobs:
           
           ## Creating a Pull Request
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
           **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.
           
@@ -101,10 +101,11 @@ jobs:
           
           To create a pull request:
           1. Make any file changes directly in the working directory
-          2. Leave the changes uncommitted and unstaged
-          3. Write the PR specification:
+          2. If you haven't done so already, create a local branch using an appropriate unique name
+          3. Add and commit your files to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          4. Do not push your changes. That will be done later. Instead append the PR specification to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
-          {"type": "create-pull-request", "title": "PR title", "body": "PR body in markdown", "labels": ["optional", "labels"]}
+          {"type": "create-pull-request", "branch": "branch-name", "title": "PR title", "body": "PR body in markdown", "labels": ["optional", "labels"]}
           ```
           
           **Example JSONL file content:**
@@ -433,6 +434,10 @@ jobs:
                       // Sanitize text content
                       item.title = sanitizeContent(item.title);
                       item.body = sanitizeContent(item.body);
+                      // Sanitize branch name if present
+                      if (item.branch && typeof item.branch === 'string') {
+                        item.branch = sanitizeContent(item.branch);
+                      }
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
                         item.labels = item.labels.map(label => typeof label === 'string' ? sanitizeContent(label) : label);
@@ -777,10 +782,33 @@ jobs:
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           # Check current git status
           echo "Current git status:"
           git status
+          
+          # Extract branch name from JSONL output
+          BRANCH_NAME=""
+          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+            echo "Checking for branch name in JSONL output..."
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then
+                # Extract branch from create-pull-request line using simple grep and sed
+                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create-pull-request"'; then
+                  echo "Found create-pull-request line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name: $BRANCH_NAME"
+                    break
+                  fi
+                fi
+              fi
+            done < "$GITHUB_AW_SAFE_OUTPUTS"
+          fi
+          
           # Get the initial commit SHA from the base branch of the pull request
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
             INITIAL_SHA="$GITHUB_BASE_REF"
@@ -791,35 +819,59 @@ jobs:
           # Configure git user for GitHub Actions
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
-          # Stage any unstaged files
-          git add -A || true
-          # Check if there are staged files to commit
-          if ! git diff --cached --quiet; then
-            echo "Staged files found, committing them..."
-            git commit -m "[agent] staged files" || true
-            echo "Staged files committed"
-          else
-            echo "No staged files to commit"
+          
+          # If we have a branch name, check if that branch exists and get its diff
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "Looking for branch: $BRANCH_NAME"
+            # Check if the branch exists
+            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
+              # Generate patch from the base to the branch
+              git format-patch "$INITIAL_SHA".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              echo "Patch file created from branch: $BRANCH_NAME"
+            else
+              echo "Branch $BRANCH_NAME does not exist, falling back to current HEAD"
+              BRANCH_NAME=""
+            fi
           fi
-          # Check updated git status
-          echo "Updated git status after committing staged files:"
-          git status
-          # Show compact diff information between initial commit and HEAD (committed changes only)
-          echo '## Git diff' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          git diff --name-only "$INITIAL_SHA"..HEAD >> $GITHUB_STEP_SUMMARY || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          # Check if there are any committed changes since the initial commit
-          if git diff --quiet "$INITIAL_SHA" HEAD; then
-            echo "No committed changes detected since initial commit"
-            echo "Skipping patch generation - no committed changes to create patch from"
-          else
-            echo "Committed changes detected, generating patch..."
-            # Generate patch from initial commit to HEAD (committed changes only)
-            git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
-            echo "Patch file created at /tmp/aw.patch"
+          
+          # If no branch or branch doesn't exist, use the existing logic
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "Using current HEAD for patch generation"
+            # Stage any unstaged files
+            git add -A || true
+            # Check if there are staged files to commit
+            if ! git diff --cached --quiet; then
+              echo "Staged files found, committing them..."
+              git commit -m "[agent] staged files" || true
+              echo "Staged files committed"
+            else
+              echo "No staged files to commit"
+            fi
+            # Check updated git status
+            echo "Updated git status after committing staged files:"
+            git status
+            # Show compact diff information between initial commit and HEAD (committed changes only)
+            echo '## Git diff' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            git diff --name-only "$INITIAL_SHA"..HEAD >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            # Check if there are any committed changes since the initial commit
+            if git diff --quiet "$INITIAL_SHA" HEAD; then
+              echo "No committed changes detected since initial commit"
+              echo "Skipping patch generation - no committed changes to create patch from"
+            else
+              echo "Committed changes detected, generating patch..."
+              # Generate patch from initial commit to HEAD (committed changes only)
+              git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
+              echo "Patch file created at /tmp/aw.patch"
+            fi
+          fi
+          
+          # Show patch info if it exists
+          if [ -f /tmp/aw.patch ]; then
             ls -la /tmp/aw.patch
             # Show the first 50 lines of the patch for review
             echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
@@ -920,9 +972,10 @@ jobs:
                 return;
               }
               console.log('Found create-pull-request item:', { title: pullRequestItem.title, bodyLength: pullRequestItem.body.length });
-              // Extract title and body from the JSON item
+              // Extract title, body, and branch from the JSON item
               let title = pullRequestItem.title.trim();
               let bodyLines = pullRequestItem.body.split('\n');
+              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
               // If no title was found, use a default
               if (!title) {
                 title = 'Agent Output';
@@ -950,18 +1003,40 @@ jobs:
               console.log('Labels:', labels);
               console.log('Draft:', draft);
               console.log('Body length:', body.length);
-              // Generate unique branch name using cryptographic random hex
-              const randomHex = crypto.randomBytes(8).toString('hex');
-              const branchName = `${workflowId}/${randomHex}`;
+              // Use branch name from JSONL if provided, otherwise generate unique branch name
+              if (!branchName) {
+                console.log('No branch name provided in JSONL, generating unique branch name');
+                // Generate unique branch name using cryptographic random hex
+                const randomHex = crypto.randomBytes(8).toString('hex');
+                branchName = `${workflowId}/${randomHex}`;
+              } else {
+                console.log('Using branch name from JSONL:', branchName);
+              }
               console.log('Generated branch name:', branchName);
               console.log('Base branch:', baseBranch);
               // Create a new branch using git CLI
               // Configure git (required for commits)
               execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
               execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
-              // Create and checkout new branch
-              execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
-              console.log('Created and checked out branch:', branchName);
+              // Handle branch creation/checkout
+              const branchFromJsonl = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+              if (branchFromJsonl) {
+                console.log('Checking if branch from JSONL exists:', branchFromJsonl);
+                // Check if branch exists locally
+                try {
+                  execSync(`git show-ref --verify --quiet refs/heads/${branchFromJsonl}`, { stdio: 'pipe' });
+                  console.log('Branch exists locally, checking it out:', branchFromJsonl);
+                  execSync(`git checkout ${branchFromJsonl}`, { stdio: 'inherit' });
+                } catch (error) {
+                  console.log('Branch does not exist locally, creating new branch:', branchFromJsonl);
+                  execSync(`git checkout -b ${branchFromJsonl}`, { stdio: 'inherit' });
+                }
+                console.log('Using existing/created branch:', branchFromJsonl);
+              } else {
+                // Create and checkout new branch with generated name
+                execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
+                console.log('Created and checked out new branch:', branchName);
+              }
               // Apply the patch using git CLI
               console.log('Applying patch...');
               // Apply the patch using git apply

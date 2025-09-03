@@ -2341,7 +2341,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 		}
 		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools and do NOT attempt to use `gh` or the GitHub API. Instead write JSON objects to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.\n")
+		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.\n")
 		yaml.WriteString("          \n")
@@ -2369,10 +2369,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To create a pull request:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
-			yaml.WriteString("          2. Leave the changes uncommitted and unstaged\n")
-			yaml.WriteString("          3. Write the PR specification:\n")
+			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
+			yaml.WriteString("          3. Add and commit your files to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          4. Do not push your changes. That will be done later. Instead append the PR specification to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"create-pull-request\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
+			yaml.WriteString("          {\"type\": \"create-pull-request\", \"branch\": \"branch-name\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          \n")
 		}

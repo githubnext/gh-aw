@@ -58,9 +58,10 @@ async function main() {
 
   console.log('Found create-pull-request item:', { title: pullRequestItem.title, bodyLength: pullRequestItem.body.length });
 
-  // Extract title and body from the JSON item
+  // Extract title, body, and branch from the JSON item
   let title = pullRequestItem.title.trim();
   let bodyLines = pullRequestItem.body.split('\n');
+  let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
 
   // If no title was found, use a default
   if (!title) {
@@ -96,9 +97,15 @@ async function main() {
   console.log('Draft:', draft);
   console.log('Body length:', body.length);
 
-  // Generate unique branch name using cryptographic random hex
-  const randomHex = crypto.randomBytes(8).toString('hex');
-  const branchName = `${workflowId}/${randomHex}`;
+  // Use branch name from JSONL if provided, otherwise generate unique branch name
+  if (!branchName) {
+    console.log('No branch name provided in JSONL, generating unique branch name');
+    // Generate unique branch name using cryptographic random hex
+    const randomHex = crypto.randomBytes(8).toString('hex');
+    branchName = `${workflowId}/${randomHex}`;
+  } else {
+    console.log('Using branch name from JSONL:', branchName);
+  }
 
   console.log('Generated branch name:', branchName);
   console.log('Base branch:', baseBranch);
@@ -108,9 +115,19 @@ async function main() {
   execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
   execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
 
-  // Create and checkout new branch
-  execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
-  console.log('Created and checked out branch:', branchName);
+  // Handle branch creation/checkout
+  const branchFromJsonl = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+  if (branchFromJsonl) {
+    console.log('Checking if branch from JSONL exists:', branchFromJsonl);
+    
+    console.log('Branch does not exist locally, creating new branch:', branchFromJsonl);
+    execSync(`git checkout -b ${branchFromJsonl}`, { stdio: 'inherit' });
+    console.log('Using existing/created branch:', branchFromJsonl);
+  } else {
+    // Create and checkout new branch with generated name
+    execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
+    console.log('Created and checked out new branch:', branchName);
+  }
 
   // Apply the patch using git CLI
   console.log('Applying patch...');
