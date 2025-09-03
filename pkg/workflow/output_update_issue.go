@@ -44,16 +44,36 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	}
 
 	// Determine the job condition based on target configuration
-	var jobCondition string
+	var baseCondition string
 	if data.SafeOutputs.UpdateIssues.Target == "*" {
 		// Allow updates to any issue - no specific context required
-		jobCondition = "if: always()"
+		baseCondition = "always()"
 	} else if data.SafeOutputs.UpdateIssues.Target != "" {
 		// Explicit issue number specified - no specific context required
-		jobCondition = "if: always()"
+		baseCondition = "always()"
 	} else {
 		// Default behavior: only update triggering issue
-		jobCondition = "if: github.event.issue.number"
+		baseCondition = "github.event.issue.number"
+	}
+
+	// If this is a command workflow, combine the command trigger condition with the base condition
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+
+		// Combine command condition with base condition using AND
+		if baseCondition == "always()" {
+			// If base condition is always(), just use the command condition
+			jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		} else {
+			// Combine both conditions with AND
+			jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+		}
+	} else {
+		// No command trigger, just use the base condition
+		jobCondition = fmt.Sprintf("if: %s", baseCondition)
 	}
 
 	job := &Job{

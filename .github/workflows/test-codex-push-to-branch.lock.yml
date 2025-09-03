@@ -2,19 +2,69 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude Create Issue"
+name: "Test Codex Push To Branch"
 on:
-  workflow_dispatch: null
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited, reopened]
+  pull_request_review_comment:
+    types: [created, edited]
 
-permissions: read-all
+permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Test Claude Create Issue"
+run-name: "Test Codex Push To Branch"
 
 jobs:
-  test-claude-create-issue:
+  task:
+    if: ((contains(github.event.issue.body, '/test-codex-push-to-branch')) || (contains(github.event.comment.body, '/test-codex-push-to-branch'))) || (contains(github.event.pull_request.body, '/test-codex-push-to-branch'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check team membership for command workflow
+        id: check-team-member
+        if: contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') || contains(github.event.pull_request.body, '/test-codex-push-to-branch')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            async function main() {
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              // Check if the actor has repository access (admin, maintain permissions)
+              try {
+                console.log(`Checking if user '${actor}' is admin or maintainer of ${owner}/${repo}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor
+                });
+                const permission = repoPermission.data.permission;
+                console.log(`Repository permission level: ${permission}`);
+                if (permission === 'admin' || permission === 'maintain') {
+                  console.log(`User has ${permission} access to repository`);
+                  core.setOutput('is_team_member', 'true');
+                  return;
+                }
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                console.log(`Repository permission check failed: ${errorMessage}`);
+              }
+              core.setOutput('is_team_member', 'false');
+            }
+            await main();
+      - name: Validate team membership
+        if: steps.check-team-member.outputs.is_team_member == 'false'
+        run: |
+          echo "❌ Access denied: Only team members can trigger command workflows"
+          echo "User ${{ github.actor }} is not a team member"
+          exit 1
+
+  test-codex-push-to-branch:
+    needs: task
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -22,6 +72,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Codex
+        run: npm install -g @openai/codex
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
@@ -50,25 +106,21 @@ jobs:
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
-          {
-            "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-45e90ae"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-                }
-              }
-            }
-          }
+          cat > /tmp/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
+          
+          [mcp_servers.github]
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "ghcr.io/github/github-mcp-server:sha-45e90ae"
+          ]
+          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
           EOF
       - name: Create prompt
         env:
@@ -76,14 +128,54 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > /tmp/aw-prompts/prompt.txt << 'EOF'
-          Create an issue with title "Hello from Claude" and body "World"
+          Create a new file called "codex-test-file.md" with the following content:
           
-          Add a haiku about GitHub Actions and AI to the issue body.
+          ```markdown
+          # Test Codex Push To Branch
+          
+          This file was created by the Codex agentic workflow to test the push-to-branch functionality.
+          
+          Created at: {{ current timestamp }}
+          
+          ## Test Content
+          
+          This is a test file created by Codex to demonstrate:
+          - File creation
+          - Branch pushing
+          - Automated commit generation
+          
+          The workflow should push this file to the specified branch.
+          ```
+          
+          Also create a simple JavaScript script called "codex-script.js" with:
+          
+          ```javascript
+          #!/usr/bin/env node
+          /**
+           * Test script created by Codex agentic workflow
+           */
+          
+          function main() {
+              console.log("Hello from Codex agentic workflow!");
+              console.log(`Current time: ${new Date().toISOString()}`);
+              console.log("This script was created to test push-to-branch functionality.");
+          }
+          
+          if (require.main === module) {
+              main();
+          }
+          
+          module.exports = { main };
+          ```
+          
+          Create a commit message: "Add test files created by Codex agentic workflow"
+          
+          Push these changes to the branch for the pull request #${github.event.pull_request.number}
           
           
           ---
           
-          ## Creating an Issue
+          ## Pushing Changes to Branch
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
@@ -91,18 +183,20 @@ jobs:
           
           ### Available Output Types:
           
-          **Creating an Issue**
+          **Pushing Changes to Branch**
           
-          To create an issue:
-          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          To push changes to a branch, for example to add code to a pull request:
+          1. Make any file changes directly in the working directory
+          2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Indicate your intention to push to the branch by writing to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
-          {"type": "create-issue", "title": "Issue title", "body": "Issue body in markdown", "labels": ["optional", "labels"]}
+          {"type": "push-to-branch", "message": "Commit message describing the changes"}
           ```
-          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```
-          {"type": "create-issue", "title": "Bug Report", "body": "Found an issue with..."}
+          {"type": "push-to-branch", "message": "Update documentation with latest changes"}
           ```
           
           **Important Notes:**
@@ -126,14 +220,14 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "claude",
-              engine_name: "Claude Code",
+              engine_id: "codex",
+              engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Test Claude Create Issue",
-              experimental: false,
+              workflow_name: "Test Codex Push To Branch",
+              experimental: true,
               supports_tools_whitelist: true,
-              supports_http_transport: true,
+              supports_http_transport: false,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
@@ -157,86 +251,22 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
-      - name: Execute Claude Code Action
-        id: agentic_execution
-        uses: anthropics/claude-code-base-action@v0.0.56
-        with:
-          # Allowed tools (sorted):
-          # - ExitPlanMode
-          # - Glob
-          # - Grep
-          # - LS
-          # - NotebookRead
-          # - Read
-          # - Task
-          # - TodoWrite
-          # - Write
-          # - mcp__github__download_workflow_run_artifact
-          # - mcp__github__get_code_scanning_alert
-          # - mcp__github__get_commit
-          # - mcp__github__get_dependabot_alert
-          # - mcp__github__get_discussion
-          # - mcp__github__get_discussion_comments
-          # - mcp__github__get_file_contents
-          # - mcp__github__get_issue
-          # - mcp__github__get_issue_comments
-          # - mcp__github__get_job_logs
-          # - mcp__github__get_me
-          # - mcp__github__get_notification_details
-          # - mcp__github__get_pull_request
-          # - mcp__github__get_pull_request_comments
-          # - mcp__github__get_pull_request_diff
-          # - mcp__github__get_pull_request_files
-          # - mcp__github__get_pull_request_reviews
-          # - mcp__github__get_pull_request_status
-          # - mcp__github__get_secret_scanning_alert
-          # - mcp__github__get_tag
-          # - mcp__github__get_workflow_run
-          # - mcp__github__get_workflow_run_logs
-          # - mcp__github__get_workflow_run_usage
-          # - mcp__github__list_branches
-          # - mcp__github__list_code_scanning_alerts
-          # - mcp__github__list_commits
-          # - mcp__github__list_dependabot_alerts
-          # - mcp__github__list_discussion_categories
-          # - mcp__github__list_discussions
-          # - mcp__github__list_issues
-          # - mcp__github__list_notifications
-          # - mcp__github__list_pull_requests
-          # - mcp__github__list_secret_scanning_alerts
-          # - mcp__github__list_tags
-          # - mcp__github__list_workflow_jobs
-          # - mcp__github__list_workflow_run_artifacts
-          # - mcp__github__list_workflow_runs
-          # - mcp__github__list_workflows
-          # - mcp__github__search_code
-          # - mcp__github__search_issues
-          # - mcp__github__search_orgs
-          # - mcp__github__search_pull_requests
-          # - mcp__github__search_repositories
-          # - mcp__github__search_users
-          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_env: |
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          mcp_config: /tmp/mcp-config/mcp-servers.json
-          prompt_file: /tmp/aw-prompts/prompt.txt
-          timeout_minutes: 5
+      - name: Run Codex
+        run: |
+          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/mcp-config
+          
+          # Create log directory outside git repo
+          mkdir -p /tmp/aw-logs
+          
+          # Run codex with log capture
+          codex exec \
+            -c model=o4-mini \
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-push-to-branch.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-      - name: Capture Agentic Action logs
-        if: always()
-        run: |
-          # Copy the detailed execution file from Agentic Action if available
-          if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-create-issue.log
-          else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-create-issue.log
-          fi
-          
-          # Ensure log file exists
-          touch /tmp/test-claude-create-issue.log
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Check if workflow-complete.txt exists, if so upload it
         id: check_file
         run: |
@@ -258,7 +288,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-branch\":{\"branch\":\"codex-test-branch\",\"enabled\":true,\"target\":\"*\"}}"
         with:
           script: |
             async function main() {
@@ -618,27 +648,16 @@ jobs:
           name: aw_output.txt
           path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent_outputs
-          path: |
-            output.txt
-          if-no-files-found: ignore
-      - name: Clean up engine output files
-        run: |
-          rm -f output.txt
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-claude-create-issue.log
+          AGENT_LOG_FILE: /tmp/test-codex-push-to-branch.log
         with:
           script: |
             function main() {
               const fs = require('fs');
               try {
-                // Get the log file path from environment
                 const logFile = process.env.AGENT_LOG_FILE;
                 if (!logFile) {
                   console.log('No agent log file specified');
@@ -648,63 +667,72 @@ jobs:
                   console.log(`Log file not found: ${logFile}`);
                   return;
                 }
-                const logContent = fs.readFileSync(logFile, 'utf8');
-                const markdown = parseClaudeLog(logContent);
-                // Append to GitHub step summary
-                core.summary.addRaw(markdown).write();
+                const content = fs.readFileSync(logFile, 'utf8');
+                const parsedLog = parseCodexLog(content);
+                if (parsedLog) {
+                  core.summary.addRaw(parsedLog).write();
+                  console.log('Codex log parsed successfully');
+                } else {
+                  console.log('Failed to parse Codex log');
+                }
               } catch (error) {
-                console.error('Error parsing Claude log:', error.message);
                 core.setFailed(error.message);
               }
             }
-            function parseClaudeLog(logContent) {
+            function parseCodexLog(logContent) {
               try {
-                const logEntries = JSON.parse(logContent);
-                if (!Array.isArray(logEntries)) {
-                  return '## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n';
-                }
+                const lines = logContent.split('\n');
                 let markdown = '## 🤖 Commands and Tools\n\n';
-                const toolUsePairs = new Map(); // Map tool_use_id to tool_result
-                const commandSummary = []; // For the succinct summary
-                // First pass: collect tool results by tool_use_id
-                for (const entry of logEntries) {
-                  if (entry.type === 'user' && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === 'tool_result' && content.tool_use_id) {
-                        toolUsePairs.set(content.tool_use_id, content);
+                const commandSummary = [];
+                // First pass: collect commands for summary
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  // Detect tool usage and exec commands
+                  if (line.includes('] tool ') && line.includes('(')) {
+                    // Extract tool name
+                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
+                    if (toolMatch) {
+                      const toolName = toolMatch[1];
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('success in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failure in') || nextLine.includes('error in') || nextLine.includes('failed in')) {
+                          statusIcon = '❌';
+                          break;
+                        }
+                      }
+                      if (toolName.includes('.')) {
+                        // Format as provider::method
+                        const parts = toolName.split('.');
+                        const provider = parts[0];
+                        const method = parts.slice(1).join('_');
+                        commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
+                      } else {
+                        commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
                       }
                     }
-                  }
-                }
-                // Collect all tool uses for summary
-                for (const entry of logEntries) {
-                  if (entry.type === 'assistant' && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === 'tool_use') {
-                        const toolName = content.name;
-                        const input = content.input || {};
-                        // Skip internal tools - only show external commands and API calls
-                        if (['Read', 'Write', 'Edit', 'MultiEdit', 'LS', 'Grep', 'Glob', 'TodoWrite'].includes(toolName)) {
-                          continue; // Skip internal file operations and searches
-                        }
-                        // Find the corresponding tool result to get status
-                        const toolResult = toolUsePairs.get(content.id);
-                        let statusIcon = '❓';
-                        if (toolResult) {
-                          statusIcon = toolResult.is_error === true ? '❌' : '✅';
-                        }
-                        // Add to command summary (only external tools)
-                        if (toolName === 'Bash') {
-                          const formattedCommand = formatBashCommand(input.command || '');
-                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-                        } else if (toolName.startsWith('mcp__')) {
-                          const mcpName = formatMcpName(toolName);
-                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-                        } else {
-                          // Handle other external tools (if any)
-                          commandSummary.push(`* ${statusIcon} ${toolName}`);
+                  } else if (line.includes('] exec ')) {
+                    // Extract exec command
+                    const execMatch = line.match(/exec (.+?) in/);
+                    if (execMatch) {
+                      const formattedCommand = formatBashCommand(execMatch[1]);
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('succeeded in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failed in') || nextLine.includes('error')) {
+                          statusIcon = '❌';
+                          break;
                         }
                       }
+                      commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
                     }
                   }
                 }
@@ -716,163 +744,110 @@ jobs:
                 } else {
                   markdown += 'No commands or tools used.\n';
                 }
-                // Add Information section from the last entry with result metadata
+                // Add Information section
                 markdown += '\n## 📊 Information\n\n';
-                // Find the last entry with metadata
-                const lastEntry = logEntries[logEntries.length - 1];
-                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
-                  if (lastEntry.num_turns) {
-                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
-                  }
-                  if (lastEntry.duration_ms) {
-                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
-                    const minutes = Math.floor(durationSec / 60);
-                    const seconds = durationSec % 60;
-                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
-                  }
-                  if (lastEntry.total_cost_usd) {
-                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
-                  }
-                  if (lastEntry.usage) {
-                    const usage = lastEntry.usage;
-                    if (usage.input_tokens || usage.output_tokens) {
-                      markdown += `**Token Usage:**\n`;
-                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
-                      markdown += '\n';
-                    }
-                  }
-                  if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
-                    markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                // Extract metadata from Codex logs
+                let totalTokens = 0;
+                const tokenMatches = logContent.match(/tokens used: (\d+)/g);
+                if (tokenMatches) {
+                  for (const match of tokenMatches) {
+                    const tokens = parseInt(match.match(/(\d+)/)[1]);
+                    totalTokens += tokens;
                   }
                 }
+                if (totalTokens > 0) {
+                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+                }
+                // Count tool calls and exec commands
+                const toolCalls = (logContent.match(/\] tool /g) || []).length;
+                const execCommands = (logContent.match(/\] exec /g) || []).length;
+                if (toolCalls > 0) {
+                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+                }
+                if (execCommands > 0) {
+                  markdown += `**Commands Executed:** ${execCommands}\n\n`;
+                }
                 markdown += '\n## 🤖 Reasoning\n\n';
-                // Second pass: process assistant messages in sequence
-                for (const entry of logEntries) {
-                  if (entry.type === 'assistant' && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === 'text' && content.text) {
-                        // Add reasoning text directly (no header)
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + '\n\n';
-                        }
-                      } else if (content.type === 'tool_use') {
-                        // Process tool use with its result
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUse(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
+                // Second pass: process full conversation flow with interleaved reasoning, tools, and commands
+                let inThinkingSection = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  // Skip metadata lines
+                  if (line.includes('OpenAI Codex') || line.startsWith('--------') || 
+                      line.includes('workdir:') || line.includes('model:') || 
+                      line.includes('provider:') || line.includes('approval:') || 
+                      line.includes('sandbox:') || line.includes('reasoning effort:') || 
+                      line.includes('reasoning summaries:') || line.includes('tokens used:')) {
+                    continue;
+                  }
+                  // Process thinking sections
+                  if (line.includes('] thinking')) {
+                    inThinkingSection = true;
+                    continue;
+                  }
+                  // Process tool calls
+                  if (line.includes('] tool ') && line.includes('(')) {
+                    inThinkingSection = false;
+                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
+                    if (toolMatch) {
+                      const toolName = toolMatch[1];
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('success in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failure in') || nextLine.includes('error in') || nextLine.includes('failed in')) {
+                          statusIcon = '❌';
+                          break;
                         }
                       }
+                      if (toolName.includes('.')) {
+                        const parts = toolName.split('.');
+                        const provider = parts[0];
+                        const method = parts.slice(1).join('_');
+                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
+                      } else {
+                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
+                      }
                     }
+                    continue;
+                  }
+                  // Process exec commands
+                  if (line.includes('] exec ')) {
+                    inThinkingSection = false;
+                    const execMatch = line.match(/exec (.+?) in/);
+                    if (execMatch) {
+                      const formattedCommand = formatBashCommand(execMatch[1]);
+                      // Look ahead to find the result status
+                      let statusIcon = '❓'; // Unknown by default
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes('succeeded in')) {
+                          statusIcon = '✅';
+                          break;
+                        } else if (nextLine.includes('failed in') || nextLine.includes('error')) {
+                          statusIcon = '❌';
+                          break;
+                        }
+                      }
+                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
+                    }
+                    continue;
+                  }
+                  // Process thinking content
+                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith('[2025-')) {
+                    const trimmed = line.trim();
+                    // Add thinking content directly
+                    markdown += `${trimmed}\n\n`;
                   }
                 }
                 return markdown;
               } catch (error) {
-                return `## Agent Log Summary\n\nError parsing Claude log: ${error.message}\n`;
+                console.error('Error parsing Codex log:', error);
+                return '## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n';
               }
-            }
-            function formatToolUse(toolUse, toolResult) {
-              const toolName = toolUse.name;
-              const input = toolUse.input || {};
-              // Skip TodoWrite except the very last one (we'll handle this separately)
-              if (toolName === 'TodoWrite') {
-                return ''; // Skip for now, would need global context to find the last one
-              }
-              // Helper function to determine status icon
-              function getStatusIcon() {
-                if (toolResult) {
-                  return toolResult.is_error === true ? '❌' : '✅';
-                }
-                return '❓'; // Unknown by default
-              }
-              let markdown = '';
-              const statusIcon = getStatusIcon();
-              switch (toolName) {
-                case 'Bash':
-                  const command = input.command || '';
-                  const description = input.description || '';
-                  // Format the command to be single line
-                  const formattedCommand = formatBashCommand(command);
-                  if (description) {
-                    markdown += `${description}:\n\n`;
-                  }
-                  markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-                  break;
-                case 'Read':
-                  const filePath = input.file_path || input.path || '';
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ''); // Remove /home/runner/work/repo/repo/ prefix
-                  markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
-                  break;
-                case 'Write':
-                case 'Edit':
-                case 'MultiEdit':
-                  const writeFilePath = input.file_path || input.path || '';
-                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-                  markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
-                  break;
-                case 'Grep':
-                case 'Glob':
-                  const query = input.query || input.pattern || '';
-                  markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
-                  break;
-                case 'LS':
-                  const lsPath = input.path || '';
-                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, '');
-                  markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
-                  break;
-                default:
-                  // Handle MCP calls and other tools
-                  if (toolName.startsWith('mcp__')) {
-                    const mcpName = formatMcpName(toolName);
-                    const params = formatMcpParameters(input);
-                    markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
-                  } else {
-                    // Generic tool formatting - show the tool name and main parameters
-                    const keys = Object.keys(input);
-                    if (keys.length > 0) {
-                      // Try to find the most important parameter
-                      const mainParam = keys.find(k => ['query', 'command', 'path', 'file_path', 'content'].includes(k)) || keys[0];
-                      const value = String(input[mainParam] || '');
-                      if (value) {
-                        markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
-                      } else {
-                        markdown += `${statusIcon} ${toolName}\n\n`;
-                      }
-                    } else {
-                      markdown += `${statusIcon} ${toolName}\n\n`;
-                    }
-                  }
-              }
-              return markdown;
-            }
-            function formatMcpName(toolName) {
-              // Convert mcp__github__search_issues to github::search_issues
-              if (toolName.startsWith('mcp__')) {
-                const parts = toolName.split('__');
-                if (parts.length >= 3) {
-                  const provider = parts[1]; // github, etc.
-                  const method = parts.slice(2).join('_'); // search_issues, etc.
-                  return `${provider}::${method}`;
-                }
-              }
-              return toolName;
-            }
-            function formatMcpParameters(input) {
-              const keys = Object.keys(input);
-              if (keys.length === 0) return '';
-              const paramStrs = [];
-              for (const key of keys.slice(0, 4)) { // Show up to 4 parameters
-                const value = String(input[key] || '');
-                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
-              }
-              if (keys.length > 4) {
-                paramStrs.push('...');
-              }
-              return paramStrs.join(', ');
             }
             function formatBashCommand(command) {
               if (!command) return '';
@@ -900,49 +875,198 @@ jobs:
             }
             // Export for testing
             if (typeof module !== 'undefined' && module.exports) {
-              module.exports = { parseClaudeLog, formatToolUse, formatBashCommand, truncateString };
+              module.exports = { parseCodexLog, formatBashCommand, truncateString };
             }
             main();
       - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-create-issue.log
-          path: /tmp/test-claude-create-issue.log
+          name: test-codex-push-to-branch.log
+          path: /tmp/test-codex-push-to-branch.log
           if-no-files-found: warn
+      - name: Generate git patch
+        if: always()
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_PUSH_BRANCH: "codex-test-branch"
+        run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          
+          # Extract branch name from JSONL output
+          BRANCH_NAME=""
+          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+            echo "Checking for branch name in JSONL output..."
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then
+                # Extract branch from create-pull-request line using simple grep and sed
+                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create-pull-request"'; then
+                  echo "Found create-pull-request line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    break
+                  fi
+                # Extract branch from push-to-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-branch"'; then
+                  echo "Found push-to-branch line: $line"
+                  # For push-to-branch, we don't extract branch from JSONL since it's configured in the workflow
+                  # The branch name should come from the environment variable GITHUB_AW_PUSH_BRANCH
+                  if [ -n "$GITHUB_AW_PUSH_BRANCH" ]; then
+                    BRANCH_NAME="$GITHUB_AW_PUSH_BRANCH"
+                    echo "Using configured push-to-branch target: $BRANCH_NAME"
+                    break
+                  fi
+                fi
+              fi
+            done < "$GITHUB_AW_SAFE_OUTPUTS"
+          fi
+          
+          # Get the initial commit SHA from the base branch of the pull request
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
+            INITIAL_SHA="$GITHUB_BASE_REF"
+          else
+            INITIAL_SHA="$GITHUB_SHA"
+          fi
+          echo "Base commit SHA: $INITIAL_SHA"
+          # Configure git user for GitHub Actions
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          
+          # If we have a branch name, check if that branch exists and get its diff
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "Looking for branch: $BRANCH_NAME"
+            # Check if the branch exists
+            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
+              # Generate patch from the base to the branch
+              git format-patch "$INITIAL_SHA".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              echo "Patch file created from branch: $BRANCH_NAME"
+            else
+              echo "Branch $BRANCH_NAME does not exist, falling back to current HEAD"
+              BRANCH_NAME=""
+            fi
+          fi
+          
+          # If no branch or branch doesn't exist, use the existing logic
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "Using current HEAD for patch generation"
+            # Stage any unstaged files
+            git add -A || true
+            # Check if there are staged files to commit
+            if ! git diff --cached --quiet; then
+              echo "Staged files found, committing them..."
+              git commit -m "[agent] staged files" || true
+              echo "Staged files committed"
+            else
+              echo "No staged files to commit"
+            fi
+            # Check updated git status
+            echo "Updated git status after committing staged files:"
+            git status
+            # Show compact diff information between initial commit and HEAD (committed changes only)
+            echo '## Git diff' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            git diff --name-only "$INITIAL_SHA"..HEAD >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            # Check if there are any committed changes since the initial commit
+            if git diff --quiet "$INITIAL_SHA" HEAD; then
+              echo "No committed changes detected since initial commit"
+              echo "Skipping patch generation - no committed changes to create patch from"
+            else
+              echo "Committed changes detected, generating patch..."
+              # Generate patch from initial commit to HEAD (committed changes only)
+              git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
+              echo "Patch file created at /tmp/aw.patch"
+            fi
+          fi
+          
+          # Show patch info if it exists
+          if [ -f /tmp/aw.patch ]; then
+            ls -la /tmp/aw.patch
+            # Show the first 50 lines of the patch for review
+            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            head -50 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            echo '...' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw.patch
+          path: /tmp/aw.patch
+          if-no-files-found: ignore
 
-  create_issue:
-    needs: test-claude-create-issue
+  push_to_branch:
+    needs: test-codex-push-to-branch
+    if: contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') || contains(github.event.pull_request.body, '/test-codex-push-to-branch')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      issues: write
+      contents: write
+      pull-requests: read
     timeout-minutes: 10
     outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      branch_name: ${{ steps.push_to_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_branch.outputs.push_url }}
     steps:
-      - name: Create Output Issue
-        id: create_issue
+      - name: Download patch artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aw.patch
+          path: /tmp/
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Push to Branch
+        id: push_to_branch
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-issue.outputs.output }}
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[claude-test] "
-          GITHUB_AW_ISSUE_LABELS: "claude,automation,haiku"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-push-to-branch.outputs.output }}
+          GITHUB_AW_PUSH_BRANCH: "codex-test-branch"
+          GITHUB_AW_PUSH_TARGET: "*"
         with:
           script: |
             async function main() {
-              // Read the validated output content from environment variable
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+              /** @type {typeof import("fs")} */
+              const fs = require("fs");
+              const { execSync } = require("child_process");
+              // Environment validation - fail early if required variables are missing
+              const branchName = process.env.GITHUB_AW_PUSH_BRANCH;
+              if (!branchName) {
+                core.setFailed('GITHUB_AW_PUSH_BRANCH environment variable is required');
                 return;
               }
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === '') {
                 console.log('Agent output content is empty');
                 return;
               }
+              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
+              // Check if patch file exists and has valid content
+              if (!fs.existsSync('/tmp/aw.patch')) {
+                core.setFailed('No patch file found - cannot push without changes');
+                return;
+              }
+              const patchContent = fs.readFileSync('/tmp/aw.patch', 'utf8');
+              if (!patchContent || !patchContent.trim() || patchContent.includes('Failed to generate patch')) {
+                core.setFailed('Patch file is empty or contains error message - cannot push without changes');
+                return;
+              }
               console.log('Agent output content length:', outputContent.length);
+              console.log('Patch content validation passed');
+              console.log('Target branch:', branchName);
+              console.log('Target configuration:', target);
               // Parse the validated output JSON
               let validatedOutput;
               try {
@@ -955,101 +1079,83 @@ jobs:
                 console.log('No valid items found in agent output');
                 return;
               }
-              // Find all create-issue items
-              const createIssueItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === 'create-issue');
-              if (createIssueItems.length === 0) {
-                console.log('No create-issue items found in agent output');
+              // Find the push-to-branch item
+              const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === 'push-to-branch');
+              if (!pushItem) {
+                console.log('No push-to-branch item found in agent output');
                 return;
               }
-              console.log(`Found ${createIssueItems.length} create-issue item(s)`);
-              // Check if we're in an issue context (triggered by an issue event)
-              const parentIssueNumber = context.payload?.issue?.number;
-              // Parse labels from environment variable (comma-separated string)
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv ? labelsEnv.split(',').map(/** @param {string} label */ label => label.trim()).filter(/** @param {string} label */ label => label) : [];
-              const createdIssues = [];
-              // Process each create-issue item
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                console.log(`Processing create-issue item ${i + 1}/${createIssueItems.length}:`, { title: createIssueItem.title, bodyLength: createIssueItem.body.length });
-                // Merge environment labels with item-specific labels
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
-                }
-                // Extract title and body from the JSON item
-                let title = createIssueItem.title ? createIssueItem.title.trim() : '';
-                let bodyLines = createIssueItem.body.split('\n');
-                // If no title was found, use the body content as title (or a default)
-                if (!title) {
-                  title = createIssueItem.body || 'Agent Output';
-                }
-                // Apply title prefix if provided via environment variable
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                if (parentIssueNumber) {
-                  console.log('Detected issue context, parent issue #' + parentIssueNumber);
-                  // Add reference to parent issue in the child issue body
-                  bodyLines.push(`Related to #${parentIssueNumber}`);
-                }
-                // Add AI disclaimer with run id, run htmlurl
-                // Add AI disclaimer with workflow run information
-                const runId = context.runId;
-                const runUrl = context.payload.repository 
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;  
-                bodyLines.push(``, ``, `> Generated by Agentic Workflow Run [${runId}](${runUrl})`, '');
-                // Prepare the body content
-                const body = bodyLines.join('\n').trim();
-                console.log('Creating issue with title:', title);
-                console.log('Labels:', labels);
-                console.log('Body length:', body.length);
-                try {
-                  // Create the issue using GitHub API
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels
-                  });
-                  console.log('Created issue #' + issue.number + ': ' + issue.html_url);
-                  createdIssues.push(issue);
-                  // If we have a parent issue, add a comment to it referencing the new child issue
-                  if (parentIssueNumber) {
-                    try {
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: parentIssueNumber,
-                        body: `Created related issue: #${issue.number}`
-                      });
-                      console.log('Added comment to parent issue #' + parentIssueNumber);
-                    } catch (error) {
-                      console.log('Warning: Could not add comment to parent issue:', error instanceof Error ? error.message : String(error));
-                    }
-                  }
-                  // Set output for the last created issue (for backward compatibility)
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput('issue_number', issue.number);
-                    core.setOutput('issue_url', issue.html_url);
-                  }
-                } catch (error) {
-                  console.error(`✗ Failed to create issue "${title}":`, error instanceof Error ? error.message : String(error));
-                  throw error;
+              console.log('Found push-to-branch item');
+              // Validate target configuration for pull request context
+              if (target !== "*" && target !== "triggering") {
+                // If target is a specific number, validate it's a valid pull request number
+                const targetNumber = parseInt(target, 10);
+                if (isNaN(targetNumber)) {
+                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
+                  return;
                 }
               }
-              // Write summary for all created issues
-              if (createdIssues.length > 0) {
-                let summaryContent = '\n\n## GitHub Issues\n';
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
+              // Check if we're in a pull request context when required
+              if (target === "triggering" && !context.payload.pull_request) {
+                core.setFailed('push-to-branch with target "triggering" requires pull request context');
+                return;
               }
-              console.log(`Successfully created ${createdIssues.length} issue(s)`);
+              // Configure git (required for commits)
+              execSync('git config --global user.email "action@github.com"', { stdio: 'inherit' });
+              execSync('git config --global user.name "GitHub Action"', { stdio: 'inherit' });
+              // Switch to or create the target branch
+              console.log('Switching to branch:', branchName);
+              try {
+                // Try to checkout existing branch first
+                execSync('git fetch origin', { stdio: 'inherit' });
+                execSync(`git checkout ${branchName}`, { stdio: 'inherit' });
+                console.log('Checked out existing branch:', branchName);
+              } catch (error) {
+                // Branch doesn't exist, create it
+                console.log('Branch does not exist, creating new branch:', branchName);
+                execSync(`git checkout -b ${branchName}`, { stdio: 'inherit' });
+              }
+              // Apply the patch using git CLI
+              console.log('Applying patch...');
+              try {
+                execSync('git apply /tmp/aw.patch', { stdio: 'inherit' });
+                console.log('Patch applied successfully');
+              } catch (error) {
+                console.error('Failed to apply patch:', error instanceof Error ? error.message : String(error));
+                core.setFailed('Failed to apply patch');
+                return;
+              }
+              // Commit and push the changes
+              execSync('git add .', { stdio: 'inherit' });
+              // Check if there are changes to commit
+              try {
+                execSync('git diff --cached --exit-code', { stdio: 'ignore' });
+                console.log('No changes to commit');
+                return;
+              } catch (error) {
+                // Exit code != 0 means there are changes to commit, which is what we want
+              }
+              const commitMessage = pushItem.message || 'Apply agent changes';
+              execSync(`git commit -m "${commitMessage}"`, { stdio: 'inherit' });
+              execSync(`git push origin ${branchName}`, { stdio: 'inherit' });
+              console.log('Changes committed and pushed to branch:', branchName);
+              // Get commit SHA
+              const commitSha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+              const pushUrl = context.payload.repository 
+                ? `${context.payload.repository.html_url}/tree/${branchName}`
+                : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+              // Set outputs
+              core.setOutput('branch_name', branchName);
+              core.setOutput('commit_sha', commitSha);
+              core.setOutput('push_url', pushUrl);
+              // Write summary to GitHub Actions summary
+              await core.summary
+                .addRaw(`
+            ## Push to Branch
+            - **Branch**: \`${branchName}\`
+            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+            - **URL**: [${pushUrl}](${pushUrl})
+            `).write();
             }
             await main();
 

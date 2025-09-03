@@ -521,6 +521,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatInfoMessage("Processing tools and includes..."))
 	}
 
+	// Extract SafeOutputs configuration early so we can use it when applying default tools
+	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
+
 	var tools map[string]any
 
 	if !agenticEngine.SupportsToolsWhitelist() {
@@ -563,7 +566,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 		// Apply default GitHub MCP tools (only for engines that support MCP)
 		if agenticEngine.SupportsToolsWhitelist() {
-			tools = c.applyDefaultGitHubMCPAndClaudeTools(tools)
+			tools = c.applyDefaultGitHubMCPAndClaudeTools(tools, safeOutputs)
 		}
 
 		if c.verbose && len(tools) > 0 {
@@ -649,8 +652,8 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 
-	// Parse output configuration
-	workflowData.SafeOutputs = c.extractSafeOutputsConfig(result.Frontmatter)
+	// Use the already extracted output configuration
+	workflowData.SafeOutputs = safeOutputs
 
 	// Check if "command" is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
@@ -1162,7 +1165,7 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 }
 
 // applyDefaultGitHubMCPAndClaudeTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any) map[string]any {
+func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
 	// Define the default read-only GitHub MCP tools
@@ -1310,11 +1313,88 @@ func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any) map
 		}
 	}
 
+	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-branch
+	if safeOutputs != nil && needsGitCommands(safeOutputs) {
+		gitCommands := []any{
+			"git checkout:*",
+			"git branch:*",
+			"git switch:*",
+			"git add:*",
+			"git rm:*",
+			"git commit:*",
+			"git merge:*",
+		}
+
+		// Add additional Claude tools needed for file editing and pull request creation
+		additionalTools := []string{
+			"Edit",
+			"MultiEdit",
+			"Write",
+			"NotebookEdit",
+		}
+
+		// Add file editing tools that aren't already present
+		for _, tool := range additionalTools {
+			if _, exists := claudeExistingAllowed[tool]; !exists {
+				claudeExistingAllowed[tool] = nil // Add tool with null value
+			}
+		}
+
+		// Add Bash tool with Git commands if not already present
+		if _, exists := claudeExistingAllowed["Bash"]; !exists {
+			// Bash tool doesn't exist, add it with Git commands
+			claudeExistingAllowed["Bash"] = gitCommands
+		} else {
+			// Bash tool exists, merge Git commands with existing commands
+			existingBash := claudeExistingAllowed["Bash"]
+			if existingCommands, ok := existingBash.([]any); ok {
+				// Convert existing commands to strings for comparison
+				existingSet := make(map[string]bool)
+				for _, cmd := range existingCommands {
+					if cmdStr, ok := cmd.(string); ok {
+						existingSet[cmdStr] = true
+						// If we see :* or *, all bash commands are already allowed
+						if cmdStr == ":*" || cmdStr == "*" {
+							// Don't add specific Git commands since all are already allowed
+							goto bashComplete
+						}
+					}
+				}
+
+				// Add Git commands that aren't already present
+				newCommands := make([]any, len(existingCommands))
+				copy(newCommands, existingCommands)
+				for _, gitCmd := range gitCommands {
+					if gitCmdStr, ok := gitCmd.(string); ok {
+						if !existingSet[gitCmdStr] {
+							newCommands = append(newCommands, gitCmd)
+						}
+					}
+				}
+				claudeExistingAllowed["Bash"] = newCommands
+			} else if existingBash == nil {
+				// Bash tool exists but with nil value (allows all commands)
+				// Keep it as nil since that's more permissive than specific commands
+				// No action needed - nil value already permits all commands
+				_ = existingBash // Keep the nil value as-is
+			}
+		}
+	bashComplete:
+	}
+
 	// Update the claude section with the new format
 	claudeSection["allowed"] = claudeExistingAllowed
 	tools["claude"] = claudeSection
 
 	return tools
+}
+
+// needsGitCommands checks if safe outputs configuration requires Git commands
+func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
+	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToBranch != nil
 }
 
 // detectTextOutputUsage checks if the markdown content uses ${{ needs.task.outputs.text }}
@@ -1828,9 +1908,20 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
+	// Determine the job condition for command workflows
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+	} else {
+		jobCondition = "" // No conditional execution
+	}
+
 	job := &Job{
 		Name:           "create_issue",
-		If:             "", // No conditional execution
+		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
@@ -1876,13 +1967,33 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 	}
 
 	// Determine the job condition based on target configuration
-	var jobCondition string
+	var baseCondition string
 	if data.SafeOutputs.AddIssueComments.Target == "*" {
 		// Allow the job to run in any context when target is "*"
-		jobCondition = "if: always()" // This allows the job to run even without triggering issue/PR
+		baseCondition = "always()" // This allows the job to run even without triggering issue/PR
 	} else {
 		// Default behavior: only run in issue or PR context
-		jobCondition = "if: github.event.issue.number || github.event.pull_request.number"
+		baseCondition = "github.event.issue.number || github.event.pull_request.number"
+	}
+
+	// If this is a command workflow, combine the command trigger condition with the base condition
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+
+		// Combine command condition with base condition using AND
+		if baseCondition == "always()" {
+			// If base condition is always(), just use the command condition
+			jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		} else {
+			// Combine both conditions with AND
+			jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+		}
+	} else {
+		// No command trigger, just use the base condition
+		jobCondition = fmt.Sprintf("if: %s", baseCondition)
 	}
 
 	job := &Job{
@@ -1961,9 +2072,20 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
 	}
 
+	// Determine the job condition for command workflows
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+	} else {
+		jobCondition = "" // No conditional execution
+	}
+
 	job := &Job{
 		Name:           "create_pull_request",
-		If:             "", // No conditional execution
+		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: write\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
@@ -2407,17 +2529,25 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 
 		if data.SafeOutputs.AddIssueComments != nil {
 			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add a comment to an issue or pull request:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"add-issue-comment\", \"body\": \"Your comment content in markdown\"}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.CreateIssues != nil {
 			yaml.WriteString("          **Creating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create an issue:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-issue\", \"title\": \"Issue title\", \"body\": \"Issue body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -2432,19 +2562,26 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-pull-request\", \"branch\": \"branch-name\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.AddIssueLabels != nil {
 			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add labels to a pull request:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.UpdateIssues != nil {
 			yaml.WriteString("          **Updating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To udpate an issue:\n")
 			yaml.WriteString("          ```json\n")
 
 			// Build example based on allowed fields
@@ -2470,19 +2607,21 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			}
 
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.PushToBranch != nil {
 			yaml.WriteString("          **Pushing Changes to Branch**\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To push changes to a branch:\n")
+			yaml.WriteString("          To push changes to a branch, for example to add code to a pull request:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 			yaml.WriteString("          2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
 			yaml.WriteString("          3. Indicate your intention to push to the branch by writing to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Commit message describing the changes\"}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 

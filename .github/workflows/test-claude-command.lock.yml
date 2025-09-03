@@ -501,9 +501,13 @@ jobs:
           ### Available Output Types:
           
           **Adding a Comment to an Issue or Pull Request**
+          
+          To add a comment to an issue or pull request:
+          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
           {"type": "add-issue-comment", "body": "Your comment content in markdown"}
           ```
+          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```
@@ -1318,7 +1322,7 @@ jobs:
 
   create_issue_comment:
     needs: test-claude-command
-    if: github.event.issue.number || github.event.pull_request.number
+    if: (contains(github.event.issue.body, '/test-claude-command') || contains(github.event.comment.body, '/test-claude-command') || contains(github.event.pull_request.body, '/test-claude-command')) && (github.event.issue.number || github.event.pull_request.number)
     runs-on: ubuntu-latest
     permissions:
       contents: read

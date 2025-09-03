@@ -1089,7 +1089,7 @@ func TestApplyDefaultGitHubMCPTools_DefaultClaudeTools(t *testing.T) {
 				tools[k] = v
 			}
 
-			result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools)
+			result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, nil)
 
 			// Check that all expected top-level tools are present
 			for _, expectedTool := range tt.expectedTopLevelTools {
@@ -1207,7 +1207,7 @@ func TestDefaultClaudeToolsList(t *testing.T) {
 		},
 	}
 
-	result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools)
+	result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, nil)
 
 	// Verify the claude section was created
 	claudeSection, hasClaudeSection := result["claude"]
@@ -1267,7 +1267,7 @@ func TestDefaultClaudeToolsIntegrationWithComputeAllowedTools(t *testing.T) {
 	}
 
 	// Apply default tools first
-	toolsWithDefaults := compiler.applyDefaultGitHubMCPAndClaudeTools(tools)
+	toolsWithDefaults := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, nil)
 
 	// Verify that the claude section was created with default tools (new format)
 	claudeSection, hasClaudeSection := toolsWithDefaults["claude"]

@@ -61,13 +61,33 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 	}
 
 	// Determine the job condition based on target configuration
-	var jobCondition string
+	var baseCondition string
 	if data.SafeOutputs.PushToBranch.Target == "*" {
 		// Allow pushing to any pull request - no specific context required
-		jobCondition = "if: always()"
+		baseCondition = "always()"
 	} else {
 		// Default behavior: only run in pull request context
-		jobCondition = "if: github.event.pull_request.number"
+		baseCondition = "github.event.pull_request.number"
+	}
+
+	// If this is a command workflow, combine the command trigger condition with the base condition
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+
+		// Combine command condition with base condition using AND
+		if baseCondition == "always()" {
+			// If base condition is always(), just use the command condition
+			jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		} else {
+			// Combine both conditions with AND
+			jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+		}
+	} else {
+		// No command trigger, just use the base condition
+		jobCondition = fmt.Sprintf("if: %s", baseCondition)
 	}
 
 	job := &Job{
