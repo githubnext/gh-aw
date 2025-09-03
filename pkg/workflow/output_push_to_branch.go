@@ -10,8 +10,9 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 		return nil, fmt.Errorf("safe-outputs.push-to-branch configuration is required")
 	}
 
+	// Branch should have a default value of "triggering" set by the parser
 	if data.SafeOutputs.PushToBranch.Branch == "" {
-		return nil, fmt.Errorf("safe-outputs.push-to-branch requires a 'branch' field")
+		return nil, fmt.Errorf("safe-outputs.push-to-branch branch configuration is invalid")
 	}
 
 	var steps []string

@@ -135,7 +135,7 @@ This workflow allows pushing to any pull request.
 	}
 }
 
-func TestPushToBranchMissingBranch(t *testing.T) {
+func TestPushToBranchDefaultBranch(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -149,13 +149,13 @@ safe-outputs:
     target: "triggering"
 ---
 
-# Test Push to Branch Missing Branch
+# Test Push to Branch Default Branch
 
-This workflow is missing the required branch field.
+This workflow uses the default branch value.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-branch-missing-branch.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-branch-default-branch.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -163,14 +163,29 @@ This workflow is missing the required branch field.
 	// Create compiler and compile the workflow
 	compiler := NewCompiler(false, "", "test")
 
-	// This should fail because branch is required
+	// This should succeed and use default branch "triggering"
 	err := compiler.CompileWorkflow(mdFile)
-	if err == nil {
-		t.Fatalf("Expected compilation to fail when branch is missing")
+	if err != nil {
+		t.Fatalf("Expected compilation to succeed with default branch, got error: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "missing property 'branch'") {
-		t.Errorf("Error should mention missing branch field, got: %v", err)
+	// Read the generated .lock.yml file
+	lockFile := filepath.Join(tmpDir, "test-push-to-branch-default-branch.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Check that the default branch "triggering" is used
+	if !strings.Contains(lockContent, `GITHUB_AW_PUSH_BRANCH: "triggering"`) {
+		t.Errorf("Expected default branch 'triggering' to be set in environment variables")
+	}
+
+	// Check that the push_to_branch job is generated
+	if !strings.Contains(lockContent, "push_to_branch:") {
+		t.Errorf("Expected push_to_branch job to be generated")
 	}
 }
 
@@ -233,5 +248,63 @@ This workflow has minimal push-to-branch configuration.
 	// Verify default conditional execution for pull request context
 	if !strings.Contains(lockContentStr, "if: github.event.pull_request.number") {
 		t.Errorf("Generated workflow should have default pull request context condition")
+	}
+}
+
+func TestPushToBranchExplicitTriggering(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with explicit "triggering" branch
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-branch:
+    branch: "triggering"
+    target: "triggering"
+---
+
+# Test Push to Branch Explicit Triggering
+
+This workflow explicitly sets branch to "triggering".
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-branch-explicit-triggering.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := filepath.Join(tmpDir, "test-push-to-branch-explicit-triggering.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that push_to_branch job is generated
+	if !strings.Contains(lockContentStr, "push_to_branch:") {
+		t.Errorf("Generated workflow should contain push_to_branch job")
+	}
+
+	// Verify that the explicit "triggering" branch configuration is passed correctly
+	if !strings.Contains(lockContentStr, `GITHUB_AW_PUSH_BRANCH: "triggering"`) {
+		t.Errorf("Generated workflow should contain explicit triggering branch configuration")
+	}
+
+	// Verify that target configuration is included
+	if !strings.Contains(lockContentStr, `GITHUB_AW_PUSH_TARGET: "triggering"`) {
+		t.Errorf("Generated workflow should contain target configuration")
 	}
 }

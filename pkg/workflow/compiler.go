@@ -194,7 +194,7 @@ type UpdateIssuesConfig struct {
 
 // PushToBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToBranchConfig struct {
-	Branch string `yaml:"branch"`           // The branch to push changes to
+	Branch string `yaml:"branch"`           // The branch to push changes to (defaults to "triggering")
 	Target string `yaml:"target,omitempty"` // Target for push-to-branch: like add-issue-comment but for pull requests
 }
 
@@ -2790,10 +2790,12 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 // parsePushToBranchConfig handles push-to-branch configuration
 func (c *Compiler) parsePushToBranchConfig(outputMap map[string]any) *PushToBranchConfig {
 	if configData, exists := outputMap["push-to-branch"]; exists {
-		pushToBranchConfig := &PushToBranchConfig{}
+		pushToBranchConfig := &PushToBranchConfig{
+			Branch: "triggering", // Default branch value
+		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse branch (required)
+			// Parse branch (optional, defaults to "triggering")
 			if branch, exists := configMap["branch"]; exists {
 				if branchStr, ok := branch.(string); ok {
 					pushToBranchConfig.Branch = branchStr

@@ -206,14 +206,13 @@ Adding `push-to-branch:` to the `safe-outputs:` section declares that the workfl
 ```yaml
 safe-outputs:
   push-to-branch:
-    branch: feature-branch               # Required: the branch to push changes to
 ```
 
 **With Configuration:**
 ```yaml
 safe-outputs:
   push-to-branch:
-    branch: feature-branch               # Required: the branch to push changes to  
+    branch: feature-branch               # Optional: the branch to push changes to (default: "triggering")
     target: "*"                          # Optional: target for push operations
                                          # "triggering" (default) - only push in triggering PR context
                                          # "*" - allow pushes to any pull request (requires pull_request_number in agent output)

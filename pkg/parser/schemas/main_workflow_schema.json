@@ -1141,14 +1141,13 @@
           "properties": {
             "branch": {
               "type": "string",
-              "description": "The branch to push changes to"
+              "description": "The branch to push changes to (defaults to 'triggering')"
             },
             "target": {
               "type": "string",
               "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
             }
           },
-          "required": ["branch"],
           "additionalProperties": false
         }
       },
