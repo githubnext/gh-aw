@@ -41,7 +41,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:sha-45e90ae",
+						"ghcr.io/github/github-mcp-server:sha-09deac4",
 					},
 					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
 					Allowed: []string{},
@@ -202,7 +202,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:sha-45e90ae",
+						"ghcr.io/github/github-mcp-server:sha-09deac4",
 					},
 					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
 					Allowed: []string{},

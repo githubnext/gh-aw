@@ -35,7 +35,7 @@ tools:
 			// With Docker MCP always enabled, default is docker (not services)
 			expectedType:        "docker",
 			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:sha-45e90ae",
+			expectedDockerImage: "ghcr.io/github/github-mcp-server:sha-09deac4",
 		},
 		{
 			name: "custom docker image version",
@@ -205,7 +205,7 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 				if !strings.Contains(result, `"command": "docker"`) {
 					t.Errorf("Expected Docker command but got:\n%s", result)
 				}
-				if !strings.Contains(result, `"ghcr.io/github/github-mcp-server:sha-45e90ae"`) {
+				if !strings.Contains(result, `"ghcr.io/github/github-mcp-server:sha-09deac4"`) {
 					t.Errorf("Expected Docker image but got:\n%s", result)
 				}
 				if strings.Contains(result, `"type": "http"`) {
@@ -288,7 +288,7 @@ tools:
       args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
 ---`,
 			expectedType:        "docker",      // GitHub always uses docker now
-			expectedDockerImage: "sha-45e90ae", // Default version
+			expectedDockerImage: "sha-09deac4", // Default version
 		},
 		{
 			name: "custom docker MCP with default settings",
@@ -303,7 +303,7 @@ tools:
       args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
 ---`,
 			expectedType:        "docker",      // Services mode removed - always Docker
-			expectedDockerImage: "sha-45e90ae", // Default version
+			expectedDockerImage: "sha-09deac4", // Default version
 		},
 		{
 			name: "custom docker MCP with different settings",
@@ -318,7 +318,7 @@ tools:
       args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
 ---`,
 			expectedType:        "docker",
-			expectedDockerImage: "sha-45e90ae", // Default version
+			expectedDockerImage: "sha-09deac4", // Default version
 		},
 		{
 			name: "mixed MCP configuration with defaults",
@@ -338,7 +338,7 @@ tools:
       args: ["run", "-i", "--rm", "-v", "/tmp:/workspace", "custom/tool:latest"]
 ---`,
 			expectedType:        "docker",      // GitHub should now use docker by default (not services)
-			expectedDockerImage: "sha-45e90ae", // Default version
+			expectedDockerImage: "sha-09deac4", // Default version
 		},
 		{
 			name: "custom docker MCP with custom Docker image version",

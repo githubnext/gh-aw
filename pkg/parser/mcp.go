@@ -83,7 +83,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 				Command: "docker",
 				Args: []string{
 					"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-					"ghcr.io/github/github-mcp-server:sha-45e90ae",
+					"ghcr.io/github/github-mcp-server:sha-09deac4",
 				},
 				Env: make(map[string]string),
 			}

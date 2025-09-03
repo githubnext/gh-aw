@@ -2249,7 +2249,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {
-	githubDockerImageVersion := "sha-45e90ae" // Default Docker image version
+	githubDockerImageVersion := "sha-09deac4" // Default Docker image version
 	// Extract docker_image_version setting from tool properties
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
