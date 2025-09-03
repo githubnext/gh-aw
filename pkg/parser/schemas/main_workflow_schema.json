@@ -1134,6 +1134,22 @@
               "description": "Enable issue updating with default configuration"
             }
           ]
+        },
+        "push-to-branch": {
+          "type": "object",
+          "description": "Configuration for pushing changes to a specific branch from agentic workflow output",
+          "properties": {
+            "branch": {
+              "type": "string",
+              "description": "The branch to push changes to"
+            },
+            "target": {
+              "type": "string",
+              "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
+            }
+          },
+          "required": ["branch"],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

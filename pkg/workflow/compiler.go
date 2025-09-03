@@ -147,6 +147,7 @@ type SafeOutputsConfig struct {
 	CreatePullRequests *CreatePullRequestsConfig `yaml:"create-pull-request,omitempty"`
 	AddIssueLabels     *AddIssueLabelsConfig     `yaml:"add-issue-label,omitempty"`
 	UpdateIssues       *UpdateIssuesConfig       `yaml:"update-issue,omitempty"`
+	PushToBranch       *PushToBranchConfig       `yaml:"push-to-branch,omitempty"`
 	AllowedDomains     []string                  `yaml:"allowed-domains,omitempty"`
 }
 
@@ -189,6 +190,12 @@ type UpdateIssuesConfig struct {
 	Title  *bool  `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
 	Body   *bool  `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
 	Max    int    `yaml:"max,omitempty"`    // Maximum number of issues to update (default: 1)
+}
+
+// PushToBranchConfig holds configuration for pushing changes to a specific branch from agent output
+type PushToBranchConfig struct {
+	Branch string `yaml:"branch"`           // The branch to push changes to
+	Target string `yaml:"target,omitempty"` // Target for push-to-branch: like add-issue-comment but for pull requests
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1613,6 +1620,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 				return fmt.Errorf("failed to add update_issue job: %w", err)
 			}
 		}
+
+		// Build push_to_branch job if output.push-to-branch is configured
+		if data.SafeOutputs.PushToBranch != nil {
+			pushToBranchJob, err := c.buildCreateOutputPushToBranchJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build push_to_branch job: %w", err)
+			}
+			if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
+				return fmt.Errorf("failed to add push_to_branch job: %w", err)
+			}
+		}
 	}
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
@@ -2208,7 +2226,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
 	// Add git patch generation step only if safe-outputs create-pull-request feature is used
-	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
+	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToBranch != nil) {
 		c.generateGitPatchStep(yaml)
 	}
 
@@ -2585,6 +2603,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UpdateIssues = updateIssuesConfig
 			}
 
+			// Handle push-to-branch
+			pushToBranchConfig := c.parsePushToBranchConfig(outputMap)
+			if pushToBranchConfig != nil {
+				config.PushToBranch = pushToBranchConfig
+			}
+
 			return config
 		}
 	}
@@ -2758,6 +2782,33 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 		}
 
 		return updateIssuesConfig
+	}
+
+	return nil
+}
+
+// parsePushToBranchConfig handles push-to-branch configuration
+func (c *Compiler) parsePushToBranchConfig(outputMap map[string]any) *PushToBranchConfig {
+	if configData, exists := outputMap["push-to-branch"]; exists {
+		pushToBranchConfig := &PushToBranchConfig{}
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse branch (required)
+			if branch, exists := configMap["branch"]; exists {
+				if branchStr, ok := branch.(string); ok {
+					pushToBranchConfig.Branch = branchStr
+				}
+			}
+
+			// Parse target (optional, similar to add-issue-comment)
+			if target, exists := configMap["target"]; exists {
+				if targetStr, ok := target.(string); ok {
+					pushToBranchConfig.Target = targetStr
+				}
+			}
+		}
+
+		return pushToBranchConfig
 	}
 
 	return nil
@@ -3061,6 +3112,16 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			safeOutputsConfig["update-issue"] = true
+		}
+		if data.SafeOutputs.PushToBranch != nil {
+			pushToBranchConfig := map[string]interface{}{
+				"enabled": true,
+				"branch":  data.SafeOutputs.PushToBranch.Branch,
+			}
+			if data.SafeOutputs.PushToBranch.Target != "" {
+				pushToBranchConfig["target"] = data.SafeOutputs.PushToBranch.Target
+			}
+			safeOutputsConfig["push-to-branch"] = pushToBranchConfig
 		}
 
 		// Convert to JSON string for environment variable

@@ -500,6 +500,8 @@ jobs:
                     return 5;  // Only one labels operation allowed
                   case 'update-issue':
                     return 1;  // Only one issue update allowed
+                  case 'push-to-branch':
+                    return 1;  // Only one push to branch allowed
                   default:
                     return 1;  // Default to single item for unknown types
                 }
@@ -656,6 +658,23 @@ jobs:
                       if (item.issue_number !== undefined) {
                         if (typeof item.issue_number !== 'number' && typeof item.issue_number !== 'string') {
                           errors.push(`Line ${i + 1}: update-issue 'issue_number' must be a number or string`);
+                          continue;
+                        }
+                      }
+                      break;
+                    case 'push-to-branch':
+                      // Validate message if provided (optional)
+                      if (item.message !== undefined) {
+                        if (typeof item.message !== 'string') {
+                          errors.push(`Line ${i + 1}: push-to-branch 'message' must be a string`);
+                          continue;
+                        }
+                        item.message = sanitizeContent(item.message);
+                      }
+                      // Validate pull_request_number if provided (for target "*")
+                      if (item.pull_request_number !== undefined) {
+                        if (typeof item.pull_request_number !== 'number' && typeof item.pull_request_number !== 'string') {
+                          errors.push(`Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`);
                           continue;
                         }
                       }

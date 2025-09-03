@@ -27,6 +27,9 @@ var addLabelsScript string
 //go:embed js/update_issue.cjs
 var updateIssueScript string
 
+//go:embed js/push_to_branch.cjs
+var pushToBranchScript string
+
 //go:embed js/setup_agent_output.cjs
 var setupAgentOutputScript string
 

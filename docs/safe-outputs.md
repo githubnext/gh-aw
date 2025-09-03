@@ -198,6 +198,49 @@ Update the issue based on your analysis. You can change the title, body content,
 - Update count is limited by `max` setting (default: 1)
 - Only GitHub's `issues.update` API endpoint is used
 
+### Push to Branch (`push-to-branch:`)
+
+Adding `push-to-branch:` to the `safe-outputs:` section declares that the workflow should conclude with pushing changes to a specific branch based on the agentic workflow's output. This is useful for applying code changes directly to a designated branch within pull requests.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  push-to-branch:
+    branch: feature-branch               # Required: the branch to push changes to
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  push-to-branch:
+    branch: feature-branch               # Required: the branch to push changes to  
+    target: "*"                          # Optional: target for push operations
+                                         # "triggering" (default) - only push in triggering PR context
+                                         # "*" - allow pushes to any pull request (requires pull_request_number in agent output)
+                                         # explicit number - push for specific pull request number
+```
+
+The agentic part of your workflow should describe the changes to be pushed and optionally provide a commit message.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Code Update Agent
+
+Analyze the pull request and make necessary code improvements.
+
+1. Make any file changes directly in the working directory  
+2. Push changes to the feature branch with a descriptive commit message
+```
+
+**Safety Features:**
+
+- Changes are applied via git patches generated from the workflow's modifications
+- Only the specified branch can be modified
+- Target configuration controls which pull requests can trigger pushes for security
+- Push operations are limited to one per workflow execution
+- Requires valid patch content to proceed (empty patches are rejected)
+
 **Safety Features:**
 
 - Empty lines in coding agent output are ignored
