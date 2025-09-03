@@ -19,6 +19,6 @@
     "test:js-coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "vite": "^4.5.14"
+    "vite": "^7.1.4"
   }
 }
