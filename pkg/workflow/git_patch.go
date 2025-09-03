@@ -3,11 +3,15 @@ package workflow
 import "strings"
 
 // generateGitPatchStep generates a step that creates and uploads a git patch of changes
-func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
+func (c *Compiler) generateGitPatchStep(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Generate git patch\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	// Add push-to-branch configuration if available
+	if data.SafeOutputs != nil && data.SafeOutputs.PushToBranch != nil {
+		yaml.WriteString("          GITHUB_AW_PUSH_BRANCH: \"" + data.SafeOutputs.PushToBranch.Branch + "\"\n")
+	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          # Check current git status\n")
 	yaml.WriteString("          echo \"Current git status:\"\n")
@@ -25,7 +29,17 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	yaml.WriteString("                  # Extract branch value using sed\n")
 	yaml.WriteString("                  BRANCH_NAME=$(echo \"$line\" | sed -n 's/.*\"branch\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p')\n")
 	yaml.WriteString("                  if [ -n \"$BRANCH_NAME\" ]; then\n")
-	yaml.WriteString("                    echo \"Extracted branch name: $BRANCH_NAME\"\n")
+	yaml.WriteString("                    echo \"Extracted branch name from create-pull-request: $BRANCH_NAME\"\n")
+	yaml.WriteString("                    break\n")
+	yaml.WriteString("                  fi\n")
+	yaml.WriteString("                # Extract branch from push-to-branch line using simple grep and sed\n")
+	yaml.WriteString("                elif echo \"$line\" | grep -q '\"type\"[[:space:]]*:[[:space:]]*\"push-to-branch\"'; then\n")
+	yaml.WriteString("                  echo \"Found push-to-branch line: $line\"\n")
+	yaml.WriteString("                  # For push-to-branch, we don't extract branch from JSONL since it's configured in the workflow\n")
+	yaml.WriteString("                  # The branch name should come from the environment variable GITHUB_AW_PUSH_BRANCH\n")
+	yaml.WriteString("                  if [ -n \"$GITHUB_AW_PUSH_BRANCH\" ]; then\n")
+	yaml.WriteString("                    BRANCH_NAME=\"$GITHUB_AW_PUSH_BRANCH\"\n")
+	yaml.WriteString("                    echo \"Using configured push-to-branch target: $BRANCH_NAME\"\n")
 	yaml.WriteString("                    break\n")
 	yaml.WriteString("                  fi\n")
 	yaml.WriteString("                fi\n")

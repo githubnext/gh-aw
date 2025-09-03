@@ -102,7 +102,7 @@ jobs:
           To create a pull request:
           1. Make any file changes directly in the working directory
           2. If you haven't done so already, create a local branch using an appropriate unique name
-          3. Add and commit your files to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done later. Instead append the PR specification to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
           {"type": "create-pull-request", "branch": "branch-name", "title": "PR title", "body": "PR body in markdown", "labels": ["optional", "labels"]}
@@ -820,7 +820,17 @@ jobs:
                   # Extract branch value using sed
                   BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
                   if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name: $BRANCH_NAME"
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    break
+                  fi
+                # Extract branch from push-to-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-branch"'; then
+                  echo "Found push-to-branch line: $line"
+                  # For push-to-branch, we don't extract branch from JSONL since it's configured in the workflow
+                  # The branch name should come from the environment variable GITHUB_AW_PUSH_BRANCH
+                  if [ -n "$GITHUB_AW_PUSH_BRANCH" ]; then
+                    BRANCH_NAME="$GITHUB_AW_PUSH_BRANCH"
+                    echo "Using configured push-to-branch target: $BRANCH_NAME"
                     break
                   fi
                 fi

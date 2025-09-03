@@ -2227,7 +2227,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add git patch generation step only if safe-outputs create-pull-request feature is used
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToBranch != nil) {
-		c.generateGitPatchStep(yaml)
+		c.generateGitPatchStep(yaml, data)
 	}
 
 	// Add post-steps (if any) after AI execution
@@ -2356,6 +2356,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 				yaml.WriteString(", ")
 			}
 			yaml.WriteString("Updating Issues")
+			written = true
+		}
+
+		if data.SafeOutputs.PushToBranch != nil {
+			if written {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("Pushing Changes to Branch")
 		}
 		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
@@ -2388,7 +2396,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          To create a pull request:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
-			yaml.WriteString("          3. Add and commit your files to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
 			yaml.WriteString("          4. Do not push your changes. That will be done later. Instead append the PR specification to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-pull-request\", \"branch\": \"branch-name\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
@@ -2434,6 +2442,19 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          \n")
 		}
 
+		if data.SafeOutputs.PushToBranch != nil {
+			yaml.WriteString("          **Pushing Changes to Branch**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To push changes to a branch:\n")
+			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
+			yaml.WriteString("          2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          3. Indicate your intention to push to the branch by writing to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Commit message describing the changes\"}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          \n")
+		}
+
 		yaml.WriteString("          **Example JSONL file content:**\n")
 		yaml.WriteString("          ```\n")
 
@@ -2453,6 +2474,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 		}
 		if data.SafeOutputs.AddIssueLabels != nil {
 			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"bug\", \"priority-high\"]}\n")
+			exampleCount++
+		}
+		if data.SafeOutputs.PushToBranch != nil {
+			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Update documentation with latest changes\"}\n")
 			exampleCount++
 		}
 
