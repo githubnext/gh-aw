@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Codex Test File"
+name: "Test Codex Push To Branch"
 on:
   issues:
     types: [opened, edited, reopened]
@@ -18,7 +18,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Codex Test File"
+run-name: "Test Codex Push To Branch"
 
 jobs:
   task:
@@ -63,7 +63,7 @@ jobs:
           echo "User ${{ github.actor }} is not a team member"
           exit 1
 
-  codex-test-file:
+  test-codex-push-to-branch:
     needs: task
     runs-on: ubuntu-latest
     permissions: read-all
@@ -131,7 +131,7 @@ jobs:
           Create a new file called "codex-test-file.md" with the following content:
           
           ```markdown
-          # Codex Test File
+          # Test Codex Push To Branch
           
           This file was created by the Codex agentic workflow to test the push-to-branch functionality.
           
@@ -224,7 +224,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Codex Test File",
+              workflow_name: "Test Codex Push To Branch",
               experimental: true,
               supports_tools_whitelist: true,
               supports_http_transport: false,
@@ -262,7 +262,7 @@ jobs:
           # Run codex with log capture
           codex exec \
             -c model=o4-mini \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/codex-test-file.log
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-push-to-branch.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -652,7 +652,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/codex-test-file.log
+          AGENT_LOG_FILE: /tmp/test-codex-push-to-branch.log
         with:
           script: |
             function main() {
@@ -882,8 +882,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codex-test-file.log
-          path: /tmp/codex-test-file.log
+          name: test-codex-push-to-branch.log
+          path: /tmp/test-codex-push-to-branch.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -1007,8 +1007,8 @@ jobs:
           if-no-files-found: ignore
 
   push_to_branch:
-    needs: codex-test-file
-    if: always()
+    needs: test-codex-push-to-branch
+    if: contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') || contains(github.event.pull_request.body, '/test-codex-push-to-branch')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1032,7 +1032,7 @@ jobs:
         id: push_to_branch
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.codex-test-file.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-push-to-branch.outputs.output }}
           GITHUB_AW_PUSH_BRANCH: "codex-test-branch"
           GITHUB_AW_PUSH_TARGET: "*"
         with:
