@@ -2,6 +2,17 @@
 
 One of the primary security features of GitHub Agentic Workflows is "safe output processing", enabling the creation of GitHub issues, comments, pull requests, and other outputs without giving the agentic portion of the workflow write permissions.
 
+## Available Safe Output Types
+
+| Output Type | Configuration Key | Description | Default Max |
+|-------------|------------------|-------------|-------------|
+| **New Issue Creation** | `create-issue:` | Create GitHub issues based on workflow output | 1 |
+| **Issue Comments** | `add-issue-comment:` | Post comments on issues or pull requests | 1 |
+| **Pull Request Creation** | `create-pull-request:` | Create pull requests with code changes | 1 |
+| **Label Addition** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
+| **Issue Updates** | `update-issue:` | Update issue status, title, or body | 1 |
+| **Push to Branch** | `push-to-branch:` | Push changes directly to a branch | 1 |
+
 ## Overview (`safe-outputs:`)
 
 The `safe-outputs:` element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.

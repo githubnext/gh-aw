@@ -3151,7 +3151,12 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 					fmt.Fprintf(yaml, "          max_turns: %s\n", data.EngineConfig.MaxTurns)
 				}
 			} else if value != "" {
-				fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+				if strings.HasPrefix(value, "|") {
+					// For YAML literal block scalars, add proper newline after the content
+					fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+				} else {
+					fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+				}
 			}
 		}
 		// Add environment section to pass GITHUB_AW_SAFE_OUTPUTS to the action only if safe-outputs feature is used

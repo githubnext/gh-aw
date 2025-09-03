@@ -66,23 +66,26 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 	}
 
 	// Build claude_env based on hasOutput parameter
-	claudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
+	claudeEnv := ""
 	if hasOutput {
-		claudeEnv += "\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	}
 
+	inputs := map[string]string{
+		"prompt_file":       "/tmp/aw-prompts/prompt.txt",
+		"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
+		"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
+		"allowed_tools":     "", // Will be filled in during generation
+		"timeout_minutes":   "", // Will be filled in during generation
+		"max_turns":         "", // Will be filled in during generation
+	}
+	if claudeEnv != "" {
+		inputs["claude_env"] = "|\n" + claudeEnv
+	}
 	config := ExecutionConfig{
 		StepName: "Execute Claude Code Action",
 		Action:   fmt.Sprintf("anthropics/claude-code-base-action@%s", actionVersion),
-		Inputs: map[string]string{
-			"prompt_file":       "/tmp/aw-prompts/prompt.txt",
-			"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
-			"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
-			"claude_env":        claudeEnv,
-			"allowed_tools":     "", // Will be filled in during generation
-			"timeout_minutes":   "", // Will be filled in during generation
-			"max_turns":         "", // Will be filled in during generation
-		},
+		Inputs:   inputs,
 	}
 
 	// Add model configuration if specified

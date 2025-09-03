@@ -62,9 +62,9 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected mcp_config input, got '%s'", config.Inputs["mcp_config"])
 	}
 
-	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
-	if config.Inputs["claude_env"] != expectedClaudeEnv {
-		t.Errorf("Expected claude_env input '%s', got '%s'", expectedClaudeEnv, config.Inputs["claude_env"])
+	// claude_env should not be present when hasOutput=false (security improvement)
+	if _, hasClaudeEnv := config.Inputs["claude_env"]; hasClaudeEnv {
+		t.Errorf("Expected no claude_env input for security reasons, but got: '%s'", config.Inputs["claude_env"])
 	}
 
 	// Check that special fields are present but empty (will be filled during generation)
@@ -87,8 +87,8 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 	// Test execution config with hasOutput=true
 	config := engine.GetExecutionConfig("test-workflow", "test-log", nil, true)
 
-	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true
-	expectedClaudeEnv := "|\n            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true, but no GH_TOKEN for security
+	expectedClaudeEnv := "|\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	if config.Inputs["claude_env"] != expectedClaudeEnv {
 		t.Errorf("Expected claude_env input with output '%s', got '%s'", expectedClaudeEnv, config.Inputs["claude_env"])
 	}
@@ -120,12 +120,17 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 				t.Errorf("Expected action 'anthropics/claude-code-base-action@%s', got '%s'", DefaultClaudeActionVersion, config.Action)
 			}
 
-			// Verify all required inputs are present
-			requiredInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "claude_env", "allowed_tools", "timeout_minutes", "max_turns"}
+			// Verify all required inputs are present (except claude_env when hasOutput=false for security)
+			requiredInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "allowed_tools", "timeout_minutes", "max_turns"}
 			for _, input := range requiredInputs {
 				if _, exists := config.Inputs[input]; !exists {
 					t.Errorf("Expected input '%s' to be present", input)
 				}
+			}
+
+			// claude_env should not be present when hasOutput=false (security improvement)
+			if _, hasClaudeEnv := config.Inputs["claude_env"]; hasClaudeEnv {
+				t.Errorf("Expected no claude_env input for security reasons when hasOutput=false")
 			}
 		})
 	}

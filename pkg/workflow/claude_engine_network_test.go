@@ -108,12 +108,17 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Errorf("Expected model 'claude-3-5-sonnet-20241022', got '%s'", execConfig.Inputs["model"])
 		}
 
-		// Verify other expected inputs are present
-		expectedInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "claude_env", "allowed_tools", "timeout_minutes", "max_turns"}
+		// Verify other expected inputs are present (except claude_env when hasOutput=false for security)
+		expectedInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "allowed_tools", "timeout_minutes", "max_turns"}
 		for _, input := range expectedInputs {
 			if _, exists := execConfig.Inputs[input]; !exists {
 				t.Errorf("Expected input '%s' should be present", input)
 			}
+		}
+
+		// claude_env should not be present when hasOutput=false (security improvement)
+		if _, hasClaudeEnv := execConfig.Inputs["claude_env"]; hasClaudeEnv {
+			t.Errorf("Expected no claude_env input for security reasons when hasOutput=false")
 		}
 	})
 
