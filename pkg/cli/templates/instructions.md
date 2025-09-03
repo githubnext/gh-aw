@@ -76,6 +76,11 @@ The YAML frontmatter supports these fields:
             - "*.trusted-domain.com"
     ```
   
+- **`strict:`** - Enable strict mode for deny-by-default permissions (boolean, default: false)
+  ```yaml
+  strict: true  # Enforce deny-all network permissions when no explicit permissions set
+  ```
+  
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
   - `claude:` - Claude-specific tools  

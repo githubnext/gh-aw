@@ -972,6 +972,10 @@
         }
       ]
     },
+    "strict": {
+      "type": "boolean",
+      "description": "Enable strict mode to enforce deny-by-default permissions for engine and MCP servers even when permissions are not explicitly set"
+    },
     "safe-outputs": {
       "type": "object",
       "description": "Output configuration for automatic safe outputs",

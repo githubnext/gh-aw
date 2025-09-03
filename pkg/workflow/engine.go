@@ -1,6 +1,8 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {

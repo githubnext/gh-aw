@@ -44,16 +44,23 @@ type WorkflowRun struct {
 // This is now an alias to the shared type in workflow package
 type LogMetrics = workflow.LogMetrics
 
+// ProcessedRun represents a workflow run with its associated analysis
+type ProcessedRun struct {
+	Run            WorkflowRun
+	AccessAnalysis *DomainAnalysis
+}
+
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
 
 // DownloadResult represents the result of downloading artifacts for a single run
 type DownloadResult struct {
-	Run      WorkflowRun
-	Metrics  LogMetrics
-	Error    error
-	Skipped  bool
-	LogsPath string
+	Run            WorkflowRun
+	Metrics        LogMetrics
+	AccessAnalysis *DomainAnalysis
+	Error          error
+	Skipped        bool
+	LogsPath       string
 }
 
 // Constants for the iterative algorithm
@@ -199,7 +206,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
 
-	var processedRuns []WorkflowRun
+	var processedRuns []ProcessedRun
 	var beforeDate string
 	iteration := 0
 
@@ -315,12 +322,19 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			run.EstimatedCost = result.Metrics.EstimatedCost
 			run.LogsPath = result.LogsPath
 
+			// Store access analysis for later display (we'll access it via the result)
+			// No need to modify the WorkflowRun struct for this
+
 			// Always use GitHub API timestamps for duration calculation
 			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 			}
 
-			processedRuns = append(processedRuns, run)
+			processedRun := ProcessedRun{
+				Run:            run,
+				AccessAnalysis: result.AccessAnalysis,
+			}
+			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
 		}
 
@@ -354,7 +368,14 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	}
 
 	// Display overview table
-	displayLogsOverview(processedRuns, outputDir)
+	workflowRuns := make([]WorkflowRun, len(processedRuns))
+	for i, pr := range processedRuns {
+		workflowRuns[i] = pr.Run
+	}
+	displayLogsOverview(workflowRuns, outputDir)
+
+	// Display access log analysis
+	displayAccessLogAnalysis(processedRuns, verbose)
 
 	// Display logs location prominently
 	absOutputDir, _ := filepath.Abs(outputDir)
@@ -417,6 +438,15 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					metrics = LogMetrics{}
 				}
 				result.Metrics = metrics
+
+				// Analyze access logs if available
+				accessAnalysis, accessErr := analyzeAccessLogs(runOutputDir, verbose)
+				if accessErr != nil {
+					if verbose {
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", run.DatabaseID, accessErr)))
+					}
+				}
+				result.AccessAnalysis = accessAnalysis
 			}
 
 			return result
@@ -483,6 +513,9 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 		errMsg := err.Error()
 		outputMsg := string(output)
 		combinedMsg := errMsg + " " + outputMsg
+		if verbose {
+			fmt.Println(console.FormatVerboseMessage(outputMsg))
+		}
 		if strings.Contains(combinedMsg, "exit status 4") ||
 			strings.Contains(combinedMsg, "exit status 1") ||
 			strings.Contains(combinedMsg, "not logged into any GitHub hosts") ||
@@ -560,6 +593,10 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		spinner.Stop()
 	}
 	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatVerboseMessage(string(output)))
+		}
+
 		// Check if it's because there are no artifacts
 		if strings.Contains(string(output), "no valid artifacts") || strings.Contains(string(output), "not found") {
 			// Clean up empty directory

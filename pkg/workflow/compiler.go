@@ -464,6 +464,26 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.extractEngineConfig(result.Frontmatter)
 
+	// Extract strict mode setting from frontmatter
+	strictMode := c.extractStrictMode(result.Frontmatter)
+
+	// Apply strict mode: inject deny-all network permissions if strict mode is enabled
+	// and no explicit network permissions are configured
+	if strictMode && engineConfig != nil && engineConfig.ID == "claude" {
+		if engineConfig.Permissions == nil || engineConfig.Permissions.Network == nil {
+			// Initialize permissions structure if needed
+			if engineConfig.Permissions == nil {
+				engineConfig.Permissions = &EnginePermissions{}
+			}
+			if engineConfig.Permissions.Network == nil {
+				// Inject deny-all network permissions (empty allowed list)
+				engineConfig.Permissions.Network = &NetworkPermissions{
+					Allowed: []string{}, // Empty list means deny-all
+				}
+			}
+		}
+	}
+
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting
@@ -702,7 +722,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Apply defaults
-	c.applyDefaults(workflowData, markdownPath)
+	c.applyDefaults(workflowData, markdownPath, strictMode)
 
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
@@ -904,7 +924,7 @@ func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
 }
 
 // applyDefaults applies default values for missing workflow sections
-func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
+func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string, strictMode bool) {
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
 	if data.On == "" {
@@ -1002,7 +1022,16 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.Permissions == "" {
-		data.Permissions = `permissions: read-all`
+		if strictMode {
+			// In strict mode, default to empty permissions instead of read-all
+			data.Permissions = `permissions: {}`
+		} else {
+			// Default behavior: use read-all permissions
+			data.Permissions = `permissions: read-all`
+		}
+	} else if strictMode {
+		// In strict mode, validate permissions and warn about write permissions
+		c.validatePermissionsInStrictMode(data.Permissions)
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
@@ -2341,6 +2370,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateEngineOutputCollection(yaml, engine)
 	}
 
+	// Extract and upload squid access logs (if any proxy tools were used)
+	c.generateExtractAccessLogs(yaml, data.Tools)
+	c.generateUploadAccessLogs(yaml, data.Tools)
+
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine, logFileFull)
 
@@ -2420,6 +2453,64 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
 	yaml.WriteString("          path: /tmp/aw_info.json\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[string]any) {
+	// Check if any tools require proxy setup
+	var proxyTools []string
+	for toolName, toolConfig := range tools {
+		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
+			needsProxySetup, _ := needsProxy(toolConfigMap)
+			if needsProxySetup {
+				proxyTools = append(proxyTools, toolName)
+			}
+		}
+	}
+
+	// If no proxy tools, no access logs to extract
+	if len(proxyTools) == 0 {
+		return
+	}
+
+	yaml.WriteString("      - name: Extract squid access logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          mkdir -p /tmp/access-logs\n")
+
+	for _, toolName := range proxyTools {
+		fmt.Fprintf(yaml, "          echo 'Extracting access.log from squid-proxy-%s container'\n", toolName)
+		fmt.Fprintf(yaml, "          if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-%s$'; then\n", toolName)
+		fmt.Fprintf(yaml, "            docker cp squid-proxy-%s:/var/log/squid/access.log /tmp/access-logs/access-%s.log 2>/dev/null || echo 'No access.log found for %s'\n", toolName, toolName, toolName)
+		yaml.WriteString("          else\n")
+		fmt.Fprintf(yaml, "            echo 'Container squid-proxy-%s not found'\n", toolName)
+		yaml.WriteString("          fi\n")
+	}
+}
+
+func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[string]any) {
+	// Check if any tools require proxy setup
+	var proxyTools []string
+	for toolName, toolConfig := range tools {
+		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
+			needsProxySetup, _ := needsProxy(toolConfigMap)
+			if needsProxySetup {
+				proxyTools = append(proxyTools, toolName)
+			}
+		}
+	}
+
+	// If no proxy tools, no access logs to upload
+	if len(proxyTools) == 0 {
+		return
+	}
+
+	yaml.WriteString("      - name: Upload squid access logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: access.log\n")
+	yaml.WriteString("          path: /tmp/access-logs/\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
