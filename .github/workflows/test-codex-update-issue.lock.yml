@@ -269,9 +269,12 @@ jobs:
           ### Available Output Types:
           
           **Updating an Issue**
+          
+          To udpate an issue:
           ```json
           {"type": "update-issue", "status": "open" // or "closed", "title": "New issue title", "body": "Updated issue body in markdown"}
           ```
+          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```

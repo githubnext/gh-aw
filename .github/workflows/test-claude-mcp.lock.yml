@@ -284,9 +284,13 @@ jobs:
           ### Available Output Types:
           
           **Creating an Issue**
+          
+          To create an issue:
+          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
           {"type": "create-issue", "title": "Issue title", "body": "Issue body in markdown", "labels": ["optional", "labels"]}
           ```
+          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```

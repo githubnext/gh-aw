@@ -2456,17 +2456,25 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 
 		if data.SafeOutputs.AddIssueComments != nil {
 			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add a comment to an issue or pull request:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"add-issue-comment\", \"body\": \"Your comment content in markdown\"}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.CreateIssues != nil {
 			yaml.WriteString("          **Creating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create an issue:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-issue\", \"title\": \"Issue title\", \"body\": \"Issue body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -2481,19 +2489,26 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-pull-request\", \"branch\": \"branch-name\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.AddIssueLabels != nil {
 			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add labels to a pull request:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.UpdateIssues != nil {
 			yaml.WriteString("          **Updating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To udpate an issue:\n")
 			yaml.WriteString("          ```json\n")
 
 			// Build example based on allowed fields
@@ -2519,19 +2534,21 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			}
 
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
 		if data.SafeOutputs.PushToBranch != nil {
 			yaml.WriteString("          **Pushing Changes to Branch**\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To push changes to a branch:\n")
+			yaml.WriteString("          To push changes to a branch, for example to add code to a pull request:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 			yaml.WriteString("          2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
 			yaml.WriteString("          3. Indicate your intention to push to the branch by writing to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Commit message describing the changes\"}\n")
 			yaml.WriteString("          ```\n")
+			yaml.WriteString("          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 

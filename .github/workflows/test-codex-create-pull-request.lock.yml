@@ -107,6 +107,7 @@ jobs:
           ```json
           {"type": "create-pull-request", "branch": "branch-name", "title": "PR title", "body": "PR body in markdown", "labels": ["optional", "labels"]}
           ```
+          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```

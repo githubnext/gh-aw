@@ -166,7 +166,7 @@ jobs:
           
           Create a commit message: "Add test files created by Claude agentic workflow"
           
-          Push these changes to the branch for the pull request
+          Push these changes to the branch for the pull request #${github.event.pull_request.number}
           
           
           ---
@@ -181,13 +181,14 @@ jobs:
           
           **Pushing Changes to Branch**
           
-          To push changes to a branch:
+          To push changes to a branch, for example to add code to a pull request:
           1. Make any file changes directly in the working directory
           2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           3. Indicate your intention to push to the branch by writing to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
           {"type": "push-to-branch", "message": "Commit message describing the changes"}
           ```
+          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```
