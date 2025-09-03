@@ -30,16 +30,16 @@ func NewClaudeEngine() *ClaudeEngine {
 	}
 }
 
-func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep {
+func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig, networkPermissions *NetworkPermissions) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Check if network permissions are configured
-	if ShouldEnforceNetworkPermissions(engineConfig) {
+	// Check if network permissions are configured (only for Claude engine)
+	if engineConfig != nil && engineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(networkPermissions) {
 		// Generate network hook generator and settings generator
 		hookGenerator := &NetworkHookGenerator{}
 		settingsGenerator := &ClaudeSettingsGenerator{}
 
-		allowedDomains := GetAllowedDomains(engineConfig)
+		allowedDomains := GetAllowedDomains(networkPermissions)
 
 		// Add hook generation step
 		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
@@ -58,7 +58,7 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{"output.txt"}
 }
 
-func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, hasOutput bool) ExecutionConfig {
+func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, networkPermissions *NetworkPermissions, hasOutput bool) ExecutionConfig {
 	// Determine the action version to use
 	actionVersion := DefaultClaudeActionVersion // Default version
 	if engineConfig != nil && engineConfig.Version != "" {
@@ -94,7 +94,7 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 	}
 
 	// Add settings parameter if network permissions are configured
-	if ShouldEnforceNetworkPermissions(engineConfig) {
+	if engineConfig != nil && engineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(networkPermissions) {
 		config.Inputs["settings"] = ".claude/settings.json"
 	}
 

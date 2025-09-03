@@ -117,6 +117,7 @@ type WorkflowData struct {
 	Name               string
 	On                 string
 	Permissions        string
+	Network            string // top-level network permissions configuration
 	Concurrency        string
 	RunName            string
 	Env                string
@@ -131,13 +132,14 @@ type WorkflowData struct {
 	AI                 string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig       *EngineConfig // Extended engine configuration
 	StopTime           string
-	Command            string             // for /command trigger support
-	CommandOtherEvents map[string]any     // for merging command with other events
-	AIReaction         string             // AI reaction type like "eyes", "heart", etc.
-	Jobs               map[string]any     // custom job configurations with dependencies
-	Cache              string             // cache configuration
-	NeedsTextOutput    bool               // whether the workflow uses ${{ needs.task.outputs.text }}
-	SafeOutputs        *SafeOutputsConfig // output configuration for automatic output routes
+	Command            string              // for /command trigger support
+	CommandOtherEvents map[string]any      // for merging command with other events
+	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
+	Jobs               map[string]any      // custom job configurations with dependencies
+	Cache              string              // cache configuration
+	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions *NetworkPermissions // parsed network permissions
+	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -467,19 +469,16 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract strict mode setting from frontmatter
 	strictMode := c.extractStrictMode(result.Frontmatter)
 
+	// Extract network permissions from frontmatter
+	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
+
 	// Apply strict mode: inject deny-all network permissions if strict mode is enabled
 	// and no explicit network permissions are configured
 	if strictMode && engineConfig != nil && engineConfig.ID == "claude" {
-		if engineConfig.Permissions == nil || engineConfig.Permissions.Network == nil {
-			// Initialize permissions structure if needed
-			if engineConfig.Permissions == nil {
-				engineConfig.Permissions = &EnginePermissions{}
-			}
-			if engineConfig.Permissions.Network == nil {
-				// Inject deny-all network permissions (empty allowed list)
-				engineConfig.Permissions.Network = &NetworkPermissions{
-					Allowed: []string{}, // Empty list means deny-all
-				}
+		if networkPermissions == nil {
+			// Inject deny-all network permissions (empty allowed list)
+			networkPermissions = &NetworkPermissions{
+				Allowed: []string{}, // Empty list means deny-all
 			}
 		}
 	}
@@ -604,18 +603,20 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Build workflow data
 	workflowData := &WorkflowData{
-		Name:            workflowName,
-		Tools:           tools,
-		MarkdownContent: markdownContent,
-		AI:              engineSetting,
-		EngineConfig:    engineConfig,
-		NeedsTextOutput: needsTextOutput,
+		Name:               workflowName,
+		Tools:              tools,
+		MarkdownContent:    markdownContent,
+		AI:                 engineSetting,
+		EngineConfig:       engineConfig,
+		NetworkPermissions: networkPermissions,
+		NeedsTextOutput:    needsTextOutput,
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
 	workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
 	workflowData.Permissions = c.extractTopLevelYAMLSection(result.Frontmatter, "permissions")
+	workflowData.Network = c.extractTopLevelYAMLSection(result.Frontmatter, "network")
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
@@ -731,6 +732,29 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.AllowedTools = c.computeAllowedTools(tools, workflowData.SafeOutputs)
 
 	return workflowData, nil
+}
+
+// extractNetworkPermissions extracts network permissions from frontmatter
+func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *NetworkPermissions {
+	if network, exists := frontmatter["network"]; exists {
+		if networkObj, ok := network.(map[string]any); ok {
+			permissions := &NetworkPermissions{}
+
+			// Extract allowed domains
+			if allowed, hasAllowed := networkObj["allowed"]; hasAllowed {
+				if allowedSlice, ok := allowed.([]any); ok {
+					for _, domain := range allowedSlice {
+						if domainStr, ok := domain.(string); ok {
+							permissions.Allowed = append(permissions.Allowed, domainStr)
+						}
+					}
+				}
+			}
+
+			return permissions
+		}
+	}
+	return nil
 }
 
 // extractTopLevelYAMLSection extracts a top-level YAML section from the frontmatter map
@@ -2324,7 +2348,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add engine-specific installation steps
-	installSteps := engine.GetInstallationSteps(data.EngineConfig)
+	installSteps := engine.GetInstallationSteps(data.EngineConfig, data.NetworkPermissions)
 	for _, step := range installSteps {
 		for _, line := range step {
 			yaml.WriteString(line + "\n")
@@ -3177,7 +3201,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
-	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.SafeOutputs != nil)
+	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.NetworkPermissions, data.SafeOutputs != nil)
 
 	if executionConfig.Command != "" {
 		// Command-based execution (e.g., Codex)

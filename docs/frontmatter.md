@@ -18,7 +18,8 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 
 **Properties specific to GitHub Agentic Workflows:**
-- `engine`: AI engine configuration (claude/codex) with optional max-turns setting and network permissions
+- `engine`: AI engine configuration (claude/codex) with optional max-turns setting
+- `network`: Network access control for AI engines (moved from engine.permissions.network)
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
 - `safe-outputs`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
@@ -164,11 +165,6 @@ engine:
   version: beta                     # Optional: version of the action
   model: claude-3-5-sonnet-20241022 # Optional: specific LLM model
   max-turns: 5                      # Optional: maximum chat iterations per run
-  permissions:                      # Optional: engine-level permissions (only Claude is supported)
-    network:                        # Network access control
-      allowed:                      # List of allowed domains
-        - "api.example.com"
-        - "*.trusted.com"
 ```
 
 **Fields:**
@@ -176,9 +172,6 @@ engine:
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
-- **`permissions`** (optional): Engine-level permissions
-  - **`network`** (optional): Network access control
-    - **`allowed`** (optional): List of allowed domains for WebFetch and WebSearch
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
@@ -202,20 +195,20 @@ engine:
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
 
-## Engine Network Permissions
+## Network Permissions (`network:`)
 
 > This is only supported by the claude engine today.
 
-Control network access for AI engines using the `permissions` field in the `engine` block:
+Control network access for AI engines using the top-level `network` field:
 
 ```yaml
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "api.example.com"      # Exact domain match
-        - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
+
+network:
+  allowed:
+    - "api.example.com"      # Exact domain match
+    - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
 ```
 
 ### Security Model
@@ -231,28 +224,28 @@ engine:
 # Allow specific APIs only
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "api.github.com"
-        - "httpbin.org"
+
+network:
+  allowed:
+    - "api.github.com"
+    - "httpbin.org"
 
 # Allow all subdomains of a trusted domain
 # Note: "*.github.com" matches api.github.com, subdomain.github.com, and even nested.api.github.com
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "*.company-internal.com"
-        - "public-api.service.com"
+
+network:
+  allowed:
+    - "*.company-internal.com"
+    - "public-api.service.com"
 
 # Deny all network access (empty list)
 engine:
   id: claude
-  permissions:
-    network:
-      allowed: []
+
+network:
+  allowed: []
 ```
 
 ### Permission Modes
@@ -261,27 +254,27 @@ engine:
    ```yaml
    engine:
      id: claude
-     # No permissions block - full network access
+     # No network block - full network access
    ```
 
 2. **Empty allowed list**: Complete network access denial
    ```yaml
    engine:
      id: claude
-     permissions:
-       network:
-         allowed: []  # Deny all network access
+
+   network:
+     allowed: []  # Deny all network access
    ```
 
 3. **Specific domains**: Granular access control to listed domains only
    ```yaml
    engine:
      id: claude
-     permissions:
-       network:
-         allowed:
-           - "trusted-api.com"
-           - "*.safe-domain.org"
+
+   network:
+     allowed:
+       - "trusted-api.com"
+       - "*.safe-domain.org"
    ```
 
 ## Strict Mode (`strict:`)
@@ -300,7 +293,7 @@ When strict mode is enabled:
    ```yaml
    strict: true
    engine: claude
-   # No engine.permissions.network specified
+   # No network block specified
    # Result: All network access is denied (same as empty allowed list)
    ```
 
@@ -309,9 +302,9 @@ When strict mode is enabled:
    strict: true
    engine:
      id: claude
-     permissions:
-       network:
-         allowed: ["api.github.com"]
+
+   network:
+     allowed: ["api.github.com"]
    # Result: Only api.github.com is accessible
    ```
 
@@ -319,7 +312,7 @@ When strict mode is enabled:
    ```yaml
    strict: false  # or omitted entirely
    engine: claude
-   # No engine.permissions.network specified
+   # No network block specified
    # Result: Unrestricted network access (backwards compatible)
    ```
 

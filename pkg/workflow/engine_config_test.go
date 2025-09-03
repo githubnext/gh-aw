@@ -299,7 +299,7 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := tt.engine.GetExecutionConfig("test-workflow", "test-log", tt.engineConfig, false)
+			config := tt.engine.GetExecutionConfig("test-workflow", "test-log", tt.engineConfig, nil, false)
 
 			switch tt.engine.GetID() {
 			case "claude":
@@ -330,7 +330,7 @@ func TestNilEngineConfig(t *testing.T) {
 	for _, engine := range engines {
 		t.Run(engine.GetID(), func(t *testing.T) {
 			// Should not panic when engineConfig is nil
-			config := engine.GetExecutionConfig("test-workflow", "test-log", nil, false)
+			config := engine.GetExecutionConfig("test-workflow", "test-log", nil, nil, false)
 
 			if config.StepName == "" {
 				t.Errorf("Expected non-empty step name for engine %s", engine.GetID())

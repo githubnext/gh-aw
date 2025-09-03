@@ -129,28 +129,26 @@ chmod +x .claude/hooks/network_permissions.py`, hookScript)
 }
 
 // ShouldEnforceNetworkPermissions checks if network permissions should be enforced
-// Returns true if the engine config has a network permissions block configured
-// (regardless of whether the allowed list is empty or has domains)
-func ShouldEnforceNetworkPermissions(engineConfig *EngineConfig) bool {
-	return engineConfig != nil &&
-		engineConfig.ID == "claude" &&
-		engineConfig.Permissions != nil &&
-		engineConfig.Permissions.Network != nil
+// Returns true if network permissions are configured (regardless of whether the allowed list is empty or has domains)
+func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
+	return network != nil
 }
 
-// GetAllowedDomains returns the allowed domains from engine config
+// GetAllowedDomains returns the allowed domains from network permissions
 // Returns nil if no network permissions configured (unrestricted for backwards compatibility)
 // Returns empty slice if network permissions configured but no domains allowed (deny all)
 // Returns domain list if network permissions configured with allowed domains
-func GetAllowedDomains(engineConfig *EngineConfig) []string {
-	if !ShouldEnforceNetworkPermissions(engineConfig) {
+func GetAllowedDomains(network *NetworkPermissions) []string {
+	if network == nil {
 		return nil // No restrictions - backwards compatibility
 	}
-	return engineConfig.Permissions.Network.Allowed // Could be empty for deny-all
+	return network.Allowed // Could be empty for deny-all
 }
 
 // HasNetworkPermissions is deprecated - use ShouldEnforceNetworkPermissions instead
 // Kept for backwards compatibility but will be removed in future versions
 func HasNetworkPermissions(engineConfig *EngineConfig) bool {
-	return ShouldEnforceNetworkPermissions(engineConfig)
+	// This function is now deprecated since network permissions are top-level
+	// Return false for backwards compatibility
+	return false
 }

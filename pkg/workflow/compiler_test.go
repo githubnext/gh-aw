@@ -3023,9 +3023,8 @@ This is a test workflow with strict mode but no explicit network permissions.
 on: push
 engine:
   id: claude
-  permissions:
-    network:
-      allowed: ["example.com", "api.github.com"]
+network:
+  allowed: ["example.com", "api.github.com"]
 strict: true
 ---
 
