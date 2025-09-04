@@ -128,6 +128,22 @@
                 "draft": {
                   "type": "boolean",
                   "description": "Filter by draft state. Set to false to ignore draft PRs"
+                },
+                "forks": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single fork pattern (e.g., '*' for all forks, 'org/*' for org glob, 'org/repo' for exact match)"
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of allowed fork repositories with glob support (e.g., 'org/repo', 'org/*', '*' for all forks)",
+                      "items": {
+                        "type": "string",
+                        "description": "Repository pattern with optional glob support"
+                      }
+                    }
+                  ]
                 }
               },
               "additionalProperties": false

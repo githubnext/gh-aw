@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+    forks: []
   workflow_dispatch:
 
 permissions:
