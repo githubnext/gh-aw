@@ -49,7 +49,7 @@ func TestValidateWithSchemaAndLocation(t *testing.T) {
 			filePath: "/test/file.md",
 			wantErr:  true,
 			errContains: []string{
-				"/test/file.md:1:1:",
+				"/test/file.md:2:1:",
 				"additional properties 'invalid' not allowed",
 				"hint:",
 			},
@@ -173,7 +173,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation(t *testing.T) {
 			},
 			filePath:    "/test/workflow.md",
 			wantErr:     true,
-			errContains: "/test/workflow.md:1:1:",
+			errContains: "/test/workflow.md:2:1:",
 		},
 	}
 
@@ -219,7 +219,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			},
 			filePath:    "/test/workflow.md",
 			wantErr:     true,
-			errContains: "/test/workflow.md:1:1:",
+			errContains: "/test/workflow.md:2:1:",
 		},
 		{
 			name: "invalid trigger with additional property shows location",
@@ -233,7 +233,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			},
 			filePath:    "/test/workflow.md",
 			wantErr:     true,
-			errContains: "/test/workflow.md:1:1:",
+			errContains: "/test/workflow.md:2:1:",
 		},
 		{
 			name: "invalid tools configuration with additional property shows location",
@@ -247,7 +247,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AdditionalProperti
 			},
 			filePath:    "/test/workflow.md",
 			wantErr:     true,
-			errContains: "/test/workflow.md:1:1:",
+			errContains: "/test/workflow.md:2:1:",
 		},
 	}
 

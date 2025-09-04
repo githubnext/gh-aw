@@ -208,10 +208,17 @@ func buildReactionCondition() ConditionNode {
 	var terms []ConditionNode
 
 	terms = append(terms, BuildEventTypeEquals("issues"))
-	terms = append(terms, BuildEventTypeEquals("pull_request"))
 	terms = append(terms, BuildEventTypeEquals("issue_comment"))
 	terms = append(terms, BuildEventTypeEquals("pull_request_comment"))
 	terms = append(terms, BuildEventTypeEquals("pull_request_review_comment"))
+
+	// For pull_request events, we need to ensure it's not from a forked repository
+	// since forked repositories have read-only permissions and cannot add reactions
+	pullRequestCondition := &AndNode{
+		Left:  BuildEventTypeEquals("pull_request"),
+		Right: BuildNotFromFork(),
+	}
+	terms = append(terms, pullRequestCondition)
 
 	// Use DisjunctionNode to avoid deep nesting
 	return &DisjunctionNode{Terms: terms}
@@ -282,6 +289,15 @@ func BuildActionEquals(action string) *ComparisonNode {
 	return BuildEquals(
 		BuildPropertyAccess("github.event.action"),
 		BuildStringLiteral(action),
+	)
+}
+
+// BuildNotFromFork creates a condition to check that a pull request is not from a forked repository
+// This prevents the job from running on forked PRs where write permissions are not available
+func BuildNotFromFork() *ComparisonNode {
+	return BuildEquals(
+		BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
+		BuildPropertyAccess("github.repository"),
 	)
 }
 

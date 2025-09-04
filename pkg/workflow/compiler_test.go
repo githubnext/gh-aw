@@ -3546,7 +3546,7 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify three jobs are created (task, add_reaction, main)
+	// Verify two jobs are created (add_reaction, main) - missing_tool is not auto-created
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 2 {
 		t.Errorf("Expected 2 jobs (add_reaction, main), found %d", jobCount)
@@ -3618,10 +3618,10 @@ Test workflow without explicit reaction (should not create reaction action).
 		}
 	}
 
-	// Verify only two jobs are created (task and main, no add_reaction)
+	// Verify only one job is created (main) - missing_tool is not auto-created
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 1 {
-		t.Errorf("Expected 1 jobs (main), found %d", jobCount)
+		t.Errorf("Expected 1 job (main), found %d", jobCount)
 	}
 }
 
@@ -4274,8 +4274,8 @@ engine: claude
 # Test Workflow
 
 Invalid YAML with non-boolean value for permissions.`,
-			expectedErrorLine:   1,
-			expectedErrorColumn: 1,
+			expectedErrorLine:   3,                                              // The permissions field is on line 3
+			expectedErrorColumn: 13,                                             // After "permissions:"
 			expectedMessagePart: "value must be one of 'read', 'write', 'none'", // Schema validation catches this
 			description:         "invalid boolean values should trigger schema validation error",
 		},
@@ -4336,8 +4336,8 @@ engine: claude
 # Test Workflow
 
 Invalid YAML with invalid number format.`,
-			expectedErrorLine:   1,
-			expectedErrorColumn: 1,
+			expectedErrorLine:   3,                          // The timeout_minutes field is on line 3
+			expectedErrorColumn: 17,                         // After "timeout_minutes: "
 			expectedMessagePart: "got number, want integer", // Schema validation catches this
 			description:         "invalid number format should trigger schema validation error",
 		},
@@ -4389,7 +4389,7 @@ engine: claude
 # Test Workflow
 
 YAML error that demonstrates column position handling.`,
-			expectedErrorLine:   1,
+			expectedErrorLine:   2, // The message field is on line 2 of the frontmatter (line 3 of file)
 			expectedErrorColumn: 1, // Schema validation error
 			expectedMessagePart: "additional properties 'message' not allowed",
 			description:         "yaml error should be extracted with column information when available",

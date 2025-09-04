@@ -109,9 +109,9 @@ This workflow has no output configuration.
 		t.Fatalf("Unexpected error parsing workflow without output config: %v", err)
 	}
 
-	// Verify output configuration is nil
+	// Verify output configuration is nil when not specified
 	if workflowData.SafeOutputs != nil {
-		t.Error("Expected output configuration to be nil when not specified")
+		t.Error("Expected SafeOutputs to be nil when not configured")
 	}
 }
 

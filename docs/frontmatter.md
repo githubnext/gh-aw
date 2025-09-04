@@ -164,6 +164,10 @@ engine:
   version: beta                     # Optional: version of the action
   model: claude-3-5-sonnet-20241022 # Optional: specific LLM model
   max-turns: 5                      # Optional: maximum chat iterations per run
+  env:                              # Optional: custom environment variables
+    AWS_REGION: us-west-2
+    CUSTOM_API_ENDPOINT: https://api.example.com
+    DEBUG_MODE: "true"
 ```
 
 **Fields:**
@@ -171,6 +175,7 @@ engine:
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
+- **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
@@ -193,6 +198,36 @@ engine:
 2. Engine stops iterating when the turn limit is reached
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
+
+**Custom Environment Variables (`env`):**
+
+The `env` option allows you to pass custom environment variables to the agentic engine:
+
+```yaml
+engine:
+  id: claude
+  env:
+    - "AWS_REGION=us-west-2"
+    - "CUSTOM_API_ENDPOINT: https://api.example.com"  
+    - "DEBUG_MODE: true"
+```
+
+**Format Options:**
+- `KEY=value` - Standard environment variable format
+- `KEY: value` - YAML-style format
+
+**Behavior:**
+1. Custom environment variables are added to the built-in engine variables
+2. For Claude: Variables are passed via the `claude_env` input and GitHub Actions `env` section
+3. For Codex: Variables are added to the command-based execution environment
+4. Supports secrets and GitHub context variables: `"API_KEY: ${{ secrets.MY_SECRET }}"`
+5. Useful for custom configurations like Claude on Amazon Vertex AI
+
+**Use Cases:**
+- Configure cloud provider regions: `AWS_REGION=us-west-2`
+- Set custom API endpoints: `API_ENDPOINT: https://vertex-ai.googleapis.com`
+- Pass authentication tokens: `API_TOKEN: ${{ secrets.CUSTOM_TOKEN }}`
+- Enable debug modes: `DEBUG_MODE: true`
 
 ## Network Permissions (`network:`)
 

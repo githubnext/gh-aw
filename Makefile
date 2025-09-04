@@ -99,6 +99,11 @@ validate-workflows:
 fmt:
 	go fmt ./...
 
+# Format JavaScript (.cjs) files
+.PHONY: fmt-cjs
+fmt-cjs:
+	npm run format:cjs
+
 # Run TypeScript compiler on JavaScript files
 .PHONY: js
 js:
@@ -113,9 +118,19 @@ fmt-check:
 		exit 1; \
 	fi
 
+# Check JavaScript (.cjs) file formatting
+.PHONY: fmt-check-cjs
+fmt-check-cjs:
+	npm run lint:cjs
+
+# Lint JavaScript (.cjs) files 
+.PHONY: lint-cjs
+lint-cjs: fmt-check-cjs
+	@echo "✓ JavaScript formatting validated"
+
 # Validate all project files
 .PHONY: lint
-lint: fmt-check golint
+lint: fmt-check lint-cjs golint
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -205,7 +220,7 @@ copy-copilot-to-claude:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint js build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint js build test-all recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -222,7 +237,10 @@ help:
 	@echo "  deps             - Install dependencies"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
+	@echo "  fmt-cjs          - Format JavaScript (.cjs) files"
 	@echo "  fmt-check        - Check code formatting"
+	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
+	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"

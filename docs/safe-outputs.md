@@ -12,6 +12,7 @@ One of the primary security features of GitHub Agentic Workflows is "safe output
 | **Label Addition** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
 | **Issue Updates** | `update-issue:` | Update issue status, title, or body | 1 |
 | **Push to Branch** | `push-to-branch:` | Push changes directly to a branch | 1 |
+| **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
 
 ## Overview (`safe-outputs:`)
 
@@ -27,10 +28,11 @@ For example:
 ```yaml
 safe-outputs:
   create-issue:
+  create-discussion:
   add-issue-comment:
 ```
 
-This declares that the workflow should create at most one new issue and add at most one comment to the triggering issue or pull request based on the agentic workflow's output. To create multiple issues or comments, use the `max` parameter.
+This declares that the workflow should create at most one new issue, at most one new discussion, and add at most one comment to the triggering issue or pull request based on the agentic workflow's output. To create multiple issues, discussions, or comments, use the `max` parameter.
 
 ## Available Output Types
 
@@ -65,6 +67,40 @@ Create new issues with your findings. For each issue, provide a title starting w
 ```
 
 The compiled workflow will have additional prompting describing that, to create issues, it should write the issue details to a file.
+
+### New Discussion Creation (`create-discussion:`)
+
+Adding discussion creation to the `safe-outputs:` section declares that the workflow should conclude with the creation of GitHub discussions based on the workflow's output.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  create-discussion:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  create-discussion:
+    title-prefix: "[ai] "            # Optional: prefix for discussion titles
+    category-id: "DIC_kwDOGFsHUM4BsUn3"  # Optional: specific discussion category ID
+    max: 3                           # Optional: maximum number of discussions (default: 1)
+```
+
+The agentic part of your workflow should describe the discussion(s) it wants created.
+
+**Example markdown to generate the output:**
+
+```yaml
+# Research Discussion Agent
+
+Research the latest developments in AI and create discussions to share findings.
+Create new discussions with your research findings. For each discussion, provide a title starting with "AI Research Update" and detailed summary of the findings.
+```
+
+The compiled workflow will have additional prompting describing that, to create discussions, it should write the discussion details to a file.
+
+**Note:** If no `category-id` is specified, the workflow will use the first available discussion category in the repository.
 
 ### Issue Comment Creation (`add-issue-comment:`)
 
@@ -134,6 +170,54 @@ Analyze the latest commit and suggest improvements.
 1. Make any file changes directly in the working directory
 2. Create a pull request for your improvements, with a descriptive title and detailed description of the changes made
 ```
+
+### Pull Request Review Comment Creation (`create-pull-request-review-comment:`)
+
+Adding `create-pull-request-review-comment:` to the `safe-outputs:` section declares that the workflow should conclude with creating review comments on specific lines of code in the current pull request based on the workflow's output.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  create-pull-request-review-comment:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  create-pull-request-review-comment:
+    max: 3                          # Optional: maximum number of review comments (default: 1)
+    side: "RIGHT"                   # Optional: side of the diff ("LEFT" or "RIGHT", default: "RIGHT")
+```
+
+The agentic part of your workflow should describe the review comment(s) it wants created with specific file paths and line numbers.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Code Review Agent
+
+Analyze the pull request changes and provide line-specific feedback.
+Create review comments on the pull request with your analysis findings. For each comment, specify:
+- The file path
+- The line number (required)
+- The start line number (optional, for multi-line comments)
+- The comment body with specific feedback
+
+Review comments can target single lines or ranges of lines in the diff.
+```
+
+The compiled workflow will have additional prompting describing that, to create review comments, it should write the comment details to a special file with the following structure:
+- `path`: The file path relative to the repository root
+- `line`: The line number where the comment should be placed
+- `start_line`: (Optional) The starting line number for multi-line comments
+- `side`: (Optional) The side of the diff ("LEFT" for old version, "RIGHT" for new version)
+- `body`: The comment content
+
+**Key Features:**
+- Only works in pull request contexts for security
+- Supports both single-line and multi-line code comments
+- Comments are automatically positioned on the correct side of the diff
+- Maximum comment limits prevent spam
 
 ### Label Addition (`add-issue-label:`)
 
@@ -261,6 +345,43 @@ Analyze the pull request and make necessary code improvements.
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
 
 When `create-pull-request` or `push-to-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
+
+### Missing Tool Reporting (`missing-tool:`)
+
+**Note:** Missing tool reporting is optional and must be explicitly configured in the `safe-outputs:` section if you want workflows to report when they encounter limitations or need tools that aren't available.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  missing-tool:                           # Enable missing-tool reporting
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  missing-tool:
+    max: 10                             # Optional: maximum number of missing tool reports (default: unlimited)
+```
+
+The agentic part of your workflow can report missing tools or functionality that prevents it from completing its task.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Development Task Agent
+
+Analyze the repository and implement the requested feature. If you encounter missing tools, capabilities, or permissions that prevent completion, report them so the user can address these limitations.
+```
+
+The compiled workflow will have additional prompting describing that, to report missing tools, it should write the tool information to a special file.
+
+**Safety Features:**
+
+- No write permissions required - only logs missing functionality
+- Optional configuration to help users understand workflow limitations when enabled  
+- Reports are structured with tool name, reason, and optional alternatives
+- Maximum count can be configured to prevent excessive reporting
+- All missing tool data is captured in workflow artifacts for review
 
 ## Automatically Added Tools
 
