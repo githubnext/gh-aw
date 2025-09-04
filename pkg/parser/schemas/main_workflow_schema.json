@@ -596,20 +596,29 @@
       ]
     },
     "network": {
-      "type": "object",
       "description": "Network access control configuration",
-      "properties": {
-        "allowed": {
-          "type": "array",
-          "description": "List of allowed domains for network access",
-          "items": {
-            "type": "string",
-            "description": "Domain name (supports wildcards with * prefix)"
-          }
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["defaults"],
+          "description": "Use default network permissions (currently full network access, will change later)"
+        },
+        {
+          "type": "object",
+          "description": "Custom network access configuration",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "description": "List of allowed domains for network access",
+              "items": {
+                "type": "string",
+                "description": "Domain name (supports wildcards with * prefix)"
+              }
+            }
+          },
+          "additionalProperties": false
         }
-      },
-      "required": ["allowed"],
-      "additionalProperties": false
+      ]
     },
     "if": {
       "type": "string",
@@ -964,10 +973,6 @@
           }
         }
       ]
-    },
-    "strict": {
-      "type": "boolean",
-      "description": "Enable strict mode to enforce deny-by-default permissions for engine and MCP servers even when permissions are not explicitly set"
     },
     "safe-outputs": {
       "type": "object",

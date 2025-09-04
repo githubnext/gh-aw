@@ -4,7 +4,6 @@ on:
 
 engine: 
   id: claude
-strict: true
 safe-outputs:
   create-issue:
     title-prefix: "[claude-test] "

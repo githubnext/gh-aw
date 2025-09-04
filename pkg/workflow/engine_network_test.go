@@ -107,8 +107,11 @@ func TestShouldEnforceNetworkPermissions(t *testing.T) {
 func TestGetAllowedDomains(t *testing.T) {
 	t.Run("nil permissions", func(t *testing.T) {
 		domains := GetAllowedDomains(nil)
-		if domains != nil {
-			t.Error("Should return nil for no restrictions when permissions are nil")
+		if domains == nil {
+			t.Error("Should return default whitelist when permissions are nil")
+		}
+		if len(domains) == 0 {
+			t.Error("Expected default whitelist domains for nil permissions, got empty list")
 		}
 	})
 

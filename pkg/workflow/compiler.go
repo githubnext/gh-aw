@@ -466,20 +466,14 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.extractEngineConfig(result.Frontmatter)
 
-	// Extract strict mode setting from frontmatter
-	strictMode := c.extractStrictMode(result.Frontmatter)
-
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 
-	// Apply strict mode: inject deny-all network permissions if strict mode is enabled
-	// and no explicit network permissions are configured
-	if strictMode && engineConfig != nil && engineConfig.ID == "claude" {
-		if networkPermissions == nil {
-			// Inject deny-all network permissions (empty allowed list)
-			networkPermissions = &NetworkPermissions{
-				Allowed: []string{}, // Empty list means deny-all
-			}
+	// Default to full network access if no network permissions specified
+	if networkPermissions == nil && engineConfig != nil && engineConfig.ID == "claude" {
+		// Default to "defaults" mode (full network access for now)
+		networkPermissions = &NetworkPermissions{
+			Mode: "defaults",
 		}
 	}
 
@@ -723,7 +717,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Apply defaults
-	c.applyDefaults(workflowData, markdownPath, strictMode)
+	c.applyDefaults(workflowData, markdownPath)
 
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
@@ -737,10 +731,22 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 // extractNetworkPermissions extracts network permissions from frontmatter
 func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *NetworkPermissions {
 	if network, exists := frontmatter["network"]; exists {
+		// Handle string format: "defaults"
+		if networkStr, ok := network.(string); ok {
+			if networkStr == "defaults" {
+				return &NetworkPermissions{
+					Mode: "defaults",
+				}
+			}
+			// Unknown string format, return nil
+			return nil
+		}
+
+		// Handle object format: { allowed: [...] } or {}
 		if networkObj, ok := network.(map[string]any); ok {
 			permissions := &NetworkPermissions{}
 
-			// Extract allowed domains
+			// Extract allowed domains if present
 			if allowed, hasAllowed := networkObj["allowed"]; hasAllowed {
 				if allowedSlice, ok := allowed.([]any); ok {
 					for _, domain := range allowedSlice {
@@ -750,7 +756,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 					}
 				}
 			}
-
+			// Empty object {} means no network access (empty allowed list)
 			return permissions
 		}
 	}
@@ -948,7 +954,7 @@ func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
 }
 
 // applyDefaults applies default values for missing workflow sections
-func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string, strictMode bool) {
+func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
 	if data.On == "" {
@@ -1046,16 +1052,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string, strict
 	}
 
 	if data.Permissions == "" {
-		if strictMode {
-			// In strict mode, default to empty permissions instead of read-all
-			data.Permissions = `permissions: {}`
-		} else {
-			// Default behavior: use read-all permissions
-			data.Permissions = `permissions: read-all`
-		}
-	} else if strictMode {
-		// In strict mode, validate permissions and warn about write permissions
-		c.validatePermissionsInStrictMode(data.Permissions)
+		// Default behavior: use read-all permissions
+		data.Permissions = `permissions: read-all`
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module

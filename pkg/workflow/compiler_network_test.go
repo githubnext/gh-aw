@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,13 +12,13 @@ func TestCompilerNetworkPermissionsExtraction(t *testing.T) {
 
 	// Helper function to create a temporary workflow file for testing
 	createTempWorkflowFile := func(content string) (string, func()) {
-		tmpDir, err := ioutil.TempDir("", "test-workflow-")
+		tmpDir, err := os.MkdirTemp("", "test-workflow-")
 		if err != nil {
 			t.Fatalf("Failed to create temp dir: %v", err)
 		}
 
 		filePath := filepath.Join(tmpDir, "test.md")
-		err = ioutil.WriteFile(filePath, []byte(content), 0644)
+		err = os.WriteFile(filePath, []byte(content), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write temp file: %v", err)
 		}
@@ -88,8 +87,11 @@ This workflow has no network permissions.`
 			t.Fatalf("Failed to parse workflow: %v", err)
 		}
 
-		if workflowData.NetworkPermissions != nil {
-			t.Error("Expected network permissions to be nil when not specified")
+		// When no network field is specified, should default to Mode: "defaults"
+		if workflowData.NetworkPermissions == nil {
+			t.Error("Expected network permissions to default to 'defaults' mode when not specified")
+		} else if workflowData.NetworkPermissions.Mode != "defaults" {
+			t.Errorf("Expected default mode to be 'defaults', got '%s'", workflowData.NetworkPermissions.Mode)
 		}
 	})
 
@@ -250,17 +252,24 @@ network:
 
 func TestNetworkPermissionsUtilities(t *testing.T) {
 	t.Run("GetAllowedDomains with various inputs", func(t *testing.T) {
-		// Test with nil
+		// Test with nil - should return default whitelist
 		domains := GetAllowedDomains(nil)
-		if len(domains) != 0 {
-			t.Errorf("Expected 0 domains for nil input, got %d", len(domains))
+		if len(domains) == 0 {
+			t.Errorf("Expected default whitelist domains for nil input, got %d", len(domains))
 		}
 
-		// Test with empty permissions
+		// Test with defaults mode - should return default whitelist
+		defaultsPerms := &NetworkPermissions{Mode: "defaults"}
+		domains = GetAllowedDomains(defaultsPerms)
+		if len(domains) == 0 {
+			t.Errorf("Expected default whitelist domains for defaults mode, got %d", len(domains))
+		}
+
+		// Test with empty permissions object (no allowed list)
 		emptyPerms := &NetworkPermissions{Allowed: []string{}}
 		domains = GetAllowedDomains(emptyPerms)
 		if len(domains) != 0 {
-			t.Errorf("Expected 0 domains for empty permissions, got %d", len(domains))
+			t.Errorf("Expected 0 domains for empty allowed list, got %d", len(domains))
 		}
 
 		// Test with multiple domains
@@ -303,19 +312,12 @@ func TestNetworkPermissionHelpers(t *testing.T) {
 			Allowed: []string{"example.com"},
 		}
 
-		if perms == nil {
-			t.Error("Network permissions should not be nil")
-		}
-
 		if len(perms.Allowed) == 0 {
 			t.Error("Network permissions should have allowed domains")
 		}
 
 		// Test empty permissions
 		emptyPerms := &NetworkPermissions{Allowed: []string{}}
-		if emptyPerms == nil {
-			t.Error("Empty network permissions should not be nil")
-		}
 
 		if len(emptyPerms.Allowed) != 0 {
 			t.Error("Empty network permissions should have 0 allowed domains")

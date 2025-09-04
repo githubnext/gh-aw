@@ -14,7 +14,8 @@ type EngineConfig struct {
 
 // NetworkPermissions represents network access permissions
 type NetworkPermissions struct {
-	Allowed []string `yaml:"allowed,omitempty"`
+	Mode    string   `yaml:"mode,omitempty"`    // "defaults" for default access
+	Allowed []string `yaml:"allowed,omitempty"` // List of allowed domains
 }
 
 // EngineNetworkConfig combines engine configuration with top-level network permissions
