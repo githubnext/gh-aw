@@ -377,6 +377,7 @@ func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
 // Returns default whitelist if no network permissions configured or in "defaults" mode
 // Returns empty slice if network permissions configured but no domains allowed (deny all)
 // Returns domain list if network permissions configured with allowed domains
+// If "defaults" appears in the allowed list, it's expanded to the default whitelist
 func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network == nil {
 		return getDefaultAllowedDomains() // Default whitelist for backwards compatibility
@@ -384,7 +385,25 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network.Mode == "defaults" {
 		return getDefaultAllowedDomains() // Default whitelist for defaults mode
 	}
-	return network.Allowed // Could be empty for deny-all
+
+	// Handle empty allowed list (deny-all case)
+	if len(network.Allowed) == 0 {
+		return []string{} // Return empty slice, not nil
+	}
+
+	// Process the allowed list, expanding "defaults" if present
+	var expandedDomains []string
+	for _, domain := range network.Allowed {
+		if domain == "defaults" {
+			// Expand "defaults" to the full default whitelist
+			expandedDomains = append(expandedDomains, getDefaultAllowedDomains()...)
+		} else {
+			// Add the domain as-is
+			expandedDomains = append(expandedDomains, domain)
+		}
+	}
+
+	return expandedDomains
 }
 
 // HasNetworkPermissions is deprecated - use ShouldEnforceNetworkPermissions instead

@@ -284,7 +284,7 @@ This workflow tests the create-issue job generation.
 		t.Error("Expected create_issue job to depend on main job")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputCommentConfigParsing(t *testing.T) {
@@ -588,7 +588,7 @@ This workflow tests the create_issue_comment job generation.
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputCommentJobSkippedForNonIssueEvents(t *testing.T) {
@@ -648,7 +648,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 		t.Error("Expected create_issue_comment job to have conditional execution for skipping")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputPullRequestConfigParsing(t *testing.T) {
@@ -824,7 +824,7 @@ This workflow tests the create_pull_request job generation.
 		t.Error("Expected create_pull_request job to depend on main job")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContentStr)
+	// t.Logf("Generated workflow content:\n%s", lockContentStr)
 }
 
 func TestOutputPullRequestDraftFalse(t *testing.T) {
@@ -899,7 +899,7 @@ This workflow tests the create_pull_request job generation with draft: false.
 		t.Error("Expected automation label to be set as environment variable")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContentStr)
+	// t.Logf("Generated workflow content:\n%s", lockContentStr)
 }
 
 func TestOutputPullRequestDraftTrue(t *testing.T) {
@@ -974,7 +974,7 @@ This workflow tests the create_pull_request job generation with draft: true.
 		t.Error("Expected automation label to be set as environment variable")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContentStr)
+	// t.Logf("Generated workflow content:\n%s", lockContentStr)
 }
 
 func TestOutputLabelConfigParsing(t *testing.T) {
@@ -1136,7 +1136,7 @@ This workflow tests the add_labels job generation.
 		t.Error("Expected labels_added output to be available")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputLabelJobGenerationNoAllowedLabels(t *testing.T) {
@@ -1208,7 +1208,7 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected max to be set correctly")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputLabelJobGenerationNullConfig(t *testing.T) {
@@ -1284,7 +1284,7 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected default max to be set correctly")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputLabelConfigNullParsing(t *testing.T) {
@@ -1537,7 +1537,7 @@ This workflow tests the add_labels job generation with max.
 		t.Error("Expected max to be set as environment variable")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputLabelJobGenerationWithDefaultMaxCount(t *testing.T) {
@@ -1603,7 +1603,7 @@ This workflow tests the add_labels job generation with default max.
 		t.Error("Expected max to be set to default value of 3 as environment variable")
 	}
 
-	t.Logf("Generated workflow content:\n%s", lockContent)
+	// t.Logf("Generated workflow content:\n%s", lockContent)
 }
 
 func TestOutputLabelConfigValidation(t *testing.T) {

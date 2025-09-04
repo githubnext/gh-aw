@@ -1837,7 +1837,7 @@ This is a simple test workflow with Bash tools.
 	}
 
 	simpleLockContent := string(simpleContent2)
-	t.Logf("Simple workflow lock file content: %s", simpleLockContent)
+	// t.Logf("Simple workflow lock file content: %s", simpleLockContent)
 
 	// Check if simple case works first
 	expectedSimpleCommands := []string{"pwd", "ls", "cat"}

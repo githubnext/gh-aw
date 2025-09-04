@@ -289,6 +289,41 @@ func TestNetworkPermissionsUtilities(t *testing.T) {
 		}
 	})
 
+	t.Run("GetAllowedDomains with 'defaults' expansion", func(t *testing.T) {
+		// Test with defaults in allowed list - should expand defaults and add custom domains
+		perms := &NetworkPermissions{
+			Allowed: []string{"defaults", "good.com", "api.example.com"},
+		}
+		domains := GetAllowedDomains(perms)
+
+		// Should have all default domains plus the custom ones
+		defaultDomains := getDefaultAllowedDomains()
+		expectedTotal := len(defaultDomains) + 2 // defaults + good.com + api.example.com
+
+		if len(domains) != expectedTotal {
+			t.Errorf("Expected %d domains (defaults + 2 custom), got %d", expectedTotal, len(domains))
+		}
+
+		// Verify custom domains are included
+		foundGoodCom := false
+		foundApiExample := false
+		for _, domain := range domains {
+			if domain == "good.com" {
+				foundGoodCom = true
+			}
+			if domain == "api.example.com" {
+				foundApiExample = true
+			}
+		}
+
+		if !foundGoodCom {
+			t.Error("Expected 'good.com' to be included in the expanded domains")
+		}
+		if !foundApiExample {
+			t.Error("Expected 'api.example.com' to be included in the expanded domains")
+		}
+	})
+
 	t.Run("Deprecated HasNetworkPermissions still works", func(t *testing.T) {
 		// Test the deprecated function that takes EngineConfig
 		config := &EngineConfig{

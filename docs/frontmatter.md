@@ -19,7 +19,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
-- `network`: Network access control for AI engines (supports `defaults`, `{}`, or `{ allowed: [...] }`)
+- `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
 - `safe-outputs`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
@@ -218,6 +218,16 @@ network:
     - "api.example.com"      # Exact domain match
     - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
 
+# Or combine defaults with additional domains
+engine:
+  id: claude
+
+network:
+  allowed:
+    - "defaults"             # Expands to the full default whitelist
+    - "good.com"             # Add custom domain
+    - "api.example.org"      # Add another custom domain
+
 # Or deny all network access (empty object)
 engine:
   id: claude
@@ -229,6 +239,7 @@ network: {}
 
 - **Default Whitelist**: When no network permissions are specified or `network: defaults` is used, access is restricted to a curated whitelist of common development domains (package managers, container registries, etc.)
 - **Selective Access**: When `network: { allowed: [...] }` is specified, only listed domains are accessible
+- **Defaults Expansion**: When "defaults" appears in the allowed list, it expands to include all default whitelist domains plus any additional specified domains
 - **No Access**: When `network: {}` is specified, all network access is denied
 - **Engine vs Tools**: Engine permissions control the AI engine itself, separate from MCP tool permissions
 - **Hook Enforcement**: Uses Claude Code's hook system for runtime network access control
@@ -262,6 +273,17 @@ network:
     - "*.company-internal.com"
     - "public-api.service.com"
 
+# Combine default whitelist with custom domains
+# This gives access to all package managers, registries, etc. PLUS your custom domains
+engine:
+  id: claude
+
+network:
+  allowed:
+    - "defaults"                    # Expands to full default whitelist
+    - "api.mycompany.com"           # Add custom API
+    - "*.internal.mycompany.com"    # Add internal services
+
 # Deny all network access (empty object)
 engine:
   id: claude
@@ -272,20 +294,11 @@ network: {}
 ### Default Whitelist Domains
 
 The `network: defaults` mode includes access to these categories of domains:
-- **Package Managers**: npmjs.org, pypi.org, rubygems.org, crates.io, nuget.org, etc.
-- **Container Registries**: docker.io, ghcr.io, quay.io, mcr.microsoft.com, etc.
-- **Development Tools**: github.com domains, golang.org, maven.apache.org, etc.
-- **Certificate Authorities**: Various OCSP and CRL endpoints for certificate validation
+- **Package Managers**
+- **Container Registries**
+- **Development Tools**
+- **Certificate Authorities**
 - **Language-specific Repositories**: For Go, Python, Node.js, Java, .NET, Rust, etc.
-
-### Migration from Previous Versions
-
-The previous `strict:` mode has been removed. Network permissions now work as follows:
-- **No `network:` field**: Defaults to `network: defaults` (curated whitelist)
-- **`network: defaults`**: Curated whitelist of development domains
-- **`network: {}`**: No network access  
-- **`network: { allowed: [...] }`**: Restricted to listed domains only
-
 
 ### Permission Modes
 
