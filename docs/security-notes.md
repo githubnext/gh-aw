@@ -234,31 +234,44 @@ Engine network permissions provide fine-grained control over network access for 
 
 ### Best Practices
 
-1. **Always Specify Permissions**: When using network features, explicitly list allowed domains
-2. **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`) - ensure this broad access is intended
-3. **Test Thoroughly**: Verify that all required domains are included in allowlist
-4. **Monitor Usage**: Review workflow logs to identify any blocked legitimate requests
-5. **Document Reasoning**: Comment why specific domains are required for maintenance
+1. **Start with Minimal Access**: Begin with `defaults` and add only needed ecosystems
+2. **Use Ecosystem Identifiers**: Prefer `python`, `node`, etc. over listing individual domains
+3. **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`) - ensure this broad access is intended
+4. **Test Thoroughly**: Verify that all required domains/ecosystems are included in allowlist
+5. **Monitor Usage**: Review workflow logs to identify any blocked legitimate requests
+6. **Document Reasoning**: Comment why specific domains/ecosystems are required for maintenance
 
 ### Permission Modes
 
-1. **No network permissions**: Unrestricted access (backwards compatible)
+1. **No network permissions**: Defaults to basic infrastructure only (backwards compatible)
    ```yaml
    engine:
      id: claude
-     # No network block - full network access
+     # No network block - defaults to basic infrastructure
    ```
 
-2. **Empty allowed list**: Complete network access denial
+2. **Basic infrastructure only**: Explicit basic infrastructure access
+   ```yaml
+   engine:
+     id: claude
+
+   network: defaults  # Or use "allowed: [defaults]"
+   ```
+
+3. **Ecosystem-based access**: Use ecosystem identifiers for common development tools
    ```yaml
    engine:
      id: claude
 
    network:
-     allowed: []  # Deny all network access
+     allowed:
+       - defaults         # Basic infrastructure
+       - python          # Python/PyPI ecosystem
+       - node            # Node.js/NPM ecosystem
+       - containers      # Container registries
    ```
 
-3. **Specific domains**: Granular access control to listed domains only
+4. **Granular domain control**: Specific domains only
    ```yaml
    engine:
      id: claude
@@ -269,6 +282,14 @@ Engine network permissions provide fine-grained control over network access for 
        - "*.company-internal.com"
    ```
 
+5. **Complete denial**: No network access
+   ```yaml
+   engine:
+     id: claude
+
+   network: {}  # Deny all network access
+   ```
+
 ## Engine Security Notes
 
 Different agentic engines have distinct defaults and operational surfaces.
@@ -277,7 +298,7 @@ Different agentic engines have distinct defaults and operational surfaces.
 
 - Restrict `claude.allowed` to only the needed capabilities (Edit/Write/WebFetch/Bash with a short list)
 - Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
-- Use engine network permissions to restrict WebFetch and WebSearch to required domains only
+- Use engine network permissions with ecosystem identifiers to grant access to only required development tools
 
 #### Security posture differences with Codex
 

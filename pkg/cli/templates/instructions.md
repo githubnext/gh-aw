@@ -352,14 +352,23 @@ tools:
 
 ### Engine Network Permissions
 
-Control network access for the Claude Code engine using the top-level `network:` field. If no `network:` permission is specified, it defaults to `network: defaults` which uses a curated whitelist of common development and package manager domains.
+Control network access for the Claude Code engine using the top-level `network:` field. If no `network:` permission is specified, it defaults to `network: defaults` which provides access to basic infrastructure only.
 
 ```yaml
 engine:
   id: claude
 
-# Default whitelist (curated list of development domains)
+# Basic infrastructure only (default)
 network: defaults
+
+# Use ecosystem identifiers for common development tools
+network:
+  allowed:
+    - defaults         # Basic infrastructure
+    - python          # Python/PyPI ecosystem
+    - node            # Node.js/NPM ecosystem
+    - containers      # Container registries
+    - "api.custom.com" # Custom domain
 
 # Or allow specific domains only
 network:
@@ -375,15 +384,38 @@ network: {}
 **Important Notes:**
 - Network permissions apply to Claude Code's WebFetch and WebSearch tools
 - Uses top-level `network:` field (not nested under engine permissions)
+- `defaults` now includes only basic infrastructure (certificates, JSON schema, Ubuntu, etc.)
+- Use ecosystem identifiers (`python`, `node`, `java`, etc.) for language-specific tools
 - When custom permissions are specified with `allowed:` list, deny-by-default policy is enforced
 - Supports exact domain matches and wildcard patterns (where `*` matches any characters, including nested subdomains)
 - Currently supported for Claude engine only (Codex support planned)
 - Uses Claude Code hooks for enforcement, not network proxies
 
 **Permission Modes:**
-1. **Default whitelist**: `network: defaults` or no `network:` field (curated development domains)
-2. **No network access**: `network: {}` (deny all)
-3. **Specific domains**: `network: { allowed: [...] }` (granular access control)
+1. **Basic infrastructure**: `network: defaults` or no `network:` field (certificates, JSON schema, Ubuntu only)
+2. **Ecosystem access**: `network: { allowed: [defaults, python, node, ...] }` (development tool ecosystems)
+3. **No network access**: `network: {}` (deny all)
+4. **Specific domains**: `network: { allowed: ["api.example.com", ...] }` (granular access control)
+
+**Available Ecosystem Identifiers:**
+- `defaults`: Basic infrastructure (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
+- `containers`: Container registries (Docker Hub, GitHub Container Registry, Quay, etc.)
+- `dotnet`: .NET and NuGet ecosystem
+- `dart`: Dart and Flutter ecosystem  
+- `github`: GitHub domains
+- `go`: Go ecosystem
+- `terraform`: HashiCorp and Terraform ecosystem
+- `haskell`: Haskell ecosystem
+- `java`: Java ecosystem (Maven Central, Gradle, etc.)
+- `linux-distros`: Linux distribution package repositories
+- `node`: Node.js and NPM ecosystem
+- `perl`: Perl and CPAN ecosystem
+- `php`: PHP and Composer ecosystem
+- `playwright`: Playwright testing framework domains
+- `python`: Python ecosystem (PyPI, Conda, etc.)
+- `ruby`: Ruby and RubyGems ecosystem
+- `rust`: Rust and Cargo ecosystem
+- `swift`: Swift and CocoaPods ecosystem
 
 ## @include Directive System
 

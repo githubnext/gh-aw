@@ -203,13 +203,24 @@ Control network access for AI engines using the top-level `network` field. If no
 ### Supported Formats
 
 ```yaml
-# Default whitelist (curated list of development domains)
+# Default whitelist (basic infrastructure only)
 engine:
   id: claude
 
 network: defaults
 
-# Or allow specific domains only
+# Or use ecosystem identifiers + custom domains
+engine:
+  id: claude
+
+network:
+  allowed:
+    - defaults              # Basic infrastructure (certs, JSON schema, Ubuntu, etc.)
+    - python               # Python/PyPI ecosystem
+    - node                 # Node.js/NPM ecosystem
+    - "api.example.com"    # Custom domain
+
+# Or allow specific domains only (no ecosystems)
 engine:
   id: claude
 
@@ -227,8 +238,9 @@ network: {}
 
 ### Security Model
 
-- **Default Whitelist**: When no network permissions are specified or `network: defaults` is used, access is restricted to a curated whitelist of common development domains (package managers, container registries, etc.)
-- **Selective Access**: When `network: { allowed: [...] }` is specified, only listed domains are accessible
+- **Default Whitelist**: When no network permissions are specified or `network: defaults` is used, access is restricted to basic infrastructure domains only (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
+- **Ecosystem Access**: Use ecosystem identifiers like `python`, `node`, `containers` to enable access to specific development ecosystems
+- **Selective Access**: When `network: { allowed: [...] }` is specified, only listed domains/ecosystems are accessible
 - **No Access**: When `network: {}` is specified, all network access is denied
 - **Engine vs Tools**: Engine permissions control the AI engine itself, separate from MCP tool permissions
 - **Hook Enforcement**: Uses Claude Code's hook system for runtime network access control
@@ -237,20 +249,34 @@ network: {}
 ### Examples
 
 ```yaml
-# Default whitelist (common development domains like npmjs.org, pypi.org, etc.)
+# Default infrastructure only (basic certificates, JSON schema, Ubuntu, etc.)
 engine:
   id: claude
 
 network: defaults
 
-# Allow specific APIs only
+# Python development environment
 engine:
   id: claude
 
 network:
   allowed:
-    - "api.github.com"
-    - "httpbin.org"
+    - defaults             # Basic infrastructure
+    - python              # Python/PyPI ecosystem
+    - github              # GitHub domains
+
+# Full-stack development with multiple ecosystems
+engine:
+  id: claude
+
+network:
+  allowed:
+    - defaults
+    - python
+    - node
+    - containers
+    - dotnet
+    - "api.custom.com"    # Custom domain
 
 # Allow all subdomains of a trusted domain
 # Note: "*.github.com" matches api.github.com, subdomain.github.com, and even nested.api.github.com
@@ -262,6 +288,16 @@ network:
     - "*.company-internal.com"
     - "public-api.service.com"
 
+# Specific ecosystems only (no basic infrastructure)
+engine:
+  id: claude
+
+network:
+  allowed:
+    - java
+    - rust
+    # No "defaults" means no basic infrastructure access
+
 # Deny all network access (empty object)
 engine:
   id: claude
@@ -269,22 +305,49 @@ engine:
 network: {}
 ```
 
-### Default Whitelist Domains
+### Available Ecosystem Identifiers
 
-The `network: defaults` mode includes access to these categories of domains:
-- **Package Managers**: npmjs.org, pypi.org, rubygems.org, crates.io, nuget.org, etc.
-- **Container Registries**: docker.io, ghcr.io, quay.io, mcr.microsoft.com, etc.
-- **Development Tools**: github.com domains, golang.org, maven.apache.org, etc.
-- **Certificate Authorities**: Various OCSP and CRL endpoints for certificate validation
-- **Language-specific Repositories**: For Go, Python, Node.js, Java, .NET, Rust, etc.
+The `network: { allowed: [...] }` format supports these ecosystem identifiers:
+
+- **`defaults`**: Basic infrastructure (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
+- **`containers`**: Container registries (Docker Hub, GitHub Container Registry, Quay, etc.)
+- **`dotnet`**: .NET and NuGet ecosystem
+- **`dart`**: Dart and Flutter ecosystem  
+- **`github`**: GitHub domains (api.github.com, github.com, etc.)
+- **`go`**: Go ecosystem (golang.org, proxy.golang.org, etc.)
+- **`terraform`**: HashiCorp and Terraform ecosystem
+- **`haskell`**: Haskell ecosystem (hackage.haskell.org, etc.)
+- **`java`**: Java ecosystem (Maven Central, Gradle, etc.)
+- **`linux-distros`**: Linux distribution package repositories (Debian, Alpine, etc.)
+- **`node`**: Node.js and NPM ecosystem (npmjs.org, nodejs.org, etc.)
+- **`perl`**: Perl and CPAN ecosystem
+- **`php`**: PHP and Composer ecosystem
+- **`playwright`**: Playwright testing framework domains
+- **`python`**: Python ecosystem (PyPI, Conda, etc.)
+- **`ruby`**: Ruby and RubyGems ecosystem
+- **`rust`**: Rust and Cargo ecosystem (crates.io, etc.)
+- **`swift`**: Swift and CocoaPods ecosystem
+
+You can mix ecosystem identifiers with specific domain names for fine-grained control:
+
+```yaml
+network:
+  allowed:
+    - defaults              # Basic infrastructure
+    - python               # Python ecosystem
+    - "api.custom.com"     # Custom domain
+    - "*.internal.corp"    # Wildcard domain
+```
 
 ### Migration from Previous Versions
 
 The previous `strict:` mode has been removed. Network permissions now work as follows:
-- **No `network:` field**: Defaults to `network: defaults` (curated whitelist)
-- **`network: defaults`**: Curated whitelist of development domains
+- **No `network:` field**: Defaults to `network: defaults` (basic infrastructure only)
+- **`network: defaults`**: Basic infrastructure domains only (certificates, JSON schema, Ubuntu, etc.)
 - **`network: {}`**: No network access  
-- **`network: { allowed: [...] }`**: Restricted to listed domains only
+- **`network: { allowed: [...] }`**: Only listed domains/ecosystems are accessible
+
+**Important Change**: The `defaults` mode now includes **only basic infrastructure**, not all development tools. To access language-specific package managers, you must explicitly include the ecosystem identifiers like `python`, `node`, `java`, etc.
 
 
 ### Permission Modes

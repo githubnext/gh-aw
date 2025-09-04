@@ -23,11 +23,6 @@ tools:
     allowed: 
       - "fetch"
   
-  github:
-    allowed:
-      - "create_issue"
-      - "create_comment"
-
 engine: claude
 runs-on: ubuntu-latest
 ---
