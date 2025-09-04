@@ -301,6 +301,48 @@ func BuildNotFromFork() *ComparisonNode {
 	)
 }
 
+// BuildFromAllowedForks creates a condition to check if a pull request is from an allowed fork
+// Supports glob patterns like "org/*" and exact matches like "org/repo"
+func BuildFromAllowedForks(allowedForks []string) ConditionNode {
+	if len(allowedForks) == 0 {
+		return BuildNotFromFork()
+	}
+
+	var conditions []ConditionNode
+
+	// Always allow PRs from the same repository
+	conditions = append(conditions, BuildNotFromFork())
+
+	for _, pattern := range allowedForks {
+		if strings.HasSuffix(pattern, "/*") {
+			// Glob pattern: org/* matches org/anything
+			prefix := strings.TrimSuffix(pattern, "*")
+			condition := &FunctionCallNode{
+				FunctionName: "startsWith",
+				Arguments: []ConditionNode{
+					BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
+					BuildStringLiteral(prefix),
+				},
+			}
+			conditions = append(conditions, condition)
+		} else {
+			// Exact match: org/repo
+			condition := BuildEquals(
+				BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
+				BuildStringLiteral(pattern),
+			)
+			conditions = append(conditions, condition)
+		}
+	}
+
+	if len(conditions) == 1 {
+		return conditions[0]
+	}
+
+	// Use DisjunctionNode to combine all conditions with OR
+	return &DisjunctionNode{Terms: conditions}
+}
+
 // BuildEventTypeEquals creates a condition to check if the event type equals a specific value
 func BuildEventTypeEquals(eventType string) *ComparisonNode {
 	return BuildEquals(

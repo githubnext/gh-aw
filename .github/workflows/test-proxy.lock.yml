@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
     - main
+    # forks: [] # Fork filtering applied via job conditions
   workflow_dispatch: null
 
 permissions: {}
@@ -18,7 +19,15 @@ concurrency:
 run-name: "Test Proxy"
 
 jobs:
+  task:
+    if: (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task job condition barrier
+        run: echo "Task job executed - conditions satisfied"
+
   test-proxy:
+    needs: task
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:

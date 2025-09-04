@@ -743,6 +743,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
 
+	// Apply pull request fork filter if specified
+	c.applyPullRequestForkFilter(workflowData, result.Frontmatter)
+
 	// Compute allowed tools
 	workflowData.AllowedTools = c.computeAllowedTools(tools, workflowData.SafeOutputs)
 
@@ -808,20 +811,21 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	unquotedKey := key + ":"
 	yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
 
-	// Special handling for "on" section - comment out draft field from pull_request
+	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
-		yamlStr = c.commentOutDraftInOnSection(yamlStr)
+		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
 	}
 
 	return yamlStr
 }
 
-// commentOutDraftInOnSection comments out draft fields in pull_request sections within the YAML string
-// The draft field is processed separately by applyPullRequestDraftFilter and should be commented for documentation
-func (c *Compiler) commentOutDraftInOnSection(yamlStr string) string {
+// commentOutProcessedFieldsInOnSection comments out draft, fork, and forks fields in pull_request sections within the YAML string
+// These fields are processed separately by applyPullRequestDraftFilter and applyPullRequestForkFilter and should be commented for documentation
+func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	lines := strings.Split(yamlStr, "\n")
 	var result []string
 	inPullRequest := false
+	inForksArray := false
 
 	for _, line := range lines {
 		// Check if we're entering a pull_request section
@@ -836,11 +840,44 @@ func (c *Compiler) commentOutDraftInOnSection(yamlStr string) string {
 			// If line is not indented or is a new top-level key, we're out of pull_request
 			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
 				inPullRequest = false
+				inForksArray = false
 			}
 		}
 
-		// If we're in pull_request section and this line contains draft:, comment it out
-		if inPullRequest && strings.Contains(strings.TrimSpace(line), "draft:") {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Check if we're entering the forks array
+		if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
+			inForksArray = true
+		}
+
+		// Check if we're leaving the forks array by encountering another top-level field at the same level
+		if inForksArray && inPullRequest && strings.TrimSpace(line) != "" {
+			// Get the indentation of the current line
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+			// If this is a non-dash line at the same level as the forks field (4 spaces), we're out of the array
+			if lineIndent == 4 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "forks:") {
+				inForksArray = false
+			}
+		}
+
+		// Determine if we should comment out this line
+		shouldComment := false
+		var commentReason string
+
+		if inPullRequest && strings.Contains(trimmedLine, "draft:") {
+			shouldComment = true
+			commentReason = " # Draft filtering applied via job conditions"
+		} else if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
+			shouldComment = true
+			commentReason = " # Fork filtering applied via job conditions"
+		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
+			shouldComment = true
+			commentReason = " # Fork filtering applied via job conditions"
+		}
+
+		if shouldComment {
 			// Preserve the original indentation and comment out the line
 			indentation := ""
 			trimmed := strings.TrimLeft(line, " \t")
@@ -848,7 +885,7 @@ func (c *Compiler) commentOutDraftInOnSection(yamlStr string) string {
 				indentation = line[:len(line)-len(trimmed)]
 			}
 
-			commentedLine := indentation + "# " + trimmed + " # Draft filtering applied via job conditions"
+			commentedLine := indentation + "# " + trimmed + commentReason
 			result = append(result, commentedLine)
 		} else {
 			result = append(result, line)
@@ -1169,6 +1206,83 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 	// Build condition tree and render
 	existingCondition := strings.TrimPrefix(data.If, "if: ")
 	conditionTree := buildConditionTree(existingCondition, draftCondition.Render())
+	data.If = fmt.Sprintf("if: %s", conditionTree.Render())
+}
+
+// applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
+// Supports "forks: []string" with glob patterns
+func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter map[string]any) {
+	// Check if there's an "on" section in the frontmatter
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn {
+		return
+	}
+
+	// Check if "on" is an object (not a string)
+	onMap, isOnMap := onValue.(map[string]any)
+	if !isOnMap {
+		return
+	}
+
+	// Check if there's a pull_request section
+	prValue, hasPR := onMap["pull_request"]
+	if !hasPR {
+		return
+	}
+
+	// Check if pull_request is an object with fork settings
+	prMap, isPRMap := prValue.(map[string]any)
+	if !isPRMap {
+		return
+	}
+
+	// Check for "forks" field (string or array)
+	forksValue, hasForks := prMap["forks"]
+
+	if !hasForks {
+		return
+	}
+
+	// Convert forks value to []string, handling both string and array formats
+	var allowedForks []string
+
+	// Handle string format (e.g., forks: "*" or forks: "org/*")
+	if forksStr, isForksStr := forksValue.(string); isForksStr {
+		allowedForks = []string{forksStr}
+	} else if forksArray, isForksArray := forksValue.([]any); isForksArray {
+		// Handle array format (e.g., forks: ["*", "org/repo"])
+		for _, fork := range forksArray {
+			if forkStr, isForkStr := fork.(string); isForkStr {
+				allowedForks = append(allowedForks, forkStr)
+			}
+		}
+	} else {
+		// Invalid forks format, skip
+		return
+	}
+
+	// If "*" wildcard is present, skip fork filtering (allow all forks)
+	for _, pattern := range allowedForks {
+		if pattern == "*" {
+			return // No fork filtering needed
+		}
+	}
+
+	// Build condition for allowed forks with glob support
+	notPullRequestEvent := BuildNotEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("pull_request"),
+	)
+	allowedForksCondition := BuildFromAllowedForks(allowedForks)
+
+	forkCondition := &OrNode{
+		Left:  notPullRequestEvent,
+		Right: allowedForksCondition,
+	}
+
+	// Build condition tree and render
+	existingCondition := strings.TrimPrefix(data.If, "if: ")
+	conditionTree := buildConditionTree(existingCondition, forkCondition.Render())
 	data.If = fmt.Sprintf("if: %s", conditionTree.Render())
 }
 
