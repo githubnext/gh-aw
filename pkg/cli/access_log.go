@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 // AccessLogEntry represents a parsed squid access log entry
@@ -241,6 +242,15 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 	return aggregatedAnalysis, nil
 }
 
+// formatDomainWithEcosystem formats a domain with its ecosystem identifier if found
+func formatDomainWithEcosystem(domain string) string {
+	ecosystem := workflow.GetDomainEcosystem(domain)
+	if ecosystem != "" {
+		return fmt.Sprintf("%s (%s)", domain, ecosystem)
+	}
+	return domain
+}
+
 // displayAccessLogAnalysis displays analysis of access logs from all runs with improved formatting
 func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	if len(processedRuns) == 0 {
@@ -293,7 +303,7 @@ func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
 		}
 		sort.Strings(allowedList)
 		for _, domain := range allowedList {
-			fmt.Println(console.FormatListItem(domain))
+			fmt.Println(console.FormatListItem(formatDomainWithEcosystem(domain)))
 		}
 		fmt.Println()
 	}
@@ -307,7 +317,7 @@ func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
 		}
 		sort.Strings(deniedList)
 		for _, domain := range deniedList {
-			fmt.Println(console.FormatListItem(domain))
+			fmt.Println(console.FormatListItem(formatDomainWithEcosystem(domain)))
 		}
 		fmt.Println()
 	}

@@ -525,6 +525,59 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 	return expandedDomains
 }
 
+// GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found
+func GetDomainEcosystem(domain string) string {
+	// Check if domain matches any ecosystem
+	ecosystems := map[string]func() []string{
+		"defaults":       getDefaultAllowedDomains,
+		"containers":     getContainerDomains,
+		"dotnet":         getDotnetDomains,
+		"dart":           getDartDomains,
+		"github":         getGitHubDomains,
+		"go":             getGoDomains,
+		"terraform":      getTerraformDomains,
+		"haskell":        getHaskellDomains,
+		"java":           getJavaDomains,
+		"linux-distros":  getLinuxDistrosDomains,
+		"node":           getNodeDomains,
+		"perl":           getPerlDomains,
+		"php":            getPhpDomains,
+		"playwright":     getPlaywrightDomains,
+		"python":         getPythonDomains,
+		"ruby":           getRubyDomains,
+		"rust":           getRustDomains,
+		"swift":          getSwiftDomains,
+	}
+
+	// Check each ecosystem for domain match
+	for ecosystem, getDomainsFunc := range ecosystems {
+		domains := getDomainsFunc()
+		for _, ecosystemDomain := range domains {
+			if matchesDomain(domain, ecosystemDomain) {
+				return ecosystem
+			}
+		}
+	}
+
+	return "" // No ecosystem found
+}
+
+// matchesDomain checks if a domain matches a pattern (supports wildcards)
+func matchesDomain(domain, pattern string) bool {
+	// Exact match
+	if domain == pattern {
+		return true
+	}
+
+	// Wildcard match
+	if strings.HasPrefix(pattern, "*.") {
+		suffix := pattern[2:] // Remove "*."
+		return strings.HasSuffix(domain, "."+suffix) || domain == suffix
+	}
+
+	return false
+}
+
 // HasNetworkPermissions is deprecated - use ShouldEnforceNetworkPermissions instead
 // Kept for backwards compatibility but will be removed in future versions
 func HasNetworkPermissions(engineConfig *EngineConfig) bool {
