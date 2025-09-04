@@ -115,6 +115,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name               string
+	FrontmatterName    string // name field from frontmatter (for security report driver default)
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
@@ -144,13 +145,17 @@ type WorkflowData struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
-	CreateIssues       *CreateIssuesConfig       `yaml:"create-issue,omitempty"`
-	AddIssueComments   *AddIssueCommentsConfig   `yaml:"add-issue-comment,omitempty"`
-	CreatePullRequests *CreatePullRequestsConfig `yaml:"create-pull-request,omitempty"`
-	AddIssueLabels     *AddIssueLabelsConfig     `yaml:"add-issue-label,omitempty"`
-	UpdateIssues       *UpdateIssuesConfig       `yaml:"update-issue,omitempty"`
-	PushToBranch       *PushToBranchConfig       `yaml:"push-to-branch,omitempty"`
-	AllowedDomains     []string                  `yaml:"allowed-domains,omitempty"`
+	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
+	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
+	AddIssueComments                *AddIssueCommentsConfig                `yaml:"add-issue-comment,omitempty"`
+	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
+	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
+	CreateSecurityReports           *CreateSecurityReportsConfig           `yaml:"create-security-report,omitempty"`
+	AddIssueLabels                  *AddIssueLabelsConfig                  `yaml:"add-issue-label,omitempty"`
+	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
+	PushToBranch                    *PushToBranchConfig                    `yaml:"push-to-branch,omitempty"`
+	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
+	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -158,6 +163,13 @@ type CreateIssuesConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
 	Max         int      `yaml:"max,omitempty"` // Maximum number of issues to create
+}
+
+// CreateDiscussionsConfig holds configuration for creating GitHub discussions from agent output
+type CreateDiscussionsConfig struct {
+	TitlePrefix string `yaml:"title-prefix,omitempty"`
+	CategoryId  string `yaml:"category-id,omitempty"` // Discussion category ID
+	Max         int    `yaml:"max,omitempty"`         // Maximum number of discussions to create
 }
 
 // AddIssueCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddIssueCommentsConfig)
@@ -179,6 +191,18 @@ type CreatePullRequestsConfig struct {
 	Max         int      `yaml:"max,omitempty"`   // Maximum number of pull requests to create
 }
 
+// CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
+type CreatePullRequestReviewCommentsConfig struct {
+	Max  int    `yaml:"max,omitempty"`  // Maximum number of review comments to create (default: 1)
+	Side string `yaml:"side,omitempty"` // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+}
+
+// CreateSecurityReportsConfig holds configuration for creating security reports (SARIF format) from agent output
+type CreateSecurityReportsConfig struct {
+	Max    int    `yaml:"max,omitempty"`    // Maximum number of security findings to include (default: unlimited)
+	Driver string `yaml:"driver,omitempty"` // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
+}
+
 // AddIssueLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddIssueLabelsConfig struct {
 	Allowed  []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
@@ -198,6 +222,11 @@ type UpdateIssuesConfig struct {
 type PushToBranchConfig struct {
 	Branch string `yaml:"branch"`           // The branch to push changes to (defaults to "triggering")
 	Target string `yaml:"target,omitempty"` // Target for push-to-branch: like add-issue-comment but for pull requests
+}
+
+// MissingToolConfig holds configuration for reporting missing tools or functionality
+type MissingToolConfig struct {
+	Max int `yaml:"max,omitempty"` // Maximum number of missing tool reports (default: unlimited)
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -273,7 +302,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage("Generating GitHub Actions YAML..."))
 	}
-	yamlContent, err := c.generateYAML(workflowData)
+	yamlContent, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
 			Position: console.ErrorPosition{
@@ -598,6 +627,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:               workflowName,
+		FrontmatterName:    c.extractStringValue(result.Frontmatter, "name"),
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
@@ -722,6 +752,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
 
+	// Apply pull request fork filter if specified
+	c.applyPullRequestForkFilter(workflowData, result.Frontmatter)
+
 	// Compute allowed tools
 	workflowData.AllowedTools = c.computeAllowedTools(tools, workflowData.SafeOutputs)
 
@@ -787,20 +820,35 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	unquotedKey := key + ":"
 	yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
 
-	// Special handling for "on" section - comment out draft field from pull_request
+	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
-		yamlStr = c.commentOutDraftInOnSection(yamlStr)
+		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
 	}
 
 	return yamlStr
 }
 
-// commentOutDraftInOnSection comments out draft fields in pull_request sections within the YAML string
-// The draft field is processed separately by applyPullRequestDraftFilter and should be commented for documentation
-func (c *Compiler) commentOutDraftInOnSection(yamlStr string) string {
+// extractStringValue extracts a string value from the frontmatter map
+func (c *Compiler) extractStringValue(frontmatter map[string]any, key string) string {
+	value, exists := frontmatter[key]
+	if !exists {
+		return ""
+	}
+
+	if strValue, ok := value.(string); ok {
+		return strValue
+	}
+
+	return ""
+}
+
+// commentOutProcessedFieldsInOnSection comments out draft, fork, and forks fields in pull_request sections within the YAML string
+// These fields are processed separately by applyPullRequestDraftFilter and applyPullRequestForkFilter and should be commented for documentation
+func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	lines := strings.Split(yamlStr, "\n")
 	var result []string
 	inPullRequest := false
+	inForksArray := false
 
 	for _, line := range lines {
 		// Check if we're entering a pull_request section
@@ -815,11 +863,44 @@ func (c *Compiler) commentOutDraftInOnSection(yamlStr string) string {
 			// If line is not indented or is a new top-level key, we're out of pull_request
 			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
 				inPullRequest = false
+				inForksArray = false
 			}
 		}
 
-		// If we're in pull_request section and this line contains draft:, comment it out
-		if inPullRequest && strings.Contains(strings.TrimSpace(line), "draft:") {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Check if we're entering the forks array
+		if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
+			inForksArray = true
+		}
+
+		// Check if we're leaving the forks array by encountering another top-level field at the same level
+		if inForksArray && inPullRequest && strings.TrimSpace(line) != "" {
+			// Get the indentation of the current line
+			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+			// If this is a non-dash line at the same level as the forks field (4 spaces), we're out of the array
+			if lineIndent == 4 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "forks:") {
+				inForksArray = false
+			}
+		}
+
+		// Determine if we should comment out this line
+		shouldComment := false
+		var commentReason string
+
+		if inPullRequest && strings.Contains(trimmedLine, "draft:") {
+			shouldComment = true
+			commentReason = " # Draft filtering applied via job conditions"
+		} else if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
+			shouldComment = true
+			commentReason = " # Fork filtering applied via job conditions"
+		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
+			shouldComment = true
+			commentReason = " # Fork filtering applied via job conditions"
+		}
+
+		if shouldComment {
 			// Preserve the original indentation and comment out the line
 			indentation := ""
 			trimmed := strings.TrimLeft(line, " \t")
@@ -827,7 +908,7 @@ func (c *Compiler) commentOutDraftInOnSection(yamlStr string) string {
 				indentation = line[:len(line)-len(trimmed)]
 			}
 
-			commentedLine := indentation + "# " + trimmed + " # Draft filtering applied via job conditions"
+			commentedLine := indentation + "# " + trimmed + commentReason
 			result = append(result, commentedLine)
 		} else {
 			result = append(result, line)
@@ -1148,6 +1229,83 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 	// Build condition tree and render
 	existingCondition := strings.TrimPrefix(data.If, "if: ")
 	conditionTree := buildConditionTree(existingCondition, draftCondition.Render())
+	data.If = fmt.Sprintf("if: %s", conditionTree.Render())
+}
+
+// applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
+// Supports "forks: []string" with glob patterns
+func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter map[string]any) {
+	// Check if there's an "on" section in the frontmatter
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn {
+		return
+	}
+
+	// Check if "on" is an object (not a string)
+	onMap, isOnMap := onValue.(map[string]any)
+	if !isOnMap {
+		return
+	}
+
+	// Check if there's a pull_request section
+	prValue, hasPR := onMap["pull_request"]
+	if !hasPR {
+		return
+	}
+
+	// Check if pull_request is an object with fork settings
+	prMap, isPRMap := prValue.(map[string]any)
+	if !isPRMap {
+		return
+	}
+
+	// Check for "forks" field (string or array)
+	forksValue, hasForks := prMap["forks"]
+
+	if !hasForks {
+		return
+	}
+
+	// Convert forks value to []string, handling both string and array formats
+	var allowedForks []string
+
+	// Handle string format (e.g., forks: "*" or forks: "org/*")
+	if forksStr, isForksStr := forksValue.(string); isForksStr {
+		allowedForks = []string{forksStr}
+	} else if forksArray, isForksArray := forksValue.([]any); isForksArray {
+		// Handle array format (e.g., forks: ["*", "org/repo"])
+		for _, fork := range forksArray {
+			if forkStr, isForkStr := fork.(string); isForkStr {
+				allowedForks = append(allowedForks, forkStr)
+			}
+		}
+	} else {
+		// Invalid forks format, skip
+		return
+	}
+
+	// If "*" wildcard is present, skip fork filtering (allow all forks)
+	for _, pattern := range allowedForks {
+		if pattern == "*" {
+			return // No fork filtering needed
+		}
+	}
+
+	// Build condition for allowed forks with glob support
+	notPullRequestEvent := BuildNotEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("pull_request"),
+	)
+	allowedForksCondition := BuildFromAllowedForks(allowedForks)
+
+	forkCondition := &OrNode{
+		Left:  notPullRequestEvent,
+		Right: allowedForksCondition,
+	}
+
+	// Build condition tree and render
+	existingCondition := strings.TrimPrefix(data.If, "if: ")
+	conditionTree := buildConditionTree(existingCondition, forkCondition.Render())
 	data.If = fmt.Sprintf("if: %s", conditionTree.Render())
 }
 
@@ -1597,12 +1755,12 @@ func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
 }
 
 // generateYAML generates the complete GitHub Actions YAML content
-func (c *Compiler) generateYAML(data *WorkflowData) (string, error) {
+func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
 	// Reset job manager for this compilation
 	c.jobManager = NewJobManager()
 
 	// Build all jobs
-	if err := c.buildJobs(data); err != nil {
+	if err := c.buildJobs(data, markdownPath); err != nil {
 		return "", fmt.Errorf("failed to build jobs: %w", err)
 	}
 
@@ -1659,7 +1817,7 @@ func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
-func (c *Compiler) buildJobs(data *WorkflowData) error {
+func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Generate job name from workflow name
 	jobName := c.generateJobName(data.Name)
 
@@ -1708,6 +1866,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 			}
 		}
 
+		// Build create_discussion job if output.create_discussion is configured
+		if data.SafeOutputs.CreateDiscussions != nil {
+			createDiscussionJob, err := c.buildCreateOutputDiscussionJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build create_discussion job: %w", err)
+			}
+			if err := c.jobManager.AddJob(createDiscussionJob); err != nil {
+				return fmt.Errorf("failed to add create_discussion job: %w", err)
+			}
+		}
+
 		// Build create_issue_comment job if output.add-issue-comment is configured
 		if data.SafeOutputs.AddIssueComments != nil {
 			createCommentJob, err := c.buildCreateOutputAddIssueCommentJob(data, jobName)
@@ -1716,6 +1885,30 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 			}
 			if err := c.jobManager.AddJob(createCommentJob); err != nil {
 				return fmt.Errorf("failed to add create_issue_comment job: %w", err)
+			}
+		}
+
+		// Build create_pr_review_comment job if output.create-pull-request-review-comment is configured
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			createPRReviewCommentJob, err := c.buildCreateOutputPullRequestReviewCommentJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build create_pr_review_comment job: %w", err)
+			}
+			if err := c.jobManager.AddJob(createPRReviewCommentJob); err != nil {
+				return fmt.Errorf("failed to add create_pr_review_comment job: %w", err)
+			}
+		}
+
+		// Build create_security_report job if output.create-security-report is configured
+		if data.SafeOutputs.CreateSecurityReports != nil {
+			// Extract the workflow filename without extension for rule ID prefix
+			workflowFilename := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+			createSecurityReportJob, err := c.buildCreateOutputSecurityReportJob(data, jobName, workflowFilename)
+			if err != nil {
+				return fmt.Errorf("failed to build create_security_report job: %w", err)
+			}
+			if err := c.jobManager.AddJob(createSecurityReportJob); err != nil {
+				return fmt.Errorf("failed to add create_security_report job: %w", err)
 			}
 		}
 
@@ -1760,6 +1953,17 @@ func (c *Compiler) buildJobs(data *WorkflowData) error {
 			}
 			if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
 				return fmt.Errorf("failed to add push_to_branch job: %w", err)
+			}
+		}
+
+		// Build missing_tool job (always enabled when SafeOutputs exists)
+		if data.SafeOutputs.MissingTool != nil {
+			missingToolJob, err := c.buildCreateOutputMissingToolJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build missing_tool job: %w", err)
+			}
+			if err := c.jobManager.AddJob(missingToolJob); err != nil {
+				return fmt.Errorf("failed to add missing_tool job: %w", err)
 			}
 		}
 	}
@@ -1953,6 +2157,65 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	return job, nil
 }
 
+// buildCreateOutputDiscussionJob creates the create_discussion job
+func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {
+		return nil, fmt.Errorf("safe-outputs.create-discussion configuration is required")
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create Output Discussion\n")
+	steps = append(steps, "        id: create_discussion\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
+	}
+	if data.SafeOutputs.CreateDiscussions.CategoryId != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY_ID: %q\n", data.SafeOutputs.CreateDiscussions.CategoryId))
+	}
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	formattedScript := FormatJavaScriptForYAML(createDiscussionScript)
+	steps = append(steps, formattedScript...)
+
+	outputs := map[string]string{
+		"discussion_number": "${{ steps.create_discussion.outputs.discussion_number }}",
+		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
+	}
+
+	// Determine the job condition based on command configuration
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+	} else {
+		jobCondition = "" // No conditional execution
+	}
+
+	job := &Job{
+		Name:           "create_discussion",
+		If:             jobCondition,
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      discussions: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
 // buildCreateOutputAddIssueCommentJob creates the create_issue_comment job
 func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddIssueComments == nil {
@@ -2022,6 +2285,158 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
+func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequestReviewComments == nil {
+		return nil, fmt.Errorf("safe-outputs.create-pull-request-review-comment configuration is required")
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create PR Review Comment\n")
+	steps = append(steps, "        id: create_pr_review_comment\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Pass the side configuration
+	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
+	}
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	formattedScript := FormatJavaScriptForYAML(createPRReviewCommentScript)
+	steps = append(steps, formattedScript...)
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"review_comment_id":  "${{ steps.create_pr_review_comment.outputs.review_comment_id }}",
+		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
+	}
+
+	// Only run in pull request context
+	baseCondition := "github.event.pull_request.number"
+
+	// If this is a command workflow, combine the command trigger condition with the base condition
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+
+		// Combine command condition with base condition using AND
+		jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+	} else {
+		// No command trigger, just use the base condition
+		jobCondition = fmt.Sprintf("if: %s", baseCondition)
+	}
+
+	job := &Job{
+		Name:           "create_pr_review_comment",
+		If:             jobCondition,
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      pull-requests: write",
+		TimeoutMinutes: 10, // 10-minute timeout as required
+		Steps:          steps,
+		Outputs:        outputs,
+		Depends:        []string{mainJobName}, // Depend on the main workflow job
+	}
+
+	return job, nil
+}
+
+// buildCreateOutputSecurityReportJob creates the create_security_report job
+func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.CreateSecurityReports == nil {
+		return nil, fmt.Errorf("safe-outputs.create-security-report configuration is required")
+	}
+
+	var steps []string
+	steps = append(steps, "      - name: Create Security Report\n")
+	steps = append(steps, "        id: create_security_report\n")
+	steps = append(steps, "        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	steps = append(steps, "        env:\n")
+	// Pass the agent output content from the main job
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Pass the max configuration
+	if data.SafeOutputs.CreateSecurityReports.Max > 0 {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateSecurityReports.Max))
+	}
+	// Pass the driver configuration, defaulting to frontmatter name
+	driverName := data.SafeOutputs.CreateSecurityReports.Driver
+	if driverName == "" {
+		if data.FrontmatterName != "" {
+			driverName = data.FrontmatterName
+		} else {
+			driverName = data.Name // fallback to H1 header name
+		}
+	}
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_DRIVER: %s\n", driverName))
+	// Pass the workflow filename for rule ID prefix
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add each line of the script with proper indentation
+	formattedScript := FormatJavaScriptForYAML(createSecurityReportScript)
+	steps = append(steps, formattedScript...)
+
+	// Add step to upload SARIF artifact
+	steps = append(steps, "      - name: Upload SARIF artifact\n")
+	steps = append(steps, "        if: steps.create_security_report.outputs.sarif_file\n")
+	steps = append(steps, "        uses: actions/upload-artifact@v4\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          name: security-report.sarif\n")
+	steps = append(steps, "          path: ${{ steps.create_security_report.outputs.sarif_file }}\n")
+
+	// Add step to upload SARIF to GitHub Code Scanning
+	steps = append(steps, "      - name: Upload SARIF to GitHub Security\n")
+	steps = append(steps, "        if: steps.create_security_report.outputs.sarif_file\n")
+	steps = append(steps, "        uses: github/codeql-action/upload-sarif@v3\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}\n")
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"sarif_file":        "${{ steps.create_security_report.outputs.sarif_file }}",
+		"findings_count":    "${{ steps.create_security_report.outputs.findings_count }}",
+		"artifact_uploaded": "${{ steps.create_security_report.outputs.artifact_uploaded }}",
+		"codeql_uploaded":   "${{ steps.create_security_report.outputs.codeql_uploaded }}",
+	}
+
+	// Build job condition - security reports can run in any context unlike PR review comments
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+	} else {
+		// No specific condition needed - security reports can run anytime
+		jobCondition = ""
+	}
+
+	job := &Job{
+		Name:           "create_security_report",
+		If:             jobCondition,
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions:\n      contents: read\n      security-events: write\n      actions: read", // Need security-events:write for SARIF upload
+		TimeoutMinutes: 10,                                                                                      // 10-minute timeout
 		Steps:          steps,
 		Outputs:        outputs,
 		Depends:        []string{mainJobName}, // Depend on the main workflow job
@@ -2599,7 +3014,15 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 				yaml.WriteString(", ")
 			}
 			yaml.WriteString("Pushing Changes to Branch")
+			written = true
 		}
+
+		// Missing-tool is always available
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Reporting Missing Tools or Functionality")
+
 		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.\n")
@@ -2707,6 +3130,22 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 			yaml.WriteString("          \n")
 		}
 
+		// Missing-tool instructions are only included when configured
+		if data.SafeOutputs.MissingTool != nil {
+			yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          If you need to use a tool or functionality that is not available to complete your task:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"missing-tool\", \"tool\": \"tool-name\", \"reason\": \"Why this tool is needed\", \"alternatives\": \"Suggested alternatives or workarounds\"}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. The `tool` field should specify the name or type of missing functionality\n")
+			yaml.WriteString("          3. The `reason` field should explain why this tool/functionality is required to complete the task\n")
+			yaml.WriteString("          4. The `alternatives` field is optional but can suggest workarounds or alternative approaches\n")
+			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          \n")
+		}
+
 		yaml.WriteString("          **Example JSONL file content:**\n")
 		yaml.WriteString("          ```\n")
 
@@ -2730,6 +3169,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, eng
 		}
 		if data.SafeOutputs.PushToBranch != nil {
 			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Update documentation with latest changes\"}\n")
+			exampleCount++
+		}
+
+		// Include missing-tool example only when configured
+		if data.SafeOutputs.MissingTool != nil {
+			yaml.WriteString("          {\"type\": \"missing-tool\", \"tool\": \"docker\", \"reason\": \"Need Docker to build container images\", \"alternatives\": \"Could use GitHub Actions build instead\"}\n")
 			exampleCount++
 		}
 
@@ -2790,14 +3235,22 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
+	var config *SafeOutputsConfig
+
 	if output, exists := frontmatter["safe-outputs"]; exists {
 		if outputMap, ok := output.(map[string]any); ok {
-			config := &SafeOutputsConfig{}
+			config = &SafeOutputsConfig{}
 
 			// Handle create-issue
 			issuesConfig := c.parseIssuesConfig(outputMap)
 			if issuesConfig != nil {
 				config.CreateIssues = issuesConfig
+			}
+
+			// Handle create-discussion
+			discussionsConfig := c.parseDiscussionsConfig(outputMap)
+			if discussionsConfig != nil {
+				config.CreateDiscussions = discussionsConfig
 			}
 
 			// Handle add-issue-comment
@@ -2810,6 +3263,18 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			pullRequestsConfig := c.parsePullRequestsConfig(outputMap)
 			if pullRequestsConfig != nil {
 				config.CreatePullRequests = pullRequestsConfig
+			}
+
+			// Handle create-pull-request-review-comment
+			prReviewCommentsConfig := c.parsePullRequestReviewCommentsConfig(outputMap)
+			if prReviewCommentsConfig != nil {
+				config.CreatePullRequestReviewComments = prReviewCommentsConfig
+			}
+
+			// Handle create-security-report
+			securityReportsConfig := c.parseSecurityReportsConfig(outputMap)
+			if securityReportsConfig != nil {
+				config.CreateSecurityReports = securityReportsConfig
 			}
 
 			// Parse allowed-domains configuration
@@ -2886,10 +3351,15 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.PushToBranch = pushToBranchConfig
 			}
 
-			return config
+			// Handle missing-tool (parse configuration if present)
+			missingToolConfig := c.parseMissingToolConfig(outputMap)
+			if missingToolConfig != nil {
+				config.MissingTool = missingToolConfig
+			}
 		}
 	}
-	return nil
+
+	return config
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -2927,6 +3397,40 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		}
 
 		return issuesConfig
+	}
+
+	return nil
+}
+
+// parseDiscussionsConfig handles create-discussion configuration
+func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
+	if configData, exists := outputMap["create-discussion"]; exists {
+		discussionsConfig := &CreateDiscussionsConfig{Max: 1} // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse title-prefix
+			if titlePrefix, exists := configMap["title-prefix"]; exists {
+				if titlePrefixStr, ok := titlePrefix.(string); ok {
+					discussionsConfig.TitlePrefix = titlePrefixStr
+				}
+			}
+
+			// Parse category-id
+			if categoryId, exists := configMap["category-id"]; exists {
+				if categoryIdStr, ok := categoryId.(string); ok {
+					discussionsConfig.CategoryId = categoryIdStr
+				}
+			}
+
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := c.parseIntValue(max); ok {
+					discussionsConfig.Max = maxInt
+				}
+			}
+		}
+
+		return discussionsConfig
 	}
 
 	return nil
@@ -3002,6 +3506,65 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	}
 
 	return pullRequestsConfig
+}
+
+// parsePullRequestReviewCommentsConfig handles create-pull-request-review-comment configuration
+func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any) *CreatePullRequestReviewCommentsConfig {
+	if _, exists := outputMap["create-pull-request-review-comment"]; !exists {
+		return nil
+	}
+
+	configData := outputMap["create-pull-request-review-comment"]
+	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Max: 10, Side: "RIGHT"} // Default max is 10, side is RIGHT
+
+	if configMap, ok := configData.(map[string]any); ok {
+		// Parse max
+		if max, exists := configMap["max"]; exists {
+			if maxInt, ok := c.parseIntValue(max); ok {
+				prReviewCommentsConfig.Max = maxInt
+			}
+		}
+
+		// Parse side
+		if side, exists := configMap["side"]; exists {
+			if sideStr, ok := side.(string); ok {
+				// Validate side value
+				if sideStr == "LEFT" || sideStr == "RIGHT" {
+					prReviewCommentsConfig.Side = sideStr
+				}
+			}
+		}
+	}
+
+	return prReviewCommentsConfig
+}
+
+// parseSecurityReportsConfig handles create-security-report configuration
+func (c *Compiler) parseSecurityReportsConfig(outputMap map[string]any) *CreateSecurityReportsConfig {
+	if _, exists := outputMap["create-security-report"]; !exists {
+		return nil
+	}
+
+	configData := outputMap["create-security-report"]
+	securityReportsConfig := &CreateSecurityReportsConfig{Max: 0} // Default max is 0 (unlimited)
+
+	if configMap, ok := configData.(map[string]any); ok {
+		// Parse max
+		if max, exists := configMap["max"]; exists {
+			if maxInt, ok := c.parseIntValue(max); ok {
+				securityReportsConfig.Max = maxInt
+			}
+		}
+
+		// Parse driver
+		if driver, exists := configMap["driver"]; exists {
+			if driverStr, ok := driver.(string); ok {
+				securityReportsConfig.Driver = driverStr
+			}
+		}
+	}
+
+	return securityReportsConfig
 }
 
 // parseIntValue safely parses various numeric types to int
@@ -3093,6 +3656,48 @@ func (c *Compiler) parsePushToBranchConfig(outputMap map[string]any) *PushToBran
 		}
 
 		return pushToBranchConfig
+	}
+
+	return nil
+}
+
+// parseMissingToolConfig handles missing-tool configuration
+func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
+	if configData, exists := outputMap["missing-tool"]; exists {
+		missingToolConfig := &MissingToolConfig{} // Default: no max limit
+
+		// Handle the case where configData is nil (missing-tool: with no value)
+		if configData == nil {
+			return missingToolConfig
+		}
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max (optional)
+			if max, exists := configMap["max"]; exists {
+				// Handle different numeric types that YAML parsers might return
+				var maxInt int
+				var validMax bool
+				switch v := max.(type) {
+				case int:
+					maxInt = v
+					validMax = true
+				case int64:
+					maxInt = int(v)
+					validMax = true
+				case uint64:
+					maxInt = int(v)
+					validMax = true
+				case float64:
+					maxInt = int(v)
+					validMax = true
+				}
+				if validMax {
+					missingToolConfig.Max = maxInt
+				}
+			}
+		}
+
+		return missingToolConfig
 	}
 
 	return nil
@@ -3272,10 +3877,36 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				}
 			}
 		}
-		// Add environment section to pass GITHUB_AW_SAFE_OUTPUTS to the action only if safe-outputs feature is used
-		if data.SafeOutputs != nil {
+		// Add environment section for safe-outputs and custom env vars
+		hasEnvSection := data.SafeOutputs != nil || (data.EngineConfig != nil && len(data.EngineConfig.Env) > 0)
+		if hasEnvSection {
 			yaml.WriteString("        env:\n")
-			yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+
+			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
+			if data.SafeOutputs != nil {
+				yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+			}
+
+			// Add custom environment variables from engine config
+			if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 {
+				for _, envVar := range data.EngineConfig.Env {
+					// Parse environment variable in format "KEY=value" or "KEY: value"
+					parts := strings.SplitN(envVar, "=", 2)
+					if len(parts) == 2 {
+						key := strings.TrimSpace(parts[0])
+						value := strings.TrimSpace(parts[1])
+						fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+					} else {
+						// Try "KEY: value" format
+						parts = strings.SplitN(envVar, ":", 2)
+						if len(parts) == 2 {
+							key := strings.TrimSpace(parts[0])
+							value := strings.TrimSpace(parts[1])
+							fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+						}
+					}
+				}
+			}
 		}
 		yaml.WriteString("      - name: Capture Agentic Action logs\n")
 		yaml.WriteString("        if: always()\n")
@@ -3411,6 +4042,15 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 				pushToBranchConfig["target"] = data.SafeOutputs.PushToBranch.Target
 			}
 			safeOutputsConfig["push-to-branch"] = pushToBranchConfig
+		}
+		if data.SafeOutputs.MissingTool != nil {
+			missingToolConfig := map[string]interface{}{
+				"enabled": true,
+			}
+			if data.SafeOutputs.MissingTool.Max > 0 {
+				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			}
+			safeOutputsConfig["missing-tool"] = missingToolConfig
 		}
 
 		// Convert to JSON string for environment variable

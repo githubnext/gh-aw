@@ -10,6 +10,7 @@ type EngineConfig struct {
 	Version  string
 	Model    string
 	MaxTurns string
+	Env      map[string]string
 }
 
 // NetworkPermissions represents network access permissions
@@ -65,6 +66,18 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'env' field (object/map of strings)
+			if env, hasEnv := engineObj["env"]; hasEnv {
+				if envMap, ok := env.(map[string]any); ok {
+					config.Env = make(map[string]string)
+					for key, value := range envMap {
+						if valueStr, ok := value.(string); ok {
+							config.Env[key] = valueStr
+						}
+					}
 				}
 			}
 

@@ -144,6 +144,65 @@ func TestGetAllowedDomains(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("permissions with 'defaults' in allowed list", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"defaults", "good.com"},
+		}
+		domains := GetAllowedDomains(permissions)
+
+		// Should have all default domains plus "good.com"
+		defaultDomains := getDefaultAllowedDomains()
+		expectedTotal := len(defaultDomains) + 1
+
+		if len(domains) != expectedTotal {
+			t.Fatalf("Expected %d domains (defaults + good.com), got %d", expectedTotal, len(domains))
+		}
+
+		// Check that all default domains are included
+		defaultsFound := 0
+		goodComFound := false
+
+		for _, domain := range domains {
+			if domain == "good.com" {
+				goodComFound = true
+			}
+			// Check if this domain is in the defaults list
+			for _, defaultDomain := range defaultDomains {
+				if domain == defaultDomain {
+					defaultsFound++
+					break
+				}
+			}
+		}
+
+		if defaultsFound != len(defaultDomains) {
+			t.Errorf("Expected all %d default domains to be included, found %d", len(defaultDomains), defaultsFound)
+		}
+
+		if !goodComFound {
+			t.Error("Expected 'good.com' to be included in the allowed domains")
+		}
+	})
+
+	t.Run("permissions with only 'defaults' in allowed list", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"defaults"},
+		}
+		domains := GetAllowedDomains(permissions)
+		defaultDomains := getDefaultAllowedDomains()
+
+		if len(domains) != len(defaultDomains) {
+			t.Fatalf("Expected %d domains (just defaults), got %d", len(defaultDomains), len(domains))
+		}
+
+		// Check that all default domains are included
+		for i, defaultDomain := range defaultDomains {
+			if domains[i] != defaultDomain {
+				t.Errorf("Expected domain %d to be '%s', got '%s'", i, defaultDomain, domains[i])
+			}
+		}
+	})
 }
 
 func TestDeprecatedHasNetworkPermissions(t *testing.T) {

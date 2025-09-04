@@ -208,10 +208,17 @@ func buildReactionCondition() ConditionNode {
 	var terms []ConditionNode
 
 	terms = append(terms, BuildEventTypeEquals("issues"))
-	terms = append(terms, BuildEventTypeEquals("pull_request"))
 	terms = append(terms, BuildEventTypeEquals("issue_comment"))
 	terms = append(terms, BuildEventTypeEquals("pull_request_comment"))
 	terms = append(terms, BuildEventTypeEquals("pull_request_review_comment"))
+
+	// For pull_request events, we need to ensure it's not from a forked repository
+	// since forked repositories have read-only permissions and cannot add reactions
+	pullRequestCondition := &AndNode{
+		Left:  BuildEventTypeEquals("pull_request"),
+		Right: BuildNotFromFork(),
+	}
+	terms = append(terms, pullRequestCondition)
 
 	// Use DisjunctionNode to avoid deep nesting
 	return &DisjunctionNode{Terms: terms}
@@ -283,6 +290,57 @@ func BuildActionEquals(action string) *ComparisonNode {
 		BuildPropertyAccess("github.event.action"),
 		BuildStringLiteral(action),
 	)
+}
+
+// BuildNotFromFork creates a condition to check that a pull request is not from a forked repository
+// This prevents the job from running on forked PRs where write permissions are not available
+func BuildNotFromFork() *ComparisonNode {
+	return BuildEquals(
+		BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
+		BuildPropertyAccess("github.repository"),
+	)
+}
+
+// BuildFromAllowedForks creates a condition to check if a pull request is from an allowed fork
+// Supports glob patterns like "org/*" and exact matches like "org/repo"
+func BuildFromAllowedForks(allowedForks []string) ConditionNode {
+	if len(allowedForks) == 0 {
+		return BuildNotFromFork()
+	}
+
+	var conditions []ConditionNode
+
+	// Always allow PRs from the same repository
+	conditions = append(conditions, BuildNotFromFork())
+
+	for _, pattern := range allowedForks {
+		if strings.HasSuffix(pattern, "/*") {
+			// Glob pattern: org/* matches org/anything
+			prefix := strings.TrimSuffix(pattern, "*")
+			condition := &FunctionCallNode{
+				FunctionName: "startsWith",
+				Arguments: []ConditionNode{
+					BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
+					BuildStringLiteral(prefix),
+				},
+			}
+			conditions = append(conditions, condition)
+		} else {
+			// Exact match: org/repo
+			condition := BuildEquals(
+				BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
+				BuildStringLiteral(pattern),
+			)
+			conditions = append(conditions, condition)
+		}
+	}
+
+	if len(conditions) == 1 {
+		return conditions[0]
+	}
+
+	// Use DisjunctionNode to combine all conditions with OR
+	return &DisjunctionNode{Terms: conditions}
 }
 
 // BuildEventTypeEquals creates a condition to check if the event type equals a specific value

@@ -1,21 +1,32 @@
 async function main() {
-  // Read inputs from environment variables  
-  const reaction = process.env.GITHUB_AW_REACTION || 'eyes';
+  // Read inputs from environment variables
+  const reaction = process.env.GITHUB_AW_REACTION || "eyes";
   const alias = process.env.GITHUB_AW_ALIAS; // Only present for alias workflows
   const runId = context.runId;
-  const runUrl = context.payload.repository 
+  const runUrl = context.payload.repository
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
     : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-  console.log('Reaction type:', reaction);
-  console.log('Alias name:', alias || 'none');
-  console.log('Run ID:', runId);
-  console.log('Run URL:', runUrl);
+  console.log("Reaction type:", reaction);
+  console.log("Alias name:", alias || "none");
+  console.log("Run ID:", runId);
+  console.log("Run URL:", runUrl);
 
   // Validate reaction type
-  const validReactions = ['+1', '-1', 'laugh', 'confused', 'heart', 'hooray', 'rocket', 'eyes'];
+  const validReactions = [
+    "+1",
+    "-1",
+    "laugh",
+    "confused",
+    "heart",
+    "hooray",
+    "rocket",
+    "eyes",
+  ];
   if (!validReactions.includes(reaction)) {
-    core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(', ')}`);
+    core.setFailed(
+      `Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`
+    );
     return;
   }
 
@@ -29,10 +40,10 @@ async function main() {
 
   try {
     switch (eventName) {
-      case 'issues':
+      case "issues":
         const issueNumber = context.payload?.issue?.number;
         if (!issueNumber) {
-          core.setFailed('Issue number not found in event payload');
+          core.setFailed("Issue number not found in event payload");
           return;
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
@@ -40,10 +51,10 @@ async function main() {
         shouldEditComment = false;
         break;
 
-      case 'issue_comment':
+      case "issue_comment":
         const commentId = context.payload?.comment?.id;
         if (!commentId) {
-          core.setFailed('Comment ID not found in event payload');
+          core.setFailed("Comment ID not found in event payload");
           return;
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
@@ -52,10 +63,10 @@ async function main() {
         shouldEditComment = alias ? true : false;
         break;
 
-      case 'pull_request':
+      case "pull_request":
         const prNumber = context.payload?.pull_request?.number;
         if (!prNumber) {
-          core.setFailed('Pull request number not found in event payload');
+          core.setFailed("Pull request number not found in event payload");
           return;
         }
         // PRs are "issues" for the reactions endpoint
@@ -64,10 +75,10 @@ async function main() {
         shouldEditComment = false;
         break;
 
-      case 'pull_request_review_comment':
+      case "pull_request_review_comment":
         const reviewCommentId = context.payload?.comment?.id;
         if (!reviewCommentId) {
-          core.setFailed('Review comment ID not found in event payload');
+          core.setFailed("Review comment ID not found in event payload");
           return;
         }
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
@@ -81,27 +92,30 @@ async function main() {
         return;
     }
 
-    console.log('Reaction API endpoint:', reactionEndpoint);
+    console.log("Reaction API endpoint:", reactionEndpoint);
 
     // Add reaction first
     await addReaction(reactionEndpoint, reaction);
 
     // Then edit comment if applicable and if it's a comment event
     if (shouldEditComment && commentUpdateEndpoint) {
-      console.log('Comment update endpoint:', commentUpdateEndpoint);
+      console.log("Comment update endpoint:", commentUpdateEndpoint);
       await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
     } else {
       if (!alias && commentUpdateEndpoint) {
-        console.log('Skipping comment edit - only available for alias workflows');
+        console.log(
+          "Skipping comment edit - only available for alias workflows"
+        );
       } else {
-        console.log('Skipping comment edit for event type:', eventName);
+        console.log("Skipping comment edit for event type:", eventName);
       }
     }
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Failed to process reaction and comment edit:', errorMessage);
-    core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
+    console.error("Failed to process reaction and comment edit:", errorMessage);
+    core.setFailed(
+      `Failed to process reaction and comment edit: ${errorMessage}`
+    );
   }
 }
 
@@ -111,20 +125,20 @@ async function main() {
  * @param {string} reaction - The reaction type to add
  */
 async function addReaction(endpoint, reaction) {
-  const response = await github.request('POST ' + endpoint, {
+  const response = await github.request("POST " + endpoint, {
     content: reaction,
     headers: {
-      'Accept': 'application/vnd.github+json'
-    }
+      Accept: "application/vnd.github+json",
+    },
   });
 
   const reactionId = response.data?.id;
   if (reactionId) {
     console.log(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-    core.setOutput('reaction-id', reactionId.toString());
+    core.setOutput("reaction-id", reactionId.toString());
   } else {
     console.log(`Successfully added reaction: ${reaction}`);
-    core.setOutput('reaction-id', '');
+    core.setOutput("reaction-id", "");
   }
 }
 
@@ -136,39 +150,42 @@ async function addReaction(endpoint, reaction) {
 async function editCommentWithWorkflowLink(endpoint, runUrl) {
   try {
     // First, get the current comment content
-    const getResponse = await github.request('GET ' + endpoint, {
+    const getResponse = await github.request("GET " + endpoint, {
       headers: {
-        'Accept': 'application/vnd.github+json'
-      }
+        Accept: "application/vnd.github+json",
+      },
     });
 
-    const originalBody = getResponse.data.body || '';
+    const originalBody = getResponse.data.body || "";
     const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
-    
+
     // Check if we've already added a workflow link to avoid duplicates
-    if (originalBody.includes('*🤖 [Workflow run](')) {
-      console.log('Comment already contains a workflow run link, skipping edit');
+    if (originalBody.includes("*🤖 [Workflow run](")) {
+      console.log(
+        "Comment already contains a workflow run link, skipping edit"
+      );
       return;
     }
 
     const updatedBody = originalBody + workflowLinkText;
 
     // Update the comment
-    const updateResponse = await github.request('PATCH ' + endpoint, {
+    const updateResponse = await github.request("PATCH " + endpoint, {
       body: updatedBody,
       headers: {
-        'Accept': 'application/vnd.github+json'
-      }
+        Accept: "application/vnd.github+json",
+      },
     });
 
     console.log(`Successfully updated comment with workflow link`);
     console.log(`Comment ID: ${updateResponse.data.id}`);
-    
   } catch (error) {
     // Don't fail the entire job if comment editing fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn('Failed to edit comment with workflow link:', errorMessage);
-    console.warn('This is not critical - the reaction was still added successfully');
+    console.warn("Failed to edit comment with workflow link:", errorMessage);
+    console.warn(
+      "This is not critical - the reaction was still added successfully"
+    );
   }
 }
 

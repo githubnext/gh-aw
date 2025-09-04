@@ -19,7 +19,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
-- `network`: Network access control for AI engines (supports `defaults`, `{}`, or `{ allowed: [...] }`)
+- `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
 - `safe-outputs`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
@@ -164,6 +164,10 @@ engine:
   version: beta                     # Optional: version of the action
   model: claude-3-5-sonnet-20241022 # Optional: specific LLM model
   max-turns: 5                      # Optional: maximum chat iterations per run
+  env:                              # Optional: custom environment variables
+    AWS_REGION: us-west-2
+    CUSTOM_API_ENDPOINT: https://api.example.com
+    DEBUG_MODE: "true"
 ```
 
 **Fields:**
@@ -171,6 +175,7 @@ engine:
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
+- **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
@@ -193,6 +198,36 @@ engine:
 2. Engine stops iterating when the turn limit is reached
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
+
+**Custom Environment Variables (`env`):**
+
+The `env` option allows you to pass custom environment variables to the agentic engine:
+
+```yaml
+engine:
+  id: claude
+  env:
+    - "AWS_REGION=us-west-2"
+    - "CUSTOM_API_ENDPOINT: https://api.example.com"  
+    - "DEBUG_MODE: true"
+```
+
+**Format Options:**
+- `KEY=value` - Standard environment variable format
+- `KEY: value` - YAML-style format
+
+**Behavior:**
+1. Custom environment variables are added to the built-in engine variables
+2. For Claude: Variables are passed via the `claude_env` input and GitHub Actions `env` section
+3. For Codex: Variables are added to the command-based execution environment
+4. Supports secrets and GitHub context variables: `"API_KEY: ${{ secrets.MY_SECRET }}"`
+5. Useful for custom configurations like Claude on Amazon Vertex AI
+
+**Use Cases:**
+- Configure cloud provider regions: `AWS_REGION=us-west-2`
+- Set custom API endpoints: `API_ENDPOINT: https://vertex-ai.googleapis.com`
+- Pass authentication tokens: `API_TOKEN: ${{ secrets.CUSTOM_TOKEN }}`
+- Enable debug modes: `DEBUG_MODE: true`
 
 ## Network Permissions (`network:`)
 
@@ -229,6 +264,16 @@ network:
     - "api.example.com"      # Exact domain match
     - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
 
+# Or combine defaults with additional domains
+engine:
+  id: claude
+
+network:
+  allowed:
+    - "defaults"             # Expands to the full default whitelist
+    - "good.com"             # Add custom domain
+    - "api.example.org"      # Add another custom domain
+
 # Or deny all network access (empty object)
 engine:
   id: claude
@@ -242,8 +287,6 @@ network: {}
 - **Ecosystem Access**: Use ecosystem identifiers like `python`, `node`, `containers` to enable access to specific development ecosystems
 - **Selective Access**: When `network: { allowed: [...] }` is specified, only listed domains/ecosystems are accessible
 - **No Access**: When `network: {}` is specified, all network access is denied
-- **Engine vs Tools**: Engine permissions control the AI engine itself, separate from MCP tool permissions
-- **Hook Enforcement**: Uses Claude Code's hook system for runtime network access control
 - **Domain Validation**: Supports exact matches and wildcard patterns (`*` matches any characters including dots, allowing nested subdomains)
 
 ### Examples
@@ -294,9 +337,11 @@ engine:
 
 network:
   allowed:
+    - "defaults"                    # Expands to full default whitelist
     - java
     - rust
-    # No "defaults" means no basic infrastructure access
+    - "api.mycompany.com"           # Add custom API
+    - "*.internal.mycompany.com"    # Add internal services
 
 # Deny all network access (empty object)
 engine:
@@ -338,17 +383,6 @@ network:
     - "api.custom.com"     # Custom domain
     - "*.internal.corp"    # Wildcard domain
 ```
-
-### Migration from Previous Versions
-
-The previous `strict:` mode has been removed. Network permissions now work as follows:
-- **No `network:` field**: Defaults to `network: defaults` (basic infrastructure only)
-- **`network: defaults`**: Basic infrastructure domains only (certificates, JSON schema, Ubuntu, etc.)
-- **`network: {}`**: No network access  
-- **`network: { allowed: [...] }`**: Only listed domains/ecosystems are accessible
-
-**Important Change**: The `defaults` mode now includes **only basic infrastructure**, not all development tools. To access language-specific package managers, you must explicitly include the ecosystem identifiers like `python`, `node`, `java`, etc.
-
 
 ### Permission Modes
 

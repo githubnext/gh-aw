@@ -64,6 +64,11 @@ func TestCodexEngine(t *testing.T) {
 		t.Errorf("Expected command to contain log file name, got '%s'", config.Command)
 	}
 
+	// Check that pipefail is enabled to preserve exit codes
+	if !strings.Contains(config.Command, "set -o pipefail") {
+		t.Errorf("Expected command to contain 'set -o pipefail' to preserve exit codes, got '%s'", config.Command)
+	}
+
 	// Check environment variables
 	if config.Environment["OPENAI_API_KEY"] != "${{ secrets.OPENAI_API_KEY }}" {
 		t.Errorf("Expected OPENAI_API_KEY environment variable, got '%s'", config.Environment["OPENAI_API_KEY"])

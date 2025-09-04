@@ -114,6 +114,14 @@ The YAML frontmatter supports these fields:
         draft: true                     # Optional: create as draft PR (defaults to true)
     ```
     When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
+  - `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
+    ```yaml
+    safe-outputs:
+      create-pull-request-review-comment:
+        max: 3                          # Optional: maximum number of review comments (default: 1)
+        side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
+    ```
+    When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
   - `update-issue:` - Safe issue updates 
     ```yaml
     safe-outputs:

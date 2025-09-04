@@ -53,13 +53,14 @@ func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, en
 		model = engineConfig.Model
 	}
 
-	command := fmt.Sprintf(`INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+	command := fmt.Sprintf(`set -o pipefail
+INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 export CODEX_HOME=/tmp/mcp-config
 
 # Create log directory outside git repo
 mkdir -p /tmp/aw-logs
 
-# Run codex with log capture
+# Run codex with log capture - pipefail ensures codex exit code is preserved
 codex exec \
   -c model=%s \
   --full-auto "$INSTRUCTION" 2>&1 | tee %s`, model, logFile)
@@ -72,6 +73,13 @@ codex exec \
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	if hasOutput {
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+	}
+
+	// Add custom environment variables from engine config
+	if engineConfig != nil && len(engineConfig.Env) > 0 {
+		for key, value := range engineConfig.Env {
+			env[key] = value
+		}
 	}
 
 	return ExecutionConfig{
