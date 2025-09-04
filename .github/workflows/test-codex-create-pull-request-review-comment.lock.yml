@@ -19,7 +19,15 @@ concurrency:
 run-name: "Test Codex Create Pull Request Review Comment"
 
 jobs:
+  task:
+    if: contains(github.event.pull_request.title, 'prr')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task job condition barrier
+        run: echo "Task job executed - conditions satisfied"
+
   add_reaction:
+    needs: task
     if: github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment'
     runs-on: ubuntu-latest
     permissions:
@@ -209,6 +217,7 @@ jobs:
             await main();
 
   test-codex-create-pull-request-review-comment:
+    needs: task
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:

@@ -7,6 +7,8 @@ on:
 engine: 
   id: codex
 
+if: contains(github.event.pull_request.title, 'prr')
+
 safe-outputs:
   create-pull-request-review-comment:
     max: 3
