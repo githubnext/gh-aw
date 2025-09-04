@@ -75,6 +75,13 @@ codex exec \
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	}
 
+	// Add custom environment variables from engine config
+	if engineConfig != nil && len(engineConfig.Env) > 0 {
+		for key, value := range engineConfig.Env {
+			env[key] = value
+		}
+	}
+
 	return ExecutionConfig{
 		StepName:    "Run Codex",
 		Command:     command,

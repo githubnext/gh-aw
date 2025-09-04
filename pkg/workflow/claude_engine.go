@@ -65,10 +65,20 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 		actionVersion = engineConfig.Version
 	}
 
-	// Build claude_env based on hasOutput parameter
+	// Build claude_env based on hasOutput parameter and custom env vars
 	claudeEnv := ""
 	if hasOutput {
 		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+	}
+
+	// Add custom environment variables from engine config
+	if engineConfig != nil && len(engineConfig.Env) > 0 {
+		for key, value := range engineConfig.Env {
+			if claudeEnv != "" {
+				claudeEnv += "\n"
+			}
+			claudeEnv += "            " + key + ": " + value
+		}
 	}
 
 	inputs := map[string]string{

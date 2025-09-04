@@ -3605,10 +3605,36 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				}
 			}
 		}
-		// Add environment section to pass GITHUB_AW_SAFE_OUTPUTS to the action only if safe-outputs feature is used
-		if data.SafeOutputs != nil {
+		// Add environment section for safe-outputs and custom env vars
+		hasEnvSection := data.SafeOutputs != nil || (data.EngineConfig != nil && len(data.EngineConfig.Env) > 0)
+		if hasEnvSection {
 			yaml.WriteString("        env:\n")
-			yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+
+			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
+			if data.SafeOutputs != nil {
+				yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+			}
+
+			// Add custom environment variables from engine config
+			if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 {
+				for _, envVar := range data.EngineConfig.Env {
+					// Parse environment variable in format "KEY=value" or "KEY: value"
+					parts := strings.SplitN(envVar, "=", 2)
+					if len(parts) == 2 {
+						key := strings.TrimSpace(parts[0])
+						value := strings.TrimSpace(parts[1])
+						fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+					} else {
+						// Try "KEY: value" format
+						parts = strings.SplitN(envVar, ":", 2)
+						if len(parts) == 2 {
+							key := strings.TrimSpace(parts[0])
+							value := strings.TrimSpace(parts[1])
+							fmt.Fprintf(yaml, "          %s: %s\n", key, value)
+						}
+					}
+				}
+			}
 		}
 		yaml.WriteString("      - name: Capture Agentic Action logs\n")
 		yaml.WriteString("        if: always()\n")

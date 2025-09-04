@@ -698,6 +698,13 @@
             "max-turns": {
               "type": "integer",
               "description": "Maximum number of chat iterations per run"
+            },
+            "env": {
+              "type": "object",
+              "description": "Custom environment variables to pass to the agentic engine",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
           },
           "required": ["id"],

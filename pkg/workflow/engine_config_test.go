@@ -103,6 +103,37 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "10"},
 		},
 		{
+			name: "object format - with env vars",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"env": map[string]any{
+						"CUSTOM_VAR":  "value1",
+						"ANOTHER_VAR": "${{ secrets.SECRET_VAR }}",
+					},
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", Env: map[string]string{"CUSTOM_VAR": "value1", "ANOTHER_VAR": "${{ secrets.SECRET_VAR }}"}},
+		},
+		{
+			name: "object format - complete with env vars",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":        "claude",
+					"version":   "beta",
+					"model":     "claude-3-5-sonnet-20241022",
+					"max-turns": 5,
+					"env": map[string]any{
+						"AWS_REGION":   "us-west-2",
+						"API_ENDPOINT": "https://api.example.com",
+					},
+				},
+			},
+			expectedEngineSetting: "claude",
+			expectedConfig:        &EngineConfig{ID: "claude", Version: "beta", Model: "claude-3-5-sonnet-20241022", MaxTurns: "5", Env: map[string]string{"AWS_REGION": "us-west-2", "API_ENDPOINT": "https://api.example.com"}},
+		},
+		{
 			name: "object format - missing id",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -147,6 +178,18 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.MaxTurns != test.expectedConfig.MaxTurns {
 					t.Errorf("Expected config.MaxTurns '%s', got '%s'", test.expectedConfig.MaxTurns, config.MaxTurns)
+				}
+
+				if len(config.Env) != len(test.expectedConfig.Env) {
+					t.Errorf("Expected config.Env length %d, got %d", len(test.expectedConfig.Env), len(config.Env))
+				} else {
+					for key, expectedValue := range test.expectedConfig.Env {
+						if actualValue, exists := config.Env[key]; !exists {
+							t.Errorf("Expected config.Env to contain key '%s'", key)
+						} else if actualValue != expectedValue {
+							t.Errorf("Expected config.Env['%s'] = '%s', got '%s'", key, expectedValue, actualValue)
+						}
+					}
 				}
 			}
 		})
@@ -314,6 +357,85 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 					expectedModelArg := "model=" + tt.expectedModel
 					if !strings.Contains(config.Command, expectedModelArg) {
 						t.Errorf("Expected command to contain %s, got: %s", expectedModelArg, config.Command)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestEngineConfigurationWithCustomEnvVars(t *testing.T) {
+	tests := []struct {
+		name         string
+		engine       AgenticEngine
+		engineConfig *EngineConfig
+		hasOutput    bool
+	}{
+		{
+			name:   "Claude with custom env vars",
+			engine: NewClaudeEngine(),
+			engineConfig: &EngineConfig{
+				ID:  "claude",
+				Env: map[string]string{"AWS_REGION": "us-west-2", "CUSTOM_VAR": "${{ secrets.MY_SECRET }}"},
+			},
+			hasOutput: false,
+		},
+		{
+			name:   "Claude with custom env vars and output",
+			engine: NewClaudeEngine(),
+			engineConfig: &EngineConfig{
+				ID:  "claude",
+				Env: map[string]string{"API_ENDPOINT": "https://api.example.com", "DEBUG_MODE": "true"},
+			},
+			hasOutput: true,
+		},
+		{
+			name:   "Codex with custom env vars",
+			engine: NewCodexEngine(),
+			engineConfig: &EngineConfig{
+				ID:  "codex",
+				Env: map[string]string{"CUSTOM_API_KEY": "test123", "PROXY_URL": "http://proxy.example.com"},
+			},
+			hasOutput: false,
+		},
+		{
+			name:   "Codex with custom env vars and output",
+			engine: NewCodexEngine(),
+			engineConfig: &EngineConfig{
+				ID:  "codex",
+				Env: map[string]string{"ENVIRONMENT": "production", "LOG_LEVEL": "debug"},
+			},
+			hasOutput: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := tt.engine.GetExecutionConfig("test-workflow", "test-log", tt.engineConfig, nil, tt.hasOutput)
+
+			switch tt.engine.GetID() {
+			case "claude":
+				// For Claude, custom env vars should be in claude_env input
+				if claudeEnv, exists := config.Inputs["claude_env"]; exists {
+					for key, value := range tt.engineConfig.Env {
+						expectedEntry := key + ": " + value
+						if !strings.Contains(claudeEnv, expectedEntry) {
+							t.Errorf("Expected claude_env to contain '%s', got: %s", expectedEntry, claudeEnv)
+						}
+					}
+				} else if len(tt.engineConfig.Env) > 0 {
+					t.Error("Expected claude_env input to be present when custom env vars are defined")
+				}
+
+			case "codex":
+				// For Codex, custom env vars should be in Environment field
+				if tt.engineConfig != nil && len(tt.engineConfig.Env) > 0 {
+					for key, expectedValue := range tt.engineConfig.Env {
+						if actualValue, exists := config.Environment[key]; !exists {
+							t.Errorf("Expected Environment to contain key '%s'", key)
+						} else if actualValue != expectedValue {
+							t.Errorf("Expected Environment['%s'] to be '%s', got '%s'", key, expectedValue, actualValue)
+						}
 					}
 				}
 			}
