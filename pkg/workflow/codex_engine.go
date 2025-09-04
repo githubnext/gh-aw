@@ -53,13 +53,14 @@ func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, en
 		model = engineConfig.Model
 	}
 
-	command := fmt.Sprintf(`INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+	command := fmt.Sprintf(`set -o pipefail
+INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 export CODEX_HOME=/tmp/mcp-config
 
 # Create log directory outside git repo
 mkdir -p /tmp/aw-logs
 
-# Run codex with log capture
+# Run codex with log capture - pipefail ensures codex exit code is preserved
 codex exec \
   -c model=%s \
   --full-auto "$INSTRUCTION" 2>&1 | tee %s`, model, logFile)

@@ -168,13 +168,14 @@ jobs:
           if-no-files-found: warn
       - name: Run Codex
         run: |
+          set -o pipefail
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           export CODEX_HOME=/tmp/mcp-config
           
           # Create log directory outside git repo
           mkdir -p /tmp/aw-logs
           
-          # Run codex with log capture
+          # Run codex with log capture - pipefail ensures codex exit code is preserved
           codex exec \
             -c model=o4-mini \
             --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-create-pull-request.log
