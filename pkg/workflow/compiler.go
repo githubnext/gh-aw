@@ -1522,13 +1522,6 @@ func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any, saf
 		if _, exists := claudeExistingAllowed["Bash"]; !exists {
 			// Bash tool doesn't exist, add it with Git commands
 			claudeExistingAllowed["Bash"] = gitCommands
-			// Implicitly add KillBash and BashOutput when Bash is allowed
-			if _, exists := claudeExistingAllowed["KillBash"]; !exists {
-				claudeExistingAllowed["KillBash"] = nil
-			}
-			if _, exists := claudeExistingAllowed["BashOutput"]; !exists {
-				claudeExistingAllowed["BashOutput"] = nil
-			}
 		} else {
 			// Bash tool exists, merge Git commands with existing commands
 			existingBash := claudeExistingAllowed["Bash"]
@@ -1563,15 +1556,19 @@ func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any, saf
 				// No action needed - nil value already permits all commands
 				_ = existingBash // Keep the nil value as-is
 			}
-			// Implicitly add KillBash and BashOutput when Bash exists
-			if _, exists := claudeExistingAllowed["KillBash"]; !exists {
-				claudeExistingAllowed["KillBash"] = nil
-			}
-			if _, exists := claudeExistingAllowed["BashOutput"]; !exists {
-				claudeExistingAllowed["BashOutput"] = nil
-			}
 		}
 	bashComplete:
+	}
+
+	// Check if Bash tools are present and add implicit KillBash and BashOutput
+	if _, hasBash := claudeExistingAllowed["Bash"]; hasBash {
+		// Implicitly add KillBash and BashOutput when any Bash tools are allowed
+		if _, exists := claudeExistingAllowed["KillBash"]; !exists {
+			claudeExistingAllowed["KillBash"] = nil
+		}
+		if _, exists := claudeExistingAllowed["BashOutput"]; !exists {
+			claudeExistingAllowed["BashOutput"] = nil
+		}
 	}
 
 	// Update the claude section with the new format

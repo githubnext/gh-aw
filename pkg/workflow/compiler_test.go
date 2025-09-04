@@ -337,7 +337,9 @@ func TestComputeAllowedTools(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": []any{"echo", "ls"},
+						"Bash":       []any{"echo", "ls"},
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
@@ -348,7 +350,9 @@ func TestComputeAllowedTools(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": nil,
+						"Bash":       nil,
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
@@ -433,7 +437,9 @@ func TestComputeAllowedTools(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": []any{":*"},
+						"Bash":       []any{":*"},
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
@@ -444,7 +450,9 @@ func TestComputeAllowedTools(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": []any{"echo", "ls", ":*", "cat"},
+						"Bash":       []any{"echo", "ls", ":*", "cat"},
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
@@ -455,8 +463,10 @@ func TestComputeAllowedTools(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": []any{":*"},
-						"Read": nil,
+						"Bash":       []any{":*"},
+						"Read":       nil,
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 				"github": map[string]any{
@@ -470,7 +480,9 @@ func TestComputeAllowedTools(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": []any{"ls"},
+						"Bash":       []any{"ls"},
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
@@ -524,7 +536,7 @@ func TestComputeAllowedTools(t *testing.T) {
 
 			// Check if both sets have the same tools
 			if len(expectedTools) != len(actualTools) {
-				t.Errorf("Expected %d tools, got %d tools. Expected: '%s', Actual: '%s'", 
+				t.Errorf("Expected %d tools, got %d tools. Expected: '%s', Actual: '%s'",
 					len(expectedTools), len(actualTools), tt.expected, result)
 				return
 			}
@@ -1674,8 +1686,10 @@ func TestComputeAllowedToolsWithClaudeSection(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": []any{"echo", "ls"},
-						"Edit": nil,
+						"Bash":       []any{"echo", "ls"},
+						"Edit":       nil,
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
@@ -1701,7 +1715,9 @@ func TestComputeAllowedToolsWithClaudeSection(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": nil,
+						"Bash":       nil,
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
@@ -5715,7 +5731,9 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			tools: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash": nil,
+						"Bash":       nil,
+						"BashOutput": nil,
+						"KillBash":   nil,
 					},
 				},
 			},
