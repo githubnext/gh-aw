@@ -26,6 +26,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Generate Claude Settings
+        run: |
+          cat > .claude/settings.json << 'EOF'
+          {
+            "hooks": {
+              "PreToolUse": [
+                {
+                  "matcher": "WebFetch|WebSearch",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": ".claude/hooks/network_permissions.py"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          EOF
       - name: Generate Network Permissions Hook
         run: |
           mkdir -p .claude/hooks
@@ -114,25 +133,6 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
-      - name: Generate Claude Settings
-        run: |
-          cat > .claude/settings.json << 'EOF'
-          {
-            "hooks": {
-              "PreToolUse": [
-                {
-                  "matcher": "WebFetch|WebSearch",
-                  "hooks": [
-                    {
-                      "type": "command",
-                      "command": ".claude/hooks/network_permissions.py"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-          EOF
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
