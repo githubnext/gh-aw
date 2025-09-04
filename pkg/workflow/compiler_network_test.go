@@ -252,17 +252,17 @@ network:
 
 func TestNetworkPermissionsUtilities(t *testing.T) {
 	t.Run("GetAllowedDomains with various inputs", func(t *testing.T) {
-		// Test with nil - should return default whitelist
+		// Test with nil - should return default allow-list
 		domains := GetAllowedDomains(nil)
 		if len(domains) == 0 {
-			t.Errorf("Expected default whitelist domains for nil input, got %d", len(domains))
+			t.Errorf("Expected default allow-list domains for nil input, got %d", len(domains))
 		}
 
-		// Test with defaults mode - should return default whitelist
+		// Test with defaults mode - should return default allow-list
 		defaultsPerms := &NetworkPermissions{Mode: "defaults"}
 		domains = GetAllowedDomains(defaultsPerms)
 		if len(domains) == 0 {
-			t.Errorf("Expected default whitelist domains for defaults mode, got %d", len(domains))
+			t.Errorf("Expected default allow-list domains for defaults mode, got %d", len(domains))
 		}
 
 		// Test with empty permissions object (no allowed list)

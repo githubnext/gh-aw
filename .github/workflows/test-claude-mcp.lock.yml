@@ -226,7 +226,7 @@ jobs:
           import urllib.parse
           import re
           
-          # Domain whitelist (populated during generation)
+          # Domain allow-list (populated during generation)
           ALLOWED_DOMAINS = []
           
           def extract_domain(url_or_query):

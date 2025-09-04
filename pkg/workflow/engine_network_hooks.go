@@ -31,7 +31,7 @@ import sys
 import urllib.parse
 import re
 
-# Domain whitelist (populated during generation)
+# Domain allow-list (populated during generation)
 ALLOWED_DOMAINS = %s
 
 def extract_domain(url_or_query):
@@ -434,13 +434,13 @@ func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
 		return false // No network config, defaults to full access
 	}
 	if network.Mode == "defaults" {
-		return true // "defaults" mode uses restricted whitelist (enforcement needed)
+		return true // "defaults" mode uses restricted allow-list (enforcement needed)
 	}
 	return true // Object format means some restriction is configured
 }
 
 // GetAllowedDomains returns the allowed domains from network permissions
-// Returns default whitelist if no network permissions configured or in "defaults" mode
+// Returns default allow-list if no network permissions configured or in "defaults" mode
 // Returns empty slice if network permissions configured but no domains allowed (deny all)
 // Returns domain list if network permissions configured with allowed domains
 // Supports ecosystem identifiers:
@@ -464,10 +464,10 @@ func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
 //   - "swift": Swift/CocoaPods
 func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network == nil {
-		return getDefaultAllowedDomains() // Default whitelist for backwards compatibility
+		return getDefaultAllowedDomains() // Default allow-list for backwards compatibility
 	}
 	if network.Mode == "defaults" {
-		return getDefaultAllowedDomains() // Default whitelist for defaults mode
+		return getDefaultAllowedDomains() // Default allow-list for defaults mode
 	}
 
 	// Handle empty allowed list (deny-all case)

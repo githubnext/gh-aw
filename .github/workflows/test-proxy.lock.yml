@@ -60,7 +60,7 @@ jobs:
           import urllib.parse
           import re
           
-          # Domain whitelist (populated during generation)
+          # Domain allow-list (populated during generation)
           ALLOWED_DOMAINS = ["example.com"]
           
           def extract_domain(url_or_query):
@@ -165,7 +165,7 @@ jobs:
           # Generate Squid proxy configuration
           cat > squid.conf << 'EOF'
           # Squid configuration for egress traffic control
-          # This configuration implements a whitelist-based proxy
+          # This configuration implements a allow-list-based proxy
           
           # Access log and cache configuration
           access_log /var/log/squid/access.log squid
@@ -186,7 +186,7 @@ jobs:
           acl CONNECT method CONNECT
           
           # Access rules
-          # Deny requests to unknown domains (not in whitelist)
+          # Deny requests to unknown domains (not in allow-list)
           http_access deny !allowed_domains
           http_access deny !Safe_ports
           http_access deny CONNECT !SSL_ports

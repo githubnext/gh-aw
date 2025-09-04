@@ -2966,13 +2966,13 @@ This is a test workflow without network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (defaults to whitelist)
+		// Should contain network hook setup (defaults to allow-list)
 		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup when no network field specified (defaults to whitelist)")
+			t.Error("Should contain network hook setup when no network field specified (defaults to allow-list)")
 		}
 	})
 
-	t.Run("network: defaults should enforce whitelist restrictions", func(t *testing.T) {
+	t.Run("network: defaults should enforce allow-list restrictions", func(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
@@ -3001,9 +3001,9 @@ This is a test workflow with explicit defaults network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (defaults mode uses whitelist)
+		// Should contain network hook setup (defaults mode uses allow-list)
 		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup for network: defaults (uses whitelist)")
+			t.Error("Should contain network hook setup for network: defaults (uses allow-list)")
 		}
 	})
 

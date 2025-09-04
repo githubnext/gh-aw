@@ -72,7 +72,7 @@ The YAML frontmatter supports these fields:
     ```
 
 - **`network:`** - Network access control for Claude Code engine (top-level field)
-  - String format: `"defaults"` (curated whitelist of development domains)  
+  - String format: `"defaults"` (curated allow-list of development domains)  
   - Empty object format: `{}` (no network access)
   - Object format for custom permissions:
     ```yaml

@@ -59,7 +59,7 @@ jobs:
           import urllib.parse
           import re
           
-          # Domain whitelist (populated during generation)
+          # Domain allow-list (populated during generation)
           ALLOWED_DOMAINS = ["docs.github.com"]
           
           def extract_domain(url_or_query):

@@ -28,7 +28,7 @@ func needsProxy(toolConfig map[string]any) (bool, []string) {
 // generateSquidConfig generates the Squid proxy configuration
 func generateSquidConfig() string {
 	return `# Squid configuration for egress traffic control
-# This configuration implements a whitelist-based proxy
+# This configuration implements a allow-list-based proxy
 
 # Access log and cache configuration
 access_log /var/log/squid/access.log squid
@@ -49,7 +49,7 @@ acl Safe_ports port 443
 acl CONNECT method CONNECT
 
 # Access rules
-# Deny requests to unknown domains (not in whitelist)
+# Deny requests to unknown domains (not in allow-list)
 http_access deny !allowed_domains
 http_access deny !Safe_ports
 http_access deny CONNECT !SSL_ports

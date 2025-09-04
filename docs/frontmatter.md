@@ -198,12 +198,12 @@ engine:
 
 > This is only supported by the claude engine today.
 
-Control network access for AI engines using the top-level `network` field. If no `network:` permission is specified, it defaults to `network: defaults` which uses a curated whitelist of common development and package manager domains.
+Control network access for AI engines using the top-level `network` field. If no `network:` permission is specified, it defaults to `network: defaults` which uses a curated allow-list of common development and package manager domains.
 
 ### Supported Formats
 
 ```yaml
-# Default whitelist (basic infrastructure only)
+# Default allow-list (basic infrastructure only)
 engine:
   id: claude
 
@@ -238,7 +238,7 @@ network: {}
 
 ### Security Model
 
-- **Default Whitelist**: When no network permissions are specified or `network: defaults` is used, access is restricted to basic infrastructure domains only (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
+- **Default Allow List**: When no network permissions are specified or `network: defaults` is used, access is restricted to basic infrastructure domains only (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
 - **Ecosystem Access**: Use ecosystem identifiers like `python`, `node`, `containers` to enable access to specific development ecosystems
 - **Selective Access**: When `network: { allowed: [...] }` is specified, only listed domains/ecosystems are accessible
 - **No Access**: When `network: {}` is specified, all network access is denied
@@ -352,19 +352,19 @@ The previous `strict:` mode has been removed. Network permissions now work as fo
 
 ### Permission Modes
 
-1. **Default whitelist**: Curated list of development domains (default when no `network:` field specified)
+1. **Default allow-list**: Curated list of development domains (default when no `network:` field specified)
    ```yaml
    engine:
      id: claude
-     # No network block - defaults to curated whitelist
+     # No network block - defaults to curated allow-list
    ```
 
-2. **Explicit default whitelist**: Curated list of development domains (explicit)
+2. **Explicit default allow-list**: Curated list of development domains (explicit)
    ```yaml
    engine:
      id: claude
 
-   network: defaults  # Curated whitelist of development domains
+   network: defaults  # Curated allow-list of development domains
    ```
 
 3. **No network access**: Complete network access denial
