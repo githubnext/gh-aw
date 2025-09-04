@@ -37,10 +37,10 @@ type CodingAgentEngine interface {
 	GetDeclaredOutputFiles() []string
 
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
-	GetInstallationSteps(engineConfig *EngineConfig, networkPermissions *NetworkPermissions) []GitHubActionStep
+	GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
 
 	// GetExecutionConfig returns the configuration for executing this engine
-	GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, networkPermissions *NetworkPermissions, hasOutput bool) ExecutionConfig
+	GetExecutionConfig(workflowData *WorkflowData, logFile string) ExecutionConfig
 
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string)

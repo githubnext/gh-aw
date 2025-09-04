@@ -2790,7 +2790,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add engine-specific installation steps
-	installSteps := engine.GetInstallationSteps(data.EngineConfig, data.NetworkPermissions)
+	installSteps := engine.GetInstallationSteps(data)
 	for _, step := range installSteps {
 		for _, line := range step {
 			yaml.WriteString(line + "\n")
@@ -3848,7 +3848,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		return
 	}
 
-	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.NetworkPermissions, data.SafeOutputs != nil)
+	executionConfig := engine.GetExecutionConfig(data, logFile)
 
 	// If the execution config contains custom steps, inject them before the main command/action
 	if len(executionConfig.Steps) > 0 {

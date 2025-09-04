@@ -26,25 +26,25 @@ func NewCustomEngine() *CustomEngine {
 }
 
 // GetInstallationSteps returns empty installation steps since custom engine doesn't need installation
-func (e *CustomEngine) GetInstallationSteps(engineConfig *EngineConfig, networkPermissions *NetworkPermissions) []GitHubActionStep {
+func (e *CustomEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	return []GitHubActionStep{}
 }
 
 // GetExecutionConfig returns the execution configuration for custom steps
-func (e *CustomEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, networkPermissions *NetworkPermissions, hasOutput bool) ExecutionConfig {
+func (e *CustomEngine) GetExecutionConfig(workflowData *WorkflowData, logFile string) ExecutionConfig {
 	// The custom engine doesn't execute itself - the steps are handled directly by the compiler
 	// This method is called but the actual execution logic is handled in the compiler
 	config := ExecutionConfig{
 		StepName: "Custom Steps Execution",
 		Command:  "echo \"Custom steps are handled directly by the compiler\"",
 		Environment: map[string]string{
-			"WORKFLOW_NAME": workflowName,
+			"WORKFLOW_NAME": workflowData.Name,
 		},
 	}
 
 	// If the engine configuration has custom steps, include them in the execution config
-	if engineConfig != nil && len(engineConfig.Steps) > 0 {
-		config.Steps = engineConfig.Steps
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
+		config.Steps = workflowData.EngineConfig.Steps
 	}
 
 	return config

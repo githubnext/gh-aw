@@ -30,16 +30,16 @@ func NewClaudeEngine() *ClaudeEngine {
 	}
 }
 
-func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig, networkPermissions *NetworkPermissions) []GitHubActionStep {
+func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
 	// Check if network permissions are configured (only for Claude engine)
-	if engineConfig != nil && engineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(networkPermissions) {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		// Generate network hook generator and settings generator
 		hookGenerator := &NetworkHookGenerator{}
 		settingsGenerator := &ClaudeSettingsGenerator{}
 
-		allowedDomains := GetAllowedDomains(networkPermissions)
+		allowedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
 
 		// Add settings generation step
 		settingsStep := settingsGenerator.GenerateSettingsWorkflowStep()
@@ -58,22 +58,23 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{"output.txt"}
 }
 
-func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, networkPermissions *NetworkPermissions, hasOutput bool) ExecutionConfig {
+func (e *ClaudeEngine) GetExecutionConfig(workflowData *WorkflowData, logFile string) ExecutionConfig {
 	// Determine the action version to use
 	actionVersion := DefaultClaudeActionVersion // Default version
-	if engineConfig != nil && engineConfig.Version != "" {
-		actionVersion = engineConfig.Version
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		actionVersion = workflowData.EngineConfig.Version
 	}
 
 	// Build claude_env based on hasOutput parameter and custom env vars
+	hasOutput := workflowData.SafeOutputs != nil
 	claudeEnv := ""
 	if hasOutput {
 		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	}
 
 	// Add custom environment variables from engine config
-	if engineConfig != nil && len(engineConfig.Env) > 0 {
-		for key, value := range engineConfig.Env {
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
 			if claudeEnv != "" {
 				claudeEnv += "\n"
 			}
@@ -99,12 +100,12 @@ func (e *ClaudeEngine) GetExecutionConfig(workflowName string, logFile string, e
 	}
 
 	// Add model configuration if specified
-	if engineConfig != nil && engineConfig.Model != "" {
-		config.Inputs["model"] = engineConfig.Model
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		config.Inputs["model"] = workflowData.EngineConfig.Model
 	}
 
 	// Add settings parameter if network permissions are configured
-	if engineConfig != nil && engineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(networkPermissions) {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		config.Inputs["settings"] = ".claude/settings.json"
 	}
 

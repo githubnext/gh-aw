@@ -25,11 +25,11 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
-func (e *CodexEngine) GetInstallationSteps(engineConfig *EngineConfig, networkPermissions *NetworkPermissions) []GitHubActionStep {
+func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	// Build the npm install command, optionally with version
 	installCmd := "npm install -g @openai/codex"
-	if engineConfig != nil && engineConfig.Version != "" {
-		installCmd = fmt.Sprintf("npm install -g @openai/codex@%s", engineConfig.Version)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		installCmd = fmt.Sprintf("npm install -g @openai/codex@%s", workflowData.EngineConfig.Version)
 	}
 
 	return []GitHubActionStep{
@@ -46,11 +46,11 @@ func (e *CodexEngine) GetInstallationSteps(engineConfig *EngineConfig, networkPe
 	}
 }
 
-func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, networkPermissions *NetworkPermissions, hasOutput bool) ExecutionConfig {
+func (e *CodexEngine) GetExecutionConfig(workflowData *WorkflowData, logFile string) ExecutionConfig {
 	// Use model from engineConfig if available, otherwise default to o4-mini
 	model := "o4-mini"
-	if engineConfig != nil && engineConfig.Model != "" {
-		model = engineConfig.Model
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		model = workflowData.EngineConfig.Model
 	}
 
 	command := fmt.Sprintf(`set -o pipefail
@@ -71,13 +71,14 @@ codex exec \
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
+	hasOutput := workflowData.SafeOutputs != nil
 	if hasOutput {
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	}
 
 	// Add custom environment variables from engine config
-	if engineConfig != nil && len(engineConfig.Env) > 0 {
-		for key, value := range engineConfig.Env {
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
 			env[key] = value
 		}
 	}

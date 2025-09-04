@@ -41,7 +41,7 @@ func TestCustomEngine(t *testing.T) {
 func TestCustomEngineGetInstallationSteps(t *testing.T) {
 	engine := NewCustomEngine()
 
-	steps := engine.GetInstallationSteps(nil, nil)
+	steps := engine.GetInstallationSteps(&WorkflowData{})
 	if len(steps) != 0 {
 		t.Errorf("Expected 0 installation steps for custom engine, got %d", len(steps))
 	}
@@ -50,7 +50,10 @@ func TestCustomEngineGetInstallationSteps(t *testing.T) {
 func TestCustomEngineGetExecutionConfig(t *testing.T) {
 	engine := NewCustomEngine()
 
-	config := engine.GetExecutionConfig("test-workflow", "/tmp/test.log", nil, nil, false)
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+	config := engine.GetExecutionConfig(workflowData, "/tmp/test.log")
 
 	if config.StepName != "Custom Steps Execution" {
 		t.Errorf("Expected step name 'Custom Steps Execution', got '%s'", config.StepName)
@@ -91,7 +94,12 @@ func TestCustomEngineGetExecutionConfigWithSteps(t *testing.T) {
 		},
 	}
 
-	config := engine.GetExecutionConfig("test-workflow", "/tmp/test.log", engineConfig, nil, false)
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: engineConfig,
+	}
+
+	config := engine.GetExecutionConfig(workflowData, "/tmp/test.log")
 
 	if config.StepName != "Custom Steps Execution" {
 		t.Errorf("Expected step name 'Custom Steps Execution', got '%s'", config.StepName)

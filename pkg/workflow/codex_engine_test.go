@@ -26,7 +26,7 @@ func TestCodexEngine(t *testing.T) {
 	}
 
 	// Test installation steps
-	steps := engine.GetInstallationSteps(nil, nil)
+	steps := engine.GetInstallationSteps(&WorkflowData{})
 	expectedStepCount := 2 // Setup Node.js and Install Codex
 	if len(steps) != expectedStepCount {
 		t.Errorf("Expected %d installation steps, got %d", expectedStepCount, len(steps))
@@ -47,7 +47,10 @@ func TestCodexEngine(t *testing.T) {
 	}
 
 	// Test execution config
-	config := engine.GetExecutionConfig("test-workflow", "test-log", nil, nil, false)
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+	config := engine.GetExecutionConfig(workflowData, "test-log")
 	if config.StepName != "Run Codex" {
 		t.Errorf("Expected step name 'Run Codex', got '%s'", config.StepName)
 	}
@@ -79,7 +82,7 @@ func TestCodexEngineWithVersion(t *testing.T) {
 	engine := NewCodexEngine()
 
 	// Test installation steps without version
-	stepsNoVersion := engine.GetInstallationSteps(nil, nil)
+	stepsNoVersion := engine.GetInstallationSteps(&WorkflowData{})
 	foundNoVersionInstall := false
 	for _, step := range stepsNoVersion {
 		for _, line := range step {
@@ -98,7 +101,10 @@ func TestCodexEngineWithVersion(t *testing.T) {
 		ID:      "codex",
 		Version: "3.0.1",
 	}
-	stepsWithVersion := engine.GetInstallationSteps(engineConfig, nil)
+	workflowData := &WorkflowData{
+		EngineConfig: engineConfig,
+	}
+	stepsWithVersion := engine.GetInstallationSteps(workflowData)
 	foundVersionInstall := false
 	for _, step := range stepsWithVersion {
 		for _, line := range step {
