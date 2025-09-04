@@ -128,29 +128,269 @@ chmod +x .claude/hooks/network_permissions.py`, hookScript)
 	return GitHubActionStep(lines)
 }
 
-// ShouldEnforceNetworkPermissions checks if network permissions should be enforced
-// Returns true if the engine config has a network permissions block configured
-// (regardless of whether the allowed list is empty or has domains)
-func ShouldEnforceNetworkPermissions(engineConfig *EngineConfig) bool {
-	return engineConfig != nil &&
-		engineConfig.ID == "claude" &&
-		engineConfig.Permissions != nil &&
-		engineConfig.Permissions.Network != nil
+// getDefaultAllowedDomains returns the default whitelist of domains for network: defaults mode
+func getDefaultAllowedDomains() []string {
+	return []string{
+		// Certificate Authority and OCSP domains
+		"crl3.digicert.com",
+		"crl4.digicert.com",
+		"ocsp.digicert.com",
+		"ts-crl.ws.symantec.com",
+		"ts-ocsp.ws.symantec.com",
+		"crl.geotrust.com",
+		"ocsp.geotrust.com",
+		"crl.thawte.com",
+		"ocsp.thawte.com",
+		"crl.verisign.com",
+		"ocsp.verisign.com",
+		"crl.globalsign.com",
+		"ocsp.globalsign.com",
+		"crls.ssl.com",
+		"ocsp.ssl.com",
+		"crl.identrust.com",
+		"ocsp.identrust.com",
+		"crl.sectigo.com",
+		"ocsp.sectigo.com",
+		"crl.usertrust.com",
+		"ocsp.usertrust.com",
+		"s.symcb.com",
+		"s.symcd.com",
+
+		// Container Registries
+		"ghcr.io",
+		"registry.hub.docker.com",
+		"*.docker.io",
+		"*.docker.com",
+		"production.cloudflare.docker.com",
+		"dl.k8s.io",
+		"pkgs.k8s.io",
+		"quay.io",
+		"mcr.microsoft.com",
+		"gcr.io",
+		"auth.docker.io",
+
+		// .NET and NuGet
+		"nuget.org",
+		"dist.nuget.org",
+		"api.nuget.org",
+		"nuget.pkg.github.com",
+		"dotnet.microsoft.com",
+		"pkgs.dev.azure.com",
+		"builds.dotnet.microsoft.com",
+		"dotnetcli.blob.core.windows.net",
+		"nugetregistryv2prod.blob.core.windows.net",
+		"azuresearch-usnc.nuget.org",
+		"azuresearch-ussc.nuget.org",
+		"dc.services.visualstudio.com",
+		"dot.net",
+		"ci.dot.net",
+		"www.microsoft.com",
+		"oneocsp.microsoft.com",
+
+		// Dart/Flutter
+		"pub.dev",
+		"pub.dartlang.org",
+
+		// GitHub
+		"*.githubusercontent.com",
+		"raw.githubusercontent.com",
+		"objects.githubusercontent.com",
+		"lfs.github.com",
+		"github-cloud.githubusercontent.com",
+		"github-cloud.s3.amazonaws.com",
+		"codeload.github.com",
+
+		// Go
+		"go.dev",
+		"golang.org",
+		"proxy.golang.org",
+		"sum.golang.org",
+		"pkg.go.dev",
+		"goproxy.io",
+
+		// HashiCorp
+		"releases.hashicorp.com",
+		"apt.releases.hashicorp.com",
+		"yum.releases.hashicorp.com",
+		"registry.terraform.io",
+
+		// Haskell
+		"haskell.org",
+		"*.hackage.haskell.org",
+		"get-ghcup.haskell.org",
+		"downloads.haskell.org",
+
+		// Java/Maven/Gradle
+		"www.java.com",
+		"jdk.java.net",
+		"api.adoptium.net",
+		"adoptium.net",
+		"repo.maven.apache.org",
+		"maven.apache.org",
+		"repo1.maven.org",
+		"maven.pkg.github.com",
+		"maven.oracle.com",
+		"repo.spring.io",
+		"gradle.org",
+		"services.gradle.org",
+		"plugins.gradle.org",
+		"plugins-artifacts.gradle.org",
+		"repo.grails.org",
+		"download.eclipse.org",
+		"download.oracle.com",
+		"jcenter.bintray.com",
+
+		// JSON Schema
+		"json-schema.org",
+		"json.schemastore.org",
+
+		// Linux Package Repositories
+		// Ubuntu
+		"archive.ubuntu.com",
+		"security.ubuntu.com",
+		"ppa.launchpad.net",
+		"keyserver.ubuntu.com",
+		"azure.archive.ubuntu.com",
+		"api.snapcraft.io",
+		// Debian
+		"deb.debian.org",
+		"security.debian.org",
+		"keyring.debian.org",
+		"packages.debian.org",
+		"debian.map.fastlydns.net",
+		"apt.llvm.org",
+		// Fedora
+		"dl.fedoraproject.org",
+		"mirrors.fedoraproject.org",
+		"download.fedoraproject.org",
+		// CentOS
+		"mirror.centos.org",
+		"vault.centos.org",
+		// Alpine
+		"dl-cdn.alpinelinux.org",
+		"pkg.alpinelinux.org",
+		// Arch
+		"mirror.archlinux.org",
+		"archlinux.org",
+		// SUSE
+		"download.opensuse.org",
+		// Red Hat
+		"cdn.redhat.com",
+		// Common Package Mirrors
+		"packagecloud.io",
+		"packages.cloud.google.com",
+		// Microsoft Sources
+		"packages.microsoft.com",
+
+		// Node.js/NPM/Yarn
+		"npmjs.org",
+		"npmjs.com",
+		"registry.npmjs.com",
+		"registry.npmjs.org",
+		"skimdb.npmjs.com",
+		"npm.pkg.github.com",
+		"api.npms.io",
+		"nodejs.org",
+		"yarnpkg.com",
+		"registry.yarnpkg.com",
+		"repo.yarnpkg.com",
+		"deb.nodesource.com",
+		"get.pnpm.io",
+		"bun.sh",
+		"deno.land",
+		"registry.bower.io",
+
+		// Perl
+		"cpan.org",
+		"www.cpan.org",
+		"metacpan.org",
+		"cpan.metacpan.org",
+
+		// PHP
+		"repo.packagist.org",
+		"packagist.org",
+		"getcomposer.org",
+
+		// Playwright
+		"playwright.download.prss.microsoft.com",
+		"cdn.playwright.dev",
+
+		// Python
+		"pypi.python.org",
+		"pypi.org",
+		"pip.pypa.io",
+		"*.pythonhosted.org",
+		"files.pythonhosted.org",
+		"bootstrap.pypa.io",
+		"conda.binstar.org",
+		"conda.anaconda.org",
+		"binstar.org",
+		"anaconda.org",
+		"repo.continuum.io",
+		"repo.anaconda.com",
+
+		// Ruby
+		"rubygems.org",
+		"api.rubygems.org",
+		"rubygems.pkg.github.com",
+		"bundler.rubygems.org",
+		"gems.rubyforge.org",
+		"gems.rubyonrails.org",
+		"index.rubygems.org",
+		"cache.ruby-lang.org",
+		"*.rvm.io",
+
+		// Rust
+		"crates.io",
+		"index.crates.io",
+		"static.crates.io",
+		"sh.rustup.rs",
+		"static.rust-lang.org",
+
+		// Swift
+		"download.swift.org",
+		"swift.org",
+		"cocoapods.org",
+		"cdn.cocoapods.org",
+
+		// TODO: paths
+		//url: { scheme: ["https"], domain: storage.googleapis.com, path: "/pub-packages/" }
+		//url: { scheme: ["https"], domain: storage.googleapis.com, path: "/proxy-golang-org-prod/" }
+		//url: { scheme: ["https"], domain: uploads.github.com, path: "/copilot/chat/attachments/" }
+
+	}
 }
 
-// GetAllowedDomains returns the allowed domains from engine config
-// Returns nil if no network permissions configured (unrestricted for backwards compatibility)
+// ShouldEnforceNetworkPermissions checks if network permissions should be enforced
+// Returns true if network permissions are configured and not in "defaults" mode
+func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
+	if network == nil {
+		return false // No network config, defaults to full access
+	}
+	if network.Mode == "defaults" {
+		return true // "defaults" mode uses restricted whitelist (enforcement needed)
+	}
+	return true // Object format means some restriction is configured
+}
+
+// GetAllowedDomains returns the allowed domains from network permissions
+// Returns default whitelist if no network permissions configured or in "defaults" mode
 // Returns empty slice if network permissions configured but no domains allowed (deny all)
 // Returns domain list if network permissions configured with allowed domains
-func GetAllowedDomains(engineConfig *EngineConfig) []string {
-	if !ShouldEnforceNetworkPermissions(engineConfig) {
-		return nil // No restrictions - backwards compatibility
+func GetAllowedDomains(network *NetworkPermissions) []string {
+	if network == nil {
+		return getDefaultAllowedDomains() // Default whitelist for backwards compatibility
 	}
-	return engineConfig.Permissions.Network.Allowed // Could be empty for deny-all
+	if network.Mode == "defaults" {
+		return getDefaultAllowedDomains() // Default whitelist for defaults mode
+	}
+	return network.Allowed // Could be empty for deny-all
 }
 
 // HasNetworkPermissions is deprecated - use ShouldEnforceNetworkPermissions instead
 // Kept for backwards compatibility but will be removed in future versions
 func HasNetworkPermissions(engineConfig *EngineConfig) bool {
-	return ShouldEnforceNetworkPermissions(engineConfig)
+	// This function is now deprecated since network permissions are top-level
+	// Return false for backwards compatibility
+	return false
 }

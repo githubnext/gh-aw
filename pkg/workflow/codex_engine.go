@@ -25,7 +25,7 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
-func (e *CodexEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep {
+func (e *CodexEngine) GetInstallationSteps(engineConfig *EngineConfig, networkPermissions *NetworkPermissions) []GitHubActionStep {
 	// Build the npm install command, optionally with version
 	installCmd := "npm install -g @openai/codex"
 	if engineConfig != nil && engineConfig.Version != "" {
@@ -46,7 +46,7 @@ func (e *CodexEngine) GetInstallationSteps(engineConfig *EngineConfig) []GitHubA
 	}
 }
 
-func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, hasOutput bool) ExecutionConfig {
+func (e *CodexEngine) GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, networkPermissions *NetworkPermissions, hasOutput bool) ExecutionConfig {
 	// Use model from engineConfig if available, otherwise default to o4-mini
 	model := "o4-mini"
 	if engineConfig != nil && engineConfig.Model != "" {

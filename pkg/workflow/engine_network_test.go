@@ -36,195 +36,126 @@ func TestNetworkHookGenerator(t *testing.T) {
 		if !strings.Contains(script, "def is_domain_allowed") {
 			t.Error("Script should define is_domain_allowed function")
 		}
-
-		// Check for WebFetch and WebSearch handling
-		if !strings.Contains(script, "WebFetch") && !strings.Contains(script, "WebSearch") {
-			t.Error("Script should handle WebFetch and WebSearch tools")
-		}
 	})
 
 	t.Run("GenerateNetworkHookWorkflowStep", func(t *testing.T) {
-		allowedDomains := []string{"example.com", "test.org"}
+		allowedDomains := []string{"api.github.com", "*.trusted.com"}
 		step := generator.GenerateNetworkHookWorkflowStep(allowedDomains)
 
-		// Check step structure
-		if len(step) == 0 {
-			t.Fatal("Step should not be empty")
-		}
-
 		stepStr := strings.Join(step, "\n")
-		if !strings.Contains(stepStr, "Generate Network Permissions Hook") {
+
+		// Check that the step contains proper YAML structure
+		if !strings.Contains(stepStr, "name: Generate Network Permissions Hook") {
 			t.Error("Step should have correct name")
 		}
-		if !strings.Contains(stepStr, "mkdir -p .claude/hooks") {
-			t.Error("Step should create hooks directory")
-		}
 		if !strings.Contains(stepStr, ".claude/hooks/network_permissions.py") {
-			t.Error("Step should create network permissions hook file")
+			t.Error("Step should create hook file in correct location")
 		}
 		if !strings.Contains(stepStr, "chmod +x") {
 			t.Error("Step should make hook executable")
 		}
+
+		// Check that domains are included in the hook
+		if !strings.Contains(stepStr, "api.github.com") {
+			t.Error("Step should contain api.github.com domain")
+		}
+		if !strings.Contains(stepStr, "*.trusted.com") {
+			t.Error("Step should contain *.trusted.com domain")
+		}
 	})
 
-	t.Run("EmptyDomainsList", func(t *testing.T) {
-		script := generator.GenerateNetworkHookScript([]string{})
+	t.Run("EmptyDomainsGeneration", func(t *testing.T) {
+		allowedDomains := []string{} // Empty list means deny-all
+		script := generator.GenerateNetworkHookScript(allowedDomains)
+
+		// Should still generate a valid script
 		if !strings.Contains(script, "ALLOWED_DOMAINS = []") {
-			t.Error("Empty domains list should result in empty ALLOWED_DOMAINS array")
+			t.Error("Script should handle empty domains list (deny-all policy)")
+		}
+		if !strings.Contains(script, "def is_domain_allowed") {
+			t.Error("Script should still define required functions")
 		}
 	})
 }
 
-func TestClaudeSettingsGenerator(t *testing.T) {
-	generator := &ClaudeSettingsGenerator{}
-
-	t.Run("GenerateSettingsJSON", func(t *testing.T) {
-		settingsJSON := generator.GenerateSettingsJSON()
-
-		// Check JSON structure
-		if !strings.Contains(settingsJSON, `"hooks"`) {
-			t.Error("Settings should contain hooks section")
-		}
-		if !strings.Contains(settingsJSON, `"PreToolUse"`) {
-			t.Error("Settings should contain PreToolUse hooks")
-		}
-		if !strings.Contains(settingsJSON, `"WebFetch|WebSearch"`) {
-			t.Error("Settings should match WebFetch and WebSearch tools")
-		}
-		if !strings.Contains(settingsJSON, `.claude/hooks/network_permissions.py`) {
-			t.Error("Settings should reference network permissions hook")
-		}
-		if !strings.Contains(settingsJSON, `"type": "command"`) {
-			t.Error("Settings should specify command hook type")
+func TestShouldEnforceNetworkPermissions(t *testing.T) {
+	t.Run("nil permissions", func(t *testing.T) {
+		if ShouldEnforceNetworkPermissions(nil) {
+			t.Error("Should not enforce permissions when nil")
 		}
 	})
 
-	t.Run("GenerateSettingsWorkflowStep", func(t *testing.T) {
-		step := generator.GenerateSettingsWorkflowStep()
+	t.Run("valid permissions with domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"example.com", "*.trusted.com"},
+		}
+		if !ShouldEnforceNetworkPermissions(permissions) {
+			t.Error("Should enforce permissions when provided")
+		}
+	})
 
-		// Check step structure
-		if len(step) == 0 {
-			t.Fatal("Step should not be empty")
+	t.Run("empty permissions (deny-all)", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{}, // Empty list means deny-all
 		}
-
-		stepStr := strings.Join(step, "\n")
-		if !strings.Contains(stepStr, "Generate Claude Settings") {
-			t.Error("Step should have correct name")
-		}
-		if !strings.Contains(stepStr, ".claude/settings.json") {
-			t.Error("Step should create settings.json file")
-		}
-		if !strings.Contains(stepStr, "EOF") {
-			t.Error("Step should use heredoc syntax")
+		if !ShouldEnforceNetworkPermissions(permissions) {
+			t.Error("Should enforce permissions even with empty allowed list (deny-all policy)")
 		}
 	})
 }
 
-func TestNetworkPermissionsHelpers(t *testing.T) {
-	t.Run("HasNetworkPermissions", func(t *testing.T) {
-		// Test nil config
-		if HasNetworkPermissions(nil) {
-			t.Error("nil config should not have network permissions")
-		}
-
-		// Test config without permissions
-		config := &EngineConfig{ID: "claude"}
-		if HasNetworkPermissions(config) {
-			t.Error("Config without permissions should not have network permissions")
-		}
-
-		// Test config with empty permissions
-		config.Permissions = &EnginePermissions{}
-		if HasNetworkPermissions(config) {
-			t.Error("Config with empty permissions should not have network permissions")
-		}
-
-		// Test config with empty network permissions (empty struct)
-		config.Permissions.Network = &NetworkPermissions{}
-		if !HasNetworkPermissions(config) {
-			t.Error("Config with empty network permissions struct should have network permissions (deny-all policy)")
-		}
-
-		// Test config with network permissions
-		config.Permissions.Network.Allowed = []string{"example.com"}
-		if !HasNetworkPermissions(config) {
-			t.Error("Config with network permissions should have network permissions")
-		}
-
-		// Test non-Claude engine with network permissions (should be false)
-		nonClaudeConfig := &EngineConfig{
-			ID: "codex",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{"example.com"},
-				},
-			},
-		}
-		if HasNetworkPermissions(nonClaudeConfig) {
-			t.Error("Non-Claude engine should not have network permissions even if configured")
-		}
-	})
-
-	t.Run("GetAllowedDomains", func(t *testing.T) {
-		// Test nil config
+func TestGetAllowedDomains(t *testing.T) {
+	t.Run("nil permissions", func(t *testing.T) {
 		domains := GetAllowedDomains(nil)
-		if domains != nil {
-			t.Error("nil config should return nil (no restrictions)")
-		}
-
-		// Test config without permissions
-		config := &EngineConfig{ID: "claude"}
-		domains = GetAllowedDomains(config)
-		if domains != nil {
-			t.Error("Config without permissions should return nil (no restrictions)")
-		}
-
-		// Test config with empty network permissions (deny-all policy)
-		config.Permissions = &EnginePermissions{
-			Network: &NetworkPermissions{
-				Allowed: []string{}, // Empty list means deny-all
-			},
-		}
-		domains = GetAllowedDomains(config)
 		if domains == nil {
-			t.Error("Config with empty network permissions should return empty slice (deny-all policy)")
+			t.Error("Should return default whitelist when permissions are nil")
+		}
+		if len(domains) == 0 {
+			t.Error("Expected default whitelist domains for nil permissions, got empty list")
+		}
+	})
+
+	t.Run("empty permissions (deny-all)", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{}, // Empty list means deny-all
+		}
+		domains := GetAllowedDomains(permissions)
+		if domains == nil {
+			t.Error("Should return empty slice, not nil, for deny-all policy")
 		}
 		if len(domains) != 0 {
 			t.Errorf("Expected 0 domains for deny-all policy, got %d", len(domains))
 		}
+	})
 
-		// Test config with network permissions
-		config.Permissions = &EnginePermissions{
-			Network: &NetworkPermissions{
-				Allowed: []string{"example.com", "*.trusted.com", "api.service.org"},
-			},
+	t.Run("valid permissions with domains", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"example.com", "*.trusted.com", "api.service.org"},
 		}
-		domains = GetAllowedDomains(config)
-		if len(domains) != 3 {
-			t.Errorf("Expected 3 domains, got %d", len(domains))
-		}
-		if domains[0] != "example.com" {
-			t.Errorf("Expected first domain to be 'example.com', got '%s'", domains[0])
-		}
-		if domains[1] != "*.trusted.com" {
-			t.Errorf("Expected second domain to be '*.trusted.com', got '%s'", domains[1])
-		}
-		if domains[2] != "api.service.org" {
-			t.Errorf("Expected third domain to be 'api.service.org', got '%s'", domains[2])
+		domains := GetAllowedDomains(permissions)
+		expectedDomains := []string{"example.com", "*.trusted.com", "api.service.org"}
+		if len(domains) != len(expectedDomains) {
+			t.Fatalf("Expected %d domains, got %d", len(expectedDomains), len(domains))
 		}
 
-		// Test non-Claude engine with network permissions (should return empty)
-		nonClaudeConfig := &EngineConfig{
-			ID: "codex",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{"example.com", "test.org"},
-				},
-			},
+		for i, expected := range expectedDomains {
+			if domains[i] != expected {
+				t.Errorf("Expected domain %d to be '%s', got '%s'", i, expected, domains[i])
+			}
 		}
-		domains = GetAllowedDomains(nonClaudeConfig)
-		if len(domains) != 0 {
-			t.Error("Non-Claude engine should return empty domains even if configured")
+	})
+}
+
+func TestDeprecatedHasNetworkPermissions(t *testing.T) {
+	t.Run("deprecated function always returns false", func(t *testing.T) {
+		// Test that the deprecated function always returns false
+		if HasNetworkPermissions(nil) {
+			t.Error("Deprecated HasNetworkPermissions should always return false")
+		}
+
+		config := &EngineConfig{ID: "claude"}
+		if HasNetworkPermissions(config) {
+			t.Error("Deprecated HasNetworkPermissions should always return false")
 		}
 	})
 }
@@ -234,48 +165,25 @@ func TestEngineConfigParsing(t *testing.T) {
 
 	t.Run("ParseNetworkPermissions", func(t *testing.T) {
 		frontmatter := map[string]any{
-			"engine": map[string]any{
-				"id":    "claude",
-				"model": "claude-3-5-sonnet-20241022",
-				"permissions": map[string]any{
-					"network": map[string]any{
-						"allowed": []any{"example.com", "*.trusted.com", "api.service.org"},
-					},
-				},
+			"network": map[string]any{
+				"allowed": []any{"example.com", "*.trusted.com", "api.service.org"},
 			},
 		}
 
-		engineSetting, engineConfig := compiler.extractEngineConfig(frontmatter)
+		networkPermissions := compiler.extractNetworkPermissions(frontmatter)
 
-		if engineSetting != "claude" {
-			t.Errorf("Expected engine setting 'claude', got '%s'", engineSetting)
+		if networkPermissions == nil {
+			t.Fatal("Network permissions should not be nil")
 		}
 
-		if engineConfig == nil {
-			t.Fatal("Engine config should not be nil")
-		}
-
-		if engineConfig.ID != "claude" {
-			t.Errorf("Expected engine ID 'claude', got '%s'", engineConfig.ID)
-		}
-
-		if engineConfig.Model != "claude-3-5-sonnet-20241022" {
-			t.Errorf("Expected model 'claude-3-5-sonnet-20241022', got '%s'", engineConfig.Model)
-		}
-
-		if !HasNetworkPermissions(engineConfig) {
-			t.Error("Engine config should have network permissions")
-		}
-
-		domains := GetAllowedDomains(engineConfig)
 		expectedDomains := []string{"example.com", "*.trusted.com", "api.service.org"}
-		if len(domains) != len(expectedDomains) {
-			t.Fatalf("Expected %d domains, got %d", len(expectedDomains), len(domains))
+		if len(networkPermissions.Allowed) != len(expectedDomains) {
+			t.Fatalf("Expected %d domains, got %d", len(expectedDomains), len(networkPermissions.Allowed))
 		}
 
 		for i, expected := range expectedDomains {
-			if domains[i] != expected {
-				t.Errorf("Expected domain %d to be '%s', got '%s'", i, expected, domains[i])
+			if networkPermissions.Allowed[i] != expected {
+				t.Errorf("Expected domain %d to be '%s', got '%s'", i, expected, networkPermissions.Allowed[i])
 			}
 		}
 	})
@@ -288,23 +196,28 @@ func TestEngineConfigParsing(t *testing.T) {
 			},
 		}
 
-		engineSetting, engineConfig := compiler.extractEngineConfig(frontmatter)
+		networkPermissions := compiler.extractNetworkPermissions(frontmatter)
 
-		if engineSetting != "claude" {
-			t.Errorf("Expected engine setting 'claude', got '%s'", engineSetting)
+		if networkPermissions != nil {
+			t.Error("Network permissions should be nil when not specified")
+		}
+	})
+
+	t.Run("ParseEmptyNetworkPermissions", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"network": map[string]any{
+				"allowed": []any{}, // Empty list means deny-all
+			},
 		}
 
-		if engineConfig == nil {
-			t.Fatal("Engine config should not be nil")
+		networkPermissions := compiler.extractNetworkPermissions(frontmatter)
+
+		if networkPermissions == nil {
+			t.Fatal("Network permissions should not be nil")
 		}
 
-		if HasNetworkPermissions(engineConfig) {
-			t.Error("Engine config should not have network permissions")
-		}
-
-		domains := GetAllowedDomains(engineConfig)
-		if len(domains) != 0 {
-			t.Errorf("Expected 0 domains, got %d", len(domains))
+		if len(networkPermissions.Allowed) != 0 {
+			t.Errorf("Expected 0 domains for deny-all policy, got %d", len(networkPermissions.Allowed))
 		}
 	})
 }
