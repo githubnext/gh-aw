@@ -41,13 +41,13 @@ func (e *ClaudeEngine) GetInstallationSteps(engineConfig *EngineConfig, networkP
 
 		allowedDomains := GetAllowedDomains(networkPermissions)
 
-		// Add hook generation step
-		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
-		steps = append(steps, hookStep)
-
 		// Add settings generation step
 		settingsStep := settingsGenerator.GenerateSettingsWorkflowStep()
 		steps = append(steps, settingsStep)
+
+		// Add hook generation step
+		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
+		steps = append(steps, hookStep)
 	}
 
 	return steps

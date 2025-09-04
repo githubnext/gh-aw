@@ -7,6 +7,10 @@ on:
 safe-outputs:
   add-issue-comment:
 
+network:
+  allowed:
+    - "example.com"
+
 tools:
   fetch:
     mcp:

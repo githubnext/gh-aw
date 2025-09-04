@@ -35,13 +35,22 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Errorf("Expected 2 installation steps with network permissions, got %d", len(steps))
 		}
 
-		// Check first step (hook generation)
-		hookStepStr := strings.Join(steps[0], "\n")
+		// Check first step (settings generation)
+		settingsStepStr := strings.Join(steps[0], "\n")
+		if !strings.Contains(settingsStepStr, "Generate Claude Settings") {
+			t.Error("First step should generate Claude settings")
+		}
+		if !strings.Contains(settingsStepStr, ".claude/settings.json") {
+			t.Error("First step should create settings file")
+		}
+
+		// Check second step (hook generation)
+		hookStepStr := strings.Join(steps[1], "\n")
 		if !strings.Contains(hookStepStr, "Generate Network Permissions Hook") {
-			t.Error("First step should generate network permissions hook")
+			t.Error("Second step should generate network permissions hook")
 		}
 		if !strings.Contains(hookStepStr, ".claude/hooks/network_permissions.py") {
-			t.Error("First step should create hook file")
+			t.Error("Second step should create hook file")
 		}
 		if !strings.Contains(hookStepStr, "example.com") {
 			t.Error("Hook should contain allowed domain example.com")
@@ -50,14 +59,6 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Error("Hook should contain allowed domain *.trusted.com")
 		}
 
-		// Check second step (settings generation)
-		settingsStepStr := strings.Join(steps[1], "\n")
-		if !strings.Contains(settingsStepStr, "Generate Claude Settings") {
-			t.Error("Second step should generate Claude settings")
-		}
-		if !strings.Contains(settingsStepStr, ".claude/settings.json") {
-			t.Error("Second step should create settings file")
-		}
 	})
 
 	t.Run("ExecutionConfig without network permissions", func(t *testing.T) {
@@ -161,8 +162,8 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 			t.Fatalf("Expected 2 installation steps, got %d", len(steps))
 		}
 
-		// Verify hook generation step
-		hookStep := strings.Join(steps[0], "\n")
+		// Verify hook generation step (second step)
+		hookStep := strings.Join(steps[1], "\n")
 		expectedDomains := []string{"api.github.com", "*.example.com", "trusted.org"}
 		for _, domain := range expectedDomains {
 			if !strings.Contains(hookStep, domain) {

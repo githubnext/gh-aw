@@ -9,6 +9,8 @@ engine:
 safe-outputs:
   create-issue:
 
+network: {}
+
 tools:
   time:
     mcp:
