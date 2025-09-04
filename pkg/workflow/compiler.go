@@ -1560,6 +1560,17 @@ func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any, saf
 	bashComplete:
 	}
 
+	// Check if Bash tools are present and add implicit KillBash and BashOutput
+	if _, hasBash := claudeExistingAllowed["Bash"]; hasBash {
+		// Implicitly add KillBash and BashOutput when any Bash tools are allowed
+		if _, exists := claudeExistingAllowed["KillBash"]; !exists {
+			claudeExistingAllowed["KillBash"] = nil
+		}
+		if _, exists := claudeExistingAllowed["BashOutput"]; !exists {
+			claudeExistingAllowed["BashOutput"] = nil
+		}
+	}
+
 	// Update the claude section with the new format
 	claudeSection["allowed"] = claudeExistingAllowed
 	tools["claude"] = claudeSection
