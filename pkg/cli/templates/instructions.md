@@ -69,17 +69,18 @@ The YAML frontmatter supports these fields:
       version: beta                     # Optional: version of the action
       model: claude-3-5-sonnet-20241022 # Optional: LLM model to use
       max-turns: 5                      # Optional: maximum chat iterations per run
-      permissions:                      # Optional: engine-level permissions
-        network:                        # Network access control for Claude Code
-          allowed:                      # List of allowed domains
-            - "example.com"
-            - "*.trusted-domain.com"
     ```
-  
-- **`strict:`** - Enable strict mode for deny-by-default permissions (boolean, default: false)
-  ```yaml
-  strict: true  # Enforce deny-all network permissions when no explicit permissions set
-  ```
+
+- **`network:`** - Network access control for Claude Code engine (top-level field)
+  - String format: `"defaults"` (curated whitelist of development domains)  
+  - Empty object format: `{}` (no network access)
+  - Object format for custom permissions:
+    ```yaml
+    network:
+      allowed:
+        - "example.com"
+        - "*.trusted-domain.com"
+    ```
   
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
@@ -351,37 +352,38 @@ tools:
 
 ### Engine Network Permissions
 
-Control network access for the Claude Code engine itself (not MCP tools):
+Control network access for the Claude Code engine using the top-level `network:` field. If no `network:` permission is specified, it defaults to `network: defaults` which uses a curated whitelist of common development and package manager domains.
 
 ```yaml
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "api.github.com"
-        - "*.trusted-domain.com"
-        - "example.com"
+
+# Default whitelist (curated list of development domains)
+network: defaults
+
+# Or allow specific domains only
+network:
+  allowed:
+    - "api.github.com"
+    - "*.trusted-domain.com"
+    - "example.com"
+
+# Or deny all network access
+network: {}
 ```
 
 **Important Notes:**
 - Network permissions apply to Claude Code's WebFetch and WebSearch tools
-- When permissions are specified, deny-by-default policy is enforced
+- Uses top-level `network:` field (not nested under engine permissions)
+- When custom permissions are specified with `allowed:` list, deny-by-default policy is enforced
 - Supports exact domain matches and wildcard patterns (where `*` matches any characters, including nested subdomains)
 - Currently supported for Claude engine only (Codex support planned)
 - Uses Claude Code hooks for enforcement, not network proxies
 
-**Three Permission Modes:**
-1. **No network permissions**: Unrestricted access (backwards compatible)
-2. **Empty allowed list**: Complete network access denial
-   ```yaml
-   engine:
-     id: claude
-     permissions:
-       network:
-         allowed: []  # Deny all network access
-   ```
-3. **Specific domains**: Granular access control to listed domains only
+**Permission Modes:**
+1. **Default whitelist**: `network: defaults` or no `network:` field (curated development domains)
+2. **No network access**: `network: {}` (deny all)
+3. **Specific domains**: `network: { allowed: [...] }` (granular access control)
 
 ## @include Directive System
 

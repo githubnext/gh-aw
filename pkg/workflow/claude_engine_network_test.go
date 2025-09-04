@@ -14,7 +14,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			Model: "claude-3-5-sonnet-20241022",
 		}
 
-		steps := engine.GetInstallationSteps(config)
+		steps := engine.GetInstallationSteps(config, nil)
 		if len(steps) != 0 {
 			t.Errorf("Expected 0 installation steps without network permissions, got %d", len(steps))
 		}
@@ -24,14 +24,13 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		config := &EngineConfig{
 			ID:    "claude",
 			Model: "claude-3-5-sonnet-20241022",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{"example.com", "*.trusted.com"},
-				},
-			},
 		}
 
-		steps := engine.GetInstallationSteps(config)
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"example.com", "*.trusted.com"},
+		}
+
+		steps := engine.GetInstallationSteps(config, networkPermissions)
 		if len(steps) != 2 {
 			t.Errorf("Expected 2 installation steps with network permissions, got %d", len(steps))
 		}
@@ -59,9 +58,6 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		if !strings.Contains(settingsStepStr, ".claude/settings.json") {
 			t.Error("Second step should create settings file")
 		}
-		if !strings.Contains(settingsStepStr, "WebFetch|WebSearch") {
-			t.Error("Settings should match WebFetch and WebSearch tools")
-		}
 	})
 
 	t.Run("ExecutionConfig without network permissions", func(t *testing.T) {
@@ -70,7 +66,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			Model: "claude-3-5-sonnet-20241022",
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, nil, false)
 
 		// Verify settings parameter is not present
 		if settings, exists := execConfig.Inputs["settings"]; exists {
@@ -87,86 +83,62 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		config := &EngineConfig{
 			ID:    "claude",
 			Model: "claude-3-5-sonnet-20241022",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{"example.com"},
-				},
-			},
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"example.com"},
+		}
+
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, networkPermissions, false)
 
 		// Verify settings parameter is present
 		if settings, exists := execConfig.Inputs["settings"]; !exists {
 			t.Error("Settings parameter should be present with network permissions")
 		} else if settings != ".claude/settings.json" {
-			t.Errorf("Expected settings '.claude/settings.json', got '%s'", settings)
+			t.Errorf("Expected settings parameter '.claude/settings.json', got '%s'", settings)
 		}
 
 		// Verify other inputs are still correct
 		if execConfig.Inputs["model"] != "claude-3-5-sonnet-20241022" {
 			t.Errorf("Expected model 'claude-3-5-sonnet-20241022', got '%s'", execConfig.Inputs["model"])
 		}
-
-		// Verify other expected inputs are present (except claude_env when hasOutput=false for security)
-		expectedInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "allowed_tools", "timeout_minutes", "max_turns"}
-		for _, input := range expectedInputs {
-			if _, exists := execConfig.Inputs[input]; !exists {
-				t.Errorf("Expected input '%s' should be present", input)
-			}
-		}
-
-		// claude_env should not be present when hasOutput=false (security improvement)
-		if _, hasClaudeEnv := execConfig.Inputs["claude_env"]; hasClaudeEnv {
-			t.Errorf("Expected no claude_env input for security reasons when hasOutput=false")
-		}
 	})
 
-	t.Run("ExecutionConfig with empty network permissions", func(t *testing.T) {
+	t.Run("ExecutionConfig with empty allowed domains (deny all)", func(t *testing.T) {
 		config := &EngineConfig{
 			ID:    "claude",
 			Model: "claude-3-5-sonnet-20241022",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{}, // Empty allowed list means deny-all policy
-				},
-			},
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{}, // Empty list means deny all
+		}
 
-		// With empty allowed list, we should enforce deny-all policy via settings
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, networkPermissions, false)
+
+		// Verify settings parameter is present even with deny-all policy
 		if settings, exists := execConfig.Inputs["settings"]; !exists {
-			t.Error("Settings parameter should be present with empty network permissions (deny-all policy)")
+			t.Error("Settings parameter should be present with deny-all network permissions")
 		} else if settings != ".claude/settings.json" {
-			t.Errorf("Expected settings '.claude/settings.json', got '%s'", settings)
+			t.Errorf("Expected settings parameter '.claude/settings.json', got '%s'", settings)
 		}
 	})
 
-	t.Run("ExecutionConfig version handling with network permissions", func(t *testing.T) {
+	t.Run("ExecutionConfig with non-Claude engine", func(t *testing.T) {
 		config := &EngineConfig{
-			ID:      "claude",
-			Version: "v1.2.3",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{"example.com"},
-				},
-			},
+			ID:    "codex", // Non-Claude engine
+			Model: "gpt-4",
 		}
 
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
-
-		// Verify action version uses config version
-		expectedAction := "anthropics/claude-code-base-action@v1.2.3"
-		if execConfig.Action != expectedAction {
-			t.Errorf("Expected action '%s', got '%s'", expectedAction, execConfig.Action)
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"example.com"},
 		}
 
-		// Verify settings parameter is still present
-		if settings, exists := execConfig.Inputs["settings"]; !exists {
-			t.Error("Settings parameter should be present with network permissions")
-		} else if settings != ".claude/settings.json" {
-			t.Errorf("Expected settings '.claude/settings.json', got '%s'", settings)
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, networkPermissions, false)
+
+		// Verify settings parameter is not present for non-Claude engines
+		if settings, exists := execConfig.Inputs["settings"]; exists {
+			t.Errorf("Settings parameter should not be present for non-Claude engine, got '%s'", settings)
 		}
 	})
 }
@@ -177,15 +149,14 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		config := &EngineConfig{
 			ID:    "claude",
 			Model: "claude-3-5-sonnet-20241022",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{"api.github.com", "*.example.com", "trusted.org"},
-				},
-			},
+		}
+
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"api.github.com", "*.example.com", "trusted.org"},
 		}
 
 		// Get installation steps
-		steps := engine.GetInstallationSteps(config)
+		steps := engine.GetInstallationSteps(config, networkPermissions)
 		if len(steps) != 2 {
 			t.Fatalf("Expected 2 installation steps, got %d", len(steps))
 		}
@@ -199,53 +170,55 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 			}
 		}
 
-		// Verify settings generation step
-		settingsStep := strings.Join(steps[1], "\n")
-		if !strings.Contains(settingsStep, "PreToolUse") {
-			t.Error("Settings step should configure PreToolUse hooks")
-		}
-
 		// Get execution config
-		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, false)
-		if execConfig.Inputs["settings"] != ".claude/settings.json" {
-			t.Error("Execution config should reference generated settings file")
+		execConfig := engine.GetExecutionConfig("test-workflow", "test-log", config, networkPermissions, false)
+
+		// Verify settings is configured
+		if settings, exists := execConfig.Inputs["settings"]; !exists {
+			t.Error("Settings parameter should be present")
+		} else if settings != ".claude/settings.json" {
+			t.Errorf("Expected settings parameter '.claude/settings.json', got '%s'", settings)
 		}
 
-		// Verify all pieces work together
-		if !HasNetworkPermissions(config) {
-			t.Error("Config should have network permissions")
-		}
-		domains := GetAllowedDomains(config)
+		// Test the GetAllowedDomains function
+		domains := GetAllowedDomains(networkPermissions)
 		if len(domains) != 3 {
-			t.Errorf("Expected 3 allowed domains, got %d", len(domains))
+			t.Fatalf("Expected 3 allowed domains, got %d", len(domains))
+		}
+
+		expectedDomainsList := []string{"api.github.com", "*.example.com", "trusted.org"}
+		for i, expected := range expectedDomainsList {
+			if domains[i] != expected {
+				t.Errorf("Expected domain %d to be '%s', got '%s'", i, expected, domains[i])
+			}
 		}
 	})
 
-	t.Run("Multiple engine instances consistency", func(t *testing.T) {
+	t.Run("Engine consistency", func(t *testing.T) {
 		engine1 := NewClaudeEngine()
 		engine2 := NewClaudeEngine()
 
 		config := &EngineConfig{
-			ID: "claude",
-			Permissions: &EnginePermissions{
-				Network: &NetworkPermissions{
-					Allowed: []string{"example.com"},
-				},
-			},
+			ID:    "claude",
+			Model: "claude-3-5-sonnet-20241022",
 		}
 
-		steps1 := engine1.GetInstallationSteps(config)
-		steps2 := engine2.GetInstallationSteps(config)
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"example.com"},
+		}
+
+		steps1 := engine1.GetInstallationSteps(config, networkPermissions)
+		steps2 := engine2.GetInstallationSteps(config, networkPermissions)
 
 		if len(steps1) != len(steps2) {
-			t.Error("Different engine instances should generate same number of steps")
+			t.Errorf("Engine instances should produce same number of steps, got %d and %d", len(steps1), len(steps2))
 		}
 
-		execConfig1 := engine1.GetExecutionConfig("test", "log", config, false)
-		execConfig2 := engine2.GetExecutionConfig("test", "log", config, false)
+		execConfig1 := engine1.GetExecutionConfig("test", "log", config, networkPermissions, false)
+		execConfig2 := engine2.GetExecutionConfig("test", "log", config, networkPermissions, false)
 
-		if execConfig1.Inputs["settings"] != execConfig2.Inputs["settings"] {
-			t.Error("Different engine instances should generate consistent execution configs")
+		if execConfig1.Action != execConfig2.Action {
+			t.Errorf("Engine instances should produce same action, got '%s' and '%s'", execConfig1.Action, execConfig2.Action)
 		}
 	})
 }

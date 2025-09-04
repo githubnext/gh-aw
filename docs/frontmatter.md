@@ -18,11 +18,11 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 
 **Properties specific to GitHub Agentic Workflows:**
-- `engine`: AI engine configuration (claude/codex) with optional max-turns setting and network permissions
+- `engine`: AI engine configuration (claude/codex) with optional max-turns setting
+- `network`: Network access control for AI engines (supports `defaults`, `{}`, or `{ allowed: [...] }`)
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
 - `safe-outputs`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
-- `strict`: Enable strict mode to enforce deny-by-default permissions for engine and MCP servers
 
 ## Trigger Events (`on:`)
 
@@ -164,11 +164,6 @@ engine:
   version: beta                     # Optional: version of the action
   model: claude-3-5-sonnet-20241022 # Optional: specific LLM model
   max-turns: 5                      # Optional: maximum chat iterations per run
-  permissions:                      # Optional: engine-level permissions (only Claude is supported)
-    network:                        # Network access control
-      allowed:                      # List of allowed domains
-        - "api.example.com"
-        - "*.trusted.com"
 ```
 
 **Fields:**
@@ -176,9 +171,6 @@ engine:
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
-- **`permissions`** (optional): Engine-level permissions
-  - **`network`** (optional): Network access control
-    - **`allowed`** (optional): List of allowed domains for WebFetch and WebSearch
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
@@ -202,25 +194,42 @@ engine:
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
 
-## Engine Network Permissions
+## Network Permissions (`network:`)
 
 > This is only supported by the claude engine today.
 
-Control network access for AI engines using the `permissions` field in the `engine` block:
+Control network access for AI engines using the top-level `network` field. If no `network:` permission is specified, it defaults to `network: defaults` which uses a curated whitelist of common development and package manager domains.
+
+### Supported Formats
 
 ```yaml
+# Default whitelist (curated list of development domains)
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "api.example.com"      # Exact domain match
-        - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
+
+network: defaults
+
+# Or allow specific domains only
+engine:
+  id: claude
+
+network:
+  allowed:
+    - "api.example.com"      # Exact domain match
+    - "*.trusted.com"        # Wildcard matches any subdomain (including nested subdomains)
+
+# Or deny all network access (empty object)
+engine:
+  id: claude
+
+network: {}
 ```
 
 ### Security Model
 
-- **Deny by Default**: When network permissions are specified, only listed domains are accessible
+- **Default Whitelist**: When no network permissions are specified or `network: defaults` is used, access is restricted to a curated whitelist of common development domains (package managers, container registries, etc.)
+- **Selective Access**: When `network: { allowed: [...] }` is specified, only listed domains are accessible
+- **No Access**: When `network: {}` is specified, all network access is denied
 - **Engine vs Tools**: Engine permissions control the AI engine itself, separate from MCP tool permissions
 - **Hook Enforcement**: Uses Claude Code's hook system for runtime network access control
 - **Domain Validation**: Supports exact matches and wildcard patterns (`*` matches any characters including dots, allowing nested subdomains)
@@ -228,113 +237,91 @@ engine:
 ### Examples
 
 ```yaml
+# Default whitelist (common development domains like npmjs.org, pypi.org, etc.)
+engine:
+  id: claude
+
+network: defaults
+
 # Allow specific APIs only
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "api.github.com"
-        - "httpbin.org"
+
+network:
+  allowed:
+    - "api.github.com"
+    - "httpbin.org"
 
 # Allow all subdomains of a trusted domain
 # Note: "*.github.com" matches api.github.com, subdomain.github.com, and even nested.api.github.com
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "*.company-internal.com"
-        - "public-api.service.com"
 
-# Deny all network access (empty list)
+network:
+  allowed:
+    - "*.company-internal.com"
+    - "public-api.service.com"
+
+# Deny all network access (empty object)
 engine:
   id: claude
-  permissions:
-    network:
-      allowed: []
+
+network: {}
 ```
+
+### Default Whitelist Domains
+
+The `network: defaults` mode includes access to these categories of domains:
+- **Package Managers**: npmjs.org, pypi.org, rubygems.org, crates.io, nuget.org, etc.
+- **Container Registries**: docker.io, ghcr.io, quay.io, mcr.microsoft.com, etc.
+- **Development Tools**: github.com domains, golang.org, maven.apache.org, etc.
+- **Certificate Authorities**: Various OCSP and CRL endpoints for certificate validation
+- **Language-specific Repositories**: For Go, Python, Node.js, Java, .NET, Rust, etc.
+
+### Migration from Previous Versions
+
+The previous `strict:` mode has been removed. Network permissions now work as follows:
+- **No `network:` field**: Defaults to `network: defaults` (curated whitelist)
+- **`network: defaults`**: Curated whitelist of development domains
+- **`network: {}`**: No network access  
+- **`network: { allowed: [...] }`**: Restricted to listed domains only
+
 
 ### Permission Modes
 
-1. **No network permissions**: Unrestricted access (backwards compatible)
+1. **Default whitelist**: Curated list of development domains (default when no `network:` field specified)
    ```yaml
    engine:
      id: claude
-     # No permissions block - full network access
+     # No network block - defaults to curated whitelist
    ```
 
-2. **Empty allowed list**: Complete network access denial
+2. **Explicit default whitelist**: Curated list of development domains (explicit)
    ```yaml
    engine:
      id: claude
-     permissions:
-       network:
-         allowed: []  # Deny all network access
+
+   network: defaults  # Curated whitelist of development domains
    ```
 
-3. **Specific domains**: Granular access control to listed domains only
+3. **No network access**: Complete network access denial
    ```yaml
    engine:
      id: claude
-     permissions:
-       network:
-         allowed:
-           - "trusted-api.com"
-           - "*.safe-domain.org"
+
+   network: {}  # Deny all network access
    ```
 
-## Strict Mode (`strict:`)
-
-Strict mode enforces deny-by-default permissions for both engine and MCP servers even when no explicit permissions are configured. This provides a zero-trust security model that adheres to security best practices.
-
-```yaml
-strict: true  # Enable strict mode (default: false)
-```
-
-### Behavior
-
-When strict mode is enabled:
-
-1. **No explicit network permissions**: Automatically enforces deny-all policy
+4. **Specific domains**: Granular access control to listed domains only
    ```yaml
-   strict: true
-   engine: claude
-   # No engine.permissions.network specified
-   # Result: All network access is denied (same as empty allowed list)
-   ```
-
-2. **Explicit network permissions**: Uses the specified permissions normally
-   ```yaml
-   strict: true
    engine:
      id: claude
-     permissions:
-       network:
-         allowed: ["api.github.com"]
-   # Result: Only api.github.com is accessible
+
+   network:
+     allowed:
+       - "trusted-api.com"
+       - "*.safe-domain.org"
    ```
-
-3. **Strict mode disabled**: Maintains backwards-compatible behavior
-   ```yaml
-   strict: false  # or omitted entirely
-   engine: claude
-   # No engine.permissions.network specified
-   # Result: Unrestricted network access (backwards compatible)
-   ```
-
-### Use Cases
-
-- **Security-first workflows**: When you want to ensure no accidental network access
-- **Compliance requirements**: For environments requiring deny-by-default policies
-- **Zero-trust environments**: When explicit permissions should always be required
-- **Migration assistance**: Gradually migrate existing workflows to explicit permissions
-
-### Compatibility
-
-- Only applies to engines that support network permissions (currently Claude)
-- Non-Claude engines ignore strict mode setting
-- Backwards compatible when `strict: false` or omitted
 
 ## Safe Outputs Configuration (`safe-outputs:`)
 

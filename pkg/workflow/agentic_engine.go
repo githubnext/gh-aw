@@ -37,10 +37,10 @@ type AgenticEngine interface {
 	GetDeclaredOutputFiles() []string
 
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
-	GetInstallationSteps(engineConfig *EngineConfig) []GitHubActionStep
+	GetInstallationSteps(engineConfig *EngineConfig, networkPermissions *NetworkPermissions) []GitHubActionStep
 
 	// GetExecutionConfig returns the configuration for executing this engine
-	GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, hasOutput bool) ExecutionConfig
+	GetExecutionConfig(workflowName string, logFile string, engineConfig *EngineConfig, networkPermissions *NetworkPermissions, hasOutput bool) ExecutionConfig
 
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string)

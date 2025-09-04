@@ -246,27 +246,27 @@ Engine network permissions provide fine-grained control over network access for 
    ```yaml
    engine:
      id: claude
-     # No permissions block - full network access
+     # No network block - full network access
    ```
 
 2. **Empty allowed list**: Complete network access denial
    ```yaml
    engine:
      id: claude
-     permissions:
-       network:
-         allowed: []  # Deny all network access
+
+   network:
+     allowed: []  # Deny all network access
    ```
 
 3. **Specific domains**: Granular access control to listed domains only
    ```yaml
    engine:
      id: claude
-     permissions:
-       network:
-         allowed:
-           - "api.github.com"
-           - "*.company-internal.com"
+
+   network:
+     allowed:
+       - "api.github.com"
+       - "*.company-internal.com"
    ```
 
 ## Engine Security Notes

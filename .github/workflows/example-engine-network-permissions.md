@@ -10,10 +10,10 @@ permissions:
 
 engine:
   id: claude
-  permissions:
-    network:
-      allowed:
-        - "docs.github.com"
+
+network:
+  allowed:
+    - "docs.github.com"
 
 tools:
   claude:

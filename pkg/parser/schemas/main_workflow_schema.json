@@ -595,6 +595,31 @@
         }
       ]
     },
+    "network": {
+      "description": "Network access control configuration",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["defaults"],
+          "description": "Use default network permissions (currently full network access, will change later)"
+        },
+        {
+          "type": "object",
+          "description": "Custom network access configuration",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "description": "List of allowed domains for network access",
+              "items": {
+                "type": "string",
+                "description": "Domain name (supports wildcards with * prefix)"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "if": {
       "type": "string",
       "description": "Conditional execution expression"
@@ -673,29 +698,6 @@
             "max-turns": {
               "type": "integer",
               "description": "Maximum number of chat iterations per run"
-            },
-            "permissions": {
-              "type": "object",
-              "description": "Engine-level permissions configuration",
-              "properties": {
-                "network": {
-                  "type": "object",
-                  "description": "Network access control for the engine",
-                  "properties": {
-                    "allowed": {
-                      "type": "array",
-                      "description": "List of allowed domains for network access",
-                      "items": {
-                        "type": "string",
-                        "description": "Domain name (supports wildcards with * prefix)"
-                      }
-                    }
-                  },
-                  "required": ["allowed"],
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
             }
           },
           "required": ["id"],
@@ -971,10 +973,6 @@
           }
         }
       ]
-    },
-    "strict": {
-      "type": "boolean",
-      "description": "Enable strict mode to enforce deny-by-default permissions for engine and MCP servers even when permissions are not explicitly set"
     },
     "safe-outputs": {
       "type": "object",
