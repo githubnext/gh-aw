@@ -3528,7 +3528,7 @@ Test workflow with reaction.
 	}
 
 	// Generate YAML and verify it contains reaction jobs
-	yamlContent, err := compiler.generateYAML(workflowData)
+	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -3600,7 +3600,7 @@ Test workflow without explicit reaction (should not create reaction action).
 	}
 
 	// Generate YAML and verify it does NOT contain reaction jobs
-	yamlContent, err := compiler.generateYAML(workflowData)
+	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -3673,7 +3673,7 @@ Test workflow with reaction and comment editing.
 	}
 
 	// Generate YAML and verify it contains the enhanced reaction script
-	yamlContent, err := compiler.generateYAML(workflowData)
+	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -3756,7 +3756,7 @@ Test command workflow with reaction and comment editing.
 	}
 
 	// Generate YAML and verify it contains both alias and reaction environment variables
-	yamlContent, err := compiler.generateYAML(workflowData)
+	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}

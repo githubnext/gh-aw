@@ -9,6 +9,8 @@ One of the primary security features of GitHub Agentic Workflows is "safe output
 | **New Issue Creation** | `create-issue:` | Create GitHub issues based on workflow output | 1 |
 | **Issue Comments** | `add-issue-comment:` | Post comments on issues or pull requests | 1 |
 | **Pull Request Creation** | `create-pull-request:` | Create pull requests with code changes | 1 |
+| **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
+| **Security Reports** | `create-security-report:` | Generate SARIF security reports and upload to GitHub Code Scanning | unlimited |
 | **Label Addition** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
 | **Issue Updates** | `update-issue:` | Update issue status, title, or body | 1 |
 | **Push to Branch** | `push-to-branch:` | Push changes directly to a branch | 1 |
@@ -218,6 +220,60 @@ The compiled workflow will have additional prompting describing that, to create 
 - Supports both single-line and multi-line code comments
 - Comments are automatically positioned on the correct side of the diff
 - Maximum comment limits prevent spam
+
+### Security Report Creation (`create-security-report:`)
+
+Adding `create-security-report:` to the `safe-outputs:` section declares that the workflow should conclude with creating security reports in SARIF format based on the workflow's security analysis findings. The SARIF file is uploaded as an artifact and submitted to GitHub Code Scanning.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  create-security-report:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  create-security-report:
+    max: 50                         # Optional: maximum number of security findings (default: unlimited)
+```
+
+The agentic part of your workflow should describe the security findings it wants reported with specific file paths, line numbers, severity levels, and descriptions.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Security Analysis Agent
+
+Analyze the codebase for security vulnerabilities and create security reports.
+Create security reports with your analysis findings. For each security finding, specify:
+- The file path relative to the repository root
+- The line number where the issue occurs
+- The severity level (error, warning, info, or note)
+- A detailed description of the security issue
+
+Security findings will be formatted as SARIF and uploaded to GitHub Code Scanning.
+```
+
+The compiled workflow will have additional prompting describing that, to create security reports, it should write the security findings to a special file with the following structure:
+- `file`: The file path relative to the repository root
+- `line`: The line number where the security issue occurs
+- `column`: Optional column number where the security issue occurs (defaults to 1)
+- `severity`: The severity level ("error", "warning", "info", or "note")
+- `message`: The detailed description of the security issue
+- `ruleIdSuffix`: Optional custom suffix for the SARIF rule ID (must contain only alphanumeric characters, hyphens, and underscores)
+
+**Key Features:**
+- Generates SARIF (Static Analysis Results Interchange Format) reports
+- Automatically uploads reports as GitHub Actions artifacts
+- Integrates with GitHub Code Scanning for security dashboard visibility
+- Supports standard severity levels (error, warning, info, note)
+- Works in any workflow context (not limited to pull requests)
+- Maximum findings limit prevents overwhelming reports
+- Validates all required fields before generating SARIF
+- Supports optional column specification for precise location
+- Customizable rule IDs via optional ruleIdSuffix field
+- Rule IDs default to `{workflow-filename}-security-finding-{index}` format when no custom suffix is provided
 
 ### Label Addition (`add-issue-label:`)
 

@@ -21,6 +21,9 @@ var createCommentScript string
 //go:embed js/create_pr_review_comment.cjs
 var createPRReviewCommentScript string
 
+//go:embed js/create_security_report.cjs
+var createSecurityReportScript string
+
 //go:embed js/compute_text.cjs
 var computeTextScript string
 
