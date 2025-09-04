@@ -812,9 +812,10 @@
           "type": "string",
           "enum": [
             "claude",
-            "codex"
+            "codex",
+            "custom"
           ],
-          "description": "Simple engine name (claude or codex)"
+          "description": "Simple engine name (claude, codex, or custom)"
         },
         {
           "type": "object",
@@ -824,9 +825,10 @@
               "type": "string",
               "enum": [
                 "claude",
-                "codex"
+                "codex",
+                "custom"
               ],
-              "description": "Agent CLI identifier (claude or codex)"
+              "description": "Agent CLI identifier (claude, codex, or custom)"
             },
             "version": {
               "type": "string",
@@ -845,6 +847,14 @@
               "description": "Custom environment variables to pass to the agentic engine",
               "additionalProperties": {
                 "type": "string"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "description": "Custom GitHub Actions steps (for custom engine)",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
               }
             }
           },

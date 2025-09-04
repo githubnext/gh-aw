@@ -3777,7 +3777,16 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 	// Add run command
 	if run, hasRun := stepMap["run"]; hasRun {
 		if runStr, ok := run.(string); ok {
-			stepYAML.WriteString(fmt.Sprintf("        run: %s\n", runStr))
+			if strings.Contains(runStr, "\n") {
+				// Multi-line run command - use literal block scalar
+				stepYAML.WriteString("        run: |\n")
+				for _, line := range strings.Split(runStr, "\n") {
+					stepYAML.WriteString("          " + line + "\n")
+				}
+			} else {
+				// Single-line run command
+				stepYAML.WriteString(fmt.Sprintf("        run: %s\n", runStr))
+			}
 		}
 	}
 
@@ -3804,7 +3813,28 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
 
+	// Handle custom engine (with or without user-defined steps)
+	if engine.GetID() == "custom" {
+		c.generateCustomEngineSteps(yaml, data, logFile)
+		return
+	}
+
 	executionConfig := engine.GetExecutionConfig(data.Name, logFile, data.EngineConfig, data.NetworkPermissions, data.SafeOutputs != nil)
+
+	// If the execution config contains custom steps, inject them before the main command/action
+	if len(executionConfig.Steps) > 0 {
+		for i, step := range executionConfig.Steps {
+			stepYAML, err := c.convertStepToYAML(step)
+			if err != nil {
+				// Log error but continue with other steps
+				fmt.Printf("Error converting step %d to YAML: %v\n", i+1, err)
+				continue
+			}
+
+			// The convertStepToYAML already includes proper indentation, just add it directly
+			yaml.WriteString(stepYAML)
+		}
+	}
 
 	if executionConfig.Command != "" {
 		// Command-based execution (e.g., Codex)
@@ -3877,14 +3907,19 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 				}
 			}
 		}
-		// Add environment section for safe-outputs and custom env vars
-		hasEnvSection := data.SafeOutputs != nil || (data.EngineConfig != nil && len(data.EngineConfig.Env) > 0)
+		// Add environment section for safe-outputs, max-turns, and custom env vars
+		hasEnvSection := data.SafeOutputs != nil || (data.EngineConfig != nil && len(data.EngineConfig.Env) > 0) || (data.EngineConfig != nil && data.EngineConfig.MaxTurns != "")
 		if hasEnvSection {
 			yaml.WriteString("        env:\n")
 
 			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
 			if data.SafeOutputs != nil {
 				yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+			}
+
+			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
+			if data.EngineConfig != nil && data.EngineConfig.MaxTurns != "" {
+				fmt.Fprintf(yaml, "          GITHUB_AW_MAX_TURNS: %s\n", data.EngineConfig.MaxTurns)
 			}
 
 			// Add custom environment variables from engine config
@@ -3921,6 +3956,73 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          # Ensure log file exists\n")
 		yaml.WriteString("          touch " + logFile + "\n")
 	}
+}
+
+// generateCustomEngineSteps generates the custom steps defined in the engine configuration
+func (c *Compiler) generateCustomEngineSteps(yaml *strings.Builder, data *WorkflowData, logFile string) {
+	// Generate each custom step if they exist, with environment variables
+	if data.EngineConfig != nil && len(data.EngineConfig.Steps) > 0 {
+		// Check if we need environment section for any step
+		hasEnvSection := data.SafeOutputs != nil || (data.EngineConfig != nil && data.EngineConfig.MaxTurns != "") || (data.EngineConfig != nil && len(data.EngineConfig.Env) > 0)
+
+		for i, step := range data.EngineConfig.Steps {
+			stepYAML, err := c.convertStepToYAML(step)
+			if err != nil {
+				// Log error but continue with other steps
+				fmt.Printf("Error converting step %d to YAML: %v\n", i+1, err)
+				continue
+			}
+
+			// Check if this step needs environment variables injected
+			stepStr := stepYAML
+			if hasEnvSection && strings.Contains(stepYAML, "run:") {
+				// Add environment variables to run steps after the entire run block
+				// Find the end of the run block and add env section at step level
+				stepStr = strings.TrimRight(stepYAML, "\n")
+				stepStr += "\n        env:\n"
+
+				// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
+				if data.SafeOutputs != nil {
+					stepStr += "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n"
+				}
+
+				// Add GITHUB_AW_MAX_TURNS if max-turns is configured
+				if data.EngineConfig != nil && data.EngineConfig.MaxTurns != "" {
+					stepStr += fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s\n", data.EngineConfig.MaxTurns)
+				}
+
+				// Add custom environment variables from engine config
+				if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 {
+					for _, envVar := range data.EngineConfig.Env {
+						// Parse environment variable in format "KEY=value" or "KEY: value"
+						parts := strings.SplitN(envVar, "=", 2)
+						if len(parts) == 2 {
+							key := strings.TrimSpace(parts[0])
+							value := strings.TrimSpace(parts[1])
+							stepStr += fmt.Sprintf("          %s: %s\n", key, value)
+						} else {
+							// Try "KEY: value" format
+							parts = strings.SplitN(envVar, ":", 2)
+							if len(parts) == 2 {
+								key := strings.TrimSpace(parts[0])
+								value := strings.TrimSpace(parts[1])
+								stepStr += fmt.Sprintf("          %s: %s\n", key, value)
+							}
+						}
+					}
+				}
+			}
+
+			// The convertStepToYAML already includes proper indentation, just add it directly
+			yaml.WriteString(stepStr)
+		}
+	}
+
+	// Add a step to ensure the log file exists for consistency with other engines
+	yaml.WriteString("      - name: Ensure log file exists\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"Custom steps execution completed\" >> " + logFile + "\n")
+	yaml.WriteString("          touch " + logFile + "\n")
 }
 
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata

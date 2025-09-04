@@ -141,6 +141,7 @@ The `engine:` section specifies which AI engine to use to interpret the markdown
 ```yaml
 engine: claude  # Default: Claude Code
 engine: codex   # Experimental: OpenAI Codex CLI with MCP support
+engine: custom  # Custom: Execute user-defined GitHub Actions steps
 ```
 
 **Engine Override**:
@@ -153,7 +154,7 @@ gh aw compile --engine claude
 Simple format:
 
 ```yaml
-engine: claude  # or codex
+engine: claude  # or codex or custom
 ```
 
 Extended format:
