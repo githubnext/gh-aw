@@ -622,7 +622,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	var metrics LogMetrics
 
 	// First check for aw_info.json to determine the engine
-	var detectedEngine workflow.AgenticEngine
+	var detectedEngine workflow.CodingAgentEngine
 	infoFilePath := filepath.Join(logDir, "aw_info.json")
 	if _, err := os.Stat(infoFilePath); err == nil {
 		// aw_info.json exists, try to extract engine information
@@ -695,7 +695,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 
 // extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
 // Handles cases where aw_info.json is a file or a directory containing the actual file
-func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.AgenticEngine {
+func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingAgentEngine {
 	var data []byte
 	var err error
 
@@ -756,7 +756,7 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.Agentic
 }
 
 // parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
-func parseLogFileWithEngine(filePath string, detectedEngine workflow.AgenticEngine, verbose bool) (LogMetrics, error) {
+func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgentEngine, verbose bool) (LogMetrics, error) {
 	// Read the log file content
 	file, err := os.Open(filePath)
 	if err != nil {

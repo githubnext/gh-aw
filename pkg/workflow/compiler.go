@@ -548,52 +548,43 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	var tools map[string]any
 
+	// Extract tools from the main file
+	topTools := extractToolsFromFrontmatter(result.Frontmatter)
+
+	// Process @include directives to extract additional tools
+	includedTools, err := parser.ExpandIncludes(result.Markdown, markdownDir, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
+	}
+
+	// Merge tools
+	tools, err = c.mergeTools(topTools, includedTools)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge tools: %w", err)
+	}
+
+	// Validate MCP configurations
+	if err := ValidateMCPConfigs(tools); err != nil {
+		return nil, fmt.Errorf("invalid MCP configuration: %w", err)
+	}
+
+	// Validate HTTP transport support for the current engine
+	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
+		return nil, fmt.Errorf("HTTP transport not supported: %w", err)
+	}
+
 	if !agenticEngine.SupportsToolsWhitelist() {
 		// For engines that don't support tool whitelists (like codex), ignore tools section and provide warnings
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
-		tools = make(map[string]any)
 		if _, hasTools := result.Frontmatter["tools"]; hasTools {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
 		}
-		// Force docker version of GitHub MCP if github tool would be needed
+		tools = map[string]any{}
 		// For now, we'll add a basic github tool (always uses docker MCP)
 		githubConfig := map[string]any{}
 
 		tools["github"] = githubConfig
-	} else {
-		// Extract tools from the main file
-		topTools := extractToolsFromFrontmatter(result.Frontmatter)
-
-		// Process @include directives to extract additional tools
-		includedTools, err := parser.ExpandIncludes(result.Markdown, markdownDir, true)
-		if err != nil {
-			return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
-		}
-
-		// Merge tools
-		tools, err = c.mergeTools(topTools, includedTools)
-		if err != nil {
-			return nil, fmt.Errorf("failed to merge tools: %w", err)
-		}
-
-		// Validate MCP configurations
-		if err := ValidateMCPConfigs(tools); err != nil {
-			return nil, fmt.Errorf("invalid MCP configuration: %w", err)
-		}
-
-		// Validate HTTP transport support for the current engine
-		if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
-			return nil, fmt.Errorf("HTTP transport not supported: %w", err)
-		}
-
-		// Apply default GitHub MCP tools (only for engines that support MCP)
-		if agenticEngine.SupportsToolsWhitelist() {
-			tools = c.applyDefaultGitHubMCPAndClaudeTools(tools, safeOutputs)
-		}
-
-		if c.verbose && len(tools) > 0 {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Merged tools: %d total tools configured", len(tools))))
-		}
 	}
 
 	// Validate max-turns support for the current engine
@@ -651,27 +642,10 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 
-	// Extract stop-after from the on: section
-	stopAfter, err := c.extractStopAfterFromOn(result.Frontmatter)
+	// Process stop-after configuration from the on: section
+	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
 	if err != nil {
 		return nil, err
-	}
-	workflowData.StopTime = stopAfter
-
-	// Resolve relative stop-after to absolute time if needed
-	if workflowData.StopTime != "" {
-		resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
-		if err != nil {
-			return nil, fmt.Errorf("invalid stop-after format: %w", err)
-		}
-		originalStopTime := stopAfter
-		workflowData.StopTime = resolvedStopTime
-
-		if c.verbose && isRelativeStopTime(originalStopTime) {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
-		} else if c.verbose && originalStopTime != resolvedStopTime {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
-		}
 	}
 
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
@@ -680,70 +654,10 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
-	// Check if "command" is used as a trigger in the "on" section
-	// Also extract "reaction" from the "on" section
-	var hasCommand bool
-	var hasReaction bool
-	var hasStopAfter bool
-	var otherEvents map[string]any
-	if onValue, exists := result.Frontmatter["on"]; exists {
-		// Check for new format: on.command and on.reaction
-		if onMap, ok := onValue.(map[string]any); ok {
-			// Check for stop-after in the on section
-			if _, hasStopAfterKey := onMap["stop-after"]; hasStopAfterKey {
-				hasStopAfter = true
-			}
-
-			// Extract reaction from on section
-			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
-				hasReaction = true
-				if reactionStr, ok := reactionValue.(string); ok {
-					workflowData.AIReaction = reactionStr
-				}
-			}
-
-			if _, hasCommandKey := onMap["command"]; hasCommandKey {
-				hasCommand = true
-				// Set default command to filename if not specified in the command section
-				if workflowData.Command == "" {
-					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Command = baseName
-				}
-				// Check for conflicting events
-				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
-				for _, eventName := range conflictingEvents {
-					if _, hasConflict := onMap[eventName]; hasConflict {
-						return nil, fmt.Errorf("cannot use 'command' with '%s' in the same workflow", eventName)
-					}
-				}
-
-				// Clear the On field so applyDefaults will handle command trigger generation
-				workflowData.On = ""
-			}
-			// Extract other (non-conflicting) events excluding command, reaction, and stop-after
-			otherEvents = filterMapKeys(onMap, "command", "reaction", "stop-after")
-		}
-	}
-
-	// Clear command field if no command trigger was found
-	if !hasCommand {
-		workflowData.Command = ""
-	}
-
-	// Store other events for merging in applyDefaults
-	if hasCommand && len(otherEvents) > 0 {
-		// We'll store this and handle it in applyDefaults
-		workflowData.On = "" // This will trigger command handling in applyDefaults
-		workflowData.CommandOtherEvents = otherEvents
-	} else if (hasReaction || hasStopAfter) && len(otherEvents) > 0 {
-		// Only re-marshal the "on" if we have to
-		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
-		if err == nil {
-			workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
-		} else {
-			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)
-			workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
-		}
+	// Parse the "on" section for command triggers, reactions, and other events
+	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
+	if err != nil {
+		return nil, err
 	}
 
 	// Apply defaults
@@ -966,6 +880,106 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, e
 	}
 }
 
+// parseOnSection parses the "on" section from frontmatter to extract command triggers, reactions, and other events
+func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
+	// Check if "command" is used as a trigger in the "on" section
+	// Also extract "reaction" from the "on" section
+	var hasCommand bool
+	var hasReaction bool
+	var hasStopAfter bool
+	var otherEvents map[string]any
+
+	if onValue, exists := frontmatter["on"]; exists {
+		// Check for new format: on.command and on.reaction
+		if onMap, ok := onValue.(map[string]any); ok {
+			// Check for stop-after in the on section
+			if _, hasStopAfterKey := onMap["stop-after"]; hasStopAfterKey {
+				hasStopAfter = true
+			}
+
+			// Extract reaction from on section
+			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
+				hasReaction = true
+				if reactionStr, ok := reactionValue.(string); ok {
+					workflowData.AIReaction = reactionStr
+				}
+			}
+
+			if _, hasCommandKey := onMap["command"]; hasCommandKey {
+				hasCommand = true
+				// Set default command to filename if not specified in the command section
+				if workflowData.Command == "" {
+					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+					workflowData.Command = baseName
+				}
+				// Check for conflicting events
+				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
+				for _, eventName := range conflictingEvents {
+					if _, hasConflict := onMap[eventName]; hasConflict {
+						return fmt.Errorf("cannot use 'command' with '%s' in the same workflow", eventName)
+					}
+				}
+
+				// Clear the On field so applyDefaults will handle command trigger generation
+				workflowData.On = ""
+			}
+			// Extract other (non-conflicting) events excluding command, reaction, and stop-after
+			otherEvents = filterMapKeys(onMap, "command", "reaction", "stop-after")
+		}
+	}
+
+	// Clear command field if no command trigger was found
+	if !hasCommand {
+		workflowData.Command = ""
+	}
+
+	// Store other events for merging in applyDefaults
+	if hasCommand && len(otherEvents) > 0 {
+		// We'll store this and handle it in applyDefaults
+		workflowData.On = "" // This will trigger command handling in applyDefaults
+		workflowData.CommandOtherEvents = otherEvents
+	} else if (hasReaction || hasStopAfter) && len(otherEvents) > 0 {
+		// Only re-marshal the "on" if we have to
+		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
+		if err == nil {
+			workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
+		} else {
+			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)
+			workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")
+		}
+	}
+
+	return nil
+}
+
+// processStopAfterConfiguration extracts and processes stop-after configuration from frontmatter
+func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
+	// Extract stop-after from the on: section
+	stopAfter, err := c.extractStopAfterFromOn(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.StopTime = stopAfter
+
+	// Resolve relative stop-after to absolute time if needed
+	if workflowData.StopTime != "" {
+		resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
+		if err != nil {
+			return fmt.Errorf("invalid stop-after format: %w", err)
+		}
+		originalStopTime := stopAfter
+		workflowData.StopTime = resolvedStopTime
+
+		if c.verbose && isRelativeStopTime(originalStopTime) {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
+		} else if c.verbose && originalStopTime != resolvedStopTime {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
+		}
+	}
+
+	return nil
+}
+
 // filterMapKeys creates a new map excluding the specified keys
 func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
 	excludeSet := make(map[string]bool)
@@ -1150,6 +1164,10 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 
 	if data.RunsOn == "" {
 		data.RunsOn = "runs-on: ubuntu-latest"
+	}
+	if data.Tools != nil {
+		// Apply default GitHub MCP tools
+		data.Tools = c.applyDefaultGitHubMCPAndClaudeTools(data.Tools, data.SafeOutputs)
 	}
 }
 
@@ -2632,7 +2650,7 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 }
 
 // generateMCPSetup generates the MCP server configuration setup
-func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine AgenticEngine) {
+func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine) {
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 	var proxyTools []string
@@ -2866,7 +2884,7 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
-func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine AgenticEngine, logFileFull string) {
+func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string) {
 	parserScriptName := engine.GetLogParserScript()
 	if parserScriptName == "" {
 		// Skip log parsing if engine doesn't provide a parser
@@ -2962,7 +2980,7 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
-func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Create prompt\n")
 
 	// Only add GITHUB_AW_SAFE_OUTPUTS environment variable if safe-outputs feature is used
@@ -3822,7 +3840,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 }
 
 // generateEngineExecutionSteps generates the execution steps for the specified agentic engine
-func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine, logFile string) {
+func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
 
 	// Handle custom engine (with or without user-defined steps)
 	if engine.GetID() == "custom" {
@@ -4037,7 +4055,7 @@ func (c *Compiler) generateCustomEngineSteps(yaml *strings.Builder, data *Workfl
 }
 
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
-func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine AgenticEngine) {
+func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        with:\n")
@@ -4207,7 +4225,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 }
 
 // validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
-func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine AgenticEngine) error {
+func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine CodingAgentEngine) error {
 	if engine.SupportsHTTPTransport() {
 		// Engine supports HTTP transport, no validation needed
 		return nil
@@ -4226,7 +4244,7 @@ func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine Age
 }
 
 // validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
-func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine AgenticEngine) error {
+func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
 	// Check if max-turns is specified in the engine config
 	engineSetting, engineConfig := c.extractEngineConfig(frontmatter)
 	_ = engineSetting // Suppress unused variable warning

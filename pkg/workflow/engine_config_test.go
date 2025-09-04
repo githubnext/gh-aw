@@ -380,7 +380,7 @@ This is a test workflow.`,
 func TestEngineConfigurationWithModel(t *testing.T) {
 	tests := []struct {
 		name           string
-		engine         AgenticEngine
+		engine         CodingAgentEngine
 		engineConfig   *EngineConfig
 		expectedModel  string
 		expectedAPIKey string
@@ -434,7 +434,7 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 func TestEngineConfigurationWithCustomEnvVars(t *testing.T) {
 	tests := []struct {
 		name         string
-		engine       AgenticEngine
+		engine       CodingAgentEngine
 		engineConfig *EngineConfig
 		hasOutput    bool
 	}{
@@ -511,7 +511,7 @@ func TestEngineConfigurationWithCustomEnvVars(t *testing.T) {
 }
 
 func TestNilEngineConfig(t *testing.T) {
-	engines := []AgenticEngine{
+	engines := []CodingAgentEngine{
 		NewClaudeEngine(),
 		NewCodexEngine(),
 		NewCustomEngine(),

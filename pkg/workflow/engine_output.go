@@ -5,7 +5,7 @@ import (
 )
 
 // generateEngineOutputCollection generates a step that collects engine-declared output files as artifacts
-func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine AgenticEngine) {
+func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine CodingAgentEngine) {
 	outputFiles := engine.GetDeclaredOutputFiles()
 	if len(outputFiles) == 0 {
 		return

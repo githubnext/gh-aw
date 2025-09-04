@@ -120,7 +120,7 @@ func (c *Compiler) validateEngine(engineID string) error {
 }
 
 // getAgenticEngine returns the agentic engine for the given engine setting
-func (c *Compiler) getAgenticEngine(engineSetting string) (AgenticEngine, error) {
+func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, error) {
 	if engineSetting == "" {
 		return c.engineRegistry.GetDefaultEngine(), nil
 	}

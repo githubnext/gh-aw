@@ -9,8 +9,8 @@ import (
 // GitHubActionStep represents the YAML lines for a single step in a GitHub Actions workflow
 type GitHubActionStep []string
 
-// AgenticEngine represents an AI engine that can be used to execute agentic workflows
-type AgenticEngine interface {
+// CodingAgentEngine represents an AI coding agent that can be used as an engine to execute agentic workflows
+type CodingAgentEngine interface {
 	// GetID returns the unique identifier for this engine
 	GetID() string
 
@@ -119,7 +119,7 @@ func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 
 // EngineRegistry manages available agentic engines
 type EngineRegistry struct {
-	engines map[string]AgenticEngine
+	engines map[string]CodingAgentEngine
 }
 
 var (
@@ -130,7 +130,7 @@ var (
 // NewEngineRegistry creates a new engine registry with built-in engines
 func NewEngineRegistry() *EngineRegistry {
 	registry := &EngineRegistry{
-		engines: make(map[string]AgenticEngine),
+		engines: make(map[string]CodingAgentEngine),
 	}
 
 	// Register built-in engines
@@ -150,12 +150,12 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 }
 
 // Register adds an engine to the registry
-func (r *EngineRegistry) Register(engine AgenticEngine) {
+func (r *EngineRegistry) Register(engine CodingAgentEngine) {
 	r.engines[engine.GetID()] = engine
 }
 
 // GetEngine retrieves an engine by ID
-func (r *EngineRegistry) GetEngine(id string) (AgenticEngine, error) {
+func (r *EngineRegistry) GetEngine(id string) (CodingAgentEngine, error) {
 	engine, exists := r.engines[id]
 	if !exists {
 		return nil, fmt.Errorf("unknown engine: %s", id)
@@ -179,13 +179,13 @@ func (r *EngineRegistry) IsValidEngine(id string) bool {
 }
 
 // GetDefaultEngine returns the default engine (Claude)
-func (r *EngineRegistry) GetDefaultEngine() AgenticEngine {
+func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
 	return r.engines["claude"]
 }
 
 // GetEngineByPrefix returns an engine that matches the given prefix
 // This is useful for backward compatibility with strings like "codex-experimental"
-func (r *EngineRegistry) GetEngineByPrefix(prefix string) (AgenticEngine, error) {
+func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, error) {
 	for id, engine := range r.engines {
 		if strings.HasPrefix(prefix, id) {
 			return engine, nil
@@ -195,8 +195,8 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (AgenticEngine, error)
 }
 
 // GetAllEngines returns all registered engines
-func (r *EngineRegistry) GetAllEngines() []AgenticEngine {
-	var engines []AgenticEngine
+func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
+	var engines []CodingAgentEngine
 	for _, engine := range r.engines {
 		engines = append(engines, engine)
 	}
