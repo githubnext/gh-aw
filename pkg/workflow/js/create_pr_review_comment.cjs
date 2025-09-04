@@ -2,54 +2,71 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
-  if (outputContent.trim() === '') {
-    console.log('Agent output content is empty');
+  if (outputContent.trim() === "") {
+    console.log("Agent output content is empty");
     return;
   }
 
-  console.log('Agent output content length:', outputContent.length);
+  console.log("Agent output content length:", outputContent.length);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log('Error parsing agent output JSON:', error instanceof Error ? error.message : String(error));
+    console.log(
+      "Error parsing agent output JSON:",
+      error instanceof Error ? error.message : String(error)
+    );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log('No valid items found in agent output');
+    console.log("No valid items found in agent output");
     return;
   }
 
   // Find all create-pull-request-review-comment items
-  const reviewCommentItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === 'create-pull-request-review-comment');
+  const reviewCommentItems = validatedOutput.items.filter(
+    /** @param {any} item */ item =>
+      item.type === "create-pull-request-review-comment"
+  );
   if (reviewCommentItems.length === 0) {
-    console.log('No create-pull-request-review-comment items found in agent output');
+    console.log(
+      "No create-pull-request-review-comment items found in agent output"
+    );
     return;
   }
 
-  console.log(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
+  console.log(
+    `Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`
+  );
 
   // Get the side configuration from environment variable
   const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
   console.log(`Default comment side configuration: ${defaultSide}`);
 
   // Check if we're in a pull request context
-  const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
-  
+  const isPRContext =
+    context.eventName === "pull_request" ||
+    context.eventName === "pull_request_review" ||
+    context.eventName === "pull_request_review_comment";
+
   if (!isPRContext) {
-    console.log('Not running in pull request context, skipping review comment creation');
+    console.log(
+      "Not running in pull request context, skipping review comment creation"
+    );
     return;
   }
 
   if (!context.payload.pull_request) {
-    console.log('Pull request context detected but no pull request found in payload');
+    console.log(
+      "Pull request context detected but no pull request found in payload"
+    );
     return;
   }
 
@@ -61,12 +78,15 @@ async function main() {
   // Process each review comment item
   for (let i = 0; i < reviewCommentItems.length; i++) {
     const commentItem = reviewCommentItems[i];
-    console.log(`Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}:`, { 
-      bodyLength: commentItem.body ? commentItem.body.length : 'undefined',
-      path: commentItem.path,
-      line: commentItem.line,
-      startLine: commentItem.start_line
-    });
+    console.log(
+      `Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}:`,
+      {
+        bodyLength: commentItem.body ? commentItem.body.length : "undefined",
+        path: commentItem.path,
+        line: commentItem.line,
+        startLine: commentItem.start_line,
+      }
+    );
 
     // Validate required fields
     if (!commentItem.path) {
@@ -74,13 +94,21 @@ async function main() {
       continue;
     }
 
-    if (!commentItem.line || (typeof commentItem.line !== 'number' && typeof commentItem.line !== 'string')) {
-      console.log('Missing or invalid required field "line" in review comment item');
+    if (
+      !commentItem.line ||
+      (typeof commentItem.line !== "number" &&
+        typeof commentItem.line !== "string")
+    ) {
+      console.log(
+        'Missing or invalid required field "line" in review comment item'
+      );
       continue;
     }
 
-    if (!commentItem.body || typeof commentItem.body !== 'string') {
-      console.log('Missing or invalid required field "body" in review comment item');
+    if (!commentItem.body || typeof commentItem.body !== "string") {
+      console.log(
+        'Missing or invalid required field "body" in review comment item'
+      );
       continue;
     }
 
@@ -95,7 +123,9 @@ async function main() {
     if (commentItem.start_line) {
       startLine = parseInt(commentItem.start_line, 10);
       if (isNaN(startLine) || startLine <= 0 || startLine > line) {
-        console.log(`Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`);
+        console.log(
+          `Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`
+        );
         continue;
       }
     }
@@ -109,16 +139,18 @@ async function main() {
 
     // Extract body from the JSON item
     let body = commentItem.body.trim();
-    
+
     // Add AI disclaimer with run id, run htmlurl
     const runId = context.runId;
-    const runUrl = context.payload.repository 
+    const runUrl = context.payload.repository
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `https://github.com/actions/runs/${runId}`;  
+      : `https://github.com/actions/runs/${runId}`;
     body += `\n\n> Generated by Agentic Workflow Run [${runId}](${runUrl})\n`;
 
-    console.log(`Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ''} [${side}]`);
-    console.log('Comment content length:', body.length);
+    console.log(
+      `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`
+    );
+    console.log("Comment content length:", body.length);
 
     try {
       // Prepare the request parameters
@@ -129,7 +161,7 @@ async function main() {
         body: body,
         path: commentItem.path,
         line: line,
-        side: side
+        side: side,
       };
 
       // Add start_line for multi-line comments
@@ -139,33 +171,40 @@ async function main() {
       }
 
       // Create the review comment using GitHub API
-      const { data: comment } = await github.rest.pulls.createReviewComment(requestParams);
+      const { data: comment } =
+        await github.rest.pulls.createReviewComment(requestParams);
 
-      console.log('Created review comment #' + comment.id + ': ' + comment.html_url);
+      console.log(
+        "Created review comment #" + comment.id + ": " + comment.html_url
+      );
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)
       if (i === reviewCommentItems.length - 1) {
-        core.setOutput('review_comment_id', comment.id);
-        core.setOutput('review_comment_url', comment.html_url);
+        core.setOutput("review_comment_id", comment.id);
+        core.setOutput("review_comment_url", comment.html_url);
       }
     } catch (error) {
-      console.error(`✗ Failed to create review comment:`, error instanceof Error ? error.message : String(error));
+      console.error(
+        `✗ Failed to create review comment:`,
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
 
   // Write summary for all created comments
   if (createdComments.length > 0) {
-    let summaryContent = '\n\n## GitHub PR Review Comments\n';
+    let summaryContent = "\n\n## GitHub PR Review Comments\n";
     for (const comment of createdComments) {
       summaryContent += `- Review Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
     }
     await core.summary.addRaw(summaryContent).write();
   }
 
-  console.log(`Successfully created ${createdComments.length} review comment(s)`);
+  console.log(
+    `Successfully created ${createdComments.length} review comment(s)`
+  );
   return createdComments;
-
 }
 await main();

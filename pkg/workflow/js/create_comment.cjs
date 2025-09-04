@@ -2,35 +2,40 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
-  if (outputContent.trim() === '') {
-    console.log('Agent output content is empty');
+  if (outputContent.trim() === "") {
+    console.log("Agent output content is empty");
     return;
   }
 
-  console.log('Agent output content length:', outputContent.length);
+  console.log("Agent output content length:", outputContent.length);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log('Error parsing agent output JSON:', error instanceof Error ? error.message : String(error));
+    console.log(
+      "Error parsing agent output JSON:",
+      error instanceof Error ? error.message : String(error)
+    );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log('No valid items found in agent output');
+    console.log("No valid items found in agent output");
     return;
   }
 
   // Find all add-issue-comment items
-  const commentItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === 'add-issue-comment');
+  const commentItems = validatedOutput.items.filter(
+    /** @param {any} item */ item => item.type === "add-issue-comment"
+  );
   if (commentItems.length === 0) {
-    console.log('No add-issue-comment items found in agent output');
+    console.log("No add-issue-comment items found in agent output");
     return;
   }
 
@@ -41,12 +46,18 @@ async function main() {
   console.log(`Comment target configuration: ${commentTarget}`);
 
   // Check if we're in an issue or pull request context
-  const isIssueContext = context.eventName === 'issues' || context.eventName === 'issue_comment';
-  const isPRContext = context.eventName === 'pull_request' || context.eventName === 'pull_request_review' || context.eventName === 'pull_request_review_comment';
+  const isIssueContext =
+    context.eventName === "issues" || context.eventName === "issue_comment";
+  const isPRContext =
+    context.eventName === "pull_request" ||
+    context.eventName === "pull_request_review" ||
+    context.eventName === "pull_request_review_comment";
 
   // Validate context based on target configuration
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-    console.log('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
+    console.log(
+      'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
+    );
     return;
   }
 
@@ -55,7 +66,10 @@ async function main() {
   // Process each comment item
   for (let i = 0; i < commentItems.length; i++) {
     const commentItem = commentItems[i];
-    console.log(`Processing add-issue-comment item ${i + 1}/${commentItems.length}:`, { bodyLength: commentItem.body.length });
+    console.log(
+      `Processing add-issue-comment item ${i + 1}/${commentItems.length}:`,
+      { bodyLength: commentItem.body.length }
+    );
 
     // Determine the issue/PR number and comment endpoint for this comment
     let issueNumber;
@@ -66,45 +80,53 @@ async function main() {
       if (commentItem.issue_number) {
         issueNumber = parseInt(commentItem.issue_number, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          console.log(`Invalid issue number specified: ${commentItem.issue_number}`);
+          console.log(
+            `Invalid issue number specified: ${commentItem.issue_number}`
+          );
           continue;
         }
-        commentEndpoint = 'issues';
+        commentEndpoint = "issues";
       } else {
-        console.log('Target is "*" but no issue_number specified in comment item');
+        console.log(
+          'Target is "*" but no issue_number specified in comment item'
+        );
         continue;
       }
     } else if (commentTarget && commentTarget !== "triggering") {
       // Explicit issue number specified in target
       issueNumber = parseInt(commentTarget, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        console.log(`Invalid issue number in target configuration: ${commentTarget}`);
+        console.log(
+          `Invalid issue number in target configuration: ${commentTarget}`
+        );
         continue;
       }
-      commentEndpoint = 'issues';
+      commentEndpoint = "issues";
     } else {
       // Default behavior: use triggering issue/PR
       if (isIssueContext) {
         if (context.payload.issue) {
           issueNumber = context.payload.issue.number;
-          commentEndpoint = 'issues';
+          commentEndpoint = "issues";
         } else {
-          console.log('Issue context detected but no issue found in payload');
+          console.log("Issue context detected but no issue found in payload");
           continue;
         }
       } else if (isPRContext) {
         if (context.payload.pull_request) {
           issueNumber = context.payload.pull_request.number;
-          commentEndpoint = 'issues'; // PR comments use the issues API endpoint
+          commentEndpoint = "issues"; // PR comments use the issues API endpoint
         } else {
-          console.log('Pull request context detected but no pull request found in payload');
+          console.log(
+            "Pull request context detected but no pull request found in payload"
+          );
           continue;
         }
       }
     }
 
     if (!issueNumber) {
-      console.log('Could not determine issue or pull request number');
+      console.log("Could not determine issue or pull request number");
       continue;
     }
 
@@ -112,13 +134,13 @@ async function main() {
     let body = commentItem.body.trim();
     // Add AI disclaimer with run id, run htmlurl
     const runId = context.runId;
-    const runUrl = context.payload.repository 
+    const runUrl = context.payload.repository
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `https://github.com/actions/runs/${runId}`;  
+      : `https://github.com/actions/runs/${runId}`;
     body += `\n\n> Generated by Agentic Workflow Run [${runId}](${runUrl})\n`;
 
     console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-    console.log('Comment content length:', body.length);
+    console.log("Comment content length:", body.length);
 
     try {
       // Create the comment using GitHub API
@@ -126,26 +148,29 @@ async function main() {
         owner: context.repo.owner,
         repo: context.repo.repo,
         issue_number: issueNumber,
-        body: body
+        body: body,
       });
 
-      console.log('Created comment #' + comment.id + ': ' + comment.html_url);
+      console.log("Created comment #" + comment.id + ": " + comment.html_url);
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)
       if (i === commentItems.length - 1) {
-        core.setOutput('comment_id', comment.id);
-        core.setOutput('comment_url', comment.html_url);
+        core.setOutput("comment_id", comment.id);
+        core.setOutput("comment_url", comment.html_url);
       }
     } catch (error) {
-      console.error(`✗ Failed to create comment:`, error instanceof Error ? error.message : String(error));
+      console.error(
+        `✗ Failed to create comment:`,
+        error instanceof Error ? error.message : String(error)
+      );
       throw error;
     }
   }
 
   // Write summary for all created comments
   if (createdComments.length > 0) {
-    let summaryContent = '\n\n## GitHub Comments\n';
+    let summaryContent = "\n\n## GitHub Comments\n";
     for (const comment of createdComments) {
       summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
     }
@@ -154,6 +179,5 @@ async function main() {
 
   console.log(`Successfully created ${createdComments.length} comment(s)`);
   return createdComments;
-
 }
 await main();
