@@ -660,9 +660,22 @@ jobs:
           ```
           2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
+          **Reporting Missing Tools or Functionality**
+          
+          If you need to use a tool or functionality that is not available to complete your task:
+          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          ```json
+          {"type": "missing-tool", "tool": "tool-name", "reason": "Why this tool is needed", "alternatives": "Suggested alternatives or workarounds"}
+          ```
+          2. The `tool` field should specify the name or type of missing functionality
+          3. The `reason` field should explain why this tool/functionality is required to complete the task
+          4. The `alternatives` field is optional but can suggest workarounds or alternative approaches
+          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          
           **Example JSONL file content:**
           ```
           {"type": "add-issue-comment", "body": "This is related to the issue above."}
+          {"type": "missing-tool", "tool": "docker", "reason": "Need Docker to build container images", "alternatives": "Could use GitHub Actions build instead"}
           ```
           
           **Important Notes:**
@@ -818,7 +831,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true},\"missing-tool\":{\"enabled\":true}}"
         with:
           script: |
             async function main() {
@@ -1965,4 +1978,88 @@ jobs:
               return createdComments;
             }
             await main();
+
+  missing_tool:
+    needs: test-claude-command
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
+      total_count: ${{ steps.missing_tool.outputs.total_count }}
+    steps:
+      - name: Record Missing Tool
+        id: missing_tool
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-command.outputs.output }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            // Get environment variables
+            const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || '';
+            const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
+            console.log('Processing missing-tool reports...');
+            console.log('Agent output length:', agentOutput.length);
+            if (maxReports) {
+              console.log('Maximum reports allowed:', maxReports);
+            }
+            const missingTools = [];
+            if (agentOutput.trim()) {
+              const lines = agentOutput.split('\n').filter(line => line.trim());
+              for (const line of lines) {
+                try {
+                  const entry = JSON.parse(line);
+                  if (entry.type === 'missing-tool') {
+                    // Validate required fields
+                    if (!entry.tool) {
+                      console.log('Warning: missing-tool entry missing "tool" field:', line);
+                      continue;
+                    }
+                    if (!entry.reason) {
+                      console.log('Warning: missing-tool entry missing "reason" field:', line);
+                      continue;
+                    }
+                    const missingTool = {
+                      tool: entry.tool,
+                      reason: entry.reason,
+                      alternatives: entry.alternatives || null,
+                      timestamp: new Date().toISOString()
+                    };
+                    missingTools.push(missingTool);
+                    console.log('Recorded missing tool:', missingTool.tool);
+                    // Check max limit
+                    if (maxReports && missingTools.length >= maxReports) {
+                      console.log('Reached maximum number of missing tool reports (${maxReports})');
+                      break;
+                    }
+                  }
+                } catch (error) {
+                  console.log('Warning: Failed to parse line as JSON:', line);
+                  console.log('Parse error:', error.message);
+                }
+              }
+            }
+            console.log('Total missing tools reported:', missingTools.length);
+            // Output results
+            core.setOutput('tools_reported', JSON.stringify(missingTools));
+            core.setOutput('total_count', missingTools.length.toString());
+            // Log details for debugging
+            if (missingTools.length > 0) {
+              console.log('Missing tools summary:');
+              missingTools.forEach((tool, index) => {
+                console.log('${index + 1}. Tool: ${tool.tool}');
+                console.log('   Reason: ${tool.reason}');
+                if (tool.alternatives) {
+                  console.log('   Alternatives: ${tool.alternatives}');
+                }
+                console.log('   Reported at: ${tool.timestamp}');
+                console.log('');
+              });
+            } else {
+              console.log('No missing tools reported in this workflow execution.');
+            }
 

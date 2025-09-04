@@ -43,7 +43,7 @@
               "additionalProperties": false,
               "properties": {
                 "branches": {
-                  "type": "array", 
+                  "type": "array",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -98,7 +98,7 @@
                   }
                 },
                 "branches": {
-                  "type": "array", 
+                  "type": "array",
                   "description": "Branches to filter on",
                   "items": {
                     "type": "string"
@@ -142,7 +142,24 @@
                   "description": "Types of issue events",
                   "items": {
                     "type": "string",
-                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
+                    "enum": [
+                      "opened",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "closed",
+                      "reopened",
+                      "assigned",
+                      "unassigned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "milestoned",
+                      "demilestoned"
+                    ]
                   }
                 }
               }
@@ -157,7 +174,11 @@
                   "description": "Types of issue comment events",
                   "items": {
                     "type": "string",
-                    "enum": ["created", "edited", "deleted"]
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
                   }
                 }
               }
@@ -173,7 +194,9 @@
                     "description": "Cron expression for schedule"
                   }
                 },
-                "required": ["cron"],
+                "required": [
+                  "cron"
+                ],
                 "additionalProperties": false
               }
             },
@@ -209,7 +232,11 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": ["string", "choice", "boolean"],
+                            "enum": [
+                              "string",
+                              "choice",
+                              "boolean"
+                            ],
                             "description": "Input type"
                           },
                           "options": {
@@ -243,7 +270,10 @@
                   "description": "Types of workflow run events",
                   "items": {
                     "type": "string",
-                    "enum": ["completed", "requested"]
+                    "enum": [
+                      "completed",
+                      "requested"
+                    ]
                   }
                 },
                 "branches": {
@@ -272,7 +302,15 @@
                   "description": "Types of release events",
                   "items": {
                     "type": "string",
-                    "enum": ["published", "unpublished", "created", "edited", "deleted", "prereleased", "released"]
+                    "enum": [
+                      "published",
+                      "unpublished",
+                      "created",
+                      "edited",
+                      "deleted",
+                      "prereleased",
+                      "released"
+                    ]
                   }
                 }
               }
@@ -287,7 +325,11 @@
                   "description": "Types of pull request review comment events",
                   "items": {
                     "type": "string",
-                    "enum": ["created", "edited", "deleted"]
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
                   }
                 }
               }
@@ -298,7 +340,16 @@
             },
             "reaction": {
               "type": "string",
-              "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"],
+              "enum": [
+                "+1",
+                "-1",
+                "laugh",
+                "confused",
+                "heart",
+                "hooray",
+                "rocket",
+                "eyes"
+              ],
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes). Defaults to 'eyes' if not specified."
             }
           },
@@ -311,7 +362,12 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["read-all", "write-all", "read", "write"],
+          "enum": [
+            "read-all",
+            "write-all",
+            "read",
+            "write"
+          ],
           "description": "Simple permissions string"
         },
         {
@@ -321,63 +377,122 @@
           "properties": {
             "actions": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "attestations": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "checks": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "contents": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "deployments": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "discussions": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "id-token": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "issues": {
-              "type": "string", 
-              "enum": ["read", "write", "none"]
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "models": {
               "type": "string",
-              "enum": ["read", "none"]
+              "enum": [
+                "read",
+                "none"
+              ]
             },
             "packages": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "pages": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "pull-requests": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "repository-projects": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "security-events": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             },
             "statuses": {
               "type": "string",
-              "enum": ["read", "write", "none"]
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
             }
           }
         }
@@ -577,7 +692,9 @@
               "description": "Cancel in-progress jobs in the same concurrency group"
             }
           },
-          "required": ["group"]
+          "required": [
+            "group"
+          ]
         }
       ]
     },
@@ -600,7 +717,9 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["defaults"],
+          "enum": [
+            "defaults"
+          ],
           "description": "Use default network permissions (currently full network access, will change later)"
         },
         {
@@ -675,7 +794,10 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["claude", "codex"],
+          "enum": [
+            "claude",
+            "codex"
+          ],
           "description": "Simple engine name (claude or codex)"
         },
         {
@@ -684,7 +806,10 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": ["claude", "codex"],
+              "enum": [
+                "claude",
+                "codex"
+              ],
               "description": "Agent CLI identifier (claude or codex)"
             },
             "version": {
@@ -692,7 +817,7 @@
               "description": "Optional version of the action"
             },
             "model": {
-              "type": "string", 
+              "type": "string",
               "description": "Optional LLM model to use"
             },
             "max-turns": {
@@ -707,7 +832,9 @@
               }
             }
           },
-          "required": ["id"],
+          "required": [
+            "id"
+          ],
           "additionalProperties": false
         }
       ]
@@ -919,7 +1046,10 @@
               "description": "If true, only checks if cache entry exists and skips download"
             }
           },
-          "required": ["key", "path"],
+          "required": [
+            "key",
+            "path"
+          ],
           "additionalProperties": false
         },
         {
@@ -975,7 +1105,10 @@
                 "description": "If true, only checks if cache entry exists and skips download"
               }
             },
-            "required": ["key", "path"],
+            "required": [
+              "key",
+              "path"
+            ],
             "additionalProperties": false
           }
         }
@@ -1123,7 +1256,10 @@
                 "side": {
                   "type": "string",
                   "description": "Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')",
-                  "enum": ["LEFT", "RIGHT"]
+                  "enum": [
+                    "LEFT",
+                    "RIGHT"
+                  ]
                 }
               },
               "additionalProperties": false
@@ -1219,6 +1355,26 @@
                 }
               },
               "additionalProperties": false
+            }
+          ]
+        },
+        "missing-tool": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for reporting missing tools from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of missing tool reports (default: unlimited)",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable missing tool reporting with default configuration"
             }
           ]
         }
