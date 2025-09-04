@@ -110,7 +110,7 @@ gh aw version
 ## Validation and Testing
 
 ### Manual Functionality Testing
-**CRITICAL**: After making any changes, always validate functionality with these steps:
+**CRITICAL**: After making any changes, always build the compiler, and validate functionality with these steps:
 
 ```bash
 # 1. Test basic CLI interface

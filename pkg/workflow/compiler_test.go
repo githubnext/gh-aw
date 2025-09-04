@@ -341,7 +341,7 @@ func TestComputeAllowedTools(t *testing.T) {
 					},
 				},
 			},
-			expected: "Bash(echo),Bash(ls)",
+			expected: "Bash(echo),Bash(ls),BashOutput,KillBash",
 		},
 		{
 			name: "bash with nil value (all commands allowed)",
@@ -352,7 +352,7 @@ func TestComputeAllowedTools(t *testing.T) {
 					},
 				},
 			},
-			expected: "Bash",
+			expected: "Bash,BashOutput,KillBash",
 		},
 		{
 			name: "regular tools in claude section (new format)",
@@ -437,7 +437,7 @@ func TestComputeAllowedTools(t *testing.T) {
 					},
 				},
 			},
-			expected: "Bash",
+			expected: "Bash,BashOutput,KillBash",
 		},
 		{
 			name: "bash with :* wildcard mixed with other commands (should ignore other commands)",
@@ -448,7 +448,7 @@ func TestComputeAllowedTools(t *testing.T) {
 					},
 				},
 			},
-			expected: "Bash",
+			expected: "Bash,BashOutput,KillBash",
 		},
 		{
 			name: "bash with :* wildcard and other tools",
@@ -463,7 +463,43 @@ func TestComputeAllowedTools(t *testing.T) {
 					"allowed": []any{"list_issues"},
 				},
 			},
-			expected: "Bash,Read,mcp__github__list_issues",
+			expected: "Bash,BashOutput,KillBash,Read,mcp__github__list_issues",
+		},
+		{
+			name: "bash with single command should include implicit tools",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Bash": []any{"ls"},
+					},
+				},
+			},
+			expected: "Bash(ls),BashOutput,KillBash",
+		},
+		{
+			name: "explicit KillBash and BashOutput should not duplicate",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Bash":       []any{"echo"},
+						"KillBash":   nil,
+						"BashOutput": nil,
+					},
+				},
+			},
+			expected: "Bash(echo),BashOutput,KillBash",
+		},
+		{
+			name: "no bash tools means no implicit tools",
+			tools: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Read":  nil,
+						"Write": nil,
+					},
+				},
+			},
+			expected: "Read,Write",
 		},
 	}
 
@@ -471,16 +507,39 @@ func TestComputeAllowedTools(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := compiler.computeAllowedTools(tt.tools, nil)
 
-			// Since map iteration order is not guaranteed, we need to check if
-			// the expected tools are present (for simple cases)
-			if tt.expected == "" && result != "" {
-				t.Errorf("Expected empty result, got '%s'", result)
-			} else if tt.expected != "" && result == "" {
-				t.Errorf("Expected non-empty result, got empty")
-			} else if tt.expected == "Bash" && result != "Bash" {
-				t.Errorf("Expected 'Bash', got '%s'", result)
+			// Parse expected and actual results into sets for comparison
+			expectedTools := make(map[string]bool)
+			if tt.expected != "" {
+				for _, tool := range strings.Split(tt.expected, ",") {
+					expectedTools[strings.TrimSpace(tool)] = true
+				}
 			}
-			// For more complex cases, we'd need more sophisticated comparison
+
+			actualTools := make(map[string]bool)
+			if result != "" {
+				for _, tool := range strings.Split(result, ",") {
+					actualTools[strings.TrimSpace(tool)] = true
+				}
+			}
+
+			// Check if both sets have the same tools
+			if len(expectedTools) != len(actualTools) {
+				t.Errorf("Expected %d tools, got %d tools. Expected: '%s', Actual: '%s'", 
+					len(expectedTools), len(actualTools), tt.expected, result)
+				return
+			}
+
+			for expectedTool := range expectedTools {
+				if !actualTools[expectedTool] {
+					t.Errorf("Expected tool '%s' not found in result: '%s'", expectedTool, result)
+				}
+			}
+
+			for actualTool := range actualTools {
+				if !expectedTools[actualTool] {
+					t.Errorf("Unexpected tool '%s' found in result: '%s'", actualTool, result)
+				}
+			}
 		})
 	}
 }
@@ -1620,7 +1679,7 @@ func TestComputeAllowedToolsWithClaudeSection(t *testing.T) {
 					},
 				},
 			},
-			expected: "Bash(echo),Bash(ls),Edit",
+			expected: "Bash(echo),Bash(ls),BashOutput,Edit,KillBash",
 		},
 		{
 			name: "mixed top-level and claude section (new format)",
@@ -1646,7 +1705,7 @@ func TestComputeAllowedToolsWithClaudeSection(t *testing.T) {
 					},
 				},
 			},
-			expected: "Bash",
+			expected: "Bash,BashOutput,KillBash",
 		},
 	}
 
@@ -5665,7 +5724,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				AddIssueComments:   &AddIssueCommentsConfig{Max: 1},
 				CreatePullRequests: &CreatePullRequestsConfig{Max: 1},
 			},
-			expected: "Bash,Write",
+			expected: "Bash,BashOutput,KillBash,Write",
 		},
 		{
 			name: "SafeOutputs with MCP tools",
