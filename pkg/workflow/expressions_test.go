@@ -146,10 +146,12 @@ func TestBuildReactionCondition(t *testing.T) {
 	// The result should be a flat OR chain without deep nesting
 	expectedSubstrings := []string{
 		"github.event_name == 'issues'",
-		"github.event_name == 'pull_request'",
 		"github.event_name == 'issue_comment'",
 		"github.event_name == 'pull_request_comment'",
 		"github.event_name == 'pull_request_review_comment'",
+		"github.event_name == 'pull_request'",
+		"github.event.pull_request.head.repo.full_name == github.repository",
+		"&&",
 		"||",
 	}
 
@@ -159,10 +161,10 @@ func TestBuildReactionCondition(t *testing.T) {
 		}
 	}
 
-	// With DisjunctionNode, the output should be flat without extra parentheses at the start/end
-	expectedOutput := "github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment'"
-	if rendered != expectedOutput {
-		t.Errorf("Expected exact output '%s', but got: %s", expectedOutput, rendered)
+	// With the fork check, the pull_request condition should be more complex
+	// It should contain both the event name check and the not-from-fork check
+	if !strings.Contains(rendered, "(github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)") {
+		t.Errorf("Expected pull_request condition to include fork check, but got: %s", rendered)
 	}
 }
 
@@ -948,4 +950,14 @@ func TestHelperFunctionsForMultiline(t *testing.T) {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
 		}
 	})
+}
+
+func TestBuildNotFromFork(t *testing.T) {
+	result := BuildNotFromFork()
+	rendered := result.Render()
+
+	expected := "github.event.pull_request.head.repo.full_name == github.repository"
+	if rendered != expected {
+		t.Errorf("Expected '%s', got '%s'", expected, rendered)
+	}
 }
