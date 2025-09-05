@@ -666,57 +666,6 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 	return result, nil
 }
 
-// mergeMCPTools merges two MCP tool configurations, detecting conflicts except for 'allowed' arrays// mergeBashCommands merges two Bash command configurations
-func mergeBashCommands(existing, additional any) any {
-	// If either is nil, return non-nil one (nil means allow all)
-	if existing == nil {
-		return existing // nil means allow all, so keep that
-	}
-	if additional == nil {
-		return additional // nil means allow all, so use that
-	}
-
-	// Both are non-nil, try to merge as arrays
-	existingArray, existingOk := existing.([]any)
-	additionalArray, additionalOk := additional.([]any)
-
-	if existingOk && additionalOk {
-		// Merge the arrays
-		seen := make(map[string]bool)
-		var result []string
-
-		// Add existing commands
-		for _, cmd := range existingArray {
-			if cmdStr, ok := cmd.(string); ok {
-				if !seen[cmdStr] {
-					result = append(result, cmdStr)
-					seen[cmdStr] = true
-				}
-			}
-		}
-
-		// Add additional commands
-		for _, cmd := range additionalArray {
-			if cmdStr, ok := cmd.(string); ok {
-				if !seen[cmdStr] {
-					result = append(result, cmdStr)
-					seen[cmdStr] = true
-				}
-			}
-		}
-
-		// Convert back to []any
-		var resultAny []any
-		for _, cmd := range result {
-			resultAny = append(resultAny, cmd)
-		}
-		return resultAny
-	}
-
-	// Can't merge, use additional
-	return additional
-}
-
 // mergeAllowedArrays merges two allowed arrays and removes duplicates
 func mergeAllowedArrays(existing, new any) []any {
 	var result []any
@@ -765,13 +714,7 @@ func mergeMCPTools(existing, new map[string]any) (map[string]any, error) {
 				// Special handling for allowed arrays - merge them
 				if existingArray, ok := existingValue.([]any); ok {
 					if newArray, ok := newValue.([]any); ok {
-						merged := mergeAllowedArrays(existingArray, newArray)
-						// Convert back to []any
-						var mergedAny []any
-						for _, item := range merged {
-							mergedAny = append(mergedAny, item)
-						}
-						result[key] = mergedAny
+						result[key] = mergeAllowedArrays(existingArray, newArray)
 						continue
 					}
 				}
