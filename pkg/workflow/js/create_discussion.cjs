@@ -71,7 +71,7 @@ async function main() {
       return; // Exit gracefully without creating discussions
     }
 
-    console.error("Failed to get discussion categories:", errorMessage);
+    core.error(`Failed to get discussion categories: ${errorMessage}`);
     throw error;
   }
 
@@ -85,7 +85,7 @@ async function main() {
     );
   }
   if (!categoryId) {
-    console.error(
+    core.error(
       "No discussion category available and none specified in configuration"
     );
     throw new Error("Discussion category is required but not available");
@@ -164,9 +164,8 @@ async function main() {
         core.setOutput("discussion_url", discussion.html_url);
       }
     } catch (error) {
-      console.error(
-        `✗ Failed to create discussion "${title}":`,
-        error instanceof Error ? error.message : String(error)
+      core.error(
+        `✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`
       );
       throw error;
     }

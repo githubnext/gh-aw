@@ -20,7 +20,7 @@ function main() {
     // Append to GitHub step summary
     core.summary.addRaw(markdown).write();
   } catch (error) {
-    console.error("Error parsing Claude log:", error.message);
+    core.error(`Error parsing Claude log: ${error.message}`);
     core.setFailed(error.message);
   }
 }

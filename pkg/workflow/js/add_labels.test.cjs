@@ -10,6 +10,8 @@ const mockCore = {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn(),
   },
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 const mockGithub = {
@@ -676,9 +678,8 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to add labels:",
-        "Label does not exist"
+      expect(mockCore.error).toHaveBeenCalledWith(
+        "Failed to add labels: Label does not exist"
       );
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add labels: Label does not exist"
@@ -708,9 +709,8 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to add labels:",
-        "Something went wrong"
+      expect(mockCore.error).toHaveBeenCalledWith(
+        "Failed to add labels: Something went wrong"
       );
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add labels: Something went wrong"

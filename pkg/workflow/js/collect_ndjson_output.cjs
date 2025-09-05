@@ -713,8 +713,8 @@ async function main() {
 
   // Report validation results
   if (errors.length > 0) {
-    console.log("Validation errors found:");
-    errors.forEach(error => console.log(`  - ${error}`));
+    core.warning("Validation errors found:");
+    errors.forEach(error => core.warning(`  - ${error}`));
 
     // For now, we'll continue with valid items but log the errors
     // In the future, we might want to fail the workflow for invalid items

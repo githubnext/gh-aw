@@ -163,7 +163,7 @@ async function main() {
         continue; // Skip this issue but continue processing others
       }
 
-      console.error(`✗ Failed to create issue "${title}":`, errorMessage);
+      core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
       throw error;
     }
   }

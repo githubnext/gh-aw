@@ -9,6 +9,8 @@ const mockCore = {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn(),
   },
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 const mockGithub = {

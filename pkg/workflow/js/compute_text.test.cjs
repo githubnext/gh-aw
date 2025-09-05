@@ -5,6 +5,8 @@ import path from "path";
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
   setOutput: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 const mockGithub = {

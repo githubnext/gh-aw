@@ -197,9 +197,8 @@ async function main() {
         core.setOutput("review_comment_url", comment.html_url);
       }
     } catch (error) {
-      console.error(
-        `✗ Failed to create review comment:`,
-        error instanceof Error ? error.message : String(error)
+      core.error(
+        `✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`
       );
       throw error;
     }

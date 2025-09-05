@@ -14,6 +14,8 @@ describe("push_to_branch.cjs", () => {
         addRaw: vi.fn().mockReturnThis(),
         write: vi.fn(),
       },
+      warning: vi.fn(),
+      error: vi.fn(),
     };
     global.core = mockCore;
 

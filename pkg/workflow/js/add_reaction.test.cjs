@@ -10,6 +10,8 @@ const mockCore = {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn(),
   },
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 const mockGithub = {
@@ -312,9 +314,8 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to add reaction:",
-        "API Error"
+      expect(mockCore.error).toHaveBeenCalledWith(
+        "Failed to add reaction: API Error"
       );
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add reaction: API Error"
@@ -333,9 +334,8 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to add reaction:",
-        "String error"
+      expect(mockCore.error).toHaveBeenCalledWith(
+        "Failed to add reaction: String error"
       );
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add reaction: String error"

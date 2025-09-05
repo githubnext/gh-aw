@@ -6,6 +6,8 @@ import path from "path";
 const mockCore = {
   exportVariable: vi.fn(),
   setOutput: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 // Set up global variables
