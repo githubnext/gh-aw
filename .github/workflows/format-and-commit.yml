@@ -31,6 +31,8 @@ jobs:
         run: make deps-dev
       - name: Format code
         run: make fmt
+      - name: Format code js
+        run: make fmt-cjs
       - name: Lint code
         run: make lint
       - name: Build code
