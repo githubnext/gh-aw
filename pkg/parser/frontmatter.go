@@ -575,7 +575,7 @@ func mergeToolsFromJSON(content string) (string, error) {
 	return string(result), nil
 }
 
-// MergeTools merges two neutral tool configurations. 
+// MergeTools merges two neutral tool configurations.
 // Only supports merging arrays and maps for neutral tools (bash, web-fetch, web-search, edit, mcp-*).
 // Removes all legacy Claude tool merging logic.
 func MergeTools(base, additional map[string]any) (map[string]any, error) {
@@ -590,7 +590,7 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 	for key, newValue := range additional {
 		if existingValue, exists := result[key]; exists {
 			// Both have the same key, merge them
-			
+
 			// If both are arrays, merge and deduplicate
 			_, existingIsArray := existingValue.([]any)
 			_, newIsArray := newValue.([]any)
