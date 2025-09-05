@@ -353,4 +353,144 @@ describe("create_issue.cjs", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("should handle disabled issues repository gracefully", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-issue",
+          title: "Test issue",
+          body: "This should fail gracefully",
+        },
+      ],
+    });
+
+    // Mock GitHub API to throw the specific error for disabled issues
+    const disabledError = new Error(
+      "Issues has been disabled in this repository."
+    );
+    mockGithub.rest.issues.create.mockRejectedValue(disabledError);
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Execute the script - should not throw error
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should log warning message instead of error
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '⚠ Cannot create issue "Test issue": Issues are disabled for this repository'
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Consider enabling issues in repository settings if you want to create issues automatically"
+    );
+
+    // Should not have called console.error for this specific error
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("✗ Failed to create issue")
+    );
+
+    // Should still log successful completion with 0 issues
+    expect(consoleSpy).toHaveBeenCalledWith("Successfully created 0 issue(s)");
+
+    // Should not set outputs since no issues were created
+    expect(mockCore.setOutput).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("should continue processing other issues when one fails due to disabled repository", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-issue",
+          title: "First issue",
+          body: "This will fail",
+        },
+        {
+          type: "create-issue",
+          title: "Second issue",
+          body: "This should succeed",
+        },
+      ],
+    });
+
+    const disabledError = new Error(
+      "Issues has been disabled in this repository."
+    );
+    const mockIssue = {
+      number: 505,
+      html_url: "https://github.com/testowner/testrepo/issues/505",
+    };
+
+    // First call fails with disabled error, second call succeeds
+    mockGithub.rest.issues.create
+      .mockRejectedValueOnce(disabledError)
+      .mockResolvedValueOnce({ data: mockIssue });
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should log warning for first issue
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '⚠ Cannot create issue "First issue": Issues are disabled for this repository'
+    );
+
+    // Should log success for second issue
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Created issue #" + mockIssue.number + ": " + mockIssue.html_url
+    );
+
+    // Should report 1 issue created successfully
+    expect(consoleSpy).toHaveBeenCalledWith("Successfully created 1 issue(s)");
+
+    // Should set outputs for the successful issue
+    expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 505);
+    expect(mockCore.setOutput).toHaveBeenCalledWith(
+      "issue_url",
+      mockIssue.html_url
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should still throw error for other API errors", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-issue",
+          title: "Test issue",
+          body: "This should fail with different error",
+        },
+      ],
+    });
+
+    // Mock GitHub API to throw a different error
+    const otherError = new Error("API rate limit exceeded");
+    mockGithub.rest.issues.create.mockRejectedValue(otherError);
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Execute the script - should throw error for non-disabled-issues errors
+    await expect(
+      eval(`(async () => { ${createIssueScript} })()`)
+    ).rejects.toThrow("API rate limit exceeded");
+
+    // Should log error message for other errors
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '✗ Failed to create issue "Test issue":',
+      "API rate limit exceeded"
+    );
+
+    consoleSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
 });

@@ -147,10 +147,23 @@ async function main() {
         core.setOutput("issue_url", issue.html_url);
       }
     } catch (error) {
-      console.error(
-        `✗ Failed to create issue "${title}":`,
-        error instanceof Error ? error.message : String(error)
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // Special handling for disabled issues repository
+      if (
+        errorMessage.includes("Issues has been disabled in this repository")
+      ) {
+        console.log(
+          `⚠ Cannot create issue "${title}": Issues are disabled for this repository`
+        );
+        console.log(
+          "Consider enabling issues in repository settings if you want to create issues automatically"
+        );
+        continue; // Skip this issue but continue processing others
+      }
+
+      console.error(`✗ Failed to create issue "${title}":`, errorMessage);
       throw error;
     }
   }
