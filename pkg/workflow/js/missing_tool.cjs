@@ -17,45 +17,10 @@ async function main() {
   const missingTools = [];
 
   if (agentOutput.trim()) {
-    let parsedData;
+    // Parse as JSON array
+    const parsedData = JSON.parse(agentOutput);
 
-    try {
-      // First try to parse as JSON array
-      parsedData = JSON.parse(agentOutput);
-
-      // If it's not an array, wrap it in an array
-      if (!Array.isArray(parsedData)) {
-        parsedData = [parsedData];
-      }
-
-      console.log(
-        "Parsed agent output as JSON array with",
-        parsedData.length,
-        "entries"
-      );
-    } catch (arrayError) {
-      console.log("Agent output is not a JSON array, trying JSONL format...");
-
-      // Fall back to JSONL parsing (newline-delimited JSON)
-      const lines = agentOutput.split("\n").filter(line => line.trim());
-      parsedData = [];
-
-      for (const line of lines) {
-        try {
-          const entry = JSON.parse(line);
-          parsedData.push(entry);
-        } catch (lineError) {
-          console.log("Warning: Failed to parse line as JSON:", line);
-          console.log("Parse error:", lineError.message);
-        }
-      }
-
-      console.log(
-        "Parsed agent output as JSONL with",
-        parsedData.length,
-        "entries"
-      );
-    }
+    console.log("Parsed agent output with", parsedData.length, "entries");
 
     // Process all parsed entries
     for (const entry of parsedData) {

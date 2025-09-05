@@ -95,26 +95,6 @@ describe("missing_tool.cjs", () => {
       expect(reportedTools[1].alternatives).toBe(null);
     });
 
-    it("should handle single JSON object (not array)", async () => {
-      const testData = {
-        type: "missing-tool",
-        tool: "terraform",
-        reason: "Infrastructure as code needed",
-      };
-
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
-
-      await runScript();
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "1");
-      const toolsReportedCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "tools_reported"
-      );
-      const reportedTools = JSON.parse(toolsReportedCall[1]);
-      expect(reportedTools).toHaveLength(1);
-      expect(reportedTools[0].tool).toBe("terraform");
-    });
-
     it("should filter out non-missing-tool entries", async () => {
       const testData = [
         {
@@ -145,46 +125,6 @@ describe("missing_tool.cjs", () => {
       expect(reportedTools).toHaveLength(2);
       expect(reportedTools[0].tool).toBe("docker");
       expect(reportedTools[1].tool).toBe("kubectl");
-    });
-  });
-
-  describe("JSONL Input Format (fallback)", () => {
-    it("should parse JSONL format when JSON array fails", async () => {
-      const jsonlData = [
-        '{"type": "missing-tool", "tool": "aws-cli", "reason": "AWS operations needed"}',
-        '{"type": "missing-tool", "tool": "gcloud", "reason": "GCP integration required"}',
-      ].join("\n");
-
-      process.env.GITHUB_AW_AGENT_OUTPUT = jsonlData;
-
-      await runScript();
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "2");
-      const toolsReportedCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "tools_reported"
-      );
-      const reportedTools = JSON.parse(toolsReportedCall[1]);
-      expect(reportedTools).toHaveLength(2);
-      expect(reportedTools[0].tool).toBe("aws-cli");
-      expect(reportedTools[1].tool).toBe("gcloud");
-    });
-
-    it("should handle mixed valid/invalid JSONL lines", async () => {
-      const jsonlData = [
-        '{"type": "missing-tool", "tool": "helm", "reason": "Package management"}',
-        "invalid json line",
-        '{"type": "missing-tool", "tool": "istio", "reason": "Service mesh"}',
-      ].join("\n");
-
-      process.env.GITHUB_AW_AGENT_OUTPUT = jsonlData;
-
-      await runScript();
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "2");
-      expect(global.console.log).toHaveBeenCalledWith(
-        "Warning: Failed to parse line as JSON:",
-        "invalid json line"
-      );
     });
   });
 

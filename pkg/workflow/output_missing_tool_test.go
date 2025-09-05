@@ -271,11 +271,8 @@ func TestMissingToolScriptEmbedding(t *testing.T) {
 		}
 	}
 
-	// Verify it handles both JSON array and JSONL formats
-	if !strings.Contains(missingToolScript, "Array.isArray") {
-		t.Error("Script should handle JSON array format")
-	}
-	if !strings.Contains(missingToolScript, "split") {
-		t.Error("Script should handle JSONL format as fallback")
+	// Verify it handles JSON format
+	if !strings.Contains(missingToolScript, "JSON.parse") {
+		t.Error("Script should handle JSON format")
 	}
 }
