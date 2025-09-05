@@ -3712,8 +3712,36 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 			}
 			safeOutputsConfig["add-issue-comment"] = commentConfig
 		}
+		if data.SafeOutputs.CreateDiscussions != nil {
+			discussionConfig := map[string]interface{}{
+				"enabled": true,
+			}
+			if data.SafeOutputs.CreateDiscussions.Max > 0 {
+				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
+			}
+			safeOutputsConfig["create-discussion"] = discussionConfig
+		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create-pull-request"] = true
+		}
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			prReviewCommentConfig := map[string]interface{}{
+				"enabled": true,
+			}
+			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
+				prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
+			}
+			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
+		}
+		if data.SafeOutputs.CreateSecurityReports != nil {
+			securityReportConfig := map[string]interface{}{
+				"enabled": true,
+			}
+			// Security reports typically have unlimited max, but check if configured
+			if data.SafeOutputs.CreateSecurityReports.Max > 0 {
+				securityReportConfig["max"] = data.SafeOutputs.CreateSecurityReports.Max
+			}
+			safeOutputsConfig["create-security-report"] = securityReportConfig
 		}
 		if data.SafeOutputs.AddIssueLabels != nil {
 			safeOutputsConfig["add-issue-label"] = true
