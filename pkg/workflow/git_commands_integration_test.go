@@ -25,6 +25,7 @@ This is a test workflow that should automatically get Git commands when create-p
 `
 
 	compiler := NewCompiler(false, "", "test")
+	engine := NewClaudeEngine()
 
 	// Parse the workflow content and compile it
 	result, err := compiler.parseWorkflowMarkdownContent(workflowContent)
@@ -83,7 +84,7 @@ This is a test workflow that should automatically get Git commands when create-p
 	}
 
 	// Verify allowed tools include the Git commands
-	allowedToolsStr := compiler.computeAllowedClaudeToolsString(result.Tools, result.SafeOutputs)
+	allowedToolsStr := engine.computeAllowedClaudeToolsString(result.Tools, result.SafeOutputs)
 	if !strings.Contains(allowedToolsStr, "Bash(git checkout:*)") {
 		t.Errorf("Expected allowed tools to contain Git commands, got: %s", allowedToolsStr)
 	}
@@ -107,6 +108,7 @@ This workflow should NOT get Git commands since it doesn't use create-pull-reque
 `
 
 	compiler := NewCompiler(false, "", "test")
+	engine := NewClaudeEngine()
 
 	// Parse the workflow content
 	result, err := compiler.parseWorkflowMarkdownContent(workflowContent)
@@ -142,7 +144,7 @@ This workflow should NOT get Git commands since it doesn't use create-pull-reque
 	}
 
 	// Verify allowed tools do not include Git commands
-	allowedToolsStr := compiler.computeAllowedClaudeToolsString(result.Tools, result.SafeOutputs)
+	allowedToolsStr := engine.computeAllowedClaudeToolsString(result.Tools, result.SafeOutputs)
 	if strings.Contains(allowedToolsStr, "Bash(git") {
 		t.Errorf("Did not expect allowed tools to contain Git commands, got: %s", allowedToolsStr)
 	}
@@ -166,6 +168,7 @@ This is a test workflow that should automatically get additional Claude tools wh
 `
 
 	compiler := NewCompiler(false, "", "test")
+	engine := NewClaudeEngine()
 
 	// Parse the workflow content and compile it
 	result, err := compiler.parseWorkflowMarkdownContent(workflowContent)
@@ -211,7 +214,7 @@ This is a test workflow that should automatically get additional Claude tools wh
 	}
 
 	// Verify allowed tools include the additional Claude tools
-	allowedToolsStr := compiler.computeAllowedClaudeToolsString(result.Tools, result.SafeOutputs)
+	allowedToolsStr := engine.computeAllowedClaudeToolsString(result.Tools, result.SafeOutputs)
 	for _, expectedTool := range expectedAdditionalTools {
 		if !strings.Contains(allowedToolsStr, expectedTool) {
 			t.Errorf("Expected allowed tools to contain %s, got: %s", expectedTool, allowedToolsStr)
@@ -280,6 +283,7 @@ func (c *Compiler) parseWorkflowMarkdownContent(content string) (*WorkflowData, 
 	if err != nil {
 		return nil, err
 	}
+	engine := NewClaudeEngine()
 
 	// Extract SafeOutputs early
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
@@ -287,7 +291,7 @@ func (c *Compiler) parseWorkflowMarkdownContent(content string) (*WorkflowData, 
 	// Extract and process tools
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 	topTools = c.applyDefaultGitHubMCPTools(topTools)
-	tools := c.applyDefaultClaudeTools(topTools, safeOutputs)
+	tools := engine.applyDefaultClaudeTools(topTools, safeOutputs)
 
 	// Build basic workflow data for testing
 	workflowData := &WorkflowData{
