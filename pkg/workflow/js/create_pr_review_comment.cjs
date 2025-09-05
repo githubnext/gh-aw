@@ -70,6 +70,17 @@ async function main() {
     return;
   }
 
+  // Check if we have the commit SHA needed for creating review comments
+  if (
+    !context.payload.pull_request.head ||
+    !context.payload.pull_request.head.sha
+  ) {
+    console.log(
+      "Pull request head commit SHA not found in payload - cannot create review comments"
+    );
+    return;
+  }
+
   const pullRequestNumber = context.payload.pull_request.number;
   console.log(`Creating review comments on PR #${pullRequestNumber}`);
 
@@ -160,6 +171,7 @@ async function main() {
         pull_number: pullRequestNumber,
         body: body,
         path: commentItem.path,
+        commit_id: context.payload.pull_request.head.sha, // Required for creating review comments
         line: line,
         side: side,
       };

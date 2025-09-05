@@ -1456,9 +1456,20 @@ jobs:
                   discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
                 );
               } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                // Special handling for repositories without discussions enabled
+                if (errorMessage.includes("Not Found") && error.status === 404) {
+                  console.log(
+                    "⚠ Cannot create discussions: Discussions are not enabled for this repository"
+                  );
+                  console.log(
+                    "Consider enabling discussions in repository settings if you want to create discussions automatically"
+                  );
+                  return; // Exit gracefully without creating discussions
+                }
                 console.error(
                   "Failed to get discussion categories:",
-                  error instanceof Error ? error.message : String(error)
+                  errorMessage
                 );
                 throw error;
               }
@@ -1826,6 +1837,13 @@ jobs:
                 );
                 return;
               }
+              // Check if we have the commit SHA needed for creating review comments
+              if (!context.payload.pull_request.head || !context.payload.pull_request.head.sha) {
+                console.log(
+                  "Pull request head commit SHA not found in payload - cannot create review comments"
+                );
+                return;
+              }
               const pullRequestNumber = context.payload.pull_request.number;
               console.log(`Creating review comments on PR #${pullRequestNumber}`);
               const createdComments = [];
@@ -1904,6 +1922,7 @@ jobs:
                     pull_number: pullRequestNumber,
                     body: body,
                     path: commentItem.path,
+                    commit_id: context.payload.pull_request.head.sha, // Required for creating review comments
                     line: line,
                     side: side,
                   };

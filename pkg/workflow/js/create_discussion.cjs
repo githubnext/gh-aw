@@ -58,10 +58,20 @@ async function main() {
       discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
     );
   } catch (error) {
-    console.error(
-      "Failed to get discussion categories:",
-      error instanceof Error ? error.message : String(error)
-    );
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Special handling for repositories without discussions enabled
+    if (errorMessage.includes("Not Found") && error.status === 404) {
+      console.log(
+        "⚠ Cannot create discussions: Discussions are not enabled for this repository"
+      );
+      console.log(
+        "Consider enabling discussions in repository settings if you want to create discussions automatically"
+      );
+      return; // Exit gracefully without creating discussions
+    }
+
+    console.error("Failed to get discussion categories:", errorMessage);
     throw error;
   }
 
