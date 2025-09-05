@@ -8,61 +8,65 @@ async function main() {
     ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX)
     : null;
 
-  console.log("Processing missing-tool reports...");
-  console.log("Agent output length:", agentOutput.length);
+  core.info("Processing missing-tool reports...");
+  core.info(`Agent output length: ${agentOutput.length}`);
   if (maxReports) {
-    console.log("Maximum reports allowed:", maxReports);
+    core.info(`Maximum reports allowed: ${maxReports}`);
   }
 
   const missingTools = [];
 
-  if (agentOutput.trim()) {
-    // Parse as JSON array
-    const parsedData = JSON.parse(agentOutput);
+  // Return early if no agent output
+  if (!agentOutput.trim()) {
+    core.info("No agent output to process");
+    core.setOutput("tools_reported", JSON.stringify(missingTools));
+    core.setOutput("total_count", missingTools.length.toString());
+    return;
+  }
 
-    console.log("Parsed agent output with", parsedData.length, "entries");
+  // Parse as JSON array
+  const parsedData = JSON.parse(agentOutput);
 
-    // Process all parsed entries
-    for (const entry of parsedData) {
-      if (entry.type === "missing-tool") {
-        // Validate required fields
-        if (!entry.tool) {
-          console.log(
-            "Warning: missing-tool entry missing 'tool' field:",
-            JSON.stringify(entry)
-          );
-          continue;
-        }
-        if (!entry.reason) {
-          console.log(
-            "Warning: missing-tool entry missing 'reason' field:",
-            JSON.stringify(entry)
-          );
-          continue;
-        }
+  core.info(`Parsed agent output with ${parsedData.length} entries`);
 
-        const missingTool = {
-          tool: entry.tool,
-          reason: entry.reason,
-          alternatives: entry.alternatives || null,
-          timestamp: new Date().toISOString(),
-        };
+  // Process all parsed entries
+  for (const entry of parsedData) {
+    if (entry.type === "missing-tool") {
+      // Validate required fields
+      if (!entry.tool) {
+        core.warning(
+          `missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`
+        );
+        continue;
+      }
+      if (!entry.reason) {
+        core.warning(
+          `missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`
+        );
+        continue;
+      }
 
-        missingTools.push(missingTool);
-        console.log("Recorded missing tool:", missingTool.tool);
+      const missingTool = {
+        tool: entry.tool,
+        reason: entry.reason,
+        alternatives: entry.alternatives || null,
+        timestamp: new Date().toISOString(),
+      };
 
-        // Check max limit
-        if (maxReports && missingTools.length >= maxReports) {
-          console.log(
-            `Reached maximum number of missing tool reports (${maxReports})`
-          );
-          break;
-        }
+      missingTools.push(missingTool);
+      core.info(`Recorded missing tool: ${missingTool.tool}`);
+
+      // Check max limit
+      if (maxReports && missingTools.length >= maxReports) {
+        core.info(
+          `Reached maximum number of missing tool reports (${maxReports})`
+        );
+        break;
       }
     }
   }
 
-  console.log("Total missing tools reported:", missingTools.length);
+  core.info(`Total missing tools reported: ${missingTools.length}`);
 
   // Output results
   core.setOutput("tools_reported", JSON.stringify(missingTools));
@@ -70,22 +74,22 @@ async function main() {
 
   // Log details for debugging
   if (missingTools.length > 0) {
-    console.log("Missing tools summary:");
+    core.info("Missing tools summary:");
     missingTools.forEach((tool, index) => {
-      console.log(`${index + 1}. Tool: ${tool.tool}`);
-      console.log(`   Reason: ${tool.reason}`);
+      core.info(`${index + 1}. Tool: ${tool.tool}`);
+      core.info(`   Reason: ${tool.reason}`);
       if (tool.alternatives) {
-        console.log(`   Alternatives: ${tool.alternatives}`);
+        core.info(`   Alternatives: ${tool.alternatives}`);
       }
-      console.log(`   Reported at: ${tool.timestamp}`);
-      console.log("");
+      core.info(`   Reported at: ${tool.timestamp}`);
+      core.info("");
     });
   } else {
-    console.log("No missing tools reported in this workflow execution.");
+    core.info("No missing tools reported in this workflow execution.");
   }
 }
 
 main().catch(error => {
-  console.error("Error processing missing-tool reports:", error);
+  core.error(`Error processing missing-tool reports: ${error}`);
   process.exit(1);
 });
