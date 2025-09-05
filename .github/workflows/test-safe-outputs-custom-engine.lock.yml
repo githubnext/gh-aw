@@ -1006,7 +1006,10 @@ jobs:
                         continue;
                       }
                       // SARIF content can be object or string
-                      if (typeof item.sarif !== "object" && typeof item.sarif !== "string") {
+                      if (
+                        typeof item.sarif !== "object" &&
+                        typeof item.sarif !== "string"
+                      ) {
                         errors.push(
                           `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
                         );
@@ -2734,7 +2737,8 @@ jobs:
               const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
               // Check for actual error conditions (but allow empty patches as valid noop)
               if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot push without changes";
+                const message =
+                  "Patch file contains error message - cannot push without changes";
                 switch (ifNoChanges) {
                   case "error":
                     core.setFailed(message);

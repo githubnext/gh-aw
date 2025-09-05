@@ -1193,7 +1193,10 @@ jobs:
                         continue;
                       }
                       // SARIF content can be object or string
-                      if (typeof item.sarif !== "object" && typeof item.sarif !== "string") {
+                      if (
+                        typeof item.sarif !== "object" &&
+                        typeof item.sarif !== "string"
+                      ) {
                         errors.push(
                           `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
                         );
