@@ -20,7 +20,7 @@ function main() {
       core.summary.addRaw(parsedLog).write();
       console.log("Codex log parsed successfully");
     } else {
-      console.log("Failed to parse Codex log");
+      core.error("Failed to parse Codex log");
     }
   } catch (error) {
     core.setFailed(error.message);
@@ -247,7 +247,7 @@ function parseCodexLog(logContent) {
 
     return markdown;
   } catch (error) {
-    console.error("Error parsing Codex log:", error);
+    core.error(`Error parsing Codex log: ${error}`);
     return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
   }
 }

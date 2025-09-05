@@ -19,6 +19,8 @@ describe("collect_ndjson_output.cjs", () => {
     // Mock core actions methods
     mockCore = {
       setOutput: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
     };
     global.core = mockCore;
 

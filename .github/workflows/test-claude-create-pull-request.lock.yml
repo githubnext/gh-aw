@@ -1044,8 +1044,8 @@ jobs:
               }
               // Report validation results
               if (errors.length > 0) {
-                console.log("Validation errors found:");
-                errors.forEach(error => console.log(`  - ${error}`));
+                core.warning("Validation errors found:");
+                errors.forEach(error => core.warning(`  - ${error}`));
                 // For now, we'll continue with valid items but log the errors
                 // In the future, we might want to fail the workflow for invalid items
               }
@@ -1115,7 +1115,7 @@ jobs:
                 // Append to GitHub step summary
                 core.summary.addRaw(markdown).write();
               } catch (error) {
-                console.error("Error parsing Claude log:", error.message);
+                core.error(`Error parsing Claude log: ${error.message}`);
                 core.setFailed(error.message);
               }
             }

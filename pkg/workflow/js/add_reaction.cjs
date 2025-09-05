@@ -78,7 +78,7 @@ async function main() {
     await addReaction(endpoint, reaction);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to add reaction:", errorMessage);
+    core.error(`Failed to add reaction: ${errorMessage}`);
     core.setFailed(`Failed to add reaction: ${errorMessage}`);
   }
 }

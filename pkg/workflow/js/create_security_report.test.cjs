@@ -9,6 +9,8 @@ const mockCore = {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(undefined),
   },
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 // Mock the context

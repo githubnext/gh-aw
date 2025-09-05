@@ -163,9 +163,8 @@ async function main() {
       execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
       console.log("Patch applied successfully");
     } catch (error) {
-      console.error(
-        "Failed to apply patch:",
-        error instanceof Error ? error.message : String(error)
+      core.error(
+        `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
       );
       core.setFailed("Failed to apply patch");
       return;

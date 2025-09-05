@@ -1037,8 +1037,8 @@ jobs:
               }
               // Report validation results
               if (errors.length > 0) {
-                console.log("Validation errors found:");
-                errors.forEach(error => console.log(`  - ${error}`));
+                core.warning("Validation errors found:");
+                errors.forEach(error => core.warning(`  - ${error}`));
                 // For now, we'll continue with valid items but log the errors
                 // In the future, we might want to fail the workflow for invalid items
               }
@@ -1362,7 +1362,7 @@ jobs:
                     );
                     continue; // Skip this issue but continue processing others
                   }
-                  console.error(`✗ Failed to create issue "${title}":`, errorMessage);
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
                   throw error;
                 }
               }
@@ -1462,7 +1462,7 @@ jobs:
                   );
                   return; // Exit gracefully without creating discussions
                 }
-                console.error("Failed to get discussion categories:", errorMessage);
+                core.error(`Failed to get discussion categories: ${errorMessage}`);
                 throw error;
               }
               // Determine category ID
@@ -1475,7 +1475,7 @@ jobs:
                 );
               }
               if (!categoryId) {
-                console.error(
+                core.error(
                   "No discussion category available and none specified in configuration"
                 );
                 throw new Error("Discussion category is required but not available");
@@ -1543,9 +1543,8 @@ jobs:
                     core.setOutput("discussion_url", discussion.html_url);
                   }
                 } catch (error) {
-                  console.error(
-                    `✗ Failed to create discussion "${title}":`,
-                    error instanceof Error ? error.message : String(error)
+                  core.error(
+                    `✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`
                   );
                   throw error;
                 }
@@ -1728,9 +1727,8 @@ jobs:
                     core.setOutput("comment_url", comment.html_url);
                   }
                 } catch (error) {
-                  console.error(
-                    `✗ Failed to create comment:`,
-                    error instanceof Error ? error.message : String(error)
+                  core.error(
+                    `✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`
                   );
                   throw error;
                 }
@@ -1939,9 +1937,8 @@ jobs:
                     core.setOutput("review_comment_url", comment.html_url);
                   }
                 } catch (error) {
-                  console.error(
-                    `✗ Failed to create review comment:`,
-                    error instanceof Error ? error.message : String(error)
+                  core.error(
+                    `✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`
                   );
                   throw error;
                 }
@@ -2473,7 +2470,7 @@ jobs:
                   .write();
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error("Failed to add labels:", errorMessage);
+                core.error(`Failed to add labels: ${errorMessage}`);
                 core.setFailed(`Failed to add labels: ${errorMessage}`);
               }
             }
@@ -2664,9 +2661,8 @@ jobs:
                     core.setOutput("issue_url", issue.html_url);
                   }
                 } catch (error) {
-                  console.error(
-                    `✗ Failed to update issue #${issueNumber}:`,
-                    error instanceof Error ? error.message : String(error)
+                  core.error(
+                    `✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`
                   );
                   throw error;
                 }
@@ -2862,9 +2858,8 @@ jobs:
                   execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
                   console.log("Patch applied successfully");
                 } catch (error) {
-                  console.error(
-                    "Failed to apply patch:",
-                    error instanceof Error ? error.message : String(error)
+                  core.error(
+                    `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
                   );
                   core.setFailed("Failed to apply patch");
                   return;

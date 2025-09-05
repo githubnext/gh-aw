@@ -184,9 +184,8 @@ async function main() {
         core.setOutput("issue_url", issue.html_url);
       }
     } catch (error) {
-      console.error(
-        `✗ Failed to update issue #${issueNumber}:`,
-        error instanceof Error ? error.message : String(error)
+      core.error(
+        `✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`
       );
       throw error;
     }

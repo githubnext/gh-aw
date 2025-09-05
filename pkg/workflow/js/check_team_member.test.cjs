@@ -5,6 +5,8 @@ import path from "path";
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
   setOutput: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 const mockGithub = {
@@ -223,7 +225,7 @@ describe("check_team_member.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.warning).toHaveBeenCalledWith(
       "Repository permission check failed: API Error: Not Found"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
@@ -302,7 +304,7 @@ describe("check_team_member.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.warning).toHaveBeenCalledWith(
       "Repository permission check failed: Bad credentials"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
@@ -322,7 +324,7 @@ describe("check_team_member.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.warning).toHaveBeenCalledWith(
       "Repository permission check failed: API rate limit exceeded"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");

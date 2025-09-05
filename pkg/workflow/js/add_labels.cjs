@@ -206,7 +206,7 @@ ${labelsListMarkdown}
       .write();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to add labels:", errorMessage);
+    core.error(`Failed to add labels: ${errorMessage}`);
     core.setFailed(`Failed to add labels: ${errorMessage}`);
   }
 }

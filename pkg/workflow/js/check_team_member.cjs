@@ -26,7 +26,7 @@ async function main() {
   } catch (repoError) {
     const errorMessage =
       repoError instanceof Error ? repoError.message : String(repoError);
-    console.log(`Repository permission check failed: ${errorMessage}`);
+    core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
   core.setOutput("is_team_member", "false");

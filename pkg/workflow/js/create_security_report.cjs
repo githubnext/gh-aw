@@ -278,9 +278,8 @@ async function main() {
 
     await core.summary.addRaw(summaryContent).write();
   } catch (error) {
-    console.error(
-      `✗ Failed to create SARIF file:`,
-      error instanceof Error ? error.message : String(error)
+    core.error(
+      `✗ Failed to create SARIF file: ${error instanceof Error ? error.message : String(error)}`
     );
     throw error;
   }

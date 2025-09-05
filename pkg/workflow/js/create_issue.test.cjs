@@ -9,6 +9,8 @@ const mockCore = {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn(),
   },
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 const mockGithub = {
@@ -485,9 +487,8 @@ describe("create_issue.cjs", () => {
     ).rejects.toThrow("API rate limit exceeded");
 
     // Should log error message for other errors
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '✗ Failed to create issue "Test issue":',
-      "API rate limit exceeded"
+    expect(mockCore.error).toHaveBeenCalledWith(
+      '✗ Failed to create issue "Test issue": API rate limit exceeded'
     );
 
     consoleSpy.mockRestore();

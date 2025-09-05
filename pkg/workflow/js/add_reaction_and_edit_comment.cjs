@@ -112,7 +112,7 @@ async function main() {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to process reaction and comment edit:", errorMessage);
+    core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
     core.setFailed(
       `Failed to process reaction and comment edit: ${errorMessage}`
     );
