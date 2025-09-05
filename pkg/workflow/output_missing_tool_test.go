@@ -255,7 +255,6 @@ func TestMissingToolScriptEmbedding(t *testing.T) {
 	// Verify it contains expected JavaScript content
 	expectedContent := []string{
 		"async function main()",
-		"const core = require",
 		"GITHUB_AW_AGENT_OUTPUT",
 		"GITHUB_AW_MISSING_TOOL_MAX",
 		"missing-tool",

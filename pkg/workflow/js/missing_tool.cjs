@@ -1,6 +1,5 @@
 async function main() {
   const fs = require("fs");
-  const core = require("@actions/core");
 
   // Get environment variables
   const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
