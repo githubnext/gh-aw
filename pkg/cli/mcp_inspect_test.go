@@ -57,10 +57,8 @@ This workflow only uses GitHub tools.`,
 
 		"test-no-mcp.md": `---
 tools:
-  claude:
-    allowed:
-      WebFetch:
-      WebSearch:
+web-fetch:
+web-search:
 ---
 # No MCP Workflow
 This workflow has no MCP servers.`,

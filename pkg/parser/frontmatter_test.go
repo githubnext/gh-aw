@@ -131,7 +131,7 @@ permissions: read`,
 		{
 			name: "deeply nested structure",
 			yaml: `tools:
-  Bash:
+  bash:
     allowed:
       - "ls"
       - "cat"
@@ -140,7 +140,7 @@ permissions: read`,
       - "create_issue"`,
 			key: "tools",
 			expected: `tools:
-  Bash:
+  bash:
     allowed:
       - "ls"
       - "cat"
@@ -877,7 +877,7 @@ func TestMergeTools(t *testing.T) {
 			},
 			expected: map[string]any{
 				"bash": map[string]any{
-					"allowed": []string{"ls", "cat", "grep"},
+					"allowed": []any{"ls", "cat", "grep"},
 				},
 			},
 		},
@@ -917,65 +917,44 @@ func TestMergeTools(t *testing.T) {
 			},
 		},
 		{
-			name: "merge claude section tools (new format)",
+			name: "merge neutral tools with maps (no Claude-specific logic)",
 			base: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"list_issues"},
 				},
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Edit":  nil,
-						"Write": nil,
-					},
+				"bash": map[string]any{
+					"allowed": []any{"ls", "cat"},
 				},
 			},
 			additional: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Read":      nil,
-						"MultiEdit": nil,
-					},
+				"bash": map[string]any{
+					"allowed": []any{"grep", "ps"},
 				},
 			},
 			expected: map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"list_issues"},
 				},
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Edit":      nil,
-						"Write":     nil,
-						"Read":      nil,
-						"MultiEdit": nil,
-					},
+				"bash": map[string]any{
+					"allowed": []any{"ls", "cat", "grep", "ps"},
 				},
 			},
 		},
 		{
-			name: "merge nested Bash tools under claude section (new format)",
+			name: "merge neutral tools with different allowed arrays",
 			base: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"pwd", "whoami"},
-						"Edit": nil,
-					},
+				"web-fetch": map[string]any{
+					"allowed": []any{"get", "post"},
 				},
 			},
 			additional: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"ls", "cat", "pwd"}, // pwd is duplicate
-						"Read": nil,
-					},
+				"web-fetch": map[string]any{
+					"allowed": []any{"put", "get"}, // get is duplicate
 				},
 			},
 			expected: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"pwd", "whoami", "ls", "cat"},
-						"Edit": nil,
-						"Read": nil,
-					},
+				"web-fetch": map[string]any{
+					"allowed": []any{"get", "post", "put"},
 				},
 			},
 		},

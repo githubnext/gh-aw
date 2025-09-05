@@ -984,6 +984,64 @@
               "additionalProperties": false
             }
           ]
+        },
+        "bash": {
+          "description": "Bash tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable bash tool with all commands allowed"
+            },
+            {
+              "type": "array",
+              "description": "List of allowed bash commands",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "web-fetch": {
+          "description": "Web fetch tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable web fetch tool"
+            },
+            {
+              "type": "object",
+              "description": "Web fetch tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "web-search": {
+          "description": "Web search tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable web search tool"
+            },
+            {
+              "type": "object",
+              "description": "Web search tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "edit": {
+          "description": "Edit tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable edit tool"
+            },
+            {
+              "type": "object",
+              "description": "Edit tool configuration object",
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "additionalProperties": {

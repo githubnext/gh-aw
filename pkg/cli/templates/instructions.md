@@ -84,7 +84,10 @@ The YAML frontmatter supports these fields:
   
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
-  - `claude:` - Claude-specific tools  
+  - `edit:` - File editing tools
+  - `web-fetch:` - Web content fetching tools
+  - `web-search:` - Web search tools
+  - `bash:` - Shell command tools
   - Custom tool names for MCP servers
 
 - **`safe-outputs:`** - Safe output processing configuration
@@ -329,21 +332,16 @@ tools:
       - create_issue
 ```
 
-### Claude Tools
+### General Tools
 ```yaml
 tools:
-  claude:
-    allowed:
-      Edit:           # File editing
-      MultiEdit:      # Multiple file editing
-      Write:          # File writing
-      NotebookEdit:   # Notebook editing
-      WebFetch:       # Web content fetching
-      WebSearch:      # Web searching
-      Bash:           # Shell commands
-        - "gh label list:*"
-        - "gh label view:*"
-        - "git status"
+  edit:           # File editing
+  web-fetch:       # Web content fetching
+  web-search:      # Web searching
+  bash:           # Shell commands
+  - "gh label list:*"
+  - "gh label view:*"
+  - "git status"
 ```
 
 ### Custom MCP Tools
@@ -620,10 +618,10 @@ permissions:
 tools:
   github:
     allowed: [create_issue, list_issues, list_commits]
-  claude:
-    allowed:
-      WebFetch:
-      WebSearch:
+  web-fetch:
+  web-search:
+  edit:
+  bash: ["echo", "ls"]
 timeout_minutes: 15
 ---
 

@@ -155,11 +155,8 @@ tools:
 ```yaml
 engine: claude
 tools:
-  claude:
-    allowed:
-      Edit:
-      Write:
-      Bash: ["echo", "git status"]   # keep tight; avoid wildcards
+  edit:
+  bash: ["echo", "git status"]   # keep tight; avoid wildcards
 ```
 
 - Patterns to avoid:
@@ -168,9 +165,7 @@ tools:
 tools:
   github:
     allowed: ["*"]            # Too broad
-  claude:
-    allowed:
-      Bash: [":*"]           # Unrestricted shell access
+  bash: [":*"]           # Unrestricted shell access
 ```
 
 #### Egress Filtering

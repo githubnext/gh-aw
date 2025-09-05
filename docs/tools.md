@@ -12,10 +12,8 @@ Tools are defined in the frontmatter to specify which GitHub API calls and AI ca
 tools:
   github:
     allowed: [create_issue, update_issue]
-  claude:
-    allowed:
-      Edit:
-      Bash: ["echo", "ls", "git status"]
+  edit:
+  bash: ["echo", "ls", "git status"]
 ```
 
 All tools declared in included components are merged into the final workflow.
@@ -52,42 +50,30 @@ The system automatically includes comprehensive default read-only GitHub tools. 
 
 **Users & Organizations**: `search_users`, `search_orgs`, `get_me`
 
-## Claude Tools (`claude:`)
+## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
 
 Available when using `engine: claude` (it is the default engine). Configure Claude-specific capabilities and tools.
 
-### Basic Claude Tools
-
 ```yaml
 tools:
-  claude:
-    allowed:
-      Edit:        # File editing capabilities
-      MultiEdit:   # Multi-file editing
-      Write:       # File writing
-      NotebookEdit: # Jupyter notebook editing
-      WebFetch:    # Web content fetching
-      WebSearch:   # Web search capabilities
-      Bash: ["echo", "ls", "git status"]  # Allowed bash commands
+  edit:        # File editing capabilities
+  web-fetch:    # Web content fetching
+  web-search:   # Web search capabilities
+  bash: ["echo", "ls", "git status"]  # Allowed bash commands
 ```
 
 ### Bash Command Configuration
 
 ```yaml
 tools:
-  claude:
-    allowed:
-      Bash: ["echo", "ls", "git", "npm", "python"]
+  bash: ["echo", "ls", "git", "npm", "python"]
 ```
 
 #### Bash Wildcards
 
 ```yaml
 tools:
-  claude:
-    allowed:
-      Bash:
-        allowed: [":*"]  # Allow ALL bash commands - use with caution
+  bash: [":*"]  # Allow ALL bash commands - use with caution
 ```
 
 **Wildcard Options:**
@@ -115,12 +101,9 @@ No explicit declaration needed - automatically included with Claude + GitHub con
 tools:
   github:
     allowed: [get_issue, add_issue_comment]
-  claude:
-    allowed:
-      Edit:
-      Write:
-      WebFetch:
-      Bash: ["echo", "ls", "git", "npm test"]
+  edit:
+  web-fetch:
+  bash: ["echo", "ls", "git", "npm test"]
 ```
 
 
@@ -129,10 +112,8 @@ tools:
 ### Bash Command Restrictions
 ```yaml
 tools:
-  claude:
-    allowed:
-      Bash: ["echo", "ls", "git status"]        # ✅ Restricted set
-      # Bash: [":*"]                           # ⚠️  Unrestricted - use carefully
+  bash: ["echo", "ls", "git status"]        # ✅ Restricted set
+  # bash: [":*"]                           # ⚠️  Unrestricted - use carefully
 ```
 
 ### Tool Permissions

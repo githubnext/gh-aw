@@ -12,10 +12,7 @@ func TestGitCommandsIntegrationWithCreatePullRequest(t *testing.T) {
 	workflowContent := `---
 name: Test Git Commands Integration
 tools:
-  claude:
-    allowed:
-      Read: null
-      Write: null
+  edit:
 safe-outputs:
   create-pull-request:
     max: 1
@@ -55,10 +52,7 @@ func TestGitCommandsNotAddedWithoutPullRequestOutput(t *testing.T) {
 	workflowContent := `---
 name: Test No Git Commands
 tools:
-  claude:
-    allowed:
-      Read: null
-      Write: null
+  edit:
 safe-outputs:
   create-issue:
     max: 1
@@ -97,10 +91,7 @@ func TestAdditionalClaudeToolsIntegrationWithCreatePullRequest(t *testing.T) {
 	workflowContent := `---
 name: Test Additional Claude Tools Integration
 tools:
-  claude:
-    allowed:
-      Read: null
-      Task: null
+  edit:
 safe-outputs:
   create-pull-request:
     max: 1
@@ -147,9 +138,7 @@ func TestAdditionalClaudeToolsIntegrationWithPushToBranch(t *testing.T) {
 	workflowContent := `---
 name: Test Additional Claude Tools Integration with Push to Branch
 tools:
-  claude:
-    allowed:
-      Read: null
+  edit:
 safe-outputs:
   push-to-branch:
     branch: "feature-branch"

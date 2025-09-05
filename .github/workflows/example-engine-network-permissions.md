@@ -17,10 +17,8 @@ network:
     - "docs.github.com"
 
 tools:
-  claude:
-    allowed:
-      WebFetch:
-      WebSearch:
+  web-fetch:
+  web-search:
 ---
 
 # Secure Web Research Task

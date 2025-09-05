@@ -317,8 +317,16 @@ func TestMergeAllowedArrays(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := mergeAllowedArrays(tt.existing, tt.new)
 
-			if !stringSlicesEqual(result, tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, result)
+			// Convert []any result to []string for comparison
+			var resultStrings []string
+			for _, item := range result {
+				if str, ok := item.(string); ok {
+					resultStrings = append(resultStrings, str)
+				}
+			}
+
+			if !stringSlicesEqual(resultStrings, tt.expected) {
+				t.Errorf("Expected %v, got %v", tt.expected, resultStrings)
 			}
 		})
 	}

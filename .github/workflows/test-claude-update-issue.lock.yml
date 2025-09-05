@@ -304,7 +304,7 @@ jobs:
                       print(f"No domains are allowed for WebSearch", file=sys.stderr)
                       sys.exit(2)  # Block under deny-all policy
                   else:
-                      print(f"Network access blocked for WebSearch: no specific domain detected", file=sys.stderr)
+                      print(f"Network access blocked for web-search: no specific domain detected", file=sys.stderr)
                       print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
                       sys.exit(2)  # Block general searches when domain allowlist is configured
               

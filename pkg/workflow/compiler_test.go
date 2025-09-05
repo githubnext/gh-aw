@@ -28,8 +28,7 @@ permissions:
 tools:
   github:
     allowed: [list_issues, create_issue]
-  Bash:
-    allowed: ["echo", "ls"]
+  bash: ["echo", "ls"]
 ---
 
 # Test Workflow
@@ -991,9 +990,7 @@ func TestMergeAllowedListsFromMultipleIncludes(t *testing.T) {
 	// Create first include file with Bash tools (new format)
 	include1Content := `---
 tools:
-  claude:
-    allowed:
-      Bash: ["ls", "cat", "echo"]
+  bash: ["ls", "cat", "echo"]
 ---
 
 # Include 1
@@ -1007,9 +1004,7 @@ First include file with bash tools.
 	// Create second include file with Bash tools (new format)
 	include2Content := `---
 tools:
-  claude:
-    allowed:
-      Bash: ["grep", "find", "ls"] # ls is duplicate
+  bash: ["grep", "find", "ls"] # ls is duplicate
 ---
 
 # Include 2
@@ -1023,9 +1018,7 @@ Second include file with bash tools.
 	// Create main workflow file that includes both files (new format)
 	mainContent := fmt.Sprintf(`---
 tools:
-  claude:
-    allowed:
-      Bash: ["pwd"] # Additional command in main file
+  bash: ["pwd"] # Additional command in main file
 ---
 
 # Test Workflow for Multiple Includes
@@ -1043,9 +1036,7 @@ More content.
 	// Create a simple workflow file with claude.Bash tools (no includes) (new format)
 	simpleContent := `---
 tools:
-  claude:
-    allowed:
-      Bash: ["pwd", "ls", "cat"]
+  bash: ["pwd", "ls", "cat"]
 ---
 
 # Simple Test Workflow
@@ -1157,10 +1148,7 @@ tools:
       env:
         NOTION_TOKEN: "{{ secrets.NOTION_TOKEN }}"
     allowed: ["create_page", "search_pages"]
-  claude:
-    allowed:
-      Read:
-      Write:
+  edit:
 ---
 
 # Include 1
@@ -1182,10 +1170,7 @@ tools:
       env:
         TRELLO_TOKEN: "{{ secrets.TRELLO_TOKEN }}"
     allowed: ["create_card", "list_boards"]
-  claude:
-    allowed:
-      Grep:
-      Glob:
+  edit:
 ---
 
 # Include 2
@@ -1238,10 +1223,7 @@ tools:
     allowed: ["main_tool1", "main_tool2"]
   github:
     allowed: ["list_issues", "create_issue"]
-  claude:
-    allowed:
-      LS:
-      Task:
+  web-search:
 ---
 
 # Test Workflow for Custom MCP Merging
@@ -1383,10 +1365,7 @@ Include file with custom MCP server only.
 tools:
   github:
     allowed: ["list_issues"]
-  claude:
-    allowed:
-      Read:
-      Write:
+  edit:
 ---
 
 # Test Workflow with Custom MCP Only in Include
@@ -1842,12 +1821,7 @@ tools:
         NOTION_TOKEN: "{{ secrets.NOTION_TOKEN }}"
   github:
     allowed: []
-  claude:
-    allowed:
-      Read:
-      Write:
-      Grep:
-      Glob:
+  edit:
 ---
 
 # Test Workflow
@@ -1926,9 +1900,8 @@ on:
   schedule:
     - cron: "0 9 * * 1"
 engine: claude
-claude:
-  allowed:
-    Bash: ["echo 'hello'"]
+tools:
+  bash: ["echo 'hello'"]
 ---
 
 # Test Workflow

@@ -274,14 +274,97 @@ func (e *ClaudeEngine) needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToBranch != nil
 }
 
+// expandNeutralToolsToClaudeTools converts neutral tools to Claude-specific tools format
+func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	// Copy existing tools that are not neutral tools
+	for key, value := range tools {
+		switch key {
+		case "bash", "web-fetch", "web-search", "edit":
+			// These are neutral tools that need conversion - skip copying, will be converted below
+			continue
+		default:
+			// Copy MCP servers and other non-neutral tools as-is
+			result[key] = value
+		}
+	}
+
+	// Create or get existing claude section
+	var claudeSection map[string]any
+	if existing, hasClaudeSection := result["claude"]; hasClaudeSection {
+		if claudeMap, ok := existing.(map[string]any); ok {
+			claudeSection = claudeMap
+		} else {
+			claudeSection = make(map[string]any)
+		}
+	} else {
+		claudeSection = make(map[string]any)
+	}
+
+	// Get existing allowed tools from Claude section
+	var claudeAllowed map[string]any
+	if allowed, hasAllowed := claudeSection["allowed"]; hasAllowed {
+		if allowedMap, ok := allowed.(map[string]any); ok {
+			claudeAllowed = allowedMap
+		} else {
+			claudeAllowed = make(map[string]any)
+		}
+	} else {
+		claudeAllowed = make(map[string]any)
+	}
+
+	// Convert neutral tools to Claude tools
+	if bashTool, hasBash := tools["bash"]; hasBash {
+		// bash -> Bash, KillBash, BashOutput
+		if bashCommands, ok := bashTool.([]any); ok {
+			claudeAllowed["Bash"] = bashCommands
+		} else {
+			claudeAllowed["Bash"] = nil // Allow all bash commands
+		}
+	}
+
+	if _, hasWebFetch := tools["web-fetch"]; hasWebFetch {
+		// web-fetch -> WebFetch
+		claudeAllowed["WebFetch"] = nil
+	}
+
+	if _, hasWebSearch := tools["web-search"]; hasWebSearch {
+		// web-search -> WebSearch
+		claudeAllowed["WebSearch"] = nil
+	}
+
+	if editTool, hasEdit := tools["edit"]; hasEdit {
+		// edit -> Edit, MultiEdit, NotebookEdit, Write
+		claudeAllowed["Edit"] = nil
+		claudeAllowed["MultiEdit"] = nil
+		claudeAllowed["NotebookEdit"] = nil
+		claudeAllowed["Write"] = nil
+
+		// If edit tool has specific configuration, we could handle it here
+		// For now, treating it as enabling all edit capabilities
+		_ = editTool
+	}
+
+	// Update claude section
+	claudeSection["allowed"] = claudeAllowed
+	result["claude"] = claudeSection
+
+	return result
+}
+
 // computeAllowedClaudeToolsString
-// 1. adds default Claude tools and git commands based on safe outputs configuration
-// 2. generates the allowed tools string for Claude
+// 1. converts neutral tools to Claude-specific tools
+// 2. adds default Claude tools and git commands based on safe outputs configuration
+// 3. generates the allowed tools string for Claude
 func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig) string {
 	// Initialize tools map if nil
 	if tools == nil {
 		tools = make(map[string]any)
 	}
+
+	// Convert neutral tools to Claude-specific tools
+	tools = e.expandNeutralToolsToClaudeTools(tools)
 
 	defaultClaudeTools := []string{
 		"Task",

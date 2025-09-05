@@ -44,11 +44,8 @@ Includes only a specific section from a markdown file using the section header.
 tools:
   github:
     allowed: [get_issue, add_issue_comment, get_pull_request]
-  claude:
-    allowed:
-      Edit:
-      Read:
-      Bash: ["git", "grep"]
+  edit:
+  bash: ["git", "grep"]
 ---
 
 # Common Tools Configuration
@@ -117,9 +114,7 @@ tools:
 tools:
   github:
     allowed: [add_issue_comment, update_issue]
-  claude:
-    allowed:
-      Edit:
+  edit:
 ---
 ```
 

@@ -575,7 +575,9 @@ func mergeToolsFromJSON(content string) (string, error) {
 	return string(result), nil
 }
 
-// MergeTools merges two tool objects and returns errors for conflicts
+// MergeTools merges two neutral tool configurations. 
+// Only supports merging arrays and maps for neutral tools (bash, web-fetch, web-search, edit, mcp-*).
+// Removes all legacy Claude tool merging logic.
 func MergeTools(base, additional map[string]any) (map[string]any, error) {
 	result := make(map[string]any)
 
@@ -588,17 +590,21 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 	for key, newValue := range additional {
 		if existingValue, exists := result[key]; exists {
 			// Both have the same key, merge them
+			
+			// If both are arrays, merge and deduplicate
+			_, existingIsArray := existingValue.([]any)
+			_, newIsArray := newValue.([]any)
+			if existingIsArray && newIsArray {
+				merged := mergeAllowedArrays(existingValue, newValue)
+				result[key] = merged
+				continue
+			}
+
+			// If both are maps, check for special merging cases
 			existingMap, existingIsMap := existingValue.(map[string]any)
 			newMap, newIsMap := newValue.(map[string]any)
-
 			if existingIsMap && newIsMap {
-				// Special handling for Claude section in new format
-				if key == "claude" {
-					result[key] = mergeClaudeSection(existingMap, newMap)
-					continue
-				}
-
-				// Check if this is an MCP tool (has MCP-compatible type in new format)
+				// Check if this is an MCP tool (has MCP-compatible type)
 				var existingType, newType string
 				if existingMcp, hasMcp := existingMap["mcp"]; hasMcp {
 					if mcpMap, ok := existingMcp.(map[string]any); ok {
@@ -623,7 +629,7 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 					}
 				}
 
-				// Both are maps, check for 'allowed' arrays to merge at this level
+				// Both are maps, check for 'allowed' arrays to merge
 				if existingAllowed, hasExistingAllowed := existingMap["allowed"]; hasExistingAllowed {
 					if newAllowed, hasNewAllowed := newMap["allowed"]; hasNewAllowed {
 						// Merge allowed arrays
@@ -641,14 +647,14 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 					}
 				}
 
-				// No 'allowed' arrays to merge at this level, recursively merge the maps
+				// No 'allowed' arrays to merge, recursively merge the maps
 				recursiveMerged, err := MergeTools(existingMap, newMap)
 				if err != nil {
 					return nil, err
 				}
 				result[key] = recursiveMerged
 			} else {
-				// Not both maps, overwrite
+				// Not both same type, overwrite with new value
 				result[key] = newValue
 			}
 		} else {
@@ -660,61 +666,7 @@ func MergeTools(base, additional map[string]any) (map[string]any, error) {
 	return result, nil
 }
 
-// mergeClaudeSection merges two Claude sections in the new format where tools are under 'allowed'
-func mergeClaudeSection(base, additional map[string]any) map[string]any {
-	result := make(map[string]any)
-
-	// Copy base
-	for k, v := range base {
-		result[k] = v
-	}
-
-	// Copy additional, merging the allowed section if both have it
-	for k, v := range additional {
-		if k == "allowed" && result["allowed"] != nil {
-			// Both have allowed sections, merge them
-			baseAllowed, baseOk := result["allowed"].(map[string]any)
-			additionalAllowed, additionalOk := v.(map[string]any)
-
-			if baseOk && additionalOk {
-				mergedAllowed := make(map[string]any)
-
-				// Copy base allowed
-				for toolName, toolValue := range baseAllowed {
-					mergedAllowed[toolName] = toolValue
-				}
-
-				// Merge additional allowed
-				for toolName, toolValue := range additionalAllowed {
-					if existing, exists := mergedAllowed[toolName]; exists {
-						// Both have the same tool, merge them
-						if toolName == "Bash" {
-							// Special handling for Bash - merge command arrays
-							mergedAllowed[toolName] = mergeBashCommands(existing, toolValue)
-						} else {
-							// For other tools, additional overrides base
-							mergedAllowed[toolName] = toolValue
-						}
-					} else {
-						// New tool, just add it
-						mergedAllowed[toolName] = toolValue
-					}
-				}
-
-				result["allowed"] = mergedAllowed
-			} else {
-				// Can't merge, use additional
-				result[k] = v
-			}
-		} else {
-			result[k] = v
-		}
-	}
-
-	return result
-}
-
-// mergeBashCommands merges two Bash command configurations
+// mergeMCPTools merges two MCP tool configurations, detecting conflicts except for 'allowed' arrays// mergeBashCommands merges two Bash command configurations
 func mergeBashCommands(existing, additional any) any {
 	// If either is nil, return non-nil one (nil means allow all)
 	if existing == nil {
@@ -766,8 +718,8 @@ func mergeBashCommands(existing, additional any) any {
 }
 
 // mergeAllowedArrays merges two allowed arrays and removes duplicates
-func mergeAllowedArrays(existing, new any) []string {
-	var result []string
+func mergeAllowedArrays(existing, new any) []any {
+	var result []any
 	seen := make(map[string]bool)
 
 	// Add existing items

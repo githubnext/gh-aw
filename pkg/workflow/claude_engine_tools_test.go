@@ -184,6 +184,63 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			},
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,WebFetch,WebSearch",
 		},
+		// Test cases for new neutral tools format
+		{
+			name: "neutral bash tool",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
+			},
+			expected: "Bash(echo),Bash(ls),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
+		{
+			name: "neutral web-fetch tool",
+			tools: map[string]any{
+				"web-fetch": nil,
+			},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,WebFetch",
+		},
+		{
+			name: "neutral web-search tool",
+			tools: map[string]any{
+				"web-search": nil,
+			},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,WebSearch",
+		},
+		{
+			name: "neutral edit tool",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",
+		},
+		{
+			name: "mixed neutral and MCP tools",
+			tools: map[string]any{
+				"web-fetch": nil,
+				"bash":      []any{"git status"},
+				"github": map[string]any{
+					"allowed": []any{"list_issues"},
+				},
+			},
+			expected: "Bash(git status),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,WebFetch,mcp__github__list_issues",
+		},
+		{
+			name: "all neutral tools together",
+			tools: map[string]any{
+				"bash":       []any{"echo"},
+				"web-fetch":  nil,
+				"web-search": nil,
+				"edit":       nil,
+			},
+			expected: "Bash(echo),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,WebSearch,Write",
+		},
+		{
+			name: "neutral bash with nil value (all commands)",
+			tools: map[string]any{
+				"bash": nil,
+			},
+			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
 	}
 
 	for _, tt := range tests {
@@ -311,6 +368,17 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 				CreateIssues: &CreateIssuesConfig{Max: 1},
 			},
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__create_issue,mcp__github__create_pull_request",
+		},
+		{
+			name: "SafeOutputs with neutral tools and create-pull-request",
+			tools: map[string]any{
+				"bash":      []any{"echo", "ls"},
+				"web-fetch": nil,
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{Max: 1},
+			},
+			expected: "Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write",
 		},
 	}
 
