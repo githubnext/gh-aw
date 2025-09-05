@@ -39,8 +39,8 @@ type CodingAgentEngine interface {
 	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
 	GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
 
-	// GetExecutionConfig returns the configuration for executing this engine
-	GetExecutionConfig(workflowData *WorkflowData, logFile string) ExecutionConfig
+	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
+	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
 
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string)
@@ -50,27 +50,6 @@ type CodingAgentEngine interface {
 
 	// GetLogParserScript returns the name of the JavaScript script to parse logs for this engine
 	GetLogParserScript() string
-}
-
-// ExecutionConfig contains the configuration for executing an agentic engine
-type ExecutionConfig struct {
-	// StepName is the name of the GitHub Actions step
-	StepName string
-
-	// Command is the shell command to execute (for CLI-based engines)
-	Command string
-
-	// Action is the GitHub Action to use (for action-based engines)
-	Action string
-
-	// Inputs are the inputs to pass to the action
-	Inputs map[string]string
-
-	// Environment variables needed for execution
-	Environment map[string]string
-
-	// Steps is an optional list of custom steps to inject before command invocation
-	Steps []map[string]any
 }
 
 // BaseEngine provides common functionality for agentic engines

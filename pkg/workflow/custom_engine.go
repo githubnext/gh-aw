@@ -30,24 +30,109 @@ func (e *CustomEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	return []GitHubActionStep{}
 }
 
-// GetExecutionConfig returns the execution configuration for custom steps
-func (e *CustomEngine) GetExecutionConfig(workflowData *WorkflowData, logFile string) ExecutionConfig {
-	// The custom engine doesn't execute itself - the steps are handled directly by the compiler
-	// This method is called but the actual execution logic is handled in the compiler
-	config := ExecutionConfig{
-		StepName: "Custom Steps Execution",
-		Command:  "echo \"Custom steps are handled directly by the compiler\"",
-		Environment: map[string]string{
-			"WORKFLOW_NAME": workflowData.Name,
-		},
-	}
+// GetExecutionSteps returns the GitHub Actions steps for executing custom steps
+func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	var steps []GitHubActionStep
 
-	// If the engine configuration has custom steps, include them in the execution config
+	// Generate each custom step if they exist, with environment variables
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		config.Steps = workflowData.EngineConfig.Steps
+		// Check if we need environment section for any step
+		hasEnvSection := workflowData.SafeOutputs != nil ||
+			(workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "") ||
+			(workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0)
+
+		for _, step := range workflowData.EngineConfig.Steps {
+			stepYAML, err := e.convertStepToYAML(step)
+			if err != nil {
+				// Log error but continue with other steps
+				continue
+			}
+
+			// Check if this step needs environment variables injected
+			stepStr := stepYAML
+			if hasEnvSection && strings.Contains(stepYAML, "run:") {
+				// Add environment variables to run steps after the entire run block
+				stepStr = strings.TrimRight(stepYAML, "\n")
+				stepStr += "\n        env:\n"
+
+				// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
+				if workflowData.SafeOutputs != nil {
+					stepStr += "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n"
+				}
+
+				// Add GITHUB_AW_MAX_TURNS if max-turns is configured
+				if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+					stepStr += fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s\n", workflowData.EngineConfig.MaxTurns)
+				}
+
+				// Add custom environment variables from engine config
+				if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+					for key, value := range workflowData.EngineConfig.Env {
+						stepStr += fmt.Sprintf("          %s: %s\n", key, value)
+					}
+				}
+			}
+
+			// Split the step YAML into lines to create a GitHubActionStep
+			stepLines := strings.Split(stepStr, "\n")
+			steps = append(steps, GitHubActionStep(stepLines))
+		}
 	}
 
-	return config
+	// Add a step to ensure the log file exists for consistency with other engines
+	logStepLines := []string{
+		"      - name: Ensure log file exists",
+		"        run: |",
+		"          echo \"Custom steps execution completed\" >> " + logFile,
+		"          touch " + logFile,
+	}
+	steps = append(steps, GitHubActionStep(logStepLines))
+
+	return steps
+}
+
+// convertStepToYAML converts a step map to YAML string - temporary helper
+func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
+	// Simple YAML generation for steps - this mirrors the compiler logic
+	var stepYAML []string
+
+	// Add step name
+	if name, hasName := stepMap["name"]; hasName {
+		if nameStr, ok := name.(string); ok {
+			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
+		}
+	}
+
+	// Add run command
+	if run, hasRun := stepMap["run"]; hasRun {
+		if runStr, ok := run.(string); ok {
+			stepYAML = append(stepYAML, "        run: |")
+			// Split command into lines and indent them properly
+			runLines := strings.Split(runStr, "\n")
+			for _, line := range runLines {
+				stepYAML = append(stepYAML, "          "+line)
+			}
+		}
+	}
+
+	// Add uses action
+	if uses, hasUses := stepMap["uses"]; hasUses {
+		if usesStr, ok := uses.(string); ok {
+			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
+		}
+	}
+
+	// Add with parameters
+	if with, hasWith := stepMap["with"]; hasWith {
+		if withMap, ok := with.(map[string]any); ok {
+			stepYAML = append(stepYAML, "        with:")
+			for key, value := range withMap {
+				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, value))
+			}
+		}
+	}
+
+	return strings.Join(stepYAML, "\n"), nil
 }
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine

@@ -252,7 +252,6 @@ func TestWorkflowDataStructure(t *testing.T) {
 	data := &WorkflowData{
 		Name:            "Test Workflow",
 		MarkdownContent: "# Test Content",
-		AllowedTools:    "Bash,github",
 	}
 
 	if data.Name != "Test Workflow" {
@@ -263,9 +262,6 @@ func TestWorkflowDataStructure(t *testing.T) {
 		t.Errorf("Expected MarkdownContent '# Test Content', got '%s'", data.MarkdownContent)
 	}
 
-	if data.AllowedTools != "Bash,github" {
-		t.Errorf("Expected AllowedTools 'Bash,github', got '%s'", data.AllowedTools)
-	}
 }
 
 func TestInvalidJSONInMCPConfig(t *testing.T) {
@@ -517,7 +513,7 @@ func TestComputeAllowedTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.computeAllowedTools(tt.tools, nil)
+			result := compiler.computeAllowedClaudeToolsString(tt.tools, nil)
 
 			// Parse expected and actual results into sets for comparison
 			expectedTools := make(map[string]bool)
@@ -1160,7 +1156,9 @@ func TestApplyDefaultGitHubMCPTools_DefaultClaudeTools(t *testing.T) {
 				tools[k] = v
 			}
 
-			result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, nil)
+			// Apply both default tool functions in sequence
+			tools = compiler.applyDefaultGitHubMCPTools(tools)
+			result := compiler.applyDefaultClaudeTools(tools, nil)
 
 			// Check that all expected top-level tools are present
 			for _, expectedTool := range tt.expectedTopLevelTools {
@@ -1278,7 +1276,9 @@ func TestDefaultClaudeToolsList(t *testing.T) {
 		},
 	}
 
-	result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, nil)
+	// Apply both default tool functions in sequence
+	tools = compiler.applyDefaultGitHubMCPTools(tools)
+	result := compiler.applyDefaultClaudeTools(tools, nil)
 
 	// Verify the claude section was created
 	claudeSection, hasClaudeSection := result["claude"]
@@ -1338,7 +1338,8 @@ func TestDefaultClaudeToolsIntegrationWithComputeAllowedTools(t *testing.T) {
 	}
 
 	// Apply default tools first
-	toolsWithDefaults := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, nil)
+	tools = compiler.applyDefaultGitHubMCPTools(tools)
+	toolsWithDefaults := compiler.applyDefaultClaudeTools(tools, nil)
 
 	// Verify that the claude section was created with default tools (new format)
 	claudeSection, hasClaudeSection := toolsWithDefaults["claude"]
@@ -1371,7 +1372,7 @@ func TestDefaultClaudeToolsIntegrationWithComputeAllowedTools(t *testing.T) {
 	}
 
 	// Compute allowed tools
-	allowedTools := compiler.computeAllowedTools(toolsWithDefaults, nil)
+	allowedTools := compiler.computeAllowedClaudeToolsString(toolsWithDefaults, nil)
 
 	// Verify that default Claude tools appear in the allowed tools string
 	for _, expectedTool := range expectedClaudeTools {
@@ -1494,7 +1495,7 @@ func TestComputeAllowedToolsWithCustomMCP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.computeAllowedTools(tt.tools, nil)
+			result := compiler.computeAllowedClaudeToolsString(tt.tools, nil)
 
 			// Check that all expected tools are present
 			for _, expectedTool := range tt.expected {
@@ -1727,7 +1728,7 @@ func TestComputeAllowedToolsWithClaudeSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.computeAllowedTools(tt.tools, nil)
+			result := compiler.computeAllowedClaudeToolsString(tt.tools, nil)
 
 			// Split both expected and result into slices and check each tool is present
 			expectedTools := strings.Split(tt.expected, ",")
@@ -5765,7 +5766,7 @@ func TestComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.computeAllowedTools(tt.tools, tt.safeOutputs)
+			result := compiler.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs)
 
 			// Split both expected and result into slices and check each tool is present
 			expectedTools := strings.Split(tt.expected, ",")

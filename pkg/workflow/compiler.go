@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -129,7 +128,6 @@ type WorkflowData struct {
 	RunsOn             string
 	Tools              map[string]any
 	MarkdownContent    string
-	AllowedTools       string
 	AI                 string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig       *EngineConfig // Extended engine configuration
 	StopTime           string
@@ -498,9 +496,8 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 
-	// Default to full network access if no network permissions specified
-	if networkPermissions == nil && engineConfig != nil && engineConfig.ID == "claude" {
-		// Default to "defaults" mode (full network access for now)
+	// Default to 'defaults' network access if no network permissions specified
+	if networkPermissions == nil {
 		networkPermissions = &NetworkPermissions{
 			Mode: "defaults",
 		}
@@ -668,9 +665,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Apply pull request fork filter if specified
 	c.applyPullRequestForkFilter(workflowData, result.Frontmatter)
-
-	// Compute allowed tools
-	workflowData.AllowedTools = c.computeAllowedTools(tools, workflowData.SafeOutputs)
 
 	return workflowData, nil
 }
@@ -1167,7 +1161,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 	if data.Tools != nil {
 		// Apply default GitHub MCP tools
-		data.Tools = c.applyDefaultGitHubMCPAndClaudeTools(data.Tools, data.SafeOutputs)
+		data.Tools = c.applyDefaultGitHubMCPTools(data.Tools)
 	}
 }
 
@@ -1360,8 +1354,8 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 	return mergedTools, nil
 }
 
-// applyDefaultGitHubMCPAndClaudeTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
+// applyDefaultGitHubMCPTools adds default read-only GitHub MCP tools, creating github tool if not present
+func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
 	// Define the default read-only GitHub MCP tools
@@ -1467,132 +1461,6 @@ func (c *Compiler) applyDefaultGitHubMCPAndClaudeTools(tools map[string]any, saf
 	githubConfig["allowed"] = newAllowed
 	tools["github"] = githubConfig
 
-	defaultClaudeTools := []string{
-		"Task",
-		"Glob",
-		"Grep",
-		"ExitPlanMode",
-		"TodoWrite",
-		"LS",
-		"Read",
-		"NotebookRead",
-	}
-
-	// Ensure claude section exists with the new format
-	var claudeSection map[string]any
-	if existing, hasClaudeSection := tools["claude"]; hasClaudeSection {
-		if claudeMap, ok := existing.(map[string]any); ok {
-			claudeSection = claudeMap
-		} else {
-			claudeSection = make(map[string]any)
-		}
-	} else {
-		claudeSection = make(map[string]any)
-	}
-
-	// Get existing allowed tools from the new format (map structure)
-	var claudeExistingAllowed map[string]any
-	if allowed, hasAllowed := claudeSection["allowed"]; hasAllowed {
-		if allowedMap, ok := allowed.(map[string]any); ok {
-			claudeExistingAllowed = allowedMap
-		} else {
-			claudeExistingAllowed = make(map[string]any)
-		}
-	} else {
-		claudeExistingAllowed = make(map[string]any)
-	}
-
-	// Add default tools that aren't already present
-	for _, defaultTool := range defaultClaudeTools {
-		if _, exists := claudeExistingAllowed[defaultTool]; !exists {
-			claudeExistingAllowed[defaultTool] = nil // Add tool with null value
-		}
-	}
-
-	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-branch
-	if safeOutputs != nil && needsGitCommands(safeOutputs) {
-		gitCommands := []any{
-			"git checkout:*",
-			"git branch:*",
-			"git switch:*",
-			"git add:*",
-			"git rm:*",
-			"git commit:*",
-			"git merge:*",
-		}
-
-		// Add additional Claude tools needed for file editing and pull request creation
-		additionalTools := []string{
-			"Edit",
-			"MultiEdit",
-			"Write",
-			"NotebookEdit",
-		}
-
-		// Add file editing tools that aren't already present
-		for _, tool := range additionalTools {
-			if _, exists := claudeExistingAllowed[tool]; !exists {
-				claudeExistingAllowed[tool] = nil // Add tool with null value
-			}
-		}
-
-		// Add Bash tool with Git commands if not already present
-		if _, exists := claudeExistingAllowed["Bash"]; !exists {
-			// Bash tool doesn't exist, add it with Git commands
-			claudeExistingAllowed["Bash"] = gitCommands
-		} else {
-			// Bash tool exists, merge Git commands with existing commands
-			existingBash := claudeExistingAllowed["Bash"]
-			if existingCommands, ok := existingBash.([]any); ok {
-				// Convert existing commands to strings for comparison
-				existingSet := make(map[string]bool)
-				for _, cmd := range existingCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						existingSet[cmdStr] = true
-						// If we see :* or *, all bash commands are already allowed
-						if cmdStr == ":*" || cmdStr == "*" {
-							// Don't add specific Git commands since all are already allowed
-							goto bashComplete
-						}
-					}
-				}
-
-				// Add Git commands that aren't already present
-				newCommands := make([]any, len(existingCommands))
-				copy(newCommands, existingCommands)
-				for _, gitCmd := range gitCommands {
-					if gitCmdStr, ok := gitCmd.(string); ok {
-						if !existingSet[gitCmdStr] {
-							newCommands = append(newCommands, gitCmd)
-						}
-					}
-				}
-				claudeExistingAllowed["Bash"] = newCommands
-			} else if existingBash == nil {
-				// Bash tool exists but with nil value (allows all commands)
-				// Keep it as nil since that's more permissive than specific commands
-				// No action needed - nil value already permits all commands
-				_ = existingBash // Keep the nil value as-is
-			}
-		}
-	bashComplete:
-	}
-
-	// Check if Bash tools are present and add implicit KillBash and BashOutput
-	if _, hasBash := claudeExistingAllowed["Bash"]; hasBash {
-		// Implicitly add KillBash and BashOutput when any Bash tools are allowed
-		if _, exists := claudeExistingAllowed["KillBash"]; !exists {
-			claudeExistingAllowed["KillBash"] = nil
-		}
-		if _, exists := claudeExistingAllowed["BashOutput"]; !exists {
-			claudeExistingAllowed["BashOutput"] = nil
-		}
-	}
-
-	// Update the claude section with the new format
-	claudeSection["allowed"] = claudeExistingAllowed
-	tools["claude"] = claudeSection
-
 	return tools
 }
 
@@ -1616,147 +1484,6 @@ func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 		}
 	}
 	return hasUsage
-}
-
-// computeAllowedTools computes the comma-separated list of allowed tools for Claude
-func (c *Compiler) computeAllowedTools(tools map[string]any, safeOutputs *SafeOutputsConfig) string {
-	var allowedTools []string
-
-	// Process claude-specific tools from the claude section (new format only)
-	if claudeSection, hasClaudeSection := tools["claude"]; hasClaudeSection {
-		if claudeConfig, ok := claudeSection.(map[string]any); ok {
-			if allowed, hasAllowed := claudeConfig["allowed"]; hasAllowed {
-				// In the new format, allowed is a map where keys are tool names
-				if allowedMap, ok := allowed.(map[string]any); ok {
-					for toolName, toolValue := range allowedMap {
-						if toolName == "Bash" {
-							// Handle Bash tool with specific commands
-							if bashCommands, ok := toolValue.([]any); ok {
-								// Check for :* wildcard first - if present, ignore all other bash commands
-								for _, cmd := range bashCommands {
-									if cmdStr, ok := cmd.(string); ok {
-										if cmdStr == ":*" {
-											// :* means allow all bash and ignore other commands
-											allowedTools = append(allowedTools, "Bash")
-											goto nextClaudeTool
-										}
-									}
-								}
-								// Process the allowed bash commands (no :* found)
-								for _, cmd := range bashCommands {
-									if cmdStr, ok := cmd.(string); ok {
-										if cmdStr == "*" {
-											// Wildcard means allow all bash
-											allowedTools = append(allowedTools, "Bash")
-											goto nextClaudeTool
-										}
-									}
-								}
-								// Add individual bash commands with Bash() prefix
-								for _, cmd := range bashCommands {
-									if cmdStr, ok := cmd.(string); ok {
-										allowedTools = append(allowedTools, fmt.Sprintf("Bash(%s)", cmdStr))
-									}
-								}
-							} else {
-								// Bash with no specific commands or null value - allow all bash
-								allowedTools = append(allowedTools, "Bash")
-							}
-						} else if strings.HasPrefix(toolName, strings.ToUpper(toolName[:1])) {
-							// Tool name starts with uppercase letter - regular Claude tool
-							allowedTools = append(allowedTools, toolName)
-						}
-					nextClaudeTool:
-					}
-				}
-			}
-		}
-	}
-
-	// Process top-level tools (MCP tools and claude)
-	for toolName, toolValue := range tools {
-		if toolName == "claude" {
-			// Skip the claude section as we've already processed it
-			continue
-		} else {
-			// Check if this is an MCP tool (has MCP-compatible type) or standard MCP tool (github)
-			if mcpConfig, ok := toolValue.(map[string]any); ok {
-				// Check if it's explicitly marked as MCP type
-				isCustomMCP := false
-				if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-					isCustomMCP = true
-				}
-
-				// Handle standard MCP tools (github) or tools with MCP-compatible type
-				if toolName == "github" || isCustomMCP {
-					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {
-						if allowedSlice, ok := allowed.([]any); ok {
-							// Check for wildcard access first
-							hasWildcard := false
-							for _, item := range allowedSlice {
-								if str, ok := item.(string); ok && str == "*" {
-									hasWildcard = true
-									break
-								}
-							}
-
-							if hasWildcard {
-								// For wildcard access, just add the server name with mcp__ prefix
-								allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s", toolName))
-							} else {
-								// For specific tools, add each one individually
-								for _, item := range allowedSlice {
-									if str, ok := item.(string); ok {
-										allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s__%s", toolName, str))
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Handle SafeOutputs requirement for file write access
-	if safeOutputs != nil {
-		// Check if a general "Write" permission is already granted
-		hasGeneralWrite := slices.Contains(allowedTools, "Write")
-
-		// If no general Write permission and SafeOutputs is configured,
-		// add specific write permission for GITHUB_AW_SAFE_OUTPUTS
-		if !hasGeneralWrite {
-			allowedTools = append(allowedTools, "Write")
-			// Ideally we would only give permission to the exact file, but that doesn't seem
-			// to be working with Claude. See https://github.com/githubnext/gh-aw/issues/244#issuecomment-3240319103
-			//allowedTools = append(allowedTools, "Write(${{ env.GITHUB_AW_SAFE_OUTPUTS }})")
-		}
-	}
-
-	// Sort the allowed tools alphabetically for consistent output
-	sort.Strings(allowedTools)
-
-	return strings.Join(allowedTools, ",")
-}
-
-// generateAllowedToolsComment generates a multi-line comment showing each allowed tool
-func (c *Compiler) generateAllowedToolsComment(allowedToolsStr string, indent string) string {
-	if allowedToolsStr == "" {
-		return ""
-	}
-
-	tools := strings.Split(allowedToolsStr, ",")
-	if len(tools) == 0 {
-		return ""
-	}
-
-	var comment strings.Builder
-	comment.WriteString(indent + "# Allowed tools (sorted):\n")
-	for _, tool := range tools {
-		comment.WriteString(fmt.Sprintf("%s# - %s\n", indent, tool))
-	}
-
-	return comment.String()
 }
 
 // indentYAMLLines adds indentation to all lines of a multi-line YAML string except the first
@@ -3839,219 +3566,15 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 	return stepYAML.String(), nil
 }
 
-// generateEngineExecutionSteps generates the execution steps for the specified agentic engine
+// generateEngineExecutionSteps uses the new GetExecutionSteps interface method
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
+	steps := engine.GetExecutionSteps(data, logFile)
 
-	// Handle custom engine (with or without user-defined steps)
-	if engine.GetID() == "custom" {
-		c.generateCustomEngineSteps(yaml, data, logFile)
-		return
-	}
-
-	executionConfig := engine.GetExecutionConfig(data, logFile)
-
-	// If the execution config contains custom steps, inject them before the main command/action
-	if len(executionConfig.Steps) > 0 {
-		for i, step := range executionConfig.Steps {
-			stepYAML, err := c.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				fmt.Printf("Error converting step %d to YAML: %v\n", i+1, err)
-				continue
-			}
-
-			// The convertStepToYAML already includes proper indentation, just add it directly
-			yaml.WriteString(stepYAML)
+	for _, step := range steps {
+		for _, line := range step {
+			yaml.WriteString(line + "\n")
 		}
 	}
-
-	if executionConfig.Command != "" {
-		// Command-based execution (e.g., Codex)
-		fmt.Fprintf(yaml, "      - name: %s\n", executionConfig.StepName)
-		yaml.WriteString("        run: |\n")
-
-		// Split command into lines and indent them properly
-		commandLines := strings.Split(executionConfig.Command, "\n")
-		for _, line := range commandLines {
-			yaml.WriteString("          " + line + "\n")
-		}
-		env := executionConfig.Environment
-
-		if data.SafeOutputs != nil {
-			env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-		}
-		// Add environment variables
-		if len(env) > 0 {
-			yaml.WriteString("        env:\n")
-			// Sort environment keys for consistent output
-			envKeys := make([]string, 0, len(env))
-			for key := range env {
-				envKeys = append(envKeys, key)
-			}
-			sort.Strings(envKeys)
-
-			for _, key := range envKeys {
-				value := env[key]
-				fmt.Fprintf(yaml, "          %s: %s\n", key, value)
-			}
-		}
-	} else if executionConfig.Action != "" {
-
-		// Add the main action step
-		fmt.Fprintf(yaml, "      - name: %s\n", executionConfig.StepName)
-		yaml.WriteString("        id: agentic_execution\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", executionConfig.Action)
-		yaml.WriteString("        with:\n")
-
-		// Add inputs in alphabetical order by key
-		keys := make([]string, 0, len(executionConfig.Inputs))
-		for key := range executionConfig.Inputs {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-
-		for _, key := range keys {
-			value := executionConfig.Inputs[key]
-			if key == "allowed_tools" {
-				if data.AllowedTools != "" {
-					// Add comment listing all allowed tools for readability
-					comment := c.generateAllowedToolsComment(data.AllowedTools, "          ")
-					yaml.WriteString(comment)
-					fmt.Fprintf(yaml, "          %s: \"%s\"\n", key, data.AllowedTools)
-				}
-			} else if key == "timeout_minutes" {
-				if data.TimeoutMinutes != "" {
-					yaml.WriteString("          " + data.TimeoutMinutes + "\n")
-				}
-			} else if key == "max_turns" {
-				if data.EngineConfig != nil && data.EngineConfig.MaxTurns != "" {
-					fmt.Fprintf(yaml, "          max_turns: %s\n", data.EngineConfig.MaxTurns)
-				}
-			} else if value != "" {
-				if strings.HasPrefix(value, "|") {
-					// For YAML literal block scalars, add proper newline after the content
-					fmt.Fprintf(yaml, "          %s: %s\n", key, value)
-				} else {
-					fmt.Fprintf(yaml, "          %s: %s\n", key, value)
-				}
-			}
-		}
-		// Add environment section for safe-outputs, max-turns, and custom env vars
-		hasEnvSection := data.SafeOutputs != nil || (data.EngineConfig != nil && len(data.EngineConfig.Env) > 0) || (data.EngineConfig != nil && data.EngineConfig.MaxTurns != "")
-		if hasEnvSection {
-			yaml.WriteString("        env:\n")
-
-			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
-			if data.SafeOutputs != nil {
-				yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-			}
-
-			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
-			if data.EngineConfig != nil && data.EngineConfig.MaxTurns != "" {
-				fmt.Fprintf(yaml, "          GITHUB_AW_MAX_TURNS: %s\n", data.EngineConfig.MaxTurns)
-			}
-
-			// Add custom environment variables from engine config
-			if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 {
-				for _, envVar := range data.EngineConfig.Env {
-					// Parse environment variable in format "KEY=value" or "KEY: value"
-					parts := strings.SplitN(envVar, "=", 2)
-					if len(parts) == 2 {
-						key := strings.TrimSpace(parts[0])
-						value := strings.TrimSpace(parts[1])
-						fmt.Fprintf(yaml, "          %s: %s\n", key, value)
-					} else {
-						// Try "KEY: value" format
-						parts = strings.SplitN(envVar, ":", 2)
-						if len(parts) == 2 {
-							key := strings.TrimSpace(parts[0])
-							value := strings.TrimSpace(parts[1])
-							fmt.Fprintf(yaml, "          %s: %s\n", key, value)
-						}
-					}
-				}
-			}
-		}
-		yaml.WriteString("      - name: Capture Agentic Action logs\n")
-		yaml.WriteString("        if: always()\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          # Copy the detailed execution file from Agentic Action if available\n")
-		yaml.WriteString("          if [ -n \"${{ steps.agentic_execution.outputs.execution_file }}\" ] && [ -f \"${{ steps.agentic_execution.outputs.execution_file }}\" ]; then\n")
-		yaml.WriteString("            cp ${{ steps.agentic_execution.outputs.execution_file }} " + logFile + "\n")
-		yaml.WriteString("          else\n")
-		yaml.WriteString("            echo \"No execution file output found from Agentic Action\" >> " + logFile + "\n")
-		yaml.WriteString("          fi\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Ensure log file exists\n")
-		yaml.WriteString("          touch " + logFile + "\n")
-	}
-}
-
-// generateCustomEngineSteps generates the custom steps defined in the engine configuration
-func (c *Compiler) generateCustomEngineSteps(yaml *strings.Builder, data *WorkflowData, logFile string) {
-	// Generate each custom step if they exist, with environment variables
-	if data.EngineConfig != nil && len(data.EngineConfig.Steps) > 0 {
-		// Check if we need environment section for any step
-		hasEnvSection := data.SafeOutputs != nil || (data.EngineConfig != nil && data.EngineConfig.MaxTurns != "") || (data.EngineConfig != nil && len(data.EngineConfig.Env) > 0)
-
-		for i, step := range data.EngineConfig.Steps {
-			stepYAML, err := c.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				fmt.Printf("Error converting step %d to YAML: %v\n", i+1, err)
-				continue
-			}
-
-			// Check if this step needs environment variables injected
-			stepStr := stepYAML
-			if hasEnvSection && strings.Contains(stepYAML, "run:") {
-				// Add environment variables to run steps after the entire run block
-				// Find the end of the run block and add env section at step level
-				stepStr = strings.TrimRight(stepYAML, "\n")
-				stepStr += "\n        env:\n"
-
-				// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
-				if data.SafeOutputs != nil {
-					stepStr += "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n"
-				}
-
-				// Add GITHUB_AW_MAX_TURNS if max-turns is configured
-				if data.EngineConfig != nil && data.EngineConfig.MaxTurns != "" {
-					stepStr += fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s\n", data.EngineConfig.MaxTurns)
-				}
-
-				// Add custom environment variables from engine config
-				if data.EngineConfig != nil && len(data.EngineConfig.Env) > 0 {
-					for _, envVar := range data.EngineConfig.Env {
-						// Parse environment variable in format "KEY=value" or "KEY: value"
-						parts := strings.SplitN(envVar, "=", 2)
-						if len(parts) == 2 {
-							key := strings.TrimSpace(parts[0])
-							value := strings.TrimSpace(parts[1])
-							stepStr += fmt.Sprintf("          %s: %s\n", key, value)
-						} else {
-							// Try "KEY: value" format
-							parts = strings.SplitN(envVar, ":", 2)
-							if len(parts) == 2 {
-								key := strings.TrimSpace(parts[0])
-								value := strings.TrimSpace(parts[1])
-								stepStr += fmt.Sprintf("          %s: %s\n", key, value)
-							}
-						}
-					}
-				}
-			}
-
-			// The convertStepToYAML already includes proper indentation, just add it directly
-			yaml.WriteString(stepStr)
-		}
-	}
-
-	// Add a step to ensure the log file exists for consistency with other engines
-	yaml.WriteString("      - name: Ensure log file exists\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"Custom steps execution completed\" >> " + logFile + "\n")
-	yaml.WriteString("          touch " + logFile + "\n")
 }
 
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata

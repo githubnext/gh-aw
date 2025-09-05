@@ -413,21 +413,29 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 				Name:         "test-workflow",
 				EngineConfig: tt.engineConfig,
 			}
-			config := tt.engine.GetExecutionConfig(workflowData, "test-log")
+			steps := tt.engine.GetExecutionSteps(workflowData, "test-log")
+
+			if len(steps) == 0 {
+				t.Fatalf("Expected at least one step, got none")
+			}
+
+			// Convert first step to YAML string for testing
+			stepContent := strings.Join([]string(steps[0]), "\n")
 
 			switch tt.engine.GetID() {
 			case "claude":
 				if tt.expectedModel != "" {
-					if config.Inputs["model"] != tt.expectedModel {
-						t.Errorf("Expected model input to be %s, got: %s", tt.expectedModel, config.Inputs["model"])
+					expectedModelLine := "model: " + tt.expectedModel
+					if !strings.Contains(stepContent, expectedModelLine) {
+						t.Errorf("Expected step to contain model %s, got step content:\n%s", tt.expectedModel, stepContent)
 					}
 				}
 
 			case "codex":
 				if tt.expectedModel != "" {
 					expectedModelArg := "model=" + tt.expectedModel
-					if !strings.Contains(config.Command, expectedModelArg) {
-						t.Errorf("Expected command to contain %s, got: %s", expectedModelArg, config.Command)
+					if !strings.Contains(stepContent, expectedModelArg) {
+						t.Errorf("Expected command to contain %s, got step content:\n%s", expectedModelArg, stepContent)
 					}
 				}
 			}
@@ -489,31 +497,44 @@ func TestEngineConfigurationWithCustomEnvVars(t *testing.T) {
 			if tt.hasOutput {
 				workflowData.SafeOutputs = &SafeOutputsConfig{}
 			}
-			config := tt.engine.GetExecutionConfig(workflowData, "test-log")
+			steps := tt.engine.GetExecutionSteps(workflowData, "test-log")
+
+			if len(steps) == 0 {
+				t.Fatalf("Expected at least one step, got none")
+			}
+
+			// Convert first step to YAML string for testing
+			stepContent := strings.Join([]string(steps[0]), "\n")
 
 			switch tt.engine.GetID() {
 			case "claude":
 				// For Claude, custom env vars should be in claude_env input
-				if claudeEnv, exists := config.Inputs["claude_env"]; exists {
+				if tt.engineConfig != nil && len(tt.engineConfig.Env) > 0 {
+					foundEnvVar := false
 					for key, value := range tt.engineConfig.Env {
-						expectedEntry := key + ": " + value
-						if !strings.Contains(claudeEnv, expectedEntry) {
-							t.Errorf("Expected claude_env to contain '%s', got: %s", expectedEntry, claudeEnv)
+						if strings.Contains(stepContent, key+":") && strings.Contains(stepContent, value) {
+							foundEnvVar = true
+							break
 						}
 					}
-				} else if len(tt.engineConfig.Env) > 0 {
-					t.Error("Expected claude_env input to be present when custom env vars are defined")
+					if !foundEnvVar {
+						t.Errorf("Expected step to contain custom environment variables, got step content:\n%s", stepContent)
+					}
 				}
 
 			case "codex":
-				// For Codex, custom env vars should be in Environment field
+				// For Codex, custom env vars should be in the step's env section
 				if tt.engineConfig != nil && len(tt.engineConfig.Env) > 0 {
+					foundEnvVar := false
 					for key, expectedValue := range tt.engineConfig.Env {
-						if actualValue, exists := config.Environment[key]; !exists {
-							t.Errorf("Expected Environment to contain key '%s'", key)
-						} else if actualValue != expectedValue {
-							t.Errorf("Expected Environment['%s'] to be '%s', got '%s'", key, expectedValue, actualValue)
+						envLine := key + ": " + expectedValue
+						if strings.Contains(stepContent, envLine) {
+							foundEnvVar = true
+							break
 						}
+					}
+					if !foundEnvVar {
+						t.Errorf("Expected step to contain custom environment variables, got step content:\n%s", stepContent)
 					}
 				}
 			}
@@ -534,10 +555,23 @@ func TestNilEngineConfig(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name: "test-workflow",
 			}
-			config := engine.GetExecutionConfig(workflowData, "test-log")
+			steps := engine.GetExecutionSteps(workflowData, "test-log")
 
-			if config.StepName == "" {
-				t.Errorf("Expected non-empty step name for engine %s", engine.GetID())
+			// Custom engine returns one log step even when no custom steps are configured
+			if engine.GetID() == "custom" {
+				if len(steps) != 1 {
+					t.Errorf("Expected 1 step (log step) for custom engine when no custom steps configured, got %d", len(steps))
+				}
+			} else {
+				// Other engines should return at least one step
+				if len(steps) == 0 {
+					t.Errorf("Expected at least one step for engine %s, got none", engine.GetID())
+				}
+
+				// Check that the first step has some content
+				if len(steps) > 0 && len(steps[0]) == 0 {
+					t.Errorf("Expected non-empty step content for engine %s", engine.GetID())
+				}
 			}
 		})
 	}

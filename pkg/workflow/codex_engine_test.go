@@ -46,35 +46,42 @@ func TestCodexEngine(t *testing.T) {
 		}
 	}
 
-	// Test execution config
+	// Test execution steps
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
-	config := engine.GetExecutionConfig(workflowData, "test-log")
-	if config.StepName != "Run Codex" {
-		t.Errorf("Expected step name 'Run Codex', got '%s'", config.StepName)
+	execSteps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(execSteps) != 1 {
+		t.Fatalf("Expected 1 step for Codex execution, got %d", len(execSteps))
 	}
 
-	if config.Action != "" {
-		t.Errorf("Expected empty action for Codex (uses command), got '%s'", config.Action)
+	// Check the execution step
+	stepContent := strings.Join([]string(execSteps[0]), "\n")
+
+	if !strings.Contains(stepContent, "name: Run Codex") {
+		t.Errorf("Expected step name 'Run Codex' in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(config.Command, "codex exec") {
-		t.Errorf("Expected command to contain 'codex exec', got '%s'", config.Command)
+	if strings.Contains(stepContent, "uses:") {
+		t.Errorf("Expected no action for Codex (uses command), got step with 'uses:' in:\n%s", stepContent)
 	}
 
-	if !strings.Contains(config.Command, "test-log") {
-		t.Errorf("Expected command to contain log file name, got '%s'", config.Command)
+	if !strings.Contains(stepContent, "codex exec") {
+		t.Errorf("Expected command to contain 'codex exec' in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "test-log") {
+		t.Errorf("Expected command to contain log file name in step content:\n%s", stepContent)
 	}
 
 	// Check that pipefail is enabled to preserve exit codes
-	if !strings.Contains(config.Command, "set -o pipefail") {
-		t.Errorf("Expected command to contain 'set -o pipefail' to preserve exit codes, got '%s'", config.Command)
+	if !strings.Contains(stepContent, "set -o pipefail") {
+		t.Errorf("Expected command to contain 'set -o pipefail' to preserve exit codes in step content:\n%s", stepContent)
 	}
 
 	// Check environment variables
-	if config.Environment["OPENAI_API_KEY"] != "${{ secrets.OPENAI_API_KEY }}" {
-		t.Errorf("Expected OPENAI_API_KEY environment variable, got '%s'", config.Environment["OPENAI_API_KEY"])
+	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
+		t.Errorf("Expected OPENAI_API_KEY environment variable in step content:\n%s", stepContent)
 	}
 }
 

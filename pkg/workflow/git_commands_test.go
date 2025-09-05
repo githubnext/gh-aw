@@ -95,7 +95,9 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 				tools[k] = v
 			}
 
-			result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, tt.safeOutputs)
+			// Apply both default tool functions in sequence
+			tools = compiler.applyDefaultGitHubMCPTools(tools)
+			result := compiler.applyDefaultClaudeTools(tools, tt.safeOutputs)
 
 			// Check if claude section exists and has bash tool
 			claudeSection, hasClaudeSection := result["claude"]
@@ -231,7 +233,9 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 				tools[k] = v
 			}
 
-			result := compiler.applyDefaultGitHubMCPAndClaudeTools(tools, tt.safeOutputs)
+			// Apply both default tool functions in sequence
+			tools = compiler.applyDefaultGitHubMCPTools(tools)
+			result := compiler.applyDefaultClaudeTools(tools, tt.safeOutputs)
 
 			// Check if claude section exists
 			claudeSection, hasClaudeSection := result["claude"]

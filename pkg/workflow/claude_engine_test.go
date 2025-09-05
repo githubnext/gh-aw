@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -30,74 +31,104 @@ func TestClaudeEngine(t *testing.T) {
 	}
 
 	// Test installation steps (should be empty for Claude)
-	steps := engine.GetInstallationSteps(&WorkflowData{})
-	if len(steps) != 0 {
-		t.Errorf("Expected no installation steps for Claude, got %v", steps)
+	installSteps := engine.GetInstallationSteps(&WorkflowData{})
+	if len(installSteps) != 0 {
+		t.Errorf("Expected no installation steps for Claude, got %v", installSteps)
 	}
 
-	// Test execution config
+	// Test execution steps
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
-	config := engine.GetExecutionConfig(workflowData, "test-log")
-	if config.StepName != "Execute Claude Code Action" {
-		t.Errorf("Expected step name 'Execute Claude Code Action', got '%s'", config.StepName)
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
 	}
 
-	if config.Action != fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion) {
-		t.Errorf("Expected action 'anthropics/claude-code-base-action@%s', got '%s'", DefaultClaudeActionVersion, config.Action)
+	// Check the main execution step
+	executionStep := steps[0]
+	stepLines := []string(executionStep)
+
+	// Check step name
+	found := false
+	for _, line := range stepLines {
+		if strings.Contains(line, "name: Execute Claude Code Action") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected step name 'Execute Claude Code Action' in step lines: %v", stepLines)
 	}
 
-	if config.Command != "" {
-		t.Errorf("Expected empty command for Claude (uses action), got '%s'", config.Command)
+	// Check action usage
+	found = false
+	expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
+	for _, line := range stepLines {
+		if strings.Contains(line, "uses: "+expectedAction) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected action '%s' in step lines: %v", expectedAction, stepLines)
 	}
 
 	// Check that required inputs are present
-	if config.Inputs["prompt_file"] != "/tmp/aw-prompts/prompt.txt" {
-		t.Errorf("Expected prompt_file input, got '%s'", config.Inputs["prompt_file"])
+	stepContent := strings.Join(stepLines, "\n")
+	if !strings.Contains(stepContent, "prompt_file: /tmp/aw-prompts/prompt.txt") {
+		t.Errorf("Expected prompt_file input in step: %s", stepContent)
 	}
 
-	if config.Inputs["anthropic_api_key"] != "${{ secrets.ANTHROPIC_API_KEY }}" {
-		t.Errorf("Expected anthropic_api_key input, got '%s'", config.Inputs["anthropic_api_key"])
+	if !strings.Contains(stepContent, "anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}") {
+		t.Errorf("Expected anthropic_api_key input in step: %s", stepContent)
 	}
 
-	if config.Inputs["mcp_config"] != "/tmp/mcp-config/mcp-servers.json" {
-		t.Errorf("Expected mcp_config input, got '%s'", config.Inputs["mcp_config"])
+	if !strings.Contains(stepContent, "mcp_config: /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected mcp_config input in step: %s", stepContent)
 	}
 
 	// claude_env should not be present when hasOutput=false (security improvement)
-	if _, hasClaudeEnv := config.Inputs["claude_env"]; hasClaudeEnv {
-		t.Errorf("Expected no claude_env input for security reasons, but got: '%s'", config.Inputs["claude_env"])
+	if strings.Contains(stepContent, "claude_env:") {
+		t.Errorf("Expected no claude_env input for security reasons, but got it in step: %s", stepContent)
 	}
 
 	// Check that special fields are present but empty (will be filled during generation)
-	if _, hasAllowedTools := config.Inputs["allowed_tools"]; !hasAllowedTools {
-		t.Error("Expected allowed_tools input to be present")
+	if !strings.Contains(stepContent, "allowed_tools:") {
+		t.Error("Expected allowed_tools input to be present in step")
 	}
 
-	if _, hasTimeoutMinutes := config.Inputs["timeout_minutes"]; !hasTimeoutMinutes {
-		t.Error("Expected timeout_minutes input to be present")
+	if !strings.Contains(stepContent, "timeout_minutes:") {
+		t.Error("Expected timeout_minutes input to be present in step")
 	}
 
-	if _, hasMaxTurns := config.Inputs["max_turns"]; !hasMaxTurns {
-		t.Error("Expected max_turns input to be present")
+	// max_turns should NOT be present when not specified in engine config
+	if strings.Contains(stepContent, "max_turns:") {
+		t.Error("Expected max_turns input to NOT be present when not specified in engine config")
 	}
 }
 
 func TestClaudeEngineWithOutput(t *testing.T) {
 	engine := NewClaudeEngine()
 
-	// Test execution config with hasOutput=true
+	// Test execution steps with hasOutput=true
 	workflowData := &WorkflowData{
 		Name:        "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{}, // non-nil means hasOutput=true
 	}
-	config := engine.GetExecutionConfig(workflowData, "test-log")
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the main execution step
+	executionStep := steps[0]
+	stepContent := strings.Join([]string(executionStep), "\n")
 
 	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true, but no GH_TOKEN for security
-	expectedClaudeEnv := "|\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-	if config.Inputs["claude_env"] != expectedClaudeEnv {
-		t.Errorf("Expected claude_env input with output '%s', got '%s'", expectedClaudeEnv, config.Inputs["claude_env"])
+	expectedClaudeEnv := "claude_env: |\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+	if !strings.Contains(stepContent, expectedClaudeEnv) {
+		t.Errorf("Expected claude_env input with output '%s' in step content:\n%s", expectedClaudeEnv, stepContent)
 	}
 }
 
@@ -119,27 +150,36 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name: tc.workflowName,
 			}
-			config := engine.GetExecutionConfig(workflowData, tc.logFile)
-
-			// Verify the configuration is consistent regardless of input
-			if config.StepName != "Execute Claude Code Action" {
-				t.Errorf("Expected step name 'Execute Claude Code Action', got '%s'", config.StepName)
+			steps := engine.GetExecutionSteps(workflowData, tc.logFile)
+			if len(steps) != 2 {
+				t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
 			}
 
-			if config.Action != fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion) {
-				t.Errorf("Expected action 'anthropics/claude-code-base-action@%s', got '%s'", DefaultClaudeActionVersion, config.Action)
+			// Check the main execution step
+			executionStep := steps[0]
+			stepContent := strings.Join([]string(executionStep), "\n")
+
+			// Verify the step contains expected content regardless of input
+			if !strings.Contains(stepContent, "name: Execute Claude Code Action") {
+				t.Errorf("Expected step name 'Execute Claude Code Action' in step content")
+			}
+
+			expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
+			if !strings.Contains(stepContent, "uses: "+expectedAction) {
+				t.Errorf("Expected action '%s' in step content", expectedAction)
 			}
 
 			// Verify all required inputs are present (except claude_env when hasOutput=false for security)
-			requiredInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "allowed_tools", "timeout_minutes", "max_turns"}
+			// max_turns is only present when specified in engine config
+			requiredInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "allowed_tools", "timeout_minutes"}
 			for _, input := range requiredInputs {
-				if _, exists := config.Inputs[input]; !exists {
-					t.Errorf("Expected input '%s' to be present", input)
+				if !strings.Contains(stepContent, input+":") {
+					t.Errorf("Expected input '%s' to be present in step content", input)
 				}
 			}
 
 			// claude_env should not be present when hasOutput=false (security improvement)
-			if _, hasClaudeEnv := config.Inputs["claude_env"]; hasClaudeEnv {
+			if strings.Contains(stepContent, "claude_env:") {
 				t.Errorf("Expected no claude_env input for security reasons when hasOutput=false")
 			}
 		})
@@ -161,17 +201,24 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
-	config := engine.GetExecutionConfig(workflowData, "test-log")
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the main execution step
+	executionStep := steps[0]
+	stepContent := strings.Join([]string(executionStep), "\n")
 
 	// Check that the version is correctly used in the action
 	expectedAction := "anthropics/claude-code-base-action@v1.2.3"
-	if config.Action != expectedAction {
-		t.Errorf("Expected action '%s', got '%s'", expectedAction, config.Action)
+	if !strings.Contains(stepContent, "uses: "+expectedAction) {
+		t.Errorf("Expected action '%s' in step content:\n%s", expectedAction, stepContent)
 	}
 
 	// Check that model is set
-	if config.Inputs["model"] != "claude-3-5-sonnet-20241022" {
-		t.Errorf("Expected model 'claude-3-5-sonnet-20241022', got '%s'", config.Inputs["model"])
+	if !strings.Contains(stepContent, "model: claude-3-5-sonnet-20241022") {
+		t.Errorf("Expected model 'claude-3-5-sonnet-20241022' in step content:\n%s", stepContent)
 	}
 }
 
@@ -189,11 +236,18 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
-	config := engine.GetExecutionConfig(workflowData, "test-log")
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the main execution step
+	executionStep := steps[0]
+	stepContent := strings.Join([]string(executionStep), "\n")
 
 	// Check that default version is used
 	expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
-	if config.Action != expectedAction {
-		t.Errorf("Expected action '%s', got '%s'", expectedAction, config.Action)
+	if !strings.Contains(stepContent, "uses: "+expectedAction) {
+		t.Errorf("Expected action '%s' in step content:\n%s", expectedAction, stepContent)
 	}
 }

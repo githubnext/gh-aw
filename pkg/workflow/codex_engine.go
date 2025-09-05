@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -46,7 +47,22 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	}
 }
 
-func (e *CodexEngine) GetExecutionConfig(workflowData *WorkflowData, logFile string) ExecutionConfig {
+// GetExecutionSteps returns the GitHub Actions steps for executing Codex
+func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Handle custom steps if they exist in engine config
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
+		for _, step := range workflowData.EngineConfig.Steps {
+			stepYAML, err := e.convertStepToYAML(step)
+			if err != nil {
+				// Log error but continue with other steps
+				continue
+			}
+			steps = append(steps, GitHubActionStep{stepYAML})
+		}
+	}
+
 	// Use model from engineConfig if available, otherwise default to o4-mini
 	model := "o4-mini"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
@@ -83,11 +99,82 @@ codex exec \
 		}
 	}
 
-	return ExecutionConfig{
-		StepName:    "Run Codex",
-		Command:     command,
-		Environment: env,
+	// Generate the step for Codex execution
+	stepName := "Run Codex"
+	var stepLines []string
+
+	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "        run: |")
+
+	// Split command into lines and indent them properly
+	commandLines := strings.Split(command, "\n")
+	for _, line := range commandLines {
+		stepLines = append(stepLines, "          "+line)
 	}
+
+	// Add environment variables
+	if len(env) > 0 {
+		stepLines = append(stepLines, "        env:")
+		// Sort environment keys for consistent output
+		envKeys := make([]string, 0, len(env))
+		for key := range env {
+			envKeys = append(envKeys, key)
+		}
+		sort.Strings(envKeys)
+
+		for _, key := range envKeys {
+			value := env[key]
+			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
+		}
+	}
+
+	steps = append(steps, GitHubActionStep(stepLines))
+
+	return steps
+}
+
+// convertStepToYAML converts a step map to YAML string - temporary helper
+func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
+	// Simple YAML generation for steps - this mirrors the compiler logic
+	var stepYAML []string
+
+	// Add step name
+	if name, hasName := stepMap["name"]; hasName {
+		if nameStr, ok := name.(string); ok {
+			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
+		}
+	}
+
+	// Add run command
+	if run, hasRun := stepMap["run"]; hasRun {
+		if runStr, ok := run.(string); ok {
+			stepYAML = append(stepYAML, "        run: |")
+			// Split command into lines and indent them properly
+			runLines := strings.Split(runStr, "\n")
+			for _, line := range runLines {
+				stepYAML = append(stepYAML, "          "+line)
+			}
+		}
+	}
+
+	// Add uses action
+	if uses, hasUses := stepMap["uses"]; hasUses {
+		if usesStr, ok := uses.(string); ok {
+			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
+		}
+	}
+
+	// Add with parameters
+	if with, hasWith := stepMap["with"]; hasWith {
+		if withMap, ok := with.(map[string]any); ok {
+			stepYAML = append(stepYAML, "        with:")
+			for key, value := range withMap {
+				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, value))
+			}
+		}
+	}
+
+	return strings.Join(stepYAML, "\n"), nil
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {

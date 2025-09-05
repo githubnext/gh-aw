@@ -47,33 +47,21 @@ func TestCustomEngineGetInstallationSteps(t *testing.T) {
 	}
 }
 
-func TestCustomEngineGetExecutionConfig(t *testing.T) {
+func TestCustomEngineGetExecutionSteps(t *testing.T) {
 	engine := NewCustomEngine()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
-	config := engine.GetExecutionConfig(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if config.StepName != "Custom Steps Execution" {
-		t.Errorf("Expected step name 'Custom Steps Execution', got '%s'", config.StepName)
-	}
-
-	if !strings.Contains(config.Command, "Custom steps are handled directly by the compiler") {
-		t.Errorf("Expected command to mention compiler handling, got '%s'", config.Command)
-	}
-
-	if config.Environment["WORKFLOW_NAME"] != "test-workflow" {
-		t.Errorf("Expected WORKFLOW_NAME env var to be 'test-workflow', got '%s'", config.Environment["WORKFLOW_NAME"])
-	}
-
-	// Test without engine config - steps should be empty
-	if len(config.Steps) != 0 {
-		t.Errorf("Expected no steps when no engine config provided, got %d", len(config.Steps))
+	// Custom engine without steps should return just the log step
+	if len(steps) != 1 {
+		t.Errorf("Expected 1 step (log step) when no engine config provided, got %d", len(steps))
 	}
 }
 
-func TestCustomEngineGetExecutionConfigWithSteps(t *testing.T) {
+func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 	engine := NewCustomEngine()
 
 	// Create engine config with steps
@@ -99,28 +87,33 @@ func TestCustomEngineGetExecutionConfigWithSteps(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
-	config := engine.GetExecutionConfig(workflowData, "/tmp/test.log")
+	config := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if config.StepName != "Custom Steps Execution" {
-		t.Errorf("Expected step name 'Custom Steps Execution', got '%s'", config.StepName)
+	// Test with engine config - steps should be populated (2 custom steps + 1 log step)
+	if len(config) != 3 {
+		t.Errorf("Expected 3 steps when engine config has 2 steps (2 custom + 1 log), got %d", len(config))
 	}
 
-	if config.Environment["WORKFLOW_NAME"] != "test-workflow" {
-		t.Errorf("Expected WORKFLOW_NAME env var to be 'test-workflow', got '%s'", config.Environment["WORKFLOW_NAME"])
+	// Check the first step content
+	if len(config) > 0 {
+		firstStepContent := strings.Join([]string(config[0]), "\n")
+		if !strings.Contains(firstStepContent, "name: Setup Node.js") {
+			t.Errorf("Expected first step to contain 'name: Setup Node.js', got:\n%s", firstStepContent)
+		}
+		if !strings.Contains(firstStepContent, "uses: actions/setup-node@v4") {
+			t.Errorf("Expected first step to contain 'uses: actions/setup-node@v4', got:\n%s", firstStepContent)
+		}
 	}
 
-	// Test with engine config - steps should be populated
-	if len(config.Steps) != 2 {
-		t.Errorf("Expected 2 steps when engine config has steps, got %d", len(config.Steps))
-	}
-
-	// Verify the steps are correctly copied
-	if config.Steps[0]["name"] != "Setup Node.js" {
-		t.Errorf("Expected first step name 'Setup Node.js', got '%v'", config.Steps[0]["name"])
-	}
-
-	if config.Steps[1]["name"] != "Run tests" {
-		t.Errorf("Expected second step name 'Run tests', got '%v'", config.Steps[1]["name"])
+	// Check the second step content
+	if len(config) > 1 {
+		secondStepContent := strings.Join([]string(config[1]), "\n")
+		if !strings.Contains(secondStepContent, "name: Run tests") {
+			t.Errorf("Expected second step to contain 'name: Run tests', got:\n%s", secondStepContent)
+		}
+		if !strings.Contains(secondStepContent, "run:") && !strings.Contains(secondStepContent, "npm test") {
+			t.Errorf("Expected second step to contain run command 'npm test', got:\n%s", secondStepContent)
+		}
 	}
 }
 
