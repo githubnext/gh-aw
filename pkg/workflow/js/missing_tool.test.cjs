@@ -20,6 +20,9 @@ describe("missing_tool.cjs", () => {
     // Mock core actions methods
     mockCore = {
       setOutput: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
     };
     global.core = mockCore;
 
@@ -147,9 +150,8 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "1");
-      expect(global.console.log).toHaveBeenCalledWith(
-        "Warning: missing-tool entry missing 'tool' field:",
-        JSON.stringify(testData[0])
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        `missing-tool entry missing 'tool' field: ${JSON.stringify(testData[0])}`
       );
     });
 
@@ -171,9 +173,8 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "1");
-      expect(global.console.log).toHaveBeenCalledWith(
-        "Warning: missing-tool entry missing 'reason' field:",
-        JSON.stringify(testData[0])
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        `missing-tool entry missing 'reason' field: ${JSON.stringify(testData[0])}`
       );
     });
   });
@@ -193,7 +194,7 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "2");
-      expect(global.console.log).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "Reached maximum number of missing tool reports (2)"
       );
 
@@ -229,9 +230,7 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "0");
-      expect(global.console.log).toHaveBeenCalledWith(
-        "No missing tools reported in this workflow execution."
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No agent output to process");
     });
 
     it("should handle missing environment variables", async () => {
