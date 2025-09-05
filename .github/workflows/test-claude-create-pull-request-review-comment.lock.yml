@@ -1682,7 +1682,10 @@ jobs:
                 return;
               }
               const pullRequestNumber = context.payload.pull_request.number;
-              console.log(`Creating review comments on PR #${pullRequestNumber}`);
+              const commitId = context.payload.pull_request.head.sha;
+              console.log(
+                `Creating review comments on PR #${pullRequestNumber} (commit: ${commitId})`
+              );
               const createdComments = [];
               // Process each review comment item
               for (let i = 0; i < reviewCommentItems.length; i++) {
@@ -1759,6 +1762,7 @@ jobs:
                     pull_number: pullRequestNumber,
                     body: body,
                     path: commentItem.path,
+                    commit_id: commitId,
                     line: line,
                     side: side,
                   };

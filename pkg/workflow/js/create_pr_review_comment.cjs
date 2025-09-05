@@ -71,7 +71,10 @@ async function main() {
   }
 
   const pullRequestNumber = context.payload.pull_request.number;
-  console.log(`Creating review comments on PR #${pullRequestNumber}`);
+  const commitId = context.payload.pull_request.head.sha;
+  console.log(
+    `Creating review comments on PR #${pullRequestNumber} (commit: ${commitId})`
+  );
 
   const createdComments = [];
 
@@ -160,6 +163,7 @@ async function main() {
         pull_number: pullRequestNumber,
         body: body,
         path: commentItem.path,
+        commit_id: commitId,
         line: line,
         side: side,
       };
