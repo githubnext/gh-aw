@@ -245,3 +245,37 @@ func TestMissingToolConfigParsing(t *testing.T) {
 		})
 	}
 }
+
+func TestMissingToolScriptEmbedding(t *testing.T) {
+	// Test that the missing tool script is properly embedded
+	if strings.TrimSpace(missingToolScript) == "" {
+		t.Error("missingToolScript should not be empty")
+	}
+
+	// Verify it contains expected JavaScript content
+	expectedContent := []string{
+		"async function main()",
+		"const core = require",
+		"GITHUB_AW_AGENT_OUTPUT",
+		"GITHUB_AW_MISSING_TOOL_MAX",
+		"missing-tool",
+		"JSON.parse",
+		"core.setOutput",
+		"tools_reported",
+		"total_count",
+	}
+
+	for _, content := range expectedContent {
+		if !strings.Contains(missingToolScript, content) {
+			t.Errorf("Missing expected content in script: %s", content)
+		}
+	}
+
+	// Verify it handles both JSON array and JSONL formats
+	if !strings.Contains(missingToolScript, "Array.isArray") {
+		t.Error("Script should handle JSON array format")
+	}
+	if !strings.Contains(missingToolScript, "split") {
+		t.Error("Script should handle JSONL format as fallback")
+	}
+}
