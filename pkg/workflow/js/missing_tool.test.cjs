@@ -62,19 +62,22 @@ describe("missing_tool.cjs", () => {
 
   describe("JSON Array Input Format", () => {
     it("should parse JSON array with missing-tool entries", async () => {
-      const testData = [
-        {
-          type: "missing-tool",
-          tool: "docker",
-          reason: "Need containerization support",
-          alternatives: "Use VM or manual setup",
-        },
-        {
-          type: "missing-tool",
-          tool: "kubectl",
-          reason: "Kubernetes cluster management required",
-        },
-      ];
+      const testData = {
+        items: [
+          {
+            type: "missing-tool",
+            tool: "docker",
+            reason: "Need containerization support",
+            alternatives: "Use VM or manual setup",
+          },
+          {
+            type: "missing-tool",
+            tool: "kubectl",
+            reason: "Kubernetes cluster management required",
+          },
+        ],
+        errors: [],
+      };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
 
@@ -99,22 +102,25 @@ describe("missing_tool.cjs", () => {
     });
 
     it("should filter out non-missing-tool entries", async () => {
-      const testData = [
-        {
-          type: "missing-tool",
-          tool: "docker",
-          reason: "Need containerization",
-        },
-        {
-          type: "other-type",
-          data: "should be ignored",
-        },
-        {
-          type: "missing-tool",
-          tool: "kubectl",
-          reason: "Need k8s support",
-        },
-      ];
+      const testData = {
+        items: [
+          {
+            type: "missing-tool",
+            tool: "docker",
+            reason: "Need containerization",
+          },
+          {
+            type: "other-type",
+            data: "should be ignored",
+          },
+          {
+            type: "missing-tool",
+            tool: "kubectl",
+            reason: "Need k8s support",
+          },
+        ],
+        errors: [],
+      };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
 
@@ -133,17 +139,20 @@ describe("missing_tool.cjs", () => {
 
   describe("Validation", () => {
     it("should skip entries missing tool field", async () => {
-      const testData = [
-        {
-          type: "missing-tool",
-          reason: "No tool specified",
-        },
-        {
-          type: "missing-tool",
-          tool: "valid-tool",
-          reason: "This should work",
-        },
-      ];
+      const testData = {
+        items: [
+          {
+            type: "missing-tool",
+            reason: "No tool specified",
+          },
+          {
+            type: "missing-tool",
+            tool: "valid-tool",
+            reason: "This should work",
+          },
+        ],
+        errors: [],
+      };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
 
@@ -151,22 +160,25 @@ describe("missing_tool.cjs", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "1");
       expect(mockCore.warning).toHaveBeenCalledWith(
-        `missing-tool entry missing 'tool' field: ${JSON.stringify(testData[0])}`
+        `missing-tool entry missing 'tool' field: ${JSON.stringify(testData.items[0])}`
       );
     });
 
     it("should skip entries missing reason field", async () => {
-      const testData = [
-        {
-          type: "missing-tool",
-          tool: "some-tool",
-        },
-        {
-          type: "missing-tool",
-          tool: "valid-tool",
-          reason: "This should work",
-        },
-      ];
+      const testData = {
+        items: [
+          {
+            type: "missing-tool",
+            tool: "some-tool",
+          },
+          {
+            type: "missing-tool",
+            tool: "valid-tool",
+            reason: "This should work",
+          },
+        ],
+        errors: [],
+      };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
 
@@ -174,19 +186,22 @@ describe("missing_tool.cjs", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "1");
       expect(mockCore.warning).toHaveBeenCalledWith(
-        `missing-tool entry missing 'reason' field: ${JSON.stringify(testData[0])}`
+        `missing-tool entry missing 'reason' field: ${JSON.stringify(testData.items[0])}`
       );
     });
   });
 
   describe("Max Reports Limit", () => {
     it("should respect max reports limit", async () => {
-      const testData = [
-        { type: "missing-tool", tool: "tool1", reason: "reason1" },
-        { type: "missing-tool", tool: "tool2", reason: "reason2" },
-        { type: "missing-tool", tool: "tool3", reason: "reason3" },
-        { type: "missing-tool", tool: "tool4", reason: "reason4" },
-      ];
+      const testData = {
+        items: [
+          { type: "missing-tool", tool: "tool1", reason: "reason1" },
+          { type: "missing-tool", tool: "tool2", reason: "reason2" },
+          { type: "missing-tool", tool: "tool3", reason: "reason3" },
+          { type: "missing-tool", tool: "tool4", reason: "reason4" },
+        ],
+        errors: [],
+      };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
       process.env.GITHUB_AW_MISSING_TOOL_MAX = "2";
@@ -208,11 +223,14 @@ describe("missing_tool.cjs", () => {
     });
 
     it("should work without max limit", async () => {
-      const testData = [
-        { type: "missing-tool", tool: "tool1", reason: "reason1" },
-        { type: "missing-tool", tool: "tool2", reason: "reason2" },
-        { type: "missing-tool", tool: "tool3", reason: "reason3" },
-      ];
+      const testData = {
+        items: [
+          { type: "missing-tool", tool: "tool1", reason: "reason1" },
+          { type: "missing-tool", tool: "tool2", reason: "reason2" },
+          { type: "missing-tool", tool: "tool3", reason: "reason3" },
+        ],
+        errors: [],
+      };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
       // No GITHUB_AW_MISSING_TOOL_MAX set
@@ -233,6 +251,22 @@ describe("missing_tool.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("No agent output to process");
     });
 
+    it("should handle agent output with empty items array", async () => {
+      const testData = {
+        items: [],
+        errors: [],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "0");
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Parsed agent output with 0 entries"
+      );
+    });
+
     it("should handle missing environment variables", async () => {
       // Don't set any environment variables
 
@@ -242,13 +276,16 @@ describe("missing_tool.cjs", () => {
     });
 
     it("should add timestamp to reported tools", async () => {
-      const testData = [
-        {
-          type: "missing-tool",
-          tool: "test-tool",
-          reason: "testing timestamp",
-        },
-      ];
+      const testData = {
+        items: [
+          {
+            type: "missing-tool",
+            tool: "test-tool",
+            reason: "testing timestamp",
+          },
+        ],
+        errors: [],
+      };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
 

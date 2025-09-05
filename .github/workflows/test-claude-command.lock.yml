@@ -2090,11 +2090,25 @@ jobs:
                 core.setOutput("total_count", missingTools.length.toString());
                 return;
               }
-              // Parse as JSON array
-              const parsedData = JSON.parse(agentOutput);
-              core.info(`Parsed agent output with ${parsedData.length} entries`);
+              // Parse the validated output JSON
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(agentOutput);
+              } catch (error) {
+                core.error(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
+              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
               // Process all parsed entries
-              for (const entry of parsedData) {
+              for (const entry of validatedOutput.items) {
                 if (entry.type === "missing-tool") {
                   // Validate required fields
                   if (!entry.tool) {
