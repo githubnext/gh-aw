@@ -3,6 +3,10 @@ name: Format, Lint, Build and Commit
 on:
   workflow_dispatch:
 
+permissions:
+  content: write
+  workflow: write
+
 jobs:
   format-and-commit:
     name: Format, Lint, Build and Commit Changes

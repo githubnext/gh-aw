@@ -1444,7 +1444,10 @@ jobs:
                 return;
               }
               // Check if we have the commit SHA needed for creating review comments
-              if (!context.payload.pull_request.head || !context.payload.pull_request.head.sha) {
+              if (
+                !context.payload.pull_request.head ||
+                !context.payload.pull_request.head.sha
+              ) {
                 console.log(
                   "Pull request head commit SHA not found in payload - cannot create review comments"
                 );
