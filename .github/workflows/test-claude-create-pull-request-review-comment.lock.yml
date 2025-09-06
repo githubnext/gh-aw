@@ -227,6 +227,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Generate Claude Settings
         run: |
+          mkdir -p .claude
           cat > .claude/settings.json << 'EOF'
           {
             "hooks": {
