@@ -393,10 +393,9 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          max_tokens: 1000
+          max-tokens: 1000
           model: gpt-4o-mini
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
-          temperature: 0.7
       - name: Create Issue Comment
         uses: actions/github-script@v7
         env:
