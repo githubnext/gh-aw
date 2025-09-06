@@ -3630,39 +3630,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 
 // convertStepToYAML converts a step map to YAML string with proper indentation
 func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Create a step structure that matches GitHub Actions step format
-	step := make(map[string]any)
-
-	// Copy all fields from stepMap to step
-	for key, value := range stepMap {
-		step[key] = value
-	}
-
-	// Serialize the step using YAML package with proper options for multiline strings
-	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step},
-		yaml.Indent(2),                        // Use 2-space indentation
-		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
-	}
-
-	// Convert to string and adjust base indentation to match GitHub Actions format
-	yamlStr := string(yamlBytes)
-
-	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
-	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
-	var result strings.Builder
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			result.WriteString("\n")
-		} else {
-			result.WriteString("      " + line + "\n")
-		}
-	}
-
-	return result.String(), nil
+	return ConvertStepToYAML(stepMap)
 }
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method

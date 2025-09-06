@@ -3,8 +3,6 @@ package workflow
 import (
 	"fmt"
 	"strings"
-
-	"github.com/goccy/go-yaml"
 )
 
 // CustomEngine represents a custom agentic engine that executes user-defined GitHub Actions steps
@@ -38,9 +36,8 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Generate each custom step if they exist, with environment variables
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		// Check if we need environment section for any step - disabled for now since
-		// YAML serialization now correctly includes env vars from original step definition
-		hasEnvSection := false
+		// Check if we need environment section for any step - always true for GITHUB_AW_PROMPT
+		hasEnvSection := true
 
 		for _, step := range workflowData.EngineConfig.Steps {
 			stepYAML, err := e.convertStepToYAML(step)
@@ -104,39 +101,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Create a step structure that matches GitHub Actions step format
-	step := make(map[string]any)
-
-	// Copy all fields from stepMap to step
-	for key, value := range stepMap {
-		step[key] = value
-	}
-
-	// Serialize the step using YAML package with proper options for multiline strings
-	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step},
-		yaml.Indent(2),                        // Use 2-space indentation
-		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
-	}
-
-	// Convert to string and adjust base indentation to match GitHub Actions format
-	yamlStr := string(yamlBytes)
-
-	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
-	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
-	var result strings.Builder
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			result.WriteString("\n")
-		} else {
-			result.WriteString("      " + line + "\n")
-		}
-	}
-
-	return result.String(), nil
+	return ConvertStepToYAML(stepMap)
 }
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine
