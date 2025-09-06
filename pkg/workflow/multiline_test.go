@@ -11,10 +11,10 @@ func TestMultilineStringHandling(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	testCases := []struct {
-		name           string
-		stepMap        map[string]any
-		expectedYAML   string
-		shouldContain  []string
+		name             string
+		stepMap          map[string]any
+		expectedYAML     string
+		shouldContain    []string
 		shouldNotContain []string
 	}{
 		{
@@ -36,14 +36,14 @@ console.log(data);`,
 				"name: Test Script",
 				"uses: actions/github-script@v7",
 				"with:",
-				"script: |-",                    // goccy/go-yaml uses |- (strip block scalar)
+				"script: |-", // goccy/go-yaml uses |- (literal strip scalar)
 				"  const fs = require('fs');",
 				"  const data = {",
 				"  console.log(data);",
-				"timeout: \"30000\"",
+				"timeout: \"30000\"", // goccy/go-yaml quotes numeric strings
 			},
 			shouldNotContain: []string{
-				"script: const fs = require('fs');\\nconst data",  // Should not have raw newlines
+				"script: const fs = require('fs');\\nconst data", // Should not have raw newlines
 				"\\n", // Should not have literal \n in output
 			},
 		},
@@ -54,14 +54,14 @@ console.log(data);`,
 				"uses": "actions/setup-node@v4",
 				"with": map[string]any{
 					"node-version": "18",
-					"cache": "npm",
+					"cache":        "npm",
 				},
 			},
 			shouldContain: []string{
 				"name: Simple Test",
 				"uses: actions/setup-node@v4",
 				"with:",
-				"node-version: \"18\"",
+				"node-version: \"18\"", // goccy/go-yaml quotes numeric strings
 				"cache: npm",
 			},
 		},
@@ -76,7 +76,7 @@ echo "Build complete"`,
 			},
 			shouldContain: []string{
 				"name: Multi-line run",
-				"run: |-",                       // goccy/go-yaml uses |- (strip block scalar)
+				"run: |-", // goccy/go-yaml uses |- (literal strip scalar)
 				"  echo \"Starting build\"",
 				"  npm install",
 				"  npm run build",
@@ -143,7 +143,7 @@ console.log(multiline);`,
 			// Since engines have their own convertStepToYAML methods,
 			// we need to test them through their interface
 			// For now, just verify they don't panic and produce some output
-			
+
 			// We'll use reflection or type assertion to call the method
 			// This is a bit hacky but necessary for testing the engines directly
 			switch engine := tt.engine.(type) {
@@ -156,7 +156,7 @@ console.log(multiline);`,
 					t.Errorf("Claude engine output should contain 'script:', got:\n%s", result)
 				}
 				t.Logf("Claude engine output:\n%s", result)
-				
+
 			case *CodexEngine:
 				result, err := engine.convertStepToYAML(stepMap)
 				if err != nil {
@@ -166,7 +166,7 @@ console.log(multiline);`,
 					t.Errorf("Codex engine output should contain 'script:', got:\n%s", result)
 				}
 				t.Logf("Codex engine output:\n%s", result)
-				
+
 			case *CustomEngine:
 				result, err := engine.convertStepToYAML(stepMap)
 				if err != nil {

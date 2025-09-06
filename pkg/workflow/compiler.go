@@ -2567,7 +2567,6 @@ func getGitHubDockerImageVersion(githubTool any) string {
 
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
-	fmt.Printf("DEBUG: generateMainJobSteps called\n")
 	// Add custom steps or default checkout step
 	if data.CustomSteps != "" {
 		// Remove "steps:" line and adjust indentation
@@ -3633,45 +3632,33 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 	// Create a step structure that matches GitHub Actions step format
 	step := make(map[string]any)
-	
+
 	// Copy all fields from stepMap to step
 	for key, value := range stepMap {
 		step[key] = value
 	}
 
 	// Serialize the step using YAML package with proper options for multiline strings
-	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step}, 
-		yaml.Indent(2),                          // Use 2-space indentation
-		yaml.UseLiteralStyleIfMultiline(true),   // Use literal block scalars for multiline strings
+	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step},
+		yaml.Indent(2),                        // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
 	}
 
-	// Convert to string and adjust indentation
+	// Convert to string and adjust base indentation to match GitHub Actions format
 	yamlStr := string(yamlBytes)
-	
-	// The YAML package will generate with 2-space indentation starting from the root
-	// We need to adjust this to match GitHub Actions format with 6 spaces for steps
+
+	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
 	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
 	var result strings.Builder
-	
-	for i, line := range lines {
-		if i == 0 {
-			// First line should be "- " for the step list item, change to "      - "
-			if strings.HasPrefix(line, "- ") {
-				result.WriteString("      " + line + "\n")
-			} else {
-				result.WriteString("      - " + line + "\n")
-			}
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			result.WriteString("\n")
 		} else {
-			// Other lines need proper indentation (8 spaces for step properties)
-			if strings.TrimSpace(line) != "" {
-				// Add 6 spaces to align with GitHub Actions format
-				result.WriteString("      " + line + "\n")
-			} else {
-				result.WriteString("\n")
-			}
+			result.WriteString("      " + line + "\n")
 		}
 	}
 
@@ -3680,14 +3667,10 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
-	fmt.Printf("DEBUG: generateEngineExecutionSteps called with engine: %T\n", engine)
 	steps := engine.GetExecutionSteps(data, logFile)
-	fmt.Printf("DEBUG: Got %d steps from engine\n", len(steps))
 
-	for i, step := range steps {
-		fmt.Printf("DEBUG: Step %d has %d lines\n", i, len(step))
-		for j, line := range step {
-			fmt.Printf("DEBUG: Step %d, line %d: %s\n", i, j, line)
+	for _, step := range steps {
+		for _, line := range step {
 			yaml.WriteString(line + "\n")
 		}
 	}

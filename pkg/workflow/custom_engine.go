@@ -34,24 +34,19 @@ func (e *CustomEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 // GetExecutionSteps returns the GitHub Actions steps for executing custom steps
 func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	fmt.Printf("DEBUG: CustomEngine.GetExecutionSteps called\n")
 	var steps []GitHubActionStep
 
 	// Generate each custom step if they exist, with environment variables
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		fmt.Printf("DEBUG: Found %d custom steps\n", len(workflowData.EngineConfig.Steps))
 		// Check if we need environment section for any step - always true now for GITHUB_AW_PROMPT
 		hasEnvSection := true
 
-		for i, step := range workflowData.EngineConfig.Steps {
-			fmt.Printf("DEBUG: Processing step %d: %+v\n", i, step)
+		for _, step := range workflowData.EngineConfig.Steps {
 			stepYAML, err := e.convertStepToYAML(step)
 			if err != nil {
-				fmt.Printf("DEBUG: Error in convertStepToYAML: %v\n", err)
 				// Log error but continue with other steps
 				continue
 			}
-			fmt.Printf("DEBUG: Step YAML generated: %s\n", stepYAML)
 
 			// Check if this step needs environment variables injected
 			stepStr := stepYAML
@@ -82,7 +77,14 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			}
 
 			// Split the step YAML into lines to create a GitHubActionStep
-			stepLines := strings.Split(stepStr, "\n")
+			// Need to handle this carefully to preserve YAML structure
+			stepLines := strings.Split(strings.TrimRight(stepStr, "\n"), "\n")
+
+			// Remove empty lines at the end
+			for len(stepLines) > 0 && strings.TrimSpace(stepLines[len(stepLines)-1]) == "" {
+				stepLines = stepLines[:len(stepLines)-1]
+			}
+
 			steps = append(steps, GitHubActionStep(stepLines))
 		}
 	}
@@ -103,45 +105,33 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
 	// Create a step structure that matches GitHub Actions step format
 	step := make(map[string]any)
-	
+
 	// Copy all fields from stepMap to step
 	for key, value := range stepMap {
 		step[key] = value
 	}
 
 	// Serialize the step using YAML package with proper options for multiline strings
-	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step}, 
-		yaml.Indent(2),                          // Use 2-space indentation
-		yaml.UseLiteralStyleIfMultiline(true),   // Use literal block scalars for multiline strings
+	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step},
+		yaml.Indent(2),                        // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
 	}
 
-	// Convert to string and adjust indentation
+	// Convert to string and adjust base indentation to match GitHub Actions format
 	yamlStr := string(yamlBytes)
-	
-	// The YAML package will generate with 2-space indentation starting from the root
-	// We need to adjust this to match GitHub Actions format with 6 spaces for steps
+
+	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
 	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
 	var result strings.Builder
-	
-	for i, line := range lines {
-		if i == 0 {
-			// First line should be "- " for the step list item, change to "      - "
-			if strings.HasPrefix(line, "- ") {
-				result.WriteString("      " + line + "\n")
-			} else {
-				result.WriteString("      - " + line + "\n")
-			}
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			result.WriteString("\n")
 		} else {
-			// Other lines need proper indentation (8 spaces for step properties)
-			if strings.TrimSpace(line) != "" {
-				// Add 6 spaces to align with GitHub Actions format
-				result.WriteString("      " + line + "\n")
-			} else {
-				result.WriteString("\n")
-			}
+			result.WriteString("      " + line + "\n")
 		}
 	}
 
