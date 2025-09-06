@@ -568,12 +568,15 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 }
 
 // CompileWorkflows compiles markdown files into GitHub Actions workflow files
-func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, writeInstructions bool) error {
+func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, writeInstructions bool, noEmit bool) error {
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 
 	// Set validation based on the validate flag (false by default for compatibility)
 	compiler.SetSkipValidation(!validate)
+
+	// Set noEmit flag to validate without generating lock files
+	compiler.SetNoEmit(noEmit)
 
 	if watch {
 		// Watch mode: watch for file changes and recompile automatically
