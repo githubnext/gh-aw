@@ -153,7 +153,7 @@ func TestConvertStepToYAML(t *testing.T) {
 					"ENV":        "test",
 				},
 			},
-			expected: "      - name: Build Project\n        run: make build\n",
+			expected: "      - env:\n          ENV: test\n          GO_VERSION: \"1.21\"\n        name: Build Project\n        run: make build\n",
 			hasError: false,
 		},
 		{
@@ -176,7 +176,7 @@ func TestConvertStepToYAML(t *testing.T) {
 					"cache":        "npm",
 				},
 			},
-			expected: "      - name: Setup Node\n        uses: actions/setup-node@v4\n",
+			expected: "      - name: Setup Node\n        uses: actions/setup-node@v4\n        with:\n          cache: npm\n          node-version: \"18\"\n",
 			hasError: false,
 		},
 		{

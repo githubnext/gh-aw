@@ -38,8 +38,9 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Generate each custom step if they exist, with environment variables
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		// Check if we need environment section for any step - always true now for GITHUB_AW_PROMPT
-		hasEnvSection := true
+		// Check if we need environment section for any step - disabled for now since
+		// YAML serialization now correctly includes env vars from original step definition
+		hasEnvSection := false
 
 		for _, step := range workflowData.EngineConfig.Steps {
 			stepYAML, err := e.convertStepToYAML(step)
