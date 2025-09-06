@@ -49,7 +49,7 @@ func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose 
 	}
 
 	// Connect to the server
-	info, err := connectToMCPServer(config, toolFilter, verbose)
+	info, err := connectToMCPServer(config, verbose)
 	if err != nil {
 		fmt.Print(errorBoxStyle.Render(fmt.Sprintf("❌ Connection failed: %s", err)))
 		return nil // Don't return error, just show connection failure
@@ -145,25 +145,25 @@ func validateServerSecrets(config parser.MCPServerConfig) error {
 }
 
 // connectToMCPServer establishes a connection to the MCP server and queries its capabilities
-func connectToMCPServer(config parser.MCPServerConfig, toolFilter string, verbose bool) (*parser.MCPServerInfo, error) {
+func connectToMCPServer(config parser.MCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	switch config.Type {
 	case "stdio":
-		return connectStdioMCPServer(ctx, config, toolFilter, verbose)
+		return connectStdioMCPServer(ctx, config, verbose)
 	case "docker":
 		// Docker MCP servers are treated as stdio servers that run via docker command
-		return connectStdioMCPServer(ctx, config, toolFilter, verbose)
+		return connectStdioMCPServer(ctx, config, verbose)
 	case "http":
-		return connectHTTPMCPServer(ctx, config, toolFilter, verbose)
+		return connectHTTPMCPServer(ctx, config, verbose)
 	default:
 		return nil, fmt.Errorf("unsupported MCP server type: %s", config.Type)
 	}
 }
 
 // connectStdioMCPServer connects to a stdio-based MCP server using the Go SDK
-func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, toolFilter string, verbose bool) (*parser.MCPServerInfo, error) {
+func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Starting stdio MCP server: %s %s", config.Command, strings.Join(config.Args, " "))))
 	}
@@ -277,7 +277,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, t
 }
 
 // connectHTTPMCPServer connects to an HTTP-based MCP server using the Go SDK
-func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, toolFilter string, verbose bool) (*parser.MCPServerInfo, error) {
+func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Connecting to HTTP MCP server: %s", config.URL)))
 	}

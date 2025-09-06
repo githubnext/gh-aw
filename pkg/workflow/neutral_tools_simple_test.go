@@ -42,21 +42,7 @@ func TestNeutralToolsExpandsToClaudeTools(t *testing.T) {
 		"mcp__github__list_issues",
 	}
 
-	// Verify Git commands are added due to safe outputs
-	expectedGitTools := []string{
-		"Bash(git add:*)",
-		"Bash(git commit:*)",
-		"Bash(git checkout:*)",
-		"Bash(git branch:*)",
-		"Bash(git rm:*)",
-		"Bash(git switch:*)",
-		"Bash(git merge:*)",
-	}
-
-	// Combine expected tools
-	allExpectedTools := append(expectedTools, expectedGitTools...)
-
-	for _, expectedTool := range allExpectedTools {
+	for _, expectedTool := range expectedTools {
 		if !containsTool(result, expectedTool) {
 			t.Errorf("Expected tool '%s' not found in result: %s", expectedTool, result)
 		}

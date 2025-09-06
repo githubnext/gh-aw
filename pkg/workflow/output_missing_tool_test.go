@@ -121,7 +121,7 @@ func TestGeneratePromptIncludesGitHubAWPrompt(t *testing.T) {
 	}
 
 	var yaml strings.Builder
-	compiler.generatePrompt(&yaml, data, &ClaudeEngine{})
+	compiler.generatePrompt(&yaml, data)
 
 	output := yaml.String()
 
@@ -148,7 +148,7 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 	}
 
 	var yaml strings.Builder
-	compiler.generatePrompt(&yaml, data, &ClaudeEngine{})
+	compiler.generatePrompt(&yaml, data)
 
 	output := yaml.String()
 

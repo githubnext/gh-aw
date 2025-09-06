@@ -223,7 +223,7 @@ func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName str
 		Format:      "json",
 	}
 
-	err := renderSharedMCPConfig(yaml, toolName, toolConfig, isLast, renderer)
+	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
 	if err != nil {
 		return err
 	}

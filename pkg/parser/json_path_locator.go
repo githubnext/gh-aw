@@ -153,7 +153,8 @@ func matchesPathAtLevel(line string, pathSegments []PathSegment, level int, arra
 	if level < len(pathSegments) {
 		segment := pathSegments[level]
 
-		if segment.Type == "key" {
+		switch segment.Type {
+		case "key":
 			// Look for "key:" pattern
 			keyPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(segment.Value) + `\s*:`)
 			if keyPattern.MatchString(trimmedLine) {
@@ -163,7 +164,7 @@ func matchesPathAtLevel(line string, pathSegments []PathSegment, level int, arra
 					return level == len(pathSegments)-1, colonIndex + 2
 				}
 			}
-		} else if segment.Type == "index" {
+		case "index":
 			// For array elements, check if this is a list item at the right index
 			if strings.HasPrefix(trimmedLine, "-") {
 				currentIndex := arrayContexts[level]

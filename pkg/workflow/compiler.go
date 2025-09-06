@@ -1161,10 +1161,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	if data.RunsOn == "" {
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
-	if data.Tools != nil {
-		// Apply default GitHub MCP tools
-		data.Tools = c.applyDefaultGitHubMCPTools(data.Tools)
-	}
+	// Apply default tools
+	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
 }
 
 // applyPullRequestDraftFilter applies draft filter conditions for pull_request triggers
@@ -1356,8 +1354,8 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 	return mergedTools, nil
 }
 
-// applyDefaultGitHubMCPTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]any {
+// applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
+func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
 	// Define the default read-only GitHub MCP tools
@@ -1420,6 +1418,10 @@ func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]a
 		"search_users",
 	}
 
+	if tools == nil {
+		tools = make(map[string]any)
+	}
+
 	// Get existing github tool configuration
 	githubTool := tools["github"]
 	var githubConfig map[string]any
@@ -1463,6 +1465,61 @@ func (c *Compiler) applyDefaultGitHubMCPTools(tools map[string]any) map[string]a
 	githubConfig["allowed"] = newAllowed
 	tools["github"] = githubConfig
 
+	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-branch
+	if safeOutputs != nil && needsGitCommands(safeOutputs) {
+
+		// Add edit tool with null value
+		if _, exists := tools["edit"]; !exists {
+			tools["edit"] = nil
+		}
+		gitCommands := []any{
+			"git checkout:*",
+			"git branch:*",
+			"git switch:*",
+			"git add:*",
+			"git rm:*",
+			"git commit:*",
+			"git merge:*",
+		}
+
+		// Add bash tool with Git commands if not already present
+		if _, exists := tools["bash"]; !exists {
+			// bash tool doesn't exist, add it with Git commands
+			tools["bash"] = gitCommands
+		} else {
+			// bash tool exists, merge Git commands with existing commands
+			existingBash := tools["bash"]
+			if existingCommands, ok := existingBash.([]any); ok {
+				// Convert existing commands to strings for comparison
+				existingSet := make(map[string]bool)
+				for _, cmd := range existingCommands {
+					if cmdStr, ok := cmd.(string); ok {
+						existingSet[cmdStr] = true
+						// If we see :* or *, all bash commands are already allowed
+						if cmdStr == ":*" || cmdStr == "*" {
+							// Don't add specific Git commands since all are already allowed
+							goto bashComplete
+						}
+					}
+				}
+
+				// Add Git commands that aren't already present
+				newCommands := make([]any, len(existingCommands))
+				copy(newCommands, existingCommands)
+				for _, gitCmd := range gitCommands {
+					if gitCmdStr, ok := gitCmd.(string); ok {
+						if !existingSet[gitCmdStr] {
+							newCommands = append(newCommands, gitCmd)
+						}
+					}
+				}
+				tools["bash"] = newCommands
+			} else if existingBash == nil {
+				_ = existingBash // Keep the nil value as-is
+			}
+		}
+	bashComplete:
+	}
 	return tools
 }
 
@@ -2536,7 +2593,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Generate output file setup step only if safe-outputs feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
-		c.generateOutputFileSetup(yaml, data)
+		c.generateOutputFileSetup(yaml)
 	}
 
 	// Add MCP setup
@@ -2546,7 +2603,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateSafetyChecks(yaml, data)
 
 	// Add prompt creation step
-	c.generatePrompt(yaml, data, engine)
+	c.generatePrompt(yaml, data)
 
 	logFile := generateSafeFileName(data.Name)
 	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
@@ -2717,7 +2774,7 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
-func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Create prompt\n")
 
 	// Add environment variables section - always include GITHUB_AW_PROMPT
@@ -3678,7 +3735,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 }
 
 // generateOutputFileSetup generates a step that sets up the GITHUB_AW_SAFE_OUTPUTS environment variable
-func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder, data *WorkflowData) {
+func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Setup agent output\n")
 	yaml.WriteString("        id: setup_agent_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")

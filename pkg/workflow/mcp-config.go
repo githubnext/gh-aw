@@ -18,7 +18,7 @@ type MCPConfigRenderer struct {
 
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
 // This function handles the common logic for rendering MCP configurations across different engines
-func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, renderer MCPConfigRenderer) error {
+func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
 	// Get MCP configuration in the new format
 	mcpConfig, err := getMCPConfig(toolConfig, toolName)
 	if err != nil {

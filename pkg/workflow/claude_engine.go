@@ -266,11 +266,6 @@ func (e *ClaudeEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 	return strings.Join(stepYAML, "\n"), nil
 }
 
-// needsGitCommands checks if safe outputs configuration requires Git commands
-func (e *ClaudeEngine) needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
-	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToBranch != nil
-}
-
 // expandNeutralToolsToClaudeTools converts neutral tools to Claude-specific tools format
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
 	result := make(map[string]any)
@@ -351,13 +346,19 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 }
 
 // computeAllowedClaudeToolsString
-// 1. converts neutral tools to Claude-specific tools
-// 2. adds default Claude tools and git commands based on safe outputs configuration
-// 3. generates the allowed tools string for Claude
+// 1. validates that only neutral tools are provided (no claude section)
+// 2. converts neutral tools to Claude-specific tools format
+// 3. adds default Claude tools and git commands based on safe outputs configuration
+// 4. generates the allowed tools string for Claude
 func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig) string {
 	// Initialize tools map if nil
 	if tools == nil {
 		tools = make(map[string]any)
+	}
+
+	// Enforce that only neutral tools are provided - fail if claude section is present
+	if _, hasClaudeSection := tools["claude"]; hasClaudeSection {
+		panic("computeAllowedClaudeToolsString should only receive neutral tools, not claude section tools")
 	}
 
 	// Convert neutral tools to Claude-specific tools
@@ -403,75 +404,6 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		if _, exists := claudeExistingAllowed[defaultTool]; !exists {
 			claudeExistingAllowed[defaultTool] = nil // Add tool with null value
 		}
-	}
-
-	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-branch
-	if safeOutputs != nil && e.needsGitCommands(safeOutputs) {
-		gitCommands := []any{
-			"git checkout:*",
-			"git branch:*",
-			"git switch:*",
-			"git add:*",
-			"git rm:*",
-			"git commit:*",
-			"git merge:*",
-		}
-
-		// Add additional Claude tools needed for file editing and pull request creation
-		additionalTools := []string{
-			"Edit",
-			"MultiEdit",
-			"Write",
-			"NotebookEdit",
-		}
-
-		// Add file editing tools that aren't already present
-		for _, tool := range additionalTools {
-			if _, exists := claudeExistingAllowed[tool]; !exists {
-				claudeExistingAllowed[tool] = nil // Add tool with null value
-			}
-		}
-
-		// Add Bash tool with Git commands if not already present
-		if _, exists := claudeExistingAllowed["Bash"]; !exists {
-			// Bash tool doesn't exist, add it with Git commands
-			claudeExistingAllowed["Bash"] = gitCommands
-		} else {
-			// Bash tool exists, merge Git commands with existing commands
-			existingBash := claudeExistingAllowed["Bash"]
-			if existingCommands, ok := existingBash.([]any); ok {
-				// Convert existing commands to strings for comparison
-				existingSet := make(map[string]bool)
-				for _, cmd := range existingCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						existingSet[cmdStr] = true
-						// If we see :* or *, all bash commands are already allowed
-						if cmdStr == ":*" || cmdStr == "*" {
-							// Don't add specific Git commands since all are already allowed
-							goto bashComplete
-						}
-					}
-				}
-
-				// Add Git commands that aren't already present
-				newCommands := make([]any, len(existingCommands))
-				copy(newCommands, existingCommands)
-				for _, gitCmd := range gitCommands {
-					if gitCmdStr, ok := gitCmd.(string); ok {
-						if !existingSet[gitCmdStr] {
-							newCommands = append(newCommands, gitCmd)
-						}
-					}
-				}
-				claudeExistingAllowed["Bash"] = newCommands
-			} else if existingBash == nil {
-				// Bash tool exists but with nil value (allows all commands)
-				// Keep it as nil since that's more permissive than specific commands
-				// No action needed - nil value already permits all commands
-				_ = existingBash // Keep the nil value as-is
-			}
-		}
-	bashComplete:
 	}
 
 	// Check if Bash tools are present and add implicit KillBash and BashOutput
@@ -696,7 +628,7 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 		Format:      "json",
 	}
 
-	err := renderSharedMCPConfig(yaml, toolName, toolConfig, isLast, renderer)
+	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
 	if err != nil {
 		return err
 	}

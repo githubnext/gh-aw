@@ -396,7 +396,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	for i, pr := range processedRuns {
 		workflowRuns[i] = pr.Run
 	}
-	displayLogsOverview(workflowRuns, outputDir)
+	displayLogsOverview(workflowRuns)
 
 	// Display access log analysis
 	displayAccessLogAnalysis(processedRuns, verbose)
@@ -852,7 +852,7 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgent
 var extractJSONMetrics = workflow.ExtractJSONMetrics
 
 // displayLogsOverview displays a summary table of workflow runs and metrics
-func displayLogsOverview(runs []WorkflowRun, outputDir string) {
+func displayLogsOverview(runs []WorkflowRun) {
 	if len(runs) == 0 {
 		return
 	}

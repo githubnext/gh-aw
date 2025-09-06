@@ -300,7 +300,7 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 		Format:      "toml",
 	}
 
-	err := renderSharedMCPConfig(yaml, toolName, toolConfig, false, renderer)
+	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
 	if err != nil {
 		return err
 	}

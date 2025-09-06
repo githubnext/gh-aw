@@ -19,36 +19,24 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
-			name: "bash with specific commands in claude section (new format)",
+			name: "bash with specific commands (neutral format)",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"echo", "ls"},
-					},
-				},
+				"bash": []any{"echo", "ls"},
 			},
 			expected: "Bash(echo),Bash(ls),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
 			name: "bash with nil value (all commands allowed)",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": nil,
-					},
-				},
+				"bash": nil,
 			},
 			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
-			name: "regular tools in claude section (new format)",
+			name: "neutral web tools",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"WebFetch":  nil,
-						"WebSearch": nil,
-					},
-				},
+				"web-fetch":  nil,
+				"web-search": nil,
 			},
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,WebFetch,WebSearch",
 		},
@@ -62,14 +50,10 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__create_issue,mcp__github__list_issues",
 		},
 		{
-			name: "mixed claude and mcp tools",
+			name: "mixed neutral and mcp tools",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"WebFetch":  nil,
-						"WebSearch": nil,
-					},
-				},
+				"web-fetch":  nil,
+				"web-search": nil,
 				"github": map[string]any{
 					"allowed": []any{"list_issues"},
 				},
@@ -116,34 +100,22 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 		{
 			name: "bash with :* wildcard (should ignore other bash tools)",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{":*"},
-					},
-				},
+				"bash": []any{":*"},
 			},
 			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
 			name: "bash with :* wildcard mixed with other commands (should ignore other commands)",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"echo", "ls", ":*", "cat"},
-					},
-				},
+				"bash": []any{"echo", "ls", ":*", "cat"},
 			},
 			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
 			name: "bash with :* wildcard and other tools",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash":     []any{":*"},
-						"WebFetch": nil,
-					},
-				},
+				"bash":      []any{":*"},
+				"web-fetch": nil,
 				"github": map[string]any{
 					"allowed": []any{"list_issues"},
 				},
@@ -153,34 +125,22 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 		{
 			name: "bash with single command should include implicit tools",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"ls"},
-					},
-				},
+				"bash": []any{"ls"},
 			},
 			expected: "Bash(ls),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
 			name: "explicit KillBash and BashOutput should not duplicate",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"echo"},
-					},
-				},
+				"bash": []any{"echo"},
 			},
 			expected: "Bash(echo),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
 			name: "no bash tools means no implicit tools",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"WebFetch":  nil,
-						"WebSearch": nil,
-					},
-				},
+				"web-fetch":  nil,
+				"web-search": nil,
 			},
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,WebFetch,WebSearch",
 		},
@@ -294,13 +254,9 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 		expected    string
 	}{
 		{
-			name: "SafeOutputs with no tools - should add Write permission",
+			name:  "SafeOutputs with no tools - should add Write permission",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Read": nil,
-					},
-				},
+				// Using neutral tools instead of claude section
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{Max: 1},
@@ -310,26 +266,17 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 		{
 			name: "SafeOutputs with general Write permission - should not add specific Write",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Read":  nil,
-						"Write": nil,
-					},
-				},
+				"edit": nil, // This provides Write capabilities
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{Max: 1},
 			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write",
+			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",
 		},
 		{
-			name: "No SafeOutputs - should not add Write permission",
+			name:  "No SafeOutputs - should not add Write permission",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Read": nil,
-					},
-				},
+				// Using neutral tools instead of claude section
 			},
 			safeOutputs: nil,
 			expected:    "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite",
@@ -337,13 +284,8 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 		{
 			name: "SafeOutputs with multiple output types",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash":       nil,
-						"BashOutput": nil,
-						"KillBash":   nil,
-					},
-				},
+				"bash": nil, // This provides Bash, BashOutput, KillBash
+				"edit": nil,
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues:       &CreateIssuesConfig{Max: 1},
@@ -355,11 +297,6 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 		{
 			name: "SafeOutputs with MCP tools",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Read": nil,
-					},
-				},
 				"github": map[string]any{
 					"allowed": []any{"create_issue", "create_pull_request"},
 				},
@@ -374,11 +311,12 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			tools: map[string]any{
 				"bash":      []any{"echo", "ls"},
 				"web-fetch": nil,
+				"edit":      nil,
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{Max: 1},
 			},
-			expected: "Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write",
+			expected: "Bash(echo),Bash(ls),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write",
 		},
 	}
 

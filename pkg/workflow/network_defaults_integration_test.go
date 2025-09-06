@@ -48,11 +48,12 @@ func TestNetworkDefaultsIntegration(t *testing.T) {
 		apiExampleFound := false
 
 		for _, domain := range domains {
-			if domain == "good.com" {
+			switch domain {
+			case "good.com":
 				goodComFound = true
-			} else if domain == "api.example.org" {
+			case "api.example.org":
 				apiExampleFound = true
-			} else {
+			default:
 				// Check if this is a default domain
 				for _, defaultDomain := range defaultDomains {
 					if domain == defaultDomain {

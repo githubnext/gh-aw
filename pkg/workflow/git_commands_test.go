@@ -48,11 +48,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 		{
 			name: "existing bash commands should be preserved",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{"echo", "ls"},
-					},
-				},
+				"bash": []any{"echo", "ls"},
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
@@ -62,11 +58,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 		{
 			name: "bash with wildcard should remain wildcard",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": []any{":*"},
-					},
-				},
+				"bash": []any{":*"},
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
@@ -76,11 +68,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 		{
 			name: "bash with nil value should remain nil",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Bash": nil,
-					},
-				},
+				"bash": nil,
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
@@ -98,7 +86,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 			}
 
 			// Apply both default tool functions in sequence
-			tools = compiler.applyDefaultGitHubMCPTools(tools)
+			tools = compiler.applyDefaultTools(tools, tt.safeOutputs)
 			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs)
 
 			// Parse the result string into individual tools
@@ -182,12 +170,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 		{
 			name: "existing editing tools should be preserved",
 			tools: map[string]any{
-				"claude": map[string]any{
-					"allowed": map[string]any{
-						"Edit": nil,
-						"Task": nil,
-					},
-				},
+				"edit": nil,
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
@@ -208,7 +191,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 			}
 
 			// Apply both default tool functions in sequence
-			tools = compiler.applyDefaultGitHubMCPTools(tools)
+			tools = compiler.applyDefaultTools(tools, tt.safeOutputs)
 			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs)
 
 			// Parse the result string into individual tools
