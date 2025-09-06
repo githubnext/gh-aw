@@ -2567,6 +2567,7 @@ func getGitHubDockerImageVersion(githubTool any) string {
 
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
+	fmt.Printf("DEBUG: generateMainJobSteps called\n")
 	// Add custom steps or default checkout step
 	if data.CustomSteps != "" {
 		// Remove "steps:" line and adjust indentation
@@ -3630,58 +3631,63 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 
 // convertStepToYAML converts a step map to YAML string with proper indentation
 func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps
-	var stepYAML strings.Builder
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML.WriteString(fmt.Sprintf("      - name: %s\n", nameStr))
-		}
+	// Create a step structure that matches GitHub Actions step format
+	step := make(map[string]any)
+	
+	// Copy all fields from stepMap to step
+	for key, value := range stepMap {
+		step[key] = value
 	}
 
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			if strings.Contains(runStr, "\n") {
-				// Multi-line run command - use literal block scalar
-				stepYAML.WriteString("        run: |\n")
-				for _, line := range strings.Split(runStr, "\n") {
-					stepYAML.WriteString("          " + line + "\n")
-				}
+	// Serialize the step using YAML package with proper options for multiline strings
+	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step}, 
+		yaml.Indent(2),                          // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true),   // Use literal block scalars for multiline strings
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
+	}
+
+	// Convert to string and adjust indentation
+	yamlStr := string(yamlBytes)
+	
+	// The YAML package will generate with 2-space indentation starting from the root
+	// We need to adjust this to match GitHub Actions format with 6 spaces for steps
+	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
+	var result strings.Builder
+	
+	for i, line := range lines {
+		if i == 0 {
+			// First line should be "- " for the step list item, change to "      - "
+			if strings.HasPrefix(line, "- ") {
+				result.WriteString("      " + line + "\n")
 			} else {
-				// Single-line run command
-				stepYAML.WriteString(fmt.Sprintf("        run: %s\n", runStr))
+				result.WriteString("      - " + line + "\n")
+			}
+		} else {
+			// Other lines need proper indentation (8 spaces for step properties)
+			if strings.TrimSpace(line) != "" {
+				// Add 6 spaces to align with GitHub Actions format
+				result.WriteString("      " + line + "\n")
+			} else {
+				result.WriteString("\n")
 			}
 		}
 	}
 
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML.WriteString(fmt.Sprintf("        uses: %s\n", usesStr))
-		}
-	}
-
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML.WriteString("        with:\n")
-			for key, value := range withMap {
-				stepYAML.WriteString(fmt.Sprintf("          %s: %v\n", key, value))
-			}
-		}
-	}
-
-	return stepYAML.String(), nil
+	return result.String(), nil
 }
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
+	fmt.Printf("DEBUG: generateEngineExecutionSteps called with engine: %T\n", engine)
 	steps := engine.GetExecutionSteps(data, logFile)
+	fmt.Printf("DEBUG: Got %d steps from engine\n", len(steps))
 
-	for _, step := range steps {
-		for _, line := range step {
+	for i, step := range steps {
+		fmt.Printf("DEBUG: Step %d has %d lines\n", i, len(step))
+		for j, line := range step {
+			fmt.Printf("DEBUG: Step %d, line %d: %s\n", i, j, line)
 			yaml.WriteString(line + "\n")
 		}
 	}

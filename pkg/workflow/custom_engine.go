@@ -2,8 +2,9 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 )
 
 // CustomEngine represents a custom agentic engine that executes user-defined GitHub Actions steps
@@ -33,19 +34,24 @@ func (e *CustomEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 // GetExecutionSteps returns the GitHub Actions steps for executing custom steps
 func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	fmt.Printf("DEBUG: CustomEngine.GetExecutionSteps called\n")
 	var steps []GitHubActionStep
 
 	// Generate each custom step if they exist, with environment variables
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
+		fmt.Printf("DEBUG: Found %d custom steps\n", len(workflowData.EngineConfig.Steps))
 		// Check if we need environment section for any step - always true now for GITHUB_AW_PROMPT
 		hasEnvSection := true
 
-		for _, step := range workflowData.EngineConfig.Steps {
+		for i, step := range workflowData.EngineConfig.Steps {
+			fmt.Printf("DEBUG: Processing step %d: %+v\n", i, step)
 			stepYAML, err := e.convertStepToYAML(step)
 			if err != nil {
+				fmt.Printf("DEBUG: Error in convertStepToYAML: %v\n", err)
 				// Log error but continue with other steps
 				continue
 			}
+			fmt.Printf("DEBUG: Step YAML generated: %s\n", stepYAML)
 
 			// Check if this step needs environment variables injected
 			stepStr := stepYAML
@@ -93,72 +99,53 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - temporary helper
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps - this mirrors the compiler logic
-	var stepYAML []string
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
-		}
+	// Create a step structure that matches GitHub Actions step format
+	step := make(map[string]any)
+	
+	// Copy all fields from stepMap to step
+	for key, value := range stepMap {
+		step[key] = value
 	}
 
-	// Add id field if present
-	if id, hasID := stepMap["id"]; hasID {
-		if idStr, ok := id.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        id: %s", idStr))
-		}
+	// Serialize the step using YAML package with proper options for multiline strings
+	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step}, 
+		yaml.Indent(2),                          // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true),   // Use literal block scalars for multiline strings
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
 	}
 
-	// Add continue-on-error field if present
-	if continueOnError, hasContinueOnError := stepMap["continue-on-error"]; hasContinueOnError {
-		// Handle both string and boolean values for continue-on-error
-		switch v := continueOnError.(type) {
-		case bool:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %t", v))
-		case string:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %s", v))
-		}
-	}
-
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
-		}
-	}
-
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			stepYAML = append(stepYAML, "        run: |")
-			// Split command into lines and indent them properly
-			runLines := strings.Split(runStr, "\n")
-			for _, line := range runLines {
-				stepYAML = append(stepYAML, "          "+line)
+	// Convert to string and adjust indentation
+	yamlStr := string(yamlBytes)
+	
+	// The YAML package will generate with 2-space indentation starting from the root
+	// We need to adjust this to match GitHub Actions format with 6 spaces for steps
+	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
+	var result strings.Builder
+	
+	for i, line := range lines {
+		if i == 0 {
+			// First line should be "- " for the step list item, change to "      - "
+			if strings.HasPrefix(line, "- ") {
+				result.WriteString("      " + line + "\n")
+			} else {
+				result.WriteString("      - " + line + "\n")
+			}
+		} else {
+			// Other lines need proper indentation (8 spaces for step properties)
+			if strings.TrimSpace(line) != "" {
+				// Add 6 spaces to align with GitHub Actions format
+				result.WriteString("      " + line + "\n")
+			} else {
+				result.WriteString("\n")
 			}
 		}
 	}
 
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML = append(stepYAML, "        with:")
-			// Sort keys for stable output
-			keys := make([]string, 0, len(withMap))
-			for key := range withMap {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, withMap[key]))
-			}
-		}
-	}
-
-	return strings.Join(stepYAML, "\n"), nil
+	return result.String(), nil
 }
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine

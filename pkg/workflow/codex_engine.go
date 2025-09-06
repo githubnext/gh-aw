@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -134,72 +136,53 @@ codex exec \
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - temporary helper
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps - this mirrors the compiler logic
-	var stepYAML []string
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
-		}
+	// Create a step structure that matches GitHub Actions step format
+	step := make(map[string]any)
+	
+	// Copy all fields from stepMap to step
+	for key, value := range stepMap {
+		step[key] = value
 	}
 
-	// Add id field if present
-	if id, hasID := stepMap["id"]; hasID {
-		if idStr, ok := id.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        id: %s", idStr))
-		}
+	// Serialize the step using YAML package with proper options for multiline strings
+	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step}, 
+		yaml.Indent(2),                          // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true),   // Use literal block scalars for multiline strings
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
 	}
 
-	// Add continue-on-error field if present
-	if continueOnError, hasContinueOnError := stepMap["continue-on-error"]; hasContinueOnError {
-		// Handle both string and boolean values for continue-on-error
-		switch v := continueOnError.(type) {
-		case bool:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %t", v))
-		case string:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %s", v))
-		}
-	}
-
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
-		}
-	}
-
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			stepYAML = append(stepYAML, "        run: |")
-			// Split command into lines and indent them properly
-			runLines := strings.Split(runStr, "\n")
-			for _, line := range runLines {
-				stepYAML = append(stepYAML, "          "+line)
+	// Convert to string and adjust indentation
+	yamlStr := string(yamlBytes)
+	
+	// The YAML package will generate with 2-space indentation starting from the root
+	// We need to adjust this to match GitHub Actions format with 6 spaces for steps
+	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
+	var result strings.Builder
+	
+	for i, line := range lines {
+		if i == 0 {
+			// First line should be "- " for the step list item, change to "      - "
+			if strings.HasPrefix(line, "- ") {
+				result.WriteString("      " + line + "\n")
+			} else {
+				result.WriteString("      - " + line + "\n")
+			}
+		} else {
+			// Other lines need proper indentation (8 spaces for step properties)
+			if strings.TrimSpace(line) != "" {
+				// Add 6 spaces to align with GitHub Actions format
+				result.WriteString("      " + line + "\n")
+			} else {
+				result.WriteString("\n")
 			}
 		}
 	}
 
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML = append(stepYAML, "        with:")
-			// Sort keys for stable output
-			keys := make([]string, 0, len(withMap))
-			for key := range withMap {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, withMap[key]))
-			}
-		}
-	}
-
-	return strings.Join(stepYAML, "\n"), nil
+	return result.String(), nil
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {

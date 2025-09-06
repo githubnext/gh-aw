@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/goccy/go-yaml"
 )
 
 const (
@@ -222,54 +224,53 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - temporary helper
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *ClaudeEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps - this mirrors the compiler logic
-	var stepYAML []string
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
-		}
+	// Create a step structure that matches GitHub Actions step format
+	step := make(map[string]any)
+	
+	// Copy all fields from stepMap to step
+	for key, value := range stepMap {
+		step[key] = value
 	}
 
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			stepYAML = append(stepYAML, "        run: |")
-			// Split command into lines and indent them properly
-			runLines := strings.Split(runStr, "\n")
-			for _, line := range runLines {
-				stepYAML = append(stepYAML, "          "+line)
+	// Serialize the step using YAML package with proper options for multiline strings
+	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step}, 
+		yaml.Indent(2),                          // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true),   // Use literal block scalars for multiline strings
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
+	}
+
+	// Convert to string and adjust indentation
+	yamlStr := string(yamlBytes)
+	
+	// The YAML package will generate with 2-space indentation starting from the root
+	// We need to adjust this to match GitHub Actions format with 6 spaces for steps
+	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
+	var result strings.Builder
+	
+	for i, line := range lines {
+		if i == 0 {
+			// First line should be "- " for the step list item, change to "      - "
+			if strings.HasPrefix(line, "- ") {
+				result.WriteString("      " + line + "\n")
+			} else {
+				result.WriteString("      - " + line + "\n")
+			}
+		} else {
+			// Other lines need proper indentation (8 spaces for step properties)
+			if strings.TrimSpace(line) != "" {
+				// Add 6 spaces to align with GitHub Actions format
+				result.WriteString("      " + line + "\n")
+			} else {
+				result.WriteString("\n")
 			}
 		}
 	}
 
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
-		}
-	}
-
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML = append(stepYAML, "        with:")
-			// Sort keys for stable output
-			keys := make([]string, 0, len(withMap))
-			for key := range withMap {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, withMap[key]))
-			}
-		}
-	}
-
-	return strings.Join(stepYAML, "\n"), nil
+	return result.String(), nil
 }
 
 // expandNeutralToolsToClaudeTools converts neutral tools to Claude-specific tools format
