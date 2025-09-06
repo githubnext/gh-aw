@@ -118,8 +118,8 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		if !strings.Contains(secondStepContent, "id: run-step") {
 			t.Errorf("Expected second step to contain 'id: run-step', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "continue-on-error: false") {
-			t.Errorf("Expected second step to contain 'continue-on-error: false', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "continue-on-error: \"false\"") {
+			t.Errorf("Expected second step to contain 'continue-on-error: \"false\"', got:\n%s", secondStepContent)
 		}
 		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
 			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt', got:\n%s", secondStepContent)

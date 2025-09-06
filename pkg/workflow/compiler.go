@@ -3642,50 +3642,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 
 // convertStepToYAML converts a step map to YAML string with proper indentation
 func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps
-	var stepYAML strings.Builder
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML.WriteString(fmt.Sprintf("      - name: %s\n", nameStr))
-		}
-	}
-
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			if strings.Contains(runStr, "\n") {
-				// Multi-line run command - use literal block scalar
-				stepYAML.WriteString("        run: |\n")
-				for _, line := range strings.Split(runStr, "\n") {
-					stepYAML.WriteString("          " + line + "\n")
-				}
-			} else {
-				// Single-line run command
-				stepYAML.WriteString(fmt.Sprintf("        run: %s\n", runStr))
-			}
-		}
-	}
-
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML.WriteString(fmt.Sprintf("        uses: %s\n", usesStr))
-		}
-	}
-
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML.WriteString("        with:\n")
-			for key, value := range withMap {
-				stepYAML.WriteString(fmt.Sprintf("          %s: %v\n", key, value))
-			}
-		}
-	}
-
-	return stepYAML.String(), nil
+	return ConvertStepToYAML(stepMap)
 }
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method

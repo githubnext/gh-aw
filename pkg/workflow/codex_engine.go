@@ -134,72 +134,9 @@ codex exec \
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - temporary helper
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps - this mirrors the compiler logic
-	var stepYAML []string
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
-		}
-	}
-
-	// Add id field if present
-	if id, hasID := stepMap["id"]; hasID {
-		if idStr, ok := id.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        id: %s", idStr))
-		}
-	}
-
-	// Add continue-on-error field if present
-	if continueOnError, hasContinueOnError := stepMap["continue-on-error"]; hasContinueOnError {
-		// Handle both string and boolean values for continue-on-error
-		switch v := continueOnError.(type) {
-		case bool:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %t", v))
-		case string:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %s", v))
-		}
-	}
-
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
-		}
-	}
-
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			stepYAML = append(stepYAML, "        run: |")
-			// Split command into lines and indent them properly
-			runLines := strings.Split(runStr, "\n")
-			for _, line := range runLines {
-				stepYAML = append(stepYAML, "          "+line)
-			}
-		}
-	}
-
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML = append(stepYAML, "        with:")
-			// Sort keys for stable output
-			keys := make([]string, 0, len(withMap))
-			for key := range withMap {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, withMap[key]))
-			}
-		}
-	}
-
-	return strings.Join(stepYAML, "\n"), nil
+	return ConvertStepToYAML(stepMap)
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
