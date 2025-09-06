@@ -2802,13 +2802,11 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
+	// Use simplified approach for basic step setup
 	yaml.WriteString("      - name: Create prompt\n")
-
-	// Add environment variables section - always include GITHUB_AW_PROMPT
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 
-	// Only add GITHUB_AW_SAFE_OUTPUTS environment variable if safe-outputs feature is used
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	}
@@ -2818,237 +2816,205 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
 
 	// Add markdown content with proper indentation
-	for _, line := range strings.Split(data.MarkdownContent, "\n") {
-		yaml.WriteString("          " + line + "\n")
-	}
+	builder := NewYAMLBuilder()
+	builder.WriteMarkdownContent(data.MarkdownContent)
+	yaml.WriteString(builder.String())
 
+	// Generate safe outputs documentation if configured
 	if data.SafeOutputs != nil {
-		// Add output instructions for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
-		yaml.WriteString("          \n")
-		yaml.WriteString("          ---\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          ## ")
-		written := false
-		if data.SafeOutputs.AddIssueComments != nil {
-			yaml.WriteString("Adding a Comment to an Issue or Pull Request")
-			written = true
-		}
-		if data.SafeOutputs.CreateIssues != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Creating an Issue")
-		}
-		if data.SafeOutputs.CreatePullRequests != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Creating a Pull Request")
-		}
-
-		if data.SafeOutputs.AddIssueLabels != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Adding Labels to Issues or Pull Requests")
-			written = true
-		}
-
-		if data.SafeOutputs.UpdateIssues != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Updating Issues")
-			written = true
-		}
-
-		if data.SafeOutputs.PushToBranch != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Pushing Changes to Branch")
-			written = true
-		}
-
-		// Missing-tool is always available
-		if written {
-			yaml.WriteString(", ")
-		}
-		yaml.WriteString("Reporting Missing Tools or Functionality")
-
-		yaml.WriteString("\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          ### Available Output Types:\n")
-		yaml.WriteString("          \n")
-
-		if data.SafeOutputs.AddIssueComments != nil {
-			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To add a comment to an issue or pull request:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
-			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"add-issue-comment\", \"body\": \"Your comment content in markdown\"}\n")
-			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.CreateIssues != nil {
-			yaml.WriteString("          **Creating an Issue**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create an issue:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
-			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"create-issue\", \"title\": \"Issue title\", \"body\": \"Issue body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
-			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.CreatePullRequests != nil {
-			yaml.WriteString("          **Creating a Pull Request**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create a pull request:\n")
-			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
-			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
-			yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-			yaml.WriteString("          4. Do not push your changes. That will be done later. Instead append the PR specification to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
-			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"create-pull-request\", \"branch\": \"branch-name\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
-			yaml.WriteString("          ```\n")
-			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.AddIssueLabels != nil {
-			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To add labels to a pull request:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
-			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
-			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.UpdateIssues != nil {
-			yaml.WriteString("          **Updating an Issue**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To udpate an issue:\n")
-			yaml.WriteString("          ```json\n")
-
-			// Build example based on allowed fields
-			var fields []string
-			if data.SafeOutputs.UpdateIssues.Status != nil {
-				fields = append(fields, "\"status\": \"open\" // or \"closed\"")
-			}
-			if data.SafeOutputs.UpdateIssues.Title != nil {
-				fields = append(fields, "\"title\": \"New issue title\"")
-			}
-			if data.SafeOutputs.UpdateIssues.Body != nil {
-				fields = append(fields, "\"body\": \"Updated issue body in markdown\"")
-			}
-
-			if len(fields) > 0 {
-				yaml.WriteString("          {\"type\": \"update-issue\"")
-				for _, field := range fields {
-					yaml.WriteString(", " + field)
-				}
-				yaml.WriteString("}\n")
-			} else {
-				yaml.WriteString("          {\"type\": \"update-issue\", \"title\": \"New issue title\", \"body\": \"Updated issue body\", \"status\": \"open\"}\n")
-			}
-
-			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.PushToBranch != nil {
-			yaml.WriteString("          **Pushing Changes to Branch**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To push changes to a branch, for example to add code to a pull request:\n")
-			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
-			yaml.WriteString("          2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-			yaml.WriteString("          3. Indicate your intention to push to the branch by writing to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
-			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Commit message describing the changes\"}\n")
-			yaml.WriteString("          ```\n")
-			yaml.WriteString("          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
-			yaml.WriteString("          \n")
-		}
-
-		// Missing-tool instructions are only included when configured
-		if data.SafeOutputs.MissingTool != nil {
-			yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          If you need to use a tool or functionality that is not available to complete your task:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
-			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"missing-tool\", \"tool\": \"tool-name\", \"reason\": \"Why this tool is needed\", \"alternatives\": \"Suggested alternatives or workarounds\"}\n")
-			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. The `tool` field should specify the name or type of missing functionality\n")
-			yaml.WriteString("          3. The `reason` field should explain why this tool/functionality is required to complete the task\n")
-			yaml.WriteString("          4. The `alternatives` field is optional but can suggest workarounds or alternative approaches\n")
-			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
-			yaml.WriteString("          \n")
-		}
-
-		yaml.WriteString("          **Example JSONL file content:**\n")
-		yaml.WriteString("          ```\n")
-
-		// Generate conditional examples based on enabled SafeOutputs
-		exampleCount := 0
-		if data.SafeOutputs.CreateIssues != nil {
-			yaml.WriteString("          {\"type\": \"create-issue\", \"title\": \"Bug Report\", \"body\": \"Found an issue with...\"}\n")
-			exampleCount++
-		}
-		if data.SafeOutputs.AddIssueComments != nil {
-			yaml.WriteString("          {\"type\": \"add-issue-comment\", \"body\": \"This is related to the issue above.\"}\n")
-			exampleCount++
-		}
-		if data.SafeOutputs.CreatePullRequests != nil {
-			yaml.WriteString("          {\"type\": \"create-pull-request\", \"title\": \"Fix typo\", \"body\": \"Corrected spelling mistake in documentation\"}\n")
-			exampleCount++
-		}
-		if data.SafeOutputs.AddIssueLabels != nil {
-			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"bug\", \"priority-high\"]}\n")
-			exampleCount++
-		}
-		if data.SafeOutputs.PushToBranch != nil {
-			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Update documentation with latest changes\"}\n")
-			exampleCount++
-		}
-
-		// Include missing-tool example only when configured
-		if data.SafeOutputs.MissingTool != nil {
-			yaml.WriteString("          {\"type\": \"missing-tool\", \"tool\": \"docker\", \"reason\": \"Need Docker to build container images\", \"alternatives\": \"Could use GitHub Actions build instead\"}\n")
-			exampleCount++
-		}
-
-		// If no SafeOutputs are enabled, show a generic example
-		if exampleCount == 0 {
-			yaml.WriteString("          # No safe outputs configured for this workflow\n")
-		}
-
-		yaml.WriteString("          ```\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          **Important Notes:**\n")
-		yaml.WriteString("          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions\n")
-		yaml.WriteString("          - Each JSON object must be on its own line\n")
-		yaml.WriteString("          - Only include output types that are configured for this workflow\n")
-		yaml.WriteString("          - The content of this file will be automatically processed and executed\n")
-		yaml.WriteString("          \n")
+		c.generateSafeOutputsInstructions(yaml, data.SafeOutputs)
 	}
 
 	yaml.WriteString("          EOF\n")
+	c.generatePromptSummaryStep(yaml)
+}
 
-	// Add step to print prompt to GitHub step summary for debugging
+// generateSafeOutputsInstructions generates the safe outputs documentation section
+func (c *Compiler) generateSafeOutputsInstructions(yaml *strings.Builder, safeOutputs *SafeOutputsConfig) {
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ---\n")
+	yaml.WriteString("          \n")
+
+	// Generate section header with enabled output types
+	headerTitles := c.getSafeOutputTitles(safeOutputs)
+	yaml.WriteString(fmt.Sprintf("          ## %s\n", strings.Join(headerTitles, ", ")))
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ### Available Output Types:\n")
+	yaml.WriteString("          \n")
+
+	// Generate instructions for each enabled output type
+	outputTypes := GetSafeOutputTypes()
+	c.generateOutputTypeInstructions(yaml, safeOutputs, outputTypes)
+
+	// Generate examples section
+	c.generateSafeOutputExamples(yaml, safeOutputs, outputTypes)
+
+	yaml.WriteString("          **Important Notes:**\n")
+	yaml.WriteString("          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions\n")
+	yaml.WriteString("          - Each JSON object must be on its own line\n")
+	yaml.WriteString("          - Only include output types that are configured for this workflow\n")
+	yaml.WriteString("          - The content of this file will be automatically processed and executed\n")
+	yaml.WriteString("          \n")
+}
+
+// getSafeOutputTitles returns the titles of enabled safe output types
+func (c *Compiler) getSafeOutputTitles(safeOutputs *SafeOutputsConfig) []string {
+	var titles []string
+	outputTypes := GetSafeOutputTypes()
+
+	if safeOutputs.AddIssueComments != nil {
+		titles = append(titles, outputTypes["add-issue-comment"].Title)
+	}
+	if safeOutputs.CreateIssues != nil {
+		titles = append(titles, outputTypes["create-issue"].Title)
+	}
+	if safeOutputs.CreatePullRequests != nil {
+		titles = append(titles, outputTypes["create-pull-request"].Title)
+	}
+	if safeOutputs.AddIssueLabels != nil {
+		titles = append(titles, outputTypes["add-issue-label"].Title)
+	}
+	if safeOutputs.UpdateIssues != nil {
+		titles = append(titles, outputTypes["update-issue"].Title)
+	}
+	if safeOutputs.PushToBranch != nil {
+		titles = append(titles, outputTypes["push-to-branch"].Title)
+	}
+
+	// Missing-tool is always available
+	titles = append(titles, outputTypes["missing-tool"].Title)
+
+	return titles
+}
+
+// generateOutputTypeInstructions generates detailed instructions for each output type
+func (c *Compiler) generateOutputTypeInstructions(yaml *strings.Builder, safeOutputs *SafeOutputsConfig, outputTypes map[string]SafeOutputType) {
+	if safeOutputs.AddIssueComments != nil {
+		c.generateSingleOutputTypeInstruction(yaml, outputTypes["add-issue-comment"])
+	}
+	if safeOutputs.CreateIssues != nil {
+		c.generateSingleOutputTypeInstruction(yaml, outputTypes["create-issue"])
+	}
+	if safeOutputs.CreatePullRequests != nil {
+		c.generateSingleOutputTypeInstruction(yaml, outputTypes["create-pull-request"])
+	}
+	if safeOutputs.AddIssueLabels != nil {
+		c.generateSingleOutputTypeInstruction(yaml, outputTypes["add-issue-label"])
+	}
+	if safeOutputs.UpdateIssues != nil {
+		c.generateUpdateIssueInstruction(yaml, safeOutputs.UpdateIssues)
+	}
+	if safeOutputs.PushToBranch != nil {
+		c.generateSingleOutputTypeInstruction(yaml, outputTypes["push-to-branch"])
+	}
+	if safeOutputs.MissingTool != nil {
+		c.generateSingleOutputTypeInstruction(yaml, outputTypes["missing-tool"])
+	}
+}
+
+// generateSingleOutputTypeInstruction generates instruction for a single output type
+func (c *Compiler) generateSingleOutputTypeInstruction(yaml *strings.Builder, outputType SafeOutputType) {
+	builder := NewYAMLBuilder()
+
+	description := strings.ReplaceAll(outputType.Description, "{example}", "")
+	builder.WriteInstructionBlock(outputType.Title, description)
+
+	if outputType.JSONExample != "" {
+		builder.WriteJSONExample(outputType.JSONExample)
+		builder.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+		builder.WriteString("          \n")
+	}
+
+	yaml.WriteString(builder.String())
+}
+
+// generateUpdateIssueInstruction generates specialized instruction for update-issue type
+func (c *Compiler) generateUpdateIssueInstruction(yaml *strings.Builder, updateConfig *UpdateIssuesConfig) {
+	yaml.WriteString("          **Updating an Issue**\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          To udpate an issue:\n")
+	yaml.WriteString("          ```json\n")
+
+	// Build example based on allowed fields
+	var fields []string
+	if updateConfig.Status != nil {
+		fields = append(fields, "\"status\": \"open\" // or \"closed\"")
+	}
+	if updateConfig.Title != nil {
+		fields = append(fields, "\"title\": \"New issue title\"")
+	}
+	if updateConfig.Body != nil {
+		fields = append(fields, "\"body\": \"Updated issue body in markdown\"")
+	}
+
+	if len(fields) > 0 {
+		yaml.WriteString("          {\"type\": \"update-issue\"")
+		for _, field := range fields {
+			yaml.WriteString(", " + field)
+		}
+		yaml.WriteString("}\n")
+	} else {
+		yaml.WriteString("          {\"type\": \"update-issue\", \"title\": \"New issue title\", \"body\": \"Updated issue body\", \"status\": \"open\"}\n")
+	}
+
+	yaml.WriteString("          ```\n")
+	yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+	yaml.WriteString("          \n")
+}
+
+// generateSafeOutputExamples generates the example JSONL content section
+func (c *Compiler) generateSafeOutputExamples(yaml *strings.Builder, safeOutputs *SafeOutputsConfig, outputTypes map[string]SafeOutputType) {
+	yaml.WriteString("          **Example JSONL file content:**\n")
+	yaml.WriteString("          ```\n")
+
+	// Generate examples for enabled outputs
+	examples := c.getEnabledOutputExamples(safeOutputs, outputTypes)
+
+	if len(examples) == 0 {
+		yaml.WriteString("          # No safe outputs configured for this workflow\n")
+	} else {
+		for _, example := range examples {
+			yaml.WriteString(fmt.Sprintf("          %s\n", example))
+		}
+	}
+
+	yaml.WriteString("          ```\n")
+	yaml.WriteString("          \n")
+}
+
+// getEnabledOutputExamples returns example JSON for enabled output types
+func (c *Compiler) getEnabledOutputExamples(safeOutputs *SafeOutputsConfig, outputTypes map[string]SafeOutputType) []string {
+	var examples []string
+
+	if safeOutputs.CreateIssues != nil {
+		examples = append(examples, `{"type": "create-issue", "title": "Bug Report", "body": "Found an issue with..."}`)
+	}
+	if safeOutputs.AddIssueComments != nil {
+		examples = append(examples, `{"type": "add-issue-comment", "body": "This is related to the issue above."}`)
+	}
+	if safeOutputs.CreatePullRequests != nil {
+		examples = append(examples, `{"type": "create-pull-request", "title": "Fix typo", "body": "Corrected spelling mistake in documentation"}`)
+	}
+	if safeOutputs.AddIssueLabels != nil {
+		examples = append(examples, `{"type": "add-issue-label", "labels": ["bug", "priority-high"]}`)
+	}
+	if safeOutputs.PushToBranch != nil {
+		examples = append(examples, `{"type": "push-to-branch", "message": "Update documentation with latest changes"}`)
+	}
+	if safeOutputs.MissingTool != nil {
+		examples = append(examples, `{"type": "missing-tool", "tool": "docker", "reason": "Need Docker to build container images", "alternatives": "Could use GitHub Actions build instead"}`)
+	}
+
+	return examples
+}
+
+// generatePromptSummaryStep generates the step that prints the prompt to the GitHub summary
+func (c *Compiler) generatePromptSummaryStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
