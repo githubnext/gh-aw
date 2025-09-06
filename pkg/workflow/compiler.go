@@ -2677,22 +2677,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 }
 
 func (c *Compiler) generateWorkflowComplete(yaml *strings.Builder) {
-	yaml.WriteString("      - name: Check if workflow-complete.txt exists, if so upload it\n")
-	yaml.WriteString("        id: check_file\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          if [ -f workflow-complete.txt ]; then\n")
-	yaml.WriteString("            echo \"File exists\"\n")
-	yaml.WriteString("            echo \"upload=true\" >> $GITHUB_OUTPUT\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"File does not exist\"\n")
-	yaml.WriteString("            echo \"upload=false\" >> $GITHUB_OUTPUT\n")
-	yaml.WriteString("          fi\n")
 	yaml.WriteString("      - name: Upload workflow-complete.txt\n")
-	yaml.WriteString("        if: steps.check_file.outputs.upload == 'true'\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: workflow-complete\n")
 	yaml.WriteString("          path: workflow-complete.txt\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {

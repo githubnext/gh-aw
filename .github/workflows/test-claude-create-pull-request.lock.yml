@@ -366,22 +366,12 @@ jobs:
           
           # Ensure log file exists
           touch /tmp/test-claude-create-pull-request.log
-      - name: Check if workflow-complete.txt exists, if so upload it
-        id: check_file
-        run: |
-          if [ -f workflow-complete.txt ]; then
-            echo "File exists"
-            echo "upload=true" >> $GITHUB_OUTPUT
-          else
-            echo "File does not exist"
-            echo "upload=false" >> $GITHUB_OUTPUT
-          fi
       - name: Upload workflow-complete.txt
-        if: steps.check_file.outputs.upload == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: workflow-complete
           path: workflow-complete.txt
+          if-no-files-found: ignore
       - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
