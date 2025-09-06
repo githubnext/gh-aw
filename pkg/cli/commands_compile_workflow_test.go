@@ -512,7 +512,7 @@ This is a test workflow for backward compatibility.
 			if tt.workflowID != "" {
 				args = []string{tt.workflowID}
 			}
-			err = CompileWorkflows(args, false, "", false, false, false)
+			err = CompileWorkflows(args, false, "", false, false, false, false)
 
 			if tt.expectError {
 				if err == nil {

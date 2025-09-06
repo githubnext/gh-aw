@@ -38,6 +38,7 @@ type WorkflowRun struct {
 	Duration      time.Duration
 	TokenUsage    int
 	EstimatedCost float64
+	Turns         int
 	LogsPath      string
 }
 
@@ -343,6 +344,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			run := result.Run
 			run.TokenUsage = result.Metrics.TokenUsage
 			run.EstimatedCost = result.Metrics.EstimatedCost
+			run.Turns = result.Metrics.Turns
 			run.LogsPath = result.LogsPath
 
 			// Store access analysis for later display (we'll access it via the result)
@@ -741,6 +743,11 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			metrics.EstimatedCost += fileMetrics.EstimatedCost
 			metrics.ErrorCount += fileMetrics.ErrorCount
 			metrics.WarningCount += fileMetrics.WarningCount
+			if fileMetrics.Turns > metrics.Turns {
+				// For turns, take the maximum rather than summing, since turns represent
+				// the total conversation turns for the entire workflow run
+				metrics.Turns = fileMetrics.Turns
+			}
 		}
 
 		return nil
@@ -858,12 +865,13 @@ func displayLogsOverview(runs []WorkflowRun) {
 	}
 
 	// Prepare table data
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Created", "Logs Path"}
+	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Created", "Logs Path"}
 	var rows [][]string
 
 	var totalTokens int
 	var totalCost float64
 	var totalDuration time.Duration
+	var totalTurns int
 
 	for _, run := range runs {
 		// Format duration
@@ -887,6 +895,13 @@ func displayLogsOverview(runs []WorkflowRun) {
 			totalTokens += run.TokenUsage
 		}
 
+		// Format turns
+		turnsStr := "N/A"
+		if run.Turns > 0 {
+			turnsStr = fmt.Sprintf("%d", run.Turns)
+			totalTurns += run.Turns
+		}
+
 		// Truncate workflow name if too long
 		workflowName := run.WorkflowName
 		if len(workflowName) > 20 {
@@ -903,6 +918,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 			durationStr,
 			tokensStr,
 			costStr,
+			turnsStr,
 			run.CreatedAt.Format("2006-01-02"),
 			relPath,
 		}
@@ -917,6 +933,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 		formatDuration(totalDuration),
 		formatNumber(totalTokens),
 		fmt.Sprintf("%.3f", totalCost),
+		fmt.Sprintf("%d", totalTurns),
 		"",
 		"",
 	}

@@ -35,6 +35,7 @@ type Compiler struct {
 	customOutput   string          // If set, output will be written to this path instead of default location
 	version        string          // Version of the extension
 	skipValidation bool            // If true, skip schema validation
+	noEmit         bool            // If true, validate without generating lock files
 	jobManager     *JobManager     // Manages jobs and dependencies
 	engineRegistry *EngineRegistry // Registry of available agentic engines
 	fileTracker    FileTracker     // Optional file tracker for tracking created files
@@ -89,6 +90,11 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// SetNoEmit configures whether to validate without generating lock files
+func (c *Compiler) SetNoEmit(noEmit bool) {
+	c.noEmit = noEmit
 }
 
 // SetFileTracker sets the file tracker for tracking created files
@@ -345,21 +351,27 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 	}
 
-	// Write to lock file
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Writing output to: %s", console.ToRelativePath(lockFile))))
-	}
-	if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   lockFile,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("failed to write lock file: %v", err),
-		})
-		return errors.New(formattedErr)
+	// Write to lock file (unless noEmit is enabled)
+	if c.noEmit {
+		if c.verbose {
+			fmt.Println(console.FormatInfoMessage("Validation completed - no lock file generated (--no-emit enabled)"))
+		}
+	} else {
+		if c.verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Writing output to: %s", console.ToRelativePath(lockFile))))
+		}
+		if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   lockFile,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("failed to write lock file: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	}
 
 	fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
