@@ -240,3 +240,58 @@ func TestCustomEngineGetLogParserScript(t *testing.T) {
 		t.Errorf("Expected log parser script 'parse_custom_log', got '%s'", script)
 	}
 }
+
+func TestCustomEngineConvertStepToYAMLWithSection(t *testing.T) {
+	engine := NewCustomEngine()
+
+	// Test step with 'with' section to ensure keys are sorted
+	stepMap := map[string]any{
+		"name": "Test step with sorted with section",
+		"uses": "actions/checkout@v4",
+		"with": map[string]any{
+			"zebra": "value-z",
+			"alpha": "value-a",
+			"beta":  "value-b",
+			"gamma": "value-g",
+		},
+	}
+
+	yaml, err := engine.convertStepToYAML(stepMap)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Verify that the with keys are in alphabetical order
+	lines := strings.Split(yaml, "\n")
+	withSection := false
+	withKeyOrder := []string{}
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "with:" {
+			withSection = true
+			continue
+		}
+		if withSection && strings.HasPrefix(strings.TrimSpace(line), "- ") {
+			// End of with section if we hit another top-level key
+			break
+		}
+		if withSection && strings.Contains(line, ":") {
+			// Extract the key (before the colon)
+			parts := strings.SplitN(strings.TrimSpace(line), ":", 2)
+			if len(parts) > 0 {
+				withKeyOrder = append(withKeyOrder, strings.TrimSpace(parts[0]))
+			}
+		}
+	}
+
+	expectedOrder := []string{"alpha", "beta", "gamma", "zebra"}
+	if len(withKeyOrder) != len(expectedOrder) {
+		t.Errorf("Expected %d with keys, got %d", len(expectedOrder), len(withKeyOrder))
+	}
+
+	for i, key := range expectedOrder {
+		if i >= len(withKeyOrder) || withKeyOrder[i] != key {
+			t.Errorf("Expected with key at position %d to be '%s', got '%s'. Full order: %v", i, key, withKeyOrder[i], withKeyOrder)
+		}
+	}
+}

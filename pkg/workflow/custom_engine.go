@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -145,8 +146,14 @@ func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 	if with, hasWith := stepMap["with"]; hasWith {
 		if withMap, ok := with.(map[string]any); ok {
 			stepYAML = append(stepYAML, "        with:")
-			for key, value := range withMap {
-				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, value))
+			// Sort keys for stable output
+			keys := make([]string, 0, len(withMap))
+			for key := range withMap {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, withMap[key]))
 			}
 		}
 	}

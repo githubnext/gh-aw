@@ -388,9 +388,9 @@ jobs:
         id: ai_inference
         uses: actions/ai-inference@v1
         with:
+          max_tokens: 1000
           model: gpt-4o-mini
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
-          max_tokens: 1000
           temperature: 0.7
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
