@@ -7,8 +7,8 @@ import (
 
 func TestGenerateWorkflowComplete(t *testing.T) {
 	tests := []struct {
-		name           string
-		expectedSteps  []string
+		name            string
+		expectedSteps   []string
 		unexpectedSteps []string
 	}{
 		{
@@ -17,12 +17,12 @@ func TestGenerateWorkflowComplete(t *testing.T) {
 				"- name: Upload workflow-complete.txt",
 				"uses: actions/upload-artifact@v4",
 				"name: workflow-complete",
-				"path: workflow-complete.txt", 
+				"path: workflow-complete.txt",
 				"if-no-files-found: ignore",
 			},
 			unexpectedSteps: []string{
-				"Check if workflow-complete.txt exists", // Should not have shell check
-				"id: check_file",                         // Should not have check step
+				"Check if workflow-complete.txt exists",         // Should not have shell check
+				"id: check_file",                                // Should not have check step
 				"if: steps.check_file.outputs.upload == 'true'", // Should not have conditional
 			},
 		},
