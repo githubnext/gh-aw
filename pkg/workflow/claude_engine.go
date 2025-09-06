@@ -655,9 +655,10 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 	// First try to parse as JSON array (Claude logs are structured as JSON arrays)
 	if strings.TrimSpace(logContent) != "" {
-		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
+		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 || resultMetrics.Turns > 0 {
 			metrics.TokenUsage = resultMetrics.TokenUsage
 			metrics.EstimatedCost = resultMetrics.EstimatedCost
+			metrics.Turns = resultMetrics.Turns
 		}
 	}
 
@@ -671,15 +672,16 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		}
 
 		// If we haven't found cost data yet from JSON parsing, try streaming JSON
-		if metrics.TokenUsage == 0 || metrics.EstimatedCost == 0 {
+		if metrics.TokenUsage == 0 || metrics.EstimatedCost == 0 || metrics.Turns == 0 {
 			jsonMetrics := ExtractJSONMetrics(line, verbose)
 			if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
 				// Check if this is a Claude result payload with aggregated costs
 				if e.isClaudeResultPayload(line) {
 					// For Claude result payloads, use the aggregated values directly
-					if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
+					if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 || resultMetrics.Turns > 0 {
 						metrics.TokenUsage = resultMetrics.TokenUsage
 						metrics.EstimatedCost = resultMetrics.EstimatedCost
+						metrics.Turns = resultMetrics.Turns
 					}
 				} else {
 					// For streaming JSON, keep the maximum token usage found
@@ -765,6 +767,13 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 		}
 	}
 
+	// Extract number of turns
+	if numTurns, exists := jsonData["num_turns"]; exists {
+		if turns := ConvertToInt(numTurns); turns > 0 {
+			metrics.Turns = turns
+		}
+	}
+
 	return metrics
 }
 
@@ -807,9 +816,16 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 					}
 				}
 
+				// Extract number of turns
+				if numTurns, exists := entry["num_turns"]; exists {
+					if turns := ConvertToInt(numTurns); turns > 0 {
+						metrics.Turns = turns
+					}
+				}
+
 				if verbose {
-					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f\n",
-						metrics.TokenUsage, metrics.EstimatedCost)
+					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f, turns=%d\n",
+						metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 				}
 				break
 			}

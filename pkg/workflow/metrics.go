@@ -13,6 +13,7 @@ type LogMetrics struct {
 	EstimatedCost float64
 	ErrorCount    int
 	WarningCount  int
+	Turns         int // Number of turns needed to complete the task
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 

@@ -236,11 +236,23 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	var totalTokenUsage int
 
 	lines := strings.Split(logContent, "\n")
+	turns := 0
+	inThinkingSection := false
 
 	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
+		}
+
+		// Detect thinking sections as indicators of turns
+		if strings.Contains(line, "] thinking") {
+			if !inThinkingSection {
+				turns++
+				inThinkingSection = true
+			}
+		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") {
+			inThinkingSection = false
 		}
 
 		// Extract Codex-specific token usage (always sum for Codex)
@@ -259,6 +271,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	}
 
 	metrics.TokenUsage = totalTokenUsage
+	metrics.Turns = turns
 
 	return metrics
 }

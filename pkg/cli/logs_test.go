@@ -466,6 +466,12 @@ Claude processing request...
 		t.Errorf("Expected cost %f, got %f", expectedCost, metrics.EstimatedCost)
 	}
 
+	// Check turns extraction from num_turns
+	expectedTurns := 66
+	if metrics.Turns != expectedTurns {
+		t.Errorf("Expected turns %d, got %d", expectedTurns, metrics.Turns)
+	}
+
 	// Duration is no longer extracted from logs - using GitHub API timestamps instead
 }
 
@@ -474,11 +480,15 @@ func TestParseLogFileWithCodexFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test-codex.log")
 
-	// This is the exact Codex format provided in the issue
+	// This is the exact Codex format provided in the issue with thinking sections added
 	logContent := `[2025-08-13T00:24:45] Starting Codex workflow execution
+[2025-08-13T00:24:50] thinking
+I need to analyze the pull request details first.
 [2025-08-13T00:24:50] codex
 
 I'm ready to generate a Codex PR summary, but I need the pull request number to fetch its details. Could you please share the PR number (and confirm the repo/owner if it isn't ` + "`githubnext/gh-aw`" + `)?
+[2025-08-13T00:24:50] thinking  
+Now I need to wait for the user's response.
 [2025-08-13T00:24:50] tokens used: 13934
 [2025-08-13T00:24:55] Workflow completed successfully`
 
@@ -498,6 +508,12 @@ I'm ready to generate a Codex PR summary, but I need the pull request number to 
 	expectedTokens := 13934
 	if metrics.TokenUsage != expectedTokens {
 		t.Errorf("Expected token usage %d, got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Check turns extraction from thinking sections
+	expectedTurns := 2 // Two thinking sections in the test data
+	if metrics.Turns != expectedTurns {
+		t.Errorf("Expected turns %d, got %d", expectedTurns, metrics.Turns)
 	}
 
 	// Duration is no longer extracted from logs - using GitHub API timestamps instead
@@ -873,5 +889,70 @@ func TestExtractLogMetricsWithAwOutputFile(t *testing.T) {
 	metrics, err = extractLogMetrics(tmpDir, true)
 	if err != nil {
 		t.Fatalf("extractLogMetrics in verbose mode failed: %v", err)
+	}
+}
+
+func TestCustomEngineParseLogMetrics(t *testing.T) {
+	// Test that custom engine tries both Claude and Codex parsing approaches
+	customEngine := workflow.NewCustomEngine()
+
+	// Test Case 1: Claude-style logs (properly formatted as JSON array)
+	claudeLogContent := `[{"type": "message", "content": "Starting workflow"}, {"type": "result", "subtype": "success", "is_error": false, "num_turns": 42, "total_cost_usd": 1.5, "usage": {"input_tokens": 1000, "output_tokens": 500}}]`
+
+	metrics := customEngine.ParseLogMetrics(claudeLogContent, false)
+
+	// Should extract turns, tokens, and cost from Claude format
+	if metrics.Turns != 42 {
+		t.Errorf("Expected turns 42 from Claude-style logs, got %d", metrics.Turns)
+	}
+	if metrics.TokenUsage != 1500 {
+		t.Errorf("Expected token usage 1500 from Claude-style logs, got %d", metrics.TokenUsage)
+	}
+	if metrics.EstimatedCost != 1.5 {
+		t.Errorf("Expected cost 1.5 from Claude-style logs, got %f", metrics.EstimatedCost)
+	}
+
+	// Test Case 2: Codex-style logs
+	codexLogContent := `[2025-08-13T00:24:45] Starting workflow
+[2025-08-13T00:24:50] thinking
+I need to analyze the problem.
+[2025-08-13T00:24:51] codex
+Working on solution.
+[2025-08-13T00:24:52] thinking
+Now I'll implement the solution.
+[2025-08-13T00:24:53] tokens used: 5000
+[2025-08-13T00:24:55] Workflow completed`
+
+	metrics = customEngine.ParseLogMetrics(codexLogContent, false)
+
+	// Should extract turns and tokens from Codex format
+	if metrics.Turns != 2 {
+		t.Errorf("Expected turns 2 from Codex-style logs, got %d", metrics.Turns)
+	}
+	if metrics.TokenUsage != 5000 {
+		t.Errorf("Expected token usage 5000 from Codex-style logs, got %d", metrics.TokenUsage)
+	}
+
+	// Test Case 3: Generic logs (fallback)
+	genericLogContent := `2025-08-13T00:24:45 Starting workflow
+2025-08-13T00:24:50 Processing request
+2025-08-13T00:24:52 Warning: Something happened
+2025-08-13T00:24:53 Error: Failed to process
+2025-08-13T00:24:55 Workflow completed`
+
+	metrics = customEngine.ParseLogMetrics(genericLogContent, false)
+
+	// Should fall back to basic parsing
+	if metrics.Turns != 0 {
+		t.Errorf("Expected turns 0 from generic logs, got %d", metrics.Turns)
+	}
+	if metrics.TokenUsage != 0 {
+		t.Errorf("Expected token usage 0 from generic logs, got %d", metrics.TokenUsage)
+	}
+	if metrics.WarningCount != 1 {
+		t.Errorf("Expected warning count 1 from generic logs, got %d", metrics.WarningCount)
+	}
+	if metrics.ErrorCount != 1 {
+		t.Errorf("Expected error count 1 from generic logs, got %d", metrics.ErrorCount)
 	}
 }

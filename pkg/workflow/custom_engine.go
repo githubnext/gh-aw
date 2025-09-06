@@ -245,8 +245,41 @@ func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName str
 }
 
 // ParseLogMetrics implements basic log parsing for custom engine
+// For custom engines, try both Claude and Codex parsing approaches to extract turn information
 func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	var metrics LogMetrics
+
+	// First try Claude-style parsing to see if the logs are Claude-format
+	registry := GetGlobalEngineRegistry()
+	claudeEngine, err := registry.GetEngine("claude")
+	if err == nil {
+		claudeMetrics := claudeEngine.ParseLogMetrics(logContent, verbose)
+		if claudeMetrics.Turns > 0 || claudeMetrics.TokenUsage > 0 || claudeMetrics.EstimatedCost > 0 {
+			// Found structured data, use Claude parsing
+			if verbose {
+				fmt.Println("Custom engine: Using Claude-style parsing for logs")
+			}
+			return claudeMetrics
+		}
+	}
+
+	// Try Codex-style parsing if Claude didn't yield results
+	codexEngine, err := registry.GetEngine("codex")
+	if err == nil {
+		codexMetrics := codexEngine.ParseLogMetrics(logContent, verbose)
+		if codexMetrics.Turns > 0 || codexMetrics.TokenUsage > 0 {
+			// Found some data, use Codex parsing
+			if verbose {
+				fmt.Println("Custom engine: Using Codex-style parsing for logs")
+			}
+			return codexMetrics
+		}
+	}
+
+	// Fall back to basic parsing if neither Claude nor Codex approaches work
+	if verbose {
+		fmt.Println("Custom engine: Using basic fallback parsing for logs")
+	}
 
 	lines := strings.Split(logContent, "\n")
 	for _, line := range lines {
