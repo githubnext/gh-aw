@@ -26,8 +26,7 @@ engine:
         # Use the provided prompt or create one based on the event
         prompt-file: ${{ env.GITHUB_AW_PROMPT }}
         # Configure the AI inference settings
-        max_tokens: 1000
-        temperature: 0.7
+        max-tokens: 1000
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
