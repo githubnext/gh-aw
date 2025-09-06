@@ -36,8 +36,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Generate Claude Settings
         run: |
-          mkdir -p .claude
-          cat > .claude/settings.json << 'EOF'
+          mkdir -p /tmp/.claude
+          cat > /tmp/.claude/settings.json << 'EOF'
           {
             "hooks": {
               "PreToolUse": [
@@ -284,7 +284,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           mcp_config: /tmp/mcp-config/mcp-servers.json
           prompt_file: /tmp/aw-prompts/prompt.txt
-          settings: .claude/settings.json
+          settings: /tmp/.claude/settings.json
           timeout_minutes: 5
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt

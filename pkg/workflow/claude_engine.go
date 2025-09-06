@@ -122,7 +122,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add settings parameter if network permissions are configured
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		inputs["settings"] = ".claude/settings.json"
+		inputs["settings"] = "/tmp/.claude/settings.json"
 	}
 
 	// Apply default Claude tools
