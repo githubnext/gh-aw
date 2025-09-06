@@ -188,8 +188,8 @@ func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
 // ConvertStepToYAML converts a step map to YAML string with proper indentation
 // This is a shared utility function used by all engines and the compiler
 func ConvertStepToYAML(stepMap map[string]any) (string, error) {
-	// Define the priority field order: name, run, use, env, with, ...
-	priorityFields := []string{"name", "run", "uses", "env", "with"}
+	// Define the priority field order: name, id, if, run, uses, env, with, ...
+	priorityFields := []string{"name", "id", "if", "run", "uses", "env", "with"}
 
 	// Create an ordered map using yaml.MapSlice to maintain field order
 	var step yaml.MapSlice

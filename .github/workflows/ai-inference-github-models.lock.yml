@@ -385,23 +385,25 @@ jobs:
           path: /tmp/aw_info.json
           if-no-files-found: warn
       - name: Setup AI Inference with GitHub Models
+        id: ai_inference
         uses: actions/ai-inference@v1
         env:
+          GITHUB_AW_MAX_TURNS: "3"
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           max_tokens: 1000
           model: gpt-4o-mini
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
           temperature: 0.7
-        id: ai_inference
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_MAX_TURNS: 3
       - name: Create Issue Comment
         uses: actions/github-script@v7
         env:
           AI_RESPONSE: ${{ steps.ai_inference.outputs.response }}
+          GITHUB_AW_MAX_TURNS: "3"
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         with:
           script: |
             const fs = require('fs');          
@@ -415,10 +417,6 @@ jobs:
               body: aiResponse
             };          
             fs.appendFileSync(process.env.GITHUB_AW_SAFE_OUTPUTS, JSON.stringify(safeOutput) + '\n');
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_MAX_TURNS: 3
       - name: Ensure log file exists
         run: |
           echo "Custom steps execution completed" >> /tmp/ai-inference-github-models.log

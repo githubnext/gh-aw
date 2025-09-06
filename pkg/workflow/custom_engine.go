@@ -36,47 +36,63 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Generate each custom step if they exist, with environment variables
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		// Check if we need environment section for any step - always true for GITHUB_AW_PROMPT
-		hasEnvSection := true
-
 		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
+			// Create a copy of the step to avoid modifying the original
+			stepCopy := make(map[string]any)
+			for k, v := range step {
+				stepCopy[k] = v
+			}
+
+			// Prepare environment variables to merge
+			envVars := make(map[string]any)
+
+			// Always add GITHUB_AW_PROMPT for agentic workflows
+			envVars["GITHUB_AW_PROMPT"] = "/tmp/aw-prompts/prompt.txt"
+
+			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
+			if workflowData.SafeOutputs != nil {
+				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+			}
+
+			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
+			if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+				envVars["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+			}
+
+			// Add custom environment variables from engine config
+			if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+				for key, value := range workflowData.EngineConfig.Env {
+					envVars[key] = value
+				}
+			}
+
+			// Merge environment variables into the step
+			if len(envVars) > 0 {
+				if existingEnv, exists := stepCopy["env"]; exists {
+					// If step already has env section, merge them
+					if envMap, ok := existingEnv.(map[string]any); ok {
+						for key, value := range envVars {
+							envMap[key] = value
+						}
+						stepCopy["env"] = envMap
+					} else {
+						// If env is not a map, replace it with our combined env
+						stepCopy["env"] = envVars
+					}
+				} else {
+					// If no env section exists, add our env vars
+					stepCopy["env"] = envVars
+				}
+			}
+
+			stepYAML, err := e.convertStepToYAML(stepCopy)
 			if err != nil {
 				// Log error but continue with other steps
 				continue
 			}
 
-			// Check if this step needs environment variables injected
-			stepStr := stepYAML
-			if hasEnvSection {
-				// Add environment variables to all steps (both run and uses)
-				stepStr = strings.TrimRight(stepYAML, "\n")
-				stepStr += "\n        env:\n"
-
-				// Always add GITHUB_AW_PROMPT for agentic workflows
-				stepStr += "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n"
-
-				// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
-				if workflowData.SafeOutputs != nil {
-					stepStr += "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n"
-				}
-
-				// Add GITHUB_AW_MAX_TURNS if max-turns is configured
-				if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-					stepStr += fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s\n", workflowData.EngineConfig.MaxTurns)
-				}
-
-				// Add custom environment variables from engine config
-				if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-					for key, value := range workflowData.EngineConfig.Env {
-						stepStr += fmt.Sprintf("          %s: %s\n", key, value)
-					}
-				}
-			}
-
 			// Split the step YAML into lines to create a GitHubActionStep
-			// Need to handle this carefully to preserve YAML structure
-			stepLines := strings.Split(strings.TrimRight(stepStr, "\n"), "\n")
+			stepLines := strings.Split(strings.TrimRight(stepYAML, "\n"), "\n")
 
 			// Remove empty lines at the end
 			for len(stepLines) > 0 && strings.TrimSpace(stepLines[len(stepLines)-1]) == "" {

@@ -291,7 +291,7 @@ This tests max-turns feature with custom engine.`
 	lockContentStr := string(lockContent)
 
 	// Verify GITHUB_AW_MAX_TURNS environment variable is set
-	expectedEnvVar := "GITHUB_AW_MAX_TURNS: 5"
+	expectedEnvVar := "GITHUB_AW_MAX_TURNS: \"5\""
 	if !strings.Contains(lockContentStr, expectedEnvVar) {
 		t.Errorf("Expected GITHUB_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
 	}
