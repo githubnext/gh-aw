@@ -222,54 +222,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - temporary helper
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *ClaudeEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps - this mirrors the compiler logic
-	var stepYAML []string
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
-		}
-	}
-
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			stepYAML = append(stepYAML, "        run: |")
-			// Split command into lines and indent them properly
-			runLines := strings.Split(runStr, "\n")
-			for _, line := range runLines {
-				stepYAML = append(stepYAML, "          "+line)
-			}
-		}
-	}
-
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
-		}
-	}
-
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML = append(stepYAML, "        with:")
-			// Sort keys for stable output
-			keys := make([]string, 0, len(withMap))
-			for key := range withMap {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, withMap[key]))
-			}
-		}
-	}
-
-	return strings.Join(stepYAML, "\n"), nil
+	return ConvertStepToYAML(stepMap)
 }
 
 // expandNeutralToolsToClaudeTools converts neutral tools to Claude-specific tools format

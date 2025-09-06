@@ -166,8 +166,8 @@ func TestCodexEngineConvertStepToYAMLWithIdAndContinueOnError(t *testing.T) {
 	}
 
 	// Check that continue-on-error field is included as string
-	if !strings.Contains(yaml2, "continue-on-error: false") {
-		t.Errorf("Expected YAML to contain 'continue-on-error: false', got:\n%s", yaml2)
+	if !strings.Contains(yaml2, "continue-on-error: \"false\"") {
+		t.Errorf("Expected YAML to contain 'continue-on-error: \"false\"', got:\n%s", yaml2)
 	}
 }
 

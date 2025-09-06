@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -37,46 +36,69 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Generate each custom step if they exist, with environment variables
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		// Check if we need environment section for any step - always true now for GITHUB_AW_PROMPT
-		hasEnvSection := true
-
 		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
+			// Create a copy of the step to avoid modifying the original
+			stepCopy := make(map[string]any)
+			for k, v := range step {
+				stepCopy[k] = v
+			}
+
+			// Prepare environment variables to merge
+			envVars := make(map[string]any)
+
+			// Always add GITHUB_AW_PROMPT for agentic workflows
+			envVars["GITHUB_AW_PROMPT"] = "/tmp/aw-prompts/prompt.txt"
+
+			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
+			if workflowData.SafeOutputs != nil {
+				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+			}
+
+			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
+			if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+				envVars["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+			}
+
+			// Add custom environment variables from engine config
+			if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+				for key, value := range workflowData.EngineConfig.Env {
+					envVars[key] = value
+				}
+			}
+
+			// Merge environment variables into the step
+			if len(envVars) > 0 {
+				if existingEnv, exists := stepCopy["env"]; exists {
+					// If step already has env section, merge them
+					if envMap, ok := existingEnv.(map[string]any); ok {
+						for key, value := range envVars {
+							envMap[key] = value
+						}
+						stepCopy["env"] = envMap
+					} else {
+						// If env is not a map, replace it with our combined env
+						stepCopy["env"] = envVars
+					}
+				} else {
+					// If no env section exists, add our env vars
+					stepCopy["env"] = envVars
+				}
+			}
+
+			stepYAML, err := e.convertStepToYAML(stepCopy)
 			if err != nil {
 				// Log error but continue with other steps
 				continue
 			}
 
-			// Check if this step needs environment variables injected
-			stepStr := stepYAML
-			if hasEnvSection {
-				// Add environment variables to all steps (both run and uses)
-				stepStr = strings.TrimRight(stepYAML, "\n")
-				stepStr += "\n        env:\n"
+			// Split the step YAML into lines to create a GitHubActionStep
+			stepLines := strings.Split(strings.TrimRight(stepYAML, "\n"), "\n")
 
-				// Always add GITHUB_AW_PROMPT for agentic workflows
-				stepStr += "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n"
-
-				// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
-				if workflowData.SafeOutputs != nil {
-					stepStr += "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n"
-				}
-
-				// Add GITHUB_AW_MAX_TURNS if max-turns is configured
-				if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-					stepStr += fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s\n", workflowData.EngineConfig.MaxTurns)
-				}
-
-				// Add custom environment variables from engine config
-				if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-					for key, value := range workflowData.EngineConfig.Env {
-						stepStr += fmt.Sprintf("          %s: %s\n", key, value)
-					}
-				}
+			// Remove empty lines at the end
+			for len(stepLines) > 0 && strings.TrimSpace(stepLines[len(stepLines)-1]) == "" {
+				stepLines = stepLines[:len(stepLines)-1]
 			}
 
-			// Split the step YAML into lines to create a GitHubActionStep
-			stepLines := strings.Split(stepStr, "\n")
 			steps = append(steps, GitHubActionStep(stepLines))
 		}
 	}
@@ -93,72 +115,9 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - temporary helper
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	// Simple YAML generation for steps - this mirrors the compiler logic
-	var stepYAML []string
-
-	// Add step name
-	if name, hasName := stepMap["name"]; hasName {
-		if nameStr, ok := name.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("      - name: %s", nameStr))
-		}
-	}
-
-	// Add id field if present
-	if id, hasID := stepMap["id"]; hasID {
-		if idStr, ok := id.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        id: %s", idStr))
-		}
-	}
-
-	// Add continue-on-error field if present
-	if continueOnError, hasContinueOnError := stepMap["continue-on-error"]; hasContinueOnError {
-		// Handle both string and boolean values for continue-on-error
-		switch v := continueOnError.(type) {
-		case bool:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %t", v))
-		case string:
-			stepYAML = append(stepYAML, fmt.Sprintf("        continue-on-error: %s", v))
-		}
-	}
-
-	// Add uses action
-	if uses, hasUses := stepMap["uses"]; hasUses {
-		if usesStr, ok := uses.(string); ok {
-			stepYAML = append(stepYAML, fmt.Sprintf("        uses: %s", usesStr))
-		}
-	}
-
-	// Add run command
-	if run, hasRun := stepMap["run"]; hasRun {
-		if runStr, ok := run.(string); ok {
-			stepYAML = append(stepYAML, "        run: |")
-			// Split command into lines and indent them properly
-			runLines := strings.Split(runStr, "\n")
-			for _, line := range runLines {
-				stepYAML = append(stepYAML, "          "+line)
-			}
-		}
-	}
-
-	// Add with parameters
-	if with, hasWith := stepMap["with"]; hasWith {
-		if withMap, ok := with.(map[string]any); ok {
-			stepYAML = append(stepYAML, "        with:")
-			// Sort keys for stable output
-			keys := make([]string, 0, len(withMap))
-			for key := range withMap {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-			for _, key := range keys {
-				stepYAML = append(stepYAML, fmt.Sprintf("          %s: %v", key, withMap[key]))
-			}
-		}
-	}
-
-	return strings.Join(stepYAML, "\n"), nil
+	return ConvertStepToYAML(stepMap)
 }
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine

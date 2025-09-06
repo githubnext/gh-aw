@@ -47,7 +47,7 @@ This workflow uses the custom engine to execute defined steps.`,
 			shouldContain: []string{
 				"- name: Setup Node.js",
 				"uses: actions/setup-node@v4",
-				"node-version: 18",
+				"node-version: \"18\"",
 				"- name: Run tests",
 				"echo \"Running tests...\"",
 				"npm test",
