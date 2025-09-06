@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -187,16 +188,45 @@ func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
 // ConvertStepToYAML converts a step map to YAML string with proper indentation
 // This is a shared utility function used by all engines and the compiler
 func ConvertStepToYAML(stepMap map[string]any) (string, error) {
-	// Create a step structure that matches GitHub Actions step format
-	step := make(map[string]any)
+	// Define the priority field order: name, run, use, env, with, ...
+	priorityFields := []string{"name", "run", "uses", "env", "with"}
 
-	// Copy all fields from stepMap to step
-	for key, value := range stepMap {
-		step[key] = value
+	// Create an ordered map using yaml.MapSlice to maintain field order
+	var step yaml.MapSlice
+
+	// First, add priority fields in the specified order
+	for _, fieldName := range priorityFields {
+		if value, exists := stepMap[fieldName]; exists {
+			step = append(step, yaml.MapItem{Key: fieldName, Value: value})
+		}
+	}
+
+	// Then add remaining fields in alphabetical order
+	var remainingKeys []string
+	for key := range stepMap {
+		// Skip if it's already been added as a priority field
+		isPriority := false
+		for _, priorityField := range priorityFields {
+			if key == priorityField {
+				isPriority = true
+				break
+			}
+		}
+		if !isPriority {
+			remainingKeys = append(remainingKeys, key)
+		}
+	}
+
+	// Sort remaining keys alphabetically
+	sort.Strings(remainingKeys)
+
+	// Add remaining fields to the ordered map
+	for _, key := range remainingKeys {
+		step = append(step, yaml.MapItem{Key: key, Value: stepMap[key]})
 	}
 
 	// Serialize the step using YAML package with proper options for multiline strings
-	yamlBytes, err := yaml.MarshalWithOptions([]map[string]any{step},
+	yamlBytes, err := yaml.MarshalWithOptions([]yaml.MapSlice{step},
 		yaml.Indent(2),                        // Use 2-space indentation
 		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
 	)

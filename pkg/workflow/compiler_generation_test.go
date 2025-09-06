@@ -153,7 +153,7 @@ func TestConvertStepToYAML(t *testing.T) {
 					"ENV":        "test",
 				},
 			},
-			expected: "      - env:\n          ENV: test\n          GO_VERSION: \"1.21\"\n        name: Build Project\n        run: make build\n",
+			expected: "      - name: Build Project\n        run: make build\n        env:\n          ENV: test\n          GO_VERSION: \"1.21\"\n",
 			hasError: false,
 		},
 		{
