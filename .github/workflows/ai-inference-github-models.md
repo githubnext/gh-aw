@@ -32,16 +32,22 @@ engine:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create Issue Comment
-      run: |
-        # Determine issue number based on event type
-        if [ "${{ github.event_name }}" == "issues" ]; then
-          ISSUE_NUMBER="${{ github.event.issue.number }}"
-        else
-          ISSUE_NUMBER="${{ github.event.inputs.issue_number }}"
-        fi
-        
-        # Generate safe output for issue comment
-        echo "{\"type\": \"add-issue-comment\", \"issue_number\": \"$ISSUE_NUMBER\", \"body\": \"${{ steps.ai_inference.outputs.response }}\"}" >> $GITHUB_AW_SAFE_OUTPUTS
+      uses: actions/github-script@v7
+      env:
+        AI_RESPONSE: ${{ steps.ai_inference.outputs.response }}
+      with:
+        script: |
+          const fs = require('fs');          
+          const issueNumber = context.eventName === 'issues' 
+            ? context.issue.number 
+            : context.payload.inputs.issue_number;
+          const aiResponse = process.env.AI_RESPONSE;          
+          const safeOutput = {
+            type: "add-issue-comment",
+            issue_number: issueNumber,
+            body: aiResponse
+          };          
+          fs.appendFileSync(process.env.GITHUB_AW_SAFE_OUTPUTS, JSON.stringify(safeOutput) + '\n');
 
 safe-outputs:
   add-issue-comment:
