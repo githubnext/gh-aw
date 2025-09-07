@@ -220,6 +220,7 @@ Examples:
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
+	logsCmd.Flags().BoolP("verbose", "v", false, "Show detailed output including individual tool names")
 
 	return logsCmd
 }
@@ -959,8 +960,9 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 		return
 	}
 
-	// Aggregate tool call statistics across all runs, grouped by MCP server
-	serverStats := make(map[string]*workflow.ToolCallInfo)
+	// Aggregate tool call statistics across all runs
+	// In verbose mode: show individual tools, in non-verbose mode: group by MCP server
+	toolStats := make(map[string]*workflow.ToolCallInfo)
 
 	for _, processedRun := range processedRuns {
 		// Extract tool calls from the run's metrics - we need to get the LogMetrics
@@ -971,35 +973,41 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 		logMetrics := extractLogMetricsFromRun(processedRun)
 
 		for _, toolCall := range logMetrics.ToolCalls {
-			// Group by MCP server for MCP tools, keep individual entries for others
-			var groupKey string
-			if strings.HasPrefix(toolCall.Name, "mcp__") {
-				// Extract server name for MCP tools
-				groupKey = workflow.ExtractMCPServer(toolCall.Name)
-			} else if strings.HasPrefix(toolCall.Name, "bash_") {
-				// Keep bash commands as individual entries since they include command details
-				groupKey = toolCall.Name
+			var displayKey string
+
+			if verbose {
+				// Verbose mode: show individual prettified tool names
+				displayKey = workflow.PrettifyToolName(toolCall.Name)
 			} else {
-				// For other tools, check if they follow the new server_method pattern
-				// This handles tools that have been prettified to server_method format
-				parts := strings.SplitN(toolCall.Name, "_", 2)
-				if len(parts) == 2 && !strings.HasPrefix(toolCall.Name, "bash_") {
-					// This looks like it could be a server_method format, group by server
-					groupKey = parts[0]
+				// Non-verbose mode: group by MCP server for MCP tools, keep individual entries for others
+				if strings.HasPrefix(toolCall.Name, "mcp__") {
+					// Extract server name for MCP tools
+					displayKey = workflow.ExtractMCPServer(toolCall.Name)
+				} else if strings.HasPrefix(toolCall.Name, "bash_") {
+					// Keep bash commands as individual entries since they include command details
+					displayKey = toolCall.Name
 				} else {
-					// Keep as individual entry
-					groupKey = toolCall.Name
+					// For other tools, check if they follow the new server_method pattern
+					// This handles tools that have been prettified to server_method format
+					parts := strings.SplitN(toolCall.Name, "_", 2)
+					if len(parts) == 2 && !strings.HasPrefix(toolCall.Name, "bash_") {
+						// This looks like it could be a server_method format, group by server
+						displayKey = parts[0]
+					} else {
+						// Keep as individual entry
+						displayKey = toolCall.Name
+					}
 				}
 			}
 
-			if existing, exists := serverStats[groupKey]; exists {
+			if existing, exists := toolStats[displayKey]; exists {
 				existing.CallCount += toolCall.CallCount
 				if toolCall.MaxOutputSize > existing.MaxOutputSize {
 					existing.MaxOutputSize = toolCall.MaxOutputSize
 				}
 			} else {
-				serverStats[groupKey] = &workflow.ToolCallInfo{
-					Name:          groupKey,
+				toolStats[displayKey] = &workflow.ToolCallInfo{
+					Name:          displayKey,
 					CallCount:     toolCall.CallCount,
 					MaxOutputSize: toolCall.MaxOutputSize,
 				}
@@ -1009,7 +1017,7 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 
 	// Convert to slice and sort by call count (descending), then by name
 	var toolCalls []workflow.ToolCallInfo
-	for _, toolInfo := range serverStats {
+	for _, toolInfo := range toolStats {
 		toolCalls = append(toolCalls, *toolInfo)
 	}
 
