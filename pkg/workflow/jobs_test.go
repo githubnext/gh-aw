@@ -272,10 +272,10 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 			name: "job with dependencies",
 			jobs: []*Job{
 				{
-					Name:    "job1",
-					RunsOn:  "runs-on: ubuntu-latest",
-					Needs:   []string{"job2"},
-					Steps:   []string{"      - name: Step1\n        run: echo step1\n"},
+					Name:   "job1",
+					RunsOn: "runs-on: ubuntu-latest",
+					Needs:  []string{"job2"},
+					Steps:  []string{"      - name: Step1\n        run: echo step1\n"},
 				},
 				{
 					Name:   "job2",
@@ -296,10 +296,10 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 			name: "job with multiple dependencies",
 			jobs: []*Job{
 				{
-					Name:    "deploy",
-					RunsOn:  "runs-on: ubuntu-latest",
-					Needs:   []string{"build", "test"},
-					Steps:   []string{"      - name: Deploy\n        run: echo deploy\n"},
+					Name:   "deploy",
+					RunsOn: "runs-on: ubuntu-latest",
+					Needs:  []string{"build", "test"},
+					Steps:  []string{"      - name: Deploy\n        run: echo deploy\n"},
 				},
 			},
 			expected: []string{
