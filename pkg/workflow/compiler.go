@@ -1920,7 +1920,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 		Permissions: "permissions:\n      issues: write\n      pull-requests: write",
 		Steps:       steps,
 		Outputs:     outputs,
-		Depends:     depends,
+		Needs:       depends,
 	}
 
 	return job, nil
@@ -1981,7 +1981,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2040,7 +2040,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2117,7 +2117,7 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2181,7 +2181,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2269,7 +2269,7 @@ func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJo
 		TimeoutMinutes: 10,                                                                                      // 10-minute timeout
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2364,7 +2364,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2385,9 +2385,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		steps = append(steps, stepsContent)
 	}
 
-	var depends []string
+	var needs []string
 	if taskJobCreated {
-		depends = []string{"task"} // Depend on the task job only if it exists
+		needs = []string{"task"} // Depend on the task job only if it exists
 	}
 
 	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
@@ -2405,7 +2405,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
-		Depends:     depends,
+		Needs:       needs,
 		Outputs:     outputs,
 	}
 
@@ -3577,17 +3577,17 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 				Name: jobName,
 			}
 
-			// Extract job dependencies
-			if depends, hasDeps := configMap["depends"]; hasDeps {
-				if depsList, ok := depends.([]any); ok {
-					for _, dep := range depsList {
-						if depStr, ok := dep.(string); ok {
-							job.Depends = append(job.Depends, depStr)
+			// Extract job dependencies using standard GitHub Actions "needs" syntax
+			if needs, hasNeeds := configMap["needs"]; hasNeeds {
+				if needsList, ok := needs.([]any); ok {
+					for _, need := range needsList {
+						if needStr, ok := need.(string); ok {
+							job.Needs = append(job.Needs, needStr)
 						}
 					}
-				} else if depStr, ok := depends.(string); ok {
+				} else if needStr, ok := needs.(string); ok {
 					// Single dependency as string
-					job.Depends = append(job.Depends, depStr)
+					job.Needs = append(job.Needs, needStr)
 				}
 			}
 
@@ -3595,12 +3595,70 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 			if runsOn, hasRunsOn := configMap["runs-on"]; hasRunsOn {
 				if runsOnStr, ok := runsOn.(string); ok {
 					job.RunsOn = fmt.Sprintf("runs-on: %s", runsOnStr)
+				} else if runsOnList, ok := runsOn.([]any); ok {
+					// Handle runs-on as array
+					var runners []string
+					for _, runner := range runsOnList {
+						if runnerStr, ok := runner.(string); ok {
+							runners = append(runners, runnerStr)
+						}
+					}
+					if len(runners) > 0 {
+						if len(runners) == 1 {
+							job.RunsOn = fmt.Sprintf("runs-on: %s", runners[0])
+						} else {
+							runnerYAML := "runs-on:\n"
+							for _, runner := range runners {
+								runnerYAML += fmt.Sprintf("      - %s\n", runner)
+							}
+							job.RunsOn = strings.TrimSuffix(runnerYAML, "\n")
+						}
+					}
 				}
 			}
 
 			if ifCond, hasIf := configMap["if"]; hasIf {
 				if ifStr, ok := ifCond.(string); ok {
 					job.If = fmt.Sprintf("if: %s", ifStr)
+				}
+			}
+
+			// Handle timeout-minutes
+			if timeout, hasTimeout := configMap["timeout-minutes"]; hasTimeout {
+				if timeoutInt, ok := timeout.(int); ok {
+					job.TimeoutMinutes = timeoutInt
+				} else if timeoutFloat, ok := timeout.(float64); ok {
+					job.TimeoutMinutes = int(timeoutFloat)
+				} else if timeoutUint, ok := timeout.(uint64); ok {
+					job.TimeoutMinutes = int(timeoutUint)
+				}
+			}
+
+			// Handle permissions
+			if permissions, hasPermissions := configMap["permissions"]; hasPermissions {
+				if permissionsMap, ok := permissions.(map[string]any); ok {
+					permissionsYAML := "permissions:\n"
+					for key, value := range permissionsMap {
+						permissionsYAML += fmt.Sprintf("      %s: %v\n", key, value)
+					}
+					job.Permissions = strings.TrimSuffix(permissionsYAML, "\n")
+				}
+			}
+
+			// Handle environment variables
+			if env, hasEnv := configMap["env"]; hasEnv {
+				if envMap, ok := env.(map[string]any); ok {
+					if job.Env == nil {
+						job.Env = make(map[string]string)
+					}
+					for key, value := range envMap {
+						if valueStr, ok := value.(string); ok {
+							job.Env[key] = valueStr
+						} else {
+							// Convert non-string values to string
+							job.Env[key] = fmt.Sprintf("%v", value)
+						}
+					}
 				}
 			}
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	goyaml "github.com/goccy/go-yaml"
 )
 
 // Job represents a GitHub Actions job with all its properties
@@ -14,8 +16,9 @@ type Job struct {
 	Permissions    string
 	TimeoutMinutes int
 	Steps          []string
-	Depends        []string // Job dependencies (needs clause)
+	Needs          []string // Job dependencies (needs clause)
 	Outputs        map[string]string
+	Env            map[string]string // Job-level environment variables
 }
 
 // JobManager manages a collection of jobs and handles dependency validation
@@ -67,7 +70,7 @@ func (jm *JobManager) GetAllJobs() map[string]*Job {
 func (jm *JobManager) ValidateDependencies() error {
 	// First check that all dependencies reference existing jobs
 	for jobName, job := range jm.jobs {
-		for _, dep := range job.Depends {
+		for _, dep := range job.Needs {
 			if _, exists := jm.jobs[dep]; !exists {
 				return fmt.Errorf("job '%s' depends on non-existent job '%s'", jobName, dep)
 			}
@@ -105,7 +108,7 @@ func (jm *JobManager) dfsVisit(jobName string, visitState map[string]int) error 
 	visitState[jobName] = 1 // Mark as visiting
 
 	job := jm.jobs[jobName]
-	for _, dep := range job.Depends {
+	for _, dep := range job.Needs {
 		if visitState[dep] == 1 {
 			// Found a back edge - cycle detected
 			return fmt.Errorf("cycle detected in job dependencies: job '%s' has circular dependency through '%s'", jobName, dep)
@@ -146,12 +149,12 @@ func (jm *JobManager) renderJob(job *Job) string {
 	yaml.WriteString(fmt.Sprintf("  %s:\n", job.Name))
 
 	// Add needs clause if there are dependencies
-	if len(job.Depends) > 0 {
-		if len(job.Depends) == 1 {
-			yaml.WriteString(fmt.Sprintf("    needs: %s\n", job.Depends[0]))
+	if len(job.Needs) > 0 {
+		if len(job.Needs) == 1 {
+			yaml.WriteString(fmt.Sprintf("    needs: %s\n", job.Needs[0]))
 		} else {
 			yaml.WriteString("    needs:\n")
-			for _, dep := range job.Depends {
+			for _, dep := range job.Needs {
 				yaml.WriteString(fmt.Sprintf("      - %s\n", dep))
 			}
 		}
@@ -192,6 +195,28 @@ func (jm *JobManager) renderJob(job *Job) string {
 		}
 	}
 
+	// Add env section
+	if len(job.Env) > 0 {
+		yaml.WriteString("    env:\n")
+		// Sort environment keys for consistent output
+		envKeys := make([]string, 0, len(job.Env))
+		for key := range job.Env {
+			envKeys = append(envKeys, key)
+		}
+		sort.Strings(envKeys)
+
+		for _, key := range envKeys {
+			value := job.Env[key]
+			// Use YAML quoting for string values
+			if yamlBytes, err := goyaml.Marshal(value); err == nil {
+				yaml.WriteString(fmt.Sprintf("      %s: %s", key, strings.TrimSpace(string(yamlBytes))))
+			} else {
+				yaml.WriteString(fmt.Sprintf("      %s: %s", key, value))
+			}
+			yaml.WriteString("\n")
+		}
+	}
+
 	// Add steps section
 	if len(job.Steps) > 0 {
 		yaml.WriteString("    steps:\n")
@@ -222,7 +247,7 @@ func (jm *JobManager) GetTopologicalOrder() ([]string, error) {
 
 	// Calculate in-degrees: count how many dependencies each job has
 	for _, job := range jm.jobs {
-		inDegree[job.Name] = len(job.Depends)
+		inDegree[job.Name] = len(job.Needs)
 	}
 
 	// Start with jobs that have no dependencies (in-degree = 0)
@@ -247,7 +272,7 @@ func (jm *JobManager) GetTopologicalOrder() ([]string, error) {
 
 		// For each job that depends on the current job, reduce its in-degree
 		for jobName, job := range jm.jobs {
-			for _, dep := range job.Depends {
+			for _, dep := range job.Needs {
 				if dep == currentJob {
 					inDegree[jobName]--
 					if inDegree[jobName] == 0 {

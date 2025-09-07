@@ -71,7 +71,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil

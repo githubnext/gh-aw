@@ -18,8 +18,8 @@ func TestJobDependenciesWithCycleDetection(t *testing.T) {
 			name: "valid job dependencies",
 			jobs: []*Job{
 				{Name: "build", RunsOn: "ubuntu-latest"},
-				{Name: "test", RunsOn: "ubuntu-latest", Depends: []string{"build"}},
-				{Name: "deploy", RunsOn: "ubuntu-latest", Depends: []string{"build", "test"}},
+				{Name: "test", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+				{Name: "deploy", RunsOn: "ubuntu-latest", Needs: []string{"build", "test"}},
 			},
 			expectError: false,
 			description: "Valid linear job dependencies should work",
@@ -27,8 +27,8 @@ func TestJobDependenciesWithCycleDetection(t *testing.T) {
 		{
 			name: "simple cycle detection",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"job2"}},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"job2"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
 			},
 			expectError: true,
 			errorMsg:    "cycle detected",
@@ -37,9 +37,9 @@ func TestJobDependenciesWithCycleDetection(t *testing.T) {
 		{
 			name: "complex cycle detection",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"job2"}},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"job3"}},
-				{Name: "job3", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"job2"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"job3"}},
+				{Name: "job3", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
 			},
 			expectError: true,
 			errorMsg:    "cycle detected",
@@ -48,7 +48,7 @@ func TestJobDependenciesWithCycleDetection(t *testing.T) {
 		{
 			name: "dependency on non-existent job",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"nonexistent_job"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"nonexistent_job"}},
 			},
 			expectError: true,
 			errorMsg:    "depends on non-existent job",
@@ -57,7 +57,7 @@ func TestJobDependenciesWithCycleDetection(t *testing.T) {
 		{
 			name: "self-dependency cycle",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
 			},
 			expectError: true,
 			errorMsg:    "cycle detected",
@@ -146,9 +146,9 @@ func TestJobDependencyTopologicalOrder(t *testing.T) {
 	// Create a complex dependency graph: build -> [unit-test, integration-test] -> deploy
 	jobs := []*Job{
 		{Name: "build", RunsOn: "ubuntu-latest"},
-		{Name: "unit-test", RunsOn: "ubuntu-latest", Depends: []string{"build"}},
-		{Name: "integration-test", RunsOn: "ubuntu-latest", Depends: []string{"build"}},
-		{Name: "deploy", RunsOn: "ubuntu-latest", Depends: []string{"unit-test", "integration-test"}},
+		{Name: "unit-test", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+		{Name: "integration-test", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+		{Name: "deploy", RunsOn: "ubuntu-latest", Needs: []string{"unit-test", "integration-test"}},
 	}
 
 	for _, job := range jobs {

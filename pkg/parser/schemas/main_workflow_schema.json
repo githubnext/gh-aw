@@ -577,7 +577,57 @@
             "description": "Job steps",
             "items": {
               "type": "object",
-              "additionalProperties": false
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Name of the step"
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Unique identifier for the step"
+                },
+                "if": {
+                  "type": "string",
+                  "description": "Conditional expression for step execution"
+                },
+                "run": {
+                  "type": "string",
+                  "description": "Command to run"
+                },
+                "uses": {
+                  "type": "string",
+                  "description": "Action to use"
+                },
+                "with": {
+                  "type": "object",
+                  "description": "Input parameters for the action",
+                  "additionalProperties": true
+                },
+                "env": {
+                  "type": "object",
+                  "description": "Environment variables for the step",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "continue-on-error": {
+                  "type": "boolean",
+                  "description": "Allow step to fail without failing the job"
+                },
+                "timeout-minutes": {
+                  "type": "integer",
+                  "description": "Step timeout in minutes"
+                },
+                "shell": {
+                  "type": "string",
+                  "description": "Shell to use for run commands"
+                },
+                "working-directory": {
+                  "type": "string",
+                  "description": "Working directory for the step"
+                }
+              }
             }
           },
           "if": {

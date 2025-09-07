@@ -84,7 +84,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
