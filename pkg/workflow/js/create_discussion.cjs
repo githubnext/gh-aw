@@ -42,15 +42,34 @@ async function main() {
     `Found ${createDiscussionItems.length} create-discussion item(s)`
   );
 
-  // Get discussion categories using Octokit API
+  // Get repository ID and discussion categories using GraphQL API
   let discussionCategories = [];
+  let repositoryId = null;
   try {
-    const { data: categories } =
-      await github.rest.repos.getAllRepositoryDiscussionCategories({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-      });
-    discussionCategories = categories || [];
+    const repositoryQuery = `
+      query($owner: String!, $repo: String!) {
+        repository(owner: $owner, name: $repo) {
+          id
+          discussionCategories(first: 20) {
+            nodes {
+              id
+              name
+              slug
+              description
+            }
+          }
+        }
+      }
+    `;
+
+    const queryResult = await github.graphql(repositoryQuery, {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+    });
+
+    repositoryId = queryResult.repository.id;
+    discussionCategories =
+      queryResult.repository.discussionCategories.nodes || [];
     console.log(
       "Available categories:",
       discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
@@ -58,8 +77,12 @@ async function main() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Special handling for repositories without discussions enabled
-    if (errorMessage.includes("Not Found") && error.status === 404) {
+    // Special handling for repositories without discussions enabled or GraphQL errors
+    if (
+      errorMessage.includes("Not Found") ||
+      errorMessage.includes("not found") ||
+      errorMessage.includes("Could not resolve to a Repository")
+    ) {
       console.log(
         "⚠ Cannot create discussions: Discussions are not enabled for this repository"
       );
@@ -87,6 +110,11 @@ async function main() {
       "No discussion category available and none specified in configuration"
     );
     throw new Error("Discussion category is required but not available");
+  }
+
+  if (!repositoryId) {
+    core.error("Repository ID is required for creating discussions");
+    throw new Error("Repository ID is required but not available");
   }
 
   const createdDiscussions = [];
@@ -139,25 +167,43 @@ async function main() {
     console.log("Body length:", body.length);
 
     try {
-      // Create the discussion using Octokit API
-      const { data: discussion } =
-        await github.rest.repos.createRepositoryDiscussion({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          title: title,
-          body: body,
-          category_id: categoryId,
-        });
+      // Create the discussion using GraphQL API with parameterized mutation
+      const createDiscussionMutation = `
+        mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+          createDiscussion(input: {
+            repositoryId: $repositoryId,
+            categoryId: $categoryId,
+            title: $title,
+            body: $body
+          }) {
+            discussion {
+              id
+              number
+              title
+              url
+            }
+          }
+        }
+      `;
+
+      const mutationResult = await github.graphql(createDiscussionMutation, {
+        repositoryId: repositoryId,
+        categoryId: categoryId,
+        title: title,
+        body: body,
+      });
+
+      const discussion = mutationResult.createDiscussion.discussion;
 
       console.log(
-        "Created discussion #" + discussion.number + ": " + discussion.html_url
+        "Created discussion #" + discussion.number + ": " + discussion.url
       );
       createdDiscussions.push(discussion);
 
       // Set output for the last created discussion (for backward compatibility)
       if (i === createDiscussionItems.length - 1) {
         core.setOutput("discussion_number", discussion.number);
-        core.setOutput("discussion_url", discussion.html_url);
+        core.setOutput("discussion_url", discussion.url);
       }
     } catch (error) {
       core.error(
@@ -171,7 +217,7 @@ async function main() {
   if (createdDiscussions.length > 0) {
     let summaryContent = "\n\n## GitHub Discussions\n";
     for (const discussion of createdDiscussions) {
-      summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.html_url})\n`;
+      summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
     }
     await core.summary.addRaw(summaryContent).write();
   }
