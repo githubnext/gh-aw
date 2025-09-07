@@ -748,7 +748,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 
 	// Look for the result entry with type: "result"
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls across entries
-	
+
 	for _, entry := range logEntries {
 		if entryType, exists := entry["type"]; exists {
 			if typeStr, ok := entryType.(string); ok && typeStr == "result" {
@@ -788,7 +788,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				break
 			}
 		}
-		
+
 		// Parse tool_use entries for tool call statistics
 		if entry["type"] == "user" {
 			if message, exists := entry["message"]; exists {
@@ -802,12 +802,12 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			}
 		}
 	}
-	
+
 	// Convert tool call map to slice
 	for _, toolInfo := range toolCallMap {
 		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
 	}
-	
+
 	// Sort tool calls by name for consistent output
 	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
 		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
@@ -832,10 +832,10 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 							if slices.Contains(internalTools, nameStr) {
 								continue
 							}
-							
+
 							// Prettify tool name
 							prettifiedName := PrettifyToolName(nameStr)
-							
+
 							// Special handling for bash - each invocation is unique
 							if nameStr == "Bash" {
 								if input, exists := contentMap["input"]; exists {
@@ -850,7 +850,7 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 									}
 								}
 							}
-							
+
 							// Initialize or update tool call info
 							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
 								toolInfo.CallCount++
@@ -869,7 +869,7 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 						if contentStr, ok := content.(string); ok {
 							// Estimate token count (rough approximation: 1 token = ~4 characters)
 							outputSize := len(contentStr) / 4
-							
+
 							// Find corresponding tool call to update max output size
 							if toolUseID, exists := contentMap["tool_use_id"]; exists {
 								if _, ok := toolUseID.(string); ok {
