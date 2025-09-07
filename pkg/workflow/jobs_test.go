@@ -81,8 +81,8 @@ func TestJobManager_ValidateDependencies(t *testing.T) {
 			name: "valid dependencies",
 			jobs: []*Job{
 				{Name: "job1", RunsOn: "ubuntu-latest"},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
-				{Name: "job3", RunsOn: "ubuntu-latest", Depends: []string{"job1", "job2"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
+				{Name: "job3", RunsOn: "ubuntu-latest", Needs: []string{"job1", "job2"}},
 			},
 			wantErr: false,
 		},
@@ -90,7 +90,7 @@ func TestJobManager_ValidateDependencies(t *testing.T) {
 			name: "missing dependency",
 			jobs: []*Job{
 				{Name: "job1", RunsOn: "ubuntu-latest"},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"nonexistent"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"nonexistent"}},
 			},
 			wantErr: true,
 			errMsg:  "depends on non-existent job 'nonexistent'",
@@ -98,8 +98,8 @@ func TestJobManager_ValidateDependencies(t *testing.T) {
 		{
 			name: "simple cycle",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"job2"}},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"job2"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
 			},
 			wantErr: true,
 			errMsg:  "cycle detected",
@@ -107,9 +107,9 @@ func TestJobManager_ValidateDependencies(t *testing.T) {
 		{
 			name: "complex cycle",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"job2"}},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"job3"}},
-				{Name: "job3", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"job2"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"job3"}},
+				{Name: "job3", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
 			},
 			wantErr: true,
 			errMsg:  "cycle detected",
@@ -117,7 +117,7 @@ func TestJobManager_ValidateDependencies(t *testing.T) {
 		{
 			name: "self-dependency cycle",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
 			},
 			wantErr: true,
 			errMsg:  "cycle detected",
@@ -172,8 +172,8 @@ func TestJobManager_GetTopologicalOrder(t *testing.T) {
 			name: "linear dependencies",
 			jobs: []*Job{
 				{Name: "job1", RunsOn: "ubuntu-latest"},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
-				{Name: "job3", RunsOn: "ubuntu-latest", Depends: []string{"job2"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
+				{Name: "job3", RunsOn: "ubuntu-latest", Needs: []string{"job2"}},
 			},
 			expected: []string{"job1", "job2", "job3"},
 			wantErr:  false,
@@ -182,9 +182,9 @@ func TestJobManager_GetTopologicalOrder(t *testing.T) {
 			name: "complex dependencies",
 			jobs: []*Job{
 				{Name: "build", RunsOn: "ubuntu-latest"},
-				{Name: "test", RunsOn: "ubuntu-latest", Depends: []string{"build"}},
-				{Name: "lint", RunsOn: "ubuntu-latest", Depends: []string{"build"}},
-				{Name: "deploy", RunsOn: "ubuntu-latest", Depends: []string{"test", "lint"}},
+				{Name: "test", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+				{Name: "lint", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+				{Name: "deploy", RunsOn: "ubuntu-latest", Needs: []string{"test", "lint"}},
 			},
 			expected: []string{"build", "lint", "test", "deploy"}, // build first, then lint/test (alphabetical), then deploy
 			wantErr:  false,
@@ -192,8 +192,8 @@ func TestJobManager_GetTopologicalOrder(t *testing.T) {
 		{
 			name: "cycle should error",
 			jobs: []*Job{
-				{Name: "job1", RunsOn: "ubuntu-latest", Depends: []string{"job2"}},
-				{Name: "job2", RunsOn: "ubuntu-latest", Depends: []string{"job1"}},
+				{Name: "job1", RunsOn: "ubuntu-latest", Needs: []string{"job2"}},
+				{Name: "job2", RunsOn: "ubuntu-latest", Needs: []string{"job1"}},
 			},
 			wantErr: true,
 			errMsg:  "cycle detected",
@@ -274,7 +274,7 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 				{
 					Name:    "job1",
 					RunsOn:  "runs-on: ubuntu-latest",
-					Depends: []string{"job2"},
+					Needs:   []string{"job2"},
 					Steps:   []string{"      - name: Step1\n        run: echo step1\n"},
 				},
 				{
@@ -298,7 +298,7 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 				{
 					Name:    "deploy",
 					RunsOn:  "runs-on: ubuntu-latest",
-					Depends: []string{"build", "test"},
+					Needs:   []string{"build", "test"},
 					Steps:   []string{"      - name: Deploy\n        run: echo deploy\n"},
 				},
 			},

@@ -120,8 +120,8 @@ func TestBuildCreateOutputSecurityReportJob(t *testing.T) {
 		t.Errorf("Expected timeout 10 minutes, got %d", job.TimeoutMinutes)
 	}
 
-	if len(job.Depends) != 1 || job.Depends[0] != "main_job" {
-		t.Errorf("Expected dependency on 'main_job', got %v", job.Depends)
+	if len(job.Needs) != 1 || job.Needs[0] != "main_job" {
+		t.Errorf("Expected dependency on 'main_job', got %v", job.Needs)
 	}
 
 	// Check that job has necessary permissions

@@ -47,7 +47,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		TimeoutMinutes: 5,                                    // Short timeout since it's just processing output
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil

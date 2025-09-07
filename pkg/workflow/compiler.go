@@ -1932,7 +1932,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 		Permissions: "permissions:\n      issues: write\n      pull-requests: write",
 		Steps:       steps,
 		Outputs:     outputs,
-		Depends:     depends,
+		Needs:       depends,
 	}
 
 	return job, nil
@@ -1993,7 +1993,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2052,7 +2052,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2129,7 +2129,7 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2193,7 +2193,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2281,7 +2281,7 @@ func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJo
 		TimeoutMinutes: 10,                                                                                      // 10-minute timeout
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2376,7 +2376,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
+		Needs:          []string{mainJobName}, // Depend on the main workflow job
 	}
 
 	return job, nil
@@ -2417,7 +2417,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
-		Depends:     depends,
+		Needs:       depends,
 		Outputs:     outputs,
 	}
 
@@ -3580,16 +3580,16 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 			}
 
 			// Extract job dependencies
-			if depends, hasDeps := configMap["depends"]; hasDeps {
-				if depsList, ok := depends.([]any); ok {
-					for _, dep := range depsList {
-						if depStr, ok := dep.(string); ok {
-							job.Depends = append(job.Depends, depStr)
+			if needs, hasNeeds := configMap["needs"]; hasNeeds {
+				if needsList, ok := needs.([]any); ok {
+					for _, need := range needsList {
+						if needStr, ok := need.(string); ok {
+							job.Needs = append(job.Needs, needStr)
 						}
 					}
-				} else if depStr, ok := depends.(string); ok {
+				} else if needStr, ok := needs.(string); ok {
 					// Single dependency as string
-					job.Depends = append(job.Depends, depStr)
+					job.Needs = append(job.Needs, needStr)
 				}
 			}
 
