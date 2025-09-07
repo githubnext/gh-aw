@@ -10,17 +10,18 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+  discussions: write
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Close test issues and PRs
+      - name: Close test issues, PRs, and delete discussions
         uses: actions/github-script@v7
         with:
           script: |
             const prefix = "[Custom Engine Test]";
-            
+
             // Close issues with the prefix
             const issues = await github.rest.issues.listForRepo({
                 owner: context.repo.owner,
@@ -28,7 +29,7 @@ jobs:
                 state: 'open',
                 per_page: 100
             });
-            
+
             for (const issue of issues.data) {
             if (issue.title.startsWith(prefix) && !issue.pull_request) {
                 console.log(`Closing issue: ${issue.title} (#${issue.number})`);
@@ -40,7 +41,7 @@ jobs:
                 });
             }
             }
-            
+
             // Close pull requests with the prefix
             const pulls = await github.rest.pulls.list({
                 owner: context.repo.owner,
@@ -48,10 +49,12 @@ jobs:
                 state: 'open',
                 per_page: 100
             });
-            
+
             for (const pr of pulls.data) {
             if (pr.title.startsWith(prefix)) {
-                console.log(`Closing pull request: ${pr.title} (#${pr.number})`);
+                console.log(
+                  `Closing pull request: ${pr.title} (#${pr.number})`
+                );
                 await github.rest.pulls.update({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
@@ -59,4 +62,70 @@ jobs:
                     state: 'closed'
                 });
             }
+            }
+
+            // Delete discussions with the prefix
+            try {
+              const discussionsQuery = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussions(first: 100, states: [OPEN]) {
+                      nodes {
+                        id
+                        number
+                        title
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const discussionsResult = await github.graphql(discussionsQuery, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+
+              const discussions =
+                discussionsResult.repository.discussions.nodes || [];
+
+              for (const discussion of discussions) {
+                if (discussion.title.startsWith(prefix)) {
+                  console.log(
+                    `Deleting discussion: ` +
+                    `${discussion.title} (#${discussion.number})`
+                  );
+                  const deleteDiscussionMutation = `
+                    mutation($discussionId: ID!) {
+                      deleteDiscussion(input: { id: $discussionId }) {
+                        discussion {
+                          id
+                        }
+                      }
+                    }
+                  `;
+
+                  await github.graphql(deleteDiscussionMutation, {
+                    discussionId: discussion.id,
+                  });
+                }
+              }
+            } catch (error) {
+              // Handle repositories without discussions enabled gracefully
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              if (
+                errorMessage.includes("Not Found") ||
+                errorMessage.includes("not found") ||
+                errorMessage.includes("Could not resolve to a Repository") ||
+                errorMessage.includes("discussions")
+              ) {
+                console.log(
+                  "⚠ Cannot delete discussions: " +
+                  "Discussions are not enabled for this repository " +
+                  "or no discussions found"
+                );
+              } else {
+                console.error(`Error deleting discussions: ${errorMessage}`);
+                throw error;
+              }
             }
