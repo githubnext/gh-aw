@@ -22,6 +22,7 @@
     "lint:cjs": "prettier --check 'pkg/workflow/js/**/*.cjs'"
   },
   "dependencies": {
+    "@octokit/rest": "^22.0.0",
     "vite": "^7.1.4"
   }
 }
