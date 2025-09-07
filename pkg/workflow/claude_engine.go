@@ -842,8 +842,8 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 									if inputMap, ok := input.(map[string]interface{}); ok {
 										if command, exists := inputMap["command"]; exists {
 											if commandStr, ok := command.(string); ok {
-												// Create unique bash entry with command info
-												uniqueBashName := fmt.Sprintf("bash:%s", e.shortenCommand(commandStr))
+												// Create unique bash entry with command info, avoiding colons
+												uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
 												prettifiedName = uniqueBashName
 											}
 										}

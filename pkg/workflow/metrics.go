@@ -185,13 +185,14 @@ func ConvertToFloat(val interface{}) float64 {
 
 // PrettifyToolName removes "mcp__" prefix and formats tool names nicely
 func PrettifyToolName(toolName string) string {
-	// Handle MCP tools: "mcp__github__search_issues" -> "github::search_issues"
+	// Handle MCP tools: "mcp__github__search_issues" -> "github_search_issues"
+	// Avoid colons and leave underscores as-is
 	if strings.HasPrefix(toolName, "mcp__") {
 		parts := strings.Split(toolName, "__")
 		if len(parts) >= 3 {
 			provider := parts[1]
 			method := strings.Join(parts[2:], "_")
-			return fmt.Sprintf("%s::%s", provider, method)
+			return fmt.Sprintf("%s_%s", provider, method)
 		}
 		// If format is unexpected, just remove the mcp__ prefix
 		return strings.TrimPrefix(toolName, "mcp__")
@@ -203,5 +204,18 @@ func PrettifyToolName(toolName string) string {
 	}
 
 	// Return other tool names as-is
+	return toolName
+}
+
+// ExtractMCPServer extracts the MCP server name from a tool name
+func ExtractMCPServer(toolName string) string {
+	// For MCP tools with pattern "mcp__server__method", extract "server"
+	if strings.HasPrefix(toolName, "mcp__") {
+		parts := strings.Split(toolName, "__")
+		if len(parts) >= 2 {
+			return parts[1]
+		}
+	}
+	// For non-MCP tools, return the tool name as-is
 	return toolName
 }

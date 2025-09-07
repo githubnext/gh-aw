@@ -236,13 +236,13 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 			toolName := strings.TrimSpace(match[1])
 			prettifiedName := PrettifyToolName(toolName)
 
-			// For Codex, format provider.method as provider::method
+			// For Codex, format provider.method as provider_method (avoiding colons)
 			if strings.Contains(toolName, ".") {
 				parts := strings.Split(toolName, ".")
 				if len(parts) >= 2 {
 					provider := parts[0]
 					method := strings.Join(parts[1:], "_")
-					prettifiedName = fmt.Sprintf("%s::%s", provider, method)
+					prettifiedName = fmt.Sprintf("%s_%s", provider, method)
 				}
 			}
 
@@ -263,8 +263,8 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 	if strings.Contains(line, "] exec ") {
 		if match := regexp.MustCompile(`\] exec (.+?) in`).FindStringSubmatch(line); len(match) > 1 {
 			command := strings.TrimSpace(match[1])
-			// Create unique bash entry with command info
-			uniqueBashName := fmt.Sprintf("bash:%s", e.shortenCommand(command))
+			// Create unique bash entry with command info, avoiding colons
+			uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(command))
 
 			// Initialize or update tool call info
 			if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
