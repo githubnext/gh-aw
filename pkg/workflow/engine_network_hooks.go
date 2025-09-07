@@ -154,97 +154,6 @@ chmod +x .claude/hooks/network_permissions.py`, hookScript)
 	return GitHubActionStep(lines)
 }
 
-// getDefaultAllowedDomains returns the basic infrastructure domains for network: defaults mode
-// Includes only essential infrastructure: certs, JSON schema, Ubuntu, common package mirrors, Microsoft sources
-func getDefaultAllowedDomains() []string {
-	return getEcosystemDomains("defaults")
-}
-
-// getContainerDomains returns container registry domains
-func getContainerDomains() []string {
-	return getEcosystemDomains("containers")
-}
-
-// getDotnetDomains returns .NET and NuGet domains
-func getDotnetDomains() []string {
-	return getEcosystemDomains("dotnet")
-}
-
-// getDartDomains returns Dart/Flutter domains
-func getDartDomains() []string {
-	return getEcosystemDomains("dart")
-}
-
-// getGitHubDomains returns GitHub domains
-func getGitHubDomains() []string {
-	return getEcosystemDomains("github")
-}
-
-// getGoDomains returns Go ecosystem domains
-func getGoDomains() []string {
-	return getEcosystemDomains("go")
-}
-
-// getTerraformDomains returns HashiCorp/Terraform domains
-func getTerraformDomains() []string {
-	return getEcosystemDomains("terraform")
-}
-
-// getHaskellDomains returns Haskell ecosystem domains
-func getHaskellDomains() []string {
-	return getEcosystemDomains("haskell")
-}
-
-// getJavaDomains returns Java/Maven/Gradle domains
-func getJavaDomains() []string {
-	return getEcosystemDomains("java")
-}
-
-// getLinuxDistrosDomains returns Linux package repository domains
-func getLinuxDistrosDomains() []string {
-	return getEcosystemDomains("linux-distros")
-}
-
-// getNodeDomains returns Node.js/NPM/Yarn domains
-func getNodeDomains() []string {
-	return getEcosystemDomains("node")
-}
-
-// getPerlDomains returns Perl ecosystem domains
-func getPerlDomains() []string {
-	return getEcosystemDomains("perl")
-}
-
-// getPhpDomains returns PHP ecosystem domains
-func getPhpDomains() []string {
-	return getEcosystemDomains("php")
-}
-
-// getPlaywrightDomains returns Playwright domains
-func getPlaywrightDomains() []string {
-	return getEcosystemDomains("playwright")
-}
-
-// getPythonDomains returns Python ecosystem domains
-func getPythonDomains() []string {
-	return getEcosystemDomains("python")
-}
-
-// getRubyDomains returns Ruby ecosystem domains
-func getRubyDomains() []string {
-	return getEcosystemDomains("ruby")
-}
-
-// getRustDomains returns Rust ecosystem domains
-func getRustDomains() []string {
-	return getEcosystemDomains("rust")
-}
-
-// getSwiftDomains returns Swift ecosystem domains
-func getSwiftDomains() []string {
-	return getEcosystemDomains("swift")
-}
-
 // ShouldEnforceNetworkPermissions checks if network permissions should be enforced
 // Returns true if network permissions are configured and not in "defaults" mode
 func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
@@ -282,10 +191,10 @@ func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {
 //   - "swift": Swift/CocoaPods
 func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network == nil {
-		return getDefaultAllowedDomains() // Default allow-list for backwards compatibility
+		return getEcosystemDomains("defaults") // Default allow-list for backwards compatibility
 	}
 	if network.Mode == "defaults" {
-		return getDefaultAllowedDomains() // Default allow-list for defaults mode
+		return getEcosystemDomains("defaults") // Default allow-list for defaults mode
 	}
 
 	// Handle empty allowed list (deny-all case)
@@ -296,45 +205,12 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 	// Process the allowed list, expanding ecosystem identifiers if present
 	var expandedDomains []string
 	for _, domain := range network.Allowed {
-		switch domain {
-		case "defaults":
-			// Expand "defaults" to basic infrastructure domains
-			expandedDomains = append(expandedDomains, getDefaultAllowedDomains()...)
-		case "containers":
-			expandedDomains = append(expandedDomains, getContainerDomains()...)
-		case "dotnet":
-			expandedDomains = append(expandedDomains, getDotnetDomains()...)
-		case "dart":
-			expandedDomains = append(expandedDomains, getDartDomains()...)
-		case "github":
-			expandedDomains = append(expandedDomains, getGitHubDomains()...)
-		case "go":
-			expandedDomains = append(expandedDomains, getGoDomains()...)
-		case "terraform":
-			expandedDomains = append(expandedDomains, getTerraformDomains()...)
-		case "haskell":
-			expandedDomains = append(expandedDomains, getHaskellDomains()...)
-		case "java":
-			expandedDomains = append(expandedDomains, getJavaDomains()...)
-		case "linux-distros":
-			expandedDomains = append(expandedDomains, getLinuxDistrosDomains()...)
-		case "node":
-			expandedDomains = append(expandedDomains, getNodeDomains()...)
-		case "perl":
-			expandedDomains = append(expandedDomains, getPerlDomains()...)
-		case "php":
-			expandedDomains = append(expandedDomains, getPhpDomains()...)
-		case "playwright":
-			expandedDomains = append(expandedDomains, getPlaywrightDomains()...)
-		case "python":
-			expandedDomains = append(expandedDomains, getPythonDomains()...)
-		case "ruby":
-			expandedDomains = append(expandedDomains, getRubyDomains()...)
-		case "rust":
-			expandedDomains = append(expandedDomains, getRustDomains()...)
-		case "swift":
-			expandedDomains = append(expandedDomains, getSwiftDomains()...)
-		default:
+		// Try to get domains for this ecosystem category
+		ecosystemDomains := getEcosystemDomains(domain)
+		if len(ecosystemDomains) > 0 {
+			// This was an ecosystem identifier, expand it
+			expandedDomains = append(expandedDomains, ecosystemDomains...)
+		} else {
 			// Add the domain as-is (regular domain name)
 			expandedDomains = append(expandedDomains, domain)
 		}
@@ -345,31 +221,9 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 
 // GetDomainEcosystem returns the ecosystem identifier for a given domain, or empty string if not found
 func GetDomainEcosystem(domain string) string {
-	// Check if domain matches any ecosystem
-	ecosystems := map[string]func() []string{
-		"defaults":      getDefaultAllowedDomains,
-		"containers":    getContainerDomains,
-		"dotnet":        getDotnetDomains,
-		"dart":          getDartDomains,
-		"github":        getGitHubDomains,
-		"go":            getGoDomains,
-		"terraform":     getTerraformDomains,
-		"haskell":       getHaskellDomains,
-		"java":          getJavaDomains,
-		"linux-distros": getLinuxDistrosDomains,
-		"node":          getNodeDomains,
-		"perl":          getPerlDomains,
-		"php":           getPhpDomains,
-		"playwright":    getPlaywrightDomains,
-		"python":        getPythonDomains,
-		"ruby":          getRubyDomains,
-		"rust":          getRustDomains,
-		"swift":         getSwiftDomains,
-	}
-
 	// Check each ecosystem for domain match
-	for ecosystem, getDomainsFunc := range ecosystems {
-		domains := getDomainsFunc()
+	for ecosystem := range ecosystemDomains {
+		domains := getEcosystemDomains(ecosystem)
 		for _, ecosystemDomain := range domains {
 			if matchesDomain(domain, ecosystemDomain) {
 				return ecosystem

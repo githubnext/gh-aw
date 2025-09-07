@@ -284,42 +284,24 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 }
 
 func TestAllEcosystemDomainFunctions(t *testing.T) {
-	// Test that all ecosystem domain functions return non-empty slices
-	ecosystemTests := []struct {
-		name     string
-		function func() []string
-	}{
-		{"getDefaultAllowedDomains", getDefaultAllowedDomains},
-		{"getContainerDomains", getContainerDomains},
-		{"getDotnetDomains", getDotnetDomains},
-		{"getDartDomains", getDartDomains},
-		{"getGitHubDomains", getGitHubDomains},
-		{"getGoDomains", getGoDomains},
-		{"getTerraformDomains", getTerraformDomains},
-		{"getHaskellDomains", getHaskellDomains},
-		{"getJavaDomains", getJavaDomains},
-		{"getLinuxDistrosDomains", getLinuxDistrosDomains},
-		{"getNodeDomains", getNodeDomains},
-		{"getPerlDomains", getPerlDomains},
-		{"getPhpDomains", getPhpDomains},
-		{"getPlaywrightDomains", getPlaywrightDomains},
-		{"getPythonDomains", getPythonDomains},
-		{"getRubyDomains", getRubyDomains},
-		{"getRustDomains", getRustDomains},
-		{"getSwiftDomains", getSwiftDomains},
+	// Test that all ecosystem categories return non-empty slices
+	ecosystemCategories := []string{
+		"defaults", "containers", "dotnet", "dart", "github", "go",
+		"terraform", "haskell", "java", "linux-distros", "node",
+		"perl", "php", "playwright", "python", "ruby", "rust", "swift",
 	}
 
-	for _, test := range ecosystemTests {
-		t.Run(test.name, func(t *testing.T) {
-			domains := test.function()
+	for _, category := range ecosystemCategories {
+		t.Run("getEcosystemDomains_"+category, func(t *testing.T) {
+			domains := getEcosystemDomains(category)
 			if len(domains) == 0 {
-				t.Errorf("Function %s returned empty slice, expected at least one domain", test.name)
+				t.Errorf("getEcosystemDomains(%q) returned empty slice, expected at least one domain", category)
 			}
 
 			// Check that all domains are non-empty strings
 			for i, domain := range domains {
 				if domain == "" {
-					t.Errorf("Function %s returned empty domain at index %d", test.name, i)
+					t.Errorf("getEcosystemDomains(%q) returned empty domain at index %d", category, i)
 				}
 			}
 		})
@@ -327,39 +309,21 @@ func TestAllEcosystemDomainFunctions(t *testing.T) {
 }
 
 func TestEcosystemDomainsUniqueness(t *testing.T) {
-	// Test that each ecosystem function returns unique domains (no duplicates)
-	ecosystemTests := []struct {
-		name     string
-		function func() []string
-	}{
-		{"getDefaultAllowedDomains", getDefaultAllowedDomains},
-		{"getContainerDomains", getContainerDomains},
-		{"getDotnetDomains", getDotnetDomains},
-		{"getDartDomains", getDartDomains},
-		{"getGitHubDomains", getGitHubDomains},
-		{"getGoDomains", getGoDomains},
-		{"getTerraformDomains", getTerraformDomains},
-		{"getHaskellDomains", getHaskellDomains},
-		{"getJavaDomains", getJavaDomains},
-		{"getLinuxDistrosDomains", getLinuxDistrosDomains},
-		{"getNodeDomains", getNodeDomains},
-		{"getPerlDomains", getPerlDomains},
-		{"getPhpDomains", getPhpDomains},
-		{"getPlaywrightDomains", getPlaywrightDomains},
-		{"getPythonDomains", getPythonDomains},
-		{"getRubyDomains", getRubyDomains},
-		{"getRustDomains", getRustDomains},
-		{"getSwiftDomains", getSwiftDomains},
+	// Test that each ecosystem category returns unique domains (no duplicates)
+	ecosystemCategories := []string{
+		"defaults", "containers", "dotnet", "dart", "github", "go",
+		"terraform", "haskell", "java", "linux-distros", "node",
+		"perl", "php", "playwright", "python", "ruby", "rust", "swift",
 	}
 
-	for _, test := range ecosystemTests {
-		t.Run(test.name, func(t *testing.T) {
-			domains := test.function()
+	for _, category := range ecosystemCategories {
+		t.Run("getEcosystemDomains_"+category+"_uniqueness", func(t *testing.T) {
+			domains := getEcosystemDomains(category)
 			seen := make(map[string]bool)
 
 			for _, domain := range domains {
 				if seen[domain] {
-					t.Errorf("Function %s returned duplicate domain: %s", test.name, domain)
+					t.Errorf("getEcosystemDomains(%q) returned duplicate domain: %s", category, domain)
 				}
 				seen[domain] = true
 			}
