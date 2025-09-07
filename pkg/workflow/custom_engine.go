@@ -205,7 +205,7 @@ func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName str
 
 // ParseLogMetrics implements basic log parsing for custom engine
 func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
-	var metrics LogMetrics
+	metrics := NewLogMetrics()
 
 	lines := strings.Split(logContent, "\n")
 	for _, line := range lines {

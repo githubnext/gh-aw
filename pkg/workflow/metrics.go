@@ -5,15 +5,135 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
+
+// ToolInvocationStats represents statistics for a specific tool
+type ToolInvocationStats struct {
+	Name            string        // Tool name (e.g., "Bash", "mcp__github__search_issues")
+	Count           int           // Number of times this tool was invoked
+	TotalOutputSize int64         // Total size of all outputs from this tool (in bytes)
+	TotalDuration   time.Duration // Total duration of all invocations
+	MaxDuration     time.Duration // Maximum duration of any single invocation
+	SuccessCount    int           // Number of successful invocations
+	ErrorCount      int           // Number of failed invocations
+	BashCommands    []string      // For Bash tools, store the actual commands executed
+}
+
+// GetAverageDuration returns the average duration per invocation
+func (t *ToolInvocationStats) GetAverageDuration() time.Duration {
+	if t.Count == 0 {
+		return 0
+	}
+	return t.TotalDuration / time.Duration(t.Count)
+}
+
+// GetAverageOutputSize returns the average output size per invocation
+func (t *ToolInvocationStats) GetAverageOutputSize() int64 {
+	if t.Count == 0 {
+		return 0
+	}
+	return t.TotalOutputSize / int64(t.Count)
+}
+
+// GetSuccessRate returns the success rate as a percentage (0-100)
+func (t *ToolInvocationStats) GetSuccessRate() float64 {
+	if t.Count == 0 {
+		return 0
+	}
+	return float64(t.SuccessCount) / float64(t.Count) * 100
+}
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
-	TokenUsage    int
-	EstimatedCost float64
-	ErrorCount    int
-	WarningCount  int
+	TokenUsage      int                             // Total token usage
+	EstimatedCost   float64                         // Total estimated cost
+	ErrorCount      int                             // Total errors in logs
+	WarningCount    int                             // Total warnings in logs
+	ToolInvocations map[string]*ToolInvocationStats // Statistics per tool
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
+}
+
+// NewLogMetrics creates a new LogMetrics instance with initialized tool invocations map
+func NewLogMetrics() LogMetrics {
+	return LogMetrics{
+		ToolInvocations: make(map[string]*ToolInvocationStats),
+	}
+}
+
+// AddToolInvocation adds or updates tool invocation statistics
+func (m *LogMetrics) AddToolInvocation(name string, outputSize int64, duration time.Duration, success bool) {
+	m.AddToolInvocationWithCommand(name, outputSize, duration, success, "")
+}
+
+// AddToolInvocationWithCommand adds or updates tool invocation statistics with command details for Bash tools
+func (m *LogMetrics) AddToolInvocationWithCommand(name string, outputSize int64, duration time.Duration, success bool, command string) {
+	if m.ToolInvocations == nil {
+		m.ToolInvocations = make(map[string]*ToolInvocationStats)
+	}
+
+	stats, exists := m.ToolInvocations[name]
+	if !exists {
+		stats = &ToolInvocationStats{
+			Name:         name,
+			BashCommands: []string{},
+		}
+		m.ToolInvocations[name] = stats
+	}
+
+	stats.Count++
+	stats.TotalOutputSize += outputSize
+	stats.TotalDuration += duration
+
+	// Update max duration if this duration is greater
+	if duration > stats.MaxDuration {
+		stats.MaxDuration = duration
+	}
+
+	if success {
+		stats.SuccessCount++
+	} else {
+		stats.ErrorCount++
+	}
+
+	// Store command for Bash tools
+	if name == "Bash" && command != "" {
+		stats.BashCommands = append(stats.BashCommands, command)
+	}
+}
+
+// MergeToolInvocations merges tool invocation statistics from another LogMetrics
+func (m *LogMetrics) MergeToolInvocations(other LogMetrics) {
+	if m.ToolInvocations == nil {
+		m.ToolInvocations = make(map[string]*ToolInvocationStats)
+	}
+
+	for name, otherStats := range other.ToolInvocations {
+		stats, exists := m.ToolInvocations[name]
+		if !exists {
+			// Copy the stats including BashCommands
+			stats = &ToolInvocationStats{
+				Name:         name,
+				BashCommands: make([]string, len(otherStats.BashCommands)),
+			}
+			copy(stats.BashCommands, otherStats.BashCommands)
+			m.ToolInvocations[name] = stats
+		} else {
+			// Merge BashCommands
+			stats.BashCommands = append(stats.BashCommands, otherStats.BashCommands...)
+		}
+
+		stats.Count += otherStats.Count
+		stats.TotalOutputSize += otherStats.TotalOutputSize
+		stats.TotalDuration += otherStats.TotalDuration
+		stats.SuccessCount += otherStats.SuccessCount
+		stats.ErrorCount += otherStats.ErrorCount
+
+		// Update max duration if other's max is greater
+		if otherStats.MaxDuration > stats.MaxDuration {
+			stats.MaxDuration = otherStats.MaxDuration
+		}
+	}
 }
 
 // ExtractFirstMatch extracts the first regex match from a string
@@ -28,7 +148,7 @@ func ExtractFirstMatch(text, pattern string) string {
 
 // ExtractJSONMetrics extracts metrics from streaming JSON log lines
 func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
-	var metrics LogMetrics
+	metrics := NewLogMetrics()
 
 	// Skip lines that don't look like JSON
 	trimmed := strings.TrimSpace(line)

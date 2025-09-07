@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 func TestExtractFirstMatch(t *testing.T) {
@@ -561,5 +562,218 @@ func TestExtractJSONMetricsIntegration(t *testing.T) {
 
 	if metrics.EstimatedCost != 0.0 {
 		t.Errorf("Expected no cost information, got %f", metrics.EstimatedCost)
+	}
+}
+
+// Test functions for new tool invocation statistics functionality
+
+func TestNewLogMetrics(t *testing.T) {
+	metrics := NewLogMetrics()
+
+	if metrics.ToolInvocations == nil {
+		t.Error("Expected ToolInvocations to be initialized")
+	}
+
+	if len(metrics.ToolInvocations) != 0 {
+		t.Error("Expected ToolInvocations to be empty initially")
+	}
+}
+
+func TestToolInvocationStats_GetAverageDuration(t *testing.T) {
+	stats := &ToolInvocationStats{
+		Count:         3,
+		TotalDuration: 3 * time.Second,
+	}
+
+	expected := time.Second
+	actual := stats.GetAverageDuration()
+
+	if actual != expected {
+		t.Errorf("Expected average duration %v, got %v", expected, actual)
+	}
+
+	// Test zero count
+	zeroStats := &ToolInvocationStats{Count: 0}
+	if zeroStats.GetAverageDuration() != 0 {
+		t.Error("Expected zero average duration for zero count")
+	}
+}
+
+func TestToolInvocationStats_GetAverageOutputSize(t *testing.T) {
+	stats := &ToolInvocationStats{
+		Count:           4,
+		TotalOutputSize: 400,
+	}
+
+	expected := int64(100)
+	actual := stats.GetAverageOutputSize()
+
+	if actual != expected {
+		t.Errorf("Expected average output size %d, got %d", expected, actual)
+	}
+
+	// Test zero count
+	zeroStats := &ToolInvocationStats{Count: 0}
+	if zeroStats.GetAverageOutputSize() != 0 {
+		t.Error("Expected zero average output size for zero count")
+	}
+}
+
+func TestToolInvocationStats_GetSuccessRate(t *testing.T) {
+	stats := &ToolInvocationStats{
+		Count:        5,
+		SuccessCount: 3,
+	}
+
+	expected := 60.0
+	actual := stats.GetSuccessRate()
+
+	if actual != expected {
+		t.Errorf("Expected success rate %.1f%%, got %.1f%%", expected, actual)
+	}
+
+	// Test 100% success rate
+	perfectStats := &ToolInvocationStats{
+		Count:        2,
+		SuccessCount: 2,
+	}
+	if perfectStats.GetSuccessRate() != 100.0 {
+		t.Error("Expected 100% success rate")
+	}
+
+	// Test zero count
+	zeroStats := &ToolInvocationStats{Count: 0}
+	if zeroStats.GetSuccessRate() != 0 {
+		t.Error("Expected zero success rate for zero count")
+	}
+}
+
+func TestLogMetrics_AddToolInvocation(t *testing.T) {
+	metrics := NewLogMetrics()
+
+	// Add first invocation
+	metrics.AddToolInvocation("Bash", 100, time.Second, true)
+
+	if len(metrics.ToolInvocations) != 1 {
+		t.Errorf("Expected 1 tool invocation, got %d", len(metrics.ToolInvocations))
+	}
+
+	stats, exists := metrics.ToolInvocations["Bash"]
+	if !exists {
+		t.Fatal("Expected Bash tool to exist in invocations")
+	}
+
+	if stats.Count != 1 {
+		t.Errorf("Expected count 1, got %d", stats.Count)
+	}
+
+	if stats.TotalOutputSize != 100 {
+		t.Errorf("Expected total output size 100, got %d", stats.TotalOutputSize)
+	}
+
+	if stats.TotalDuration != time.Second {
+		t.Errorf("Expected total duration 1s, got %v", stats.TotalDuration)
+	}
+
+	if stats.SuccessCount != 1 {
+		t.Errorf("Expected success count 1, got %d", stats.SuccessCount)
+	}
+
+	if stats.ErrorCount != 0 {
+		t.Errorf("Expected error count 0, got %d", stats.ErrorCount)
+	}
+
+	// Add second invocation (failure)
+	metrics.AddToolInvocation("Bash", 200, 2*time.Second, false)
+
+	if stats.Count != 2 {
+		t.Errorf("Expected count 2, got %d", stats.Count)
+	}
+
+	if stats.TotalOutputSize != 300 {
+		t.Errorf("Expected total output size 300, got %d", stats.TotalOutputSize)
+	}
+
+	if stats.TotalDuration != 3*time.Second {
+		t.Errorf("Expected total duration 3s, got %v", stats.TotalDuration)
+	}
+
+	if stats.SuccessCount != 1 {
+		t.Errorf("Expected success count 1, got %d", stats.SuccessCount)
+	}
+
+	if stats.ErrorCount != 1 {
+		t.Errorf("Expected error count 1, got %d", stats.ErrorCount)
+	}
+}
+
+func TestLogMetrics_MergeToolInvocations(t *testing.T) {
+	metrics1 := NewLogMetrics()
+	metrics1.AddToolInvocation("Bash", 100, time.Second, true)
+	metrics1.AddToolInvocation("github::search_issues", 200, 2*time.Second, true)
+
+	metrics2 := NewLogMetrics()
+	metrics2.AddToolInvocation("Bash", 150, 500*time.Millisecond, false)
+	metrics2.AddToolInvocation("mcp__filesystem__read", 50, 100*time.Millisecond, true)
+
+	// Merge metrics2 into metrics1
+	metrics1.MergeToolInvocations(metrics2)
+
+	// Check merged Bash stats
+	bashStats := metrics1.ToolInvocations["Bash"]
+	if bashStats.Count != 2 {
+		t.Errorf("Expected Bash count 2, got %d", bashStats.Count)
+	}
+	if bashStats.TotalOutputSize != 250 {
+		t.Errorf("Expected Bash total output size 250, got %d", bashStats.TotalOutputSize)
+	}
+	if bashStats.TotalDuration != 1500*time.Millisecond {
+		t.Errorf("Expected Bash total duration 1.5s, got %v", bashStats.TotalDuration)
+	}
+	if bashStats.SuccessCount != 1 {
+		t.Errorf("Expected Bash success count 1, got %d", bashStats.SuccessCount)
+	}
+	if bashStats.ErrorCount != 1 {
+		t.Errorf("Expected Bash error count 1, got %d", bashStats.ErrorCount)
+	}
+
+	// Check github tool still exists
+	if _, exists := metrics1.ToolInvocations["github::search_issues"]; !exists {
+		t.Error("Expected github::search_issues to still exist after merge")
+	}
+
+	// Check new filesystem tool was added
+	fsStats := metrics1.ToolInvocations["mcp__filesystem__read"]
+	if fsStats.Count != 1 {
+		t.Errorf("Expected filesystem count 1, got %d", fsStats.Count)
+	}
+	if fsStats.SuccessCount != 1 {
+		t.Errorf("Expected filesystem success count 1, got %d", fsStats.SuccessCount)
+	}
+
+	// Check total number of tools
+	if len(metrics1.ToolInvocations) != 3 {
+		t.Errorf("Expected 3 total tools, got %d", len(metrics1.ToolInvocations))
+	}
+}
+
+func TestLogMetrics_MergeToolInvocations_NilMap(t *testing.T) {
+	// Test merging into metrics with nil ToolInvocations map
+	metrics1 := LogMetrics{} // Not using NewLogMetrics(), so map is nil
+	metrics2 := NewLogMetrics()
+	metrics2.AddToolInvocation("test_tool", 100, time.Second, true)
+
+	metrics1.MergeToolInvocations(metrics2)
+
+	if metrics1.ToolInvocations == nil {
+		t.Fatal("Expected ToolInvocations map to be initialized")
+	}
+
+	if len(metrics1.ToolInvocations) != 1 {
+		t.Errorf("Expected 1 tool invocation, got %d", len(metrics1.ToolInvocations))
+	}
+
+	if _, exists := metrics1.ToolInvocations["test_tool"]; !exists {
+		t.Error("Expected test_tool to exist after merge")
 	}
 }

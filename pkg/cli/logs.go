@@ -404,6 +404,9 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	// Display missing tools analysis
 	displayMissingToolsAnalysis(processedRuns, verbose)
 
+	// Display tool invocation statistics
+	displayToolInvocationStatistics(processedRuns, verbose)
+
 	// Display logs location prominently
 	absOutputDir, _ := filepath.Abs(outputDir)
 	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", len(processedRuns), absOutputDir)))
@@ -655,7 +658,7 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 
 // extractLogMetrics extracts metrics from downloaded log files
 func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
-	var metrics LogMetrics
+	metrics := workflow.NewLogMetrics()
 
 	// First check for aw_info.json to determine the engine
 	var detectedEngine workflow.CodingAgentEngine
@@ -741,6 +744,8 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			metrics.EstimatedCost += fileMetrics.EstimatedCost
 			metrics.ErrorCount += fileMetrics.ErrorCount
 			metrics.WarningCount += fileMetrics.WarningCount
+			// Merge tool invocations
+			metrics.MergeToolInvocations(fileMetrics)
 		}
 
 		return nil
@@ -1011,6 +1016,12 @@ func formatFileSize(size int64) string {
 	}
 
 	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
+}
+
+// prettifyToolName removes mcp__ prefix from tool names
+func prettifyToolName(name string) string {
+	// Remove mcp__ prefix only
+	return strings.TrimPrefix(name, "mcp__")
 }
 
 // findAgentOutputFile searches for a file named agent_output.json within the logDir tree.
@@ -1348,4 +1359,156 @@ func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
 			}
 		}
 	}
+}
+
+// displayToolInvocationStatistics shows tool invocation statistics across all runs
+func displayToolInvocationStatistics(processedRuns []ProcessedRun, verbose bool) {
+	if len(processedRuns) == 0 {
+		return
+	}
+
+	// Aggregate tool statistics across all runs
+	aggregatedStats := make(map[string]*workflow.ToolInvocationStats)
+	totalInvocations := 0
+
+	for _, pr := range processedRuns {
+		// Extract metrics from the run (we need to get this from the DownloadResult)
+		// For now, let's collect the stats if they exist
+		runOutputDir := filepath.Join("./logs", fmt.Sprintf("run-%d", pr.Run.DatabaseID))
+		if metrics, err := extractLogMetrics(runOutputDir, false); err == nil {
+			for toolName, stats := range metrics.ToolInvocations {
+				if aggregatedStats[toolName] == nil {
+					aggregatedStats[toolName] = &workflow.ToolInvocationStats{
+						Name:         toolName,
+						BashCommands: []string{},
+					}
+				}
+
+				agg := aggregatedStats[toolName]
+				agg.Count += stats.Count
+				agg.TotalOutputSize += stats.TotalOutputSize
+				agg.TotalDuration += stats.TotalDuration
+				agg.SuccessCount += stats.SuccessCount
+				agg.ErrorCount += stats.ErrorCount
+
+				// Update max duration if this run's max is greater
+				if stats.MaxDuration > agg.MaxDuration {
+					agg.MaxDuration = stats.MaxDuration
+				}
+
+				// Merge bash commands
+				agg.BashCommands = append(agg.BashCommands, stats.BashCommands...)
+
+				totalInvocations += stats.Count
+			}
+		}
+	}
+
+	if len(aggregatedStats) == 0 {
+		return
+	}
+
+	// Sort tools by frequency (descending)
+	type toolStats struct {
+		name  string
+		stats *workflow.ToolInvocationStats
+	}
+
+	var sortedTools []toolStats
+	for name, stats := range aggregatedStats {
+		sortedTools = append(sortedTools, toolStats{name: name, stats: stats})
+	}
+
+	sort.Slice(sortedTools, func(i, j int) bool {
+		return sortedTools[i].stats.Count > sortedTools[j].stats.Count
+	})
+
+	if !verbose {
+		// Default mode: Show detailed table (previously verbose mode)
+		headers := []string{"Tool", "Count", "Errors", "Max Duration", "Avg Output Size"}
+		var rows [][]string
+
+		for _, tool := range sortedTools {
+			stats := tool.stats
+
+			maxDuration := stats.MaxDuration.String()
+			if maxDuration == "0s" {
+				maxDuration = "< 1ms"
+			}
+
+			avgOutputSize := formatTokenCount(stats.GetAverageOutputSize())
+
+			// Prettify and truncate long tool names
+			toolName := prettifyToolName(stats.Name)
+			if len(toolName) > 30 {
+				toolName = toolName[:27] + "..."
+			}
+
+			rows = append(rows, []string{
+				toolName,
+				fmt.Sprintf("%d", stats.Count),
+				fmt.Sprintf("%d", stats.ErrorCount),
+				maxDuration,
+				avgOutputSize,
+			})
+		}
+
+		tableConfig := console.TableConfig{
+			Headers: headers,
+			Rows:    rows,
+		}
+
+		fmt.Print(console.RenderTable(tableConfig))
+
+		// Display Bash commands details if there are any Bash tools
+		for _, tool := range sortedTools {
+			if tool.name == "Bash" && len(tool.stats.BashCommands) > 0 {
+				// Show unique commands and their frequencies in a table format
+				commandCount := make(map[string]int)
+				for _, cmd := range tool.stats.BashCommands {
+					commandCount[cmd]++
+				}
+
+				// Sort commands by frequency
+				type cmdCount struct {
+					command string
+					count   int
+				}
+				var sortedCommands []cmdCount
+				for cmd, count := range commandCount {
+					sortedCommands = append(sortedCommands, cmdCount{cmd, count})
+				}
+				sort.Slice(sortedCommands, func(i, j int) bool {
+					return sortedCommands[i].count > sortedCommands[j].count
+				})
+
+				// Display commands in table format
+				cmdHeaders := []string{"Bash", "Count"}
+				var cmdRows [][]string
+
+				for i, cmd := range sortedCommands {
+					if i >= 10 { // Limit to top 10 commands
+						remaining := len(sortedCommands) - 10
+						if remaining > 0 {
+							cmdRows = append(cmdRows, []string{fmt.Sprintf("... %d more commands", remaining), ""})
+						}
+						break
+					}
+					cmdRows = append(cmdRows, []string{
+						cmd.command,
+						fmt.Sprintf("%d", cmd.count),
+					})
+				}
+
+				cmdTableConfig := console.TableConfig{
+					Headers: cmdHeaders,
+					Rows:    cmdRows,
+				}
+				fmt.Print(console.RenderTable(cmdTableConfig))
+			}
+		}
+
+		return
+	}
+
 }

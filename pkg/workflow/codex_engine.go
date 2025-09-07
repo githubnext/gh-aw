@@ -2,9 +2,11 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -169,12 +171,12 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 // ParseLogMetrics implements engine-specific log parsing for Codex
 func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
-	var metrics LogMetrics
+	metrics := NewLogMetrics()
 	var totalTokenUsage int
 
 	lines := strings.Split(logContent, "\n")
 
-	for _, line := range lines {
+	for i, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -184,6 +186,9 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
 			totalTokenUsage += tokenUsage
 		}
+
+		// Extract tool invocation statistics
+		e.extractCodexToolInvocations(lines, i, &metrics, verbose)
 
 		// Count errors and warnings
 		lowerLine := strings.ToLower(line)
@@ -210,6 +215,111 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 		}
 	}
 	return 0
+}
+
+// extractCodexToolInvocations extracts tool invocation statistics from Codex log lines
+func (e *CodexEngine) extractCodexToolInvocations(lines []string, currentIndex int, metrics *LogMetrics, verbose bool) {
+	if currentIndex >= len(lines) {
+		return
+	}
+
+	line := lines[currentIndex]
+
+	// Detect tool usage: "[2025-08-31T12:37:11] tool get_current_time(...)"
+	toolPattern := `\] tool ([^(]+)\(`
+	if toolMatch := regexp.MustCompile(toolPattern).FindStringSubmatch(line); toolMatch != nil {
+		toolName := strings.TrimSpace(toolMatch[1])
+
+		// Look ahead to find the result status and duration
+		success := false
+		duration := time.Millisecond * 100 // Default placeholder
+		outputSize := int64(0)
+
+		for j := currentIndex + 1; j < len(lines) && j < currentIndex+10; j++ {
+			nextLine := lines[j]
+
+			// Check for success/failure status
+			if strings.Contains(nextLine, "success in") || strings.Contains(nextLine, "succeeded in") {
+				success = true
+				// Try to extract duration from "success in 0.1s" format
+				if durationMatch := regexp.MustCompile(`(?:success|succeeded) in ([\d.]+)s`).FindStringSubmatch(nextLine); durationMatch != nil {
+					if seconds, err := strconv.ParseFloat(durationMatch[1], 64); err == nil {
+						duration = time.Duration(seconds * float64(time.Second))
+					}
+				}
+				break
+			} else if strings.Contains(nextLine, "failure in") || strings.Contains(nextLine, "failed in") || strings.Contains(nextLine, "error in") {
+				success = false
+				// Try to extract duration from "failed in 0.1s" format
+				if durationMatch := regexp.MustCompile(`(?:failure|failed|error) in ([\d.]+)s`).FindStringSubmatch(nextLine); durationMatch != nil {
+					if seconds, err := strconv.ParseFloat(durationMatch[1], 64); err == nil {
+						duration = time.Duration(seconds * float64(time.Second))
+					}
+				}
+				break
+			}
+
+			// Estimate output size from lines that might contain tool output
+			if !strings.Contains(nextLine, "[2025-") && strings.TrimSpace(nextLine) != "" {
+				outputSize += int64(len(nextLine))
+			}
+		}
+
+		// Normalize tool name format (e.g., "github.search_issues" -> "github::search_issues")
+		if strings.Contains(toolName, ".") {
+			parts := strings.Split(toolName, ".")
+			if len(parts) >= 2 {
+				provider := parts[0]
+				method := strings.Join(parts[1:], "_")
+				toolName = fmt.Sprintf("%s::%s", provider, method)
+			}
+		}
+
+		metrics.AddToolInvocation(toolName, outputSize, duration, success)
+	}
+
+	// Detect exec commands: "[2025-08-31T12:37:11] exec echo 'Hello World' in working directory"
+	execPattern := `\] exec (.+?) in`
+	if execMatch := regexp.MustCompile(execPattern).FindStringSubmatch(line); execMatch != nil {
+		// Look ahead to find the result status and duration
+		success := false
+		duration := time.Millisecond * 100 // Default placeholder
+		outputSize := int64(0)
+
+		for j := currentIndex + 1; j < len(lines) && j < currentIndex+10; j++ {
+			nextLine := lines[j]
+
+			// Check for success/failure status
+			if strings.Contains(nextLine, "succeeded in") {
+				success = true
+				// Try to extract duration
+				if durationMatch := regexp.MustCompile(`succeeded in ([\d.]+)s`).FindStringSubmatch(nextLine); durationMatch != nil {
+					if seconds, err := strconv.ParseFloat(durationMatch[1], 64); err == nil {
+						duration = time.Duration(seconds * float64(time.Second))
+					}
+				}
+				break
+			} else if strings.Contains(nextLine, "failed in") || strings.Contains(nextLine, "error") {
+				success = false
+				// Try to extract duration
+				if durationMatch := regexp.MustCompile(`failed in ([\d.]+)s`).FindStringSubmatch(nextLine); durationMatch != nil {
+					if seconds, err := strconv.ParseFloat(durationMatch[1], 64); err == nil {
+						duration = time.Duration(seconds * float64(time.Second))
+					}
+				}
+				break
+			}
+
+			// Estimate output size from command output
+			if !strings.Contains(nextLine, "[2025-") && strings.TrimSpace(nextLine) != "" {
+				outputSize += int64(len(nextLine))
+			}
+		}
+
+		// Use "Bash" as the tool name for exec commands, consistent with Claude
+		bashCommand := execMatch[1] // Extract the command from the regex match
+		metrics.AddToolInvocationWithCommand("Bash", outputSize, duration, success, bashCommand)
+	}
 }
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml

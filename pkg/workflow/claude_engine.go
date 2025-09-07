@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -605,14 +606,16 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 
 // ParseLogMetrics implements engine-specific log parsing for Claude
 func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
-	var metrics LogMetrics
+	metrics := NewLogMetrics()
 	var maxTokenUsage int
 
 	// First try to parse as JSON array (Claude logs are structured as JSON arrays)
 	if strings.TrimSpace(logContent) != "" {
-		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
+		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 || len(resultMetrics.ToolInvocations) > 0 {
 			metrics.TokenUsage = resultMetrics.TokenUsage
 			metrics.EstimatedCost = resultMetrics.EstimatedCost
+			// Merge tool invocations
+			metrics.MergeToolInvocations(resultMetrics)
 		}
 	}
 
@@ -690,7 +693,7 @@ func (e *ClaudeEngine) isClaudeResultPayload(line string) bool {
 
 // extractClaudeResultMetrics extracts metrics from Claude result payload
 func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
-	var metrics LogMetrics
+	metrics := NewLogMetrics()
 
 	trimmed := strings.TrimSpace(line)
 	var jsonData map[string]interface{}
@@ -725,7 +728,7 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 
 // parseClaudeJSONLog parses Claude logs as a JSON array to find the result payload
 func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMetrics {
-	var metrics LogMetrics
+	metrics := NewLogMetrics()
 
 	// Try to parse the entire log as a JSON array
 	var logEntries []map[string]interface{}
@@ -734,6 +737,103 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			fmt.Printf("Failed to parse Claude log as JSON array: %v\n", err)
 		}
 		return metrics
+	}
+
+	// Track tool_use to tool_result pairs to calculate timing and output size
+	toolUsePairs := make(map[string]ToolUseInfo)
+
+	// First pass: collect tool_use entries and their corresponding tool_results
+	for i, entry := range logEntries {
+		if entryType, exists := entry["type"]; exists {
+			if typeStr, ok := entryType.(string); ok {
+				// Extract tool_use from assistant messages
+				if typeStr == "assistant" {
+					if message, exists := entry["message"]; exists {
+						if messageMap, ok := message.(map[string]interface{}); ok {
+							if content, exists := messageMap["content"]; exists {
+								if contentArray, ok := content.([]interface{}); ok {
+									for _, contentItem := range contentArray {
+										if contentMap, ok := contentItem.(map[string]interface{}); ok {
+											if contentType, exists := contentMap["type"]; exists && contentType == "tool_use" {
+												if toolUseID, exists := contentMap["id"]; exists {
+													if toolName, exists := contentMap["name"]; exists {
+														// Extract command for Bash tools
+														var bashCommand string
+														if toolName.(string) == "Bash" {
+															if inputData, exists := contentMap["input"]; exists {
+																if inputMap, ok := inputData.(map[string]interface{}); ok {
+																	if command, exists := inputMap["command"]; exists {
+																		if commandStr, ok := command.(string); ok {
+																			bashCommand = commandStr
+																		}
+																	}
+																}
+															}
+														}
+
+														toolUsePairs[toolUseID.(string)] = ToolUseInfo{
+															Name:        toolName.(string),
+															StartTime:   time.Time{}, // We don't have precise timing in JSON logs
+															Index:       i,
+															BashCommand: bashCommand,
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				} else if typeStr == "user" {
+					// Extract tool_result from user messages
+					if message, exists := entry["message"]; exists {
+						if messageMap, ok := message.(map[string]interface{}); ok {
+							if content, exists := messageMap["content"]; exists {
+								if contentArray, ok := content.([]interface{}); ok {
+									for _, contentItem := range contentArray {
+										if contentMap, ok := contentItem.(map[string]interface{}); ok {
+											if contentType, exists := contentMap["type"]; exists && contentType == "tool_result" {
+												if toolUseID, exists := contentMap["tool_use_id"]; exists {
+													if toolUseInfo, exists := toolUsePairs[toolUseID.(string)]; exists {
+														// Calculate output size
+														outputSize := int64(0)
+														if result, exists := contentMap["content"]; exists {
+															if resultStr, ok := result.(string); ok {
+																outputSize = int64(len(resultStr))
+															}
+														}
+
+														// Determine success/failure
+														success := true
+														if isError, exists := contentMap["is_error"]; exists {
+															if errorBool, ok := isError.(bool); ok && errorBool {
+																success = false
+															}
+														}
+
+														// We don't have precise timing, so use a placeholder duration
+														duration := time.Millisecond * 100 // Placeholder
+
+														// Add tool invocation stats with command for Bash tools
+														if toolUseInfo.Name == "Bash" {
+															metrics.AddToolInvocationWithCommand(toolUseInfo.Name, outputSize, duration, success, toolUseInfo.BashCommand)
+														} else {
+															metrics.AddToolInvocation(toolUseInfo.Name, outputSize, duration, success)
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Look for the result entry with type: "result"
@@ -763,8 +863,8 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				}
 
 				if verbose {
-					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f\n",
-						metrics.TokenUsage, metrics.EstimatedCost)
+					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f, tools=%d\n",
+						metrics.TokenUsage, metrics.EstimatedCost, len(metrics.ToolInvocations))
 				}
 				break
 			}
@@ -772,6 +872,14 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 	}
 
 	return metrics
+}
+
+// ToolUseInfo tracks information about a tool use for pairing with results
+type ToolUseInfo struct {
+	Name        string
+	StartTime   time.Time
+	Index       int
+	BashCommand string // For Bash tools, store the command that was executed
 }
 
 // GetLogParserScript returns the JavaScript script name for parsing Claude logs
