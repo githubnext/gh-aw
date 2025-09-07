@@ -563,3 +563,56 @@ func TestExtractJSONMetricsIntegration(t *testing.T) {
 		t.Errorf("Expected no cost information, got %f", metrics.EstimatedCost)
 	}
 }
+
+func TestPrettifyToolName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "MCP tool with github provider",
+			input:    "mcp__github__search_issues",
+			expected: "github::search_issues",
+		},
+		{
+			name:     "MCP tool with multiple underscores in method",
+			input:    "mcp__playwright__browser_take_screenshot",
+			expected: "playwright::browser_take_screenshot",
+		},
+		{
+			name:     "Bash tool",
+			input:    "Bash",
+			expected: "bash",
+		},
+		{
+			name:     "bash tool lowercase",
+			input:    "bash",
+			expected: "bash",
+		},
+		{
+			name:     "Regular tool without mcp prefix",
+			input:    "some_tool",
+			expected: "some_tool",
+		},
+		{
+			name:     "MCP tool with unexpected format",
+			input:    "mcp__invalid",
+			expected: "invalid",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := PrettifyToolName(tt.input)
+			if result != tt.expected {
+				t.Errorf("PrettifyToolName(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

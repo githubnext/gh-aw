@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"regexp"
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -175,6 +176,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	lines := strings.Split(logContent, "\n")
 	turns := 0
 	inThinkingSection := false
+	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls
 
 	for _, line := range lines {
 		// Skip empty lines
@@ -191,6 +193,9 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") {
 			inThinkingSection = false
 		}
+
+		// Extract tool calls from Codex logs
+		e.parseCodexToolCalls(line, toolCallMap)
 
 		// Extract Codex-specific token usage (always sum for Codex)
 		if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
@@ -209,8 +214,80 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 
 	metrics.TokenUsage = totalTokenUsage
 	metrics.Turns = turns
+	
+	// Convert tool call map to slice
+	for _, toolInfo := range toolCallMap {
+		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
+	}
+	
+	// Sort tool calls by name for consistent output
+	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
+		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
+	})
 
 	return metrics
+}
+
+// parseCodexToolCalls extracts tool call information from Codex log lines
+func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*ToolCallInfo) {
+	// Parse tool calls: "] tool provider.method(...)" 
+	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
+		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
+			toolName := strings.TrimSpace(match[1])
+			prettifiedName := PrettifyToolName(toolName)
+			
+			// For Codex, format provider.method as provider::method
+			if strings.Contains(toolName, ".") {
+				parts := strings.Split(toolName, ".")
+				if len(parts) >= 2 {
+					provider := parts[0]
+					method := strings.Join(parts[1:], "_")
+					prettifiedName = fmt.Sprintf("%s::%s", provider, method)
+				}
+			}
+			
+			// Initialize or update tool call info
+			if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+				toolInfo.CallCount++
+			} else {
+				toolCallMap[prettifiedName] = &ToolCallInfo{
+					Name:          prettifiedName,
+					CallCount:     1,
+					MaxOutputSize: 0, // TODO: Extract output size from results if available
+				}
+			}
+		}
+	}
+	
+	// Parse exec commands: "] exec command" - treat as bash calls
+	if strings.Contains(line, "] exec ") {
+		if match := regexp.MustCompile(`\] exec (.+?) in`).FindStringSubmatch(line); len(match) > 1 {
+			command := strings.TrimSpace(match[1])
+			// Create unique bash entry with command info
+			uniqueBashName := fmt.Sprintf("bash:%s", e.shortenCommand(command))
+			
+			// Initialize or update tool call info
+			if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
+				toolInfo.CallCount++
+			} else {
+				toolCallMap[uniqueBashName] = &ToolCallInfo{
+					Name:          uniqueBashName,
+					CallCount:     1,
+					MaxOutputSize: 0,
+				}
+			}
+		}
+	}
+}
+
+// shortenCommand creates a short identifier for bash commands
+func (e *CodexEngine) shortenCommand(command string) string {
+	// Take first 20 characters and remove newlines
+	shortened := strings.ReplaceAll(command, "\n", " ")
+	if len(shortened) > 20 {
+		shortened = shortened[:20] + "..."
+	}
+	return shortened
 }
 
 // extractCodexTokenUsage extracts token usage from Codex-specific log lines
