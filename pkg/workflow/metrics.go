@@ -2,10 +2,18 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 )
+
+// ToolCallInfo represents statistics for a single tool
+type ToolCallInfo struct {
+	Name           string // Prettified tool name (e.g., "github::search_issues", "bash")
+	CallCount      int    // Number of times this tool was called
+	MaxOutputSize  int    // Maximum output size in tokens for any call
+}
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
@@ -14,6 +22,7 @@ type LogMetrics struct {
 	ErrorCount    int
 	WarningCount  int
 	Turns         int // Number of turns needed to complete the task
+	ToolCalls     []ToolCallInfo // Tool call statistics
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 
@@ -172,4 +181,27 @@ func ConvertToFloat(val interface{}) float64 {
 		}
 	}
 	return 0
+}
+
+// PrettifyToolName removes "mcp__" prefix and formats tool names nicely
+func PrettifyToolName(toolName string) string {
+	// Handle MCP tools: "mcp__github__search_issues" -> "github::search_issues"
+	if strings.HasPrefix(toolName, "mcp__") {
+		parts := strings.Split(toolName, "__")
+		if len(parts) >= 3 {
+			provider := parts[1]
+			method := strings.Join(parts[2:], "_")
+			return fmt.Sprintf("%s::%s", provider, method)
+		}
+		// If format is unexpected, just remove the mcp__ prefix
+		return strings.TrimPrefix(toolName, "mcp__")
+	}
+	
+	// Handle bash specially - keep as "bash" 
+	if strings.ToLower(toolName) == "bash" {
+		return "bash"
+	}
+	
+	// Return other tool names as-is
+	return toolName
 }

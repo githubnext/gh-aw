@@ -746,6 +746,8 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 	}
 
 	// Look for the result entry with type: "result"
+	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls across entries
+	
 	for _, entry := range logEntries {
 		if entryType, exists := entry["type"]; exists {
 			if typeStr, ok := entryType.(string); ok && typeStr == "result" {
@@ -785,9 +787,116 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				break
 			}
 		}
+		
+		// Parse tool_use entries for tool call statistics
+		if entry["type"] == "user" {
+			if message, exists := entry["message"]; exists {
+				if messageMap, ok := message.(map[string]interface{}); ok {
+					if content, exists := messageMap["content"]; exists {
+						if contentArray, ok := content.([]interface{}); ok {
+							e.parseToolCalls(contentArray, toolCallMap)
+						}
+					}
+				}
+			}
+		}
 	}
+	
+	// Convert tool call map to slice
+	for _, toolInfo := range toolCallMap {
+		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
+	}
+	
+	// Sort tool calls by name for consistent output
+	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
+		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
+	})
 
 	return metrics
+}
+
+// parseToolCalls extracts tool call information from Claude log content array
+func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) {
+	for _, contentItem := range contentArray {
+		if contentMap, ok := contentItem.(map[string]interface{}); ok {
+			if contentType, exists := contentMap["type"]; exists {
+				if typeStr, ok := contentType.(string); ok && typeStr == "tool_use" {
+					// Extract tool name
+					if toolName, exists := contentMap["name"]; exists {
+						if nameStr, ok := toolName.(string); ok {
+							// Skip internal tools as per existing JavaScript logic
+							internalTools := []string{
+								"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
+							}
+							if slices.Contains(internalTools, nameStr) {
+								continue
+							}
+							
+							// Prettify tool name
+							prettifiedName := PrettifyToolName(nameStr)
+							
+							// Special handling for bash - each invocation is unique
+							if nameStr == "Bash" {
+								if input, exists := contentMap["input"]; exists {
+									if inputMap, ok := input.(map[string]interface{}); ok {
+										if command, exists := inputMap["command"]; exists {
+											if commandStr, ok := command.(string); ok {
+												// Create unique bash entry with command info
+												uniqueBashName := fmt.Sprintf("bash:%s", e.shortenCommand(commandStr))
+												prettifiedName = uniqueBashName
+											}
+										}
+									}
+								}
+							}
+							
+							// Initialize or update tool call info
+							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+								toolInfo.CallCount++
+							} else {
+								toolCallMap[prettifiedName] = &ToolCallInfo{
+									Name:          prettifiedName,
+									CallCount:     1,
+									MaxOutputSize: 0, // Will be updated when we find tool results
+								}
+							}
+						}
+					}
+				} else if typeStr == "tool_result" {
+					// Extract output size for tool results
+					if content, exists := contentMap["content"]; exists {
+						if contentStr, ok := content.(string); ok {
+							// Estimate token count (rough approximation: 1 token = ~4 characters)
+							outputSize := len(contentStr) / 4
+							
+							// Find corresponding tool call to update max output size
+							if toolUseID, exists := contentMap["tool_use_id"]; exists {
+								if _, ok := toolUseID.(string); ok {
+									// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
+									// For now, we'll update the max output size for all tools (conservative estimate)
+									for _, toolInfo := range toolCallMap {
+										if outputSize > toolInfo.MaxOutputSize {
+											toolInfo.MaxOutputSize = outputSize
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// shortenCommand creates a short identifier for bash commands
+func (e *ClaudeEngine) shortenCommand(command string) string {
+	// Take first 20 characters and remove newlines
+	shortened := strings.ReplaceAll(command, "\n", " ")
+	if len(shortened) > 20 {
+		shortened = shortened[:20] + "..."
+	}
+	return shortened
 }
 
 // GetLogParserScript returns the JavaScript script name for parsing Claude logs
