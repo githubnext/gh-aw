@@ -42,16 +42,14 @@ async function main() {
     `Found ${createDiscussionItems.length} create-discussion item(s)`
   );
 
-  // Get discussion categories using REST API
+  // Get discussion categories using Octokit API
   let discussionCategories = [];
   try {
-    const { data: categories } = await github.request(
-      "GET /repos/{owner}/{repo}/discussions/categories",
-      {
+    const { data: categories } =
+      await github.rest.repos.getAllRepositoryDiscussionCategories({
         owner: context.repo.owner,
         repo: context.repo.repo,
-      }
-    );
+      });
     discussionCategories = categories || [];
     console.log(
       "Available categories:",
@@ -141,17 +139,15 @@ async function main() {
     console.log("Body length:", body.length);
 
     try {
-      // Create the discussion using GitHub REST API
-      const { data: discussion } = await github.request(
-        "POST /repos/{owner}/{repo}/discussions",
-        {
+      // Create the discussion using Octokit API
+      const { data: discussion } =
+        await github.rest.repos.createRepositoryDiscussion({
           owner: context.repo.owner,
           repo: context.repo.repo,
           title: title,
           body: body,
           category_id: categoryId,
-        }
-      );
+        });
 
       console.log(
         "Created discussion #" + discussion.number + ": " + discussion.html_url
