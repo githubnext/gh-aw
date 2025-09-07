@@ -12,9 +12,6 @@ var createPullRequestScript string
 //go:embed js/create_issue.cjs
 var createIssueScript string
 
-//go:embed js/create_discussion.cjs
-var createDiscussionScript string
-
 //go:embed js/create_comment.cjs
 var createCommentScript string
 

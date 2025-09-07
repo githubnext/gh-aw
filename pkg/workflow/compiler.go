@@ -150,7 +150,6 @@ type WorkflowData struct {
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
-	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
 	AddIssueComments                *AddIssueCommentsConfig                `yaml:"add-issue-comment,omitempty"`
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
@@ -167,13 +166,6 @@ type CreateIssuesConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
 	Max         int      `yaml:"max,omitempty"` // Maximum number of issues to create
-}
-
-// CreateDiscussionsConfig holds configuration for creating GitHub discussions from agent output
-type CreateDiscussionsConfig struct {
-	TitlePrefix string `yaml:"title-prefix,omitempty"`
-	CategoryId  string `yaml:"category-id,omitempty"` // Discussion category ID
-	Max         int    `yaml:"max,omitempty"`         // Maximum number of discussions to create
 }
 
 // AddIssueCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddIssueCommentsConfig)
@@ -1708,17 +1700,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
-		// Build create_discussion job if output.create_discussion is configured
-		if data.SafeOutputs.CreateDiscussions != nil {
-			createDiscussionJob, err := c.buildCreateOutputDiscussionJob(data, jobName)
-			if err != nil {
-				return fmt.Errorf("failed to build create_discussion job: %w", err)
-			}
-			if err := c.jobManager.AddJob(createDiscussionJob); err != nil {
-				return fmt.Errorf("failed to add create_discussion job: %w", err)
-			}
-		}
-
 		// Build create_issue_comment job if output.add-issue-comment is configured
 		if data.SafeOutputs.AddIssueComments != nil {
 			createCommentJob, err := c.buildCreateOutputAddIssueCommentJob(data, jobName)
@@ -1990,65 +1971,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write",
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Depends:        []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
-}
-
-// buildCreateOutputDiscussionJob creates the create_discussion job
-func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {
-		return nil, fmt.Errorf("safe-outputs.create-discussion configuration is required")
-	}
-
-	var steps []string
-	steps = append(steps, "      - name: Create Output Discussion\n")
-	steps = append(steps, "        id: create_discussion\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
-	}
-	if data.SafeOutputs.CreateDiscussions.CategoryId != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY_ID: %q\n", data.SafeOutputs.CreateDiscussions.CategoryId))
-	}
-
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          script: |\n")
-
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createDiscussionScript)
-	steps = append(steps, formattedScript...)
-
-	outputs := map[string]string{
-		"discussion_number": "${{ steps.create_discussion.outputs.discussion_number }}",
-		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
-	}
-
-	// Determine the job condition based on command configuration
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
-	} else {
-		jobCondition = "" // No conditional execution
-	}
-
-	job := &Job{
-		Name:           "create_discussion",
-		If:             jobCondition,
-		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    "permissions:\n      contents: read\n      discussions: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
@@ -3090,12 +3012,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateIssues = issuesConfig
 			}
 
-			// Handle create-discussion
-			discussionsConfig := c.parseDiscussionsConfig(outputMap)
-			if discussionsConfig != nil {
-				config.CreateDiscussions = discussionsConfig
-			}
-
 			// Handle add-issue-comment
 			commentsConfig := c.parseCommentsConfig(outputMap)
 			if commentsConfig != nil {
@@ -3240,40 +3156,6 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		}
 
 		return issuesConfig
-	}
-
-	return nil
-}
-
-// parseDiscussionsConfig handles create-discussion configuration
-func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
-	if configData, exists := outputMap["create-discussion"]; exists {
-		discussionsConfig := &CreateDiscussionsConfig{Max: 1} // Default max is 1
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse title-prefix
-			if titlePrefix, exists := configMap["title-prefix"]; exists {
-				if titlePrefixStr, ok := titlePrefix.(string); ok {
-					discussionsConfig.TitlePrefix = titlePrefixStr
-				}
-			}
-
-			// Parse category-id
-			if categoryId, exists := configMap["category-id"]; exists {
-				if categoryIdStr, ok := categoryId.(string); ok {
-					discussionsConfig.CategoryId = categoryIdStr
-				}
-			}
-
-			// Parse max
-			if max, exists := configMap["max"]; exists {
-				if maxInt, ok := c.parseIntValue(max); ok {
-					discussionsConfig.Max = maxInt
-				}
-			}
-		}
-
-		return discussionsConfig
 	}
 
 	return nil
@@ -3746,15 +3628,6 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 				commentConfig["target"] = data.SafeOutputs.AddIssueComments.Target
 			}
 			safeOutputsConfig["add-issue-comment"] = commentConfig
-		}
-		if data.SafeOutputs.CreateDiscussions != nil {
-			discussionConfig := map[string]interface{}{
-				"enabled": true,
-			}
-			if data.SafeOutputs.CreateDiscussions.Max > 0 {
-				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
-			}
-			safeOutputsConfig["create-discussion"] = discussionConfig
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			safeOutputsConfig["create-pull-request"] = true

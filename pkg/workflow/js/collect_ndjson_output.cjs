@@ -179,8 +179,6 @@ async function main() {
         return 1; // Only one issue update allowed
       case "push-to-branch":
         return 1; // Only one push to branch allowed
-      case "create-discussion":
-        return 1; // Only one discussion allowed
       case "missing-tool":
         return 1000; // Allow many missing tool reports (default: unlimited)
       case "create-security-report":
@@ -616,23 +614,6 @@ async function main() {
               continue;
             }
           }
-          break;
-        case "create-discussion":
-          if (!item.title || typeof item.title !== "string") {
-            errors.push(
-              `Line ${i + 1}: create-discussion requires a 'title' string field`
-            );
-            continue;
-          }
-          if (!item.body || typeof item.body !== "string") {
-            errors.push(
-              `Line ${i + 1}: create-discussion requires a 'body' string field`
-            );
-            continue;
-          }
-          // Sanitize text content
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
           break;
 
         case "missing-tool":

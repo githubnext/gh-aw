@@ -263,34 +263,6 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			description: "Mixed workflows should use issue/PR number with cancellation enabled",
 		},
 		{
-			name: "Discussion workflow should have dynamic concurrency with discussion number",
-			workflowData: &WorkflowData{
-				On: `on:
-  discussion:
-    types: [created, edited]`,
-				Concurrency: "", // Empty, should be generated
-			},
-			isAliasTrigger: false,
-			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}"`,
-			description: "Discussion workflows should use discussion number without cancellation",
-		},
-		{
-			name: "Mixed issue and discussion workflow should have dynamic concurrency with issue/discussion number",
-			workflowData: &WorkflowData{
-				On: `on:
-  issues:
-    types: [opened, edited]
-  discussion:
-    types: [created, edited]`,
-				Concurrency: "", // Empty, should be generated
-			},
-			isAliasTrigger: false,
-			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.discussion.number }}"`,
-			description: "Mixed issue and discussion workflows should use issue/discussion number without cancellation",
-		},
-		{
 			name: "Existing concurrency should not be overridden",
 			workflowData: &WorkflowData{
 				On: `on:
@@ -436,54 +408,6 @@ func TestIsIssueWorkflow(t *testing.T) {
 	}
 }
 
-func TestIsDiscussionWorkflow(t *testing.T) {
-	tests := []struct {
-		name     string
-		on       string
-		expected bool
-	}{
-		{
-			name: "Discussion workflow should be identified",
-			on: `on:
-  discussion:
-    types: [created, edited]`,
-			expected: true,
-		},
-		{
-			name: "Discussion comment workflow should be identified",
-			on: `on:
-  discussion_comment:
-    types: [created]`,
-			expected: true,
-		},
-		{
-			name: "Issues workflow should not be identified as discussion workflow",
-			on: `on:
-  issues:
-    types: [opened, edited]`,
-			expected: false,
-		},
-		{
-			name: "Mixed workflow with discussion should be identified",
-			on: `on:
-  discussion:
-    types: [created, edited]
-  push:
-    branches: [main]`,
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isDiscussionWorkflow(tt.on)
-			if result != tt.expected {
-				t.Errorf("isDiscussionWorkflow() for %s = %v, expected %v", tt.name, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestBuildConcurrencyGroupKeys(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -537,30 +461,6 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 			isAliasTrigger: false,
 			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || github.event.pull_request.number }}"},
 			description:    "Mixed workflows should use issue/PR number",
-		},
-		{
-			name: "Pure discussion workflow should include discussion number",
-			workflowData: &WorkflowData{
-				On: `on:
-  discussion:
-    types: [created, edited]`,
-			},
-			isAliasTrigger: false,
-			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.discussion.number }}"},
-			description:    "Pure discussion workflows should use discussion number",
-		},
-		{
-			name: "Mixed issue and discussion workflow should include issue/discussion number",
-			workflowData: &WorkflowData{
-				On: `on:
-  issues:
-    types: [opened, edited]
-  discussion:
-    types: [created, edited]`,
-			},
-			isAliasTrigger: false,
-			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || github.event.discussion.number }}"},
-			description:    "Mixed issue and discussion workflows should use issue/discussion number",
 		},
 		{
 			name: "Other workflow should not include additional keys",

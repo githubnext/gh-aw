@@ -251,31 +251,6 @@ describe("collect_ndjson_output.cjs", () => {
     );
   });
 
-  it("should validate required fields for create-discussion type", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-discussion", "title": "Test Discussion"}
-{"type": "create-discussion", "body": "Test body"}
-{"type": "create-discussion", "title": "Valid Discussion", "body": "Valid body"}`;
-
-    fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-discussion": true}';
-
-    await eval(`(async () => { ${collectScript} })()`);
-
-    const setOutputCalls = mockCore.setOutput.mock.calls;
-    const outputCall = setOutputCalls.find(call => call[0] === "output");
-    expect(outputCall).toBeDefined();
-
-    const parsedOutput = JSON.parse(outputCall[1]);
-    expect(parsedOutput.items).toHaveLength(1); // Only the valid one
-    expect(parsedOutput.items[0].title).toBe("Valid Discussion");
-    expect(parsedOutput.items[0].body).toBe("Valid body");
-    expect(parsedOutput.errors).toHaveLength(2);
-    expect(parsedOutput.errors[0]).toContain("requires a 'body' string field");
-    expect(parsedOutput.errors[1]).toContain("requires a 'title' string field");
-  });
-
   it("should skip empty lines", async () => {
     const testFile = "/tmp/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
