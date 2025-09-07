@@ -573,12 +573,12 @@ func TestPrettifyToolName(t *testing.T) {
 		{
 			name:     "MCP tool with github provider",
 			input:    "mcp__github__search_issues",
-			expected: "github::search_issues",
+			expected: "github_search_issues",
 		},
 		{
 			name:     "MCP tool with multiple underscores in method",
 			input:    "mcp__playwright__browser_take_screenshot",
-			expected: "playwright::browser_take_screenshot",
+			expected: "playwright_browser_take_screenshot",
 		},
 		{
 			name:     "Bash tool",
