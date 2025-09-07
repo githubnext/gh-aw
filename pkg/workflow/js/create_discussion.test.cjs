@@ -15,6 +15,7 @@ const mockCore = {
 
 const mockGithub = {
   request: vi.fn(),
+  graphql: vi.fn(),
   rest: {
     repos: {
       getAllRepositoryDiscussionCategories: vi.fn(),
@@ -117,21 +118,26 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should create discussions successfully with basic configuration", async () => {
-    // Mock the Octokit API responses
-    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockResolvedValueOnce(
-      {
-        // Discussion categories response
-        data: [{ id: "DIC_test456", name: "General", slug: "general" }],
-      }
-    );
+    // Mock the GraphQL API responses
+    mockGithub.graphql.mockResolvedValueOnce({
+      // Repository query response with categories
+      repository: {
+        id: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+        discussionCategories: {
+          nodes: [{ id: "DIC_test456", name: "General", slug: "general" }],
+        },
+      },
+    });
 
-    mockGithub.rest.repos.createRepositoryDiscussion.mockResolvedValueOnce({
-      // Create discussion response
-      data: {
-        id: "D_test789",
-        number: 1,
-        title: "Test Discussion",
-        html_url: "https://github.com/testowner/testrepo/discussions/1",
+    mockGithub.graphql.mockResolvedValueOnce({
+      // Create discussion mutation response
+      createDiscussion: {
+        discussion: {
+          id: "D_test789",
+          number: 1,
+          title: "Test Discussion",
+          url: "https://github.com/testowner/testrepo/discussions/1",
+        },
       },
     });
 
@@ -151,32 +157,30 @@ describe("create_discussion.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    // Verify Octokit API calls
-    expect(
-      mockGithub.rest.repos.getAllRepositoryDiscussionCategories
-    ).toHaveBeenCalledTimes(1);
-    expect(
-      mockGithub.rest.repos.createRepositoryDiscussion
-    ).toHaveBeenCalledTimes(1);
+    // Verify GraphQL API calls
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
 
-    // Verify discussion categories request
-    expect(
-      mockGithub.rest.repos.getAllRepositoryDiscussionCategories
-    ).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-    });
+    // Verify repository query with categories
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("query($owner: String!, $repo: String!)"),
+      {
+        owner: "testowner",
+        repo: "testrepo",
+      }
+    );
 
-    // Verify create discussion request
-    expect(
-      mockGithub.rest.repos.createRepositoryDiscussion
-    ).toHaveBeenCalledWith({
-      owner: "testowner",
-      repo: "testrepo",
-      category_id: "DIC_test456",
-      title: "Test Discussion",
-      body: expect.stringContaining("Test discussion body"),
-    });
+    // Verify create discussion mutation
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"
+      ),
+      {
+        repositoryId: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+        categoryId: "DIC_test456",
+        title: "Test Discussion",
+        body: expect.stringContaining("Test discussion body"),
+      }
+    );
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 1);
@@ -195,19 +199,24 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should apply title prefix when configured", async () => {
-    // Mock the Octokit API responses
-    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockResolvedValueOnce(
-      {
-        data: [{ id: "DIC_test456", name: "General", slug: "general" }],
-      }
-    );
+    // Mock the GraphQL API responses
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+        discussionCategories: {
+          nodes: [{ id: "DIC_test456", name: "General", slug: "general" }],
+        },
+      },
+    });
 
-    mockGithub.rest.repos.createRepositoryDiscussion.mockResolvedValueOnce({
-      data: {
-        id: "D_test789",
-        number: 1,
-        title: "[ai] Test Discussion",
-        html_url: "https://github.com/testowner/testrepo/discussions/1",
+    mockGithub.graphql.mockResolvedValueOnce({
+      createDiscussion: {
+        discussion: {
+          id: "D_test789",
+          number: 1,
+          title: "[ai] Test Discussion",
+          url: "https://github.com/testowner/testrepo/discussions/1",
+        },
       },
     });
 
@@ -228,10 +237,11 @@ describe("create_discussion.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    // Verify the title was prefixed
-    expect(
-      mockGithub.rest.repos.createRepositoryDiscussion
-    ).toHaveBeenCalledWith(
+    // Verify the title was prefixed in the GraphQL mutation
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"
+      ),
       expect.objectContaining({
         title: "[ai] Test Discussion",
       })
@@ -241,22 +251,27 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should use specified category ID when configured", async () => {
-    // Mock the Octokit API responses
-    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockResolvedValueOnce(
-      {
-        data: [
-          { id: "DIC_test456", name: "General", slug: "general" },
-          { id: "DIC_custom789", name: "Custom", slug: "custom" },
-        ],
-      }
-    );
+    // Mock the GraphQL API responses
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+        discussionCategories: {
+          nodes: [
+            { id: "DIC_test456", name: "General", slug: "general" },
+            { id: "DIC_custom789", name: "Custom", slug: "custom" },
+          ],
+        },
+      },
+    });
 
-    mockGithub.rest.repos.createRepositoryDiscussion.mockResolvedValueOnce({
-      data: {
-        id: "D_test789",
-        number: 1,
-        title: "Test Discussion",
-        html_url: "https://github.com/testowner/testrepo/discussions/1",
+    mockGithub.graphql.mockResolvedValueOnce({
+      createDiscussion: {
+        discussion: {
+          id: "D_test789",
+          number: 1,
+          title: "Test Discussion",
+          url: "https://github.com/testowner/testrepo/discussions/1",
+        },
       },
     });
 
@@ -277,12 +292,13 @@ describe("create_discussion.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    // Verify the specified category was used
-    expect(
-      mockGithub.rest.repos.createRepositoryDiscussion
-    ).toHaveBeenCalledWith(
+    // Verify the specified category was used in the GraphQL mutation
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"
+      ),
       expect.objectContaining({
-        category_id: "DIC_custom789",
+        categoryId: "DIC_custom789",
       })
     );
 
@@ -290,12 +306,9 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should handle repositories without discussions enabled gracefully", async () => {
-    // Mock the Octokit API to return 404 for discussion categories (simulating discussions not enabled)
-    const discussionError = new Error("Not Found");
-    discussionError.status = 404;
-    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockRejectedValue(
-      discussionError
-    );
+    // Mock the GraphQL API to return error for discussion categories (simulating discussions not enabled)
+    const discussionError = new Error("Could not resolve to a Repository");
+    mockGithub.graphql.mockRejectedValue(discussionError);
 
     const validOutput = {
       items: [
@@ -321,13 +334,8 @@ describe("create_discussion.cjs", () => {
       "Consider enabling discussions in repository settings if you want to create discussions automatically"
     );
 
-    // Should not attempt to create any discussions
-    expect(
-      mockGithub.rest.repos.getAllRepositoryDiscussionCategories
-    ).toHaveBeenCalledTimes(1); // Only the categories call
-    expect(
-      mockGithub.rest.repos.createRepositoryDiscussion
-    ).not.toHaveBeenCalled();
+    // Should only attempt the GraphQL query once and not attempt to create discussions
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
 
     consoleSpy.mockRestore();
   });
