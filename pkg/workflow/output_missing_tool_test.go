@@ -103,8 +103,8 @@ func TestMissingToolSafeOutput(t *testing.T) {
 						if job.Name != "missing_tool" {
 							t.Errorf("Expected job name to be 'missing_tool', got '%s'", job.Name)
 						}
-						if len(job.Depends) != 1 || job.Depends[0] != "main-job" {
-							t.Errorf("Expected job to depend on 'main-job', got %v", job.Depends)
+						if len(job.Needs) != 1 || job.Needs[0] != "main-job" {
+							t.Errorf("Expected job to depend on 'main-job', got %v", job.Needs)
 						}
 					}
 				}
