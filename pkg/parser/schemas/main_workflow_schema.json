@@ -1241,35 +1241,6 @@
             }
           ]
         },
-        "create-discussion": {
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Configuration for creating GitHub discussions from agentic workflow output",
-              "properties": {
-                "title-prefix": {
-                  "type": "string",
-                  "description": "Optional prefix for the discussion title"
-                },
-                "category-id": {
-                  "type": "string",
-                  "description": "Optional discussion category ID. If not specified, uses the first available category"
-                },
-                "max": {
-                  "type": "integer",
-                  "description": "Maximum number of discussions to create (default: 1)",
-                  "minimum": 1,
-                  "maximum": 100
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "null",
-              "description": "Enable discussion creation with default configuration"
-            }
-          ]
-        },
         "add-issue-comment": {
           "oneOf": [
             {

@@ -35,9 +35,6 @@ safe-outputs:
     target: "*"
   missing-tool:
     max: 5
-  create-discussion:
-    title-prefix: "[Custom Engine Test] "
-    max: 1
   create-pull-request-review-comment:
     max: 1
     side: "RIGHT"
@@ -72,10 +69,6 @@ engine:
         
         # Create PR output
         echo '{"type": "create-pull-request", "title": "[Custom Engine Test] Test Pull Request - Custom Engine Safe Output", "body": "# Test Pull Request - Custom Engine Safe Output\n\nThis pull request was automatically created by the test-safe-outputs-custom-engine workflow to validate the create-pull-request safe output functionality.\n\n## Changes Made\n- Created test file with timestamp\n- Demonstrates custom engine file creation capabilities\n\n## Test Information\n- Engine: Custom (GitHub Actions steps)\n- Workflow: test-safe-outputs-custom-engine\n- Trigger Event: ${{ github.event_name }}\n- Run ID: ${{ github.run_id }}\n\nThis PR can be merged or closed after verification of the safe output functionality.", "labels": ["test-safe-outputs", "automation", "custom-engine"], "draft": true}' >> $GITHUB_AW_SAFE_OUTPUTS
-        
-    - name: Generate Create Discussion Output
-      run: |
-        echo '{"type": "create-discussion", "title": "[Custom Engine Test] Test Discussion - Custom Engine Safe Output", "body": "# Test Discussion - Custom Engine Safe Output\n\nThis discussion was automatically created by the test-safe-outputs-custom-engine workflow to validate the create-discussion safe output functionality.\n\n## Purpose\nThis discussion serves as a test of the safe output systems ability to create GitHub discussions through custom engine workflows.\n\n## Test Details\n- **Engine Type:** Custom (GitHub Actions steps)\n- **Workflow:** test-safe-outputs-custom-engine\n- **Created:** '"$(date)"'\n- **Trigger:** ${{ github.event_name }}\n- **Repository:** ${{ github.repository }}\n\n## Discussion Points\n1. Custom engine successfully executed\n2. Safe output file generation completed\n3. Discussion creation triggered\n\nFeel free to participate in this test discussion or archive it after verification."}' >> $GITHUB_AW_SAFE_OUTPUTS
         
     - name: Generate PR Review Comment Output
       run: |
@@ -128,7 +121,6 @@ This is a comprehensive test workflow that exercises every available safe output
 - **update-issue**: Updates issue properties
 - **push-to-branch**: Pushes changes to branches
 - **missing-tool**: Reports missing functionality (test simulation)
-- **create-discussion**: Creates repository discussions
 - **create-pull-request-review-comment**: Creates PR review comments
 - **create-security-report**: Generates SARIF security reports
 

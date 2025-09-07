@@ -34,7 +34,6 @@
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
-        {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
         {"$ref": "#/$defs/CreateSecurityReportOutput"}
       ]
@@ -232,28 +231,6 @@
         }
       },
       "required": ["type", "path", "line", "body"],
-      "additionalProperties": false
-    },
-    "CreateDiscussionOutput": {
-      "title": "Create Discussion Output",
-      "description": "Output for creating a GitHub discussion",
-      "type": "object",
-      "properties": {
-        "type": {
-          "const": "create-discussion"
-        },
-        "title": {
-          "type": "string",
-          "description": "Title of the discussion",
-          "minLength": 1
-        },
-        "body": {
-          "type": "string", 
-          "description": "Body content of the discussion",
-          "minLength": 1
-        }
-      },
-      "required": ["type", "title", "body"],
       "additionalProperties": false
     },
     "MissingToolOutput": {

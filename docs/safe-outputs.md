@@ -30,11 +30,10 @@ For example:
 ```yaml
 safe-outputs:
   create-issue:
-  create-discussion:
   add-issue-comment:
 ```
 
-This declares that the workflow should create at most one new issue, at most one new discussion, and add at most one comment to the triggering issue or pull request based on the agentic workflow's output. To create multiple issues, discussions, or comments, use the `max` parameter.
+This declares that the workflow should create at most one new issue and add at most one comment to the triggering issue or pull request based on the agentic workflow's output. To create multiple issues or comments, use the `max` parameter.
 
 ## Available Output Types
 
@@ -69,40 +68,6 @@ Create new issues with your findings. For each issue, provide a title starting w
 ```
 
 The compiled workflow will have additional prompting describing that, to create issues, it should write the issue details to a file.
-
-### New Discussion Creation (`create-discussion:`)
-
-Adding discussion creation to the `safe-outputs:` section declares that the workflow should conclude with the creation of GitHub discussions based on the workflow's output.
-
-**Basic Configuration:**
-```yaml
-safe-outputs:
-  create-discussion:
-```
-
-**With Configuration:**
-```yaml
-safe-outputs:
-  create-discussion:
-    title-prefix: "[ai] "            # Optional: prefix for discussion titles
-    category-id: "DIC_kwDOGFsHUM4BsUn3"  # Optional: specific discussion category ID
-    max: 3                           # Optional: maximum number of discussions (default: 1)
-```
-
-The agentic part of your workflow should describe the discussion(s) it wants created.
-
-**Example markdown to generate the output:**
-
-```yaml
-# Research Discussion Agent
-
-Research the latest developments in AI and create discussions to share findings.
-Create new discussions with your research findings. For each discussion, provide a title starting with "AI Research Update" and detailed summary of the findings.
-```
-
-The compiled workflow will have additional prompting describing that, to create discussions, it should write the discussion details to a file.
-
-**Note:** If no `category-id` is specified, the workflow will use the first available discussion category in the repository.
 
 ### Issue Comment Creation (`add-issue-comment:`)
 

@@ -132,9 +132,6 @@ The YAML frontmatter supports these fields:
     # Push to branch (after making file changes)
     echo '{"type": "push-to-branch", "message": "Commit message"}' >> $GITHUB_AW_SAFE_OUTPUTS
     
-    # Create a discussion
-    echo '{"type": "create-discussion", "title": "Discussion Title", "body": "Discussion content"}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
     # Report missing tools
     echo '{"type": "missing-tool", "tool": "tool-name", "reason": "Why it is needed", "alternatives": "Possible alternatives"}' >> $GITHUB_AW_SAFE_OUTPUTS
     ```
