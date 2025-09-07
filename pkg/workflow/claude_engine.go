@@ -614,6 +614,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			metrics.TokenUsage = resultMetrics.TokenUsage
 			metrics.EstimatedCost = resultMetrics.EstimatedCost
 			metrics.Turns = resultMetrics.Turns
+			metrics.ToolCalls = resultMetrics.ToolCalls // Copy tool calls as well
 		}
 	}
 

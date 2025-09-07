@@ -10,9 +10,9 @@ import (
 
 // ToolCallInfo represents statistics for a single tool
 type ToolCallInfo struct {
-	Name           string // Prettified tool name (e.g., "github::search_issues", "bash")
-	CallCount      int    // Number of times this tool was called
-	MaxOutputSize  int    // Maximum output size in tokens for any call
+	Name          string // Prettified tool name (e.g., "github::search_issues", "bash")
+	CallCount     int    // Number of times this tool was called
+	MaxOutputSize int    // Maximum output size in tokens for any call
 }
 
 // LogMetrics represents extracted metrics from log files
@@ -21,7 +21,7 @@ type LogMetrics struct {
 	EstimatedCost float64
 	ErrorCount    int
 	WarningCount  int
-	Turns         int // Number of turns needed to complete the task
+	Turns         int            // Number of turns needed to complete the task
 	ToolCalls     []ToolCallInfo // Tool call statistics
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
@@ -196,12 +196,12 @@ func PrettifyToolName(toolName string) string {
 		// If format is unexpected, just remove the mcp__ prefix
 		return strings.TrimPrefix(toolName, "mcp__")
 	}
-	
-	// Handle bash specially - keep as "bash" 
+
+	// Handle bash specially - keep as "bash"
 	if strings.ToLower(toolName) == "bash" {
 		return "bash"
 	}
-	
+
 	// Return other tool names as-is
 	return toolName
 }

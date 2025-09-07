@@ -2,10 +2,10 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"regexp"
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -214,12 +214,12 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 
 	metrics.TokenUsage = totalTokenUsage
 	metrics.Turns = turns
-	
+
 	// Convert tool call map to slice
 	for _, toolInfo := range toolCallMap {
 		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
 	}
-	
+
 	// Sort tool calls by name for consistent output
 	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
 		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
@@ -230,12 +230,12 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 
 // parseCodexToolCalls extracts tool call information from Codex log lines
 func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*ToolCallInfo) {
-	// Parse tool calls: "] tool provider.method(...)" 
+	// Parse tool calls: "] tool provider.method(...)"
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
 		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
 			toolName := strings.TrimSpace(match[1])
 			prettifiedName := PrettifyToolName(toolName)
-			
+
 			// For Codex, format provider.method as provider::method
 			if strings.Contains(toolName, ".") {
 				parts := strings.Split(toolName, ".")
@@ -245,7 +245,7 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 					prettifiedName = fmt.Sprintf("%s::%s", provider, method)
 				}
 			}
-			
+
 			// Initialize or update tool call info
 			if toolInfo, exists := toolCallMap[prettifiedName]; exists {
 				toolInfo.CallCount++
@@ -258,14 +258,14 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 			}
 		}
 	}
-	
+
 	// Parse exec commands: "] exec command" - treat as bash calls
 	if strings.Contains(line, "] exec ") {
 		if match := regexp.MustCompile(`\] exec (.+?) in`).FindStringSubmatch(line); len(match) > 1 {
 			command := strings.TrimSpace(match[1])
 			// Create unique bash entry with command info
 			uniqueBashName := fmt.Sprintf("bash:%s", e.shortenCommand(command))
-			
+
 			// Initialize or update tool call info
 			if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
 				toolInfo.CallCount++

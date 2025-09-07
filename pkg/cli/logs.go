@@ -961,15 +961,15 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 
 	// Aggregate tool call statistics across all runs
 	toolCallStats := make(map[string]*workflow.ToolCallInfo)
-	
+
 	for _, processedRun := range processedRuns {
 		// Extract tool calls from the run's metrics - we need to get the LogMetrics
 		// This requires getting the metrics from the processed run
-		
+
 		// For now, let's extract metrics from the run if available
 		// We'll process log files to get tool call information
 		logMetrics := extractLogMetricsFromRun(processedRun)
-		
+
 		for _, toolCall := range logMetrics.ToolCalls {
 			if existing, exists := toolCallStats[toolCall.Name]; exists {
 				existing.CallCount += toolCall.CallCount
@@ -985,17 +985,17 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 			}
 		}
 	}
-	
+
 	// Convert to slice and sort by call count (descending), then by name
 	var toolCalls []workflow.ToolCallInfo
 	for _, toolInfo := range toolCallStats {
 		toolCalls = append(toolCalls, *toolInfo)
 	}
-	
+
 	if len(toolCalls) == 0 {
 		return // No tool calls found
 	}
-	
+
 	sort.Slice(toolCalls, func(i, j int) bool {
 		if toolCalls[i].CallCount != toolCalls[j].CallCount {
 			return toolCalls[i].CallCount > toolCalls[j].CallCount // Descending by call count
@@ -1012,7 +1012,7 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 		if toolCall.MaxOutputSize > 0 {
 			outputStr = formatNumber(toolCall.MaxOutputSize)
 		}
-		
+
 		row := []string{
 			toolCall.Name,
 			fmt.Sprintf("%d", toolCall.CallCount),
@@ -1037,13 +1037,13 @@ func extractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	if processedRun.Run.LogsPath == "" {
 		return workflow.LogMetrics{}
 	}
-	
+
 	// Extract metrics from the log directory
 	metrics, err := extractLogMetrics(processedRun.Run.LogsPath, false)
 	if err != nil {
 		return workflow.LogMetrics{}
 	}
-	
+
 	return metrics
 }
 
