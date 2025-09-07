@@ -108,7 +108,7 @@ func TestCompileWorkflows(t *testing.T) {
 			if tt.markdownFile != "" {
 				args = []string{tt.markdownFile}
 			}
-			err := CompileWorkflows(args, false, "", false, false, false)
+			err := CompileWorkflows(args, false, "", false, false, false, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -116,6 +116,58 @@ func TestCompileWorkflows(t *testing.T) {
 				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
 			}
 		})
+	}
+}
+
+func TestCompileWorkflowsWithNoEmit(t *testing.T) {
+	defer os.RemoveAll(".github")
+
+	// Create test directory and workflow
+	err := os.MkdirAll(".github/workflows", 0755)
+	if err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Create a simple test workflow
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+---
+
+# Test Workflow for No Emit
+
+This is a test workflow to verify the --no-emit flag functionality.`
+
+	err = os.WriteFile(".github/workflows/no-emit-test.md", []byte(workflowContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test workflow file: %v", err)
+	}
+
+	// Test compilation with noEmit = false (should create lock file)
+	err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, false, false)
+	if err != nil {
+		t.Errorf("CompileWorkflows with noEmit=false should not error, got: %v", err)
+	}
+
+	// Verify lock file was created
+	if _, err := os.Stat(".github/workflows/no-emit-test.lock.yml"); os.IsNotExist(err) {
+		t.Error("Lock file should have been created when noEmit=false")
+	}
+
+	// Remove lock file
+	os.Remove(".github/workflows/no-emit-test.lock.yml")
+
+	// Test compilation with noEmit = true (should NOT create lock file)
+	err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, false, true)
+	if err != nil {
+		t.Errorf("CompileWorkflows with noEmit=true should not error, got: %v", err)
+	}
+
+	// Verify lock file was NOT created
+	if _, err := os.Stat(".github/workflows/no-emit-test.lock.yml"); !os.IsNotExist(err) {
+		t.Error("Lock file should NOT have been created when noEmit=true")
 	}
 }
 
@@ -239,7 +291,7 @@ func TestAllCommandsExist(t *testing.T) {
 	}{
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
 		{func() error { return AddWorkflowWithTracking("", 1, false, "", "", false, nil) }, false, "AddWorkflowWithTracking (empty name)"}, // Shows help when empty, doesn't error
-		{func() error { return CompileWorkflows([]string{}, false, "", false, false, false) }, false, "CompileWorkflows"},                  // Should compile existing markdown files successfully
+		{func() error { return CompileWorkflows([]string{}, false, "", false, false, false, false) }, false, "CompileWorkflows"},           // Should compile existing markdown files successfully
 		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                                                 // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                                                 // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                                        // Should handle missing directory gracefully

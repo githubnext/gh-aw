@@ -118,9 +118,21 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 			t.Error("Step should use multi-line run format")
 		}
 
+		// Check directory creation command
+		if !strings.Contains(stepStr, "mkdir -p /tmp/.claude") {
+			t.Error("Step should create /tmp/.claude directory before creating settings file")
+		}
+
 		// Check file creation
-		if !strings.Contains(stepStr, "cat > .claude/settings.json") {
-			t.Error("Step should create .claude/settings.json file")
+		if !strings.Contains(stepStr, "cat > /tmp/.claude/settings.json") {
+			t.Error("Step should create /tmp/.claude/settings.json file")
+		}
+
+		// Verify the order - mkdir should come before cat
+		mkdirIndex := strings.Index(stepStr, "mkdir -p /tmp/.claude")
+		catIndex := strings.Index(stepStr, "cat > /tmp/.claude/settings.json")
+		if mkdirIndex == -1 || catIndex == -1 || mkdirIndex > catIndex {
+			t.Error("Directory creation (mkdir) should come before file creation (cat)")
 		}
 
 		// Check heredoc usage

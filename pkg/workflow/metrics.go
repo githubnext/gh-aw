@@ -51,7 +51,7 @@ type LogMetrics struct {
 	ErrorCount      int                             // Total errors in logs
 	WarningCount    int                             // Total warnings in logs
 	ToolInvocations map[string]*ToolInvocationStats // Statistics per tool
-	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
+	Turns         int // Number of turns needed to complete the task
 }
 
 // NewLogMetrics creates a new LogMetrics instance with initialized tool invocations map

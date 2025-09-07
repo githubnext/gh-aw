@@ -57,7 +57,8 @@ func (g *ClaudeSettingsGenerator) GenerateSettingsJSON() string {
 func (g *ClaudeSettingsGenerator) GenerateSettingsWorkflowStep() GitHubActionStep {
 	settingsJSON := g.GenerateSettingsJSON()
 
-	runContent := fmt.Sprintf(`cat > .claude/settings.json << 'EOF'
+	runContent := fmt.Sprintf(`mkdir -p /tmp/.claude
+cat > /tmp/.claude/settings.json << 'EOF'
 %s
 EOF`, settingsJSON)
 

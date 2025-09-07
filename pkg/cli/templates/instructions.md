@@ -528,18 +528,13 @@ Additional instructions for the coding agent.
 
 ## Permission Patterns
 
+**IMPORTANT**: When using `safe-outputs` configuration, agentic workflows should NOT include write permissions (`issues: write`, `pull-requests: write`, `contents: write`) in the main job. The safe-outputs system provides these capabilities through separate, secured jobs with appropriate permissions.
+
 ### Read-Only Pattern
 ```yaml
 permissions:
   contents: read
   metadata: read
-```
-
-### Direct Issue Management Pattern  
-```yaml
-permissions:
-  contents: read
-  issues: write
 ```
 
 ### Output Processing Pattern (Recommended)
@@ -550,9 +545,24 @@ permissions:
 
 safe-outputs:
   create-issue:       # Automatic issue creation
+  add-issue-comment:  # Automatic comment creation  
+  create-pull-request: # Automatic PR creation
 ```
 
-**Note**: With output processing, the main job doesn't need `issues: write`, `pull-requests: write`, or `contents: write` permissions. The separate output creation jobs automatically get the required permissions.
+**Key Benefits of Safe-Outputs:**
+- **Security**: Main job runs with minimal permissions
+- **Separation of Concerns**: Write operations are handled by dedicated jobs
+- **Permission Management**: Safe-outputs jobs automatically receive required permissions
+- **Audit Trail**: Clear separation between AI processing and GitHub API interactions
+
+### Direct Issue Management Pattern (Not Recommended)
+```yaml
+permissions:
+  contents: read
+  issues: write         # Avoid when possible - use safe-outputs instead
+```
+
+**Note**: Direct write permissions should only be used when safe-outputs cannot meet your workflow requirements. Always prefer the Output Processing Pattern with `safe-outputs` configuration.
 
 ## Output Processing Examples
 
@@ -647,7 +657,7 @@ permissions:
   metadata: read
 ```
 
-### Full Repository Access
+### Full Repository Access (Use with Caution)
 ```yaml
 permissions:
   contents: write
@@ -657,6 +667,8 @@ permissions:
   checks: read
   discussions: write
 ```
+
+**Note**: Full write permissions should be avoided whenever possible. Use `safe-outputs` configuration instead to provide secure, controlled access to GitHub API operations without granting write permissions to the main AI job.
 
 ## Common Workflow Patterns
 

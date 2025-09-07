@@ -15,6 +15,12 @@ const mockCore = {
 
 const mockGithub = {
   request: vi.fn(),
+  rest: {
+    repos: {
+      getAllRepositoryDiscussionCategories: vi.fn(),
+      createRepositoryDiscussion: vi.fn(),
+    },
+  },
 };
 
 const mockContext = {
@@ -111,21 +117,23 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should create discussions successfully with basic configuration", async () => {
-    // Mock the REST API responses
-    mockGithub.request
-      .mockResolvedValueOnce({
+    // Mock the Octokit API responses
+    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockResolvedValueOnce(
+      {
         // Discussion categories response
         data: [{ id: "DIC_test456", name: "General", slug: "general" }],
-      })
-      .mockResolvedValueOnce({
-        // Create discussion response
-        data: {
-          id: "D_test789",
-          number: 1,
-          title: "Test Discussion",
-          html_url: "https://github.com/testowner/testrepo/discussions/1",
-        },
-      });
+      }
+    );
+
+    mockGithub.rest.repos.createRepositoryDiscussion.mockResolvedValueOnce({
+      // Create discussion response
+      data: {
+        id: "D_test789",
+        number: 1,
+        title: "Test Discussion",
+        html_url: "https://github.com/testowner/testrepo/discussions/1",
+      },
+    });
 
     const validOutput = {
       items: [
@@ -143,28 +151,32 @@ describe("create_discussion.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    // Verify REST API calls
-    expect(mockGithub.request).toHaveBeenCalledTimes(2);
+    // Verify Octokit API calls
+    expect(
+      mockGithub.rest.repos.getAllRepositoryDiscussionCategories
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      mockGithub.rest.repos.createRepositoryDiscussion
+    ).toHaveBeenCalledTimes(1);
 
     // Verify discussion categories request
-    expect(mockGithub.request).toHaveBeenNthCalledWith(
-      1,
-      "GET /repos/{owner}/{repo}/discussions/categories",
-      { owner: "testowner", repo: "testrepo" }
-    );
+    expect(
+      mockGithub.rest.repos.getAllRepositoryDiscussionCategories
+    ).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+    });
 
     // Verify create discussion request
-    expect(mockGithub.request).toHaveBeenNthCalledWith(
-      2,
-      "POST /repos/{owner}/{repo}/discussions",
-      {
-        owner: "testowner",
-        repo: "testrepo",
-        category_id: "DIC_test456",
-        title: "Test Discussion",
-        body: expect.stringContaining("Test discussion body"),
-      }
-    );
+    expect(
+      mockGithub.rest.repos.createRepositoryDiscussion
+    ).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      category_id: "DIC_test456",
+      title: "Test Discussion",
+      body: expect.stringContaining("Test discussion body"),
+    });
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 1);
@@ -183,19 +195,21 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should apply title prefix when configured", async () => {
-    // Mock the REST API responses
-    mockGithub.request
-      .mockResolvedValueOnce({
+    // Mock the Octokit API responses
+    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockResolvedValueOnce(
+      {
         data: [{ id: "DIC_test456", name: "General", slug: "general" }],
-      })
-      .mockResolvedValueOnce({
-        data: {
-          id: "D_test789",
-          number: 1,
-          title: "[ai] Test Discussion",
-          html_url: "https://github.com/testowner/testrepo/discussions/1",
-        },
-      });
+      }
+    );
+
+    mockGithub.rest.repos.createRepositoryDiscussion.mockResolvedValueOnce({
+      data: {
+        id: "D_test789",
+        number: 1,
+        title: "[ai] Test Discussion",
+        html_url: "https://github.com/testowner/testrepo/discussions/1",
+      },
+    });
 
     const validOutput = {
       items: [
@@ -215,9 +229,9 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Verify the title was prefixed
-    expect(mockGithub.request).toHaveBeenNthCalledWith(
-      2,
-      "POST /repos/{owner}/{repo}/discussions",
+    expect(
+      mockGithub.rest.repos.createRepositoryDiscussion
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "[ai] Test Discussion",
       })
@@ -227,22 +241,24 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should use specified category ID when configured", async () => {
-    // Mock the REST API responses
-    mockGithub.request
-      .mockResolvedValueOnce({
+    // Mock the Octokit API responses
+    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockResolvedValueOnce(
+      {
         data: [
           { id: "DIC_test456", name: "General", slug: "general" },
           { id: "DIC_custom789", name: "Custom", slug: "custom" },
         ],
-      })
-      .mockResolvedValueOnce({
-        data: {
-          id: "D_test789",
-          number: 1,
-          title: "Test Discussion",
-          html_url: "https://github.com/testowner/testrepo/discussions/1",
-        },
-      });
+      }
+    );
+
+    mockGithub.rest.repos.createRepositoryDiscussion.mockResolvedValueOnce({
+      data: {
+        id: "D_test789",
+        number: 1,
+        title: "Test Discussion",
+        html_url: "https://github.com/testowner/testrepo/discussions/1",
+      },
+    });
 
     const validOutput = {
       items: [
@@ -262,9 +278,9 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Verify the specified category was used
-    expect(mockGithub.request).toHaveBeenNthCalledWith(
-      2,
-      "POST /repos/{owner}/{repo}/discussions",
+    expect(
+      mockGithub.rest.repos.createRepositoryDiscussion
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         category_id: "DIC_custom789",
       })
@@ -274,10 +290,12 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should handle repositories without discussions enabled gracefully", async () => {
-    // Mock the REST API to return 404 for discussion categories (simulating discussions not enabled)
+    // Mock the Octokit API to return 404 for discussion categories (simulating discussions not enabled)
     const discussionError = new Error("Not Found");
     discussionError.status = 404;
-    mockGithub.request.mockRejectedValue(discussionError);
+    mockGithub.rest.repos.getAllRepositoryDiscussionCategories.mockRejectedValue(
+      discussionError
+    );
 
     const validOutput = {
       items: [
@@ -304,11 +322,12 @@ describe("create_discussion.cjs", () => {
     );
 
     // Should not attempt to create any discussions
-    expect(mockGithub.request).toHaveBeenCalledTimes(1); // Only the categories call
-    expect(mockGithub.request).not.toHaveBeenCalledWith(
-      "POST /repos/{owner}/{repo}/discussions",
-      expect.any(Object)
-    );
+    expect(
+      mockGithub.rest.repos.getAllRepositoryDiscussionCategories
+    ).toHaveBeenCalledTimes(1); // Only the categories call
+    expect(
+      mockGithub.rest.repos.createRepositoryDiscussion
+    ).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });

@@ -2,213 +2,36 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude Add Issue Comment"
-"on":
-  issues:
-    types:
-    - opened
-    - reopened
+name: "Agent Cook - Agentic Workflow Generator"
+on:
+  workflow_dispatch:
+    inputs:
+      output_specification:
+        description: Specify the desired output (e.g., "create issue comment", "create pull request", "add labels")
+        required: true
+        type: string
+      task_specification:
+        description: Describe what the workflow should do (e.g., "analyze the issue and provide suggestions", "run tests and create summary")
+        required: true
+        type: string
+      trigger_specification:
+        description: Specify when the workflow should trigger (e.g., "on issues opened", "on push to main", "manually via workflow_dispatch")
+        required: true
+        type: string
 
 permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Test Claude Add Issue Comment"
+run-name: "Agent Cook - Agentic Workflow Generator"
 
 jobs:
-  add_reaction:
-    if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
+  agent-cook-agentic-workflow-generator:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: actions/github-script@v7
-        env:
-          GITHUB_AW_REACTION: eyes
-        with:
-          script: |
-            async function main() {
-              // Read inputs from environment variables
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const alias = process.env.GITHUB_AW_ALIAS; // Only present for alias workflows
-              const runId = context.runId;
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              console.log("Reaction type:", reaction);
-              console.log("Alias name:", alias || "none");
-              console.log("Run ID:", runId);
-              console.log("Run URL:", runUrl);
-              // Validate reaction type
-              const validReactions = [
-                "+1",
-                "-1",
-                "laugh",
-                "confused",
-                "heart",
-                "hooray",
-                "rocket",
-                "eyes",
-              ];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(
-                  `Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`
-                );
-                return;
-              }
-              // Determine the API endpoint based on the event type
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldEditComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    // Don't edit issue bodies for now - this might be more complex
-                    shouldEditComment = false;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    // Only edit comments for alias workflows
-                    shouldEditComment = alias ? true : false;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    // PRs are "issues" for the reactions endpoint
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    // Don't edit PR bodies for now - this might be more complex
-                    shouldEditComment = false;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    // Only edit comments for alias workflows
-                    shouldEditComment = alias ? true : false;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                console.log("Reaction API endpoint:", reactionEndpoint);
-                // Add reaction first
-                await addReaction(reactionEndpoint, reaction);
-                // Then edit comment if applicable and if it's a comment event
-                if (shouldEditComment && commentUpdateEndpoint) {
-                  console.log("Comment update endpoint:", commentUpdateEndpoint);
-                  await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
-                } else {
-                  if (!alias && commentUpdateEndpoint) {
-                    console.log(
-                      "Skipping comment edit - only available for alias workflows"
-                    );
-                  } else {
-                    console.log("Skipping comment edit for event type:", eventName);
-                  }
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(
-                  `Failed to process reaction and comment edit: ${errorMessage}`
-                );
-              }
-            }
-            /**
-             * Add a reaction to a GitHub issue, PR, or comment
-             * @param {string} endpoint - The GitHub API endpoint to add the reaction to
-             * @param {string} reaction - The reaction type to add
-             */
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                console.log(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                console.log(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            /**
-             * Edit a comment to add a workflow run link
-             * @param {string} endpoint - The GitHub API endpoint to update the comment
-             * @param {string} runUrl - The URL of the workflow run
-             */
-            async function editCommentWithWorkflowLink(endpoint, runUrl) {
-              try {
-                // First, get the current comment content
-                const getResponse = await github.request("GET " + endpoint, {
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                const originalBody = getResponse.data.body || "";
-                const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
-                // Check if we've already added a workflow link to avoid duplicates
-                if (originalBody.includes("*🤖 [Workflow run](")) {
-                  console.log(
-                    "Comment already contains a workflow run link, skipping edit"
-                  );
-                  return;
-                }
-                const updatedBody = originalBody + workflowLinkText;
-                // Update the comment
-                const updateResponse = await github.request("PATCH " + endpoint, {
-                  body: updatedBody,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                console.log(`Successfully updated comment with workflow link`);
-                console.log(`Comment ID: ${updateResponse.data.id}`);
-              } catch (error) {
-                // Don't fail the entire job if comment editing fails - just log it
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.warn("Failed to edit comment with workflow link:", errorMessage);
-                console.warn(
-                  "This is not critical - the reaction was still added successfully"
-                );
-              }
-            }
-            await main();
-
-  test-claude-add-issue-comment:
-    runs-on: ubuntu-latest
-    permissions: read-all
+      actions: read
+      contents: read
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -377,12 +200,82 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          If the title of the issue #${{ github.event.issue.number }} is "Hello from Claude" then add a comment on the issue "Reply from Claude".
+          # Agent Cook - Agentic Workflow Generator
+          
+          You are the "Agent Cook" - an AI assistant that helps users create agentic workflows for GitHub repositories. Your task is to generate a new agentic workflow based on the user's specifications.
+          
+          ## User's Requirements
+          
+          <trigger_specification>${{ github.event.inputs.trigger_specification }}</trigger_specification>
+          
+          <task_specification>${{ github.event.inputs.task_specification }}</task_specification>
+          
+          <output_specification>${{ github.event.inputs.output_specification }}</output_specification>
+          
+          ## Your Task
+          
+          1. **Parse the Requirements**: Analyze the user's trigger, task, and output specifications to understand what they want to achieve.
+          
+          2. **Design the Workflow**: Create a complete agentic workflow markdown file with:
+             - Appropriate `on:` trigger configuration based on the trigger specification
+             - Proper `permissions:` section for the required GitHub API access
+             - Correct `safe-outputs:` configuration based on the output specification
+             - Clear, actionable instructions in natural language for the AI to execute
+          
+          3. **Validate the Syntax**: Use the gh-aw compiler to validate your generated workflow:
+             ```bash
+             # Create a temporary workflow file to test
+             echo "YOUR_GENERATED_WORKFLOW_CONTENT" > /tmp/test-workflow.md
+             
+             # Validate the syntax without generating lock files
+             gh-aw compile /tmp/test-workflow.md --no-emit --validate --verbose
+             ```
+          
+          4. **Generate the Final Workflow**: Create a properly formatted agentic workflow file with:
+             - A meaningful name (derived from the task specification)
+             - Complete frontmatter configuration
+             - Clear, step-by-step instructions for the AI
+             - Proper use of GitHub context expressions where needed
+          
+          5. **Create Pull Request**: Save your final workflow as `.github/workflows/[generated-name].md` and create a pull request with:
+             - **Title**: "Add [workflow-name] agentic workflow"
+             - **Body**: 
+               ```
+               ## Generated Agentic Workflow
+               
+               This workflow was generated by Agent Cook based on the following specifications:
+               
+               **Trigger**: `${{ github.event.inputs.trigger_specification }}`
+               **Task**: `${{ github.event.inputs.task_specification }}`  
+               **Output**: `${{ github.event.inputs.output_specification }}`
+               
+               ## Workflow Details
+               
+               [Include a brief explanation of what the workflow does and how it works]
+               
+               ## Usage
+               
+               [Include any special instructions for using the workflow]
+               ```
+          
+          ## Guidelines
+          
+          - Follow the agentic workflow format with YAML frontmatter and markdown content
+          - Use appropriate GitHub Actions triggers (issues, pull_request, workflow_dispatch, schedule, etc.)
+          - Include only necessary permissions - follow principle of least privilege  
+          - Use safe-outputs for GitHub API interactions (create-issue, add-issue-comment, create-pull-request, etc.)
+          - Write clear, specific instructions that an AI can follow
+          - Include relevant GitHub context expressions (e.g., `${{ github.event.issue.number }}`)
+          - Ensure the workflow name is descriptive and follows kebab-case convention
+          - Test your generated workflow with the compiler before creating the PR
+          - For detailed formatting and configuration options, reference the comprehensive agentic workflow documentation
+          
+          Remember: You are creating a workflow FILE, not just explaining how to create one. The output should be a complete, working agentic workflow that can be compiled and executed.
           
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Reporting Missing Tools or Functionality
+          ## Creating a Pull RequestReporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
@@ -390,18 +283,21 @@ jobs:
           
           ### Available Output Types:
           
-          **Adding a Comment to an Issue or Pull Request**
+          **Creating a Pull Request**
           
-          To add a comment to an issue or pull request:
-          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          To create a pull request:
+          1. Make any file changes directly in the working directory
+          2. If you haven't done so already, create a local branch using an appropriate unique name
+          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          4. Do not push your changes. That will be done later. Instead append the PR specification to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
-          {"type": "add-issue-comment", "body": "Your comment content in markdown"}
+          {"type": "create-pull-request", "branch": "branch-name", "title": "PR title", "body": "PR body in markdown", "labels": ["optional", "labels"]}
           ```
-          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```
-          {"type": "add-issue-comment", "body": "This is related to the issue above."}
+          {"type": "create-pull-request", "title": "Fix typo", "body": "Corrected spelling mistake in documentation"}
           ```
           
           **Important Notes:**
@@ -429,7 +325,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude Add Issue Comment",
+              workflow_name: "Agent Cook - Agentic Workflow Generator",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -461,10 +357,22 @@ jobs:
         uses: anthropics/claude-code-base-action@v0.0.56
         with:
           # Allowed tools (sorted):
+          # - Bash(git add:*)
+          # - Bash(git branch:*)
+          # - Bash(git checkout:*)
+          # - Bash(git commit:*)
+          # - Bash(git merge:*)
+          # - Bash(git rm:*)
+          # - Bash(git switch:*)
+          # - BashOutput
+          # - Edit
           # - ExitPlanMode
           # - Glob
           # - Grep
+          # - KillBash
           # - LS
+          # - MultiEdit
+          # - NotebookEdit
           # - NotebookRead
           # - Read
           # - Task
@@ -514,7 +422,7 @@ jobs:
           # - mcp__github__search_pull_requests
           # - mcp__github__search_repositories
           # - mcp__github__search_users
-          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
+          allowed_tools: "Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -530,13 +438,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-add-issue-comment.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/agent-cook-agentic-workflow-generator.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-add-issue-comment.log
+            echo "No execution file output found from Agentic Action" >> /tmp/agent-cook-agentic-workflow-generator.log
           fi
           
           # Ensure log file exists
-          touch /tmp/test-claude-add-issue-comment.log
+          touch /tmp/agent-cook-agentic-workflow-generator.log
       - name: Upload workflow-complete.txt
         uses: actions/upload-artifact@v4
         with:
@@ -548,7 +456,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":true}"
         with:
           script: |
             async function main() {
@@ -1284,7 +1192,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-claude-add-issue-comment.log
+          AGENT_LOG_FILE: /tmp/agent-cook-agentic-workflow-generator.log
         with:
           script: |
             function main() {
@@ -1601,42 +1509,243 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-add-issue-comment.log
-          path: /tmp/test-claude-add-issue-comment.log
+          name: agent-cook-agentic-workflow-generator.log
+          path: /tmp/agent-cook-agentic-workflow-generator.log
           if-no-files-found: warn
+      - name: Generate git patch
+        if: always()
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+        run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          
+          # Extract branch name from JSONL output
+          BRANCH_NAME=""
+          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+            echo "Checking for branch name in JSONL output..."
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then
+                # Extract branch from create-pull-request line using simple grep and sed
+                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create-pull-request"'; then
+                  echo "Found create-pull-request line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    break
+                  fi
+                # Extract branch from push-to-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-branch"'; then
+                  echo "Found push-to-branch line: $line"
+                  # For push-to-branch, we don't extract branch from JSONL since it's configured in the workflow
+                  # The branch name should come from the environment variable GITHUB_AW_PUSH_BRANCH
+                  if [ -n "$GITHUB_AW_PUSH_BRANCH" ]; then
+                    BRANCH_NAME="$GITHUB_AW_PUSH_BRANCH"
+                    echo "Using configured push-to-branch target: $BRANCH_NAME"
+                    break
+                  fi
+                fi
+              fi
+            done < "$GITHUB_AW_SAFE_OUTPUTS"
+          fi
+          
+          # Get the initial commit SHA from the base branch of the pull request
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
+            INITIAL_SHA="$GITHUB_BASE_REF"
+          else
+            INITIAL_SHA="$GITHUB_SHA"
+          fi
+          echo "Base commit SHA: $INITIAL_SHA"
+          # Configure git user for GitHub Actions
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          
+          # If we have a branch name, check if that branch exists and get its diff
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "Looking for branch: $BRANCH_NAME"
+            # Check if the branch exists
+            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
+              # Generate patch from the base to the branch
+              git format-patch "$INITIAL_SHA".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              echo "Patch file created from branch: $BRANCH_NAME"
+            else
+              echo "Branch $BRANCH_NAME does not exist, falling back to current HEAD"
+              BRANCH_NAME=""
+            fi
+          fi
+          
+          # If no branch or branch doesn't exist, use the existing logic
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "Using current HEAD for patch generation"
+            # Stage any unstaged files
+            git add -A || true
+            # Check if there are staged files to commit
+            if ! git diff --cached --quiet; then
+              echo "Staged files found, committing them..."
+              git commit -m "[agent] staged files" || true
+              echo "Staged files committed"
+            else
+              echo "No staged files to commit"
+            fi
+            # Check updated git status
+            echo "Updated git status after committing staged files:"
+            git status
+            # Show compact diff information between initial commit and HEAD (committed changes only)
+            echo '## Git diff' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            git diff --name-only "$INITIAL_SHA"..HEAD >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            # Check if there are any committed changes since the initial commit
+            if git diff --quiet "$INITIAL_SHA" HEAD; then
+              echo "No committed changes detected since initial commit"
+              echo "Skipping patch generation - no committed changes to create patch from"
+            else
+              echo "Committed changes detected, generating patch..."
+              # Generate patch from initial commit to HEAD (committed changes only)
+              git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
+              echo "Patch file created at /tmp/aw.patch"
+            fi
+          fi
+          
+          # Show patch info if it exists
+          if [ -f /tmp/aw.patch ]; then
+            ls -la /tmp/aw.patch
+            # Show the first 50 lines of the patch for review
+            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            head -50 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            echo '...' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw.patch
+          path: /tmp/aw.patch
+          if-no-files-found: ignore
 
-  create_issue_comment:
-    needs: test-claude-add-issue-comment
-    if: github.event.issue.number || github.event.pull_request.number
+  create_pull_request:
+    needs: agent-cook-agentic-workflow-generator
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       issues: write
       pull-requests: write
     timeout-minutes: 10
     outputs:
-      comment_id: ${{ steps.create_comment.outputs.comment_id }}
-      comment_url: ${{ steps.create_comment.outputs.comment_url }}
+      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
+      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
     steps:
-      - name: Add Issue Comment
-        id: create_comment
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: aw.patch
+          path: /tmp/
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Create Pull Request
+        id: create_pull_request
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-add-issue-comment.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent-cook-agentic-workflow-generator.outputs.output }}
+          GITHUB_AW_WORKFLOW_ID: "agent-cook-agentic-workflow-generator"
+          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GITHUB_AW_PR_TITLE_PREFIX: "[agent-cook] "
+          GITHUB_AW_PR_LABELS: "agentic-workflow,automation"
+          GITHUB_AW_PR_DRAFT: "true"
+          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
         with:
           script: |
+            /** @type {typeof import("fs")} */
+            const fs = require("fs");
+            /** @type {typeof import("crypto")} */
+            const crypto = require("crypto");
+            const { execSync } = require("child_process");
             async function main() {
-              // Read the validated output content from environment variable
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
+              // Environment validation - fail early if required variables are missing
+              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
               }
+              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
+              }
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
                 console.log("Agent output content is empty");
-                return;
+              }
+              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
+              // Check if patch file exists and has valid content
+              if (!fs.existsSync("/tmp/aw.patch")) {
+                const message =
+                  "No patch file found - cannot create pull request without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+              // Check for actual error conditions (but allow empty patches as valid noop)
+              if (patchContent.includes("Failed to generate patch")) {
+                const message =
+                  "Patch file contains error message - cannot create pull request without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    return;
+                }
+              }
+              // Empty patch is valid - behavior depends on if-no-changes configuration
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (isEmpty) {
+                const message =
+                  "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(
+                      "No changes to push - failing as configured by if-no-changes: error"
+                    );
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    return;
+                }
               }
               console.log("Agent output content length:", outputContent.length);
+              if (!isEmpty) {
+                console.log("Patch content validation passed");
+              } else {
+                console.log("Patch file is empty - processing noop operation");
+              }
               // Parse the validated output JSON
               let validatedOutput;
               try {
@@ -1652,138 +1761,187 @@ jobs:
                 console.log("No valid items found in agent output");
                 return;
               }
-              // Find all add-issue-comment items
-              const commentItems = validatedOutput.items.filter(
-                /** @param {any} item */ item => item.type === "add-issue-comment"
+              // Find the create-pull-request item
+              const pullRequestItem = validatedOutput.items.find(
+                /** @param {any} item */ item => item.type === "create-pull-request"
               );
-              if (commentItems.length === 0) {
-                console.log("No add-issue-comment items found in agent output");
+              if (!pullRequestItem) {
+                console.log("No create-pull-request item found in agent output");
                 return;
               }
-              console.log(`Found ${commentItems.length} add-issue-comment item(s)`);
-              // Get the target configuration from environment variable
-              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-              console.log(`Comment target configuration: ${commentTarget}`);
-              // Check if we're in an issue or pull request context
-              const isIssueContext =
-                context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              // Validate context based on target configuration
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
+              console.log("Found create-pull-request item:", {
+                title: pullRequestItem.title,
+                bodyLength: pullRequestItem.body.length,
+              });
+              // Extract title, body, and branch from the JSON item
+              let title = pullRequestItem.title.trim();
+              let bodyLines = pullRequestItem.body.split("\n");
+              let branchName = pullRequestItem.branch
+                ? pullRequestItem.branch.trim()
+                : null;
+              // If no title was found, use a default
+              if (!title) {
+                title = "Agent Output";
+              }
+              // Apply title prefix if provided via environment variable
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
+              // Add AI disclaimer with run id, run htmlurl
+              const runId = context.runId;
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `https://github.com/actions/runs/${runId}`;
+              bodyLines.push(
+                ``,
+                ``,
+                `> Generated by Agentic Workflow [Run](${runUrl})`,
+                ""
+              );
+              // Prepare the body content
+              const body = bodyLines.join("\n").trim();
+              // Parse labels from environment variable (comma-separated string)
+              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+              const labels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(/** @param {string} label */ label => label.trim())
+                    .filter(/** @param {string} label */ label => label)
+                : [];
+              // Parse draft setting from environment variable (defaults to true)
+              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
+              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+              console.log("Creating pull request with title:", title);
+              console.log("Labels:", labels);
+              console.log("Draft:", draft);
+              console.log("Body length:", body.length);
+              // Use branch name from JSONL if provided, otherwise generate unique branch name
+              if (!branchName) {
                 console.log(
-                  'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
+                  "No branch name provided in JSONL, generating unique branch name"
                 );
+                // Generate unique branch name using cryptographic random hex
+                const randomHex = crypto.randomBytes(8).toString("hex");
+                branchName = `${workflowId}/${randomHex}`;
+              } else {
+                console.log("Using branch name from JSONL:", branchName);
+              }
+              console.log("Generated branch name:", branchName);
+              console.log("Base branch:", baseBranch);
+              // Create a new branch using git CLI
+              // Configure git (required for commits)
+              execSync('git config --global user.email "action@github.com"', {
+                stdio: "inherit",
+              });
+              execSync('git config --global user.name "GitHub Action"', {
+                stdio: "inherit",
+              });
+              // Handle branch creation/checkout
+              const branchFromJsonl = pullRequestItem.branch
+                ? pullRequestItem.branch.trim()
+                : null;
+              if (branchFromJsonl) {
+                console.log("Checking if branch from JSONL exists:", branchFromJsonl);
+                console.log(
+                  "Branch does not exist locally, creating new branch:",
+                  branchFromJsonl
+                );
+                execSync(`git checkout -b ${branchFromJsonl}`, { stdio: "inherit" });
+                console.log("Using existing/created branch:", branchFromJsonl);
+              } else {
+                // Create and checkout new branch with generated name
+                execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+                console.log("Created and checked out new branch:", branchName);
+              }
+              // Apply the patch using git CLI (skip if empty)
+              if (!isEmpty) {
+                console.log("Applying patch...");
+                execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
+                console.log("Patch applied successfully");
+              } else {
+                console.log("Skipping patch application (empty patch)");
+              }
+              // Commit and push the changes
+              execSync("git add .", { stdio: "inherit" });
+              // Check if there are changes to commit
+              let hasChanges = false;
+              let gitError = null;
+              try {
+                execSync("git diff --cached --exit-code", { stdio: "ignore" });
+                // No changes - exit code 0
+                hasChanges = false;
+              } catch (error) {
+                // Exit code != 0 means there are changes to commit, which is what we want
+                hasChanges = true;
+              }
+              if (!hasChanges) {
+                // No changes to commit - apply if-no-changes configuration
+                const message =
+                  "No changes to commit - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(
+                      "No changes to commit - failing as configured by if-no-changes: error"
+                    );
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    return;
+                }
+              }
+              if (hasChanges) {
+                execSync(`git commit -m "Add agent output: ${title}"`, {
+                  stdio: "inherit",
+                });
+                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                console.log("Changes committed and pushed");
+              } else {
+                // This should not happen due to the early return above, but keeping for safety
+                console.log("No changes to commit");
                 return;
               }
-              const createdComments = [];
-              // Process each comment item
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                console.log(
-                  `Processing add-issue-comment item ${i + 1}/${commentItems.length}:`,
-                  { bodyLength: commentItem.body.length }
-                );
-                // Determine the issue/PR number and comment endpoint for this comment
-                let issueNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  // For target "*", we need an explicit issue number from the comment item
-                  if (commentItem.issue_number) {
-                    issueNumber = parseInt(commentItem.issue_number, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
-                      console.log(
-                        `Invalid issue number specified: ${commentItem.issue_number}`
-                      );
-                      continue;
-                    }
-                    commentEndpoint = "issues";
-                  } else {
-                    console.log(
-                      'Target is "*" but no issue_number specified in comment item'
-                    );
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  // Explicit issue number specified in target
-                  issueNumber = parseInt(commentTarget, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
-                    console.log(
-                      `Invalid issue number in target configuration: ${commentTarget}`
-                    );
-                    continue;
-                  }
-                  commentEndpoint = "issues";
-                } else {
-                  // Default behavior: use triggering issue/PR
-                  if (isIssueContext) {
-                    if (context.payload.issue) {
-                      issueNumber = context.payload.issue.number;
-                      commentEndpoint = "issues";
-                    } else {
-                      console.log("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    if (context.payload.pull_request) {
-                      issueNumber = context.payload.pull_request.number;
-                      commentEndpoint = "issues"; // PR comments use the issues API endpoint
-                    } else {
-                      console.log(
-                        "Pull request context detected but no pull request found in payload"
-                      );
-                      continue;
-                    }
-                  }
-                }
-                if (!issueNumber) {
-                  console.log("Could not determine issue or pull request number");
-                  continue;
-                }
-                // Extract body from the JSON item
-                let body = commentItem.body.trim();
-                // Add AI disclaimer with run id, run htmlurl
-                const runId = context.runId;
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;
-                body += `\n\n> Generated by Agentic Workflow [Run](${runUrl})\n`;
-                console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-                console.log("Comment content length:", body.length);
-                try {
-                  // Create the comment using GitHub API
-                  const { data: comment } = await github.rest.issues.createComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    body: body,
-                  });
-                  console.log("Created comment #" + comment.id + ": " + comment.html_url);
-                  createdComments.push(comment);
-                  // Set output for the last created comment (for backward compatibility)
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(
-                    `✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`
-                  );
-                  throw error;
-                }
+              // Create the pull request
+              const { data: pullRequest } = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                head: branchName,
+                base: baseBranch,
+                draft: draft,
+              });
+              console.log(
+                "Created pull request #" + pullRequest.number + ": " + pullRequest.html_url
+              );
+              // Add labels if specified
+              if (labels.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pullRequest.number,
+                  labels: labels,
+                });
+                console.log("Added labels to pull request:", labels);
               }
-              // Write summary for all created comments
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              console.log(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
+              // Set output for other jobs to use
+              core.setOutput("pull_request_number", pullRequest.number);
+              core.setOutput("pull_request_url", pullRequest.html_url);
+              core.setOutput("branch_name", branchName);
+              // Write summary to GitHub Actions summary
+              await core.summary
+                .addRaw(
+                  `
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+            - **Branch**: \`${branchName}\`
+            - **Base Branch**: \`${baseBranch}\`
+            `
+                )
+                .write();
             }
             await main();
 

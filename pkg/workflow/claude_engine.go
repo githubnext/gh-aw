@@ -123,7 +123,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add settings parameter if network permissions are configured
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		inputs["settings"] = ".claude/settings.json"
+		inputs["settings"] = "/tmp/.claude/settings.json"
 	}
 
 	// Apply default Claude tools
@@ -614,8 +614,8 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 || len(resultMetrics.ToolInvocations) > 0 {
 			metrics.TokenUsage = resultMetrics.TokenUsage
 			metrics.EstimatedCost = resultMetrics.EstimatedCost
-			// Merge tool invocations
 			metrics.MergeToolInvocations(resultMetrics)
+			metrics.Turns = resultMetrics.Turns
 		}
 	}
 
@@ -629,15 +629,16 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		}
 
 		// If we haven't found cost data yet from JSON parsing, try streaming JSON
-		if metrics.TokenUsage == 0 || metrics.EstimatedCost == 0 {
+		if metrics.TokenUsage == 0 || metrics.EstimatedCost == 0 || metrics.Turns == 0 {
 			jsonMetrics := ExtractJSONMetrics(line, verbose)
 			if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
 				// Check if this is a Claude result payload with aggregated costs
 				if e.isClaudeResultPayload(line) {
 					// For Claude result payloads, use the aggregated values directly
-					if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 {
+					if resultMetrics := e.extractClaudeResultMetrics(line); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 || resultMetrics.Turns > 0 {
 						metrics.TokenUsage = resultMetrics.TokenUsage
 						metrics.EstimatedCost = resultMetrics.EstimatedCost
+						metrics.Turns = resultMetrics.Turns
 					}
 				} else {
 					// For streaming JSON, keep the maximum token usage found
@@ -720,6 +721,13 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 			if totalTokens > 0 {
 				metrics.TokenUsage = totalTokens
 			}
+		}
+	}
+
+	// Extract number of turns
+	if numTurns, exists := jsonData["num_turns"]; exists {
+		if turns := ConvertToInt(numTurns); turns > 0 {
+			metrics.Turns = turns
 		}
 	}
 
@@ -862,9 +870,16 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 					}
 				}
 
+				// Extract number of turns
+				if numTurns, exists := entry["num_turns"]; exists {
+					if turns := ConvertToInt(numTurns); turns > 0 {
+						metrics.Turns = turns
+					}
+				}
+
 				if verbose {
-					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f, tools=%d\n",
-						metrics.TokenUsage, metrics.EstimatedCost, len(metrics.ToolInvocations))
+					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f, tools=%d, turns=%d\n",
+						metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 				}
 				break
 			}
