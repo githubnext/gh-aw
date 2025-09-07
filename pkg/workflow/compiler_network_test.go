@@ -297,7 +297,7 @@ func TestNetworkPermissionsUtilities(t *testing.T) {
 		domains := GetAllowedDomains(perms)
 
 		// Should have all default domains plus the custom ones
-		defaultDomains := getDefaultAllowedDomains()
+		defaultDomains := getEcosystemDomains("defaults")
 		expectedTotal := len(defaultDomains) + 2 // defaults + good.com + api.example.com
 
 		if len(domains) != expectedTotal {

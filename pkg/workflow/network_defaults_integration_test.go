@@ -34,7 +34,7 @@ func TestNetworkDefaultsIntegration(t *testing.T) {
 
 		// Now test that GetAllowedDomains expands "defaults" correctly
 		domains := GetAllowedDomains(networkPermissions)
-		defaultDomains := getDefaultAllowedDomains()
+		defaultDomains := getEcosystemDomains("defaults")
 
 		// Should have all default domains plus the 2 custom ones
 		expectedTotal := len(defaultDomains) + 2
@@ -87,7 +87,7 @@ func TestNetworkDefaultsIntegration(t *testing.T) {
 		compiler := &Compiler{}
 		networkPermissions := compiler.extractNetworkPermissions(frontmatter)
 		domains := GetAllowedDomains(networkPermissions)
-		defaultDomains := getDefaultAllowedDomains()
+		defaultDomains := getEcosystemDomains("defaults")
 
 		if len(domains) != len(defaultDomains) {
 			t.Fatalf("Expected %d domains (just defaults), got %d", len(defaultDomains), len(domains))

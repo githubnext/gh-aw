@@ -152,7 +152,7 @@ func TestGetAllowedDomains(t *testing.T) {
 		domains := GetAllowedDomains(permissions)
 
 		// Should have all default domains plus "good.com"
-		defaultDomains := getDefaultAllowedDomains()
+		defaultDomains := getEcosystemDomains("defaults")
 		expectedTotal := len(defaultDomains) + 1
 
 		if len(domains) != expectedTotal {
@@ -190,7 +190,7 @@ func TestGetAllowedDomains(t *testing.T) {
 			Allowed: []string{"defaults"},
 		}
 		domains := GetAllowedDomains(permissions)
-		defaultDomains := getDefaultAllowedDomains()
+		defaultDomains := getEcosystemDomains("defaults")
 
 		if len(domains) != len(defaultDomains) {
 			t.Fatalf("Expected %d domains (just defaults), got %d", len(defaultDomains), len(domains))
