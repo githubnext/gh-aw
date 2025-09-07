@@ -73,6 +73,76 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
+			name: "Playwright tool default configuration",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "stdio",
+					Command: "npx",
+					Args:    []string{"@modelcontextprotocol/server-playwright"},
+					Env:     map[string]string{},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with allowed tools",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed": []any{"browser_navigate", "browser_take_screenshot", "browser_click"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "stdio",
+					Command: "npx",
+					Args:    []string{"@modelcontextprotocol/server-playwright"},
+					Env:     map[string]string{},
+					Allowed: []string{"browser_navigate", "browser_take_screenshot", "browser_click"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with custom MCP configuration",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed": []any{"browser_take_screenshot"},
+						"mcp": map[string]any{
+							"type":    "stdio",
+							"command": "python",
+							"args":    []any{"-m", "playwright_mcp_server"},
+							"env": map[string]any{
+								"PLAYWRIGHT_BROWSER": "chromium",
+								"HEADLESS":           "true",
+							},
+						},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "stdio",
+					Command: "python",
+					Args:    []string{"-m", "playwright_mcp_server"},
+					Env: map[string]string{
+						"PLAYWRIGHT_BROWSER": "chromium",
+						"HEADLESS":           "true",
+					},
+					Allowed: []string{"browser_take_screenshot"},
+				},
+			},
+		},
+		{
 			name: "Custom MCP server with stdio type",
 			frontmatter: map[string]any{
 				"tools": map[string]any{

@@ -50,6 +50,51 @@ The system automatically includes comprehensive default read-only GitHub tools. 
 
 **Users & Organizations**: `search_users`, `search_orgs`, `get_me`
 
+## Playwright Tools (`playwright:`)
+
+Configure Playwright browser automation capabilities for web interaction, reading, and screenshots.
+
+### Basic Configuration
+
+```yaml
+tools:
+  playwright:
+    allowed: [browser_navigate, browser_take_screenshot, browser_click]
+```
+
+### Playwright Tools Overview
+
+The Playwright MCP server provides web browser automation capabilities:
+
+**Navigation**: `browser_navigate`, `browser_navigate_back`, `browser_navigate_forward`
+
+**Interaction**: `browser_click`, `browser_type`, `browser_press_key`, `browser_select_option`
+
+**Content**: `browser_take_screenshot`, `browser_snapshot`, `browser_evaluate`
+
+**Waiting**: `browser_wait_for`
+
+**File Operations**: `browser_file_upload`
+
+### Network Restrictions
+
+By default, the Playwright MCP server is only able to access web resources hosted within Copilot's own environment (localhost or 127.0.0.1). Use network permissions to enable broader web access.
+
+### Custom Configuration
+
+```yaml
+tools:
+  playwright:
+    allowed: ["browser_take_screenshot"]
+    mcp:
+      type: stdio
+      command: "python"
+      args: ["-m", "playwright_mcp_server"]
+      env:
+        PLAYWRIGHT_BROWSER: "chromium"
+        HEADLESS: "true"
+```
+
 ## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
 
 Available when using `engine: claude` (it is the default engine). Configure Claude-specific capabilities and tools.

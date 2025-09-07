@@ -47,8 +47,8 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	}
 
 	for toolName, toolValue := range tools {
-		// Skip non-MCP tools unless it's github (which is MCP by default)
-		if toolName != "github" {
+		// Skip non-MCP tools unless it's github or playwright (which are MCP by default)
+		if toolName != "github" && toolName != "playwright" {
 			toolConfig, ok := toolValue.(map[string]any)
 			if !ok {
 				continue
@@ -71,7 +71,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 			}
 
 			configs = append(configs, config)
-		} else {
+		} else if toolName == "github" {
 			// Handle GitHub MCP server - always use Docker by default
 			if serverFilter != "" && !strings.Contains("github", strings.ToLower(serverFilter)) {
 				continue
@@ -121,6 +121,45 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 							}
 						}
 					}
+				}
+			}
+
+			configs = append(configs, config)
+		} else if toolName == "playwright" {
+			// Handle Playwright MCP server - use stdio by default for browser access
+			if serverFilter != "" && !strings.Contains("playwright", strings.ToLower(serverFilter)) {
+				continue
+			}
+
+			config := MCPServerConfig{
+				Name:    "playwright",
+				Type:    "stdio",
+				Command: "npx",
+				Args:    []string{"@modelcontextprotocol/server-playwright"},
+				Env:     make(map[string]string),
+			}
+
+			// Check for custom Playwright configuration
+			if toolConfig, ok := toolValue.(map[string]any); ok {
+				if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
+					if allowedSlice, ok := allowed.([]any); ok {
+						for _, item := range allowedSlice {
+							if str, ok := item.(string); ok {
+								config.Allowed = append(config.Allowed, str)
+							}
+						}
+					}
+				}
+
+				// Allow custom server configuration
+				if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+					customConfig, err := ParseMCPConfig(toolName, mcpSection, toolConfig)
+					if err != nil {
+						return nil, fmt.Errorf("failed to parse custom MCP config for %s: %w", toolName, err)
+					}
+					// Use custom config but preserve the name
+					customConfig.Name = "playwright"
+					config = customConfig
 				}
 			}
 

@@ -145,6 +145,53 @@ tools:
 **Configuration Options**:
 - `docker_image_version`: Docker image version (default: `"sha-09deac4"`)
 
+## Playwright MCP Integration
+
+GitHub Agentic Workflows includes built-in Playwright MCP integration for web browser automation, including the ability to read, interact with, and take screenshots of web pages.
+
+By default, the Playwright MCP server is only able to access web resources hosted within Copilot's own environment, accessible on localhost or 127.0.0.1.
+
+### Basic Playwright Configuration
+
+```yaml
+tools:
+  playwright:
+    allowed: ["browser_navigate", "browser_take_screenshot", "browser_click"]
+```
+
+This uses the default `@modelcontextprotocol/server-playwright` package via npx.
+
+### Custom Playwright Configuration
+
+You can provide custom MCP configuration for Playwright:
+
+```yaml
+tools:
+  playwright:
+    allowed: ["browser_take_screenshot"]
+    mcp:
+      type: stdio
+      command: "python"
+      args: ["-m", "playwright_mcp_server"]
+      env:
+        PLAYWRIGHT_BROWSER: "chromium"
+        HEADLESS: "true"
+```
+
+**Configuration Options**:
+- Uses stdio transport by default
+- Command: `npx @modelcontextprotocol/server-playwright` (default)
+- Custom MCP configuration supported via `mcp:` section
+- Environment variables for browser configuration
+
+**Common Tools**:
+- `browser_navigate`: Navigate to web pages
+- `browser_take_screenshot`: Capture screenshots
+- `browser_click`: Click on elements
+- `browser_type`: Type text into inputs
+- `browser_evaluate`: Execute JavaScript
+- `browser_wait_for`: Wait for elements or conditions
+
 ## Tool Allow-listing
 
 When using an agentic engine that allows tool whitelisting (e.g. Claude), you can control which MCP tools are available to your workflow.
