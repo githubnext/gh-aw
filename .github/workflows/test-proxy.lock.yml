@@ -223,7 +223,6 @@ jobs:
           # Memory and file descriptor limits
           cache_mem 64 MB
           maximum_object_size 0 KB
-          
           EOF
           
           # Generate allowed domains file
