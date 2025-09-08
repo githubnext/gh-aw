@@ -148,6 +148,7 @@ type WorkflowData struct {
 	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
+	For                []string            // permission levels required to trigger workflow
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -656,6 +657,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
+	workflowData.For = c.extractForPermissions(result.Frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
@@ -1081,6 +1083,78 @@ func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
 	}
 
 	return ""
+}
+
+// extractForPermissions extracts the 'for' field from frontmatter to determine permission requirements
+func (c *Compiler) extractForPermissions(frontmatter map[string]any) []string {
+	if forValue, exists := frontmatter["for"]; exists {
+		switch v := forValue.(type) {
+		case string:
+			if v == "all" {
+				// Special case: "all" means no restrictions
+				return []string{"all"}
+			}
+			// Single permission level as string
+			return []string{v}
+		case []interface{}:
+			// Array of permission levels
+			var permissions []string
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					permissions = append(permissions, str)
+				}
+			}
+			return permissions
+		case []string:
+			// Already a string slice
+			return v
+		}
+	}
+	// Default: require admin or maintainer permissions
+	return []string{"admin", "maintainer"}
+}
+
+// hasSafeEventsOnly checks if the workflow uses only safe events that don't require permission checks
+func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]any) bool {
+	// If user explicitly specified "for: all", skip permission checks
+	if len(data.For) == 1 && data.For[0] == "all" {
+		return true
+	}
+
+	// Parse the "on" section to determine events
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			// Check if only safe events are present
+			safeEvents := []string{"workflow_dispatch", "workflow_run", "schedule"}
+			hasUnsafeEvents := false
+			
+			for eventName := range onMap {
+				// Skip command events as they are handled separately
+				if eventName == "command" {
+					continue
+				}
+				
+				// Check if this event is in the safe list
+				isSafe := false
+				for _, safeEvent := range safeEvents {
+					if eventName == safeEvent {
+						isSafe = true
+						break
+					}
+				}
+				if !isSafe {
+					hasUnsafeEvents = true
+					break
+				}
+			}
+			
+			return !hasUnsafeEvents && len(onMap) > 0
+		}
+	}
+	
+	// If no "on" section or it's a string, check for default command trigger
+	// For command workflows, they are not considered "safe only"
+	return false
 }
 
 // applyDefaults applies default values for missing workflow sections
@@ -1661,13 +1735,28 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	return yaml.String(), nil
 }
 
+// needsPermissionChecks determines if the workflow needs permission checks
+func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
+	// If user explicitly specified "for: all", no permission checks needed
+	if len(data.For) == 1 && data.For[0] == "all" {
+		return false
+	}
+	
+	// Permission checks are needed by default unless workflow uses only safe events
+	// Safe events: workflow_dispatch, workflow_run, schedule
+	// For now, we'll implement a simple heuristic since we don't have frontmatter here
+	// We'll implement the full logic later when we have access to frontmatter
+	return true
+}
+
 // isTaskJobNeeded determines if the task job is required
 func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
 	// Task job is needed if:
 	// 1. Command is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
-	return data.Command != "" || data.NeedsTextOutput || data.If != ""
+	// 4. Permission checks are needed (new requirement from issue #567)
+	return data.Command != "" || data.NeedsTextOutput || data.If != "" || c.needsPermissionChecks(data)
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
@@ -1834,40 +1923,63 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
-	// Add team member check for command workflows, but only when triggered by command mention
-	if data.Command != "" {
-		// Build condition that only applies to command mentions in comment-related events
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
+	// Add team member check based on new permission requirements (issue #567)
+	needsPermissionCheck := c.needsPermissionChecks(data)
+	
+	if needsPermissionCheck || data.Command != "" {
+		// For command workflows, use command-specific condition
+		// For other workflows, always run the permission check
+		var checkCondition string
+		var validationCondition string
+		
+		if data.Command != "" {
+			// Build condition that only applies to command mentions in comment-related events
+			commandCondition := buildCommandOnlyCondition(data.Command)
+			checkCondition = commandCondition.Render()
+			
+			// Build the validation condition using expression nodes
+			// Since the check-team-member step is gated by command condition, we check if it ran and returned 'false'
+			// This avoids running validation when the step didn't run at all (non-command triggers)
+			validationConditionExpr := BuildEquals(
+				BuildPropertyAccess("steps.check-team-member.outputs.is_team_member"),
+				BuildStringLiteral("false"),
+			)
+			validationCondition = validationConditionExpr.Render()
+		} else {
+			// For non-command workflows, always run the permission check
+			checkCondition = "true"
+			validationCondition = "steps.check-team-member.outputs.is_team_member == 'false'"
+		}
 
-		// Build the validation condition using expression nodes
-		// Since the check-team-member step is gated by command condition, we check if it ran and returned 'false'
-		// This avoids running validation when the step didn't run at all (non-command triggers)
-		validationCondition := BuildEquals(
-			BuildPropertyAccess("steps.check-team-member.outputs.is_team_member"),
-			BuildStringLiteral("false"),
-		)
-		validationConditionStr := validationCondition.Render()
-
-		steps = append(steps, "      - name: Check team membership for command workflow\n")
+		if data.Command != "" {
+			steps = append(steps, "      - name: Check team membership for command workflow\n")
+		} else {
+			steps = append(steps, "      - name: Check team membership for workflow\n")
+		}
 		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", commandConditionStr))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", checkCondition))
 		steps = append(steps, "        uses: actions/github-script@v7\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Inline the JavaScript code with proper indentation
-		scriptLines := strings.Split(checkTeamMemberScript, "\n")
+		// Generate the JavaScript code for the permission check
+		scriptContent := c.generatePermissionCheckScript(data.For)
+		scriptLines := strings.Split(scriptContent, "\n")
 		for _, line := range scriptLines {
 			if strings.TrimSpace(line) != "" {
 				steps = append(steps, fmt.Sprintf("            %s\n", line))
 			}
 		}
+		
 		steps = append(steps, "      - name: Validate team membership\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", validationConditionStr))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", validationCondition))
 		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          echo \"❌ Access denied: Only team members can trigger command workflows\"\n")
-		steps = append(steps, "          echo \"User ${{ github.actor }} is not a team member\"\n")
+		if data.Command != "" {
+			steps = append(steps, "          echo \"❌ Access denied: Only team members can trigger command workflows\"\n")
+		} else {
+			steps = append(steps, "          echo \"❌ Access denied: Only authorized users can trigger this workflow\"\n")
+		}
+		steps = append(steps, "          echo \"User ${{ github.actor }} is not authorized\"\n")
 		steps = append(steps, "          exit 1\n")
 	}
 
@@ -1903,6 +2015,71 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	}
 
 	return job, nil
+}
+
+// generatePermissionCheckScript generates JavaScript code to check user permissions
+func (c *Compiler) generatePermissionCheckScript(requiredPermissions []string) string {
+	// If "all" is specified, no checks needed (this shouldn't happen since needsPermissionChecks would return false)
+	if len(requiredPermissions) == 1 && requiredPermissions[0] == "all" {
+		return `
+core.setOutput("is_team_member", "true");
+console.log("Permission check skipped - 'for: all' specified");`
+	}
+
+	// Generate JavaScript that checks for the specified permission levels
+	var permissionChecks []string
+	for _, perm := range requiredPermissions {
+		switch perm {
+		case "admin", "maintainer":
+			// These are repository permissions
+			permissionChecks = append(permissionChecks, fmt.Sprintf(`permission === "%s"`, perm))
+		case "maintain":
+			// Handle "maintain" as alias for "maintainer"
+			permissionChecks = append(permissionChecks, `permission === "maintain"`)
+		case "write", "triage":
+			// These are also repository permissions
+			permissionChecks = append(permissionChecks, fmt.Sprintf(`permission === "%s"`, perm))
+		}
+	}
+
+	permissionCheckCondition := strings.Join(permissionChecks, " || ")
+
+	return fmt.Sprintf(`
+async function main() {
+  const actor = context.actor;
+  const { owner, repo } = context.repo;
+
+  // Check if the actor has the required repository permissions
+  try {
+    console.log(
+      "Checking if user '" + actor + "' has required permissions for " + owner + "/" + repo
+    );
+    console.log("Required permissions: %s");
+
+    const repoPermission =
+      await github.rest.repos.getCollaboratorPermissionLevel({
+        owner: owner,
+        repo: repo,
+        username: actor,
+      });
+
+    const permission = repoPermission.data.permission;
+    console.log("Repository permission level: " + permission);
+
+    if (%s) {
+      console.log("User has " + permission + " access to repository");
+      core.setOutput("is_team_member", "true");
+      return;
+    }
+  } catch (repoError) {
+    const errorMessage =
+      repoError instanceof Error ? repoError.message : String(repoError);
+    core.warning("Repository permission check failed: " + errorMessage);
+  }
+
+  core.setOutput("is_team_member", "false");
+}
+await main();`, strings.Join(requiredPermissions, ", "), permissionCheckCondition)
 }
 
 // buildAddReactionJob creates the add_reaction job
