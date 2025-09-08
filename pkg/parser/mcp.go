@@ -135,7 +135,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 				Name:    "playwright",
 				Type:    "stdio",
 				Command: "npx",
-				Args:    []string{"@modelcontextprotocol/server-playwright"},
+				Args:    []string{"playwright-mcp"},
 				Env:     make(map[string]string),
 			}
 

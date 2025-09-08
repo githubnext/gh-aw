@@ -159,7 +159,7 @@ tools:
     allowed: ["browser_navigate", "browser_take_screenshot", "browser_click"]
 ```
 
-This uses the default `@modelcontextprotocol/server-playwright` package via npx.
+This uses the default `playwright-mcp` package via npx.
 
 ### Custom Playwright Configuration
 
@@ -180,7 +180,7 @@ tools:
 
 **Configuration Options**:
 - Uses stdio transport by default
-- Command: `npx @modelcontextprotocol/server-playwright` (default)
+- Command: `npx playwright-mcp` (default)
 - Custom MCP configuration supported via `mcp:` section
 - Environment variables for browser configuration
 
