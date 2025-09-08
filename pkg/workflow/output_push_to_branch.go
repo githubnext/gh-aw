@@ -31,7 +31,10 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 
-	// Step 3: Push to branch
+	// Step 3: Configure Git credentials
+	steps = append(steps, c.generateGitConfigurationSteps()...)
+
+	// Step 4: Push to Branch
 	steps = append(steps, "      - name: Push to Branch\n")
 	steps = append(steps, "        id: push_to_branch\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")

@@ -2321,7 +2321,10 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 
-	// Step 3: Create pull request
+	// Step 3: Configure Git credentials
+	steps = append(steps, c.generateGitConfigurationSteps()...)
+
+	// Step 4: Create pull request
 	steps = append(steps, "      - name: Create Pull Request\n")
 	steps = append(steps, "        id: create_pull_request\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
@@ -2482,6 +2485,25 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
 }
 
+// generateGitConfiguration generates standardized git credential setup
+func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *WorkflowData) {
+	steps := c.generateGitConfigurationSteps()
+	for _, step := range steps {
+		yaml.WriteString(step)
+	}
+}
+
+// generateGitConfigurationSteps generates standardized git credential setup as string steps
+func (c *Compiler) generateGitConfigurationSteps() []string {
+	return []string{
+		"      - name: Configure Git credentials\n",
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"${{ github.workflow }}\"\n",
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	}
+}
+
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine) {
 	// Collect tools that need MCP server configuration
@@ -2614,6 +2636,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)
+
+	// Configure git credentials if git operations will be needed
+	if needsGitCommands(data.SafeOutputs) {
+		c.generateGitConfiguration(yaml, data)
+	}
 
 	// Add Node.js setup if the engine requires it
 	engine, err := c.getAgenticEngine(data.AI)

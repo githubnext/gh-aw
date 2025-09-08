@@ -187,13 +187,6 @@ async function main() {
   console.log("Base branch:", baseBranch);
 
   // Create a new branch using git CLI
-  // Configure git (required for commits)
-  execSync('git config --global user.email "action@github.com"', {
-    stdio: "inherit",
-  });
-  execSync('git config --global user.name "GitHub Action"', {
-    stdio: "inherit",
-  });
 
   // Handle branch creation/checkout
   const branchFromJsonl = pullRequestItem.branch
