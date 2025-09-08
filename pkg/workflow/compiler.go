@@ -2487,11 +2487,10 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 
 // generateGitConfiguration generates standardized git credential setup
 func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Configure Git credentials\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n")
-	yaml.WriteString("          git config --global user.name \"${{ github.workflow }}\"\n")
-	yaml.WriteString("          echo \"Git configured with standard GitHub Actions identity\"\n")
+	steps := c.generateGitConfigurationSteps()
+	for _, step := range steps {
+		yaml.WriteString(step)
+	}
 }
 
 // generateGitConfigurationSteps generates standardized git credential setup as string steps
