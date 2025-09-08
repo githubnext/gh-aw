@@ -126,17 +126,20 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 			configs = append(configs, config)
 		} else if toolName == "playwright" {
-			// Handle Playwright MCP server - use stdio by default for browser access
+			// Handle Playwright MCP server - use Docker by default for browser access
 			if serverFilter != "" && !strings.Contains("playwright", strings.ToLower(serverFilter)) {
 				continue
 			}
 
 			config := MCPServerConfig{
 				Name:    "playwright",
-				Type:    "stdio",
-				Command: "npx",
-				Args:    []string{"playwright-mcp"},
-				Env:     make(map[string]string),
+				Type:    "docker",
+				Command: "docker",
+				Args: []string{
+					"run", "-i", "--rm",
+					"mcr.microsoft.com/playwright-mcp:latest",
+				},
+				Env: make(map[string]string),
 			}
 
 			// Check for custom Playwright configuration

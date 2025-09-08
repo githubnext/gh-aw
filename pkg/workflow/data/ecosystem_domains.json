@@ -169,7 +169,13 @@
   ],
   "playwright": [
     "playwright.download.prss.microsoft.com",
-    "cdn.playwright.dev"
+    "cdn.playwright.dev",
+    "mcr.microsoft.com",
+    "*.azurecr.io",
+    "azurewebsites.net",
+    "login.microsoftonline.com",
+    "api.contoso.com",
+    "*.microsoft.com"
   ],
   "python": [
     "pypi.python.org",

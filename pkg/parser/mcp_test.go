@@ -82,9 +82,9 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			expected: []MCPServerConfig{
 				{
 					Name:    "playwright",
-					Type:    "stdio",
-					Command: "npx",
-					Args:    []string{"playwright-mcp"},
+					Type:    "docker",
+					Command: "docker",
+					Args:    []string{"run", "-i", "--rm", "mcr.microsoft.com/playwright-mcp:latest"},
 					Env:     map[string]string{},
 					Allowed: []string{},
 				},
@@ -102,9 +102,9 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			expected: []MCPServerConfig{
 				{
 					Name:    "playwright",
-					Type:    "stdio",
-					Command: "npx",
-					Args:    []string{"playwright-mcp"},
+					Type:    "docker",
+					Command: "docker",
+					Args:    []string{"run", "-i", "--rm", "mcr.microsoft.com/playwright-mcp:latest"},
 					Env:     map[string]string{},
 					Allowed: []string{"browser_navigate", "browser_take_screenshot", "browser_click"},
 				},
