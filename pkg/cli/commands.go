@@ -569,16 +569,24 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 }
 
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
-func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool) error {
+func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, noEmit bool) error {
 	// Compile the workflow first
 	if err := compiler.CompileWorkflow(filePath); err != nil {
 		return err
 	}
 
+	// Skip YAML validation if no-emit flag is enabled
+	if noEmit {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage("YAML validation skipped (--no-emit enabled)"))
+		}
+		return nil
+	}
+
 	// Always validate that the generated lock file is valid YAML (CLI requirement)
 	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
 	if _, err := os.Stat(lockFile); err != nil {
-		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
+		// Lock file doesn't exist, skip YAML validation
 		return nil
 	}
 
@@ -628,7 +636,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			}
 			markdownFile = resolvedFile
 		}
-		return watchAndCompileWorkflows(markdownFile, compiler, verbose)
+		return watchAndCompileWorkflows(markdownFile, compiler, verbose, noEmit)
 	}
 
 	if len(markdownFiles) > 0 {
@@ -644,7 +652,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			if verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
 			}
-			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
+			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose, noEmit); err != nil {
 				return fmt.Errorf("failed to compile workflow '%s': %w", markdownFile, err)
 			}
 			compiledCount++
@@ -708,7 +716,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		if verbose {
 			fmt.Printf("Compiling: %s\n", file)
 		}
-		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose, noEmit); err != nil {
 			return err
 		}
 	}
@@ -737,7 +745,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 }
 
 // watchAndCompileWorkflows watches for changes to workflow files and recompiles them automatically
-func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, verbose bool) error {
+func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, verbose bool, noEmit bool) error {
 	// Find git root for consistent behavior
 	gitRoot, err := findGitRoot()
 	if err != nil {
@@ -818,7 +826,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Println("🔨 Initial compilation of all workflow files...")
 		}
-		if err := compileAllWorkflowFiles(compiler, workflowsDir, verbose); err != nil {
+		if err := compileAllWorkflowFiles(compiler, workflowsDir, verbose, noEmit); err != nil {
 			// Always show initial compilation errors, not just in verbose mode
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
@@ -828,7 +836,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Printf("🔨 Initial compilation of %s...\n", markdownFile)
 		}
-		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose, noEmit); err != nil {
 			// Always show initial compilation errors, not just in verbose mode
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
@@ -879,7 +887,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 					modifiedFiles = make(map[string]struct{})
 
 					// Compile the modified files
-					compileModifiedFiles(compiler, filesToCompile, verbose)
+					compileModifiedFiles(compiler, filesToCompile, verbose, noEmit)
 				})
 			}
 
@@ -904,7 +912,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 }
 
 // compileAllWorkflowFiles compiles all markdown files in the workflows directory
-func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) error {
+func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool, noEmit bool) error {
 	// Find all markdown files
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
@@ -923,7 +931,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		if verbose {
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
-		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose, noEmit); err != nil {
 			// Always show compilation errors, not just in verbose mode
 			fmt.Println(err)
 		} else if verbose {
@@ -942,7 +950,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 }
 
 // compileModifiedFiles compiles a list of modified markdown files
-func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose bool) {
+func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose bool, noEmit bool) {
 	if len(files) == 0 {
 		return
 	}
@@ -965,7 +973,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
 
-		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose, noEmit); err != nil {
 			// Always show compilation errors, not just in verbose mode
 			fmt.Println(err)
 		} else if verbose {
@@ -1485,7 +1493,7 @@ func updateWorkflowTitle(content string, number int) string {
 func compileWorkflow(filePath string, verbose bool, engineOverride string) error {
 	// Create compiler and compile the workflow
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-	if err := CompileWorkflowWithValidation(compiler, filePath, verbose); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false); err != nil {
 		return err
 	}
 
@@ -1541,7 +1549,7 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 	// Create compiler and set the file tracker
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compiler.SetFileTracker(tracker)
-	if err := CompileWorkflowWithValidation(compiler, filePath, verbose); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false); err != nil {
 		return err
 	}
 
