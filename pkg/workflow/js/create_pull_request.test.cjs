@@ -180,15 +180,7 @@ describe("create_pull_request.cjs", () => {
 
     await mainFunction();
 
-    // Verify git operations
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      'git config --global user.email "github-actions[bot]@users.noreply.github.com"',
-      { stdio: "inherit" }
-    );
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      'git config --global user.name "${{ github.workflow }}"',
-      { stdio: "inherit" }
-    );
+    // Verify git operations (excluding git config which is handled by workflow)
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
       "git checkout -b test-workflow/1234567890abcdef",
       { stdio: "inherit" }
