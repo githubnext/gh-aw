@@ -135,14 +135,6 @@ async function main() {
     return;
   }
 
-  // Configure git (required for commits)
-  execSync('git config --global user.email "action@github.com"', {
-    stdio: "inherit",
-  });
-  execSync('git config --global user.name "GitHub Action"', {
-    stdio: "inherit",
-  });
-
   // Switch to or create the target branch
   console.log("Switching to branch:", branchName);
   try {
