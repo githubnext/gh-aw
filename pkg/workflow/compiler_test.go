@@ -529,9 +529,12 @@ This is a test workflow for command triggering.
 				t.Errorf("Expected lock file to contain '%s' but it didn't.\nContent:\n%s", tt.expectedOn, lockContent)
 			}
 
-			// Check that the expected if condition is present
-			if !strings.Contains(lockContent, tt.expectedIf) {
-				t.Errorf("Expected lock file to contain '%s' but it didn't.\nContent:\n%s", tt.expectedIf, lockContent)
+			// Check that the expected if condition is present (normalize for multiline comparison)
+			normalizedLockContent := NormalizeExpressionForComparison(lockContent)
+			normalizedExpectedIf := NormalizeExpressionForComparison(tt.expectedIf)
+			if !strings.Contains(normalizedLockContent, normalizedExpectedIf) {
+				t.Errorf("Expected lock file to contain '%s' but it didn't.\nExpected (normalized): %s\nActual (normalized): %s\nOriginal Content:\n%s",
+					tt.expectedIf, normalizedExpectedIf, normalizedLockContent, lockContent)
 			}
 
 			// The command is validated during compilation and should be present in the if condition
@@ -724,9 +727,12 @@ This is a test workflow for command merging with other events.
 				t.Errorf("Expected lock file to contain '%s' but it didn't.\nContent:\n%s", tt.expectedOn, lockContent)
 			}
 
-			// Check that the expected if condition is present
-			if !strings.Contains(lockContent, tt.expectedIf) {
-				t.Errorf("Expected lock file to contain '%s' but it didn't.\nContent:\n%s", tt.expectedIf, lockContent)
+			// Check that the expected if condition is present (normalize for multiline comparison)
+			normalizedLockContent := NormalizeExpressionForComparison(lockContent)
+			normalizedExpectedIf := NormalizeExpressionForComparison(tt.expectedIf)
+			if !strings.Contains(normalizedLockContent, normalizedExpectedIf) {
+				t.Errorf("Expected lock file to contain '%s' but it didn't.\nExpected (normalized): %s\nActual (normalized): %s\nOriginal Content:\n%s",
+					tt.expectedIf, normalizedExpectedIf, normalizedLockContent, lockContent)
 			}
 
 			// The alias is validated during compilation and should be correctly applied
@@ -3192,9 +3198,12 @@ This is a test workflow for draft filtering.
 			lockContent := string(content)
 
 			if tt.shouldHaveIf {
-				// Check that the expected if condition is present
-				if !strings.Contains(lockContent, tt.expectedIf) {
-					t.Errorf("Expected lock file to contain '%s' but it didn't.\nContent:\n%s", tt.expectedIf, lockContent)
+				// Check that the expected if condition is present (normalize for multiline comparison)
+				normalizedLockContent := NormalizeExpressionForComparison(lockContent)
+				normalizedExpectedIf := NormalizeExpressionForComparison(tt.expectedIf)
+				if !strings.Contains(normalizedLockContent, normalizedExpectedIf) {
+					t.Errorf("Expected lock file to contain '%s' but it didn't.\nExpected (normalized): %s\nActual (normalized): %s\nOriginal Content:\n%s",
+						tt.expectedIf, normalizedExpectedIf, normalizedLockContent, lockContent)
 				}
 			} else {
 				// Check that no draft-related if condition is present in the main job

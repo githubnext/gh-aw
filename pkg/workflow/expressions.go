@@ -800,8 +800,9 @@ func BreakAtParentheses(expression string) []string {
 // NormalizeExpressionForComparison normalizes an expression by removing extra spaces and newlines
 // This is used for comparing multiline expressions with their single-line equivalents
 func NormalizeExpressionForComparison(expression string) string {
-	// Replace newlines with spaces
+	// Replace newlines and tabs with spaces
 	normalized := strings.ReplaceAll(expression, "\n", " ")
+	normalized = strings.ReplaceAll(normalized, "\t", " ")
 
 	// Replace multiple spaces with single spaces
 	for strings.Contains(normalized, "  ") {
