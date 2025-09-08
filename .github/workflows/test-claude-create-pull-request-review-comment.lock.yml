@@ -26,10 +26,10 @@ jobs:
       - name: Check team membership for workflow
         id: check-team-member
         uses: actions/github-script@v7
+        env:
+          REQUIRED_PERMISSIONS: admin,maintainer
         with:
           script: |
-            // Set required permissions as environment variable for the script
-            process.env.REQUIRED_PERMISSIONS = "admin,maintainer";
             async function main() {
               const actor = context.actor;
               const { owner, repo } = context.repo;

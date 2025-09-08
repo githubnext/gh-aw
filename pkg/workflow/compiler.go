@@ -1994,6 +1994,11 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 			steps = append(steps, fmt.Sprintf("        if: %s\n", checkCondition))
 		}
 		steps = append(steps, "        uses: actions/github-script@v7\n")
+
+		// Add environment variables for permission check
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          REQUIRED_PERMISSIONS: %s\n", strings.Join(data.Roles, ",")))
+
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -2050,12 +2055,9 @@ core.setOutput("is_team_member", "true");
 console.log("Permission check skipped - 'roles: all' specified");`
 	}
 
-	// Use the embedded check_permissions.cjs script with environment variable
-	return fmt.Sprintf(`
-// Set required permissions as environment variable for the script
-process.env.REQUIRED_PERMISSIONS = "%s";
-
-%s`, strings.Join(requiredPermissions, ","), checkPermissionsScript)
+	// Use the embedded check_permissions.cjs script
+	// The REQUIRED_PERMISSIONS environment variable is set via the env field
+	return checkPermissionsScript
 }
 
 // buildAddReactionJob creates the add_reaction job
