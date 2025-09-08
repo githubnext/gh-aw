@@ -111,7 +111,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
-			name: "Playwright tool with custom MCP configuration",
+			name: "Playwright tool ignores custom MCP configuration",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{
@@ -122,7 +122,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 							"args":    []any{"-m", "playwright_mcp_server"},
 							"env": map[string]any{
 								"PLAYWRIGHT_BROWSER": "chromium",
-								"HEADLESS":           "true",
+								"HEADLESS":           "false",
 							},
 						},
 					},
@@ -131,17 +131,15 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			expected: []MCPServerConfig{
 				{
 					Name:    "playwright",
-					Type:    "stdio",
-					Command: "python",
-					Args:    []string{"-m", "playwright_mcp_server"},
-					Env: map[string]string{
-						"PLAYWRIGHT_BROWSER": "chromium",
-						"HEADLESS":           "true",
-					},
+					Type:    "docker",
+					Command: "docker",
+					Args:    []string{"run", "-i", "--rm", "-e", "HEADLESS", "mcr.microsoft.com/playwright-mcp:latest"},
+					Env:     map[string]string{"HEADLESS": "true"},
 					Allowed: []string{"browser_take_screenshot"},
 				},
 			},
 		},
+
 		{
 			name: "Custom MCP server with stdio type",
 			frontmatter: map[string]any{

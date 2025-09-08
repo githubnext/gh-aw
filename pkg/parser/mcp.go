@@ -137,8 +137,8 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					}
 				}
 
-				// Handle custom MCP configuration
-				if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+				// Handle custom MCP configuration (not allowed for Playwright)
+				if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp && toolName != "playwright" {
 					customConfig, err := ParseMCPConfig(toolName, mcpSection, toolConfig)
 					if err != nil {
 						return nil, fmt.Errorf("failed to parse custom MCP config for %s: %w", toolName, err)
