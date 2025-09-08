@@ -132,23 +132,26 @@ except Exception as e:
 
 // GenerateNetworkHookWorkflowStep generates a GitHub Actions workflow step that creates the network permissions hook
 func (g *NetworkHookGenerator) GenerateNetworkHookWorkflowStep(allowedDomains []string) GitHubActionStep {
-	hookScript := g.GenerateNetworkHookScript(allowedDomains)
+	// Generate the Python script content
+	pythonScript := g.GenerateNetworkHookScript(allowedDomains)
 
-	// No escaping needed for heredoc with 'EOF' - it's literal
-	runContent := fmt.Sprintf(`mkdir -p .claude/hooks
-cat > .claude/hooks/network_permissions.py << 'EOF'
-%s
-EOF
-chmod +x .claude/hooks/network_permissions.py`, hookScript)
+	// Convert Python script to JSON string for passing to JavaScript
+	pythonScriptJSON, _ := json.Marshal(pythonScript)
 
 	var lines []string
 	lines = append(lines, "      - name: Generate Network Permissions Hook")
-	lines = append(lines, "        run: |")
+	lines = append(lines, "        uses: actions/github-script@v7")
+	lines = append(lines, "        env:")
+	lines = append(lines, fmt.Sprintf("          GITHUB_AW_PYTHON_SCRIPT: '%s'", string(pythonScriptJSON)))
+	lines = append(lines, "        with:")
+	lines = append(lines, "          script: |")
 
-	// Split the run content into lines and properly indent
-	runLines := strings.Split(runContent, "\n")
-	for _, line := range runLines {
-		lines = append(lines, fmt.Sprintf("          %s", line))
+	// Add the JavaScript content with proper indentation
+	var yaml strings.Builder
+	WriteJavaScriptToYAML(&yaml, networkPermissionsHookScript)
+	jsLines := strings.Split(strings.TrimRight(yaml.String(), "\n"), "\n")
+	for _, line := range jsLines {
+		lines = append(lines, line)
 	}
 
 	return GitHubActionStep(lines)

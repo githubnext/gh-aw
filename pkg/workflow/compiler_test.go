@@ -2290,10 +2290,10 @@ This is a test workflow with explicit network permissions.
 		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
 			t.Error("Should contain network hook setup with explicit network permissions")
 		}
-		if !strings.Contains(string(lockContent), `"example.com"`) {
+		if !strings.Contains(string(lockContent), `\"example.com\"`) {
 			t.Error("Should contain example.com in allowed domains")
 		}
-		if !strings.Contains(string(lockContent), `"api.github.com"`) {
+		if !strings.Contains(string(lockContent), `\"api.github.com\"`) {
 			t.Error("Should contain api.github.com in allowed domains")
 		}
 	})
