@@ -1125,7 +1125,6 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			// Check if only safe events are present
-			safeEvents := []string{"workflow_dispatch", "workflow_run", "schedule"}
 			hasUnsafeEvents := false
 
 			for eventName := range onMap {
@@ -1137,7 +1136,7 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 
 				// Check if this event is in the safe list
 				isSafe := false
-				for _, safeEvent := range safeEvents {
+				for _, safeEvent := range constants.SafeWorkflowEvents {
 					if eventName == safeEvent {
 						isSafe = true
 						break
@@ -2071,60 +2070,12 @@ core.setOutput("is_team_member", "true");
 console.log("Permission check skipped - 'for: all' specified");`
 	}
 
-	// Generate JavaScript that checks for the specified permission levels
-	var permissionChecks []string
-	for _, perm := range requiredPermissions {
-		switch perm {
-		case "admin", "maintainer":
-			// These are repository permissions
-			permissionChecks = append(permissionChecks, fmt.Sprintf(`permission === "%s"`, perm))
-		case "maintain":
-			// Handle "maintain" as alias for "maintainer"
-			permissionChecks = append(permissionChecks, `permission === "maintain"`)
-		case "write", "triage":
-			// These are also repository permissions
-			permissionChecks = append(permissionChecks, fmt.Sprintf(`permission === "%s"`, perm))
-		}
-	}
-
-	permissionCheckCondition := strings.Join(permissionChecks, " || ")
-
+	// Use the embedded check_permissions.cjs script with environment variable
 	return fmt.Sprintf(`
-async function main() {
-  const actor = context.actor;
-  const { owner, repo } = context.repo;
+// Set required permissions as environment variable for the script
+process.env.REQUIRED_PERMISSIONS = "%s";
 
-  // Check if the actor has the required repository permissions
-  try {
-    console.log(
-      "Checking if user '" + actor + "' has required permissions for " + owner + "/" + repo
-    );
-    console.log("Required permissions: %s");
-
-    const repoPermission =
-      await github.rest.repos.getCollaboratorPermissionLevel({
-        owner: owner,
-        repo: repo,
-        username: actor,
-      });
-
-    const permission = repoPermission.data.permission;
-    console.log("Repository permission level: " + permission);
-
-    if (%s) {
-      console.log("User has " + permission + " access to repository");
-      core.setOutput("is_team_member", "true");
-      return;
-    }
-  } catch (repoError) {
-    const errorMessage =
-      repoError instanceof Error ? repoError.message : String(repoError);
-    core.warning("Repository permission check failed: " + errorMessage);
-  }
-
-  core.setOutput("is_team_member", "false");
-}
-await main();`, strings.Join(requiredPermissions, ", "), permissionCheckCondition)
+%s`, strings.Join(requiredPermissions, ","), checkPermissionsScript)
 }
 
 // buildAddReactionJob creates the add_reaction job
