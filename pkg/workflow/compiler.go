@@ -661,7 +661,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
-	workflowData.If = c.extractTopLevelYAMLSection(result.Frontmatter, "if")
+	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
@@ -763,6 +763,22 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	}
 
 	return yamlStr
+}
+
+// extractIfCondition extracts the if condition from frontmatter, returning just the expression
+// without the "if: " prefix
+func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
+	value, exists := frontmatter["if"]
+	if !exists {
+		return ""
+	}
+
+	// Convert the value to string - it should be just the expression
+	if strValue, ok := value.(string); ok {
+		return strValue
+	}
+
+	return ""
 }
 
 // extractStringValue extracts a string value from the frontmatter map
@@ -1147,7 +1163,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			commandConditionTree := buildEventAwareCommandCondition(data.Command, hasOtherEvents)
 
 			if data.If == "" {
-				data.If = fmt.Sprintf("if: %s", commandConditionTree.Render())
+				data.If = commandConditionTree.Render()
 			}
 		} else {
 			data.On = `on:
@@ -1266,9 +1282,9 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 	}
 
 	// Build condition tree and render
-	existingCondition := strings.TrimPrefix(data.If, "if: ")
+	existingCondition := data.If
 	conditionTree := buildConditionTree(existingCondition, draftCondition.Render())
-	data.If = fmt.Sprintf("if: %s", conditionTree.Render())
+	data.If = conditionTree.Render()
 }
 
 // applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
@@ -1343,9 +1359,9 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	}
 
 	// Build condition tree and render
-	existingCondition := strings.TrimPrefix(data.If, "if: ")
+	existingCondition := data.If
 	conditionTree := buildConditionTree(existingCondition, forkCondition.Render())
-	data.If = fmt.Sprintf("if: %s", conditionTree.Render())
+	data.If = conditionTree.Render()
 }
 
 // extractToolsFromFrontmatter extracts tools section from frontmatter map
@@ -1927,7 +1943,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 
 	job := &Job{
 		Name:        "add_reaction",
-		If:          fmt.Sprintf("if: %s", reactionCondition.Render()),
+		If:          reactionCondition.Render(),
 		RunsOn:      "runs-on: ubuntu-latest",
 		Permissions: "permissions:\n      issues: write\n      pull-requests: write",
 		Steps:       steps,
@@ -1980,7 +1996,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
-		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		jobCondition = commandConditionStr
 	} else {
 		jobCondition = "" // No conditional execution
 	}
@@ -2039,7 +2055,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
-		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		jobCondition = commandConditionStr
 	} else {
 		jobCondition = "" // No conditional execution
 	}
@@ -2111,14 +2127,14 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 		// Combine command condition with base condition using AND
 		if baseCondition == "always()" {
 			// If base condition is always(), just use the command condition
-			jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+			jobCondition = commandConditionStr
 		} else {
 			// Combine both conditions with AND
-			jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+			jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
 		}
 	} else {
 		// No command trigger, just use the base condition
-		jobCondition = fmt.Sprintf("if: %s", baseCondition)
+		jobCondition = baseCondition
 	}
 
 	job := &Job{
@@ -2179,10 +2195,10 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		commandConditionStr := commandCondition.Render()
 
 		// Combine command condition with base condition using AND
-		jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+		jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
 	} else {
 		// No command trigger, just use the base condition
-		jobCondition = fmt.Sprintf("if: %s", baseCondition)
+		jobCondition = baseCondition
 	}
 
 	job := &Job{
@@ -2267,7 +2283,7 @@ func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJo
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
-		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		jobCondition = commandConditionStr
 	} else {
 		// No specific condition needed - security reports can run anytime
 		jobCondition = ""
@@ -2363,7 +2379,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
-		jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+		jobCondition = commandConditionStr
 	} else {
 		jobCondition = "" // No conditional execution
 	}
@@ -3602,7 +3618,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 
 			if ifCond, hasIf := configMap["if"]; hasIf {
 				if ifStr, ok := ifCond.(string); ok {
-					job.If = fmt.Sprintf("if: %s", ifStr)
+					job.If = ifStr
 				}
 			}
 

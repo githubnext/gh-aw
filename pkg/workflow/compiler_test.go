@@ -461,7 +461,7 @@ tools:
 ---`,
 			filename:        "test-bot.md",
 			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:      "if: ((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot'))",
+			expectedIf:      "((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot'))",
 			expectedCommand: "test-bot",
 		},
 		{
@@ -476,7 +476,7 @@ tools:
 ---`,
 			filename:        "test-new-format.md",
 			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:      "if: ((contains(github.event.issue.body, '/new-bot')) || (contains(github.event.comment.body, '/new-bot'))) || (contains(github.event.pull_request.body, '/new-bot'))",
+			expectedIf:      "((contains(github.event.issue.body, '/new-bot')) || (contains(github.event.comment.body, '/new-bot'))) || (contains(github.event.pull_request.body, '/new-bot'))",
 			expectedCommand: "new-bot",
 		},
 		{
@@ -490,7 +490,7 @@ tools:
 ---`,
 			filename:        "default-name-bot.md",
 			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:      "if: ((contains(github.event.issue.body, '/default-name-bot')) || (contains(github.event.comment.body, '/default-name-bot'))) || (contains(github.event.pull_request.body, '/default-name-bot'))",
+			expectedIf:      "((contains(github.event.issue.body, '/default-name-bot')) || (contains(github.event.comment.body, '/default-name-bot'))) || (contains(github.event.pull_request.body, '/default-name-bot'))",
 			expectedCommand: "default-name-bot",
 		},
 	}
@@ -572,7 +572,7 @@ tools:
 ---`,
 			filename:        "command-with-dispatch.md",
 			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
-			expectedIf:      "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
 			expectedCommand: "test-bot",
 			shouldError:     false,
 		},
@@ -590,7 +590,7 @@ tools:
 ---`,
 			filename:        "command-with-schedule.md",
 			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
-			expectedIf:      "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/schedule-bot')) || (contains(github.event.comment.body, '/schedule-bot'))) || (contains(github.event.pull_request.body, '/schedule-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/schedule-bot')) || (contains(github.event.comment.body, '/schedule-bot'))) || (contains(github.event.pull_request.body, '/schedule-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
 			expectedCommand: "schedule-bot",
 			shouldError:     false,
 		},
@@ -609,7 +609,7 @@ tools:
 ---`,
 			filename:        "command-with-multiple.md",
 			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
-			expectedIf:      "if: ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/multi-bot')) || (contains(github.event.comment.body, '/multi-bot'))) || (contains(github.event.pull_request.body, '/multi-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/multi-bot')) || (contains(github.event.comment.body, '/multi-bot'))) || (contains(github.event.pull_request.body, '/multi-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
 			expectedCommand: "multi-bot",
 			shouldError:     false,
 		},
@@ -3021,7 +3021,7 @@ tools:
   github:
     allowed: [get_issue]
 ---`,
-			expectedIf:   "if: (github.event_name != 'pull_request') || (github.event.pull_request.draft == false)",
+			expectedIf:   "(github.event_name != 'pull_request') || (github.event.pull_request.draft == false)",
 			shouldHaveIf: true,
 		},
 		{
@@ -3040,7 +3040,7 @@ tools:
   github:
     allowed: [get_issue]
 ---`,
-			expectedIf:   "if: (github.event_name != 'pull_request') || (github.event.pull_request.draft == true)",
+			expectedIf:   "(github.event_name != 'pull_request') || (github.event.pull_request.draft == true)",
 			shouldHaveIf: true,
 		},
 		{
@@ -3078,7 +3078,7 @@ tools:
   github:
     allowed: [get_issue]
 ---`,
-			expectedIf:   "if: (github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == false))",
+			expectedIf:   "(github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == false))",
 			shouldHaveIf: true,
 		},
 		{
@@ -3099,7 +3099,7 @@ tools:
   github:
     allowed: [get_issue]
 ---`,
-			expectedIf:   "if: (github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == true))",
+			expectedIf:   "(github.actor != 'dependabot[bot]') && ((github.event_name != 'pull_request') || (github.event.pull_request.draft == true))",
 			shouldHaveIf: true,
 		},
 		{

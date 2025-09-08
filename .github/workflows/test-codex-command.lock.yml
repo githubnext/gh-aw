@@ -2065,7 +2065,7 @@ jobs:
 
   missing_tool:
     needs: test-codex-command
-    if: ${{ always() }}
+    if: if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

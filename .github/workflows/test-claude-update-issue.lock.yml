@@ -1610,7 +1610,7 @@ jobs:
 
   update_issue:
     needs: test-claude-update-issue
-    if: github.event.issue.number
+    if: if: github.event.issue.number
     runs-on: ubuntu-latest
     permissions:
       contents: read

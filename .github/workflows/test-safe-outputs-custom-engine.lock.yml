@@ -2622,7 +2622,7 @@ jobs:
 
   add_labels:
     needs: test-safe-outputs-custom-engine
-    if: github.event.issue.number || github.event.pull_request.number
+    if: if: github.event.issue.number || github.event.pull_request.number
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2827,7 +2827,7 @@ jobs:
 
   update_issue:
     needs: test-safe-outputs-custom-engine
-    if: always()
+    if: if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -3031,7 +3031,7 @@ jobs:
 
   push_to_branch:
     needs: test-safe-outputs-custom-engine
-    if: always()
+    if: if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -3286,7 +3286,7 @@ jobs:
 
   missing_tool:
     needs: test-safe-outputs-custom-engine
-    if: ${{ always() }}
+    if: if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

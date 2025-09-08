@@ -159,7 +159,20 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 	// Add if condition if present
 	if job.If != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.If))
+		// Check if expression is multiline
+		if strings.Contains(job.If, "\n") {
+			// Use YAML folded style for multiline expressions
+			yaml.WriteString("    if: >\n")
+			lines := strings.Split(job.If, "\n")
+			for _, line := range lines {
+				if strings.TrimSpace(line) != "" {
+					yaml.WriteString(fmt.Sprintf("      %s\n", strings.TrimSpace(line)))
+				}
+			}
+		} else {
+			// Single line expression
+			yaml.WriteString(fmt.Sprintf("    if: %s\n", job.If))
+		}
 	}
 
 	// Add runs-on

@@ -317,7 +317,7 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 				{
 					Name:   "conditional-job",
 					RunsOn: "runs-on: ubuntu-latest",
-					If:     "if: github.event_name == 'push'",
+					If:     "github.event_name == 'push'",
 					Steps:  []string{"      - name: Conditional Step\n        run: echo conditional\n"},
 				},
 			},

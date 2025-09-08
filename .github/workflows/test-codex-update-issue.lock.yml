@@ -1371,7 +1371,7 @@ jobs:
 
   update_issue:
     needs: test-codex-update-issue
-    if: github.event.issue.number
+    if: if: github.event.issue.number
     runs-on: ubuntu-latest
     permissions:
       contents: read

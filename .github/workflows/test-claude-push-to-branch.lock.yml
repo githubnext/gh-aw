@@ -1643,7 +1643,7 @@ jobs:
 
   push_to_branch:
     needs: test-claude-push-to-branch
-    if: contains(github.event.issue.body, '/test-claude-push-to-branch') || contains(github.event.comment.body, '/test-claude-push-to-branch') || contains(github.event.pull_request.body, '/test-claude-push-to-branch')
+    if: if: contains(github.event.issue.body, '/test-claude-push-to-branch') || contains(github.event.comment.body, '/test-claude-push-to-branch') || contains(github.event.pull_request.body, '/test-claude-push-to-branch')
     runs-on: ubuntu-latest
     permissions:
       contents: write
