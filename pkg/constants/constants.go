@@ -3,6 +3,12 @@ package constants
 // CLIExtensionPrefix is the prefix used in user-facing output to refer to the CLI extension
 const CLIExtensionPrefix = "gh aw"
 
+// MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline
+const MaxExpressionLineLength = 120
+
+// ExpressionBreakThreshold is the threshold for breaking long lines at logical points
+const ExpressionBreakThreshold = 100
+
 // AllowedExpressions contains the GitHub Actions expressions that can be used in workflow markdown content
 // see https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context
 var AllowedExpressions = []string{
