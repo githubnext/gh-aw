@@ -534,6 +534,9 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "github":
 			githubTool := tools["github"]
 			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			e.renderPlaywrightClaudeMCPConfig(yaml, playwrightTool, isLast)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -571,6 +574,81 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
 	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderPlaywrightClaudeMCPConfig generates the Playwright MCP server configuration
+// Always uses Docker MCP and sets HEADLESS=true for browser automation
+func (e *ClaudeEngine) renderPlaywrightClaudeMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	yaml.WriteString("              \"playwright\": {\n")
+
+	// Get the Docker image (default or custom)
+	var dockerImage = "mcr.microsoft.com/playwright-mcp:latest" // Default image
+	var customEnvVars map[string]string
+
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		// Check for custom MCP configuration
+		if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+			if mcpMap, ok := mcpSection.(map[string]any); ok {
+				// Check if container is specified in custom config
+				if container, hasContainer := mcpMap["container"]; hasContainer {
+					if containerStr, ok := container.(string); ok {
+						dockerImage = containerStr
+					}
+				}
+
+				// Extract custom environment variables
+				if env, hasEnv := mcpMap["env"]; hasEnv {
+					if envMap, ok := env.(map[string]any); ok {
+						customEnvVars = make(map[string]string)
+						for key, value := range envMap {
+							if valueStr, ok := value.(string); ok && key != "HEADLESS" {
+								customEnvVars[key] = valueStr
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Always use Docker-based Playwright MCP server for browser automation
+	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"run\",\n")
+	yaml.WriteString("                  \"-i\",\n")
+	yaml.WriteString("                  \"--rm\",\n")
+
+	// Add HEADLESS environment variable (always true for Playwright)
+	yaml.WriteString("                  \"-e\",\n")
+	yaml.WriteString("                  \"HEADLESS\",\n")
+
+	// Add environment variables for custom vars
+	for key := range customEnvVars {
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString(fmt.Sprintf("                  \"%s\",\n", key))
+	}
+
+	// Add the Docker image
+	yaml.WriteString("                  \"" + dockerImage + "\"\n")
+	yaml.WriteString("                ],\n")
+
+	// Set environment variables
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"HEADLESS\": \"true\"\n")
+
+	// Add custom environment variables
+	for key, value := range customEnvVars {
+		yaml.WriteString(",\n")
+		yaml.WriteString(fmt.Sprintf("                  \"%s\": \"%s\"", key, value))
+	}
+
+	yaml.WriteString("\n                }\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")

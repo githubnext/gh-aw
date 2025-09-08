@@ -435,3 +435,141 @@ This is a test workflow for custom Docker MCP configuration with different scena
 		})
 	}
 }
+
+func TestPlaywrightMCPConfiguration(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "playwright-mcp-config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name              string
+		frontmatter       string
+		expectedDockerImg string
+		expectedHeadless  bool
+		customEnvVars     map[string]string
+	}{
+		{
+			name: "default Playwright server",
+			frontmatter: `---
+tools:
+  playwright:
+    allowed: [browser_navigate, browser_take_screenshot]
+---`,
+			expectedDockerImg: "mcr.microsoft.com/playwright-mcp:latest",
+			expectedHeadless:  true,
+		},
+		{
+			name: "Playwright with custom MCP config but still headless",
+			frontmatter: `---
+tools:
+  playwright:
+    allowed: [browser_take_screenshot]
+    mcp:
+      type: stdio
+      container: mcr.microsoft.com/playwright-mcp:v1.0.0
+      env:
+        PLAYWRIGHT_BROWSER: "chromium"
+        CUSTOM_VAR: "test"
+---`,
+			expectedDockerImg: "mcr.microsoft.com/playwright-mcp:v1.0.0",
+			expectedHeadless:  true,
+			customEnvVars: map[string]string{
+				"PLAYWRIGHT_BROWSER": "chromium",
+				"CUSTOM_VAR":         "test",
+			},
+		},
+		{
+			name: "Playwright with custom env trying to override HEADLESS (should stay true)",
+			frontmatter: `---
+tools:
+  playwright:
+    allowed: [browser_click]
+    mcp:
+      type: stdio
+      container: mcr.microsoft.com/playwright-mcp:latest
+      env:
+        HEADLESS: "false"
+        PLAYWRIGHT_BROWSER: "firefox"
+---`,
+			expectedDockerImg: "mcr.microsoft.com/playwright-mcp:latest",
+			expectedHeadless:  true, // Should always be true regardless of custom config
+			customEnvVars: map[string]string{
+				"PLAYWRIGHT_BROWSER": "firefox",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := tt.frontmatter + `
+
+# Test Playwright MCP Configuration
+
+This is a test workflow for Playwright MCP configuration.
+`
+
+			testFile := filepath.Join(tmpDir, tt.name+"-workflow.md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			err := compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Unexpected error compiling workflow: %v", err)
+			}
+
+			// Replace the file extension to .lock.yml
+			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			// Read the generated lock file
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			// Check that Playwright MCP server is configured
+			if !strings.Contains(lockContent, `"playwright": {`) {
+				t.Errorf("Expected playwright server configuration but didn't find it in:\n%s", lockContent)
+			}
+
+			// Check Docker configuration
+			if !strings.Contains(lockContent, `"command": "docker"`) {
+				t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
+			}
+
+			// Check Docker image
+			if !strings.Contains(lockContent, tt.expectedDockerImg) {
+				t.Errorf("Expected Docker image '%s' but didn't find it in:\n%s", tt.expectedDockerImg, lockContent)
+			}
+
+			// Check that HEADLESS is always true
+			if tt.expectedHeadless {
+				if !strings.Contains(lockContent, `"HEADLESS": "true"`) {
+					t.Errorf("Expected HEADLESS=true environment variable but didn't find it in:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, `"-e"`) || !strings.Contains(lockContent, `"HEADLESS"`) {
+					t.Errorf("Expected -e HEADLESS Docker flag but didn't find it in:\n%s", lockContent)
+				}
+			}
+
+			// Check custom environment variables
+			for key, value := range tt.customEnvVars {
+				expectedEnvLine := fmt.Sprintf(`"%s": "%s"`, key, value)
+				if !strings.Contains(lockContent, expectedEnvLine) {
+					t.Errorf("Expected custom env var '%s=%s' but didn't find it in:\n%s", key, value, lockContent)
+				}
+			}
+
+			// Ensure HEADLESS cannot be overridden to false
+			if strings.Contains(lockContent, `"HEADLESS": "false"`) {
+				t.Errorf("HEADLESS should never be false, but found 'HEADLESS: false' in:\n%s", lockContent)
+			}
+		})
+	}
+}

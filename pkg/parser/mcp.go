@@ -136,10 +136,12 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 				Type:    "docker",
 				Command: "docker",
 				Args: []string{
-					"run", "-i", "--rm",
+					"run", "-i", "--rm", "-e", "HEADLESS",
 					"mcr.microsoft.com/playwright-mcp:latest",
 				},
-				Env: make(map[string]string),
+				Env: map[string]string{
+					"HEADLESS": "true", // Playwright is always headless
+				},
 			}
 
 			// Check for custom Playwright configuration
@@ -160,8 +162,42 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					if err != nil {
 						return nil, fmt.Errorf("failed to parse custom MCP config for %s: %w", toolName, err)
 					}
-					// Use custom config but preserve the name
+					// Use custom config but preserve the name and ensure HEADLESS is always true
 					customConfig.Name = "playwright"
+
+					// Ensure HEADLESS is always set to true for Playwright
+					if customConfig.Env == nil {
+						customConfig.Env = make(map[string]string)
+					}
+					customConfig.Env["HEADLESS"] = "true"
+
+					// Ensure HEADLESS environment variable is passed to Docker container
+					if customConfig.Type == "docker" || (customConfig.Command == "docker" && customConfig.Container != "") {
+						// Check if -e HEADLESS is already in args
+						hasHeadlessFlag := false
+						for i, arg := range customConfig.Args {
+							if arg == "-e" && i+1 < len(customConfig.Args) && customConfig.Args[i+1] == "HEADLESS" {
+								hasHeadlessFlag = true
+								break
+							}
+						}
+
+						// Add -e HEADLESS flag if not present
+						if !hasHeadlessFlag {
+							// Insert -e HEADLESS before the image name (last argument)
+							if len(customConfig.Args) > 0 {
+								// Insert at second-to-last position
+								insertPos := len(customConfig.Args) - 1
+								newArgs := make([]string, len(customConfig.Args)+2)
+								copy(newArgs[:insertPos], customConfig.Args[:insertPos])
+								newArgs[insertPos] = "-e"
+								newArgs[insertPos+1] = "HEADLESS"
+								copy(newArgs[insertPos+2:], customConfig.Args[insertPos:])
+								customConfig.Args = newArgs
+							}
+						}
+					}
+
 					config = customConfig
 				}
 			}
