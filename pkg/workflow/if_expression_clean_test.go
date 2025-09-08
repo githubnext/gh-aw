@@ -248,3 +248,101 @@ func TestCustomJobIfConditionHandling(t *testing.T) {
 		})
 	}
 }
+
+// TestLongExpressionBreaking tests that expressions longer than 120 characters
+// are automatically broken into multiple lines using YAML folded style
+func TestLongExpressionBreaking(t *testing.T) {
+	tests := []struct {
+		name               string
+		expression         string
+		expectMultiline    bool
+		expectedContains   []string
+		expectedNotContain []string
+	}{
+		{
+			name:            "short expression stays single line",
+			expression:      "github.event_name == 'push'",
+			expectMultiline: false,
+			expectedContains: []string{
+				"if: github.event_name == 'push'",
+			},
+			expectedNotContain: []string{
+				"if: >",
+			},
+		},
+		{
+			name:            "long expression gets broken into multiline",
+			expression:      "github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'discussion'",
+			expectMultiline: true,
+			expectedContains: []string{
+				"if: >",
+				"github.event_name == 'issues' ||",
+				"github.event_name == 'pull_request' ||",
+			},
+			expectedNotContain: []string{
+				"if: github.event_name == 'issues' || github.event_name == 'pull_request' || github.event_name == 'issue_comment' || github.event_name == 'discussion'",
+			},
+		},
+		{
+			name:            "very long expression with function calls",
+			expression:      "contains(github.event.issue.labels.*.name, 'bug') && contains(github.event.issue.labels.*.name, 'priority-high') && github.event.action == 'opened'",
+			expectMultiline: true,
+			expectedContains: []string{
+				"if: >",
+				"contains(github.event.issue.labels.*.name, 'bug') &&",
+			},
+			expectedNotContain: []string{
+				"if: contains(github.event.issue.labels.*.name, 'bug') && contains(github.event.issue.labels.*.name, 'priority-high')",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a job with the long expression
+			job := &Job{
+				Name:   "test-job",
+				If:     tt.expression,
+				RunsOn: "runs-on: ubuntu-latest",
+				Steps:  []string{"      - name: Test Step\n        run: echo test\n"},
+			}
+
+			// Create job manager and render
+			jm := NewJobManager()
+			err := jm.AddJob(job)
+			if err != nil {
+				t.Fatalf("Failed to add job: %v", err)
+			}
+
+			yaml := jm.renderJob(job)
+			t.Logf("Generated YAML:\n%s", yaml)
+
+			// Check expected content
+			for _, expected := range tt.expectedContains {
+				if !strings.Contains(yaml, expected) {
+					t.Errorf("Expected YAML to contain '%s', but got:\n%s", expected, yaml)
+				}
+			}
+
+			// Check not expected content
+			for _, notExpected := range tt.expectedNotContain {
+				if strings.Contains(yaml, notExpected) {
+					t.Errorf("Expected YAML to NOT contain '%s', but got:\n%s", notExpected, yaml)
+				}
+			}
+
+			// Verify multiline expectation
+			hasYamlFoldedStyle := strings.Contains(yaml, "if: >")
+			if tt.expectMultiline && !hasYamlFoldedStyle {
+				t.Errorf("Expected multiline rendering with 'if: >' for expression longer than 120 chars")
+			} else if !tt.expectMultiline && hasYamlFoldedStyle {
+				t.Errorf("Expected single line rendering, but got multiline 'if: >' style")
+			}
+
+			// Ensure no double prefixes
+			if strings.Contains(yaml, "if: if:") {
+				t.Errorf("Found double 'if: if:' prefix in YAML:\n%s", yaml)
+			}
+		})
+	}
+}
