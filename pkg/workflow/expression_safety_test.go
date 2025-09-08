@@ -235,3 +235,88 @@ func TestValidateExpressionSafetyEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateExpressionSafetyWithParser tests the new parser functionality in expression safety
+func TestValidateExpressionSafetyWithParser(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:    "allowed AND expression",
+			content: `${{ github.workflow && github.repository }}`,
+			wantErr: false,
+		},
+		{
+			name:    "allowed OR expression",
+			content: `${{ github.workflow || github.repository }}`,
+			wantErr: false,
+		},
+		{
+			name:    "allowed NOT expression",
+			content: `${{ !github.workflow }}`,
+			wantErr: false,
+		},
+		{
+			name:    "complex allowed expression with parentheses",
+			content: `${{ (github.workflow && github.repository) || github.run_id }}`,
+			wantErr: false,
+		},
+		{
+			name:        "mixed allowed and unauthorized",
+			content:     `${{ github.workflow && secrets.TOKEN }}`,
+			wantErr:     true,
+			errContains: "secrets.TOKEN",
+		},
+		{
+			name:        "unauthorized in complex expression",
+			content:     `${{ (github.workflow || secrets.TOKEN) && github.repository }}`,
+			wantErr:     true,
+			errContains: "secrets.TOKEN",
+		},
+		{
+			name:    "nested complex allowed expression",
+			content: `${{ ((github.workflow && github.repository) || github.run_id) && github.actor }}`,
+			wantErr: false,
+		},
+		{
+			name:        "NOT with unauthorized expression",
+			content:     `${{ !secrets.TOKEN }}`,
+			wantErr:     true,
+			errContains: "secrets.TOKEN",
+		},
+		{
+			name:    "unparseable but allowed literal",
+			content: `${{ github.workflow }}`,
+			wantErr: false,
+		},
+		{
+			name:        "unparseable and unauthorized literal",
+			content:     `${{ secrets.INVALID_TOKEN }}`,
+			wantErr:     true,
+			errContains: "secrets.INVALID_TOKEN",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExpressionSafety(tt.content)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("validateExpressionSafety() expected error but got none")
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("validateExpressionSafety() error = %v, should contain %v", err, tt.errContains)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("validateExpressionSafety() unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}

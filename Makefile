@@ -70,9 +70,18 @@ deps:
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: deps copy-copilot-to-claude
+deps-dev: deps copy-copilot-to-claude download-github-actions-schema
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	npm ci
+
+# Download GitHub Actions workflow schema for embedded validation
+.PHONY: download-github-actions-schema
+download-github-actions-schema:
+	@echo "Downloading GitHub Actions workflow schema..."
+	@mkdir -p pkg/workflow/schemas
+	@curl -s -o pkg/workflow/schemas/github-workflow.json \
+		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
+	@echo "✓ Downloaded GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
 # Run linter
 .PHONY: golint

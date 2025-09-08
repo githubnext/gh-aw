@@ -1997,15 +1997,6 @@ on: push`,
 			errMsg:  "missing property 'jobs'",
 		},
 		{
-			name: "invalid workflow - invalid YAML",
-			yaml: `name: "Test Workflow"
-on: push
-jobs:
-  test: [invalid yaml structure`,
-			wantErr: true,
-			errMsg:  "failed to parse generated YAML",
-		},
-		{
 			name: "invalid workflow - invalid job structure",
 			yaml: `name: "Test Workflow"
 on: push
@@ -2019,19 +2010,69 @@ jobs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := compiler.validateWorkflowSchema(tt.yaml)
+			err := compiler.validateGitHubActionsSchema(tt.yaml)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("validateWorkflowSchema() expected error but got none")
+					t.Errorf("validateGitHubActionsSchema() expected error but got none")
 					return
 				}
 				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
-					t.Errorf("validateWorkflowSchema() error = %v, expected to contain %v", err, tt.errMsg)
+					t.Errorf("validateGitHubActionsSchema() error = %v, expected to contain %v", err, tt.errMsg)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("validateWorkflowSchema() unexpected error = %v", err)
+					t.Errorf("validateGitHubActionsSchema() unexpected error = %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestBasicYAMLValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid YAML",
+			yaml: `name: "Test Workflow"
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest`,
+			wantErr: false,
+		},
+		{
+			name: "invalid YAML syntax",
+			yaml: `name: "Test Workflow"
+on: push
+jobs:
+  test: [invalid yaml structure`,
+			wantErr: true,
+			errMsg:  "sequence end token",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test basic YAML validation (this is now always performed)
+			var yamlTest interface{}
+			err := yaml.Unmarshal([]byte(tt.yaml), &yamlTest)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("YAML validation expected error but got none")
+					return
+				}
+				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("YAML validation error = %v, expected to contain %v", err, tt.errMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("YAML validation unexpected error = %v", err)
 				}
 			}
 		})

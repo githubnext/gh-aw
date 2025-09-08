@@ -344,7 +344,7 @@ func init() {
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex)")
-	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation")
+	compileCmd.Flags().Bool("validate", true, "Enable GitHub Actions workflow schema validation (default: true)")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().Bool("instructions", false, "Generate or update GitHub Copilot instructions file")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
