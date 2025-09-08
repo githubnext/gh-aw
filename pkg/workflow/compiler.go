@@ -2321,7 +2321,14 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 
-	// Step 3: Create pull request
+	// Step 3: Configure Git credentials
+	steps = append(steps, "      - name: Configure Git credentials\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n")
+	steps = append(steps, "          git config --global user.name \"${{ github.workflow }}\"\n")
+	steps = append(steps, "          echo \"Git configured with standard GitHub Actions identity\"\n")
+
+	// Step 4: Create pull request
 	steps = append(steps, "      - name: Create Pull Request\n")
 	steps = append(steps, "        id: create_pull_request\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
