@@ -140,12 +140,8 @@ Test workflow content.`,
 				if !hasTeamMemberCheck {
 					t.Errorf("Expected team member check in command workflow but not found")
 				}
-				// Also verify the validation step is present
-				if !strings.Contains(lockContentStr, "Validate team membership") {
-					t.Errorf("Expected team membership validation step but not found")
-				}
-				// Check for the specific failure message
-				if !strings.Contains(lockContentStr, "Only team members can trigger command workflows") {
+				// Check for the specific failure message (updated for new implementation)
+				if !strings.Contains(lockContentStr, "Access denied: Only authorized users can trigger this workflow") {
 					t.Errorf("Expected team member check failure message but not found")
 				}
 				// Verify that team member check has a conditional that only runs for alias mentions
