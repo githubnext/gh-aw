@@ -154,3 +154,97 @@ func TestJobStructStoreSeparatesExpression(t *testing.T) {
 		t.Errorf("Job.If should not contain 'if: ' prefix, got '%s'", job.If)
 	}
 }
+
+// TestCustomJobIfConditionHandling tests that custom jobs properly handle if conditions
+// from frontmatter, including when they contain the "if: " prefix
+func TestCustomJobIfConditionHandling(t *testing.T) {
+	tests := []struct {
+		name               string
+		ifConditionInYAML  string
+		expectedExpression string
+	}{
+		{
+			name:               "if condition with prefix",
+			ifConditionInYAML:  "if: github.event.issue.number",
+			expectedExpression: "github.event.issue.number",
+		},
+		{
+			name:               "if condition without prefix",
+			ifConditionInYAML:  "github.event.issue.number",
+			expectedExpression: "github.event.issue.number",
+		},
+		{
+			name:               "complex if condition with prefix",
+			ifConditionInYAML:  "if: always()",
+			expectedExpression: "always()",
+		},
+		{
+			name:               "complex if condition without prefix",
+			ifConditionInYAML:  "${{ always() }}",
+			expectedExpression: "${{ always() }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a compiler
+			compiler := &Compiler{
+				verbose: false,
+			}
+
+			// Simulate custom job config map as it would come from frontmatter
+			configMap := map[string]any{
+				"if":      tt.ifConditionInYAML,
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{
+						"name": "Test Step",
+						"run":  "echo test",
+					},
+				},
+			}
+
+			// Simulate building a custom job (like buildCustomJobs does)
+			job := &Job{
+				Name: "test-custom-job",
+			}
+
+			// Extract if condition using the same logic as buildCustomJobs
+			if ifCond, hasIf := configMap["if"]; hasIf {
+				if ifStr, ok := ifCond.(string); ok {
+					job.If = compiler.extractExpressionFromIfString(ifStr)
+				}
+			}
+
+			// Verify the expression was extracted correctly
+			if job.If != tt.expectedExpression {
+				t.Errorf("Expected expression '%s', got '%s'", tt.expectedExpression, job.If)
+			}
+
+			// Ensure we don't have the "if: " prefix in the job struct
+			if strings.HasPrefix(job.If, "if: ") {
+				t.Errorf("Job.If should not contain 'if: ' prefix, got '%s'", job.If)
+			}
+
+			// Render the job and check for double prefixes
+			jm := NewJobManager()
+			err := jm.AddJob(job)
+			if err != nil {
+				t.Fatalf("Failed to add job: %v", err)
+			}
+
+			yaml := jm.renderJob(job)
+
+			// Ensure we don't have double prefixes in the rendered YAML
+			if strings.Contains(yaml, "if: if:") {
+				t.Errorf("Found double 'if: if:' prefix in YAML:\n%s", yaml)
+			}
+
+			// Ensure we do have the correct single prefix
+			expectedLine := "    if: " + tt.expectedExpression
+			if !strings.Contains(yaml, expectedLine) {
+				t.Errorf("Expected YAML to contain '%s', but got:\n%s", expectedLine, yaml)
+			}
+		})
+	}
+}

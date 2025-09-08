@@ -1607,7 +1607,7 @@ jobs:
 
   add_labels:
     needs: test-claude-add-issue-labels
-    if: if: github.event.issue.number || github.event.pull_request.number
+    if: github.event.issue.number || github.event.pull_request.number
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -775,10 +775,26 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 
 	// Convert the value to string - it should be just the expression
 	if strValue, ok := value.(string); ok {
-		return strValue
+		return c.extractExpressionFromIfString(strValue)
 	}
 
 	return ""
+}
+
+// extractExpressionFromIfString extracts the expression part from a string that might
+// contain "if: expression" or just "expression", returning just the expression
+func (c *Compiler) extractExpressionFromIfString(ifString string) string {
+	if ifString == "" {
+		return ""
+	}
+
+	// Check if the string starts with "if: " and strip it
+	if strings.HasPrefix(ifString, "if: ") {
+		return strings.TrimSpace(ifString[4:]) // Remove "if: " prefix
+	}
+
+	// Return the string as-is (it's just the expression)
+	return ifString
 }
 
 // extractStringValue extracts a string value from the frontmatter map
@@ -3618,7 +3634,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 
 			if ifCond, hasIf := configMap["if"]; hasIf {
 				if ifStr, ok := ifCond.(string); ok {
-					job.If = ifStr
+					job.If = c.extractExpressionFromIfString(ifStr)
 				}
 			}
 

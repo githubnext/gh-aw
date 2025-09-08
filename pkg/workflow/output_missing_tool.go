@@ -42,7 +42,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	job := &Job{
 		Name:           "missing_tool",
 		RunsOn:         "runs-on: ubuntu-latest",
-		If:             "if: ${{ always() }}",                // Always run to capture missing tools
+		If:             "${{ always() }}",                    // Always run to capture missing tools
 		Permissions:    "permissions:\n      contents: read", // Only needs read access for logging
 		TimeoutMinutes: 5,                                    // Short timeout since it's just processing output
 		Steps:          steps,
