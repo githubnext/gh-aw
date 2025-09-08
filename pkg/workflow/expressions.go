@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // ConditionNode represents a node in a condition expression tree
@@ -373,4 +374,287 @@ func BuildMultilineDisjunction(terms ...ConditionNode) *DisjunctionNode {
 		Terms:     terms,
 		Multiline: true,
 	}
+}
+
+// ExpressionParser handles parsing of expression strings into ConditionNode trees
+type ExpressionParser struct {
+	tokens []token
+	pos    int
+}
+
+type token struct {
+	kind  tokenKind
+	value string
+	pos   int
+}
+
+type tokenKind int
+
+const (
+	tokenLiteral tokenKind = iota
+	tokenAnd
+	tokenOr
+	tokenNot
+	tokenLeftParen
+	tokenRightParen
+	tokenEOF
+)
+
+// ParseExpression parses a string expression into a ConditionNode tree
+// Supports && (AND), || (OR), ! (NOT), and parentheses for grouping
+// Example: "condition1 && (condition2 || !condition3)"
+func ParseExpression(expression string) (ConditionNode, error) {
+	if strings.TrimSpace(expression) == "" {
+		return nil, fmt.Errorf("empty expression")
+	}
+
+	parser := &ExpressionParser{}
+	tokens, err := parser.tokenize(expression)
+	if err != nil {
+		return nil, err
+	}
+	parser.tokens = tokens
+	parser.pos = 0
+
+	result, err := parser.parseOrExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that all tokens were consumed
+	if parser.current().kind != tokenEOF {
+		return nil, fmt.Errorf("unexpected token '%s' at position %d", parser.current().value, parser.current().pos)
+	}
+
+	return result, nil
+}
+
+// tokenize breaks the expression string into tokens
+func (p *ExpressionParser) tokenize(expression string) ([]token, error) {
+	var tokens []token
+	i := 0
+
+	for i < len(expression) {
+		// Skip whitespace
+		if unicode.IsSpace(rune(expression[i])) {
+			i++
+			continue
+		}
+
+		switch {
+		case i+1 < len(expression) && expression[i:i+2] == "&&":
+			tokens = append(tokens, token{tokenAnd, "&&", i})
+			i += 2
+		case i+1 < len(expression) && expression[i:i+2] == "||":
+			tokens = append(tokens, token{tokenOr, "||", i})
+			i += 2
+		case expression[i] == '!' && (i+1 >= len(expression) || expression[i+1] != '='):
+			// Only treat ! as NOT if not followed by = (to avoid conflicting with !=)
+			tokens = append(tokens, token{tokenNot, "!", i})
+			i++
+		case expression[i] == '(':
+			tokens = append(tokens, token{tokenLeftParen, "(", i})
+			i++
+		case expression[i] == ')':
+			tokens = append(tokens, token{tokenRightParen, ")", i})
+			i++
+		default:
+			// Parse literal expression - everything until we hit a logical operator or paren
+			start := i
+			parenCount := 0
+
+			for i < len(expression) {
+				ch := expression[i]
+
+				// Handle quoted strings - skip everything inside quotes
+				if ch == '\'' {
+					i++ // skip opening quote
+					for i < len(expression) {
+						if expression[i] == '\'' {
+							i++ // skip closing quote
+							break
+						}
+						if expression[i] == '\\' && i+1 < len(expression) {
+							i += 2 // skip escaped character
+						} else {
+							i++
+						}
+					}
+					continue
+				}
+
+				// Track parentheses that are part of the expression (e.g., function calls)
+				if ch == '(' {
+					parenCount++
+					i++
+					continue
+				} else if ch == ')' {
+					if parenCount > 0 {
+						parenCount--
+						i++
+						continue
+					} else {
+						// This closes our group expression, stop here
+						break
+					}
+				}
+
+				// Check for logical operators when not inside parentheses
+				if parenCount == 0 {
+					// Check for && or ||
+					if i+1 < len(expression) {
+						next := expression[i : i+2]
+						if next == "&&" || next == "||" {
+							break
+						}
+					}
+
+					// Check for logical NOT that's not part of !=
+					if ch == '!' && (i+1 >= len(expression) || expression[i+1] != '=') {
+						break
+					}
+				}
+
+				i++
+			}
+
+			literal := strings.TrimSpace(expression[start:i])
+			if literal == "" {
+				return nil, fmt.Errorf("unexpected empty literal at position %d", start)
+			}
+			tokens = append(tokens, token{tokenLiteral, literal, start})
+		}
+	}
+
+	tokens = append(tokens, token{tokenEOF, "", i})
+	return tokens, nil
+}
+
+// parseOrExpression parses OR expressions (lowest precedence)
+func (p *ExpressionParser) parseOrExpression() (ConditionNode, error) {
+	left, err := p.parseAndExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.current().kind == tokenOr {
+		p.advance() // consume ||
+		right, err := p.parseAndExpression()
+		if err != nil {
+			return nil, err
+		}
+		left = &OrNode{Left: left, Right: right}
+	}
+
+	return left, nil
+}
+
+// parseAndExpression parses AND expressions (higher precedence than OR)
+func (p *ExpressionParser) parseAndExpression() (ConditionNode, error) {
+	left, err := p.parseUnaryExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.current().kind == tokenAnd {
+		p.advance() // consume &&
+		right, err := p.parseUnaryExpression()
+		if err != nil {
+			return nil, err
+		}
+		left = &AndNode{Left: left, Right: right}
+	}
+
+	return left, nil
+}
+
+// parseUnaryExpression parses NOT expressions and primary expressions
+func (p *ExpressionParser) parseUnaryExpression() (ConditionNode, error) {
+	if p.current().kind == tokenNot {
+		p.advance() // consume !
+		operand, err := p.parseUnaryExpression()
+		if err != nil {
+			return nil, err
+		}
+		return &NotNode{Child: operand}, nil
+	}
+
+	return p.parsePrimaryExpression()
+}
+
+// parsePrimaryExpression parses literals and parenthesized expressions
+func (p *ExpressionParser) parsePrimaryExpression() (ConditionNode, error) {
+	switch p.current().kind {
+	case tokenLeftParen:
+		p.advance() // consume (
+		expr, err := p.parseOrExpression()
+		if err != nil {
+			return nil, err
+		}
+		if p.current().kind != tokenRightParen {
+			return nil, fmt.Errorf("expected ')' at position %d", p.current().pos)
+		}
+		p.advance() // consume )
+		return expr, nil
+
+	case tokenLiteral:
+		literal := p.current().value
+		p.advance()
+		return &ExpressionNode{Expression: literal}, nil
+
+	default:
+		return nil, fmt.Errorf("unexpected token '%s' at position %d", p.current().value, p.current().pos)
+	}
+}
+
+// current returns the current token
+func (p *ExpressionParser) current() token {
+	if p.pos >= len(p.tokens) {
+		return token{tokenEOF, "", -1}
+	}
+	return p.tokens[p.pos]
+}
+
+// advance moves to the next token
+func (p *ExpressionParser) advance() {
+	if p.pos < len(p.tokens) {
+		p.pos++
+	}
+}
+
+// VisitExpressionTree walks through an expression tree and calls the visitor function
+// for each ExpressionNode (literal expression) found in the tree
+func VisitExpressionTree(node ConditionNode, visitor func(expr *ExpressionNode) error) error {
+	if node == nil {
+		return nil
+	}
+
+	switch n := node.(type) {
+	case *ExpressionNode:
+		return visitor(n)
+	case *AndNode:
+		if err := VisitExpressionTree(n.Left, visitor); err != nil {
+			return err
+		}
+		return VisitExpressionTree(n.Right, visitor)
+	case *OrNode:
+		if err := VisitExpressionTree(n.Left, visitor); err != nil {
+			return err
+		}
+		return VisitExpressionTree(n.Right, visitor)
+	case *NotNode:
+		return VisitExpressionTree(n.Child, visitor)
+	case *DisjunctionNode:
+		for _, term := range n.Terms {
+			if err := VisitExpressionTree(term, visitor); err != nil {
+				return err
+			}
+		}
+	default:
+		// For other node types (ComparisonNode, PropertyAccessNode, etc.)
+		// we don't recurse since they represent complete literal expressions
+		return nil
+	}
+
+	return nil
 }
