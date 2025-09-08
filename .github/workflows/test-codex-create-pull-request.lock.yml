@@ -1233,9 +1233,6 @@ jobs:
             INITIAL_SHA="$GITHUB_SHA"
           fi
           echo "Base commit SHA: $INITIAL_SHA"
-          # Configure git user for GitHub Actions
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
           
           # If we have a branch name, check if that branch exists and get its diff
           if [ -n "$BRANCH_NAME" ]; then
