@@ -174,7 +174,6 @@
     "*.azurecr.io",
     "azurewebsites.net",
     "login.microsoftonline.com",
-    "api.contoso.com",
     "*.microsoft.com"
   ],
   "python": [

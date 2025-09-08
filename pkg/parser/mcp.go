@@ -31,6 +31,72 @@ type MCPServerInfo struct {
 	Roots     []*mcp.Root
 }
 
+// BuiltInMCPServer represents configuration for built-in MCP servers
+type BuiltInMCPServer struct {
+	Name            string
+	DefaultImage    string
+	DefaultEnvVars  map[string]string
+	EnforcedEnvVars map[string]string // These cannot be overridden
+}
+
+// getBuiltInMCPServers returns configuration for built-in MCP servers
+func getBuiltInMCPServers() map[string]BuiltInMCPServer {
+	return map[string]BuiltInMCPServer{
+		"github": {
+			Name:         "github",
+			DefaultImage: "ghcr.io/github/github-mcp-server:sha-09deac4",
+			DefaultEnvVars: map[string]string{
+				"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+			},
+		},
+		"playwright": {
+			Name:         "playwright",
+			DefaultImage: "mcr.microsoft.com/playwright-mcp:latest",
+			DefaultEnvVars: map[string]string{
+				"HEADLESS": "true",
+			},
+			EnforcedEnvVars: map[string]string{
+				"HEADLESS": "true", // Always headless - cannot be overridden
+			},
+		},
+	}
+}
+
+// buildDockerMCPConfig creates a Docker-based MCP configuration for built-in servers
+func buildDockerMCPConfig(serverInfo BuiltInMCPServer) MCPServerConfig {
+	config := MCPServerConfig{
+		Name:    serverInfo.Name,
+		Type:    "docker",
+		Command: "docker",
+		Args:    []string{"run", "-i", "--rm"},
+		Env:     make(map[string]string),
+	}
+
+	// Add environment variables to Docker args and config
+	for envVar := range serverInfo.DefaultEnvVars {
+		config.Args = append(config.Args, "-e", envVar)
+	}
+
+	// Set environment variable values
+	for key, value := range serverInfo.DefaultEnvVars {
+		// Special handling for GitHub token
+		if key == "GITHUB_PERSONAL_ACCESS_TOKEN" {
+			if githubToken, err := GetGitHubToken(); err == nil {
+				config.Env[key] = githubToken
+			} else {
+				config.Env[key] = value // Use placeholder
+			}
+		} else {
+			config.Env[key] = value
+		}
+	}
+
+	// Add Docker image
+	config.Args = append(config.Args, serverInfo.DefaultImage)
+
+	return config
+}
+
 // ExtractMCPConfigurations extracts MCP server configurations from workflow frontmatter
 func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) ([]MCPServerConfig, error) {
 	var configs []MCPServerConfig
@@ -46,9 +112,70 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		return nil, fmt.Errorf("tools section is not a valid map")
 	}
 
+	builtInServers := getBuiltInMCPServers()
+
 	for toolName, toolValue := range tools {
-		// Skip non-MCP tools unless it's github or playwright (which are MCP by default)
-		if toolName != "github" && toolName != "playwright" {
+		// Apply server filter first
+		if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
+			continue
+		}
+
+		// Handle built-in MCP servers (github, playwright)
+		if serverInfo, isBuiltIn := builtInServers[toolName]; isBuiltIn {
+			config := buildDockerMCPConfig(serverInfo)
+
+			// Apply tool-specific customizations
+			if toolConfig, ok := toolValue.(map[string]any); ok {
+				// Parse allowed tools
+				if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
+					if allowedSlice, ok := allowed.([]any); ok {
+						for _, item := range allowedSlice {
+							if str, ok := item.(string); ok {
+								config.Allowed = append(config.Allowed, str)
+							}
+						}
+					}
+				}
+
+				// Handle custom MCP configuration
+				if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+					customConfig, err := ParseMCPConfig(toolName, mcpSection, toolConfig)
+					if err != nil {
+						return nil, fmt.Errorf("failed to parse custom MCP config for %s: %w", toolName, err)
+					}
+					customConfig.Name = toolName
+
+					// Apply enforced environment variables (cannot be overridden)
+					if customConfig.Env == nil {
+						customConfig.Env = make(map[string]string)
+					}
+					for key, value := range serverInfo.EnforcedEnvVars {
+						customConfig.Env[key] = value
+					}
+
+					config = customConfig
+				}
+
+				// Handle GitHub-specific customizations
+				if toolName == "github" {
+					if version, exists := toolConfig["docker_image_version"]; exists {
+						if versionStr, ok := version.(string); ok {
+							dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
+							// Update the Docker image in args
+							for i, arg := range config.Args {
+								if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
+									config.Args[i] = dockerImage
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+
+			configs = append(configs, config)
+		} else {
+			// Handle custom MCP tools
 			toolConfig, ok := toolValue.(map[string]any)
 			if !ok {
 				continue
@@ -63,143 +190,6 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 			config, err := ParseMCPConfig(toolName, mcpSection, toolConfig)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse MCP config for %s: %w", toolName, err)
-			}
-
-			// Apply server filter if specified
-			if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
-				continue
-			}
-
-			configs = append(configs, config)
-		} else if toolName == "github" {
-			// Handle GitHub MCP server - always use Docker by default
-			if serverFilter != "" && !strings.Contains("github", strings.ToLower(serverFilter)) {
-				continue
-			}
-
-			config := MCPServerConfig{
-				Name:    "github",
-				Type:    "docker", // GitHub defaults to Docker (local containerized)
-				Command: "docker",
-				Args: []string{
-					"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-					"ghcr.io/github/github-mcp-server:sha-09deac4",
-				},
-				Env: make(map[string]string),
-			}
-
-			// Try to get GitHub token, but don't fail if it's not available
-			// This allows tests to run without GitHub authentication
-			if githubToken, err := GetGitHubToken(); err == nil {
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
-			} else {
-				// Set a placeholder that will be validated later during connection
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
-			}
-
-			// Check for custom GitHub configuration
-			if toolConfig, ok := toolValue.(map[string]any); ok {
-				if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
-					if allowedSlice, ok := allowed.([]any); ok {
-						for _, item := range allowedSlice {
-							if str, ok := item.(string); ok {
-								config.Allowed = append(config.Allowed, str)
-							}
-						}
-					}
-				}
-
-				// Check for custom Docker image version
-				if version, exists := toolConfig["docker_image_version"]; exists {
-					if versionStr, ok := version.(string); ok {
-						dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
-						// Update the Docker image in args
-						for i, arg := range config.Args {
-							if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
-								config.Args[i] = dockerImage
-								break
-							}
-						}
-					}
-				}
-			}
-
-			configs = append(configs, config)
-		} else if toolName == "playwright" {
-			// Handle Playwright MCP server - use Docker by default for browser access
-			if serverFilter != "" && !strings.Contains("playwright", strings.ToLower(serverFilter)) {
-				continue
-			}
-
-			config := MCPServerConfig{
-				Name:    "playwright",
-				Type:    "docker",
-				Command: "docker",
-				Args: []string{
-					"run", "-i", "--rm", "-e", "HEADLESS",
-					"mcr.microsoft.com/playwright-mcp:latest",
-				},
-				Env: map[string]string{
-					"HEADLESS": "true", // Playwright is always headless
-				},
-			}
-
-			// Check for custom Playwright configuration
-			if toolConfig, ok := toolValue.(map[string]any); ok {
-				if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
-					if allowedSlice, ok := allowed.([]any); ok {
-						for _, item := range allowedSlice {
-							if str, ok := item.(string); ok {
-								config.Allowed = append(config.Allowed, str)
-							}
-						}
-					}
-				}
-
-				// Allow custom server configuration
-				if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
-					customConfig, err := ParseMCPConfig(toolName, mcpSection, toolConfig)
-					if err != nil {
-						return nil, fmt.Errorf("failed to parse custom MCP config for %s: %w", toolName, err)
-					}
-					// Use custom config but preserve the name and ensure HEADLESS is always true
-					customConfig.Name = "playwright"
-
-					// Ensure HEADLESS is always set to true for Playwright
-					if customConfig.Env == nil {
-						customConfig.Env = make(map[string]string)
-					}
-					customConfig.Env["HEADLESS"] = "true"
-
-					// Ensure HEADLESS environment variable is passed to Docker container
-					if customConfig.Type == "docker" || (customConfig.Command == "docker" && customConfig.Container != "") {
-						// Check if -e HEADLESS is already in args
-						hasHeadlessFlag := false
-						for i, arg := range customConfig.Args {
-							if arg == "-e" && i+1 < len(customConfig.Args) && customConfig.Args[i+1] == "HEADLESS" {
-								hasHeadlessFlag = true
-								break
-							}
-						}
-
-						// Add -e HEADLESS flag if not present
-						if !hasHeadlessFlag {
-							// Insert -e HEADLESS before the image name (last argument)
-							if len(customConfig.Args) > 0 {
-								// Insert at second-to-last position
-								insertPos := len(customConfig.Args) - 1
-								newArgs := make([]string, len(customConfig.Args)+2)
-								copy(newArgs[:insertPos], customConfig.Args[:insertPos])
-								newArgs[insertPos] = "-e"
-								newArgs[insertPos+1] = "HEADLESS"
-								copy(newArgs[insertPos+2:], customConfig.Args[insertPos:])
-								customConfig.Args = newArgs
-							}
-						}
-					}
-
-					config = customConfig
-				}
 			}
 
 			configs = append(configs, config)
