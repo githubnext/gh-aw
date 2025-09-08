@@ -12,29 +12,26 @@ func TestNetworkHookGenerator(t *testing.T) {
 		allowedDomains := []string{"example.com", "*.trusted.com", "api.service.org"}
 		script := generator.GenerateNetworkHookScript(allowedDomains)
 
-		// Check that script contains the expected domains
-		if !strings.Contains(script, `"example.com"`) {
-			t.Error("Script should contain example.com")
+		// Check that script is JavaScript (not Python anymore)
+		if !strings.Contains(script, "function extractDomain") {
+			t.Error("Script should define extractDomain function in JavaScript")
 		}
-		if !strings.Contains(script, `"*.trusted.com"`) {
-			t.Error("Script should contain *.trusted.com")
+		if !strings.Contains(script, "function isDomainAllowed") {
+			t.Error("Script should define isDomainAllowed function in JavaScript")
 		}
-		if !strings.Contains(script, `"api.service.org"`) {
-			t.Error("Script should contain api.service.org")
+		if !strings.Contains(script, "async function main") {
+			t.Error("Script should define main async function in JavaScript")
+		}
+		if !strings.Contains(script, "actions/github-script") {
+			t.Error("Script should be designed for actions/github-script")
 		}
 
-		// Check for required Python imports and functions
-		if !strings.Contains(script, "import json") {
-			t.Error("Script should import json")
+		// JavaScript should not contain Python-specific imports
+		if strings.Contains(script, "import json") {
+			t.Error("Script should not contain Python imports")
 		}
-		if !strings.Contains(script, "import urllib.parse") {
-			t.Error("Script should import urllib.parse")
-		}
-		if !strings.Contains(script, "def extract_domain") {
-			t.Error("Script should define extract_domain function")
-		}
-		if !strings.Contains(script, "def is_domain_allowed") {
-			t.Error("Script should define is_domain_allowed function")
+		if strings.Contains(script, "#!/usr/bin/env python3") {
+			t.Error("Script should not be a Python script")
 		}
 	})
 
@@ -44,23 +41,31 @@ func TestNetworkHookGenerator(t *testing.T) {
 
 		stepStr := strings.Join(step, "\n")
 
-		// Check that the step contains proper YAML structure
-		if !strings.Contains(stepStr, "name: Generate Network Permissions Hook") {
+		// Check that the step uses actions/github-script instead of shell commands
+		if !strings.Contains(stepStr, "name: Network Permissions Hook") {
 			t.Error("Step should have correct name")
 		}
-		if !strings.Contains(stepStr, ".claude/hooks/network_permissions.py") {
-			t.Error("Step should create hook file in correct location")
+		if !strings.Contains(stepStr, "uses: actions/github-script@v7") {
+			t.Error("Step should use actions/github-script@v7")
 		}
-		if !strings.Contains(stepStr, "chmod +x") {
-			t.Error("Step should make hook executable")
+		if !strings.Contains(stepStr, "GITHUB_AW_NETWORK_DOMAINS") {
+			t.Error("Step should set GITHUB_AW_NETWORK_DOMAINS environment variable")
 		}
 
-		// Check that domains are included in the hook
+		// Check that domains are included in the environment variable
 		if !strings.Contains(stepStr, "api.github.com") {
-			t.Error("Step should contain api.github.com domain")
+			t.Error("Step should contain api.github.com domain in env")
 		}
 		if !strings.Contains(stepStr, "*.trusted.com") {
-			t.Error("Step should contain *.trusted.com domain")
+			t.Error("Step should contain *.trusted.com domain in env")
+		}
+
+		// Should not contain old Python-style file creation
+		if strings.Contains(stepStr, ".claude/hooks/network_permissions.py") {
+			t.Error("Step should not reference Python file creation")
+		}
+		if strings.Contains(stepStr, "chmod +x") {
+			t.Error("Step should not contain chmod commands (using JavaScript now)")
 		}
 	})
 
@@ -68,12 +73,20 @@ func TestNetworkHookGenerator(t *testing.T) {
 		allowedDomains := []string{} // Empty list means deny-all
 		script := generator.GenerateNetworkHookScript(allowedDomains)
 
-		// Should still generate a valid script
-		if !strings.Contains(script, "ALLOWED_DOMAINS = []") {
-			t.Error("Script should handle empty domains list (deny-all policy)")
+		// Should return the JavaScript script (domains are passed via env vars now)
+		if !strings.Contains(script, "function extractDomain") {
+			t.Error("Script should define JavaScript functions")
 		}
-		if !strings.Contains(script, "def is_domain_allowed") {
-			t.Error("Script should still define required functions")
+		if !strings.Contains(script, "GITHUB_AW_NETWORK_DOMAINS") {
+			t.Error("Script should reference environment variable for domains")
+		}
+
+		// Test the workflow step with empty domains
+		step := generator.GenerateNetworkHookWorkflowStep(allowedDomains)
+		stepStr := strings.Join(step, "\n")
+
+		if !strings.Contains(stepStr, `GITHUB_AW_NETWORK_DOMAINS: '[]'`) {
+			t.Error("Step should handle empty domains list (deny-all policy) in environment variable")
 		}
 	})
 }
