@@ -1487,6 +1487,8 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			"git rm:*",
 			"git commit:*",
 			"git merge:*",
+			"git status:*",
+			"git config:*",
 		}
 
 		// Add bash tool with Git commands if not already present
@@ -2884,8 +2886,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To create a pull request:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
-			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
-			yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name using `git checkout -b ...`\n")
+			yaml.WriteString("          3. Add and commit your changes to the branch using `git add`, `git rm`, `git config`, `git commit`. Be careful to add exactly the files you intend, and check there are no extra files left un-added by using `git status`. Check you haven't deleted or changed any files you didn't intend to.\n")
 			yaml.WriteString("          4. Do not push your changes. That will be done later. Instead append the PR specification to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-pull-request\", \"branch\": \"branch-name\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")

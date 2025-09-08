@@ -155,8 +155,8 @@ jobs:
           
           To create a pull request:
           1. Make any file changes directly in the working directory
-          2. If you haven't done so already, create a local branch using an appropriate unique name
-          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          2. If you haven't done so already, create a local branch using an appropriate unique name using `git checkout -b ...`
+          3. Add and commit your changes to the branch using `git add`, `git rm`, `git config`, `git commit`. Be careful to add exactly the files you intend, and check there are no extra files left un-added by using `git status`. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done later. Instead append the PR specification to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
           {"type": "create-pull-request", "branch": "branch-name", "title": "PR title", "body": "PR body in markdown", "labels": ["optional", "labels"]}
