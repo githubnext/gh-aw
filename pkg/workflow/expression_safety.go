@@ -38,29 +38,22 @@ func validateExpressionSafety(markdownContent string) error {
 			continue
 		}
 
-		// Check if this expression is in the allowed list
-		allowed := false
-
-		// Check if this expression starts with "needs." or "steps." and is a simple property access
-		if needsStepsRegex.MatchString(expression) {
-			allowed = true
-		} else if inputsRegex.MatchString(expression) {
-			// Check if this expression matches github.event.inputs.* pattern
-			allowed = true
-		} else if envRegex.MatchString(expression) {
-			// check if this expression matches env.* pattern
-			allowed = true
-		} else {
-			for _, allowedExpr := range constants.AllowedExpressions {
-				if expression == allowedExpr {
-					allowed = true
-					break
-				}
+		// Try to parse the expression using the parser
+		parsed, parseErr := ParseExpression(expression)
+		if parseErr == nil {
+			// If we can parse it, validate each literal expression in the tree
+			validationErr := VisitExpressionTree(parsed, func(expr *ExpressionNode) error {
+				return validateSingleExpression(expr.Expression, needsStepsRegex, inputsRegex, envRegex, &unauthorizedExpressions)
+			})
+			if validationErr != nil {
+				return validationErr
 			}
-		}
-
-		if !allowed {
-			unauthorizedExpressions = append(unauthorizedExpressions, expression)
+		} else {
+			// If parsing fails, fall back to validating the whole expression as a literal
+			err := validateSingleExpression(expression, needsStepsRegex, inputsRegex, envRegex, &unauthorizedExpressions)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -68,6 +61,38 @@ func validateExpressionSafety(markdownContent string) error {
 	if len(unauthorizedExpressions) > 0 {
 		return fmt.Errorf("unauthorized expressions: %v. allowed: %v",
 			unauthorizedExpressions, constants.AllowedExpressions)
+	}
+
+	return nil
+}
+
+// validateSingleExpression validates a single literal expression
+func validateSingleExpression(expression string, needsStepsRegex, inputsRegex, envRegex *regexp.Regexp, unauthorizedExpressions *[]string) error {
+	expression = strings.TrimSpace(expression)
+
+	// Check if this expression is in the allowed list
+	allowed := false
+
+	// Check if this expression starts with "needs." or "steps." and is a simple property access
+	if needsStepsRegex.MatchString(expression) {
+		allowed = true
+	} else if inputsRegex.MatchString(expression) {
+		// Check if this expression matches github.event.inputs.* pattern
+		allowed = true
+	} else if envRegex.MatchString(expression) {
+		// check if this expression matches env.* pattern
+		allowed = true
+	} else {
+		for _, allowedExpr := range constants.AllowedExpressions {
+			if expression == allowedExpr {
+				allowed = true
+				break
+			}
+		}
+	}
+
+	if !allowed {
+		*unauthorizedExpressions = append(*unauthorizedExpressions, expression)
 	}
 
 	return nil
