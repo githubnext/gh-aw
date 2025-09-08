@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Ai Inference Github Models"
+name: "Test Ai Inference Github Models"
 on:
   issues:
     types:
@@ -18,7 +18,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Ai Inference Github Models"
+run-name: "Test Ai Inference Github Models"
 
 jobs:
   task:
@@ -235,7 +235,7 @@ jobs:
             }
             await main();
 
-  ai-inference-github-models:
+  test-ai-inference-github-models:
     needs: task
     runs-on: ubuntu-latest
     permissions:
@@ -357,7 +357,7 @@ jobs:
               engine_name: "Custom Steps",
               model: "",
               version: "",
-              workflow_name: "Ai Inference Github Models",
+              workflow_name: "Test Ai Inference Github Models",
               experimental: false,
               supports_tools_whitelist: false,
               supports_http_transport: false,
@@ -418,8 +418,8 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_AW_SAFE_OUTPUTS, JSON.stringify(safeOutput) + '\n');
       - name: Ensure log file exists
         run: |
-          echo "Custom steps execution completed" >> /tmp/ai-inference-github-models.log
-          touch /tmp/ai-inference-github-models.log
+          echo "Custom steps execution completed" >> /tmp/test-ai-inference-github-models.log
+          touch /tmp/test-ai-inference-github-models.log
       - name: Upload workflow-complete.txt
         uses: actions/upload-artifact@v4
         with:
@@ -1157,12 +1157,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-inference-github-models.log
-          path: /tmp/ai-inference-github-models.log
+          name: test-ai-inference-github-models.log
+          path: /tmp/test-ai-inference-github-models.log
           if-no-files-found: warn
 
   create_issue_comment:
-    needs: ai-inference-github-models
+    needs: test-ai-inference-github-models
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -1178,7 +1178,7 @@ jobs:
         id: create_comment
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.ai-inference-github-models.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-ai-inference-github-models.outputs.output }}
           GITHUB_AW_COMMENT_TARGET: "*"
         with:
           script: |

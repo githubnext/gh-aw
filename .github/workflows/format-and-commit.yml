@@ -38,12 +38,6 @@ jobs:
         run: make fmt-cjs
       - name: Lint code
         run: make lint
-      - name: Build code
-        run: make build
-      - name: Rebuild workflows
-        run: make recompile
-      - name: Run agent-finish
-        run: make agent-finish
       - name: Check for changes
         id: check-changes
         run: |
