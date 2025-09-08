@@ -2322,11 +2322,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	steps = append(steps, "          fetch-depth: 0\n")
 
 	// Step 3: Configure Git credentials
-	steps = append(steps, "      - name: Configure Git credentials\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n")
-	steps = append(steps, "          git config --global user.name \"${{ github.workflow }}\"\n")
-	steps = append(steps, "          echo \"Git configured with standard GitHub Actions identity\"\n")
+	steps = append(steps, c.generateGitConfigurationSteps()...)
 
 	// Step 4: Create pull request
 	steps = append(steps, "      - name: Create Pull Request\n")
@@ -2496,6 +2492,17 @@ func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *Workflo
 	yaml.WriteString("          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n")
 	yaml.WriteString("          git config --global user.name \"${{ github.workflow }}\"\n")
 	yaml.WriteString("          echo \"Git configured with standard GitHub Actions identity\"\n")
+}
+
+// generateGitConfigurationSteps generates standardized git credential setup as string steps
+func (c *Compiler) generateGitConfigurationSteps() []string {
+	return []string{
+		"      - name: Configure Git credentials\n",
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"${{ github.workflow }}\"\n",
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	}
 }
 
 // generateMCPSetup generates the MCP server configuration setup
