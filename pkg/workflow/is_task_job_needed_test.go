@@ -7,7 +7,7 @@ func TestIsTaskJobNeeded(t *testing.T) {
 
 	t.Run("no_conditions", func(t *testing.T) {
 		data := &WorkflowData{
-			For: []string{"all"}, // Explicitly disable permission checks
+			Roles: []string{"all"}, // Explicitly disable permission checks
 		}
 		if compiler.isTaskJobNeeded(data) {
 			t.Errorf("Expected isTaskJobNeeded to be false when no alias, no needsTextOutput, no If condition, and roles: all")

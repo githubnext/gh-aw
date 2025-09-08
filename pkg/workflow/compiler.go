@@ -148,7 +148,7 @@ type WorkflowData struct {
 	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
-	For                []string            // permission levels required to trigger workflow
+	Roles              []string            // permission levels required to trigger workflow
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -657,7 +657,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
-	workflowData.For = c.extractRolesPermissions(result.Frontmatter)
+	workflowData.Roles = c.extractRolesPermissions(result.Frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
@@ -1117,7 +1117,7 @@ func (c *Compiler) extractRolesPermissions(frontmatter map[string]any) []string 
 // hasSafeEventsOnly checks if the workflow uses only safe events that don't require permission checks
 func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]any) bool {
 	// If user explicitly specified "roles: all", skip permission checks
-	if len(data.For) == 1 && data.For[0] == "all" {
+	if len(data.Roles) == 1 && data.Roles[0] == "all" {
 		return true
 	}
 
@@ -1751,7 +1751,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 // needsPermissionChecks determines if the workflow needs permission checks
 func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
 	// If user explicitly specified "roles: all", no permission checks needed
-	if len(data.For) == 1 && data.For[0] == "all" {
+	if len(data.Roles) == 1 && data.Roles[0] == "all" {
 		return false
 	}
 
@@ -1765,7 +1765,7 @@ func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
 // needsPermissionChecksWithFrontmatter determines if the workflow needs permission checks with full context
 func (c *Compiler) needsPermissionChecksWithFrontmatter(data *WorkflowData, frontmatter map[string]any) bool {
 	// If user explicitly specified "roles: all", no permission checks needed
-	if len(data.For) == 1 && data.For[0] == "all" {
+	if len(data.Roles) == 1 && data.Roles[0] == "all" {
 		return false
 	}
 
@@ -1998,7 +1998,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 		steps = append(steps, "          script: |\n")
 
 		// Generate the JavaScript code for the permission check
-		scriptContent := c.generatePermissionCheckScript(data.For)
+		scriptContent := c.generatePermissionCheckScript(data.Roles)
 		scriptLines := strings.Split(scriptContent, "\n")
 		for _, line := range scriptLines {
 			if strings.TrimSpace(line) != "" {
