@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // Job represents a GitHub Actions job with all its properties
@@ -159,7 +161,30 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 	// Add if condition if present
 	if job.If != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.If))
+		// Check if expression is multiline or longer than MaxExpressionLineLength characters
+		if strings.Contains(job.If, "\n") || len(job.If) > constants.MaxExpressionLineLength {
+			// Use YAML folded style for multiline expressions or long expressions
+			yaml.WriteString("    if: >\n")
+
+			if strings.Contains(job.If, "\n") {
+				// Already has newlines, use existing logic
+				lines := strings.Split(job.If, "\n")
+				for _, line := range lines {
+					if strings.TrimSpace(line) != "" {
+						yaml.WriteString(fmt.Sprintf("      %s\n", strings.TrimSpace(line)))
+					}
+				}
+			} else {
+				// Long single-line expression, break it into logical lines
+				lines := BreakLongExpression(job.If)
+				for _, line := range lines {
+					yaml.WriteString(fmt.Sprintf("      %s\n", strings.TrimSpace(line)))
+				}
+			}
+		} else {
+			// Single line expression that's not too long
+			yaml.WriteString(fmt.Sprintf("    if: %s\n", job.If))
+		}
 	}
 
 	// Add runs-on
