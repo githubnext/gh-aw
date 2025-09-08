@@ -300,12 +300,6 @@ jobs:
           
           # Ensure log file exists
           touch /tmp/secure-web-research-task.log
-      - name: Upload workflow-complete.txt
-        uses: actions/upload-artifact@v4
-        with:
-          name: workflow-complete
-          path: workflow-complete.txt
-          if-no-files-found: ignore
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
         with:
