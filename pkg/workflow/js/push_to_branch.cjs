@@ -136,10 +136,13 @@ async function main() {
   }
 
   // Configure git (required for commits)
-  execSync('git config --global user.email "action@github.com"', {
-    stdio: "inherit",
-  });
-  execSync('git config --global user.name "GitHub Action"', {
+  execSync(
+    'git config --global user.email "github-actions[bot]@users.noreply.github.com"',
+    {
+      stdio: "inherit",
+    }
+  );
+  execSync('git config --global user.name "${{ github.workflow }}"', {
     stdio: "inherit",
   });
 

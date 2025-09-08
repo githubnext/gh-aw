@@ -182,11 +182,11 @@ describe("create_pull_request.cjs", () => {
 
     // Verify git operations
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      'git config --global user.email "action@github.com"',
+      'git config --global user.email "github-actions[bot]@users.noreply.github.com"',
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      'git config --global user.name "GitHub Action"',
+      'git config --global user.name "${{ github.workflow }}"',
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(

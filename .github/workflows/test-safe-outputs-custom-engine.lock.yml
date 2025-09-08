@@ -34,6 +34,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
@@ -1142,8 +1147,8 @@ jobs:
           fi
           echo "Base commit SHA: $INITIAL_SHA"
           # Configure git user for GitHub Actions
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
           
           # If we have a branch name, check if that branch exists and get its diff
           if [ -n "$BRANCH_NAME" ]; then
@@ -2506,10 +2511,13 @@ jobs:
               console.log("Base branch:", baseBranch);
               // Create a new branch using git CLI
               // Configure git (required for commits)
-              execSync('git config --global user.email "action@github.com"', {
-                stdio: "inherit",
-              });
-              execSync('git config --global user.name "GitHub Action"', {
+              execSync(
+                'git config --global user.email "github-actions[bot]@users.noreply.github.com"',
+                {
+                  stdio: "inherit",
+                }
+              );
+              execSync('git config --global user.name "${{ github.workflow }}"', {
                 stdio: "inherit",
               });
               // Handle branch creation/checkout
@@ -3182,10 +3190,13 @@ jobs:
                 return;
               }
               // Configure git (required for commits)
-              execSync('git config --global user.email "action@github.com"', {
-                stdio: "inherit",
-              });
-              execSync('git config --global user.name "GitHub Action"', {
+              execSync(
+                'git config --global user.email "github-actions[bot]@users.noreply.github.com"',
+                {
+                  stdio: "inherit",
+                }
+              );
+              execSync('git config --global user.name "${{ github.workflow }}"', {
                 stdio: "inherit",
               });
               // Switch to or create the target branch

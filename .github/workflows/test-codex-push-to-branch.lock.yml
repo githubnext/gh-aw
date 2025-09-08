@@ -78,6 +78,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -1321,8 +1326,8 @@ jobs:
           fi
           echo "Base commit SHA: $INITIAL_SHA"
           # Configure git user for GitHub Actions
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
           
           # If we have a branch name, check if that branch exists and get its diff
           if [ -n "$BRANCH_NAME" ]; then
@@ -1549,10 +1554,13 @@ jobs:
                 return;
               }
               // Configure git (required for commits)
-              execSync('git config --global user.email "action@github.com"', {
-                stdio: "inherit",
-              });
-              execSync('git config --global user.name "GitHub Action"', {
+              execSync(
+                'git config --global user.email "github-actions[bot]@users.noreply.github.com"',
+                {
+                  stdio: "inherit",
+                }
+              );
+              execSync('git config --global user.name "${{ github.workflow }}"', {
                 stdio: "inherit",
               });
               // Switch to or create the target branch

@@ -2482,6 +2482,15 @@ func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
 }
 
+// generateGitConfiguration generates standardized git credential setup
+func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Configure Git credentials\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n")
+	yaml.WriteString("          git config --global user.name \"${{ github.workflow }}\"\n")
+	yaml.WriteString("          echo \"Git configured with standard GitHub Actions identity\"\n")
+}
+
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine) {
 	// Collect tools that need MCP server configuration
@@ -2614,6 +2623,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)
+
+	// Configure git credentials if git operations will be needed
+	if needsGitCommands(data.SafeOutputs) {
+		c.generateGitConfiguration(yaml, data)
+	}
 
 	// Add Node.js setup if the engine requires it
 	engine, err := c.getAgenticEngine(data.AI)
