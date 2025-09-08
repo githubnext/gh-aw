@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // ConditionNode represents a node in a condition expression tree
@@ -657,4 +659,155 @@ func VisitExpressionTree(node ConditionNode, visitor func(expr *ExpressionNode) 
 	}
 
 	return nil
+}
+
+// BreakLongExpression breaks a long expression into multiple lines at logical points
+// such as after || and && operators for better readability
+func BreakLongExpression(expression string) []string {
+	// If the expression is not too long, return as-is
+	if len(expression) <= constants.MaxExpressionLineLength {
+		return []string{expression}
+	}
+
+	var lines []string
+	current := ""
+	i := 0
+
+	for i < len(expression) {
+		char := expression[i]
+
+		// Handle quoted strings - don't break inside quotes
+		if char == '\'' || char == '"' {
+			quote := char
+			current += string(char)
+			i++
+
+			// Continue until closing quote
+			for i < len(expression) {
+				current += string(expression[i])
+				if expression[i] == quote {
+					i++
+					break
+				}
+				if expression[i] == '\\' && i+1 < len(expression) {
+					i++ // Skip escaped character
+					if i < len(expression) {
+						current += string(expression[i])
+					}
+				}
+				i++
+			}
+			continue
+		}
+
+		// Look for logical operators as break points
+		if i+2 <= len(expression) {
+			next2 := expression[i : i+2]
+			if next2 == "||" || next2 == "&&" {
+				current += next2
+				i += 2
+
+				// If the current line is getting long (>ExpressionBreakThreshold chars), break here
+				if len(strings.TrimSpace(current)) > constants.ExpressionBreakThreshold {
+					lines = append(lines, strings.TrimSpace(current))
+					current = ""
+					// Skip whitespace after operator
+					for i < len(expression) && (expression[i] == ' ' || expression[i] == '\t') {
+						i++
+					}
+					continue
+				}
+				continue
+			}
+		}
+
+		current += string(char)
+		i++
+	}
+
+	// Add the remaining part
+	if strings.TrimSpace(current) != "" {
+		lines = append(lines, strings.TrimSpace(current))
+	}
+
+	// If we still have very long lines, try to break at parentheses
+	var finalLines []string
+	for _, line := range lines {
+		if len(line) > constants.MaxExpressionLineLength {
+			subLines := BreakAtParentheses(line)
+			finalLines = append(finalLines, subLines...)
+		} else {
+			finalLines = append(finalLines, line)
+		}
+	}
+
+	return finalLines
+}
+
+// BreakAtParentheses attempts to break long lines at parentheses for function calls
+func BreakAtParentheses(expression string) []string {
+	if len(expression) <= constants.MaxExpressionLineLength {
+		return []string{expression}
+	}
+
+	var lines []string
+	current := ""
+	parenDepth := 0
+
+	for i := 0; i < len(expression); i++ {
+		char := expression[i]
+		current += string(char)
+
+		if char == '(' {
+			parenDepth++
+		} else if char == ')' {
+			parenDepth--
+
+			// If we're back to zero depth and the line is getting long, consider a break
+			if parenDepth == 0 && len(current) > 80 && i < len(expression)-1 {
+				// Look ahead to see if there's a logical operator
+				j := i + 1
+				for j < len(expression) && (expression[j] == ' ' || expression[j] == '\t') {
+					j++
+				}
+
+				if j+1 < len(expression) && (expression[j:j+2] == "||" || expression[j:j+2] == "&&") {
+					// Add the operator to current line and break
+					for k := i + 1; k < j+2; k++ {
+						current += string(expression[k])
+					}
+					lines = append(lines, strings.TrimSpace(current))
+					current = ""
+					i = j + 2 - 1 // Set to j+2-1 so the loop increment makes i = j+2
+
+					// Skip whitespace after operator
+					for i+1 < len(expression) && (expression[i+1] == ' ' || expression[i+1] == '\t') {
+						i++
+					}
+				}
+			}
+		}
+	}
+
+	// Add remaining part
+	if strings.TrimSpace(current) != "" {
+		lines = append(lines, strings.TrimSpace(current))
+	}
+
+	return lines
+}
+
+// NormalizeExpressionForComparison normalizes an expression by removing extra spaces and newlines
+// This is used for comparing multiline expressions with their single-line equivalents
+func NormalizeExpressionForComparison(expression string) string {
+	// Replace newlines with spaces
+	normalized := strings.ReplaceAll(expression, "\n", " ")
+	
+	// Replace multiple spaces with single spaces
+	for strings.Contains(normalized, "  ") {
+		normalized = strings.ReplaceAll(normalized, "  ", " ")
+	}
+	
+	// Trim leading and trailing spaces
+	return strings.TrimSpace(normalized)
 }

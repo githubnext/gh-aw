@@ -24,7 +24,6 @@ jobs:
   task:
     if: >
       ((contains(github.event.issue.body, '/test-codex-command')) || (contains(github.event.comment.body, '/test-codex-command'))) ||
-      |
       (contains(github.event.pull_request.body, '/test-codex-command'))
     runs-on: ubuntu-latest
     outputs:
@@ -285,7 +284,7 @@ jobs:
     if: >
       github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
       github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      & (github.event.pull_request.head.repo.full_name == github.repository)
+      (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       issues: write

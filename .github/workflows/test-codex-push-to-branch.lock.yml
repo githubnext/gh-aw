@@ -24,7 +24,6 @@ jobs:
   task:
     if: >
       ((contains(github.event.issue.body, '/test-codex-push-to-branch')) || (contains(github.event.comment.body, '/test-codex-push-to-branch'))) ||
-      |
       (contains(github.event.pull_request.body, '/test-codex-push-to-branch'))
     runs-on: ubuntu-latest
     steps:
@@ -1399,7 +1398,6 @@ jobs:
     needs: test-codex-push-to-branch
     if: >
       contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') ||
-      |
       contains(github.event.pull_request.body, '/test-codex-push-to-branch')
     runs-on: ubuntu-latest
     permissions:

@@ -1195,3 +1195,310 @@ func TestParseExpressionIntegration(t *testing.T) {
 		t.Errorf("Rendered = '%s', expected '%s'", rendered, expectedRendered)
 	}
 }
+
+// TestBreakLongExpression tests the expression line breaking functionality
+func TestBreakLongExpression(t *testing.T) {
+	tests := []struct {
+		name       string
+		expression string
+		wantLines  int
+		maxLen     int // max length of any single line
+	}{
+		{
+			name:       "short expression stays single line",
+			expression: "github.event_name == 'issues'",
+			wantLines:  1,
+			maxLen:     50,
+		},
+		{
+			name:       "long expression gets broken",
+			expression: "github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment'",
+			wantLines:  2, // Should break at || operator when line gets too long
+			maxLen:     120,
+		},
+		{
+			name:       "very long expression with multiple operators",
+			expression: "github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)",
+			wantLines:  3, // Should break at multiple points
+			maxLen:     120,
+		},
+		{
+			name:       "expression with quoted strings",
+			expression: "contains(github.event.issue.body, 'very long string that should not be broken even though it is quite long') && github.event.action == 'opened'",
+			wantLines:  2, // Should break after the quoted string
+			maxLen:     120,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lines := BreakLongExpression(tt.expression)
+
+			if len(lines) != tt.wantLines {
+				t.Errorf("BreakLongExpression() got %d lines, want %d\nLines: %v", len(lines), tt.wantLines, lines)
+			}
+
+			// Check that no line exceeds maximum length
+			for i, line := range lines {
+				if len(line) > tt.maxLen {
+					t.Errorf("Line %d exceeds maximum length %d: %d chars\nLine: %s", i, tt.maxLen, len(line), line)
+				}
+			}
+
+			// Verify that joined lines equal normalized original (whitespace differences allowed)
+			joined := strings.Join(lines, " ")
+			originalNorm := NormalizeExpressionForComparison(tt.expression)
+			joinedNorm := NormalizeExpressionForComparison(joined)
+
+			if joinedNorm != originalNorm {
+				t.Errorf("Joined lines don't match original expression\nOriginal: %s\nJoined:   %s", originalNorm, joinedNorm)
+			}
+		})
+	}
+}
+
+// TestBreakAtParentheses tests breaking expressions at parentheses boundaries
+func TestBreakAtParentheses(t *testing.T) {
+	tests := []struct {
+		name       string
+		expression string
+		wantLines  int
+	}{
+		{
+			name:       "short expression with parentheses",
+			expression: "(github.event_name == 'issues') && (github.event.action == 'opened')",
+			wantLines:  1, // Should stay as single line
+		},
+		{
+			name:       "long expression with function calls",
+			expression: "(contains(github.event.issue.labels, 'bug') && contains(github.event.issue.labels, 'priority-high')) || (contains(github.event.pull_request.labels, 'urgent'))",
+			wantLines:  2, // Should break at logical operator after parentheses
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lines := BreakAtParentheses(tt.expression)
+
+			if len(lines) != tt.wantLines {
+				t.Errorf("BreakAtParentheses() got %d lines, want %d\nLines: %v", len(lines), tt.wantLines, lines)
+			}
+
+			// Verify that joined lines equal normalized original
+			joined := strings.Join(lines, " ")
+			originalNorm := NormalizeExpressionForComparison(tt.expression)
+			joinedNorm := NormalizeExpressionForComparison(joined)
+
+			if joinedNorm != originalNorm {
+				t.Errorf("Joined lines don't match original expression\nOriginal: %s\nJoined:   %s", originalNorm, joinedNorm)
+			}
+		})
+	}
+}
+
+// TestNormalizeExpressionForComparison tests the expression normalization function
+func TestNormalizeExpressionForComparison(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "single line with extra spaces",
+			input:    "github.event_name  ==  'issues'  ||  github.event.action  ==  'opened'",
+			expected: "github.event_name == 'issues' || github.event.action == 'opened'",
+		},
+		{
+			name: "multiline expression",
+			input: `github.event_name == 'issues' ||
+github.event_name == 'pull_request' ||
+github.event.action == 'opened'`,
+			expected: "github.event_name == 'issues' || github.event_name == 'pull_request' || github.event.action == 'opened'",
+		},
+		{
+			name: "expression with mixed whitespace",
+			input: `github.event_name == 'issues'   ||   
+		github.event_name == 'pull_request'`,
+			expected: "github.event_name == 'issues' || github.event_name == 'pull_request'",
+		},
+		{
+			name:     "expression with leading/trailing whitespace",
+			input:    "   github.event_name == 'issues'   ",
+			expected: "github.event_name == 'issues'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeExpressionForComparison(tt.input)
+			if result != tt.expected {
+				t.Errorf("NormalizeExpressionForComparison() = '%s', expected '%s'", result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestMultilineExpressionEquivalence tests that multiline expressions are equivalent to single-line expressions
+func TestMultilineExpressionEquivalence(t *testing.T) {
+	tests := []struct {
+		name           string
+		singleLine     string
+		multiLine      string
+		shouldBeEqual  bool
+	}{
+		{
+			name:       "simple equivalent expressions",
+			singleLine: "github.event_name == 'issues' || github.event.action == 'opened'",
+			multiLine: `github.event_name == 'issues' ||
+github.event.action == 'opened'`,
+			shouldBeEqual: true,
+		},
+		{
+			name:       "complex equivalent expressions with extra whitespace",
+			singleLine: "github.event_name == 'issues' || github.event_name == 'pull_request' && github.event.action == 'opened'",
+			multiLine: `github.event_name == 'issues'   ||   
+github.event_name == 'pull_request'    &&    
+github.event.action == 'opened'`,
+			shouldBeEqual: true,
+		},
+		{
+			name:       "different expressions should not be equal",
+			singleLine: "github.event_name == 'issues'",
+			multiLine: `github.event_name == 'pull_request'`,
+			shouldBeEqual: false,
+		},
+		{
+			name:       "reaction condition equivalence",
+			singleLine: "github.event_name == 'issues' || github.event_name == 'issue_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)",
+			multiLine: `github.event_name == 'issues' ||
+github.event_name == 'issue_comment' ||
+(github.event_name == 'pull_request') &&
+(github.event.pull_request.head.repo.full_name == github.repository)`,
+			shouldBeEqual: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			singleNorm := NormalizeExpressionForComparison(tt.singleLine)
+			multiNorm := NormalizeExpressionForComparison(tt.multiLine)
+
+			isEqual := singleNorm == multiNorm
+			if isEqual != tt.shouldBeEqual {
+				t.Errorf("Expression equivalence: got %v, expected %v\nSingle: %s\nMulti:  %s\nSingle normalized: %s\nMulti normalized:  %s", 
+					isEqual, tt.shouldBeEqual, tt.singleLine, tt.multiLine, singleNorm, multiNorm)
+			}
+		})
+	}
+}
+
+// TestLongExpressionBreakingDetailed tests automatic line breaking of expressions longer than 120 characters  
+func TestLongExpressionBreakingDetailed(t *testing.T) {
+	tests := []struct {
+		name       string
+		expression string
+	}{
+		{
+			name:       "reaction condition expression",
+			expression: "github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' || github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)",
+		},
+		{
+			name:       "complex nested expression",
+			expression: "((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot'))",
+		},
+		{
+			name:       "multiple function calls",
+			expression: "contains(github.event.issue.labels, 'bug') && contains(github.event.issue.labels, 'priority-high') && contains(github.event.issue.labels, 'needs-review')",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test that expressions longer than 120 chars get broken into multiple lines
+			if len(tt.expression) <= 120 {
+				t.Skipf("Expression is not long enough (%d chars) to test breaking", len(tt.expression))
+			}
+
+			lines := BreakLongExpression(tt.expression)
+
+			// Should have more than one line for long expressions
+			if len(lines) <= 1 {
+				t.Errorf("Expected multiple lines for long expression, got %d lines", len(lines))
+			}
+
+			// Each line should be within reasonable length
+			for i, line := range lines {
+				if len(line) > 120 {
+					t.Errorf("Line %d is too long (%d chars): %s", i, len(line), line)
+				}
+			}
+
+			// Most importantly: verify equivalence
+			joined := strings.Join(lines, " ")
+			originalNorm := NormalizeExpressionForComparison(tt.expression)
+			joinedNorm := NormalizeExpressionForComparison(joined)
+
+			if joinedNorm != originalNorm {
+				t.Errorf("Broken expression is not equivalent to original\nOriginal: %s\nBroken:   %s\nJoined:   %s\nOriginal normalized: %s\nJoined normalized:   %s",
+					tt.expression, strings.Join(lines, "\n"), joined, originalNorm, joinedNorm)
+			}
+		})
+	}
+}
+
+// TestExpressionBreakingWithQuotes tests that quotes are handled correctly during line breaking
+func TestExpressionBreakingWithQuotes(t *testing.T) {
+	tests := []struct {
+		name       string
+		expression string
+	}{
+		{
+			name:       "single quoted strings",
+			expression: "contains(github.event.issue.body, 'this is a very long string that should not be broken even though it contains || and && operators') && github.event.action == 'opened'",
+		},
+		{
+			name:       "double quoted strings", 
+			expression: `contains(github.event.issue.body, "this is a very long string that should not be broken even though it contains || and && operators") && github.event.action == "opened"`,
+		},
+		{
+			name:       "mixed quotes",
+			expression: `contains(github.event.issue.body, 'single quoted || string') && contains(github.event.comment.body, "double quoted && string")`,
+		},
+		{
+			name:       "escaped quotes",
+			expression: `contains(github.event.issue.body, 'string with \\'escaped\\' quotes || and operators') && github.event.action == 'opened'`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lines := BreakLongExpression(tt.expression)
+
+			// Verify that quotes are preserved and no breaking happens inside quoted strings
+			joined := strings.Join(lines, " ")
+			originalNorm := NormalizeExpressionForComparison(tt.expression)
+			joinedNorm := NormalizeExpressionForComparison(joined)
+
+			if joinedNorm != originalNorm {
+				t.Errorf("Expression with quotes not preserved correctly\nOriginal: %s\nJoined:   %s", originalNorm, joinedNorm)
+			}
+
+			// Check that no line contains half of a quoted string
+			for _, line := range lines {
+				singleQuotes := strings.Count(line, "'")
+				doubleQuotes := strings.Count(line, `"`)
+				
+				// Count non-escaped quotes
+				nonEscapedSingle := singleQuotes - strings.Count(line, `\'`)
+				nonEscapedDouble := doubleQuotes - strings.Count(line, `\"`)
+				
+				if nonEscapedSingle%2 != 0 {
+					t.Errorf("Line has unmatched single quotes: %s", line)
+				}
+				if nonEscapedDouble%2 != 0 {
+					t.Errorf("Line has unmatched double quotes: %s", line)
+				}
+			}
+		})
+	}
+}
