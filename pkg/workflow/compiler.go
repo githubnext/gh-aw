@@ -2829,9 +2829,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
-	// add workflow_complete.txt
-	c.generateWorkflowComplete(yaml)
-
 	// Add output collection step only if safe-outputs feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
 		c.generateOutputCollectionStep(yaml, data)
@@ -2859,15 +2856,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
-}
-
-func (c *Compiler) generateWorkflowComplete(yaml *strings.Builder) {
-	yaml.WriteString("      - name: Upload workflow-complete.txt\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: workflow-complete\n")
-	yaml.WriteString("          path: workflow-complete.txt\n")
-	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {
