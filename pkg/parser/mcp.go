@@ -171,6 +171,22 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						}
 					}
 				}
+
+				// Handle Playwright-specific customizations
+				if toolName == "playwright" {
+					if version, exists := toolConfig["docker_image_version"]; exists {
+						if versionStr, ok := version.(string); ok {
+							dockerImage := "mcr.microsoft.com/playwright-mcp:" + versionStr
+							// Update the Docker image in args
+							for i, arg := range config.Args {
+								if strings.HasPrefix(arg, "mcr.microsoft.com/playwright-mcp:") {
+									config.Args[i] = dockerImage
+									break
+								}
+							}
+						}
+					}
+				}
 			}
 
 			configs = append(configs, config)

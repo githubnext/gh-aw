@@ -159,30 +159,13 @@ tools:
     allowed: ["browser_navigate", "browser_take_screenshot", "browser_click"]
 ```
 
-This uses the default `playwright-mcp` package via npx.
-
-### Custom Playwright Configuration
-
-You can provide custom MCP configuration for Playwright:
-
-```yaml
-tools:
-  playwright:
-    allowed: ["browser_take_screenshot"]
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "playwright_mcp_server"]
-      env:
-        PLAYWRIGHT_BROWSER: "chromium"
-        HEADLESS: "true"
-```
+This uses the Microsoft [playwright-mcp](https://github.com/microsoft/playwright-mcp) server via Docker.
 
 **Configuration Options**:
-- Uses stdio transport by default
-- Command: `npx playwright-mcp` (default)
-- Custom MCP configuration supported via `mcp:` section
-- Environment variables for browser configuration
+- Uses Docker transport by default
+- Image: `mcr.microsoft.com/playwright-mcp:latest` (built-in)
+- Always runs in headless mode for security
+- Custom MCP configuration is not supported (built-in only)
 
 **Common Tools**:
 - `browser_navigate`: Navigate to web pages

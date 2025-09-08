@@ -139,6 +139,27 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Playwright tool with custom docker image version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"docker_image_version": "v1.2.3",
+						"allowed":              []any{"browser_navigate", "browser_take_screenshot"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args:    []string{"run", "-i", "--rm", "-e", "HEADLESS", "mcr.microsoft.com/playwright-mcp:v1.2.3"},
+					Env:     map[string]string{"HEADLESS": "true"},
+					Allowed: []string{"browser_navigate", "browser_take_screenshot"},
+				},
+			},
+		},
 
 		{
 			name: "Custom MCP server with stdio type",
