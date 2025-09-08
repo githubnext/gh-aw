@@ -1341,10 +1341,10 @@ github.event.action == 'opened'`,
 // TestMultilineExpressionEquivalence tests that multiline expressions are equivalent to single-line expressions
 func TestMultilineExpressionEquivalence(t *testing.T) {
 	tests := []struct {
-		name           string
-		singleLine     string
-		multiLine      string
-		shouldBeEqual  bool
+		name          string
+		singleLine    string
+		multiLine     string
+		shouldBeEqual bool
 	}{
 		{
 			name:       "simple equivalent expressions",
@@ -1362,9 +1362,9 @@ github.event.action == 'opened'`,
 			shouldBeEqual: true,
 		},
 		{
-			name:       "different expressions should not be equal",
-			singleLine: "github.event_name == 'issues'",
-			multiLine: `github.event_name == 'pull_request'`,
+			name:          "different expressions should not be equal",
+			singleLine:    "github.event_name == 'issues'",
+			multiLine:     `github.event_name == 'pull_request'`,
 			shouldBeEqual: false,
 		},
 		{
@@ -1385,14 +1385,14 @@ github.event_name == 'issue_comment' ||
 
 			isEqual := singleNorm == multiNorm
 			if isEqual != tt.shouldBeEqual {
-				t.Errorf("Expression equivalence: got %v, expected %v\nSingle: %s\nMulti:  %s\nSingle normalized: %s\nMulti normalized:  %s", 
+				t.Errorf("Expression equivalence: got %v, expected %v\nSingle: %s\nMulti:  %s\nSingle normalized: %s\nMulti normalized:  %s",
 					isEqual, tt.shouldBeEqual, tt.singleLine, tt.multiLine, singleNorm, multiNorm)
 			}
 		})
 	}
 }
 
-// TestLongExpressionBreakingDetailed tests automatic line breaking of expressions longer than 120 characters  
+// TestLongExpressionBreakingDetailed tests automatic line breaking of expressions longer than 120 characters
 func TestLongExpressionBreakingDetailed(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -1457,7 +1457,7 @@ func TestExpressionBreakingWithQuotes(t *testing.T) {
 			expression: "contains(github.event.issue.body, 'this is a very long string that should not be broken even though it contains || and && operators') && github.event.action == 'opened'",
 		},
 		{
-			name:       "double quoted strings", 
+			name:       "double quoted strings",
 			expression: `contains(github.event.issue.body, "this is a very long string that should not be broken even though it contains || and && operators") && github.event.action == "opened"`,
 		},
 		{
@@ -1487,11 +1487,11 @@ func TestExpressionBreakingWithQuotes(t *testing.T) {
 			for _, line := range lines {
 				singleQuotes := strings.Count(line, "'")
 				doubleQuotes := strings.Count(line, `"`)
-				
+
 				// Count non-escaped quotes
 				nonEscapedSingle := singleQuotes - strings.Count(line, `\'`)
 				nonEscapedDouble := doubleQuotes - strings.Count(line, `\"`)
-				
+
 				if nonEscapedSingle%2 != 0 {
 					t.Errorf("Line has unmatched single quotes: %s", line)
 				}

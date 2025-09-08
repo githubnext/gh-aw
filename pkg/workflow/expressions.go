@@ -802,12 +802,12 @@ func BreakAtParentheses(expression string) []string {
 func NormalizeExpressionForComparison(expression string) string {
 	// Replace newlines with spaces
 	normalized := strings.ReplaceAll(expression, "\n", " ")
-	
+
 	// Replace multiple spaces with single spaces
 	for strings.Contains(normalized, "  ") {
 		normalized = strings.ReplaceAll(normalized, "  ", " ")
 	}
-	
+
 	// Trim leading and trailing spaces
 	return strings.TrimSpace(normalized)
 }
