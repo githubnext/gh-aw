@@ -7,6 +7,7 @@ const mockCore = {
   setOutput: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
+  setFailed: vi.fn(),
 };
 
 const mockGithub = {
@@ -115,7 +116,7 @@ describe("check_permissions.cjs", () => {
       "Repository permission level: admin"
     );
     expect(consoleSpy).toHaveBeenCalledWith(
-      "User has admin access to repository"
+      "✅ User has admin access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
@@ -135,7 +136,7 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      "User has maintain access to repository"
+      "✅ User has maintain access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
@@ -155,14 +156,14 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      "User has write access to repository"
+      "✅ User has write access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
     consoleSpy.mockRestore();
   });
 
-  it("should set is_team_member to false for insufficient permission", async () => {
+  it("should fail the job directly for insufficient permission", async () => {
     process.env.REQUIRED_PERMISSIONS = "admin,maintainer";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
@@ -180,12 +181,14 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
-    expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintainer"
+    );
 
     consoleSpy.mockRestore();
   });
 
-  it("should set is_team_member to false for read permission", async () => {
+  it("should fail the job directly for read permission", async () => {
     process.env.REQUIRED_PERMISSIONS = "admin,write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
@@ -203,12 +206,14 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'read' does not meet requirements: admin, write"
     );
-    expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"
+    );
 
     consoleSpy.mockRestore();
   });
 
-  it("should handle API errors and set is_team_member to false", async () => {
+  it("should fail the job directly on API errors", async () => {
     process.env.REQUIRED_PERMISSIONS = "admin";
 
     const apiError = new Error("API Error: Not Found");
@@ -224,7 +229,9 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(
       "Repository permission check failed: API Error: Not Found"
     );
-    expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin"
+    );
 
     consoleSpy.mockRestore();
   });
@@ -271,7 +278,7 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      "User has triage access to repository"
+      "✅ User has triage access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
@@ -292,14 +299,14 @@ describe("check_permissions.cjs", () => {
 
     expect(consoleSpy).toHaveBeenCalledWith("Required permissions: write");
     expect(consoleSpy).toHaveBeenCalledWith(
-      "User has write access to repository"
+      "✅ User has write access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
     consoleSpy.mockRestore();
   });
 
-  it("should handle empty permissions string", async () => {
+  it("should fail the job directly for empty permissions string", async () => {
     process.env.REQUIRED_PERMISSIONS = "";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
@@ -312,7 +319,9 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(consoleSpy).toHaveBeenCalledWith("Required permissions: ");
-    expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: "
+    );
 
     consoleSpy.mockRestore();
   });

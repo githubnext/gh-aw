@@ -60,7 +60,7 @@ jobs:
                     permission === requiredPerm ||
                     (requiredPerm === "maintainer" && permission === "maintain")
                   ) {
-                    console.log(`User has ${permission} access to repository`);
+                    console.log(`✅ User has ${permission} access to repository`);
                     core.setOutput("is_team_member", "true");
                     return;
                   }
@@ -73,15 +73,12 @@ jobs:
                   repoError instanceof Error ? repoError.message : String(repoError);
                 core.warning(`Repository permission check failed: ${errorMessage}`);
               }
-              core.setOutput("is_team_member", "false");
+              // Fail the job directly when permission check fails
+              core.setFailed(
+                `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+              );
             }
             await main();
-      - name: Validate team membership
-        if: steps.check-team-member.outputs.is_team_member == 'false'
-        run: |
-          echo "❌ Access denied: Only authorized users can trigger this workflow"
-          echo "User ${{ github.actor }} is not authorized"
-          exit 1
       - name: Compute current body text
         id: compute-text
         uses: actions/github-script@v7

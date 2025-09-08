@@ -1974,25 +1974,14 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 		// For command workflows, use command-specific condition
 		// For other workflows, always run the permission check
 		var checkCondition string
-		var validationCondition string
 
 		if data.Command != "" {
 			// Build condition that only applies to command mentions in comment-related events
 			commandCondition := buildCommandOnlyCondition(data.Command)
 			checkCondition = commandCondition.Render()
-
-			// Build the validation condition using expression nodes
-			// Since the check-team-member step is gated by command condition, we check if it ran and returned 'false'
-			// This avoids running validation when the step didn't run at all (non-command triggers)
-			validationConditionExpr := BuildEquals(
-				BuildPropertyAccess("steps.check-team-member.outputs.is_team_member"),
-				BuildStringLiteral("false"),
-			)
-			validationCondition = validationConditionExpr.Render()
 		} else {
 			// For non-command workflows, always run the permission check
 			checkCondition = "true"
-			validationCondition = "steps.check-team-member.outputs.is_team_member == 'false'"
 		}
 
 		if data.Command != "" {
@@ -2016,17 +2005,6 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 				steps = append(steps, fmt.Sprintf("            %s\n", line))
 			}
 		}
-
-		steps = append(steps, "      - name: Validate team membership\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", validationCondition))
-		steps = append(steps, "        run: |\n")
-		if data.Command != "" {
-			steps = append(steps, "          echo \"❌ Access denied: Only team members can trigger command workflows\"\n")
-		} else {
-			steps = append(steps, "          echo \"❌ Access denied: Only authorized users can trigger this workflow\"\n")
-		}
-		steps = append(steps, "          echo \"User ${{ github.actor }} is not authorized\"\n")
-		steps = append(steps, "          exit 1\n")
 	}
 
 	// Use inlined compute-text script only if needed (no shared action)

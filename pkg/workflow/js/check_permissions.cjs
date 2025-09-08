@@ -29,7 +29,7 @@ async function main() {
         permission === requiredPerm ||
         (requiredPerm === "maintainer" && permission === "maintain")
       ) {
-        console.log(`User has ${permission} access to repository`);
+        console.log(`✅ User has ${permission} access to repository`);
         core.setOutput("is_team_member", "true");
         return;
       }
@@ -44,6 +44,9 @@ async function main() {
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
-  core.setOutput("is_team_member", "false");
+  // Fail the job directly when permission check fails
+  core.setFailed(
+    `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+  );
 }
 await main();
