@@ -60,12 +60,12 @@ Test workflow content.`,
 			expectedPermissions:   []string{"admin", "maintainer"},
 		},
 		{
-			name: "workflow with for: all should not include permission check",
+			name: "workflow with roles: all should not include permission check",
 			frontmatter: `---
 on:
   push:
     branches: [main]
-for: all
+roles: all
 tools:
   github:
     allowed: [list_issues]
@@ -83,7 +83,7 @@ Test workflow content.`,
 on:
   pull_request:
     types: [opened]
-for: [admin, maintainer, write]
+roles: [admin, maintainer, write]
 tools:
   github:
     allowed: [list_issues]
@@ -206,7 +206,7 @@ Test workflow content.`,
 				}
 			} else {
 				if hasPermissionCheck {
-					t.Errorf("Did not expect permission check in workflow with for: all but found it")
+					t.Errorf("Did not expect permission check in workflow with roles: all but found it")
 				}
 			}
 		})

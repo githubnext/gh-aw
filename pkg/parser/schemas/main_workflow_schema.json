@@ -1499,7 +1499,7 @@
       },
       "additionalProperties": false
     },
-    "for": {
+    "roles": {
       "description": "Permission levels required to trigger workflow. Use 'all' to allow any user, or specify permission levels like [admin, maintainer, write, triage]",
       "oneOf": [
         {

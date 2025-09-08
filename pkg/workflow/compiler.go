@@ -657,7 +657,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
-	workflowData.For = c.extractForPermissions(result.Frontmatter)
+	workflowData.For = c.extractRolesPermissions(result.Frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
@@ -1085,10 +1085,10 @@ func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
 	return ""
 }
 
-// extractForPermissions extracts the 'for' field from frontmatter to determine permission requirements
-func (c *Compiler) extractForPermissions(frontmatter map[string]any) []string {
-	if forValue, exists := frontmatter["for"]; exists {
-		switch v := forValue.(type) {
+// extractRolesPermissions extracts the 'roles' field from frontmatter to determine permission requirements
+func (c *Compiler) extractRolesPermissions(frontmatter map[string]any) []string {
+	if rolesValue, exists := frontmatter["roles"]; exists {
+		switch v := rolesValue.(type) {
 		case string:
 			if v == "all" {
 				// Special case: "all" means no restrictions
@@ -1116,7 +1116,7 @@ func (c *Compiler) extractForPermissions(frontmatter map[string]any) []string {
 
 // hasSafeEventsOnly checks if the workflow uses only safe events that don't require permission checks
 func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]any) bool {
-	// If user explicitly specified "for: all", skip permission checks
+	// If user explicitly specified "roles: all", skip permission checks
 	if len(data.For) == 1 && data.For[0] == "all" {
 		return true
 	}
@@ -1750,7 +1750,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 // needsPermissionChecks determines if the workflow needs permission checks
 func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
-	// If user explicitly specified "for: all", no permission checks needed
+	// If user explicitly specified "roles: all", no permission checks needed
 	if len(data.For) == 1 && data.For[0] == "all" {
 		return false
 	}
@@ -1764,7 +1764,7 @@ func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
 
 // needsPermissionChecksWithFrontmatter determines if the workflow needs permission checks with full context
 func (c *Compiler) needsPermissionChecksWithFrontmatter(data *WorkflowData, frontmatter map[string]any) bool {
-	// If user explicitly specified "for: all", no permission checks needed
+	// If user explicitly specified "roles: all", no permission checks needed
 	if len(data.For) == 1 && data.For[0] == "all" {
 		return false
 	}
@@ -2067,7 +2067,7 @@ func (c *Compiler) generatePermissionCheckScript(requiredPermissions []string) s
 	if len(requiredPermissions) == 1 && requiredPermissions[0] == "all" {
 		return `
 core.setOutput("is_team_member", "true");
-console.log("Permission check skipped - 'for: all' specified");`
+console.log("Permission check skipped - 'roles: all' specified");`
 	}
 
 	// Use the embedded check_permissions.cjs script with environment variable
