@@ -1,10 +1,10 @@
 package workflow
 
 import (
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,6 +22,9 @@ const (
 	// OutputArtifactName is the standard name for GITHUB_AW_SAFE_OUTPUTS artifact
 	OutputArtifactName = "safe_output.jsonl"
 )
+
+//go:embed schemas/github-workflow.json
+var githubWorkflowSchema string
 
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
@@ -326,12 +329,16 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated YAML content (%d bytes)", len(yamlContent))))
 	}
 
-	// Validate generated YAML against GitHub Actions schema (unless skipped)
+	if c.verbose {
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated YAML content (%d bytes)", len(yamlContent))))
+	}
+
+	// Validate against GitHub Actions schema (unless skipped)
 	if !c.skipValidation {
 		if c.verbose {
 			fmt.Println(console.FormatInfoMessage("Validating workflow against GitHub Actions schema..."))
 		}
-		if err := c.validateWorkflowSchema(yamlContent); err != nil {
+		if err := c.validateGitHubActionsSchema(yamlContent); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   markdownPath,
@@ -339,13 +346,13 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 					Column: 1,
 				},
 				Type:    "error",
-				Message: fmt.Sprintf("workflow validation failed: %v", err),
+				Message: fmt.Sprintf("workflow schema validation failed: %v", err),
 			})
 			return errors.New(formattedErr)
 		}
 
 		if c.verbose {
-			fmt.Println(console.FormatSuccessMessage("Workflow validation passed"))
+			fmt.Println(console.FormatSuccessMessage("GitHub Actions schema validation passed"))
 		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
@@ -378,64 +385,37 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	return nil
 }
 
-// httpURLLoader implements URLLoader for HTTP(S) URLs
-type httpURLLoader struct {
-	client *http.Client
-}
-
-// Load implements URLLoader interface for HTTP URLs
-func (h *httpURLLoader) Load(url string) (any, error) {
-	resp, err := h.client.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch URL %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch URL %s: HTTP %d", url, resp.StatusCode)
-	}
-
-	var result interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON from %s: %w", url, err)
-	}
-
-	return result, nil
-}
-
-// validateWorkflowSchema validates the generated YAML content against the GitHub Actions workflow schema
-func (c *Compiler) validateWorkflowSchema(yamlContent string) error {
-	// Convert YAML to JSON for validation
+// validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
+func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
+	// Convert YAML to interface{} for JSON conversion
 	var workflowData interface{}
 	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
-		return fmt.Errorf("failed to parse generated YAML: %w", err)
+		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
 	}
 
-	// Convert to JSON
+	// Convert to JSON for schema validation
 	jsonData, err := json.Marshal(workflowData)
 	if err != nil {
-		return fmt.Errorf("failed to convert YAML to JSON: %w", err)
+		return fmt.Errorf("failed to convert YAML to JSON for validation: %w", err)
 	}
 
-	// Load GitHub Actions workflow schema from SchemaStore
-	schemaURL := "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
+	// Parse the embedded schema
+	var schemaDoc interface{}
+	if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
+		return fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
+	}
 
-	// Create compiler with HTTP loader
+	// Create compiler and add the schema as a resource
 	loader := jsonschema.NewCompiler()
-	httpLoader := &httpURLLoader{
-		client: &http.Client{Timeout: 30 * time.Second},
+	schemaURL := "https://json.schemastore.org/github-workflow.json"
+	if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
+		return fmt.Errorf("failed to add schema resource: %w", err)
 	}
 
-	// Configure the compiler to use HTTP loader for https and http schemes
-	schemeLoader := jsonschema.SchemeURLLoader{
-		"https": httpLoader,
-		"http":  httpLoader,
-	}
-	loader.UseLoader(schemeLoader)
-
+	// Compile the schema
 	schema, err := loader.Compile(schemaURL)
 	if err != nil {
-		return fmt.Errorf("failed to load GitHub Actions schema from %s: %w", schemaURL, err)
+		return fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
 	}
 
 	// Validate the JSON data against the schema
@@ -445,7 +425,7 @@ func (c *Compiler) validateWorkflowSchema(yamlContent string) error {
 	}
 
 	if err := schema.Validate(jsonObj); err != nil {
-		return fmt.Errorf("workflow schema validation failed: %w", err)
+		return fmt.Errorf("GitHub Actions schema validation failed: %w", err)
 	}
 
 	return nil

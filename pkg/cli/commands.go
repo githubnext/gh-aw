@@ -23,6 +23,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 )
 
 // Package-level version information
@@ -567,7 +568,41 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	return nil
 }
 
-// CompileWorkflows compiles markdown files into GitHub Actions workflow files
+// CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
+func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool) error {
+	// Compile the workflow first
+	if err := compiler.CompileWorkflow(filePath); err != nil {
+		return err
+	}
+
+	// Always validate that the generated lock file is valid YAML (CLI requirement)
+	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
+	if _, err := os.Stat(lockFile); err != nil {
+		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
+		return nil
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage("Validating generated lock file YAML syntax..."))
+	}
+
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		return fmt.Errorf("failed to read generated lock file for validation: %w", err)
+	}
+
+	// Validate the lock file is valid YAML
+	var yamlValidationTest interface{}
+	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
+		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatSuccessMessage("Generated lock file YAML syntax validation passed"))
+	}
+
+	return nil
+}
 func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, writeInstructions bool, noEmit bool) error {
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
@@ -609,7 +644,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			if verbose {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
 			}
-			if err := compiler.CompileWorkflow(resolvedFile); err != nil {
+			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
 				return fmt.Errorf("failed to compile workflow '%s': %w", markdownFile, err)
 			}
 			compiledCount++
@@ -673,7 +708,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		if verbose {
 			fmt.Printf("Compiling: %s\n", file)
 		}
-		if err := compiler.CompileWorkflow(file); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
 			return err
 		}
 	}
@@ -793,7 +828,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Printf("🔨 Initial compilation of %s...\n", markdownFile)
 		}
-		if err := compiler.CompileWorkflow(markdownFile); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose); err != nil {
 			// Always show initial compilation errors, not just in verbose mode
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
@@ -888,7 +923,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		if verbose {
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
-		if err := compiler.CompileWorkflow(file); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
 			// Always show compilation errors, not just in verbose mode
 			fmt.Println(err)
 		} else if verbose {
@@ -930,7 +965,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
 
-		if err := compiler.CompileWorkflow(file); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
 			// Always show compilation errors, not just in verbose mode
 			fmt.Println(err)
 		} else if verbose {
@@ -1450,7 +1485,7 @@ func updateWorkflowTitle(content string, number int) string {
 func compileWorkflow(filePath string, verbose bool, engineOverride string) error {
 	// Create compiler and compile the workflow
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-	if err := compiler.CompileWorkflow(filePath); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose); err != nil {
 		return err
 	}
 
@@ -1506,7 +1541,7 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 	// Create compiler and set the file tracker
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compiler.SetFileTracker(tracker)
-	if err := compiler.CompileWorkflow(filePath); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose); err != nil {
 		return err
 	}
 
@@ -3639,7 +3674,28 @@ func createPR(branchName, title, body string, verbose bool) error {
 		fmt.Printf("Creating PR: %s\n", title)
 	}
 
-	cmd := exec.Command("gh", "pr", "create", "--title", title, "--body", body, "--head", branchName)
+	// Get the current repository info to ensure PR is created in the correct repo
+	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name")
+	repoOutput, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get current repository info: %w", err)
+	}
+
+	var repoInfo struct {
+		Owner struct {
+			Login string `json:"login"`
+		} `json:"owner"`
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(repoOutput, &repoInfo); err != nil {
+		return fmt.Errorf("failed to parse repository info: %w", err)
+	}
+
+	repoSpec := fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
+
+	// Explicitly specify the repository to ensure PR is created in the current repo (not upstream)
+	cmd = exec.Command("gh", "pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
 	output, err := cmd.Output()
 	if err != nil {
 		// Try to get stderr for better error reporting
