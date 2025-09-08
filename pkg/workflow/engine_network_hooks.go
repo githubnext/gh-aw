@@ -132,17 +132,19 @@ except Exception as e:
 
 // GenerateNetworkHookWorkflowStep generates a GitHub Actions workflow step that creates the network permissions hook
 func (g *NetworkHookGenerator) GenerateNetworkHookWorkflowStep(allowedDomains []string) GitHubActionStep {
-	// Generate the Python script content
-	pythonScript := g.GenerateNetworkHookScript(allowedDomains)
-
-	// Convert Python script to JSON string for passing to JavaScript
-	pythonScriptJSON, _ := json.Marshal(pythonScript)
+	// Convert domain list to JSON for passing to JavaScript
+	var domainsJSON []byte
+	if allowedDomains == nil {
+		domainsJSON = []byte("[]")
+	} else {
+		domainsJSON, _ = json.Marshal(allowedDomains)
+	}
 
 	var lines []string
 	lines = append(lines, "      - name: Generate Network Permissions Hook")
 	lines = append(lines, "        uses: actions/github-script@v7")
 	lines = append(lines, "        env:")
-	lines = append(lines, fmt.Sprintf("          GITHUB_AW_PYTHON_SCRIPT: '%s'", string(pythonScriptJSON)))
+	lines = append(lines, fmt.Sprintf("          GITHUB_AW_ALLOWED_DOMAINS: '%s'", string(domainsJSON)))
 	lines = append(lines, "        with:")
 	lines = append(lines, "          script: |")
 

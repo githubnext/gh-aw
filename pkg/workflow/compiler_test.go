@@ -2250,7 +2250,7 @@ This is a test workflow with empty network permissions (deny all).
 			t.Error("Should contain network hook setup for network: {}")
 		}
 		// Should have empty ALLOWED_DOMAINS array for deny-all
-		if !strings.Contains(string(lockContent), "ALLOWED_DOMAINS = []") {
+		if !strings.Contains(string(lockContent), "GITHUB_AW_ALLOWED_DOMAINS: '[]'") {
 			t.Error("Should have empty ALLOWED_DOMAINS array for deny-all policy")
 		}
 	})
@@ -2290,10 +2290,10 @@ This is a test workflow with explicit network permissions.
 		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
 			t.Error("Should contain network hook setup with explicit network permissions")
 		}
-		if !strings.Contains(string(lockContent), `\"example.com\"`) {
+		if !strings.Contains(string(lockContent), `"example.com"`) {
 			t.Error("Should contain example.com in allowed domains")
 		}
-		if !strings.Contains(string(lockContent), `\"api.github.com\"`) {
+		if !strings.Contains(string(lockContent), `"api.github.com"`) {
 			t.Error("Should contain api.github.com in allowed domains")
 		}
 	})
