@@ -57,10 +57,10 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
 		// Combine command condition with base condition using AND
-		jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+		jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
 	} else {
 		// No command trigger, just use the base condition
-		jobCondition = fmt.Sprintf("if: %s", baseCondition)
+		jobCondition = baseCondition
 	}
 
 	job := &Job{

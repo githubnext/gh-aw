@@ -83,14 +83,14 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 		// Combine command condition with base condition using AND
 		if baseCondition == "always()" {
 			// If base condition is always(), just use the command condition
-			jobCondition = fmt.Sprintf("if: %s", commandConditionStr)
+			jobCondition = commandConditionStr
 		} else {
 			// Combine both conditions with AND
-			jobCondition = fmt.Sprintf("if: (%s) && (%s)", commandConditionStr, baseCondition)
+			jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
 		}
 	} else {
 		// No command trigger, just use the base condition
-		jobCondition = fmt.Sprintf("if: %s", baseCondition)
+		jobCondition = baseCondition
 	}
 
 	job := &Job{
