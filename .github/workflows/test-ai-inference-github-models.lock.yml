@@ -28,7 +28,6 @@ jobs:
     steps:
       - name: Check team membership for workflow
         id: check-team-member
-        if: true
         uses: actions/github-script@v7
         with:
           script: |

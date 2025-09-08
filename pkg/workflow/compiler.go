@@ -2001,7 +2001,9 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 			steps = append(steps, "      - name: Check team membership for workflow\n")
 		}
 		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", checkCondition))
+		if checkCondition != "true" {
+			steps = append(steps, fmt.Sprintf("        if: %s\n", checkCondition))
+		}
 		steps = append(steps, "        uses: actions/github-script@v7\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
