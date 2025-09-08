@@ -1127,13 +1127,14 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 			// Check if only safe events are present
 			safeEvents := []string{"workflow_dispatch", "workflow_run", "schedule"}
 			hasUnsafeEvents := false
-			
+
 			for eventName := range onMap {
 				// Skip command events as they are handled separately
-				if eventName == "command" {
+				// Skip stop-after and reaction as they are not event types
+				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" {
 					continue
 				}
-				
+
 				// Check if this event is in the safe list
 				isSafe := false
 				for _, safeEvent := range safeEvents {
@@ -1147,11 +1148,24 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 					break
 				}
 			}
-			
-			return !hasUnsafeEvents && len(onMap) > 0
+
+			// If there are events and none are unsafe, then it's safe
+			eventCount := len(onMap)
+			// Subtract non-event entries
+			if _, hasCommand := onMap["command"]; hasCommand {
+				eventCount--
+			}
+			if _, hasStopAfter := onMap["stop-after"]; hasStopAfter {
+				eventCount--
+			}
+			if _, hasReaction := onMap["reaction"]; hasReaction {
+				eventCount--
+			}
+
+			return eventCount > 0 && !hasUnsafeEvents
 		}
 	}
-	
+
 	// If no "on" section or it's a string, check for default command trigger
 	// For command workflows, they are not considered "safe only"
 	return false
@@ -1741,11 +1755,27 @@ func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
 	if len(data.For) == 1 && data.For[0] == "all" {
 		return false
 	}
-	
+
 	// Permission checks are needed by default unless workflow uses only safe events
 	// Safe events: workflow_dispatch, workflow_run, schedule
 	// For now, we'll implement a simple heuristic since we don't have frontmatter here
 	// We'll implement the full logic later when we have access to frontmatter
+	return true
+}
+
+// needsPermissionChecksWithFrontmatter determines if the workflow needs permission checks with full context
+func (c *Compiler) needsPermissionChecksWithFrontmatter(data *WorkflowData, frontmatter map[string]any) bool {
+	// If user explicitly specified "for: all", no permission checks needed
+	if len(data.For) == 1 && data.For[0] == "all" {
+		return false
+	}
+
+	// Check if the workflow uses only safe events (only if frontmatter is available)
+	if frontmatter != nil && c.hasSafeEventsOnly(data, frontmatter) {
+		return false
+	}
+
+	// Permission checks are needed by default for non-safe events
 	return true
 }
 
@@ -1761,13 +1791,23 @@ func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
+	// Try to read frontmatter to determine event types for safe events check
+	// This is used for the enhanced permission checking logic
+	var frontmatter map[string]any
+	if content, err := os.ReadFile(markdownPath); err == nil {
+		if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
+			frontmatter = result.Frontmatter
+		}
+	}
+	// If frontmatter cannot be read, we'll fall back to the basic permission check logic
+
 	// Generate job name from workflow name
 	jobName := c.generateJobName(data.Name)
 
 	// Build task job only if actually needed (preamble job that handles runtime conditions)
 	var taskJobCreated bool
 	if c.isTaskJobNeeded(data) {
-		taskJob, err := c.buildTaskJob(data)
+		taskJob, err := c.buildTaskJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build task job: %w", err)
 		}
@@ -1919,24 +1959,29 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 }
 
 // buildTaskJob creates the preamble task job that acts as a barrier for runtime conditions
-func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
 	// Add team member check based on new permission requirements (issue #567)
-	needsPermissionCheck := c.needsPermissionChecks(data)
-	
+	var needsPermissionCheck bool
+	if frontmatter != nil {
+		needsPermissionCheck = c.needsPermissionChecksWithFrontmatter(data, frontmatter)
+	} else {
+		needsPermissionCheck = c.needsPermissionChecks(data)
+	}
+
 	if needsPermissionCheck || data.Command != "" {
 		// For command workflows, use command-specific condition
 		// For other workflows, always run the permission check
 		var checkCondition string
 		var validationCondition string
-		
+
 		if data.Command != "" {
 			// Build condition that only applies to command mentions in comment-related events
 			commandCondition := buildCommandOnlyCondition(data.Command)
 			checkCondition = commandCondition.Render()
-			
+
 			// Build the validation condition using expression nodes
 			// Since the check-team-member step is gated by command condition, we check if it ran and returned 'false'
 			// This avoids running validation when the step didn't run at all (non-command triggers)
@@ -1970,7 +2015,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 				steps = append(steps, fmt.Sprintf("            %s\n", line))
 			}
 		}
-		
+
 		steps = append(steps, "      - name: Validate team membership\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", validationCondition))
 		steps = append(steps, "        run: |\n")

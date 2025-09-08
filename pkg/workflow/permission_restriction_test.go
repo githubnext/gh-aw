@@ -96,7 +96,7 @@ Test workflow content.`,
 			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
-			name: "workflow with workflow_dispatch only should include permission check (default)",
+			name: "workflow with workflow_dispatch only should NOT include permission check (safe event)",
 			frontmatter: `---
 on:
   workflow_dispatch:
@@ -108,11 +108,11 @@ tools:
 # Manual Workflow
 Test workflow content.`,
 			filename:              "manual-workflow.md",
-			expectPermissionCheck: true,
+			expectPermissionCheck: false,
 			expectedPermissions:   []string{"admin", "maintainer"},
 		},
 		{
-			name: "workflow with schedule only should include permission check (default)",
+			name: "workflow with schedule only should NOT include permission check (safe event)",
 			frontmatter: `---
 on:
   schedule:
@@ -125,6 +125,42 @@ tools:
 # Scheduled Workflow
 Test workflow content.`,
 			filename:              "schedule-workflow.md",
+			expectPermissionCheck: false,
+			expectedPermissions:   []string{"admin", "maintainer"},
+		},
+		{
+			name: "workflow with workflow_run only should NOT include permission check (safe event)",
+			frontmatter: `---
+on:
+  workflow_run:
+    workflows: ["build"]
+    types: [completed]
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Workflow Run Trigger
+Test workflow content.`,
+			filename:              "workflow-run-workflow.md",
+			expectPermissionCheck: false,
+			expectedPermissions:   []string{"admin", "maintainer"},
+		},
+		{
+			name: "workflow with mixed safe and unsafe events should include permission check",
+			frontmatter: `---
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Mixed Event Workflow
+Test workflow content.`,
+			filename:              "mixed-workflow.md",
 			expectPermissionCheck: true,
 			expectedPermissions:   []string{"admin", "maintainer"},
 		},
@@ -161,7 +197,7 @@ Test workflow content.`,
 				if !hasPermissionCheck {
 					t.Errorf("Expected permission check to be present but not found")
 				}
-				
+
 				// Verify the expected permission levels are mentioned in the script
 				for _, perm := range tt.expectedPermissions {
 					if perm != "all" && !strings.Contains(lockContentStr, perm) {
@@ -223,7 +259,7 @@ Test workflow content.`
 	lockContentStr := string(lockContent)
 
 	// Check that permission check is present
-	if !strings.Contains(lockContentStr, "Check team membership for workflow") {
+	if !strings.Contains(lockContentStr, "Check team membership for command workflow") {
 		t.Errorf("Expected permission check to be present in command workflow")
 	}
 

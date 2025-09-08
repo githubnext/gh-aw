@@ -42,9 +42,6 @@ var pushToBranchScript string
 //go:embed js/setup_agent_output.cjs
 var setupAgentOutputScript string
 
-//go:embed js/check_team_member.cjs
-var checkTeamMemberScript string
-
 //go:embed js/add_reaction.cjs
 var addReactionScript string
 

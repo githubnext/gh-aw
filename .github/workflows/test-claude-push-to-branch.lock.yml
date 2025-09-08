@@ -27,7 +27,7 @@ jobs:
       (contains(github.event.pull_request.body, '/test-claude-push-to-branch'))
     runs-on: ubuntu-latest
     steps:
-      - name: Check team membership for workflow
+      - name: Check team membership for command workflow
         id: check-team-member
         if: contains(github.event.issue.body, '/test-claude-push-to-branch') || contains(github.event.comment.body, '/test-claude-push-to-branch') || contains(github.event.pull_request.body, '/test-claude-push-to-branch')
         uses: actions/github-script@v7
