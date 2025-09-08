@@ -449,8 +449,8 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 					isCustomMCP = true
 				}
 
-				// Handle standard MCP tools (github) or tools with MCP-compatible type
-				if toolName == "github" || isCustomMCP {
+				// Handle standard MCP tools (github, playwright) or tools with MCP-compatible type
+				if toolName == "github" || toolName == "playwright" || isCustomMCP {
 					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {
 						if allowedSlice, ok := allowed.([]any); ok {
 							// Check for wildcard access first
