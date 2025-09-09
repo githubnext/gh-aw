@@ -1498,6 +1498,26 @@
         }
       },
       "additionalProperties": false
+    },
+    "roles": {
+      "description": "Permission levels required to trigger workflow. Use 'all' to allow any user, or specify permission levels like [admin, maintainer, write, triage]",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["all"],
+          "description": "Allow any user to trigger the workflow"
+        },
+        {
+          "type": "array",
+          "description": "List of permission levels required to trigger the workflow",
+          "items": {
+            "type": "string",
+            "enum": ["admin", "maintainer", "maintain", "write", "triage"],
+            "description": "Repository permission level"
+          },
+          "minItems": 1
+        }
+      ]
     }
   },
   "additionalProperties": false

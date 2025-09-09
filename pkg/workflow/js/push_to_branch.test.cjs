@@ -93,10 +93,9 @@ describe("push_to_branch.cjs", () => {
       const scriptPath = path.join(__dirname, "push_to_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-      // Check that git branch operations are handled
+      // Check that git branch operations are handled (git config is handled by workflow)
       expect(scriptContent).toContain("git checkout");
       expect(scriptContent).toContain("git fetch");
-      expect(scriptContent).toContain("git config");
     });
 
     it("should handle empty patches as noop operations", () => {

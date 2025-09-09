@@ -2784,7 +2784,7 @@ Test workflow with reaction.
 	}
 
 	// Generate YAML and verify it contains reaction jobs
-	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -2802,7 +2802,7 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify two jobs are created (add_reaction, main) - missing_tool is not auto-created
+	// Verify two jobs are created (add_reaction, main) - task job no longer needed since permission checks are integrated
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 2 {
 		t.Errorf("Expected 2 jobs (add_reaction, main), found %d", jobCount)
@@ -2856,7 +2856,7 @@ Test workflow without explicit reaction (should not create reaction action).
 	}
 
 	// Generate YAML and verify it does NOT contain reaction jobs
-	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -2874,7 +2874,7 @@ Test workflow without explicit reaction (should not create reaction action).
 		}
 	}
 
-	// Verify only one job is created (main) - missing_tool is not auto-created
+	// Verify one job is created (main) - task job no longer needed since permission checks are integrated
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 1 {
 		t.Errorf("Expected 1 job (main), found %d", jobCount)
@@ -2929,7 +2929,7 @@ Test workflow with reaction and comment editing.
 	}
 
 	// Generate YAML and verify it contains the enhanced reaction script
-	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
@@ -3012,7 +3012,7 @@ Test command workflow with reaction and comment editing.
 	}
 
 	// Generate YAML and verify it contains both alias and reaction environment variables
-	yamlContent, err := compiler.generateYAML(workflowData, "test-workflow.md")
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
 	if err != nil {
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}

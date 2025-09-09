@@ -347,12 +347,6 @@ jobs:
           
           # Ensure log file exists
           touch /tmp/test-claude-create-issue.log
-      - name: Upload workflow-complete.txt
-        uses: actions/upload-artifact@v4
-        with:
-          name: workflow-complete
-          path: workflow-complete.txt
-          if-no-files-found: ignore
       - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
@@ -1426,6 +1420,73 @@ jobs:
       issue_number: ${{ steps.create_issue.outputs.issue_number }}
       issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
+      - name: Check team membership for workflow
+        id: check-team-member
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              // skip check for safe events
+              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                console.log(`✅ Event ${eventName} does not require validation`);
+                return;
+              }
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv
+                ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
+                : [];
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.error(
+                  "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+                );
+                process.exit(1);
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                console.log(
+                  `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
+                );
+                console.log(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission =
+                  await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner: owner,
+                    repo: repo,
+                    username: actor,
+                  });
+                const permission = repoPermission.data.permission;
+                console.log(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (
+                    permission === requiredPerm ||
+                    (requiredPerm === "maintainer" && permission === "maintain")
+                  ) {
+                    console.log(`✅ User has ${permission} access to repository`);
+                    return;
+                  }
+                }
+                console.log(
+                  `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage =
+                  repoError instanceof Error ? repoError.message : String(repoError);
+                core.error(`Repository permission check failed: ${errorMessage}`);
+                process.exit(1);
+              }
+              // Fail the job when permission check fails
+              core.warning(
+                `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+              );
+              process.exit(78);
+            }
+            await main();
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@v7
