@@ -9,6 +9,9 @@ const MaxExpressionLineLength = 120
 // ExpressionBreakThreshold is the threshold for breaking long lines at logical points
 const ExpressionBreakThreshold = 100
 
+// SafeWorkflowEvents defines events that are considered safe and don't require permission checks
+var SafeWorkflowEvents = []string{"workflow_dispatch", "workflow_run", "schedule"}
+
 // AllowedExpressions contains the GitHub Actions expressions that can be used in workflow markdown content
 // see https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context
 var AllowedExpressions = []string{
