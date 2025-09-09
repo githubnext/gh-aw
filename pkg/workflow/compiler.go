@@ -2649,7 +2649,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		}
 	}
 
-	// Determine the job condition for command workflows  
+	// Determine the job condition for command workflows
 	var jobCondition string
 	if data.Command != "" {
 		// Build the command trigger condition

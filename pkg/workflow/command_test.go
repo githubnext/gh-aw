@@ -114,7 +114,7 @@ This test validates that command conditions are applied correctly based on event
 				// Handle both single-line and multi-line YAML conditions
 				lines := strings.Split(lockContentStr, "\n")
 				foundSimpleCommandCondition := false
-				
+
 				for i, line := range lines {
 					// Check for single-line if condition
 					if strings.Contains(line, "if:") && strings.Contains(line, "contains(") && !strings.Contains(line, "github.event_name") {
