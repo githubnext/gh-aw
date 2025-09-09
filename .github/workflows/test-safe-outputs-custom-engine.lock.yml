@@ -40,6 +40,13 @@ jobs:
         with:
           script: |
             async function main() {
+              const { eventName } = context;
+              // skip check for safe events
+              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"]
+              if (safeEvents.includes(eventName)) {
+                console.log(`✅ Event ${eventName} does not require validation`);
+                return
+              }
               const actor = context.actor;
               const { owner, repo } = context.repo;
               const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(
@@ -72,7 +79,6 @@ jobs:
                     (requiredPerm === "maintainer" && permission === "maintain")
                   ) {
                     console.log(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
                     return;
                   }
                 }
@@ -82,7 +88,8 @@ jobs:
               } catch (repoError) {
                 const errorMessage =
                   repoError instanceof Error ? repoError.message : String(repoError);
-                core.setError(`Repository permission check failed: ${errorMessage}`);
+                core.error(`Repository permission check failed: ${errorMessage}`);
+                process.exit(1);
               }
               // Fail the job when permission check fails
               core.warning(
@@ -1289,6 +1296,13 @@ jobs:
         with:
           script: |
             async function main() {
+              const { eventName } = context;
+              // skip check for safe events
+              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"]
+              if (safeEvents.includes(eventName)) {
+                console.log(`✅ Event ${eventName} does not require validation`);
+                return
+              }
               const actor = context.actor;
               const { owner, repo } = context.repo;
               const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(
@@ -1321,7 +1335,6 @@ jobs:
                     (requiredPerm === "maintainer" && permission === "maintain")
                   ) {
                     console.log(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
                     return;
                   }
                 }
@@ -1331,7 +1344,8 @@ jobs:
               } catch (repoError) {
                 const errorMessage =
                   repoError instanceof Error ? repoError.message : String(repoError);
-                core.setError(`Repository permission check failed: ${errorMessage}`);
+                core.error(`Repository permission check failed: ${errorMessage}`);
+                process.exit(1);
               }
               // Fail the job when permission check fails
               core.warning(
