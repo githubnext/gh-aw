@@ -1818,7 +1818,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Build add_reaction job only if ai-reaction is configured
 	if data.AIReaction != "" {
-		addReactionJob, err := c.buildAddReactionJob(data, taskJobCreated)
+		addReactionJob, err := c.buildAddReactionJob(data, taskJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build add_reaction job: %w", err)
 		}
@@ -1828,7 +1828,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated)
+	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated, frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -2045,7 +2045,7 @@ console.log("Permission check skipped - 'roles: all' specified");`
 }
 
 // buildAddReactionJob creates the add_reaction job
-func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) (*Job, error) {
+func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
 	var steps []string
@@ -2587,14 +2587,18 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
 
 	// Add permission checks if no task job was created but permission checks are needed
 	if !taskJobCreated {
 		var needsPermissionCheck bool
-		// Check if permission checks are needed using the existing logic
-		needsPermissionCheck = c.needsPermissionChecks(data)
+		// Check if permission checks are needed using frontmatter if available
+		if frontmatter != nil {
+			needsPermissionCheck = c.needsPermissionChecksWithFrontmatter(data, frontmatter)
+		} else {
+			needsPermissionCheck = c.needsPermissionChecks(data)
+		}
 
 		if needsPermissionCheck {
 			// Add team member check step
@@ -2645,9 +2649,20 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		}
 	}
 
+	// Determine the job condition for command workflows  
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = commandConditionStr
+	} else {
+		jobCondition = data.If // Use the original If condition from the workflow data
+	}
+
 	job := &Job{
 		Name:        jobName,
-		If:          "", // Remove the If condition since task job handles alias checks
+		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,

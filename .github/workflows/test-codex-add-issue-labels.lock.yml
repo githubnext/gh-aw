@@ -39,10 +39,9 @@ jobs:
             async function main() {
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(",") || [
-                "admin",
-                "maintain",
-              ];
+              const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(
+                ","
+              ) || ["admin", "maintain"];
               // Check if the actor has the required repository permissions
               try {
                 console.log(
@@ -278,10 +277,9 @@ jobs:
             async function main() {
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(",") || [
-                "admin",
-                "maintain",
-              ];
+              const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(
+                ","
+              ) || ["admin", "maintain"];
               // Check if the actor has the required repository permissions
               try {
                 console.log(

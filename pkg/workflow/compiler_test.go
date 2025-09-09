@@ -2802,10 +2802,10 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify three jobs are created (task, add_reaction, main) - task job is added for permission checks
+	// Verify two jobs are created (add_reaction, main) - task job no longer needed since permission checks are integrated
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
-	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (task, add_reaction, main), found %d", jobCount)
+	if jobCount != 2 {
+		t.Errorf("Expected 2 jobs (add_reaction, main), found %d", jobCount)
 	}
 }
 
@@ -2874,10 +2874,10 @@ Test workflow without explicit reaction (should not create reaction action).
 		}
 	}
 
-	// Verify two jobs are created (task, main) - task job is added for permission checks
+	// Verify one job is created (main) - task job no longer needed since permission checks are integrated
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
-	if jobCount != 2 {
-		t.Errorf("Expected 2 jobs (task, main), found %d", jobCount)
+	if jobCount != 1 {
+		t.Errorf("Expected 1 job (main), found %d", jobCount)
 	}
 }
 
