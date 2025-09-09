@@ -8,6 +8,7 @@ const mockCore = {
   warning: vi.fn(),
   error: vi.fn(),
   setFailed: vi.fn(),
+  setCancelled: vi.fn(),
 };
 
 const mockGithub = {
@@ -40,7 +41,7 @@ describe("check_permissions.cjs", () => {
     vi.clearAllMocks();
 
     // Store original environment
-    originalEnv = process.env.REQUIRED_PERMISSIONS;
+    originalEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
 
     // Reset context to default state
     global.context.actor = "testuser";
@@ -60,14 +61,14 @@ describe("check_permissions.cjs", () => {
   afterEach(() => {
     // Restore original environment
     if (originalEnv !== undefined) {
-      process.env.REQUIRED_PERMISSIONS = originalEnv;
+      process.env.GITHUB_AW_REQUIRED_ROLES = originalEnv;
     } else {
-      delete process.env.REQUIRED_PERMISSIONS;
+      delete process.env.GITHUB_AW_REQUIRED_ROLES;
     }
   });
 
   it("should use default permissions (admin, maintain) when none specified", async () => {
-    delete process.env.REQUIRED_PERMISSIONS;
+    delete process.env.GITHUB_AW_REQUIRED_ROLES;
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "admin" },
@@ -87,7 +88,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should set is_team_member to true for admin permission", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin,maintainer,write";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer,write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "admin" },
@@ -124,7 +125,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should set is_team_member to true for maintain permission when maintainer is required", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin,maintainer";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "maintain" },
@@ -144,7 +145,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should set is_team_member to true for write permission when write is required", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin,write,triage";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
@@ -164,7 +165,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail the job directly for insufficient permission", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin,maintainer";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
@@ -181,7 +182,7 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintainer"
     );
 
@@ -189,7 +190,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail the job directly for read permission", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin,write";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "read" },
@@ -206,7 +207,7 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'read' does not meet requirements: admin, write"
     );
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"
     );
 
@@ -214,7 +215,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail the job directly on API errors", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
 
     const apiError = new Error("API Error: Not Found");
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(
@@ -229,7 +230,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(
       "Repository permission check failed: API Error: Not Found"
     );
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin"
     );
 
@@ -237,7 +238,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should handle different actor names correctly", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
     global.context.actor = "different-user";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
@@ -266,7 +267,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should handle triage permission correctly", async () => {
-    process.env.REQUIRED_PERMISSIONS = "admin,write,triage";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "triage" },
@@ -286,7 +287,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should handle single permission requirement", async () => {
-    process.env.REQUIRED_PERMISSIONS = "write";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
@@ -307,7 +308,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail the job directly for empty permissions string", async () => {
-    process.env.REQUIRED_PERMISSIONS = "";
+    process.env.GITHUB_AW_REQUIRED_ROLES = "";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "admin" },
@@ -319,7 +320,7 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(consoleSpy).toHaveBeenCalledWith("Required permissions: ");
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: "
     );
 

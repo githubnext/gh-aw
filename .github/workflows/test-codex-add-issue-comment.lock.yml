@@ -17,20 +17,29 @@ concurrency:
 run-name: "Test Codex Add Issue Comment"
 
 jobs:
-  task:
+  add_reaction:
+    if: >
+      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
+      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
+      (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    outputs:
+      reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
       - name: Check team membership for workflow
         id: check-team-member
         uses: actions/github-script@v7
         env:
-          REQUIRED_PERMISSIONS: admin,maintainer
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
             async function main() {
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissions = process.env.REQUIRED_PERMISSIONS?.split(",") || [
+              const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(",") || [
                 "admin",
                 "maintain",
               ];
@@ -67,26 +76,12 @@ jobs:
                   repoError instanceof Error ? repoError.message : String(repoError);
                 core.warning(`Repository permission check failed: ${errorMessage}`);
               }
-              // Fail the job directly when permission check fails
-              core.setFailed(
+              // Cancel the job directly when permission check fails
+              core.setCancelled(
                 `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
             }
             await main();
-
-  add_reaction:
-    needs: task
-    if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
-      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      (github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
       - name: Add eyes reaction to the triggering item
         id: react
         uses: actions/github-script@v7
@@ -268,12 +263,64 @@ jobs:
             await main();
 
   test-codex-add-issue-comment:
-    needs: task
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
+      - name: Check team membership for workflow
+        id: check-team-member
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(",") || [
+                "admin",
+                "maintain",
+              ];
+              // Check if the actor has the required repository permissions
+              try {
+                console.log(
+                  `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
+                );
+                console.log(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission =
+                  await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner: owner,
+                    repo: repo,
+                    username: actor,
+                  });
+                const permission = repoPermission.data.permission;
+                console.log(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (
+                    permission === requiredPerm ||
+                    (requiredPerm === "maintainer" && permission === "maintain")
+                  ) {
+                    console.log(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    return;
+                  }
+                }
+                console.log(
+                  `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage =
+                  repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+              }
+              // Cancel the job directly when permission check fails
+              core.setCancelled(
+                `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+              );
+            }
+            await main();
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Setup Node.js

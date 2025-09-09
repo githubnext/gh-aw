@@ -31,16 +31,15 @@ jobs:
     steps:
       - name: Check team membership for command workflow
         id: check-team-member
-        if: contains(github.event.issue.body, '/test-codex-command') || contains(github.event.comment.body, '/test-codex-command') || contains(github.event.pull_request.body, '/test-codex-command')
         uses: actions/github-script@v7
         env:
-          REQUIRED_PERMISSIONS: admin,maintainer
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
             async function main() {
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissions = process.env.REQUIRED_PERMISSIONS?.split(",") || [
+              const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(",") || [
                 "admin",
                 "maintain",
               ];
@@ -77,8 +76,8 @@ jobs:
                   repoError instanceof Error ? repoError.message : String(repoError);
                 core.warning(`Repository permission check failed: ${errorMessage}`);
               }
-              // Fail the job directly when permission check fails
-              core.setFailed(
+              // Cancel the job directly when permission check fails
+              core.setCancelled(
                 `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
             }

@@ -1,7 +1,7 @@
 async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;
-  const requiredPermissions = process.env.REQUIRED_PERMISSIONS?.split(",") || [
+  const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(",") || [
     "admin",
     "maintain",
   ];
@@ -44,8 +44,8 @@ async function main() {
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
-  // Fail the job directly when permission check fails
-  core.setFailed(
+  // Cancel the job directly when permission check fails
+  core.setCancelled(
     `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
 }
