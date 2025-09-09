@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -48,9 +49,10 @@ type LogMetrics = workflow.LogMetrics
 
 // ProcessedRun represents a workflow run with its associated analysis
 type ProcessedRun struct {
-	Run            WorkflowRun
-	AccessAnalysis *DomainAnalysis
-	MissingTools   []MissingToolReport
+	Run                   WorkflowRun
+	AccessAnalysis        *DomainAnalysis
+	MissingTools          []MissingToolReport
+	SanitizationAnalysis  *SanitizationAnalysis
 }
 
 // MissingToolReport represents a missing tool reported by an agentic workflow
@@ -72,18 +74,41 @@ type MissingToolSummary struct {
 	RunIDs      []int64  // List of run IDs where this tool was reported
 }
 
+// SanitizationChange represents a specific change made during output sanitization
+type SanitizationChange struct {
+	Type        string `json:"type"`        // "mention", "bot_trigger", "url", "truncation", "xml_escape", "ansi_removal", "control_char"
+	Original    string `json:"original"`    // Original text that was changed
+	Sanitized   string `json:"sanitized"`   // Text after sanitization
+	Context     string `json:"context"`     // Surrounding context for the change
+	LineNumber  int    `json:"line_number"` // Line number where the change occurred
+	Description string `json:"description"` // Human-readable description of the change
+}
+
+// SanitizationAnalysis represents the analysis of sanitization changes for a workflow run
+type SanitizationAnalysis struct {
+	HasRawOutput       bool                  `json:"has_raw_output"`       // Whether raw output was available for comparison
+	HasSanitizedOutput bool                  `json:"has_sanitized_output"` // Whether sanitized output was available
+	TotalChanges       int                   `json:"total_changes"`        // Total number of sanitization changes detected
+	ChangesByType      map[string]int        `json:"changes_by_type"`      // Count of changes by type
+	Changes            []SanitizationChange  `json:"changes"`              // Detailed list of changes
+	WasContentTruncated bool                 `json:"was_content_truncated"` // Whether content was truncated due to size/lines
+	TruncationReason   string                `json:"truncation_reason"`    // Reason for truncation if applicable
+	SummaryPreview     string                `json:"summary_preview"`      // Brief preview of major changes for display
+}
+
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
 
 // DownloadResult represents the result of downloading artifacts for a single run
 type DownloadResult struct {
-	Run            WorkflowRun
-	Metrics        LogMetrics
-	AccessAnalysis *DomainAnalysis
-	MissingTools   []MissingToolReport
-	Error          error
-	Skipped        bool
-	LogsPath       string
+	Run                  WorkflowRun
+	Metrics              LogMetrics
+	AccessAnalysis       *DomainAnalysis
+	MissingTools         []MissingToolReport
+	SanitizationAnalysis *SanitizationAnalysis
+	Error                error
+	Skipped              bool
+	LogsPath             string
 }
 
 // Constants for the iterative algorithm
@@ -104,12 +129,16 @@ const (
 func NewLogsCommand() *cobra.Command {
 	logsCmd := &cobra.Command{
 		Use:   "logs [agentic-workflow-id]",
-		Short: "Download and analyze agentic workflow logs with aggregated metrics",
+		Short: "Download and analyze agentic workflow logs with aggregated metrics and sanitization analysis",
 		Long: `Download workflow run logs and artifacts from GitHub Actions for agentic workflows.
 
 This command fetches workflow runs, downloads their artifacts, and extracts them into
 organized folders named by run ID. It also provides an overview table with aggregate
 metrics including duration, token usage, and cost information.
+
+Additionally, when both raw and sanitized output files are available, the command analyzes
+what changes were made during output sanitization (e.g., @mentions neutralized, URLs redacted,
+content truncated) and provides a detailed report of these security modifications.
 
 Downloaded artifacts include:
 - aw_info.json: Engine configuration and workflow metadata
@@ -357,9 +386,10 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 
 			processedRun := ProcessedRun{
-				Run:            run,
-				AccessAnalysis: result.AccessAnalysis,
-				MissingTools:   result.MissingTools,
+				Run:                  run,
+				AccessAnalysis:       result.AccessAnalysis,
+				MissingTools:         result.MissingTools,
+				SanitizationAnalysis: result.SanitizationAnalysis,
 			}
 			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
@@ -409,6 +439,9 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Display missing tools analysis
 	displayMissingToolsAnalysis(processedRuns, verbose)
+
+	// Display sanitization analysis
+	displaySanitizationAnalysis(processedRuns, verbose)
 
 	// Display logs location prominently
 	absOutputDir, _ := filepath.Abs(outputDir)
@@ -489,6 +522,15 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					}
 				}
 				result.MissingTools = missingTools
+
+				// Analyze sanitization changes if both raw and sanitized outputs are available
+				sanitizationAnalysis, sanitizationErr := analyzeSanitizationChanges(runOutputDir, run, verbose)
+				if sanitizationErr != nil {
+					if verbose {
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to analyze sanitization changes for run %d: %v", run.DatabaseID, sanitizationErr)))
+					}
+				}
+				result.SanitizationAnalysis = sanitizationAnalysis
 			}
 
 			return result
@@ -1491,4 +1533,638 @@ func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
 			}
 		}
 	}
+}
+
+// analyzeSanitizationChanges analyzes changes made during output sanitization by comparing raw and sanitized outputs
+func analyzeSanitizationChanges(runDir string, run WorkflowRun, verbose bool) (*SanitizationAnalysis, error) {
+	analysis := &SanitizationAnalysis{
+		ChangesByType: make(map[string]int),
+	}
+
+	// Check for raw output (agent_output.json)
+	rawOutputPath := filepath.Join(runDir, "agent_output.json")
+	rawOutputExists := false
+	if _, err := os.Stat(rawOutputPath); err == nil {
+		analysis.HasRawOutput = true
+		rawOutputExists = true
+	}
+
+	// Check for sanitized output (safe_output.jsonl)
+	sanitizedOutputPath := filepath.Join(runDir, "safe_output.jsonl")
+	if _, err := os.Stat(sanitizedOutputPath); err == nil {
+		analysis.HasSanitizedOutput = true
+	}
+
+	// If we don't have both outputs, we can't do a comparison
+	if !rawOutputExists || !analysis.HasSanitizedOutput {
+		if verbose && rawOutputExists && !analysis.HasSanitizedOutput {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Run %d has raw output but no sanitized output for comparison", run.DatabaseID)))
+		}
+		if verbose && !rawOutputExists && analysis.HasSanitizedOutput {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Run %d has sanitized output but no raw output for comparison", run.DatabaseID)))
+		}
+		return analysis, nil
+	}
+
+	// Read raw output
+	rawContent, err := readOutputContent(rawOutputPath)
+	if err != nil {
+		return analysis, fmt.Errorf("failed to read raw output: %w", err)
+	}
+
+	// Read sanitized output
+	sanitizedContent, err := readOutputContent(sanitizedOutputPath)
+	if err != nil {
+		return analysis, fmt.Errorf("failed to read sanitized output: %w", err)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Comparing outputs for run %d: raw=%d chars, sanitized=%d chars", run.DatabaseID, len(rawContent), len(sanitizedContent))))
+	}
+
+	// Analyze differences
+	changes := detectSanitizationChanges(rawContent, sanitizedContent)
+	analysis.Changes = changes
+	analysis.TotalChanges = len(changes)
+
+	// Count changes by type
+	for _, change := range changes {
+		analysis.ChangesByType[change.Type]++
+	}
+
+	// Check for content truncation
+	if strings.Contains(sanitizedContent, "[Content truncated due to length]") {
+		analysis.WasContentTruncated = true
+		analysis.TruncationReason = "length"
+	} else if strings.Contains(sanitizedContent, "[Content truncated due to line count]") {
+		analysis.WasContentTruncated = true
+		analysis.TruncationReason = "line_count"
+	}
+
+	// Generate summary preview
+	analysis.SummaryPreview = generateSanitizationSummary(analysis)
+
+	return analysis, nil
+}
+// readOutputContent reads content from an output file, handling different formats
+func readOutputContent(filePath string) (string, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Handle JSONL format (safe_output.jsonl)
+	if strings.HasSuffix(filePath, ".jsonl") {
+		return extractContentFromJSONL(string(content))
+	}
+
+	// Handle JSON format (agent_output.json)
+	if strings.HasSuffix(filePath, ".json") {
+		return extractContentFromJSON(string(content))
+	}
+
+	// Default: return content as-is
+	return string(content), nil
+}
+
+// extractContentFromJSONL extracts text content from JSONL format
+func extractContentFromJSONL(jsonlContent string) (string, error) {
+	var result strings.Builder
+	lines := strings.Split(jsonlContent, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &item); err != nil {
+			continue // Skip invalid JSON lines
+		}
+
+		// Extract text content based on item type
+		if itemType, ok := item["type"].(string); ok {
+			if itemType == "text" {
+				if text, ok := item["text"].(string); ok {
+					result.WriteString(text)
+				}
+			}
+		}
+	}
+
+	return result.String(), nil
+}
+
+// extractContentFromJSON extracts text content from JSON format
+func extractContentFromJSON(jsonContent string) (string, error) {
+	// Try to parse as structured JSON first
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonContent), &data); err == nil {
+		// Look for common fields that might contain the text content
+		if content, ok := data["content"].(string); ok {
+			return content, nil
+		}
+		if output, ok := data["output"].(string); ok {
+			return output, nil
+		}
+		if text, ok := data["text"].(string); ok {
+			return text, nil
+		}
+		// If it's structured JSON with items array (like safe_output format)
+		if items, ok := data["items"].([]interface{}); ok {
+			var result strings.Builder
+			for _, item := range items {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if itemType, ok := itemMap["type"].(string); ok && itemType == "text" {
+						if text, ok := itemMap["text"].(string); ok {
+							result.WriteString(text)
+						}
+					}
+				}
+			}
+			return result.String(), nil
+		}
+	}
+
+	// If not structured, treat the entire content as text
+	return jsonContent, nil
+}
+
+// detectSanitizationChanges compares raw and sanitized content to detect changes
+func detectSanitizationChanges(rawContent, sanitizedContent string) []SanitizationChange {
+	var changes []SanitizationChange
+
+	// Split into lines for line-by-line comparison
+	rawLines := strings.Split(rawContent, "\n")
+	sanitizedLines := strings.Split(sanitizedContent, "\n")
+
+	// Check for truncation first
+	if len(sanitizedLines) > 0 {
+		lastLine := sanitizedLines[len(sanitizedLines)-1]
+		if strings.Contains(lastLine, "[Content truncated due to") {
+			changes = append(changes, SanitizationChange{
+				Type:        "truncation",
+				Original:    "", // Not applicable for truncation
+				Sanitized:   lastLine,
+				Context:     "End of content",
+				LineNumber:  len(sanitizedLines),
+				Description: "Content was truncated due to size limits",
+			})
+		}
+	}
+
+	// Compare line by line to detect changes
+	minLines := len(rawLines)
+	if len(sanitizedLines) < minLines {
+		minLines = len(sanitizedLines)
+	}
+
+	for i := 0; i < minLines; i++ {
+		rawLine := rawLines[i]
+		sanitizedLine := sanitizedLines[i]
+
+		if rawLine != sanitizedLine {
+			// Detect specific types of changes
+			lineChanges := detectLineChanges(rawLine, sanitizedLine, i+1)
+			changes = append(changes, lineChanges...)
+		}
+	}
+
+	return changes
+}
+
+// detectLineChanges detects specific sanitization changes within a line
+func detectLineChanges(rawLine, sanitizedLine string, lineNumber int) []SanitizationChange {
+	var changes []SanitizationChange
+
+	// Detect @mention changes (e.g., @user -> `@user`)
+	mentionChanges := detectMentionChanges(rawLine, sanitizedLine, lineNumber)
+	changes = append(changes, mentionChanges...)
+
+	// Detect bot trigger changes (e.g., fixes #123 -> `fixes #123`)
+	botTriggerChanges := detectBotTriggerChanges(rawLine, sanitizedLine, lineNumber)
+	changes = append(changes, botTriggerChanges...)
+
+	// Detect URL redaction changes (e.g., http://example.com -> (redacted))
+	urlChanges := detectURLChanges(rawLine, sanitizedLine, lineNumber)
+	changes = append(changes, urlChanges...)
+
+	// Detect XML escaping changes (e.g., <script> -> &lt;script&gt;)
+	xmlChanges := detectXMLEscapingChanges(rawLine, sanitizedLine, lineNumber)
+	changes = append(changes, xmlChanges...)
+
+	// Detect ANSI escape sequence removal
+	ansiChanges := detectANSIChanges(rawLine, sanitizedLine, lineNumber)
+	changes = append(changes, ansiChanges...)
+
+	return changes
+}
+
+// detectMentionChanges detects changes to @mentions
+func detectMentionChanges(rawLine, sanitizedLine string, lineNumber int) []SanitizationChange {
+	var changes []SanitizationChange
+
+	// Pattern to match @mentions that got wrapped in backticks
+	mentionRegex := regexp.MustCompile(`@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:/[A-Za-z0-9._-]+)?)`)
+	
+	rawMentions := mentionRegex.FindAllString(rawLine, -1)
+	for _, mention := range rawMentions {
+		backtickMention := "`" + mention + "`"
+		if strings.Contains(sanitizedLine, backtickMention) && !strings.Contains(rawLine, backtickMention) {
+			changes = append(changes, SanitizationChange{
+				Type:        "mention",
+				Original:    mention,
+				Sanitized:   backtickMention,
+				Context:     getContext(rawLine, mention),
+				LineNumber:  lineNumber,
+				Description: fmt.Sprintf("@mention '%s' was neutralized with backticks", mention),
+			})
+		}
+	}
+
+	return changes
+}
+
+// detectBotTriggerChanges detects changes to bot trigger phrases
+func detectBotTriggerChanges(rawLine, sanitizedLine string, lineNumber int) []SanitizationChange {
+	var changes []SanitizationChange
+
+	// Pattern to match bot trigger phrases that got wrapped in backticks
+	triggerRegex := regexp.MustCompile(`(?i)\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)`)
+	
+	matches := triggerRegex.FindAllString(rawLine, -1)
+	for _, trigger := range matches {
+		backtickTrigger := "`" + trigger + "`"
+		if strings.Contains(sanitizedLine, backtickTrigger) && !strings.Contains(rawLine, backtickTrigger) {
+			changes = append(changes, SanitizationChange{
+				Type:        "bot_trigger",
+				Original:    trigger,
+				Sanitized:   backtickTrigger,
+				Context:     getContext(rawLine, trigger),
+				LineNumber:  lineNumber,
+				Description: fmt.Sprintf("Bot trigger phrase '%s' was neutralized with backticks", trigger),
+			})
+		}
+	}
+
+	return changes
+}
+
+// detectURLChanges detects URL redaction and filtering
+func detectURLChanges(rawLine, sanitizedLine string, lineNumber int) []SanitizationChange {
+	var changes []SanitizationChange
+
+	// Pattern to match URLs that might have been redacted
+	urlRegex := regexp.MustCompile(`\b\w+://[^\s\])}'"<>&\x00-\x1f]+`)
+	
+	rawURLs := urlRegex.FindAllString(rawLine, -1)
+	for _, url := range rawURLs {
+		if !strings.Contains(sanitizedLine, url) && strings.Contains(sanitizedLine, "(redacted)") {
+			changes = append(changes, SanitizationChange{
+				Type:        "url",
+				Original:    url,
+				Sanitized:   "(redacted)",
+				Context:     getContext(rawLine, url),
+				LineNumber:  lineNumber,
+				Description: fmt.Sprintf("URL '%s' was redacted due to protocol or domain restrictions", url),
+			})
+		}
+	}
+
+	return changes
+}
+
+// detectXMLEscapingChanges detects XML character escaping
+func detectXMLEscapingChanges(rawLine, sanitizedLine string, lineNumber int) []SanitizationChange {
+	var changes []SanitizationChange
+
+	xmlChars := map[string]string{
+		"&":  "&amp;",
+		"<":  "&lt;",
+		">":  "&gt;",
+		"\"": "&quot;",
+		"'":  "&apos;",
+	}
+
+	for original, escaped := range xmlChars {
+		if strings.Contains(rawLine, original) && strings.Contains(sanitizedLine, escaped) {
+			// Count occurrences to avoid duplicate reporting
+			escapedCount := strings.Count(sanitizedLine, escaped)
+			
+			if escapedCount > strings.Count(rawLine, escaped) {
+				changes = append(changes, SanitizationChange{
+					Type:        "xml_escape",
+					Original:    original,
+					Sanitized:   escaped,
+					Context:     getContext(rawLine, original),
+					LineNumber:  lineNumber,
+					Description: fmt.Sprintf("XML character '%s' was escaped to '%s'", original, escaped),
+				})
+			}
+		}
+	}
+
+	return changes
+}
+
+// detectANSIChanges detects ANSI escape sequence removal
+func detectANSIChanges(rawLine, sanitizedLine string, lineNumber int) []SanitizationChange {
+	var changes []SanitizationChange
+
+	// Pattern to match ANSI escape sequences
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*[mGKH]`)
+	
+	ansiSequences := ansiRegex.FindAllString(rawLine, -1)
+	if len(ansiSequences) > 0 && !ansiRegex.MatchString(sanitizedLine) {
+		for _, ansi := range ansiSequences {
+			changes = append(changes, SanitizationChange{
+				Type:        "ansi_removal",
+				Original:    ansi,
+				Sanitized:   "",
+				Context:     getContext(rawLine, ansi),
+				LineNumber:  lineNumber,
+				Description: "ANSI escape sequence was removed",
+			})
+		}
+	}
+
+	return changes
+}
+
+// getContext returns surrounding context for a change
+func getContext(line, target string) string {
+	index := strings.Index(line, target)
+	if index == -1 {
+		return line[:minInt(50, len(line))] + "..."
+	}
+
+	start := maxInt(0, index-20)
+	end := minInt(len(line), index+len(target)+20)
+	
+	context := line[start:end]
+	if start > 0 {
+		context = "..." + context
+	}
+	if end < len(line) {
+		context = context + "..."
+	}
+	
+	return context
+}
+
+// generateSanitizationSummary creates a brief summary of sanitization changes
+func generateSanitizationSummary(analysis *SanitizationAnalysis) string {
+	if analysis.TotalChanges == 0 {
+		return "No sanitization changes detected"
+	}
+
+	var summary strings.Builder
+	var parts []string
+
+	for changeType, count := range analysis.ChangesByType {
+		switch changeType {
+		case "mention":
+			parts = append(parts, fmt.Sprintf("%d @mention(s)", count))
+		case "bot_trigger":
+			parts = append(parts, fmt.Sprintf("%d bot trigger(s)", count))
+		case "url":
+			parts = append(parts, fmt.Sprintf("%d URL(s) redacted", count))
+		case "xml_escape":
+			parts = append(parts, fmt.Sprintf("%d XML character(s) escaped", count))
+		case "ansi_removal":
+			parts = append(parts, fmt.Sprintf("%d ANSI sequence(s) removed", count))
+		case "truncation":
+			parts = append(parts, "content truncated")
+		}
+	}
+
+	summary.WriteString(strings.Join(parts, ", "))
+	
+	return summary.String()
+}
+
+// displaySanitizationAnalysis displays a summary of sanitization changes across all runs
+func displaySanitizationAnalysis(processedRuns []ProcessedRun, verbose bool) {
+	// Count runs with sanitization analysis
+	var runsWithAnalysis []ProcessedRun
+	var runsWithChanges []ProcessedRun
+	totalChanges := 0
+	changeTypeCount := make(map[string]int)
+
+	for _, pr := range processedRuns {
+		if pr.SanitizationAnalysis != nil {
+			runsWithAnalysis = append(runsWithAnalysis, pr)
+			if pr.SanitizationAnalysis.TotalChanges > 0 {
+				runsWithChanges = append(runsWithChanges, pr)
+				totalChanges += pr.SanitizationAnalysis.TotalChanges
+				for changeType, count := range pr.SanitizationAnalysis.ChangesByType {
+					changeTypeCount[changeType] += count
+				}
+			}
+		}
+	}
+
+	if len(runsWithChanges) == 0 {
+		if len(runsWithAnalysis) > 0 && verbose {
+			fmt.Printf("\n%s\n", console.FormatListHeader("🔒 Output Sanitization Analysis"))
+			fmt.Printf("%s\n", console.FormatListHeader("==============================="))
+			fmt.Printf("\n📊 %s: No sanitization changes detected across %d runs with comparable outputs\n",
+				console.FormatSuccessMessage("Result"),
+				len(runsWithAnalysis))
+		}
+		return
+	}
+
+	// Display summary header
+	fmt.Printf("\n%s\n", console.FormatListHeader("🔒 Output Sanitization Analysis"))
+	fmt.Printf("%s\n\n", console.FormatListHeader("==============================="))
+
+	// Display summary table
+	headers := []string{"Run ID", "Workflow", "Changes", "Types", "Summary"}
+	var rows [][]string
+
+	for _, pr := range runsWithChanges {
+		analysis := pr.SanitizationAnalysis
+		
+		// Format change types
+		var changeTypes []string
+		for changeType, count := range analysis.ChangesByType {
+			changeTypes = append(changeTypes, fmt.Sprintf("%s(%d)", changeType, count))
+		}
+		sort.Strings(changeTypes) // Ensure consistent ordering
+		changeTypesStr := strings.Join(changeTypes, ", ")
+		if len(changeTypesStr) > 30 {
+			changeTypesStr = changeTypesStr[:27] + "..."
+		}
+
+		// Truncate workflow name if too long
+		workflowName := pr.Run.WorkflowName
+		if len(workflowName) > 20 {
+			workflowName = workflowName[:17] + "..."
+		}
+
+		// Truncate summary if too long
+		summary := analysis.SummaryPreview
+		if len(summary) > 40 {
+			summary = summary[:37] + "..."
+		}
+
+		rows = append(rows, []string{
+			fmt.Sprintf("%d", pr.Run.DatabaseID),
+			workflowName,
+			fmt.Sprintf("%d", analysis.TotalChanges),
+			changeTypesStr,
+			summary,
+		})
+	}
+
+	tableConfig := console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}
+
+	fmt.Print(console.RenderTable(tableConfig))
+
+	// Display total summary
+	fmt.Printf("\n📊 %s: %d runs had sanitization changes (%d total changes across %d types)\n",
+		console.FormatCountMessage("Summary"),
+		len(runsWithChanges),
+		totalChanges,
+		len(changeTypeCount))
+
+	// Display change type breakdown
+	if len(changeTypeCount) > 0 {
+		fmt.Printf("\n🔍 %s:\n", console.FormatInfoMessage("Change Type Breakdown"))
+		
+		// Sort change types by count (descending)
+		type changeTypeStat struct {
+			Type  string
+			Count int
+		}
+		var stats []changeTypeStat
+		for changeType, count := range changeTypeCount {
+			stats = append(stats, changeTypeStat{Type: changeType, Count: count})
+		}
+		sort.Slice(stats, func(i, j int) bool {
+			return stats[i].Count > stats[j].Count
+		})
+
+		for _, stat := range stats {
+			var description string
+			switch stat.Type {
+			case "mention":
+				description = "@mentions neutralized with backticks"
+			case "bot_trigger":
+				description = "bot trigger phrases neutralized"
+			case "url":
+				description = "URLs redacted due to protocol/domain restrictions"
+			case "xml_escape":
+				description = "XML characters escaped for safety"
+			case "ansi_removal":
+				description = "ANSI color codes removed"
+			case "truncation":
+				description = "content truncated due to size limits"
+			default:
+				description = "other sanitization changes"
+			}
+			fmt.Printf("  • %s - %s\n",
+				console.FormatListItem(fmt.Sprintf("%d %s changes", stat.Count, stat.Type)),
+				console.FormatVerboseMessage(description))
+		}
+	}
+
+	// Verbose mode: Show detailed breakdown by run
+	if verbose && len(runsWithChanges) > 0 {
+		displayDetailedSanitizationBreakdown(runsWithChanges)
+	}
+}
+
+// displayDetailedSanitizationBreakdown shows sanitization changes organized by run (verbose mode)
+func displayDetailedSanitizationBreakdown(runsWithChanges []ProcessedRun) {
+	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed Sanitization Changes"))
+	fmt.Printf("%s\n", console.FormatListHeader("==================================="))
+
+	for _, pr := range runsWithChanges {
+		analysis := pr.SanitizationAnalysis
+		fmt.Printf("\n%s (Run %d) - %d changes:\n",
+			console.FormatInfoMessage(pr.Run.WorkflowName),
+			pr.Run.DatabaseID,
+			analysis.TotalChanges)
+
+		// Group changes by type for better organization
+		changesByType := make(map[string][]SanitizationChange)
+		for _, change := range analysis.Changes {
+			changesByType[change.Type] = append(changesByType[change.Type], change)
+		}
+
+		changeTypeOrder := []string{"mention", "bot_trigger", "url", "xml_escape", "ansi_removal", "truncation"}
+		
+		for _, changeType := range changeTypeOrder {
+			if changes, exists := changesByType[changeType]; exists {
+				fmt.Printf("  %s (%d changes):\n", 
+					console.FormatWarningMessage(strings.Title(strings.ReplaceAll(changeType, "_", " "))),
+					len(changes))
+				
+				for i, change := range changes {
+					if i >= 3 { // Limit to first 3 examples per type
+						fmt.Printf("    %s\n", console.FormatVerboseMessage(fmt.Sprintf("... and %d more", len(changes)-3)))
+						break
+					}
+					
+					fmt.Printf("    %d. %s\n",
+						i+1,
+						console.FormatListItem(change.Description))
+					
+					if change.Original != "" && change.Sanitized != "" {
+						fmt.Printf("       %s %s -> %s\n",
+							console.FormatVerboseMessage("Change:"),
+							console.FormatVerboseMessage(fmt.Sprintf("'%s'", truncateString(change.Original, 30))),
+							console.FormatVerboseMessage(fmt.Sprintf("'%s'", truncateString(change.Sanitized, 30))))
+					}
+					
+					if change.Context != "" {
+						fmt.Printf("       %s %s\n",
+							console.FormatVerboseMessage("Context:"),
+							console.FormatVerboseMessage(truncateString(change.Context, 50)))
+					}
+					
+					if change.LineNumber > 0 {
+						fmt.Printf("       %s Line %d\n",
+							console.FormatVerboseMessage("Location:"),
+							change.LineNumber)
+					}
+				}
+				fmt.Println()
+			}
+		}
+		
+		if analysis.WasContentTruncated {
+			fmt.Printf("  %s Content was truncated due to %s limits\n",
+				console.FormatWarningMessage("⚠️  Truncation:"),
+				analysis.TruncationReason)
+		}
+	}
+}
+
+// Helper functions
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }
