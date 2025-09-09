@@ -191,7 +191,7 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
-    expect(mockCore.setError).toHaveBeenCalledWith(
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintainer"
     );
 
@@ -216,7 +216,7 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'read' does not meet requirements: admin, write"
     );
-    expect(mockCore.setError).toHaveBeenCalledWith(
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"
     );
 
@@ -236,10 +236,10 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.warning).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "Repository permission check failed: API Error: Not Found"
     );
-    expect(mockCore.setError).toHaveBeenCalledWith(
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin"
     );
 

@@ -1470,10 +1470,10 @@ jobs:
               } catch (repoError) {
                 const errorMessage =
                   repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setError(`Repository permission check failed: ${errorMessage}`);
               }
-              // Fail the job directly when permission check fails
-              core.setError(
+              // Cancel the job when permission check fails
+              core.setCancelled(
                 `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
             }
