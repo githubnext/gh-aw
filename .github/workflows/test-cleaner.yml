@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   issues: write
   pull-requests: write
   discussions: write
@@ -128,4 +128,46 @@ jobs:
                 console.error(`Error deleting discussions: ${errorMessage}`);
                 throw error;
               }
+            }
+
+            // Delete branches starting with "test-safe-outputs-custom-engine/"
+            const branchPrefix = "test-safe-outputs-custom-engine/";
+            try {
+              const branchesResponse = await github.rest.repos.listBranches({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+
+              const branchesToDelete = branchesResponse.data.filter(
+                branch => branch.name.startsWith(branchPrefix)
+              );
+
+              for (const branch of branchesToDelete) {
+                console.log(`Deleting branch: ${branch.name}`);
+                try {
+                  await github.rest.git.deleteRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: `heads/${branch.name}`
+                  });
+                } catch (deleteError) {
+                  const errorMessage = deleteError instanceof Error 
+                    ? deleteError.message 
+                    : String(deleteError);
+                  console.error(`Failed to delete branch ${branch.name}: ${errorMessage}`);
+                  // Continue with other branches even if one fails
+                }
+              }
+
+              if (branchesToDelete.length > 0) {
+                console.log(`Processed ${branchesToDelete.length} branches with prefix "${branchPrefix}"`);
+              } else {
+                console.log(`No branches found with prefix "${branchPrefix}"`);
+              }
+
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              console.error(`Error listing branches: ${errorMessage}`);
+              // Don't throw error - we want other cleanup operations to continue
             }
