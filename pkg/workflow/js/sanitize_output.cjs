@@ -57,10 +57,6 @@ function sanitizeContent(content, auditLog) {
   const beforeControlChars = sanitized;
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   if (beforeControlChars !== sanitized) {
-    const removedChars = beforeControlChars.replace(
-      /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,
-      ""
-    );
     audit(
       "control_char",
       beforeControlChars,
@@ -409,11 +405,3 @@ async function main() {
 }
 
 main().catch(console.error);
-
-// Export for testing - wrapper that provides default auditLog
-if (typeof global !== "undefined") {
-  global.testSanitizeContent = (content) => {
-    const testAuditLog = [];
-    return sanitizeContent(content, testAuditLog);
-  };
-}
