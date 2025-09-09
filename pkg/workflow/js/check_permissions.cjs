@@ -6,7 +6,7 @@ async function main() {
   ).filter(p => p.trim() !== "");
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
-    core.setCancelled(
+    core.setError(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
     return;
@@ -50,8 +50,8 @@ async function main() {
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
-  // Cancel the job directly when permission check fails
-  core.setCancelled(
+  // Fail the job directly when permission check fails
+  core.setError(
     `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
 }

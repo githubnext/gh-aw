@@ -9,6 +9,7 @@ const mockCore = {
   error: vi.fn(),
   setFailed: vi.fn(),
   setCancelled: vi.fn(),
+  setError: vi.fn(),
 };
 
 const mockGithub = {
@@ -67,13 +68,13 @@ describe("check_permissions.cjs", () => {
     }
   });
 
-  it("should cancel job when no permissions specified", async () => {
+  it("should fail job when no permissions specified", async () => {
     delete process.env.GITHUB_AW_REQUIRED_ROLES;
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
     expect(
@@ -81,13 +82,13 @@ describe("check_permissions.cjs", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("should cancel job when permissions are empty", async () => {
+  it("should fail job when permissions are empty", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "";
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
     expect(
@@ -190,7 +191,7 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintainer"
     );
 
@@ -215,7 +216,7 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'read' does not meet requirements: admin, write"
     );
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"
     );
 
@@ -238,7 +239,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(
       "Repository permission check failed: API Error: Not Found"
     );
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin"
     );
 
