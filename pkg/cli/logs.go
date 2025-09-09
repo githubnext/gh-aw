@@ -1535,18 +1535,10 @@ func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
 	}
 }
 
-// analyzeSanitizationChanges analyzes changes made during output sanitization by comparing raw and sanitized outputs
+// analyzeSanitizationChanges reads the sanitization audit log from the JavaScript sanitizer
 func analyzeSanitizationChanges(runDir string, run WorkflowRun, verbose bool) (*SanitizationAnalysis, error) {
 	analysis := &SanitizationAnalysis{
 		ChangesByType: make(map[string]int),
-	}
-
-	// Check for raw output (agent_output.json)
-	rawOutputPath := filepath.Join(runDir, "agent_output.json")
-	rawOutputExists := false
-	if _, err := os.Stat(rawOutputPath); err == nil {
-		analysis.HasRawOutput = true
-		rawOutputExists = true
 	}
 
 	// Check for sanitized output (safe_output.jsonl)
@@ -1555,54 +1547,54 @@ func analyzeSanitizationChanges(runDir string, run WorkflowRun, verbose bool) (*
 		analysis.HasSanitizedOutput = true
 	}
 
-	// If we don't have both outputs, we can't do a comparison
-	if !rawOutputExists || !analysis.HasSanitizedOutput {
-		if verbose && rawOutputExists && !analysis.HasSanitizedOutput {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Run %d has raw output but no sanitized output for comparison", run.DatabaseID)))
-		}
-		if verbose && !rawOutputExists && analysis.HasSanitizedOutput {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Run %d has sanitized output but no raw output for comparison", run.DatabaseID)))
-		}
+	// Check for audit log file
+	auditLogPath := filepath.Join(runDir, "sanitization_audit.json")
+	if _, err := os.Stat(auditLogPath); err != nil {
+		// No audit log available - this is expected for runs without sanitization changes
 		return analysis, nil
 	}
 
-	// Read raw output
-	rawContent, err := readOutputContent(rawOutputPath)
+	// Read and parse audit log
+	auditData, err := os.ReadFile(auditLogPath)
 	if err != nil {
-		return analysis, fmt.Errorf("failed to read raw output: %w", err)
+		return analysis, fmt.Errorf("failed to read sanitization audit log: %w", err)
 	}
 
-	// Read sanitized output
-	sanitizedContent, err := readOutputContent(sanitizedOutputPath)
-	if err != nil {
-		return analysis, fmt.Errorf("failed to read sanitized output: %w", err)
+	var auditLog struct {
+		Timestamp     string                 `json:"timestamp"`
+		TotalChanges  int                    `json:"total_changes"`
+		ChangesByType map[string]int         `json:"changes_by_type"`
+		Changes       []SanitizationChange   `json:"changes"`
 	}
 
-	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Comparing outputs for run %d: raw=%d chars, sanitized=%d chars", run.DatabaseID, len(rawContent), len(sanitizedContent))))
+	if err := json.Unmarshal(auditData, &auditLog); err != nil {
+		return analysis, fmt.Errorf("failed to parse sanitization audit log: %w", err)
 	}
 
-	// Analyze differences
-	changes := detectSanitizationChanges(rawContent, sanitizedContent)
-	analysis.Changes = changes
-	analysis.TotalChanges = len(changes)
+	// Populate analysis from audit log
+	analysis.HasRawOutput = true // Audit log implies we had raw output to sanitize
+	analysis.TotalChanges = auditLog.TotalChanges
+	analysis.ChangesByType = auditLog.ChangesByType
+	analysis.Changes = auditLog.Changes
 
-	// Count changes by type
-	for _, change := range changes {
-		analysis.ChangesByType[change.Type]++
-	}
-
-	// Check for content truncation
-	if strings.Contains(sanitizedContent, "[Content truncated due to length]") {
-		analysis.WasContentTruncated = true
-		analysis.TruncationReason = "length"
-	} else if strings.Contains(sanitizedContent, "[Content truncated due to line count]") {
-		analysis.WasContentTruncated = true
-		analysis.TruncationReason = "line_count"
+	// Check for truncation in the changes
+	for _, change := range analysis.Changes {
+		if change.Type == "truncation" {
+			analysis.WasContentTruncated = true
+			if strings.Contains(change.Description, "line") {
+				analysis.TruncationReason = "line_count"
+			} else {
+				analysis.TruncationReason = "length"
+			}
+		}
 	}
 
 	// Generate summary preview
 	analysis.SummaryPreview = generateSanitizationSummary(analysis)
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Run %d: Found %d sanitization changes in audit log", run.DatabaseID, analysis.TotalChanges)))
+	}
 
 	return analysis, nil
 }
