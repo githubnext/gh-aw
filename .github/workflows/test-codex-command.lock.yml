@@ -486,6 +486,9 @@ jobs:
 
   test-codex-command:
     needs: task
+    if: >
+      contains(github.event.issue.body, '/test-codex-command') || contains(github.event.comment.body, '/test-codex-command') ||
+      contains(github.event.pull_request.body, '/test-codex-command')
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:

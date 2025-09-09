@@ -486,6 +486,9 @@ jobs:
 
   test-claude-command:
     needs: task
+    if: >
+      contains(github.event.issue.body, '/test-claude-command') || contains(github.event.comment.body, '/test-claude-command') ||
+      contains(github.event.pull_request.body, '/test-claude-command')
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:

@@ -82,6 +82,9 @@ jobs:
 
   test-codex-push-to-branch:
     needs: task
+    if: >
+      contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') ||
+      contains(github.event.pull_request.body, '/test-codex-push-to-branch')
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:

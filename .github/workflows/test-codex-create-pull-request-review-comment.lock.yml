@@ -271,6 +271,7 @@ jobs:
 
   test-codex-create-pull-request-review-comment:
     needs: task
+    if: contains(github.event.pull_request.title, 'prr')
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:

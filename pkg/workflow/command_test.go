@@ -110,13 +110,34 @@ This test validates that command conditions are applied correctly based on event
 				}
 
 				// For simple command workflows, the main job condition should not contain github.event_name logic
-				// We can check this by looking for any line with "if:" that contains both "contains(" and NOT "github.event_name"
+				// We can check this by looking for conditions that use "contains(" without "github.event_name"
+				// Handle both single-line and multi-line YAML conditions
 				lines := strings.Split(lockContentStr, "\n")
 				foundSimpleCommandCondition := false
-				for _, line := range lines {
+				
+				for i, line := range lines {
+					// Check for single-line if condition
 					if strings.Contains(line, "if:") && strings.Contains(line, "contains(") && !strings.Contains(line, "github.event_name") {
 						foundSimpleCommandCondition = true
 						break
+					}
+					// Check for multi-line if condition (if: > or if: | format)
+					if strings.Contains(line, "if:") && (strings.Contains(line, ">") || strings.Contains(line, "|")) {
+						// Check the following lines for contains() without github.event_name
+						for j := i + 1; j < len(lines) && strings.TrimSpace(lines[j]) != ""; j++ {
+							nextLine := lines[j]
+							if strings.Contains(nextLine, "contains(") && !strings.Contains(nextLine, "github.event_name") {
+								foundSimpleCommandCondition = true
+								break
+							}
+							// Stop if we hit the next YAML key (starts without indentation)
+							if len(nextLine) > 0 && nextLine[0] != ' ' && nextLine[0] != '\t' {
+								break
+							}
+						}
+						if foundSimpleCommandCondition {
+							break
+						}
 					}
 				}
 				if !foundSimpleCommandCondition {
