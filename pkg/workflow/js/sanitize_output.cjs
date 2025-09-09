@@ -118,33 +118,25 @@ function sanitizeContent(content) {
         if (protocol.toLowerCase() === "https") {
           return match;
         }
-        
-        // Check if this is within markdown formatting
-        // Get a reasonable amount of context before the match
-        const contextStart = Math.max(0, offset - 100);
-        const beforeContext = s.substring(contextStart, offset);
-        const afterContext = s.substring(offset + match.length, Math.min(s.length, offset + match.length + 10));
-        
-        // Check for markdown patterns around this match:
-        // 1. Surrounded by asterisks (like ***word:*** or **word:**)
-        // 2. Part of a markdown bold/italic formatting structure
-        
-        // Look for asterisk patterns immediately before and after
-        if (/\*{2,3}[^*\n]*$/.test(beforeContext) && /^\*{2,3}/.test(afterContext)) {
-          // This appears to be markdown formatting like ***word:*** or **word:**
-          return match;
+
+        // Check if this looks like markdown formatting
+        // Pattern 1: Ends with asterisks (like word:*** or word:**)
+        if (match.endsWith("***") || match.endsWith("**")) {
+          return match; // This is likely markdown formatting
         }
-        
-        // Check if this is at the start of a line with markdown formatting
+
+        // Pattern 2: Check if this is at the start of a line with markdown formatting
         const beforeMatch = s.substring(Math.max(0, offset - 100), offset);
-        const lastNewlineIndex = beforeMatch.lastIndexOf('\n');
-        const currentLineStart = lastNewlineIndex === -1 ? beforeMatch : beforeMatch.substring(lastNewlineIndex + 1);
-        
+        const lastNewlineIndex = beforeMatch.lastIndexOf("\n");
+        const currentLineStart =
+          lastNewlineIndex === -1
+            ? beforeMatch
+            : beforeMatch.substring(lastNewlineIndex + 1);
+
         if (/^\s*\*{2,3}[\w\s.-]*$/.test(currentLineStart)) {
-          // This appears to be markdown formatting at line start, preserve it
-          return match;
+          return match; // This is line-starting markdown formatting
         }
-        
+
         // Redact everything else
         return "(redacted)";
       }
