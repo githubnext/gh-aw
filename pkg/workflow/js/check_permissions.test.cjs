@@ -182,6 +182,11 @@ describe("check_permissions.cjs", () => {
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
+    // Mock process.exit to prevent the test from actually exiting
+    const processExitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(() => {});
+
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
@@ -191,11 +196,13 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintainer"
     );
+    expect(processExitSpy).toHaveBeenCalledWith(1);
 
     consoleSpy.mockRestore();
+    processExitSpy.mockRestore();
   });
 
   it("should fail the job directly for read permission", async () => {
@@ -207,6 +214,11 @@ describe("check_permissions.cjs", () => {
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
+    // Mock process.exit to prevent the test from actually exiting
+    const processExitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(() => {});
+
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
@@ -216,11 +228,13 @@ describe("check_permissions.cjs", () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       "User permission 'read' does not meet requirements: admin, write"
     );
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"
     );
+    expect(processExitSpy).toHaveBeenCalledWith(1);
 
     consoleSpy.mockRestore();
+    processExitSpy.mockRestore();
   });
 
   it("should fail the job directly on API errors", async () => {
@@ -233,17 +247,24 @@ describe("check_permissions.cjs", () => {
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
+    // Mock process.exit to prevent the test from actually exiting
+    const processExitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(() => {});
+
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(mockCore.setError).toHaveBeenCalledWith(
       "Repository permission check failed: API Error: Not Found"
     );
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+    expect(mockCore.setError).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin"
     );
+    expect(processExitSpy).toHaveBeenCalledWith(1);
 
     consoleSpy.mockRestore();
+    processExitSpy.mockRestore();
   });
 
   it("should handle different actor names correctly", async () => {

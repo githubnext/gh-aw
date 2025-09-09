@@ -50,9 +50,10 @@ async function main() {
     core.setError(`Repository permission check failed: ${errorMessage}`);
   }
 
-  // Cancel the job when permission check fails
-  core.setCancelled(
+  // Fail the job when permission check fails
+  core.setError(
     `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
+  process.exit(1);
 }
 await main();
