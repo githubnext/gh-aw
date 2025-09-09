@@ -67,24 +67,32 @@ describe("check_permissions.cjs", () => {
     }
   });
 
-  it("should use default permissions (admin, maintain) when none specified", async () => {
+  it("should cancel job when no permissions specified", async () => {
     delete process.env.GITHUB_AW_REQUIRED_ROLES;
-
-    mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-      data: { permission: "admin" },
-    });
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Required permissions: admin, maintain"
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+      "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
+    expect(
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+    ).not.toHaveBeenCalled();
+  });
 
-    consoleSpy.mockRestore();
+  it("should cancel job when permissions are empty", async () => {
+    process.env.GITHUB_AW_REQUIRED_ROLES = "";
+
+    // Execute the script
+    await eval(`(async () => { ${checkPermissionsScript} })()`);
+
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+      "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+    );
+    expect(
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+    ).not.toHaveBeenCalled();
   });
 
   it("should set is_team_member to true for admin permission", async () => {
@@ -303,26 +311,6 @@ describe("check_permissions.cjs", () => {
       "✅ User has write access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
-
-    consoleSpy.mockRestore();
-  });
-
-  it("should fail the job directly for empty permissions string", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "";
-
-    mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-      data: { permission: "admin" },
-    });
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-    // Execute the script with empty required permissions
-    await eval(`(async () => { ${checkPermissionsScript} })()`);
-
-    expect(consoleSpy).toHaveBeenCalledWith("Required permissions: ");
-    expect(mockCore.setCancelled).toHaveBeenCalledWith(
-      "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: "
-    );
 
     consoleSpy.mockRestore();
   });
