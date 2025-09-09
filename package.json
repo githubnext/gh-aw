@@ -22,6 +22,6 @@
     "lint:cjs": "prettier --check 'pkg/workflow/js/**/*.cjs'"
   },
   "dependencies": {
-    "vite": "^7.1.4"
+    "vite": "^7.1.5"
   }
 }
