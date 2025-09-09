@@ -2,17 +2,18 @@ async function main() {
   const { eventName } = context;
 
   // skip check for safe events
-  const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"]
+  const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
   if (safeEvents.includes(eventName)) {
     console.log(`✅ Event ${eventName} does not require validation`);
-    return
+    return;
   }
 
   const actor = context.actor;
   const { owner, repo } = context.repo;
-  const requiredPermissions = process.env.GITHUB_AW_REQUIRED_ROLES?.split(
-    ","
-  ).filter(p => p.trim() !== "");
+  const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+  const requiredPermissions = requiredPermissionsEnv
+    ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
+    : [];
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
     core.error(
