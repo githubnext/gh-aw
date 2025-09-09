@@ -1,27 +1,34 @@
 /**
  * Sanitizes content for safe output in GitHub Actions
  * @param {string} content - The content to sanitize
- * @param {Array<object>?} auditLog - Optional audit log array to track changes
+ * @param {Array<object>} auditLog - Audit log array to track changes
  * @returns {string} The sanitized content
  */
-function sanitizeContent(content, auditLog = null) {
+function sanitizeContent(content, auditLog) {
   if (!content || typeof content !== "string") {
     return "";
   }
 
-  // Initialize audit logging if provided
-  const audit = auditLog ? 
-    (/** @type {string} */ type, /** @type {string} */ original, /** @type {string} */ sanitized, /** @type {number} */ lineNumber, /** @type {string} */ description) => {
+  // Initialize audit logging
+  const audit = (
+    /** @type {string} */ type,
+    /** @type {string} */ original,
+    /** @type {string} */ sanitized,
+    /** @type {number} */ lineNumber,
+    /** @type {string} */ description
+  ) => {
+    // Limit audit log to 100 elements
+    if (auditLog.length < 100) {
       auditLog.push({
         type,
         original,
         sanitized,
         line_number: lineNumber,
         description,
-        context: getContext(content, original, lineNumber)
+        context: getContext(content, original, lineNumber),
       });
-    } : 
-    () => {}; // No-op function if no audit log provided
+    }
+  };
 
   // Read allowed domains from environment variable
   const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
@@ -50,8 +57,17 @@ function sanitizeContent(content, auditLog = null) {
   const beforeControlChars = sanitized;
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   if (beforeControlChars !== sanitized) {
-    const removedChars = beforeControlChars.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    audit("control_char", beforeControlChars, sanitized, getLineNumber(content, beforeControlChars), "Control characters removed for safety");
+    const removedChars = beforeControlChars.replace(
+      /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,
+      ""
+    );
+    audit(
+      "control_char",
+      beforeControlChars,
+      sanitized,
+      getLineNumber(content, beforeControlChars),
+      "Control characters removed for safety"
+    );
   }
 
   // XML character escaping
@@ -63,7 +79,13 @@ function sanitizeContent(content, auditLog = null) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
   if (beforeXML !== sanitized) {
-    audit("xml_escape", beforeXML, sanitized, getLineNumber(content, beforeXML), "XML characters escaped for safety");
+    audit(
+      "xml_escape",
+      beforeXML,
+      sanitized,
+      getLineNumber(content, beforeXML),
+      "XML characters escaped for safety"
+    );
   }
 
   // URI filtering - replace non-https protocols with "(redacted)"
@@ -78,8 +100,15 @@ function sanitizeContent(content, auditLog = null) {
   const maxLength = 524288;
   if (sanitized.length > maxLength) {
     const original = sanitized;
-    sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-    audit("truncation", original, sanitized, -1, `Content truncated: ${original.length} chars → ${maxLength} chars max`);
+    sanitized =
+      sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+    audit(
+      "truncation",
+      original,
+      sanitized,
+      -1,
+      `Content truncated: ${original.length} chars → ${maxLength} chars max`
+    );
   }
 
   // Limit number of lines to prevent log flooding (65k max)
@@ -87,15 +116,29 @@ function sanitizeContent(content, auditLog = null) {
   const maxLines = 65000;
   if (lines.length > maxLines) {
     const original = sanitized;
-    sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
-    audit("truncation", original, sanitized, -1, `Content truncated: ${lines.length} lines → ${maxLines} lines max`);
+    sanitized =
+      lines.slice(0, maxLines).join("\n") +
+      "\n[Content truncated due to line count]";
+    audit(
+      "truncation",
+      original,
+      sanitized,
+      -1,
+      `Content truncated: ${lines.length} lines → ${maxLines} lines max`
+    );
   }
 
   // Remove ANSI escape sequences
   const beforeANSI = sanitized;
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
   if (beforeANSI !== sanitized) {
-    audit("ansi_removal", beforeANSI, sanitized, getLineNumber(content, beforeANSI), "ANSI escape sequences removed");
+    audit(
+      "ansi_removal",
+      beforeANSI,
+      sanitized,
+      getLineNumber(content, beforeANSI),
+      "ANSI escape sequences removed"
+    );
   }
 
   // Neutralize common bot trigger phrases
@@ -113,7 +156,7 @@ function sanitizeContent(content, auditLog = null) {
   function getLineNumber(originalContent, substring) {
     const index = originalContent.indexOf(substring);
     if (index === -1) return -1;
-    return originalContent.substring(0, index).split('\n').length;
+    return originalContent.substring(0, index).split("\n").length;
   }
 
   /**
@@ -125,15 +168,15 @@ function sanitizeContent(content, auditLog = null) {
    */
   function getContext(content, original, lineNumber) {
     if (!content || !original) return "";
-    
-    const lines = content.split('\n');
+
+    const lines = content.split("\n");
     if (lineNumber < 1 || lineNumber > lines.length) return "";
-    
+
     const startLine = Math.max(0, lineNumber - 2);
     const endLine = Math.min(lines.length, lineNumber + 1);
     const contextLines = lines.slice(startLine, endLine);
-    
-    return contextLines.join('\n');
+
+    return contextLines.join("\n");
   }
 
   /**
@@ -161,7 +204,13 @@ function sanitizeContent(content, auditLog = null) {
 
         if (!isAllowed) {
           const lineNumber = getLineNumber(originalContent, match);
-          audit("url", match, "(redacted)", lineNumber, `HTTPS URL redacted due to disallowed domain: ${hostname}`);
+          audit(
+            "url",
+            match,
+            "(redacted)",
+            lineNumber,
+            `HTTPS URL redacted due to disallowed domain: ${hostname}`
+          );
           return "(redacted)";
         }
 
@@ -188,7 +237,13 @@ function sanitizeContent(content, auditLog = null) {
         // Allow https (case insensitive), redact everything else
         if (protocol.toLowerCase() !== "https") {
           const lineNumber = getLineNumber(originalContent, match);
-          audit("url", match, "(redacted)", lineNumber, `URL redacted due to unsafe protocol: ${protocol}`);
+          audit(
+            "url",
+            match,
+            "(redacted)",
+            lineNumber,
+            `URL redacted due to unsafe protocol: ${protocol}`
+          );
           return "(redacted)";
         }
         return match;
@@ -210,7 +265,13 @@ function sanitizeContent(content, auditLog = null) {
         const original = `@${p2}`;
         const sanitized = `\`@${p2}\``;
         const lineNumber = getLineNumber(s, original);
-        audit("mention", original, sanitized, lineNumber, "@mention neutralized to prevent unintended notifications");
+        audit(
+          "mention",
+          original,
+          sanitized,
+          lineNumber,
+          "@mention neutralized to prevent unintended notifications"
+        );
         return `${p1}${sanitized}`;
       }
     );
@@ -230,7 +291,13 @@ function sanitizeContent(content, auditLog = null) {
         const original = `${action} #${ref}`;
         const sanitized = `\`${action} #${ref}\``;
         const lineNumber = getLineNumber(s, original);
-        audit("bot_trigger", original, sanitized, lineNumber, "Bot trigger phrase neutralized to prevent unintended actions");
+        audit(
+          "bot_trigger",
+          original,
+          sanitized,
+          lineNumber,
+          "Bot trigger phrase neutralized to prevent unintended actions"
+        );
         return sanitized;
       }
     );
@@ -238,6 +305,7 @@ function sanitizeContent(content, auditLog = null) {
 }
 
 async function main() {
+  const core = require("@actions/core");
   const fs = require("fs");
   const path = require("path");
   const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
@@ -260,7 +328,7 @@ async function main() {
   } else {
     // Create audit log to track sanitization changes
     /** @type {Array<object>} */ const auditLog = [];
-    
+
     const sanitizedContent = sanitizeContent(outputContent, auditLog);
     console.log(
       "Collected agentic output (sanitized):",
@@ -269,33 +337,50 @@ async function main() {
     );
     core.setOutput("output", sanitizedContent);
 
-    // Save audit log if there were any changes
-    if (auditLog.length > 0) {
-      try {
-        // Create audit log in the same directory as the safe outputs
-        const outputDir = path.dirname(outputFile);
-        const auditLogPath = path.join(outputDir, "sanitization_audit.json");
-        
-        const auditData = {
-          timestamp: new Date().toISOString(),
-          total_changes: auditLog.length,
-          changes_by_type: auditLog.reduce((/** @type {Record<string, number>} */ acc, /** @type {any} */ change) => {
-            acc[change.type] = (acc[change.type] || 0) + 1;
-            return acc;
-          }, /** @type {Record<string, number>} */ ({})),
-          changes: auditLog
-        };
+    // Always save audit log (even if empty)
+    try {
+      // Create audit log in the same directory as the safe outputs
+      const outputDir = path.dirname(outputFile);
+      const auditLogPath = path.join(outputDir, "sanitization_audit.json");
 
-        fs.writeFileSync(auditLogPath, JSON.stringify(auditData, null, 2));
-        console.log(`Sanitization audit log written to: ${auditLogPath}`);
-        console.log(`Total sanitization changes: ${auditLog.length}`);
-      } catch (error) {
-        console.warn("Failed to write sanitization audit log:", /** @type {Error} */ (error).message);
+      const auditData = {
+        timestamp: new Date().toISOString(),
+        changes_by_type: auditLog.reduce((acc, change) => {
+          acc[change.type] = (acc[change.type] || 0) + 1;
+          return acc;
+        }, {}),
+        changes: auditLog,
+      };
+
+      fs.writeFileSync(auditLogPath, JSON.stringify(auditData, null, 2));
+      console.log(`Sanitization audit log written to: ${auditLogPath}`);
+
+      // Use core.summary to provide step summary
+      if (auditLog.length > 0) {
+        await core.summary
+          .addHeading("Sanitization Summary")
+          .addRaw(`Total changes: ${auditLog.length}`)
+          .addBreak()
+          .addRaw("Changes by type:")
+          .addList(
+            Object.entries(auditData.changes_by_type).map(
+              ([type, count]) => `${type}: ${count}`
+            )
+          )
+          .write();
+      } else {
+        await core.summary
+          .addHeading("Sanitization Summary")
+          .addRaw("No sanitization changes detected")
+          .write();
       }
-    } else {
-      console.log("No sanitization changes detected");
+    } catch (error) {
+      console.warn(
+        "Failed to write sanitization audit log:",
+        /** @type {Error} */ error.message
+      );
     }
   }
 }
 
-await main();
+main().catch(console.error);
