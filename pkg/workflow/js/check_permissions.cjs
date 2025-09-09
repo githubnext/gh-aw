@@ -6,10 +6,10 @@ async function main() {
   ).filter(p => p.trim() !== "");
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
-    core.setError(
+    core.error(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    return;
+    process.exit(1);
   }
 
   // Check if the actor has the required repository permissions
@@ -51,9 +51,9 @@ async function main() {
   }
 
   // Fail the job when permission check fails
-  core.setError(
+  core.warning(
     `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
-  process.exit(1);
+  process.exit(78);
 }
 await main();
