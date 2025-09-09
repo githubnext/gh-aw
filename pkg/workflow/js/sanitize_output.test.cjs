@@ -455,6 +455,64 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // The safe URL in query param should still be preserved
       expect(result).toContain("https://github.com/safe");
     });
+
+    it("should preserve markdown bold notation with colons", () => {
+      const input = `
+        **Step 1:** Complete the setup
+        **Configuration:** Update settings
+        **Note:** This is important
+        **Warning:** Check carefully
+        **Update needed:** Fix this issue
+      `;
+      const result = sanitizeContentFunction(input);
+
+      expect(result).toContain("**Step 1:** Complete the setup");
+      expect(result).toContain("**Configuration:** Update settings");
+      expect(result).toContain("**Note:** This is important");
+      expect(result).toContain("**Warning:** Check carefully");
+      expect(result).toContain("**Update needed:** Fix this issue");
+      expect(result).not.toContain("(redacted)");
+    });
+
+    it("should preserve markdown bold notation while still blocking actual protocols", () => {
+      const input = `
+        **Config:** file.txt
+        **Step:** Complete this
+        malicious:protocol://evil.com
+        javascript:alert('xss')
+        mailto:user@domain.com
+        **https:** This is just bold text about https
+        https://github.com/repo (actual URL)
+      `;
+      const result = sanitizeContentFunction(input);
+
+      // Markdown bold should be preserved
+      expect(result).toContain("**Config:** file.txt");
+      expect(result).toContain("**Step:** Complete this");
+      expect(result).toContain("**https:** This is just bold text about https");
+
+      // Actual protocols should still be blocked
+      expect(result).toContain("(redacted)"); // For malicious protocols
+      expect(result).not.toContain("malicious:protocol://");
+      expect(result).not.toContain("javascript:alert");
+      expect(result).not.toContain("mailto:user@domain.com");
+
+      // Valid HTTPS URLs should be preserved
+      expect(result).toContain("https://github.com/repo");
+    });
+
+    it("should handle mixed markdown bold and italic notation", () => {
+      const input = `
+        **Bold:** text and *italic* and ***bold-italic:*** more text
+        ***Config:*** very important
+      `;
+      const result = sanitizeContentFunction(input);
+
+      expect(result).toContain("**Bold:** text and *italic*");
+      expect(result).toContain("***bold-italic:*** more text");
+      expect(result).toContain("***Config:*** very important");
+      expect(result).not.toContain("(redacted)");
+    });
   });
 
   describe("main function", () => {

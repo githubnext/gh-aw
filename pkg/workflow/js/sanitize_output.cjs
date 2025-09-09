@@ -113,9 +113,40 @@ function sanitizeContent(content) {
     // This covers URLs like https://example.com, javascript:alert(), mailto:user@domain.com, etc.
     return s.replace(
       /\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi,
-      (match, protocol) => {
-        // Allow https (case insensitive), redact everything else
-        return protocol.toLowerCase() === "https" ? match : "(redacted)";
+      (match, protocol, offset) => {
+        // Allow https (case insensitive) always
+        if (protocol.toLowerCase() === "https") {
+          return match;
+        }
+        
+        // Check if this is within markdown formatting
+        // Get a reasonable amount of context before the match
+        const contextStart = Math.max(0, offset - 100);
+        const beforeContext = s.substring(contextStart, offset);
+        const afterContext = s.substring(offset + match.length, Math.min(s.length, offset + match.length + 10));
+        
+        // Check for markdown patterns around this match:
+        // 1. Surrounded by asterisks (like ***word:*** or **word:**)
+        // 2. Part of a markdown bold/italic formatting structure
+        
+        // Look for asterisk patterns immediately before and after
+        if (/\*{2,3}[^*\n]*$/.test(beforeContext) && /^\*{2,3}/.test(afterContext)) {
+          // This appears to be markdown formatting like ***word:*** or **word:**
+          return match;
+        }
+        
+        // Check if this is at the start of a line with markdown formatting
+        const beforeMatch = s.substring(Math.max(0, offset - 100), offset);
+        const lastNewlineIndex = beforeMatch.lastIndexOf('\n');
+        const currentLineStart = lastNewlineIndex === -1 ? beforeMatch : beforeMatch.substring(lastNewlineIndex + 1);
+        
+        if (/^\s*\*{2,3}[\w\s.-]*$/.test(currentLineStart)) {
+          // This appears to be markdown formatting at line start, preserve it
+          return match;
+        }
+        
+        // Redact everything else
+        return "(redacted)";
       }
     );
   }
