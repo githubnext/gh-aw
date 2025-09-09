@@ -148,6 +148,7 @@ type WorkflowData struct {
 	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
+	Roles              []string            // permission levels required to trigger workflow
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -656,6 +657,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
+	workflowData.Roles = c.extractRolesPermissions(result.Frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
@@ -1081,6 +1083,91 @@ func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
 	}
 
 	return ""
+}
+
+// extractRolesPermissions extracts the 'roles' field from frontmatter to determine permission requirements
+func (c *Compiler) extractRolesPermissions(frontmatter map[string]any) []string {
+	if rolesValue, exists := frontmatter["roles"]; exists {
+		switch v := rolesValue.(type) {
+		case string:
+			if v == "all" {
+				// Special case: "all" means no restrictions
+				return []string{"all"}
+			}
+			// Single permission level as string
+			return []string{v}
+		case []interface{}:
+			// Array of permission levels
+			var permissions []string
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					permissions = append(permissions, str)
+				}
+			}
+			return permissions
+		case []string:
+			// Already a string slice
+			return v
+		}
+	}
+	// Default: require admin or maintainer permissions
+	return []string{"admin", "maintainer"}
+}
+
+// hasSafeEventsOnly checks if the workflow uses only safe events that don't require permission checks
+func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]any) bool {
+	// If user explicitly specified "roles: all", skip permission checks
+	if len(data.Roles) == 1 && data.Roles[0] == "all" {
+		return true
+	}
+
+	// Parse the "on" section to determine events
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			// Check if only safe events are present
+			hasUnsafeEvents := false
+
+			for eventName := range onMap {
+				// Skip command events as they are handled separately
+				// Skip stop-after and reaction as they are not event types
+				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" {
+					continue
+				}
+
+				// Check if this event is in the safe list
+				isSafe := false
+				for _, safeEvent := range constants.SafeWorkflowEvents {
+					if eventName == safeEvent {
+						isSafe = true
+						break
+					}
+				}
+				if !isSafe {
+					hasUnsafeEvents = true
+					break
+				}
+			}
+
+			// If there are events and none are unsafe, then it's safe
+			eventCount := len(onMap)
+			// Subtract non-event entries
+			if _, hasCommand := onMap["command"]; hasCommand {
+				eventCount--
+			}
+			if _, hasStopAfter := onMap["stop-after"]; hasStopAfter {
+				eventCount--
+			}
+			if _, hasReaction := onMap["reaction"]; hasReaction {
+				eventCount--
+			}
+
+			return eventCount > 0 && !hasUnsafeEvents
+		}
+	}
+
+	// If no "on" section or it's a string, check for default command trigger
+	// For command workflows, they are not considered "safe only"
+	return false
 }
 
 // applyDefaults applies default values for missing workflow sections
@@ -1661,24 +1748,65 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	return yaml.String(), nil
 }
 
+// needsPermissionChecks determines if the workflow needs permission checks
+func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
+	// If user explicitly specified "roles: all", no permission checks needed
+	if len(data.Roles) == 1 && data.Roles[0] == "all" {
+		return false
+	}
+
+	// Permission checks are needed by default unless workflow uses only safe events
+	// Safe events: workflow_dispatch, workflow_run, schedule
+	// For now, we'll implement a simple heuristic since we don't have frontmatter here
+	// We'll implement the full logic later when we have access to frontmatter
+	return true
+}
+
+// needsPermissionChecksWithFrontmatter determines if the workflow needs permission checks with full context
+func (c *Compiler) needsPermissionChecksWithFrontmatter(data *WorkflowData, frontmatter map[string]any) bool {
+	// If user explicitly specified "roles: all", no permission checks needed
+	if len(data.Roles) == 1 && data.Roles[0] == "all" {
+		return false
+	}
+
+	// Check if the workflow uses only safe events (only if frontmatter is available)
+	if frontmatter != nil && c.hasSafeEventsOnly(data, frontmatter) {
+		return false
+	}
+
+	// Permission checks are needed by default for non-safe events
+	return true
+}
+
 // isTaskJobNeeded determines if the task job is required
 func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
 	// Task job is needed if:
 	// 1. Command is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
+	// Note: Permission checks are now handled directly in individual job steps, not in task job
 	return data.Command != "" || data.NeedsTextOutput || data.If != ""
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
+	// Try to read frontmatter to determine event types for safe events check
+	// This is used for the enhanced permission checking logic
+	var frontmatter map[string]any
+	if content, err := os.ReadFile(markdownPath); err == nil {
+		if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
+			frontmatter = result.Frontmatter
+		}
+	}
+	// If frontmatter cannot be read, we'll fall back to the basic permission check logic
+
 	// Generate job name from workflow name
 	jobName := c.generateJobName(data.Name)
 
 	// Build task job only if actually needed (preamble job that handles runtime conditions)
 	var taskJobCreated bool
 	if c.isTaskJobNeeded(data) {
-		taskJob, err := c.buildTaskJob(data)
+		taskJob, err := c.buildTaskJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build task job: %w", err)
 		}
@@ -1690,7 +1818,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Build add_reaction job only if ai-reaction is configured
 	if data.AIReaction != "" {
-		addReactionJob, err := c.buildAddReactionJob(data, taskJobCreated)
+		addReactionJob, err := c.buildAddReactionJob(data, taskJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build add_reaction job: %w", err)
 		}
@@ -1700,7 +1828,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated)
+	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated, frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1711,7 +1839,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if data.SafeOutputs != nil {
 		// Build create_issue job if output.create_issue is configured
 		if data.SafeOutputs.CreateIssues != nil {
-			createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
+			createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName, taskJobCreated)
 			if err != nil {
 				return fmt.Errorf("failed to build create_issue job: %w", err)
 			}
@@ -1830,45 +1958,42 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 }
 
 // buildTaskJob creates the preamble task job that acts as a barrier for runtime conditions
-func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
-	// Add team member check for command workflows, but only when triggered by command mention
-	if data.Command != "" {
-		// Build condition that only applies to command mentions in comment-related events
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
+	// Add team member check based on new permission requirements (issue #567)
+	var needsPermissionCheck bool
+	if frontmatter != nil {
+		needsPermissionCheck = c.needsPermissionChecksWithFrontmatter(data, frontmatter)
+	} else {
+		needsPermissionCheck = c.needsPermissionChecks(data)
+	}
 
-		// Build the validation condition using expression nodes
-		// Since the check-team-member step is gated by command condition, we check if it ran and returned 'false'
-		// This avoids running validation when the step didn't run at all (non-command triggers)
-		validationCondition := BuildEquals(
-			BuildPropertyAccess("steps.check-team-member.outputs.is_team_member"),
-			BuildStringLiteral("false"),
-		)
-		validationConditionStr := validationCondition.Render()
-
-		steps = append(steps, "      - name: Check team membership for command workflow\n")
+	if needsPermissionCheck || data.Command != "" {
+		if data.Command != "" {
+			steps = append(steps, "      - name: Check team membership for command workflow\n")
+		} else {
+			steps = append(steps, "      - name: Check team membership for workflow\n")
+		}
 		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", commandConditionStr))
 		steps = append(steps, "        uses: actions/github-script@v7\n")
+
+		// Add environment variables for permission check
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Inline the JavaScript code with proper indentation
-		scriptLines := strings.Split(checkTeamMemberScript, "\n")
+		// Generate the JavaScript code for the permission check
+		scriptContent := c.generatePermissionCheckScript(data.Roles)
+		scriptLines := strings.Split(scriptContent, "\n")
 		for _, line := range scriptLines {
 			if strings.TrimSpace(line) != "" {
 				steps = append(steps, fmt.Sprintf("            %s\n", line))
 			}
 		}
-		steps = append(steps, "      - name: Validate team membership\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", validationConditionStr))
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          echo \"❌ Access denied: Only team members can trigger command workflows\"\n")
-		steps = append(steps, "          echo \"User ${{ github.actor }} is not a team member\"\n")
-		steps = append(steps, "          exit 1\n")
 	}
 
 	// Use inlined compute-text script only if needed (no shared action)
@@ -1905,11 +2030,50 @@ func (c *Compiler) buildTaskJob(data *WorkflowData) (*Job, error) {
 	return job, nil
 }
 
+// generatePermissionCheckScript generates JavaScript code to check user permissions
+func (c *Compiler) generatePermissionCheckScript(requiredPermissions []string) string {
+	// If "all" is specified, no checks needed (this shouldn't happen since needsPermissionChecks would return false)
+	if len(requiredPermissions) == 1 && requiredPermissions[0] == "all" {
+		return `
+core.setOutput("is_team_member", "true");
+console.log("Permission check skipped - 'roles: all' specified");`
+	}
+
+	// Use the embedded check_permissions.cjs script
+	// The GITHUB_AW_REQUIRED_ROLES environment variable is set via the env field
+	return checkPermissionsScript
+}
+
 // buildAddReactionJob creates the add_reaction job
-func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) (*Job, error) {
+func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
 	var steps []string
+
+	// Add permission checks if no task job was created but permission checks are needed
+	if !taskJobCreated && c.needsPermissionChecks(data) {
+		// Add team member check step
+		steps = append(steps, "      - name: Check team membership for workflow\n")
+		steps = append(steps, "        id: check-team-member\n")
+		steps = append(steps, "        uses: actions/github-script@v7\n")
+
+		// Add environment variables for permission check
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Generate the JavaScript code for the permission check
+		scriptContent := c.generatePermissionCheckScript(data.Roles)
+		scriptLines := strings.Split(scriptContent, "\n")
+		for _, line := range scriptLines {
+			if strings.TrimSpace(line) != "" {
+				steps = append(steps, fmt.Sprintf("            %s\n", line))
+			}
+		}
+	}
+
 	steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
 	steps = append(steps, "        id: react\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
@@ -1951,12 +2115,37 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool) 
 }
 
 // buildCreateOutputIssueJob creates the create_issue job
-func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
+func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string, taskJobCreated bool) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
 		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
 	}
 
 	var steps []string
+
+	// Add permission checks if no task job was created but permission checks are needed
+	if !taskJobCreated && c.needsPermissionChecks(data) {
+		// Add team member check step
+		steps = append(steps, "      - name: Check team membership for workflow\n")
+		steps = append(steps, "        id: check-team-member\n")
+		steps = append(steps, "        uses: actions/github-script@v7\n")
+
+		// Add environment variables for permission check
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Generate the JavaScript code for the permission check
+		scriptContent := c.generatePermissionCheckScript(data.Roles)
+		scriptLines := strings.Split(scriptContent, "\n")
+		for _, line := range scriptLines {
+			if strings.TrimSpace(line) != "" {
+				steps = append(steps, fmt.Sprintf("            %s\n", line))
+			}
+		}
+	}
+
 	steps = append(steps, "      - name: Create Output Issue\n")
 	steps = append(steps, "        id: create_issue\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
@@ -2398,8 +2587,42 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
+
+	// Add permission checks if no task job was created but permission checks are needed
+	if !taskJobCreated {
+		var needsPermissionCheck bool
+		// Check if permission checks are needed using frontmatter if available
+		if frontmatter != nil {
+			needsPermissionCheck = c.needsPermissionChecksWithFrontmatter(data, frontmatter)
+		} else {
+			needsPermissionCheck = c.needsPermissionChecks(data)
+		}
+
+		if needsPermissionCheck {
+			// Add team member check step
+			steps = append(steps, "      - name: Check team membership for workflow\n")
+			steps = append(steps, "        id: check-team-member\n")
+			steps = append(steps, "        uses: actions/github-script@v7\n")
+
+			// Add environment variables for permission check
+			steps = append(steps, "        env:\n")
+			steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+
+			steps = append(steps, "        with:\n")
+			steps = append(steps, "          script: |\n")
+
+			// Generate the JavaScript code for the permission check
+			scriptContent := c.generatePermissionCheckScript(data.Roles)
+			scriptLines := strings.Split(scriptContent, "\n")
+			for _, line := range scriptLines {
+				if strings.TrimSpace(line) != "" {
+					steps = append(steps, fmt.Sprintf("            %s\n", line))
+				}
+			}
+		}
+	}
 
 	// Build step content using the generateMainJobSteps helper method
 	// but capture it into a string instead of writing directly
@@ -2426,9 +2649,20 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		}
 	}
 
+	// Determine the job condition for command workflows
+	var jobCondition string
+	if data.Command != "" {
+		// Build the command trigger condition
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		commandConditionStr := commandCondition.Render()
+		jobCondition = commandConditionStr
+	} else {
+		jobCondition = data.If // Use the original If condition from the workflow data
+	}
+
 	job := &Job{
 		Name:        jobName,
-		If:          "", // Remove the If condition since task job handles alias checks
+		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
