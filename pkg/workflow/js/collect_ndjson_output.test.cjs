@@ -19,6 +19,7 @@ describe("collect_ndjson_output.cjs", () => {
     // Mock core actions methods
     mockCore = {
       setOutput: vi.fn(),
+      setFailed: vi.fn(),
       warning: vi.fn(),
       error: vi.fn(),
       exportVariable: vi.fn(),
@@ -148,15 +149,16 @@ describe("collect_ndjson_output.cjs", () => {
 
     await eval(`(async () => { ${collectScript} })()`);
 
+    // Since there are errors and no valid items, setFailed should be called
+    expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+    const failedMessage = mockCore.setFailed.mock.calls[0][0];
+    expect(failedMessage).toContain("requires a 'body' string field");
+    expect(failedMessage).toContain("requires a 'title' string field");
+    
+    // setOutput should not be called because of early return
     const setOutputCalls = mockCore.setOutput.mock.calls;
     const outputCall = setOutputCalls.find(call => call[0] === "output");
-    expect(outputCall).toBeDefined();
-
-    const parsedOutput = JSON.parse(outputCall[1]);
-    expect(parsedOutput.items).toHaveLength(0);
-    expect(parsedOutput.errors).toHaveLength(2);
-    expect(parsedOutput.errors[0]).toContain("requires a 'body' string field");
-    expect(parsedOutput.errors[1]).toContain("requires a 'title' string field");
+    expect(outputCall).toBeUndefined();
   });
 
   it("should validate required fields for add-issue-label type", async () => {
@@ -644,14 +646,15 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
+      // Since there are errors and no valid items, setFailed should be called
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("JSON parsing failed");
+      
+      // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      expect(parsedOutput.items).toHaveLength(0);
-      expect(parsedOutput.errors).toHaveLength(1);
-      expect(parsedOutput.errors[0]).toContain("JSON parsing failed");
+      expect(outputCall).toBeUndefined();
     });
 
     it("should preserve valid JSON without modification", async () => {
@@ -730,21 +733,21 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
+      // Check if repair succeeded by looking at mock calls
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      // This case may be too complex for the current repair logic
-      if (parsedOutput.items.length === 1) {
+      
+      if (outputCall) {
+        // Repair succeeded
+        const parsedOutput = JSON.parse(outputCall[1]);
         expect(parsedOutput.items[0].type).toBe("add-issue-label");
         expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
-        // If repair fails, it should report an error
-        expect(parsedOutput.items).toHaveLength(0);
-        expect(parsedOutput.errors).toHaveLength(1);
-        expect(parsedOutput.errors[0]).toContain("JSON parsing failed");
+        // Repair failed, should have called setFailed
+        expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+        const failedMessage = mockCore.setFailed.mock.calls[0][0];
+        expect(failedMessage).toContain("JSON parsing failed");
       }
     });
 
@@ -823,15 +826,15 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
+      // Since this JSON is too malformed to repair and results in no valid items, setFailed should be called
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("JSON parsing failed");
+      
+      // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      // This JSON is too malformed to repair reliably, so we expect it to fail
-      expect(parsedOutput.items).toHaveLength(0);
-      expect(parsedOutput.errors).toHaveLength(1);
-      expect(parsedOutput.errors[0]).toContain("JSON parsing failed");
+      expect(outputCall).toBeUndefined();
     });
 
     it("should repair very long strings with multiple issues", async () => {
@@ -942,14 +945,15 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
+      // Since this JSON is fundamentally broken and results in no valid items, setFailed should be called
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("JSON parsing failed");
+      
+      // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      expect(parsedOutput.items).toHaveLength(0);
-      expect(parsedOutput.errors).toHaveLength(1);
-      expect(parsedOutput.errors[0]).toContain("JSON parsing failed");
+      expect(outputCall).toBeUndefined();
     });
 
     it("should handle repair of JSON with missing property separators", async () => {
@@ -962,15 +966,15 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
+      // Since this JSON likely fails to repair and results in no valid items, setFailed should be called
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("JSON parsing failed");
+      
+      // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      // This should likely fail to repair since the repair function doesn't handle missing colons
-      expect(parsedOutput.items).toHaveLength(0);
-      expect(parsedOutput.errors).toHaveLength(1);
-      expect(parsedOutput.errors[0]).toContain("JSON parsing failed");
+      expect(outputCall).toBeUndefined();
     });
 
     it("should repair arrays with mixed bracket types in complex structures", async () => {
@@ -1008,21 +1012,21 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
+      // Check if repair succeeded by looking at mock calls
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      expect(outputCall).toBeDefined();
-
-      const parsedOutput = JSON.parse(outputCall[1]);
-      // Multiple consecutive commas might be too complex for the repair function
-      if (parsedOutput.items.length === 1) {
+      
+      if (outputCall) {
+        // Repair succeeded
+        const parsedOutput = JSON.parse(outputCall[1]);
         expect(parsedOutput.items[0].type).toBe("create-issue");
         expect(parsedOutput.items[0].title).toBe("Test");
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
-        // If repair fails, it should report an error
-        expect(parsedOutput.items).toHaveLength(0);
-        expect(parsedOutput.errors).toHaveLength(1);
-        expect(parsedOutput.errors[0]).toContain("JSON parsing failed");
+        // Repair failed, should have called setFailed
+        expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+        const failedMessage = mockCore.setFailed.mock.calls[0][0];
+        expect(failedMessage).toContain("JSON parsing failed");
       }
     });
 
