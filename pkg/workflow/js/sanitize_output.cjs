@@ -336,25 +336,41 @@ async function main() {
     );
     core.setOutput("output", sanitizedContent);
 
-    // Always save audit log (even if empty)
+    // Only save audit log if there are changes
+    if (auditLog.length > 0) {
+      try {
+        // Create audit log in the same directory as the safe outputs
+        const outputDir = path.dirname(outputFile);
+        const auditLogPath = path.join(outputDir, "sanitization_audit.json");
+
+        const auditData = {
+          timestamp: new Date().toISOString(),
+          changes_by_type: auditLog.reduce(
+            (acc, change) => {
+              // @ts-ignore - TypeScript doesn't know the shape of change object
+              const changeType = change.type;
+              // @ts-ignore - TypeScript doesn't know acc is a Record<string, number>
+              acc[changeType] = (acc[changeType] || 0) + 1;
+              return acc;
+            },
+            /** @type {Record<string, number>} */ {}
+          ),
+          changes: auditLog,
+        };
+
+        fs.writeFileSync(auditLogPath, JSON.stringify(auditData, null, 2));
+        console.log(`Sanitization audit log written to: ${auditLogPath}`);
+      } catch (error) {
+        console.warn(
+          "Failed to write sanitization audit log:",
+          // @ts-ignore - TypeScript doesn't know error is an Error instance
+          error.message
+        );
+      }
+    }
+
+    // Use core.summary to provide step summary
     try {
-      // Create audit log in the same directory as the safe outputs
-      const outputDir = path.dirname(outputFile);
-      const auditLogPath = path.join(outputDir, "sanitization_audit.json");
-
-      const auditData = {
-        timestamp: new Date().toISOString(),
-        changes_by_type: auditLog.reduce((acc, change) => {
-          acc[change.type] = (acc[change.type] || 0) + 1;
-          return acc;
-        }, {}),
-        changes: auditLog,
-      };
-
-      fs.writeFileSync(auditLogPath, JSON.stringify(auditData, null, 2));
-      console.log(`Sanitization audit log written to: ${auditLogPath}`);
-
-      // Use core.summary to provide step summary
       if (auditLog.length > 0) {
         await core.summary
           .addHeading("Sanitization Summary")
@@ -362,9 +378,18 @@ async function main() {
           .addBreak()
           .addRaw("Changes by type:")
           .addList(
-            Object.entries(auditData.changes_by_type).map(
-              ([type, count]) => `${type}: ${count}`
-            )
+            Object.entries(
+              auditLog.reduce(
+                (acc, change) => {
+                  // @ts-ignore - TypeScript doesn't know the shape of change object
+                  const changeType = change.type;
+                  // @ts-ignore - TypeScript doesn't know acc is a Record<string, number>
+                  acc[changeType] = (acc[changeType] || 0) + 1;
+                  return acc;
+                },
+                /** @type {Record<string, number>} */ {}
+              )
+            ).map(([type, count]) => `${type}: ${count}`)
           )
           .write();
       } else {
@@ -375,11 +400,20 @@ async function main() {
       }
     } catch (error) {
       console.warn(
-        "Failed to write sanitization audit log:",
-        /** @type {Error} */ error.message
+        "Failed to write step summary:",
+        // @ts-ignore - TypeScript doesn't know error is an Error instance
+        error.message
       );
     }
   }
 }
 
 main().catch(console.error);
+
+// Export for testing - wrapper that provides default auditLog
+if (typeof global !== "undefined") {
+  global.testSanitizeContent = (content) => {
+    const testAuditLog = [];
+    return sanitizeContent(content, testAuditLog);
+  };
+}
