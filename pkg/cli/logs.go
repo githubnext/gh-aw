@@ -49,10 +49,10 @@ type LogMetrics = workflow.LogMetrics
 
 // ProcessedRun represents a workflow run with its associated analysis
 type ProcessedRun struct {
-	Run                   WorkflowRun
-	AccessAnalysis        *DomainAnalysis
-	MissingTools          []MissingToolReport
-	SanitizationAnalysis  *SanitizationAnalysis
+	Run                  WorkflowRun
+	AccessAnalysis       *DomainAnalysis
+	MissingTools         []MissingToolReport
+	SanitizationAnalysis *SanitizationAnalysis
 }
 
 // MissingToolReport represents a missing tool reported by an agentic workflow
@@ -86,14 +86,14 @@ type SanitizationChange struct {
 
 // SanitizationAnalysis represents the analysis of sanitization changes for a workflow run
 type SanitizationAnalysis struct {
-	HasRawOutput       bool                  `json:"has_raw_output"`       // Whether raw output was available for comparison
-	HasSanitizedOutput bool                  `json:"has_sanitized_output"` // Whether sanitized output was available
-	TotalChanges       int                   `json:"total_changes"`        // Total number of sanitization changes detected
-	ChangesByType      map[string]int        `json:"changes_by_type"`      // Count of changes by type
-	Changes            []SanitizationChange  `json:"changes"`              // Detailed list of changes
+	HasRawOutput        bool                 `json:"has_raw_output"`        // Whether raw output was available for comparison
+	HasSanitizedOutput  bool                 `json:"has_sanitized_output"`  // Whether sanitized output was available
+	TotalChanges        int                  `json:"total_changes"`         // Total number of sanitization changes detected
+	ChangesByType       map[string]int       `json:"changes_by_type"`       // Count of changes by type
+	Changes             []SanitizationChange `json:"changes"`               // Detailed list of changes
 	WasContentTruncated bool                 `json:"was_content_truncated"` // Whether content was truncated due to size/lines
-	TruncationReason   string                `json:"truncation_reason"`    // Reason for truncation if applicable
-	SummaryPreview     string                `json:"summary_preview"`      // Brief preview of major changes for display
+	TruncationReason    string               `json:"truncation_reason"`     // Reason for truncation if applicable
+	SummaryPreview      string               `json:"summary_preview"`       // Brief preview of major changes for display
 }
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts
@@ -1606,6 +1606,7 @@ func analyzeSanitizationChanges(runDir string, run WorkflowRun, verbose bool) (*
 
 	return analysis, nil
 }
+
 // readOutputContent reads content from an output file, handling different formats
 func readOutputContent(filePath string) (string, error) {
 	content, err := os.ReadFile(filePath)
@@ -1767,7 +1768,7 @@ func detectMentionChanges(rawLine, sanitizedLine string, lineNumber int) []Sanit
 
 	// Pattern to match @mentions that got wrapped in backticks
 	mentionRegex := regexp.MustCompile(`@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:/[A-Za-z0-9._-]+)?)`)
-	
+
 	rawMentions := mentionRegex.FindAllString(rawLine, -1)
 	for _, mention := range rawMentions {
 		backtickMention := "`" + mention + "`"
@@ -1792,7 +1793,7 @@ func detectBotTriggerChanges(rawLine, sanitizedLine string, lineNumber int) []Sa
 
 	// Pattern to match bot trigger phrases that got wrapped in backticks
 	triggerRegex := regexp.MustCompile(`(?i)\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)`)
-	
+
 	matches := triggerRegex.FindAllString(rawLine, -1)
 	for _, trigger := range matches {
 		backtickTrigger := "`" + trigger + "`"
@@ -1817,7 +1818,7 @@ func detectURLChanges(rawLine, sanitizedLine string, lineNumber int) []Sanitizat
 
 	// Pattern to match URLs that might have been redacted
 	urlRegex := regexp.MustCompile(`\b\w+://[^\s\])}'"<>&\x00-\x1f]+`)
-	
+
 	rawURLs := urlRegex.FindAllString(rawLine, -1)
 	for _, url := range rawURLs {
 		if !strings.Contains(sanitizedLine, url) && strings.Contains(sanitizedLine, "(redacted)") {
@@ -1851,7 +1852,7 @@ func detectXMLEscapingChanges(rawLine, sanitizedLine string, lineNumber int) []S
 		if strings.Contains(rawLine, original) && strings.Contains(sanitizedLine, escaped) {
 			// Count occurrences to avoid duplicate reporting
 			escapedCount := strings.Count(sanitizedLine, escaped)
-			
+
 			if escapedCount > strings.Count(rawLine, escaped) {
 				changes = append(changes, SanitizationChange{
 					Type:        "xml_escape",
@@ -1874,7 +1875,7 @@ func detectANSIChanges(rawLine, sanitizedLine string, lineNumber int) []Sanitiza
 
 	// Pattern to match ANSI escape sequences
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*[mGKH]`)
-	
+
 	ansiSequences := ansiRegex.FindAllString(rawLine, -1)
 	if len(ansiSequences) > 0 && !ansiRegex.MatchString(sanitizedLine) {
 		for _, ansi := range ansiSequences {
@@ -1901,7 +1902,7 @@ func getContext(line, target string) string {
 
 	start := maxInt(0, index-20)
 	end := minInt(len(line), index+len(target)+20)
-	
+
 	context := line[start:end]
 	if start > 0 {
 		context = "..." + context
@@ -1909,7 +1910,7 @@ func getContext(line, target string) string {
 	if end < len(line) {
 		context = context + "..."
 	}
-	
+
 	return context
 }
 
@@ -1940,7 +1941,7 @@ func generateSanitizationSummary(analysis *SanitizationAnalysis) string {
 	}
 
 	summary.WriteString(strings.Join(parts, ", "))
-	
+
 	return summary.String()
 }
 
@@ -1986,7 +1987,7 @@ func displaySanitizationAnalysis(processedRuns []ProcessedRun, verbose bool) {
 
 	for _, pr := range runsWithChanges {
 		analysis := pr.SanitizationAnalysis
-		
+
 		// Format change types
 		var changeTypes []string
 		for changeType, count := range analysis.ChangesByType {
@@ -2036,7 +2037,7 @@ func displaySanitizationAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	// Display change type breakdown
 	if len(changeTypeCount) > 0 {
 		fmt.Printf("\n🔍 %s:\n", console.FormatInfoMessage("Change Type Breakdown"))
-		
+
 		// Sort change types by count (descending)
 		type changeTypeStat struct {
 			Type  string
@@ -2099,36 +2100,36 @@ func displayDetailedSanitizationBreakdown(runsWithChanges []ProcessedRun) {
 		}
 
 		changeTypeOrder := []string{"mention", "bot_trigger", "url", "xml_escape", "ansi_removal", "truncation"}
-		
+
 		for _, changeType := range changeTypeOrder {
 			if changes, exists := changesByType[changeType]; exists {
-				fmt.Printf("  %s (%d changes):\n", 
-					console.FormatWarningMessage(strings.Title(strings.ReplaceAll(changeType, "_", " "))),
+				fmt.Printf("  %s (%d changes):\n",
+					console.FormatWarningMessage(capitalizeFirst(strings.ReplaceAll(changeType, "_", " "))),
 					len(changes))
-				
+
 				for i, change := range changes {
 					if i >= 3 { // Limit to first 3 examples per type
 						fmt.Printf("    %s\n", console.FormatVerboseMessage(fmt.Sprintf("... and %d more", len(changes)-3)))
 						break
 					}
-					
+
 					fmt.Printf("    %d. %s\n",
 						i+1,
 						console.FormatListItem(change.Description))
-					
+
 					if change.Original != "" && change.Sanitized != "" {
 						fmt.Printf("       %s %s -> %s\n",
 							console.FormatVerboseMessage("Change:"),
 							console.FormatVerboseMessage(fmt.Sprintf("'%s'", truncateString(change.Original, 30))),
 							console.FormatVerboseMessage(fmt.Sprintf("'%s'", truncateString(change.Sanitized, 30))))
 					}
-					
+
 					if change.Context != "" {
 						fmt.Printf("       %s %s\n",
 							console.FormatVerboseMessage("Context:"),
 							console.FormatVerboseMessage(truncateString(change.Context, 50)))
 					}
-					
+
 					if change.LineNumber > 0 {
 						fmt.Printf("       %s Line %d\n",
 							console.FormatVerboseMessage("Location:"),
@@ -2138,7 +2139,7 @@ func displayDetailedSanitizationBreakdown(runsWithChanges []ProcessedRun) {
 				fmt.Println()
 			}
 		}
-		
+
 		if analysis.WasContentTruncated {
 			fmt.Printf("  %s Content was truncated due to %s limits\n",
 				console.FormatWarningMessage("⚠️  Truncation:"),
@@ -2167,4 +2168,16 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// capitalizeFirst capitalizes the first letter of a string
+func capitalizeFirst(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	r := []rune(s)
+	if len(r) > 0 && r[0] >= 'a' && r[0] <= 'z' {
+		r[0] = r[0] - 'a' + 'A'
+	}
+	return string(r)
 }

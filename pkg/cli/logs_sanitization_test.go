@@ -16,7 +16,7 @@ func TestAnalyzeSanitizationChanges(t *testing.T) {
 	t.Run("NoOutputFiles", func(t *testing.T) {
 		run := WorkflowRun{DatabaseID: 12345}
 		analysis, err := analyzeSanitizationChanges(tmpDir, run, false)
-		
+
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -39,7 +39,7 @@ func TestAnalyzeSanitizationChanges(t *testing.T) {
 
 		run := WorkflowRun{DatabaseID: 12346}
 		analysis, err := analyzeSanitizationChanges(tmpDir, run, false)
-		
+
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -77,7 +77,7 @@ func TestAnalyzeSanitizationChanges(t *testing.T) {
 
 		run := WorkflowRun{DatabaseID: 12347}
 		analysis, err := analyzeSanitizationChanges(tmpDir, run, false)
-		
+
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -120,7 +120,7 @@ func TestAnalyzeSanitizationChanges(t *testing.T) {
 
 		run := WorkflowRun{DatabaseID: 12348}
 		analysis, err := analyzeSanitizationChanges(tmpDir, run, false)
-		
+
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -181,7 +181,7 @@ func TestDetectMentionChanges(t *testing.T) {
 			if len(changes) != tt.expectedCount {
 				t.Errorf("Expected %d changes, got %d", tt.expectedCount, len(changes))
 			}
-			
+
 			for _, change := range changes {
 				if change.Type != "mention" {
 					t.Errorf("Expected change type 'mention', got '%s'", change.Type)
@@ -238,7 +238,7 @@ func TestDetectBotTriggerChanges(t *testing.T) {
 			if len(changes) != tt.expectedCount {
 				t.Errorf("Expected %d changes, got %d", tt.expectedCount, len(changes))
 			}
-			
+
 			for _, change := range changes {
 				if change.Type != "bot_trigger" {
 					t.Errorf("Expected change type 'bot_trigger', got '%s'", change.Type)
@@ -295,7 +295,7 @@ func TestDetectURLChanges(t *testing.T) {
 			if len(changes) != tt.expectedCount {
 				t.Errorf("Expected %d changes, got %d", tt.expectedCount, len(changes))
 			}
-			
+
 			for _, change := range changes {
 				if change.Type != "url" {
 					t.Errorf("Expected change type 'url', got '%s'", change.Type)
@@ -362,14 +362,14 @@ func TestExtractContentFromJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := extractContentFromJSON(tt.jsonContent)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 			}
 			if !tt.expectError && err != nil {
 				t.Errorf("Expected no error but got: %v", err)
 			}
-			
+
 			if result != tt.expectedOutput {
 				t.Errorf("Expected output '%s', got '%s'", tt.expectedOutput, result)
 			}
@@ -411,14 +411,14 @@ func TestExtractContentFromJSONL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := extractContentFromJSONL(tt.jsonlContent)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 			}
 			if !tt.expectError && err != nil {
 				t.Errorf("Expected no error but got: %v", err)
 			}
-			
+
 			if result != tt.expectedOutput {
 				t.Errorf("Expected output '%s', got '%s'", tt.expectedOutput, result)
 			}
@@ -477,7 +477,7 @@ func TestGenerateSanitizationSummary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateSanitizationSummary(tt.analysis)
-			
+
 			// Since the order of map iteration is not guaranteed in Go,
 			// we need to check that all expected parts are present
 			// rather than exact string matching for multiple types
@@ -499,7 +499,7 @@ func TestGenerateSanitizationSummary(t *testing.T) {
 					case "truncation":
 						expectedPart = "content truncated"
 					}
-					
+
 					if expectedPart != "" && !strings.Contains(result, expectedPart) {
 						t.Errorf("Expected result to contain '%s', got '%s'", expectedPart, result)
 					}
