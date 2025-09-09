@@ -305,7 +305,6 @@ function sanitizeContent(content, auditLog) {
 }
 
 async function main() {
-  const core = require("@actions/core");
   const fs = require("fs");
   const path = require("path");
   const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
