@@ -581,6 +581,11 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("HTTP transport not supported: %w", err)
 	}
 
+	// Validate bash timeout support for the current engine
+	if err := c.validateBashTimeoutSupport(tools, agenticEngine); err != nil {
+		return nil, fmt.Errorf("bash timeout not supported: %w", err)
+	}
+
 	if !agenticEngine.SupportsToolsWhitelist() {
 		// For engines that don't support tool whitelists (like codex), ignore tools section and provide warnings
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
@@ -4132,6 +4137,25 @@ func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine Cod
 		if config, ok := toolConfig.(map[string]any); ok {
 			if hasMcp, mcpType := hasMCPConfig(config); hasMcp && mcpType == "http" {
 				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s' (only stdio transport is supported)", toolName, engine.GetID())
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateBashTimeoutSupport validates that bash timeout configuration is only used with engines that support it
+func (c *Compiler) validateBashTimeoutSupport(tools map[string]any, engine CodingAgentEngine) error {
+	if engine.SupportsBashTimeout() {
+		// Engine supports bash timeout, no validation needed
+		return nil
+	}
+
+	// Engine doesn't support bash timeout, check for bash timeout configuration
+	if bashTool, hasBash := tools["bash"]; hasBash {
+		if bashConfig, ok := bashTool.(map[string]any); ok {
+			if _, hasTimeout := bashConfig["timeout"]; hasTimeout {
+				return fmt.Errorf("bash tool timeout configuration is not supported by engine '%s'", engine.GetID())
 			}
 		}
 	}

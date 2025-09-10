@@ -20,7 +20,8 @@ func NewCustomEngine() *CustomEngine {
 			experimental:           false,
 			supportsToolsWhitelist: false,
 			supportsHTTPTransport:  false,
-			supportsMaxTurns:       true, // Custom engine supports max-turns for consistency
+			supportsMaxTurns:       true,  // Custom engine supports max-turns for consistency
+			supportsBashTimeout:    false, // Custom engine does not support bash timeout configuration
 		},
 	}
 }

@@ -998,6 +998,41 @@
               "items": {
                 "type": "string"
               }
+            },
+            {
+              "type": "object",
+              "description": "Bash tool configuration with timeout and optional commands",
+              "properties": {
+                "timeout": {
+                  "description": "Timeout for bash commands in seconds",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+(\\.\\d+)?$"
+                    }
+                  ]
+                },
+                "commands": {
+                  "description": "List of allowed bash commands",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowed": {
+                  "description": "List of allowed bash commands (alias for commands)",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": ["timeout"]
             }
           ]
         },

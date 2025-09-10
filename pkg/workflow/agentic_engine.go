@@ -35,6 +35,9 @@ type CodingAgentEngine interface {
 	// SupportsMaxTurns returns true if this engine supports the max-turns feature
 	SupportsMaxTurns() bool
 
+	// SupportsBashTimeout returns true if this engine supports bash timeout configuration
+	SupportsBashTimeout() bool
+
 	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
 	// These files will be automatically uploaded as artifacts if they exist
 	GetDeclaredOutputFiles() []string
@@ -64,6 +67,7 @@ type BaseEngine struct {
 	supportsToolsWhitelist bool
 	supportsHTTPTransport  bool
 	supportsMaxTurns       bool
+	supportsBashTimeout    bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -92,6 +96,10 @@ func (e *BaseEngine) SupportsHTTPTransport() bool {
 
 func (e *BaseEngine) SupportsMaxTurns() bool {
 	return e.supportsMaxTurns
+}
+
+func (e *BaseEngine) SupportsBashTimeout() bool {
+	return e.supportsBashTimeout
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)

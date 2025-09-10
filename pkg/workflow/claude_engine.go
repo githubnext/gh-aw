@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -27,8 +28,9 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsWhitelist: true,
-			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
-			supportsMaxTurns:       true, // Claude supports max-turns feature
+			supportsHTTPTransport:  true,  // Claude supports both stdio and HTTP transport
+			supportsMaxTurns:       true,  // Claude supports max-turns feature
+			supportsBashTimeout:    true,  // Claude supports bash timeout configuration
 		},
 	}
 }
@@ -98,6 +100,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			}
 			claudeEnv += "            " + key + ": " + value
 		}
+	}
+
+	// Add bash timeout environment variables from tools configuration
+	bashTimeoutEnvVars := e.extractBashTimeoutEnvVars(workflowData.Tools)
+	for key, value := range bashTimeoutEnvVars {
+		if claudeEnv != "" {
+			claudeEnv += "\n"
+		}
+		claudeEnv += "            " + key + ": " + value
 	}
 
 	inputs := map[string]string{
@@ -268,12 +279,44 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		claudeAllowed = make(map[string]any)
 	}
 
+	// Get existing timeout section from Claude section
+	var claudeTimeout map[string]any
+	if timeout, hasTimeout := claudeSection["timeout"]; hasTimeout {
+		if timeoutMap, ok := timeout.(map[string]any); ok {
+			claudeTimeout = timeoutMap
+		} else {
+			claudeTimeout = make(map[string]any)
+		}
+	} else {
+		claudeTimeout = make(map[string]any)
+	}
+
 	// Convert neutral tools to Claude tools
 	if bashTool, hasBash := tools["bash"]; hasBash {
 		// bash -> Bash, KillBash, BashOutput
-		if bashCommands, ok := bashTool.([]any); ok {
+		if bashConfig, ok := bashTool.(map[string]any); ok {
+			// Handle object format with timeout and commands
+			var commands any = nil
+			
+			// Check for commands in "commands" field (preferred)
+			if cmdArray, hasCommands := bashConfig["commands"]; hasCommands {
+				commands = cmdArray
+			} else if allowedArray, hasAllowed := bashConfig["allowed"]; hasAllowed {
+				// Fallback to "allowed" field for backward compatibility
+				commands = allowedArray
+			}
+			
+			claudeAllowed["Bash"] = commands
+			
+			// Extract timeout if present
+			if timeout, hasTimeout := bashConfig["timeout"]; hasTimeout {
+				claudeTimeout["bash"] = timeout
+			}
+		} else if bashCommands, ok := bashTool.([]any); ok {
+			// Handle array format (existing behavior)
 			claudeAllowed["Bash"] = bashCommands
 		} else {
+			// Handle nil or other format (existing behavior)
 			claudeAllowed["Bash"] = nil // Allow all bash commands
 		}
 	}
@@ -302,9 +345,55 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 
 	// Update claude section
 	claudeSection["allowed"] = claudeAllowed
+	
+	// Only add timeout section if we have timeout configurations
+	if len(claudeTimeout) > 0 {
+		claudeSection["timeout"] = claudeTimeout
+	}
+	
 	result["claude"] = claudeSection
 
 	return result
+}
+
+// extractBashTimeoutEnvVars extracts bash timeout configuration and returns environment variables for the Claude agent
+func (e *ClaudeEngine) extractBashTimeoutEnvVars(tools map[string]any) map[string]string {
+	envVars := make(map[string]string)
+	
+	if tools == nil {
+		return envVars
+	}
+	
+	if bashTool, hasBash := tools["bash"]; hasBash {
+		if bashConfig, ok := bashTool.(map[string]any); ok {
+			if timeout, hasTimeout := bashConfig["timeout"]; hasTimeout {
+				// Convert timeout to milliseconds for BASH_DEFAULT_TIMEOUT_MS
+				timeoutMs := ""
+				switch t := timeout.(type) {
+				case int:
+					timeoutMs = fmt.Sprintf("%d", t*1000)
+				case float64:
+					timeoutMs = fmt.Sprintf("%.0f", t*1000)
+				case string:
+					// Try to parse as number
+					if timeoutVal, err := strconv.Atoi(t); err == nil {
+						timeoutMs = fmt.Sprintf("%d", timeoutVal*1000)
+					} else {
+						// If parsing fails, assume it's already in the correct format
+						timeoutMs = t
+					}
+				}
+				
+				if timeoutMs != "" {
+					// Set the bash timeout environment variables
+					envVars["BASH_DEFAULT_TIMEOUT_MS"] = timeoutMs
+					envVars["BASH_MAX_TIMEOUT_MS"] = timeoutMs // Use the same value for max timeout
+				}
+			}
+		}
+	}
+	
+	return envVars
 }
 
 // computeAllowedClaudeToolsString

@@ -24,6 +24,7 @@ func NewCodexEngine() *CodexEngine {
 			supportsToolsWhitelist: true,
 			supportsHTTPTransport:  false, // Codex only supports stdio transport
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
+			supportsBashTimeout:    false, // Codex does not support bash timeout configuration
 		},
 	}
 }
