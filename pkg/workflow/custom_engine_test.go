@@ -191,7 +191,7 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	var yaml strings.Builder
 
 	// This should generate MCP configuration structure like Claude
-	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{})
+	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, nil)
 
 	output := yaml.String()
 	expectedPrefix := "          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'"

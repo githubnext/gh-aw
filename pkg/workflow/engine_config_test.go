@@ -189,6 +189,34 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedEngineSetting: "",
 			expectedConfig:        &EngineConfig{Version: "beta", Model: "gpt-4o"},
 		},
+		{
+			name: "object format - with user-agent (hyphen)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":         "codex",
+					"user-agent": "my-custom-agent-hyphen",
+				},
+			},
+			expectedEngineSetting: "codex",
+			expectedConfig:        &EngineConfig{ID: "codex", UserAgent: "my-custom-agent-hyphen"},
+		},
+		{
+			name: "object format - complete with user-agent",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":         "codex",
+					"version":    "beta",
+					"model":      "gpt-4o",
+					"max-turns":  3,
+					"user-agent": "complete-custom-agent",
+					"env": map[string]any{
+						"CUSTOM_VAR": "value1",
+					},
+				},
+			},
+			expectedEngineSetting: "codex",
+			expectedConfig:        &EngineConfig{ID: "codex", Version: "beta", Model: "gpt-4o", MaxTurns: "3", UserAgent: "complete-custom-agent", Env: map[string]string{"CUSTOM_VAR": "value1"}},
+		},
 	}
 
 	for _, test := range tests {
@@ -223,6 +251,10 @@ func TestExtractEngineConfig(t *testing.T) {
 
 				if config.MaxTurns != test.expectedConfig.MaxTurns {
 					t.Errorf("Expected config.MaxTurns '%s', got '%s'", test.expectedConfig.MaxTurns, config.MaxTurns)
+				}
+
+				if config.UserAgent != test.expectedConfig.UserAgent {
+					t.Errorf("Expected config.UserAgent '%s', got '%s'", test.expectedConfig.UserAgent, config.UserAgent)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {
