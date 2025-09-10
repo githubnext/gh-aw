@@ -1031,8 +1031,7 @@
                   }
                 }
               },
-              "additionalProperties": false,
-              "required": ["timeout"]
+              "additionalProperties": false
             }
           ]
         },

@@ -61,6 +61,22 @@ func TestBashToolTimeout(t *testing.T) {
 			},
 			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
 		},
+		{
+			name: "bash without timeout should work",
+			tools: map[string]any{
+				"bash": map[string]any{
+					"commands": []any{"echo", "ls"},
+				},
+			},
+			expected: "Bash(echo),Bash(ls),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
+		{
+			name: "bash object without timeout or commands should work",
+			tools: map[string]any{
+				"bash": map[string]any{},
+			},
+			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
 	}
 
 	for _, tt := range tests {
@@ -135,6 +151,38 @@ func TestExpandNeutralToolsWithBashTimeout(t *testing.T) {
 					},
 					"timeout": map[string]any{
 						"bash": 45,
+					},
+				},
+			},
+		},
+		{
+			name: "bash tool without timeout should not include timeout section",
+			input: map[string]any{
+				"bash": map[string]any{
+					"commands": []any{"echo", "ls"},
+				},
+			},
+			expected: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Bash": []any{"echo", "ls"},
+					},
+				},
+			},
+		},
+		{
+			name: "mixed tools with bash without timeout",
+			input: map[string]any{
+				"bash": map[string]any{
+					"allowed": []any{"git"},
+				},
+				"web-fetch": nil,
+			},
+			expected: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{
+						"Bash":     []any{"git"},
+						"WebFetch": nil,
 					},
 				},
 			},
