@@ -73,6 +73,9 @@ gh aw compile --engine codex
 
 # Generate GitHub Copilot instructions file alongside workflows
 gh aw compile --instructions
+
+# Compile all workflows and remove orphaned .lock.yml files
+gh aw compile --purge
 ```
 
 **Development Features:**
@@ -82,6 +85,9 @@ gh aw compile --watch
 
 # Watch with verbose output for detailed compilation feedback
 gh aw compile --watch --verbose
+
+# Clean up orphaned lock files from deleted workflows
+gh aw compile --purge --verbose
 ```
 
 **Compilation Process:**
@@ -90,6 +96,7 @@ gh aw compile --watch --verbose
 - Validates YAML syntax and GitHub Actions schema (with `--validate`)
 - Generates `.lock.yml` files ready for GitHub Actions execution
 - Integrates with AI engines (Claude, Codex) for instruction processing
+- Optionally removes orphaned `.lock.yml` files with `--purge` flag
 
 **Creation Features:**
 - **Template Generation**: `new` creates comprehensive markdown with all configuration options
@@ -97,6 +104,40 @@ gh aw compile --watch --verbose
 - **Pull Request Workflow**: Automatic PR creation for team review processes
 - **Flexible Output**: Control where workflows are created in your repository
 - **Include Management**: Smart handling of shared workflow components
+
+### Orphaned File Cleanup
+
+When markdown workflow files (`.md`) are deleted, their corresponding compiled workflow files (`.lock.yml`) remain behind. The `--purge` flag automatically removes these orphaned files:
+
+```bash
+# Remove orphaned .lock.yml files during compilation
+gh aw compile --purge
+
+# With verbose output to see which files are removed
+gh aw compile --purge --verbose
+```
+
+**Key Features:**
+- **Safety First**: Only works when compiling all markdown files (no specific files specified)
+- **Smart Detection**: Identifies truly orphaned files by comparing existing `.lock.yml` files against expected files from `.md` sources
+- **Clear Feedback**: Reports which files were removed with styled console messages
+- **Error Prevention**: Validates usage to prevent accidental file deletion
+
+**Example Output:**
+```bash
+$ gh aw compile --purge
+✓ Compiled: weekly-research.md → weekly-research.lock.yml
+✓ Compiled: daily-plan.md → daily-plan.lock.yml
+✓ Removed orphaned lock file: old-workflow.lock.yml
+✓ Removed orphaned lock file: deleted-workflow.lock.yml
+```
+
+**Safety Validation:**
+```bash
+# This will error to prevent accidental deletion
+$ gh aw compile specific-workflow.md --purge
+Error: --purge flag can only be used when compiling all markdown files
+```
 
 ## ⚙️ Workflow Operations on GitHub Actions
 
