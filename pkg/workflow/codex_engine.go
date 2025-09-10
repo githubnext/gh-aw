@@ -155,7 +155,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.renderGitHubCodexMCPConfig(yaml, githubTool)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, networkPermissions)
+			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -327,7 +327,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
 // Always uses Docker-based containerized setup in GitHub Actions
-func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
+func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
 	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
@@ -341,13 +341,11 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	yaml.WriteString("            \"--shm-size=2gb\",\n")
 	yaml.WriteString("            \"--cap-add=SYS_ADMIN\",\n")
 
-	// Generate domain restriction arguments if network permissions are configured
-	if networkPermissions != nil && ShouldEnforceNetworkPermissions(networkPermissions) {
-		allowedDomains := GetAllowedDomains(networkPermissions)
-		domainArgs := generatePlaywrightDomainArgs(allowedDomains)
-		for _, arg := range domainArgs {
-			yaml.WriteString("            \"" + arg + "\",\n")
-		}
+	// Generate domain restriction arguments from Playwright tool configuration
+	// Always add domain arguments (defaults to localhost if not configured)
+	domainArgs := generatePlaywrightDomainArgs(playwrightTool)
+	for _, arg := range domainArgs {
+		yaml.WriteString("            \"" + arg + "\",\n")
 	}
 
 	yaml.WriteString("            \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")

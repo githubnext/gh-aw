@@ -2861,10 +2861,34 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 
 // generatePlaywrightDomainArgs generates Playwright CLI arguments for domain restrictions
 // Uses environment variables to configure domain restrictions in the Playwright container
-func generatePlaywrightDomainArgs(allowedDomains []string) []string {
+// Extracts allowed_domains from the Playwright tool configuration, defaulting to localhost only
+func generatePlaywrightDomainArgs(playwrightTool any) []string {
 	var args []string
 
-	// For now, we'll use a simple approach with environment variables
+	// Default to localhost only (same as Copilot agent default)
+	allowedDomains := []string{"localhost", "127.0.0.1"}
+
+	// Extract allowed_domains from Playwright tool configuration
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
+			switch domains := domainsConfig.(type) {
+			case []string:
+				allowedDomains = domains
+			case []any:
+				// Convert []any to []string
+				allowedDomains = make([]string, len(domains))
+				for i, domain := range domains {
+					if domainStr, ok := domain.(string); ok {
+						allowedDomains[i] = domainStr
+					}
+				}
+			case string:
+				// Single domain as string
+				allowedDomains = []string{domains}
+			}
+		}
+	}
+
 	// The Playwright MCP server can read these to configure restrictions
 	args = append(args, "-e", "PLAYWRIGHT_ALLOWED_DOMAINS="+strings.Join(allowedDomains, ","))
 

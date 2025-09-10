@@ -1048,7 +1048,7 @@
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable Playwright tool with default settings"
+              "description": "Enable Playwright tool with default settings (localhost only)"
             },
             {
               "type": "object",
@@ -1057,6 +1057,22 @@
                 "docker_image_version": {
                   "type": "string",
                   "description": "Docker image version for Playwright container"
+                },
+                "allowed_domains": {
+                  "description": "Domains allowed for Playwright network access (defaults to localhost only)",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "List of allowed domains or domain patterns",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Single allowed domain"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false

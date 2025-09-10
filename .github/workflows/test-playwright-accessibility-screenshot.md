@@ -10,11 +10,11 @@ engine:
 network:
   allowed:
     - defaults
-    - playwright
 
 tools:
   playwright:
     docker_image_version: "latest"
+    allowed_domains: ["github.com", "*.github.com"]
 
 safe-outputs:
   create-issue:

@@ -5401,29 +5401,55 @@ This workflow tests that forks array fields are properly commented out in the on
 func TestGeneratePlaywrightDomainArgs(t *testing.T) {
 	tests := []struct {
 		name           string
-		allowedDomains []string
+		playwrightTool any
 		expectedArgs   []string
 	}{
 		{
-			name:           "with allowed domains",
-			allowedDomains: []string{"example.com", "*.github.com"},
-			expectedArgs:   []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=example.com,*.github.com"},
+			name: "with configured allowed domains",
+			playwrightTool: map[string]any{
+				"docker_image_version": "v1.40.0",
+				"allowed_domains":      []string{"example.com", "*.github.com"},
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=example.com,*.github.com"},
 		},
 		{
-			name:           "with single domain",
-			allowedDomains: []string{"api.github.com"},
-			expectedArgs:   []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=api.github.com"},
+			name: "with single domain",
+			playwrightTool: map[string]any{
+				"allowed_domains": []string{"api.github.com"},
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=api.github.com"},
 		},
 		{
-			name:           "with empty domains (deny all)",
-			allowedDomains: []string{},
-			expectedArgs:   []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=", "-e", "PLAYWRIGHT_BLOCK_ALL_DOMAINS=true"},
+			name: "with empty domains (deny all)",
+			playwrightTool: map[string]any{
+				"allowed_domains": []string{},
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=", "-e", "PLAYWRIGHT_BLOCK_ALL_DOMAINS=true"},
+		},
+		{
+			name: "with no domain configuration (localhost default)",
+			playwrightTool: map[string]any{
+				"docker_image_version": "v1.40.0",
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=localhost,127.0.0.1"},
+		},
+		{
+			name:           "with nil tool (localhost default)",
+			playwrightTool: nil,
+			expectedArgs:   []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=localhost,127.0.0.1"},
+		},
+		{
+			name: "with string domain",
+			playwrightTool: map[string]any{
+				"allowed_domains": "example.com",
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=example.com"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generatePlaywrightDomainArgs(tt.allowedDomains)
+			result := generatePlaywrightDomainArgs(tt.playwrightTool)
 
 			if len(result) != len(tt.expectedArgs) {
 				t.Errorf("Expected %d args, got %d: %v", len(tt.expectedArgs), len(result), result)

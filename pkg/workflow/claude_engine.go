@@ -546,7 +546,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, networkPermissions, isLast)
+			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -594,7 +594,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Always uses Docker-based containerized setup in GitHub Actions
-func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions, isLast bool) {
+func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
 	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
 
 	yaml.WriteString("              \"playwright\": {\n")
@@ -608,14 +608,11 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                  \"--shm-size=2gb\",\n")
 	yaml.WriteString("                  \"--cap-add=SYS_ADMIN\",\n")
 
-	// Generate domain restriction arguments if network permissions are configured
-	if networkPermissions != nil && ShouldEnforceNetworkPermissions(networkPermissions) {
-		allowedDomains := GetAllowedDomains(networkPermissions)
-		// Add additional Docker arguments for domain restrictions
-		domainArgs := generatePlaywrightDomainArgs(allowedDomains)
-		for _, arg := range domainArgs {
-			yaml.WriteString("                  \"" + arg + "\",\n")
-		}
+	// Generate domain restriction arguments from Playwright tool configuration
+	// Always add domain arguments (defaults to localhost if not configured)
+	domainArgs := generatePlaywrightDomainArgs(playwrightTool)
+	for _, arg := range domainArgs {
+		yaml.WriteString("                  \"" + arg + "\",\n")
 	}
 
 	yaml.WriteString("                  \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")

@@ -204,18 +204,19 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	}
 }
 
-func TestCustomEngineRenderPlaywrightMCPConfigWithNetworkPermissions(t *testing.T) {
+func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing.T) {
 	engine := NewCustomEngine()
 	var yaml strings.Builder
 
-	// Test with network permissions configured
+	// Test with Playwright domain configuration
 	networkPerms := &NetworkPermissions{
-		Allowed: []string{"example.com", "*.github.com"},
+		Allowed: []string{"external.example.com"}, // This should be ignored for Playwright
 	}
 
 	tools := map[string]any{
 		"playwright": map[string]any{
 			"docker_image_version": "v1.40.0",
+			"allowed_domains":      []string{"example.com", "*.github.com"},
 		},
 	}
 
@@ -229,14 +230,61 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithNetworkPermissions(t *testing.
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains network permission environment variables
+	// Check that it contains Playwright domain environment variables
 	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
 		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
 	}
 
-	// Check that it contains the expected domains
+	// Check that it contains the Playwright-specific domains, not network domains
 	if !strings.Contains(output, "example.com,*.github.com") {
-		t.Errorf("Expected allowed domains to be included in environment variable")
+		t.Errorf("Expected Playwright allowed domains to be included in environment variable")
+	}
+
+	// Check that it does NOT contain the network permission domains
+	if strings.Contains(output, "external.example.com") {
+		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
+	}
+}
+
+func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
+	engine := NewCustomEngine()
+	var yaml strings.Builder
+
+	// Test with no Playwright domain configuration - should default to localhost
+	networkPerms := &NetworkPermissions{
+		Allowed: []string{"external.example.com"}, // This should be ignored for Playwright
+	}
+
+	tools := map[string]any{
+		"playwright": map[string]any{
+			"docker_image_version": "v1.40.0",
+			// No allowed_domains specified - should default to localhost
+		},
+	}
+
+	mcpTools := []string{"playwright"}
+
+	engine.RenderMCPConfig(&yaml, tools, mcpTools, networkPerms)
+	output := yaml.String()
+
+	// Check that the output contains Playwright configuration
+	if !strings.Contains(output, `"playwright": {`) {
+		t.Errorf("Expected Playwright configuration in output")
+	}
+
+	// Check that it contains Playwright domain environment variables
+	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
+	}
+
+	// Check that it defaults to localhost domains
+	if !strings.Contains(output, "localhost,127.0.0.1") {
+		t.Errorf("Expected Playwright to default to localhost domains when not configured")
+	}
+
+	// Check that it does NOT contain the network permission domains
+	if strings.Contains(output, "external.example.com") {
+		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
 	}
 }
 
