@@ -255,3 +255,79 @@ func TestCodexEngineConvertStepToYAMLWithSection(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexEngineRenderMCPConfig(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name     string
+		tools    map[string]any
+		mcpTools []string
+		expected []string
+	}{
+		{
+			name: "github tool with user_agent",
+			tools: map[string]any{
+				"github": map[string]any{},
+			},
+			mcpTools: []string{"github"},
+			expected: []string{
+				"cat > /tmp/mcp-config/config.toml << EOF",
+				"[history]",
+				"persistence = \"none\"",
+				"",
+				"[mcp_servers.github]",
+				"user_agent = \"test-workflow\"",
+				"command = \"docker\"",
+				"args = [",
+				"\"run\",",
+				"\"-i\",",
+				"\"--rm\",",
+				"\"-e\",",
+				"\"GITHUB_PERSONAL_ACCESS_TOKEN\",",
+				"\"ghcr.io/github/github-mcp-server:sha-09deac4\"",
+				"]",
+				"env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }",
+				"EOF",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{Name: "test-workflow"}
+			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
+
+			result := yaml.String()
+			lines := strings.Split(strings.TrimSpace(result), "\n")
+
+			// Remove indentation from both expected and actual lines for comparison
+			var normalizedResult []string
+			for _, line := range lines {
+				normalizedResult = append(normalizedResult, strings.TrimSpace(line))
+			}
+
+			var normalizedExpected []string
+			for _, line := range tt.expected {
+				normalizedExpected = append(normalizedExpected, strings.TrimSpace(line))
+			}
+
+			if len(normalizedResult) != len(normalizedExpected) {
+				t.Errorf("Expected %d lines, got %d", len(normalizedExpected), len(normalizedResult))
+				t.Errorf("Expected:\n%s", strings.Join(normalizedExpected, "\n"))
+				t.Errorf("Got:\n%s", strings.Join(normalizedResult, "\n"))
+				return
+			}
+
+			for i, expectedLine := range normalizedExpected {
+				if i < len(normalizedResult) {
+					actualLine := normalizedResult[i]
+					if actualLine != expectedLine {
+						t.Errorf("Line %d mismatch:\nExpected: %s\nActual:   %s", i+1, expectedLine, actualLine)
+					}
+				}
+			}
+		})
+	}
+}

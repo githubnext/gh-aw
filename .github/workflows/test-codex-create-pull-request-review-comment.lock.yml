@@ -333,6 +333,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
+          user_agent = "Test Codex Create Pull Request Review Comment"
           command = "docker"
           args = [
             "run",

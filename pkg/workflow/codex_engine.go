@@ -141,7 +141,7 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 	return ConvertStepToYAML(stepMap)
 }
 
-func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
+func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
@@ -153,7 +153,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool)
+			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -355,10 +355,17 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml
 // Always uses Docker MCP as the default
-func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any) {
+func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
+
+	// Add user_agent field defaulting to workflow name
+	userAgent := "github-workflow"
+	if workflowData != nil && workflowData.Name != "" {
+		userAgent = workflowData.Name
+	}
+	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 
 	// Always use Docker-based GitHub MCP server (services mode has been removed)
 	yaml.WriteString("          command = \"docker\"\n")

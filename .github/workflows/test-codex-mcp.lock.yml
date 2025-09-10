@@ -320,6 +320,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
+          user_agent = "Test Codex Mcp"
           command = "docker"
           args = [
             "run",

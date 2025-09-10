@@ -151,6 +151,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
+          user_agent = "Test Codex Push to Branch"
           command = "docker"
           args = [
             "run",
