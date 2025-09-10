@@ -26,55 +26,45 @@ func TestGitHubMCPConfiguration(t *testing.T) {
 		expectedDockerImage string
 	}{
 		{
-			name: "default Docker server",
+			name: "default HTTP server",
 			frontmatter: `---
 tools:
   github:
     allowed: [list_issues, create_issue]
 ---`,
-			// With Docker MCP always enabled, default is docker (not services)
-			expectedType:        "docker",
-			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:sha-09deac4",
+			// With HTTP MCP enabled by default for Claude engine
+			expectedType: "http",
+			expectedURL:  "https://api.github.com/mcp",
 		},
 		{
-			name: "custom docker image version",
+			name: "default HTTP server with list_issues",
 			frontmatter: `---
 tools:
   github:
-    use_docker_mcp: true
-    docker_image_version: "v1.2.3"
-    allowed: [list_issues, create_issue]
+    allowed: [list_issues]
 ---`,
-			expectedType:        "docker",
-			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:v1.2.3",
+			expectedType: "http",
+			expectedURL:  "https://api.github.com/mcp",
 		},
 		{
-			name: "custom docker image SHA",
+			name: "default HTTP server with multiple tools",
 			frontmatter: `---
 tools:
   github:
-    use_docker_mcp: true
-    docker_image_version: "sha-abcd1234"
-    allowed: [list_issues, create_issue]
+    allowed: [get_issue, list_pull_requests, search_issues]
 ---`,
-			expectedType:        "docker",
-			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:sha-abcd1234",
+			expectedType: "http",
+			expectedURL:  "https://api.github.com/mcp",
 		},
 		{
-			name: "custom docker image version with services disabled",
+			name: "default HTTP server with different allowed tools",
 			frontmatter: `---
 tools:
   github:
-    use_docker_mcp: true
-    docker_image_version: "latest"
-    allowed: [list_issues, create_issue]
+    allowed: [get_issue, list_pull_requests]
 ---`,
-			expectedType:        "docker",
-			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:latest",
+			expectedType: "http",
+			expectedURL:  "https://api.github.com/mcp",
 		},
 	}
 
@@ -163,30 +153,30 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 		{
 			name:       "nil github tool",
 			githubTool: nil,
-			// With new defaults, nil tool defaults to docker (not services)
-			expectedType: "docker",
+			// With new defaults, nil tool defaults to http (remote MCP server)
+			expectedType: "http",
 		},
 		{
 			name: "empty github tool config",
 			githubTool: map[string]any{
 				"allowed": []any{"list_issues"},
 			},
-			// With Docker always enabled, empty config defaults to docker (not services)
-			expectedType: "docker",
+			// With HTTP always enabled, empty config defaults to http (remote MCP server)
+			expectedType: "http",
 		},
 		{
-			name: "explicit docker config (redundant)",
+			name: "explicit github tool config",
 			githubTool: map[string]any{
 				"allowed": []any{"list_issues"},
 			},
-			// Docker is always enabled now
-			expectedType: "docker",
+			// HTTP is always enabled now for Claude engine
+			expectedType: "http",
 		},
 		{
 			name:       "non-map github tool",
 			githubTool: "invalid",
-			// With Docker always enabled, invalid tool config defaults to docker (not services)
-			expectedType: "docker",
+			// With HTTP always enabled, invalid tool config defaults to http (remote MCP server)
+			expectedType: "http",
 		},
 	}
 
@@ -201,6 +191,19 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 			result := yamlBuilder.String()
 
 			switch tt.expectedType {
+			case "http":
+				if !strings.Contains(result, `"type": "http"`) {
+					t.Errorf("Expected HTTP type but got:\n%s", result)
+				}
+				if !strings.Contains(result, `"url": "https://api.github.com/mcp"`) {
+					t.Errorf("Expected HTTP URL but got:\n%s", result)
+				}
+				if !strings.Contains(result, `"Authorization": "Bearer ${{ secrets.GITHUB_TOKEN }}"`) {
+					t.Errorf("Expected Authorization header but got:\n%s", result)
+				}
+				if strings.Contains(result, `"command": "docker"`) {
+					t.Errorf("Expected no Docker command but found it in:\n%s", result)
+				}
 			case "docker":
 				if !strings.Contains(result, `"command": "docker"`) {
 					t.Errorf("Expected Docker command but got:\n%s", result)
@@ -224,7 +227,7 @@ func TestMCPConfigurationEdgeCases(t *testing.T) {
 		expected   string
 	}{
 		{
-			name: "last server with docker config",
+			name: "last server with http config",
 			githubTool: map[string]any{
 				"allowed": []any{"list_issues"},
 			},
@@ -232,7 +235,7 @@ func TestMCPConfigurationEdgeCases(t *testing.T) {
 			expected: `              }`,
 		},
 		{
-			name: "not last server with docker config",
+			name: "not last server with http config",
 			githubTool: map[string]any{
 				"allowed": []any{"list_issues"},
 			},
@@ -275,7 +278,7 @@ func TestCustomDockerMCPConfiguration(t *testing.T) {
 		expectedDockerImage string // Expected Docker image version
 	}{
 		{
-			name: "custom docker MCP with default settings",
+			name: "custom docker MCP with default Claude HTTP settings",
 			frontmatter: `---
 tools:
   github:
@@ -287,11 +290,10 @@ tools:
       command: "docker"
       args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
 ---`,
-			expectedType:        "docker",      // GitHub always uses docker now
-			expectedDockerImage: "sha-09deac4", // Default version
+			expectedType: "http", // Claude engine now uses HTTP transport for GitHub
 		},
 		{
-			name: "custom docker MCP with default settings",
+			name: "custom docker MCP with default Claude HTTP settings",
 			frontmatter: `---
 tools:
   github:
@@ -302,8 +304,7 @@ tools:
       command: "docker"
       args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
 ---`,
-			expectedType:        "docker",      // Services mode removed - always Docker
-			expectedDockerImage: "sha-09deac4", // Default version
+			expectedType: "http", // Claude engine now uses HTTP transport for GitHub
 		},
 		{
 			name: "custom docker MCP with different settings",
@@ -317,8 +318,7 @@ tools:
       command: "docker"
       args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
 ---`,
-			expectedType:        "docker",
-			expectedDockerImage: "sha-09deac4", // Default version
+			expectedType: "http", // Claude engine now uses HTTP transport for GitHub
 		},
 		{
 			name: "mixed MCP configuration with defaults",
@@ -337,8 +337,7 @@ tools:
       command: "docker"
       args: ["run", "-i", "--rm", "-v", "/tmp:/workspace", "custom/tool:latest"]
 ---`,
-			expectedType:        "docker",      // GitHub should now use docker by default (not services)
-			expectedDockerImage: "sha-09deac4", // Default version
+			expectedType: "http", // Claude engine now uses HTTP transport for GitHub
 		},
 		{
 			name: "custom docker MCP with custom Docker image version",
@@ -353,8 +352,7 @@ tools:
       command: "docker"
       args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
 ---`,
-			expectedType:        "docker", // GitHub always uses docker now
-			expectedDockerImage: "v2.0.0", // Custom version
+			expectedType: "http", // Claude engine now uses HTTP transport for GitHub
 		},
 	}
 
@@ -389,6 +387,26 @@ This is a test workflow for custom Docker MCP configuration with different scena
 
 			// Check the GitHub MCP configuration based on expected type
 			switch tt.expectedType {
+			case "http":
+				// Should contain HTTP configuration for GitHub (Claude engine)
+				if !strings.Contains(lockContent, `"type": "http"`) {
+					t.Errorf("Expected HTTP type but didn't find it in:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, `"url": "https://api.github.com/mcp"`) {
+					t.Errorf("Expected GitHub MCP URL but didn't find it in:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, `"Authorization": "Bearer ${{ secrets.GITHUB_TOKEN }}"`) {
+					t.Errorf("Expected Authorization header but didn't find it in:\n%s", lockContent)
+				}
+				// Should NOT contain Docker configuration in the GitHub server section
+				githubSection := extractGitHubSection(lockContent)
+				if githubSection != "" && strings.Contains(githubSection, `"command": "docker"`) {
+					t.Errorf("Expected no Docker command in GitHub MCP section but found it in:\n%s", githubSection)
+				}
+				// Should NOT contain services configuration
+				if strings.Contains(lockContent, `services:`) {
+					t.Errorf("Expected no services configuration but found it in:\n%s", lockContent)
+				}
 			case "docker":
 				// Should contain Docker configuration for GitHub
 				if !strings.Contains(lockContent, `"command": "docker"`) {
@@ -434,4 +452,31 @@ This is a test workflow for custom Docker MCP configuration with different scena
 			}
 		})
 	}
+}
+
+// extractGitHubSection extracts just the GitHub MCP server section from the workflow content
+func extractGitHubSection(content string) string {
+	// Find the start of the github section
+	startIdx := strings.Index(content, `"github": {`)
+	if startIdx == -1 {
+		return ""
+	}
+	
+	// Find the matching closing brace
+	braceCount := 0
+	inBraces := false
+	for i := startIdx; i < len(content); i++ {
+		char := content[i]
+		if char == '{' {
+			braceCount++
+			inBraces = true
+		} else if char == '}' {
+			braceCount--
+			if inBraces && braceCount == 0 {
+				return content[startIdx:i+1]
+			}
+		}
+	}
+	
+	return ""
 }

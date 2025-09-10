@@ -395,8 +395,31 @@ This is a test workflow for MCP configuration with different AI engines.
 					t.Errorf("Expected github section in JSON but didn't find it in:\n%s", lockContent)
 				}
 
-				if !strings.Contains(lockContent, "\"command\": \"docker\"") {
-					t.Errorf("Expected docker command in mcp-servers.json but didn't find it in:\n%s", lockContent)
+				// For Claude engine, expect HTTP configuration; for others, expect Docker
+				if tt.expectedAI == "claude" {
+					// Claude should use HTTP transport for GitHub MCP
+					if !strings.Contains(lockContent, "\"type\": \"http\"") {
+						t.Errorf("Expected HTTP type in Claude mcp-servers.json but didn't find it in:\n%s", lockContent)
+					}
+					if !strings.Contains(lockContent, "\"url\": \"https://api.github.com/mcp\"") {
+						t.Errorf("Expected GitHub MCP URL in Claude mcp-servers.json but didn't find it in:\n%s", lockContent)
+					}
+					if !strings.Contains(lockContent, "\"Authorization\": \"Bearer ${{ secrets.GITHUB_TOKEN }}\"") {
+						t.Errorf("Expected Authorization header in Claude mcp-servers.json but didn't find it in:\n%s", lockContent)
+					}
+					// Should NOT have Docker command
+					if strings.Contains(lockContent, "\"command\": \"docker\"") {
+						t.Errorf("Expected NO docker command in Claude mcp-servers.json but found it in:\n%s", lockContent)
+					}
+				} else {
+					// Non-Claude engines should still use Docker transport
+					if !strings.Contains(lockContent, "\"command\": \"docker\"") {
+						t.Errorf("Expected docker command in mcp-servers.json but didn't find it in:\n%s", lockContent)
+					}
+					// Should NOT have HTTP type
+					if strings.Contains(lockContent, "\"type\": \"http\"") {
+						t.Errorf("Expected NO HTTP type in non-Claude mcp-servers.json but found it in:\n%s", lockContent)
+					}
 				}
 				// Should NOT have services section (services mode removed)
 				if strings.Contains(lockContent, "services:") {

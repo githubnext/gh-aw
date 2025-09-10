@@ -552,24 +552,18 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 }
 
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration
-// Always uses Docker MCP as the default
+// Always uses HTTP MCP as the default for remote GitHub MCP server
 func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
-	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	githubURL := getGitHubMCPURL(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
-	// Always use Docker-based GitHub MCP server (services mode has been removed)
-	yaml.WriteString("                \"command\": \"docker\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"run\",\n")
-	yaml.WriteString("                  \"-i\",\n")
-	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
+	// Use HTTP-based GitHub MCP server (remote service)
+	yaml.WriteString("                \"type\": \"http\",\n")
+	yaml.WriteString("                \"url\": \"" + githubURL + "\",\n")
+	yaml.WriteString("                \"headers\": {\n")
+	yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GITHUB_TOKEN }}\",\n")
+	yaml.WriteString("                  \"Content-Type\": \"application/json\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

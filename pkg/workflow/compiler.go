@@ -2845,6 +2845,20 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
+// getGitHubMCPURL returns the GitHub MCP server URL, with support for custom URLs
+func getGitHubMCPURL(githubTool any) string {
+	githubURL := "https://api.github.com/mcp" // Default GitHub MCP server URL
+	// Extract mcp_url setting from tool properties
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if urlSetting, exists := toolConfig["mcp_url"]; exists {
+			if stringValue, ok := urlSetting.(string); ok {
+				githubURL = stringValue
+			}
+		}
+	}
+	return githubURL
+}
+
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Add custom steps or default checkout step
