@@ -2934,6 +2934,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine, logFileFull)
 
+	// Add error validation for AI execution logs
+	c.generateErrorValidation(yaml, engine, logFileFull)
+
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
@@ -2979,6 +2982,50 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 
 	// Inline the JavaScript code with proper indentation
 	steps := FormatJavaScriptForYAML(logParserScript)
+	for _, step := range steps {
+		yaml.WriteString(step)
+	}
+}
+
+func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string) {
+	if !engine.SupportsErrorValidation() {
+		// Skip error validation if engine doesn't support it
+		return
+	}
+
+	errorPatterns := engine.GetErrorPatterns()
+	if len(errorPatterns) == 0 {
+		// Skip if no error patterns are defined
+		return
+	}
+
+	errorValidationScript := GetLogParserScript("validate_errors")
+	if errorValidationScript == "" {
+		// Skip if validation script not found
+		return
+	}
+
+	yaml.WriteString("      - name: Validate agent logs for errors\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          AGENT_LOG_FILE: %s\n", logFileFull)
+
+	// Add error patterns as environment variables
+	for i, pattern := range errorPatterns {
+		patternJSON, err := json.Marshal(pattern)
+		if err != nil {
+			// Skip invalid patterns
+			continue
+		}
+		fmt.Fprintf(yaml, "          ERROR_PATTERN_%d: %q\n", i, string(patternJSON))
+	}
+
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Inline the JavaScript code with proper indentation
+	steps := FormatJavaScriptForYAML(errorValidationScript)
 	for _, step := range steps {
 		yaml.WriteString(step)
 	}

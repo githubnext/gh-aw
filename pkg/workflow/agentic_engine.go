@@ -53,6 +53,26 @@ type CodingAgentEngine interface {
 
 	// GetLogParserScript returns the name of the JavaScript script to parse logs for this engine
 	GetLogParserScript() string
+
+	// SupportsErrorValidation returns true if this engine supports regex-based error validation
+	SupportsErrorValidation() bool
+
+	// GetErrorPatterns returns regex patterns for extracting error messages from logs
+	GetErrorPatterns() []ErrorPattern
+}
+
+// ErrorPattern represents a regex pattern for extracting error information from logs
+type ErrorPattern struct {
+	// Pattern is the regular expression to match log lines
+	Pattern string `json:"pattern"`
+	// LevelGroup is the capture group index (1-based) that contains the error level (error, warning, etc.)
+	// If 0, the level will be inferred from the pattern name or content
+	LevelGroup int `json:"level_group"`
+	// MessageGroup is the capture group index (1-based) that contains the error message
+	// If 0, the entire match will be used as the message
+	MessageGroup int `json:"message_group"`
+	// Description is a human-readable description of what this pattern matches
+	Description string `json:"description"`
 }
 
 // BaseEngine provides common functionality for agentic engines
@@ -97,6 +117,16 @@ func (e *BaseEngine) SupportsMaxTurns() bool {
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
 func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
+}
+
+// SupportsErrorValidation returns false by default (engines can override)
+func (e *BaseEngine) SupportsErrorValidation() bool {
+	return false
+}
+
+// GetErrorPatterns returns an empty list by default (engines can override)
+func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
+	return []ErrorPattern{}
 }
 
 // EngineRegistry manages available agentic engines

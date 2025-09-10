@@ -396,3 +396,32 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 func (e *CodexEngine) GetLogParserScript() string {
 	return "parse_codex_log"
 }
+
+// SupportsErrorValidation returns true as Codex engine supports error validation
+func (e *CodexEngine) SupportsErrorValidation() bool {
+	return true
+}
+
+// GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
+func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
+	return []ErrorPattern{
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+stream\s+(error):\s+(.+)`,
+			LevelGroup:   2, // "error" is in the second capture group
+			MessageGroup: 3, // error message is in the third capture group
+			Description:  "Codex stream errors with timestamp",
+		},
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)`,
+			LevelGroup:   2, // "ERROR" is in the second capture group
+			MessageGroup: 3, // error message is in the third capture group
+			Description:  "Codex ERROR messages with timestamp",
+		},
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(WARN|WARNING):\s+(.+)`,
+			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
+			MessageGroup: 3, // warning message is in the third capture group
+			Description:  "Codex warning messages with timestamp",
+		},
+	}
+}
