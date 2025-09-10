@@ -202,7 +202,7 @@ async function main() {
     // U+0014 (DC4) — represented here as "\u0014"
     // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
     // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-    const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
+    const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
     repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
       const c = ch.charCodeAt(0);
       return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
@@ -288,7 +288,6 @@ async function main() {
         return JSON.parse(repairedJson);
       } catch (repairError) {
         // If repair also fails, throw the error
-        console.log(`invalid input json: ${jsonStr}`);
         throw new Error(
           `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
         );

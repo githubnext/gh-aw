@@ -281,12 +281,12 @@ func TestExtractBashTimeoutEnvVars(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := engine.extractBashTimeoutEnvVars(tt.tools)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d env vars, got %d. Expected: %+v, Got: %+v", len(tt.expected), len(result), tt.expected, result)
 				return
 			}
-			
+
 			for expectedKey, expectedValue := range tt.expected {
 				if actualValue, exists := result[expectedKey]; !exists {
 					t.Errorf("Expected env var %s not found", expectedKey)
@@ -299,87 +299,87 @@ func TestExtractBashTimeoutEnvVars(t *testing.T) {
 }
 
 func TestValidateBashTimeoutSupport(t *testing.T) {
-tests := []struct {
-name        string
-engineID    string
-tools       map[string]any
-expectError bool
-errorMsg    string
-}{
-{
-name:     "claude engine with bash timeout should pass",
-engineID: "claude",
-tools: map[string]any{
-"bash": map[string]any{
-"timeout": 30,
-},
-},
-expectError: false,
-},
-{
-name:     "codex engine without bash timeout should pass",
-engineID: "codex",
-tools: map[string]any{
-"bash": []any{"echo"},
-},
-expectError: false,
-},
-{
-name:     "codex engine with bash timeout should fail",
-engineID: "codex",
-tools: map[string]any{
-"bash": map[string]any{
-"timeout": 30,
-},
-},
-expectError: true,
-errorMsg:    "bash tool timeout configuration is not supported by engine 'codex'",
-},
-{
-name:     "custom engine with bash timeout should fail",
-engineID: "custom",
-tools: map[string]any{
-"bash": map[string]any{
-"timeout":  45,
-"commands": []any{"echo"},
-},
-},
-expectError: true,
-errorMsg:    "bash tool timeout configuration is not supported by engine 'custom'",
-},
-{
-name:     "no bash tool should pass for any engine",
-engineID: "codex",
-tools: map[string]any{
-"web-fetch": nil,
-},
-expectError: false,
-},
-}
+	tests := []struct {
+		name        string
+		engineID    string
+		tools       map[string]any
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:     "claude engine with bash timeout should pass",
+			engineID: "claude",
+			tools: map[string]any{
+				"bash": map[string]any{
+					"timeout": 30,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:     "codex engine without bash timeout should pass",
+			engineID: "codex",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+			expectError: false,
+		},
+		{
+			name:     "codex engine with bash timeout should fail",
+			engineID: "codex",
+			tools: map[string]any{
+				"bash": map[string]any{
+					"timeout": 30,
+				},
+			},
+			expectError: true,
+			errorMsg:    "bash tool timeout configuration is not supported by engine 'codex'",
+		},
+		{
+			name:     "custom engine with bash timeout should fail",
+			engineID: "custom",
+			tools: map[string]any{
+				"bash": map[string]any{
+					"timeout":  45,
+					"commands": []any{"echo"},
+				},
+			},
+			expectError: true,
+			errorMsg:    "bash tool timeout configuration is not supported by engine 'custom'",
+		},
+		{
+			name:     "no bash tool should pass for any engine",
+			engineID: "codex",
+			tools: map[string]any{
+				"web-fetch": nil,
+			},
+			expectError: false,
+		},
+	}
 
-compiler := NewCompiler(false, "", "test")
-engines := NewEngineRegistry()
+	compiler := NewCompiler(false, "", "test")
+	engines := NewEngineRegistry()
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-engine, err := engines.GetEngine(tt.engineID)
-if err != nil {
-t.Fatalf("Engine %s not found: %v", tt.engineID, err)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine, err := engines.GetEngine(tt.engineID)
+			if err != nil {
+				t.Fatalf("Engine %s not found: %v", tt.engineID, err)
+			}
 
-err = compiler.validateBashTimeoutSupport(tt.tools, engine)
+			err = compiler.validateBashTimeoutSupport(tt.tools, engine)
 
-if tt.expectError {
-if err == nil {
-t.Errorf("Expected error but got none")
-} else if err.Error() != tt.errorMsg {
-t.Errorf("Expected error message \"%s\", got \"%s\"", tt.errorMsg, err.Error())
-}
-} else {
-if err != nil {
-t.Errorf("Expected no error but got: %v", err)
-}
-}
-})
-}
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if err.Error() != tt.errorMsg {
+					t.Errorf("Expected error message \"%s\", got \"%s\"", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+			}
+		})
+	}
 }
