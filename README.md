@@ -17,42 +17,21 @@ Learn about the concepts behind agentic workflows, explore available workflow ty
 
 GitHub Agentic Workflows transforms natural language markdown files into GitHub Actions that are executed by AI agents. Here's a simple example:
 
-**Input:** Create `.github/workflows/issue-responder.md`
 ```markdown
 ---
 on:
   issues:
     types: [opened]
-permissions:
-  read-all
+permissions: read-all 
 safe-outputs:
   add-issue-comment:
 ---
+# Issue Clarifier
 
-# Issue Auto-Responder
-
-When a new issue is opened, analyze it and:
-1. Determine if it's a bug report, feature request, or question
-2. Add an appropriate welcome comment with next steps
-3. Ask for additional details if the issue is unclear
+Analyze the current issue and ask for additional details if the issue is unclear.
 ```
 
-**Output:** The tool compiles this into a standard GitHub Actions workflow that runs an AI agent:
-
-```mermaid
-graph TB
-    A["📝 Markdown Workflow<br/>.github/workflows/issue-responder.md"] --> B["🔄 gh aw compile"]
-    B --> C["⚙️ GitHub Actions YAML<br/>.github/workflows/issue-responder.lock.yml"]
-    C --> D["🚀 GitHub Actions Runner"]
-    D --> E["🤖 AI Agent (Claude/Codex)"]
-    E --> F["📊 Analyzes Issue Content"]
-    F --> G["💬 Posts Intelligent Comment"]
-    
-    style A fill:#e1f5fe
-    style C fill:#f3e5f5
-    style E fill:#fff3e0
-    style G fill:#e8f5e8
-```
+The `gh aw` cli compiles this into a GitHub Actions Workflow (.yml) that runs an AI agent (Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository.
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 
