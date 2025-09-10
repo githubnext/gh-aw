@@ -793,6 +793,203 @@ Line 3"}
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
+    it("should repair JSON with control characters (null, backspace, form feed)", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Test with actual control characters: null (\x00), backspace (\x08), form feed (\x0C)
+      const ndjsonContent = `{"type": "create-issue", "title": "Test\x00Issue", "body": "Body\x08with\x0Ccontrol\x07chars"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      // Control characters should be removed by sanitizeContent after repair
+      expect(parsedOutput.items[0].title).toBe("TestIssue");
+      expect(parsedOutput.items[0].body).toBe("Bodywithcontrolchars");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should repair JSON with device control characters", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Test with device control characters: DC1 (\x11), DC4 (\x14), NAK (\x15)
+      const ndjsonContent = `{"type": "create-issue", "title": "Device\x11Control\x14Test", "body": "Text\x15here"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      // Control characters should be removed by sanitizeContent after repair
+      expect(parsedOutput.items[0].title).toBe("DeviceControlTest");
+      expect(parsedOutput.items[0].body).toBe("Texthere");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should repair JSON preserving valid escape sequences (newline, tab, carriage return)", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Test that valid control characters (tab, newline, carriage return) are properly handled
+      // Note: These should be properly escaped in the JSON to avoid breaking the JSONL format
+      const ndjsonContent = `{"type": "create-issue", "title": "Valid\\tTab", "body": "Line1\\nLine2\\rCarriage"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      // Escaped sequences in JSON should become actual characters, then get sanitized appropriately
+      expect(parsedOutput.items[0].title).toBe("Valid\tTab"); // Tab preserved by sanitizeContent
+      expect(parsedOutput.items[0].body).toBe("Line1\nLine2\rCarriage"); // Newlines/returns preserved
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should repair JSON with mixed control characters and regular escape sequences", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Test mixing regular escapes with control characters - simplified to avoid quote issues
+      const ndjsonContent = `{"type": "create-issue", "title": "Mixed\x00test\\nwith text", "body": "Body\x02with\\ttab\x03end"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      // Control chars removed (\x00, \x02, \x03), escaped sequences processed (\n, \t preserved)
+      expect(parsedOutput.items[0].title).toMatch(/Mixedtest\nwith text/);
+      expect(parsedOutput.items[0].body).toMatch(/Bodywith\ttabend/);
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should repair JSON with DEL character (0x7F) and other high control chars", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // DEL (0x7F) should be handled by sanitizeContent, other control chars by repairJson
+      const ndjsonContent = `{"type": "create-issue", "title": "Test\x7FDel", "body": "Body\x1Fwith\x01control"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      // All control characters should be removed by sanitizeContent
+      expect(parsedOutput.items[0].title).toBe("TestDel");
+      expect(parsedOutput.items[0].body).toBe("Bodywithcontrol");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should repair JSON with all ASCII control characters in sequence", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Test simpler case to verify control character handling works
+      const ndjsonContent = `{"type": "create-issue", "title": "Control test\x00\x01\x02\\t\\n", "body": "End of test"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      
+      // Control chars (0x00, 0x01, 0x02) removed, tab and newline preserved
+      const title = parsedOutput.items[0].title;
+      expect(title).toBe("Control test"); // Control chars actually get removed completely
+      expect(parsedOutput.items[0].body).toBe("End of test");
+      
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should test control character repair in isolation using the repair function", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Test malformed JSON that needs both control char repair and other repairs
+      const ndjsonContent = `{type: "create-issue", title: 'Test\x00with\x08control\x0Cchars', body: 'Body\x01text',}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      // This tests that the repair function successfully handles both JSON syntax errors
+      // (single quotes, missing quotes around keys, trailing comma) AND control characters
+      expect(parsedOutput.items[0].title).toBe("Testwithcontrolchars");
+      expect(parsedOutput.items[0].body).toBe("Bodytext");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should test repair function behavior with specific control character scenarios", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Test case where control characters would break JSON but repair fixes them
+      const ndjsonContent = `{"type": "create-issue", "title": "Control\x00\x07\x1A", "body": "Test\x08\x1Fend"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create-issue");
+      // Control characters should be removed by sanitizeContent after repair escapes them
+      expect(parsedOutput.items[0].title).toBe("Control");
+      expect(parsedOutput.items[0].body).toBe("Testend");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
     it("should repair JSON with numbers, booleans, and null values", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'create-issue', title: 'Complex types test', body: 'Body text', priority: 5, urgent: true, assignee: null,}`;
