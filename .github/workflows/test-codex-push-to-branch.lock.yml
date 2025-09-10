@@ -1411,7 +1411,7 @@ jobs:
             echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
             echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -50 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
             echo '...' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
