@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude Create Security Report"
+name: "Test Claude Create Repository Security Advisory"
 "on":
   workflow_dispatch: null
 
@@ -11,7 +11,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Claude Create Security Report"
+run-name: "Test Claude Create Repository Security Advisory"
 
 jobs:
   add_reaction:
@@ -273,7 +273,7 @@ jobs:
             }
             await main();
 
-  test-claude-create-security-report:
+  test-claude-create-repository-security-advisory:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -444,14 +444,14 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Claude Create Security Report
+          # Test Claude Create Repository Security Advisory
           
-          Create a new security report for the repository with title "Claude wants security review." and adding a couple of sentences about why security is important.
+          Create a new repository security advisory for the repository with title "Claude wants security review." and adding a couple of sentences about why security is important.
           
           
           ---
           
-          ## Creating Security Reports, Reporting Missing Tools or Functionality
+          ## Creating Repository Security Advisories, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
@@ -459,12 +459,12 @@ jobs:
           
           ### Available Output Types:
           
-          **Creating Security Reports**
+          **Creating Repository Security Advisories**
           
-          To create security reports (SARIF format for GitHub Code Scanning):
+          To create repository security advisories (SARIF format for GitHub Code Scanning):
           1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
-          {"type": "create-security-report", "file": "path/to/file.js", "line": 42, "severity": "error", "message": "Security vulnerability description", "column": 5, "ruleIdSuffix": "custom-rule"}
+          {"type": "create-repository-security-advisory", "file": "path/to/file.js", "line": 42, "severity": "error", "message": "Security vulnerability description", "column": 5, "ruleIdSuffix": "custom-rule"}
           ```
           2. **Required fields**: `file` (string), `line` (number), `severity` ("error", "warning", "info", or "note"), `message` (string)
           3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)
@@ -473,7 +473,7 @@ jobs:
           
           **Example JSONL file content:**
           ```
-          {"type": "create-security-report", "file": "src/auth.js", "line": 25, "severity": "error", "message": "Potential SQL injection vulnerability"}
+          {"type": "create-repository-security-advisory", "file": "src/auth.js", "line": 25, "severity": "error", "message": "Potential SQL injection vulnerability"}
           ```
           
           **Important Notes:**
@@ -503,7 +503,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude Create Security Report",
+              workflow_name: "Test Claude Create Repository Security Advisory",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -604,13 +604,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-create-security-report.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-create-repository-security-advisory.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-create-security-report.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-create-repository-security-advisory.log
           fi
           
           # Ensure log file exists
-          touch /tmp/test-claude-create-security-report.log
+          touch /tmp/test-claude-create-repository-security-advisory.log
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -637,7 +637,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-security-report\":{\"enabled\":true,\"max\":10}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-repository-security-advisory\":{\"enabled\":true,\"max\":10}}"
         with:
           script: |
             async function main() {
@@ -803,8 +803,8 @@ jobs:
                     return 1; // Only one discussion allowed
                   case "missing-tool":
                     return 1000; // Allow many missing tool reports (default: unlimited)
-                  case "create-security-report":
-                    return 1000; // Allow many security reports (default: unlimited)
+                  case "create-repository-security-advisory":
+                    return 1000; // Allow many repository security advisories (default: unlimited)
                   default:
                     return 1; // Default to single item for unknown types
                 }
@@ -1261,11 +1261,11 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives);
                       }
                       break;
-                    case "create-security-report":
+                    case "create-repository-security-advisory":
                       // Validate required sarif field
                       if (!item.sarif) {
                         errors.push(
-                          `Line ${i + 1}: create-security-report requires a 'sarif' field`
+                          `Line ${i + 1}: create-repository-security-advisory requires a 'sarif' field`
                         );
                         continue;
                       }
@@ -1275,7 +1275,7 @@ jobs:
                         typeof item.sarif !== "string"
                       ) {
                         errors.push(
-                          `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
+                          `Line ${i + 1}: create-repository-security-advisory 'sarif' must be an object or string`
                         );
                         continue;
                       }
@@ -1287,7 +1287,7 @@ jobs:
                       if (item.category !== undefined) {
                         if (typeof item.category !== "string") {
                           errors.push(
-                            `Line ${i + 1}: create-security-report 'category' must be a string`
+                            `Line ${i + 1}: create-repository-security-advisory 'category' must be a string`
                           );
                           continue;
                         }
@@ -1367,7 +1367,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-claude-create-security-report.log
+          AGENT_LOG_FILE: /tmp/test-claude-create-repository-security-advisory.log
         with:
           script: |
             function main() {
@@ -1684,12 +1684,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-create-security-report.log
-          path: /tmp/test-claude-create-security-report.log
+          name: test-claude-create-repository-security-advisory.log
+          path: /tmp/test-claude-create-repository-security-advisory.log
           if-no-files-found: warn
 
-  create_security_report:
-    needs: test-claude-create-security-report
+  create_repository_security_advisory:
+    needs: test-claude-create-repository-security-advisory
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1697,19 +1697,19 @@ jobs:
       actions: read
     timeout-minutes: 10
     outputs:
-      artifact_uploaded: ${{ steps.create_security_report.outputs.artifact_uploaded }}
-      codeql_uploaded: ${{ steps.create_security_report.outputs.codeql_uploaded }}
-      findings_count: ${{ steps.create_security_report.outputs.findings_count }}
-      sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}
+      artifact_uploaded: ${{ steps.create_repository_security_advisory.outputs.artifact_uploaded }}
+      codeql_uploaded: ${{ steps.create_repository_security_advisory.outputs.codeql_uploaded }}
+      findings_count: ${{ steps.create_repository_security_advisory.outputs.findings_count }}
+      sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
     steps:
-      - name: Create Security Report
-        id: create_security_report
+      - name: Create Repository Security Advisory
+        id: create_repository_security_advisory
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-security-report.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-repository-security-advisory.outputs.output }}
           GITHUB_AW_SECURITY_REPORT_MAX: 10
-          GITHUB_AW_SECURITY_REPORT_DRIVER: Test Claude Security Report
-          GITHUB_AW_WORKFLOW_FILENAME: test-claude-create-security-report
+          GITHUB_AW_SECURITY_REPORT_DRIVER: Test Claude Repository Security Advisory
+          GITHUB_AW_WORKFLOW_FILENAME: test-claude-create-repository-security-advisory
         with:
           script: |
             async function main() {
@@ -1739,15 +1739,15 @@ jobs:
                 console.log("No valid items found in agent output");
                 return;
               }
-              // Find all create-security-report items
+              // Find all create-repository-security-advisory items
               const securityItems = validatedOutput.items.filter(
-                /** @param {any} item */ item => item.type === "create-security-report"
+                /** @param {any} item */ item => item.type === "create-repository-security-advisory"
               );
               if (securityItems.length === 0) {
-                console.log("No create-security-report items found in agent output");
+                console.log("No create-repository-security-advisory items found in agent output");
                 return;
               }
-              console.log(`Found ${securityItems.length} create-security-report item(s)`);
+              console.log(`Found ${securityItems.length} create-repository-security-advisory item(s)`);
               // Get the max configuration from environment variable
               const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
                 ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX)
@@ -1769,7 +1769,7 @@ jobs:
               for (let i = 0; i < securityItems.length; i++) {
                 const securityItem = securityItems[i];
                 console.log(
-                  `Processing create-security-report item ${i + 1}/${securityItems.length}:`,
+                  `Processing create-repository-security-advisory item ${i + 1}/${securityItems.length}:`,
                   {
                     file: securityItem.file,
                     line: securityItem.line,
@@ -1782,7 +1782,7 @@ jobs:
                 );
                 // Validate required fields
                 if (!securityItem.file) {
-                  console.log('Missing required field "file" in security report item');
+                  console.log('Missing required field "file" in repository security advisory item');
                   continue;
                 }
                 if (
@@ -1791,19 +1791,19 @@ jobs:
                     typeof securityItem.line !== "string")
                 ) {
                   console.log(
-                    'Missing or invalid required field "line" in security report item'
+                    'Missing or invalid required field "line" in repository security advisory item'
                   );
                   continue;
                 }
                 if (!securityItem.severity || typeof securityItem.severity !== "string") {
                   console.log(
-                    'Missing or invalid required field "severity" in security report item'
+                    'Missing or invalid required field "severity" in repository security advisory item'
                   );
                   continue;
                 }
                 if (!securityItem.message || typeof securityItem.message !== "string") {
                   console.log(
-                    'Missing or invalid required field "message" in security report item'
+                    'Missing or invalid required field "message" in repository security advisory item'
                   );
                   continue;
                 }
@@ -1821,7 +1821,7 @@ jobs:
                     typeof securityItem.column !== "string"
                   ) {
                     console.log(
-                      'Invalid field "column" in security report item (must be number or string)'
+                      'Invalid field "column" in repository security advisory item (must be number or string)'
                     );
                     continue;
                   }
@@ -1837,7 +1837,7 @@ jobs:
                 if (securityItem.ruleIdSuffix !== undefined) {
                   if (typeof securityItem.ruleIdSuffix !== "string") {
                     console.log(
-                      'Invalid field "ruleIdSuffix" in security report item (must be string)'
+                      'Invalid field "ruleIdSuffix" in repository security advisory item (must be string)'
                     );
                     continue;
                   }
@@ -1845,7 +1845,7 @@ jobs:
                   const trimmedSuffix = securityItem.ruleIdSuffix.trim();
                   if (trimmedSuffix.length === 0) {
                     console.log(
-                      'Invalid field "ruleIdSuffix" in security report item (cannot be empty)'
+                      'Invalid field "ruleIdSuffix" in repository security advisory item (cannot be empty)'
                     );
                     continue;
                   }
@@ -1932,7 +1932,7 @@ jobs:
               // Write SARIF file to filesystem
               const fs = require("fs");
               const path = require("path");
-              const sarifFileName = "security-report.sarif";
+              const sarifFileName = "repository-security-advisory.sarif";
               const sarifFilePath = path.join(process.cwd(), sarifFileName);
               try {
                 fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
@@ -1944,7 +1944,7 @@ jobs:
                 core.setOutput("artifact_uploaded", "pending");
                 core.setOutput("codeql_uploaded", "pending");
                 // Write summary with findings
-                let summaryContent = "\n\n## Security Report\n";
+                let summaryContent = "\n\n## Repository Security Advisory\n";
                 summaryContent += `Found **${validFindings.length}** security finding(s):\n\n`;
                 for (const finding of validFindings) {
                   const emoji =
@@ -1965,7 +1965,7 @@ jobs:
                 throw error;
               }
               console.log(
-                `Successfully created security report with ${validFindings.length} finding(s)`
+                `Successfully created repository security advisory with ${validFindings.length} finding(s)`
               );
               return {
                 sarifFile: sarifFilePath,
@@ -1975,14 +1975,14 @@ jobs:
             }
             await main();
       - name: Upload SARIF artifact
-        if: steps.create_security_report.outputs.sarif_file
+        if: steps.create_repository_security_advisory.outputs.sarif_file
         uses: actions/upload-artifact@v4
         with:
-          name: security-report.sarif
-          path: ${{ steps.create_security_report.outputs.sarif_file }}
+          name: repository-security-advisory.sarif
+          path: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
       - name: Upload SARIF to GitHub Security
-        if: steps.create_security_report.outputs.sarif_file
+        if: steps.create_repository_security_advisory.outputs.sarif_file
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}
+          sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
 
