@@ -610,7 +610,7 @@ jobs:
           fi
           
           # Ensure log file exists
-          touch /tmp/security-analysis-with-claude.log
+          touch /tmp/test-claude-create-security-report.log
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -632,7 +632,7 @@ jobs:
           name: safe_output.jsonl
           path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
-      - name: Collect agent output
+      - name: Ingest agent output
         id: collect_output
         uses: actions/github-script@v7
         env:
