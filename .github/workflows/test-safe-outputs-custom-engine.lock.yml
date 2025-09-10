@@ -2665,7 +2665,8 @@ jobs:
               // Apply the patch using git CLI (skip if empty)
               if (!isEmpty) {
                 console.log("Applying patch...");
-                execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
+                // Patches are created with git format-patch, so use git am to apply them
+                execSync("git am /tmp/aw.patch", { stdio: "inherit" });
                 console.log("Patch applied successfully");
               } else {
                 console.log("Skipping patch application (empty patch)");
@@ -3335,7 +3336,8 @@ jobs:
               if (!isEmpty) {
                 console.log("Applying patch...");
                 try {
-                  execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
+                  // Patches are created with git format-patch, so use git am to apply them
+                  execSync("git am /tmp/aw.patch", { stdio: "inherit" });
                   console.log("Patch applied successfully");
                 } catch (error) {
                   core.error(
