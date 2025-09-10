@@ -2976,7 +2976,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          AGENT_LOG_FILE: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -3009,17 +3009,15 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          AGENT_LOG_FILE: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
 
-	// Add error patterns as environment variables
-	for i, pattern := range errorPatterns {
-		patternJSON, err := json.Marshal(pattern)
-		if err != nil {
-			// Skip invalid patterns
-			continue
-		}
-		fmt.Fprintf(yaml, "          ERROR_PATTERN_%d: %q\n", i, string(patternJSON))
+	// Add error patterns as a single JSON array
+	patternsJSON, err := json.Marshal(errorPatterns)
+	if err != nil {
+		// Skip if patterns can't be marshaled
+		return
 	}
+	fmt.Fprintf(yaml, "          GITHUB_AW_ERROR_PATTERNS: %q\n", string(patternsJSON))
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

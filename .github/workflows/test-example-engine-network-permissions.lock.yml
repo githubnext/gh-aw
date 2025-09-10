@@ -382,14 +382,14 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/secure-web-research-task.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/secure-web-research-task.log
         with:
           script: |
             function main() {
               const fs = require("fs");
               try {
                 // Get the log file path from environment
-                const logFile = process.env.AGENT_LOG_FILE;
+                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logFile) {
                   console.log("No agent log file specified");
                   return;

@@ -1199,13 +1199,13 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-codex-create-pull-request-review-comment.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-create-pull-request-review-comment.log
         with:
           script: |
             function main() {
               const fs = require("fs");
               try {
-                const logFile = process.env.AGENT_LOG_FILE;
+                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logFile) {
                   console.log("No agent log file specified");
                   return;
@@ -1456,29 +1456,24 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-codex-create-pull-request-review-comment.log
-          ERROR_PATTERN_0: "{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"}"
-          ERROR_PATTERN_1: "{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"}"
-          ERROR_PATTERN_2: "{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}"
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-create-pull-request-review-comment.log
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |
             function main() {
               const fs = require("fs");
               try {
-                const logFile = process.env.AGENT_LOG_FILE;
+                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logFile) {
-                  console.log("No agent log file specified");
-                  return;
+                  throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
                 if (!fs.existsSync(logFile)) {
-                  console.log(`Log file not found: ${logFile}`);
-                  return;
+                  throw new Error(`Log file not found: ${logFile}`);
                 }
                 // Get error patterns from environment variables
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
-                  console.log("No error patterns configured for validation");
-                  return;
+                  throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 const content = fs.readFileSync(logFile, "utf8");
                 const result = validateErrors(content, patterns);
@@ -1493,20 +1488,19 @@ jobs:
               }
             }
             function getErrorPatternsFromEnv() {
-              const patterns = [];
-              // Patterns are passed as environment variables with prefix ERROR_PATTERN_
-              const env = process.env;
-              for (const key in env) {
-                if (key.startsWith("ERROR_PATTERN_")) {
-                  try {
-                    const pattern = JSON.parse(env[key]);
-                    patterns.push(pattern);
-                  } catch (e) {
-                    console.warn(`Invalid error pattern in ${key}: ${e.message}`);
-                  }
-                }
+              const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
+              if (!patternsEnv) {
+                throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
               }
-              return patterns;
+              try {
+                const patterns = JSON.parse(patternsEnv);
+                if (!Array.isArray(patterns)) {
+                  throw new Error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
+                }
+                return patterns;
+              } catch (e) {
+                throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e.message}`);
+              }
             }
             function validateErrors(logContent, patterns) {
               const errors = [];
