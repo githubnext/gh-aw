@@ -63,16 +63,16 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected 'Setup agent output' step to be in generated workflow")
 	}
 
-	if !strings.Contains(lockContent, "- name: Collect agent output") {
-		t.Error("Expected 'Collect agent output' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Ingest agent output") {
+		t.Error("Expected 'Ingest agent output' step to be in generated workflow")
 	}
 
 	if !strings.Contains(lockContent, "- name: Upload agentic output file") {
 		t.Error("Expected 'Upload agentic output file' step to be in generated workflow")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload agent output JSON") {
-		t.Error("Expected 'Upload agent output JSON' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Upload sanitized agent output") {
+		t.Error("Expected 'Upload sanitized agent output' step to be in generated workflow")
 	}
 
 	// Verify job output declaration for GITHUB_AW_SAFE_OUTPUTS
@@ -162,16 +162,16 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Error("Codex workflow should have 'Setup agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
 	}
 
-	if !strings.Contains(lockContent, "- name: Collect agent output") {
-		t.Error("Codex workflow should have 'Collect agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
+	if !strings.Contains(lockContent, "- name: Ingest agent output") {
+		t.Error("Codex workflow should have 'Ingest agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Upload agentic output file") {
 		t.Error("Codex workflow should have 'Upload agentic output file' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload agent output JSON") {
-		t.Error("Codex workflow should have 'Upload agent output JSON' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
+	if !strings.Contains(lockContent, "- name: Upload sanitized agent output") {
+		t.Error("Codex workflow should have 'Upload sanitized agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "GITHUB_AW_SAFE_OUTPUTS") {
