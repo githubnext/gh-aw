@@ -108,7 +108,7 @@ func TestCompileWorkflows(t *testing.T) {
 			if tt.markdownFile != "" {
 				args = []string{tt.markdownFile}
 			}
-			err := CompileWorkflows(args, false, "", false, false, false, false)
+			err := CompileWorkflows(args, false, "", false, false, false, false, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -117,6 +117,49 @@ func TestCompileWorkflows(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompileWorkflowsPurgeFlag(t *testing.T) {
+	t.Run("purge flag validation with specific files", func(t *testing.T) {
+		// Test that purge flag is rejected when specific files are provided
+		err := CompileWorkflows([]string{"test.md"}, false, "", false, false, false, false, true)
+
+		if err == nil {
+			t.Error("Expected error when using --purge with specific files, got nil")
+		}
+
+		expectedMsg := "--purge flag can only be used when compiling all markdown files"
+		if !strings.Contains(err.Error(), expectedMsg) {
+			t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
+		}
+	})
+
+	t.Run("purge flag acceptance without specific files", func(t *testing.T) {
+		// Create temporary directory structure for testing
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		os.MkdirAll(workflowsDir, 0755)
+
+		// Change to temp directory to simulate being in a git repo
+		originalDir, _ := os.Getwd()
+		defer os.Chdir(originalDir)
+		os.Chdir(tempDir)
+
+		// Create .git directory to make it look like a git repo
+		os.MkdirAll(".git", 0755)
+
+		// Test should not error when no specific files are provided with purge flag
+		// Note: This will still error because there are no .md files, but it shouldn't
+		// error specifically because of the purge flag validation
+		err := CompileWorkflows([]string{}, false, "", false, false, false, false, true)
+
+		if err != nil {
+			// The error should NOT be about purge flag validation
+			if strings.Contains(err.Error(), "--purge flag can only be used") {
+				t.Errorf("Purge flag validation should not trigger when no specific files provided, got: %v", err)
+			}
+		}
+	})
 }
 
 func TestCompileWorkflowsWithNoEmit(t *testing.T) {
@@ -146,7 +189,7 @@ This is a test workflow to verify the --no-emit flag functionality.`
 	}
 
 	// Test compilation with noEmit = false (should create lock file)
-	err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, false, false)
+	err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, false, false, false)
 	if err != nil {
 		t.Errorf("CompileWorkflows with noEmit=false should not error, got: %v", err)
 	}
@@ -160,7 +203,7 @@ This is a test workflow to verify the --no-emit flag functionality.`
 	os.Remove(".github/workflows/no-emit-test.lock.yml")
 
 	// Test compilation with noEmit = true (should NOT create lock file)
-	err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, false, true)
+	err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, false, true, false)
 	if err != nil {
 		t.Errorf("CompileWorkflows with noEmit=true should not error, got: %v", err)
 	}
@@ -291,7 +334,7 @@ func TestAllCommandsExist(t *testing.T) {
 	}{
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
 		{func() error { return AddWorkflowWithTracking("", 1, false, "", "", false, nil) }, false, "AddWorkflowWithTracking (empty name)"}, // Shows help when empty, doesn't error
-		{func() error { return CompileWorkflows([]string{}, false, "", false, false, false, false) }, false, "CompileWorkflows"},           // Should compile existing markdown files successfully
+		{func() error { return CompileWorkflows([]string{}, false, "", false, false, false, false, false) }, false, "CompileWorkflows"},    // Should compile existing markdown files successfully
 		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                                                 // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                                                 // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, false, "EnableWorkflows"},                                                        // Should handle missing directory gracefully
