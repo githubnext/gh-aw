@@ -57,7 +57,7 @@ func (g *ToolGraph) AddSequence(tools []string) {
 // GenerateMermaidGraph generates a Mermaid state diagram from the tool graph
 func (g *ToolGraph) GenerateMermaidGraph() string {
 	if len(g.Tools) == 0 {
-		return "```mermaid\nstateDiagram-v2\n    [*] --> [*] : No tool calls found\n```\n"
+		return console.FormatInfoMessage("No tool calls found")
 	}
 
 	var sb strings.Builder
