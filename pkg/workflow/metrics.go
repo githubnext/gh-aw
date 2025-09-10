@@ -23,6 +23,7 @@ type LogMetrics struct {
 	WarningCount  int
 	Turns         int            // Number of turns needed to complete the task
 	ToolCalls     []ToolCallInfo // Tool call statistics
+	ToolSequences [][]string     // Sequences of tool calls preserving order
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 

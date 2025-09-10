@@ -132,7 +132,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
   ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
   ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
-  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory`,
+  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
+  ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
@@ -165,6 +166,7 @@ Examples:
 			outputDir, _ := cmd.Flags().GetString("output")
 			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -204,7 +206,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -221,12 +223,13 @@ Examples:
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
+	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -409,6 +412,11 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Display missing tools analysis
 	displayMissingToolsAnalysis(processedRuns, verbose)
+
+	// Generate tool sequence graph if requested
+	if toolGraph {
+		generateToolGraph(processedRuns, verbose)
+	}
 
 	// Display logs location prominently
 	absOutputDir, _ := filepath.Abs(outputDir)
@@ -970,7 +978,7 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 
 		// For now, let's extract metrics from the run if available
 		// We'll process log files to get tool call information
-		logMetrics := extractLogMetricsFromRun(processedRun)
+		logMetrics := ExtractLogMetricsFromRun(processedRun)
 
 		for _, toolCall := range logMetrics.ToolCalls {
 			var displayKey string
@@ -1060,8 +1068,8 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 	fmt.Print(console.RenderTable(tableConfig))
 }
 
-// extractLogMetricsFromRun extracts log metrics from a processed run's log directory
-func extractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
+// ExtractLogMetricsFromRun extracts log metrics from a processed run's log directory
+func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	// Use the LogsPath from the WorkflowRun to get metrics
 	if processedRun.Run.LogsPath == "" {
 		return workflow.LogMetrics{}

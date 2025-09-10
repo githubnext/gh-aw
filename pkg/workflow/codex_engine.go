@@ -177,6 +177,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	turns := 0
 	inThinkingSection := false
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls
+	var currentSequence []string                  // Track tool sequence
 
 	for _, line := range lines {
 		// Skip empty lines
@@ -189,13 +190,20 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 			if !inThinkingSection {
 				turns++
 				inThinkingSection = true
+				// Start of a new thinking section, save previous sequence if any
+				if len(currentSequence) > 0 {
+					metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+					currentSequence = []string{}
+				}
 			}
 		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") {
 			inThinkingSection = false
 		}
 
-		// Extract tool calls from Codex logs
-		e.parseCodexToolCalls(line, toolCallMap)
+		// Extract tool calls from Codex logs and add to sequence
+		if toolName := e.parseCodexToolCallsWithSequence(line, toolCallMap); toolName != "" {
+			currentSequence = append(currentSequence, toolName)
+		}
 
 		// Extract Codex-specific token usage (always sum for Codex)
 		if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
@@ -210,6 +218,11 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		if strings.Contains(lowerLine, "warning") {
 			metrics.WarningCount++
 		}
+	}
+
+	// Add final sequence if any
+	if len(currentSequence) > 0 {
+		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
 	}
 
 	metrics.TokenUsage = totalTokenUsage
@@ -228,8 +241,8 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	return metrics
 }
 
-// parseCodexToolCalls extracts tool call information from Codex log lines
-func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*ToolCallInfo) {
+// parseCodexToolCallsWithSequence extracts tool call information from Codex log lines and returns tool name
+func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap map[string]*ToolCallInfo) string {
 	// Parse tool calls: "] tool provider.method(...)"
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
 		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
@@ -256,6 +269,8 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 					MaxOutputSize: 0, // TODO: Extract output size from results if available
 				}
 			}
+
+			return prettifiedName
 		}
 	}
 
@@ -276,8 +291,18 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 					MaxOutputSize: 0,
 				}
 			}
+
+			return uniqueBashName
 		}
 	}
+
+	return "" // No tool call found
+}
+
+// parseCodexToolCalls extracts tool call information from Codex log lines (legacy method)
+func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*ToolCallInfo) {
+	// Use the new method but ignore the return value for backward compatibility
+	e.parseCodexToolCallsWithSequence(line, toolCallMap)
 }
 
 // shortenCommand creates a short identifier for bash commands

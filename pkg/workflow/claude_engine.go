@@ -748,6 +748,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 
 	// Look for the result entry with type: "result"
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls across entries
+	var currentSequence []string                  // Track tool sequence within current context
 
 	for _, entry := range logEntries {
 		if entryType, exists := entry["type"]; exists {
@@ -786,21 +787,27 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 						metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 				}
 				break
-			}
-		}
-
-		// Parse tool_use entries for tool call statistics
-		if entry["type"] == "user" {
-			if message, exists := entry["message"]; exists {
-				if messageMap, ok := message.(map[string]interface{}); ok {
-					if content, exists := messageMap["content"]; exists {
-						if contentArray, ok := content.([]interface{}); ok {
-							e.parseToolCalls(contentArray, toolCallMap)
+			} else if typeStr == "assistant" {
+				// Parse tool_use entries for tool call statistics and sequence
+				if message, exists := entry["message"]; exists {
+					if messageMap, ok := message.(map[string]interface{}); ok {
+						if content, exists := messageMap["content"]; exists {
+							if contentArray, ok := content.([]interface{}); ok {
+								sequenceInMessage := e.parseToolCallsWithSequence(contentArray, toolCallMap)
+								if len(sequenceInMessage) > 0 {
+									currentSequence = append(currentSequence, sequenceInMessage...)
+								}
+							}
 						}
 					}
 				}
 			}
 		}
+	}
+
+	// Add the complete sequence if we found any tool calls
+	if len(currentSequence) > 0 {
+		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
 	}
 
 	// Convert tool call map to slice
@@ -816,8 +823,10 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 	return metrics
 }
 
-// parseToolCalls extracts tool call information from Claude log content array
-func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) {
+// parseToolCallsWithSequence extracts tool call information from Claude log content array and returns sequence
+func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) []string {
+	var sequence []string
+
 	for _, contentItem := range contentArray {
 		if contentMap, ok := contentItem.(map[string]interface{}); ok {
 			if contentType, exists := contentMap["type"]; exists {
@@ -850,6 +859,9 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 									}
 								}
 							}
+
+							// Add to sequence
+							sequence = append(sequence, prettifiedName)
 
 							// Initialize or update tool call info
 							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
@@ -888,6 +900,14 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 			}
 		}
 	}
+
+	return sequence
+}
+
+// parseToolCalls extracts tool call information from Claude log content array (legacy method)
+func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) {
+	// Use the new method but ignore the sequence return value for backward compatibility
+	e.parseToolCallsWithSequence(contentArray, toolCallMap)
 }
 
 // shortenCommand creates a short identifier for bash commands
