@@ -15,7 +15,7 @@
 # 7. Optionally clean up test resources
 #
 # Test Types:
-# - workflow_dispatch: Direct trigger tests (create issues, PRs, security reports, etc.)
+# - workflow_dispatch: Direct trigger tests (create issues, PRs, repository security advisories, etc.)
 # - issue-triggered: Tests triggered by creating issues with specific titles
 # - command-triggered: Tests triggered by posting commands in issue comments  
 # - PR-triggered: Tests triggered by creating pull requests
@@ -127,8 +127,8 @@ get_all_test_names() {
     echo "test-codex-create-issue"
     echo "test-claude-create-pull-request"
     echo "test-codex-create-pull-request"
-    echo "test-claude-create-security-report"
-    echo "test-codex-create-security-report"
+    echo "test-claude-create-repository-security-advisory"
+    echo "test-codex-create-repository-security-advisory"
     echo "test-claude-mcp"
     echo "test-codex-mcp"
     echo "test-custom-safe-outputs"
@@ -151,8 +151,8 @@ get_workflow_dispatch_tests() {
     echo "test-codex-create-issue"
     echo "test-claude-create-pull-request"
     echo "test-codex-create-pull-request"
-    echo "test-claude-create-security-report"
-    echo "test-codex-create-security-report"
+    echo "test-claude-create-repository-security-advisory"
+    echo "test-codex-create-repository-security-advisory"
     echo "test-claude-mcp"
     echo "test-codex-mcp"
     echo "test-custom-safe-outputs"
@@ -507,7 +507,7 @@ validate_pr_created() {
     fi
 }
 
-validate_security_report() {
+validate_repository_security_advisory() {
     local workflow_name="$1"
     
     # Determine expected title based on workflow name
@@ -544,7 +544,7 @@ validate_security_report() {
                 warning "Security report workflow '$workflow_name' created security content but not with expected title. Found: '$any_security_content'"
                 return 0  # Still pass - security content was created
             else
-                error "Security report workflow '$workflow_name' completed but no security reports found with expected title: '$expected_title'"
+                error "Security report workflow '$workflow_name' completed but no repository security advisories found with expected title: '$expected_title'"
                 return 1
             fi
         fi
@@ -671,8 +671,8 @@ cleanup_test_resources() {
         "test-codex-create-issue"
         "test-claude-create-pull-request"
         "test-codex-create-pull-request"
-        "test-claude-create-security-report"
-        "test-codex-create-security-report"
+        "test-claude-create-repository-security-advisory"
+        "test-codex-create-repository-security-advisory"
         "test-claude-mcp"
         "test-codex-mcp"
         "test-custom-safe-outputs"
@@ -782,8 +782,8 @@ run_workflow_dispatch_tests() {
                 *)
                     # For other workflows, apply specific validation based on workflow type
                     case "$workflow" in
-                        *"security-report")
-                            if validate_security_report "$workflow"; then
+                        *"repository-security-advisory")
+                            if validate_repository_security_advisory "$workflow"; then
                                 PASSED_TESTS+=("$workflow")
                             else
                                 FAILED_TESTS+=("$workflow")

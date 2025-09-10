@@ -123,7 +123,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name               string
-	FrontmatterName    string // name field from frontmatter (for security report driver default)
+	FrontmatterName    string // name field from frontmatter (for repository security advisory driver default)
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
@@ -153,17 +153,17 @@ type WorkflowData struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
-	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
-	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
-	AddIssueComments                *AddIssueCommentsConfig                `yaml:"add-issue-comment,omitempty"`
-	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
-	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
-	CreateSecurityReports           *CreateSecurityReportsConfig           `yaml:"create-security-report,omitempty"`
-	AddIssueLabels                  *AddIssueLabelsConfig                  `yaml:"add-issue-label,omitempty"`
-	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
-	PushToBranch                    *PushToBranchConfig                    `yaml:"push-to-branch,omitempty"`
-	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
-	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
+	CreateIssues                       *CreateIssuesConfig                       `yaml:"create-issue,omitempty"`
+	CreateDiscussions                  *CreateDiscussionsConfig                  `yaml:"create-discussion,omitempty"`
+	AddIssueComments                   *AddIssueCommentsConfig                   `yaml:"add-issue-comment,omitempty"`
+	CreatePullRequests                 *CreatePullRequestsConfig                 `yaml:"create-pull-request,omitempty"`
+	CreatePullRequestReviewComments    *CreatePullRequestReviewCommentsConfig    `yaml:"create-pull-request-review-comment,omitempty"`
+	CreateRepositorySecurityAdvisories *CreateRepositorySecurityAdvisoriesConfig `yaml:"create-repository-security-advisory,omitempty"`
+	AddIssueLabels                     *AddIssueLabelsConfig                     `yaml:"add-issue-label,omitempty"`
+	UpdateIssues                       *UpdateIssuesConfig                       `yaml:"update-issue,omitempty"`
+	PushToBranch                       *PushToBranchConfig                       `yaml:"push-to-branch,omitempty"`
+	MissingTool                        *MissingToolConfig                        `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
+	AllowedDomains                     []string                                  `yaml:"allowed-domains,omitempty"`
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -206,8 +206,8 @@ type CreatePullRequestReviewCommentsConfig struct {
 	Side string `yaml:"side,omitempty"` // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
 }
 
-// CreateSecurityReportsConfig holds configuration for creating security reports (SARIF format) from agent output
-type CreateSecurityReportsConfig struct {
+// CreateRepositorySecurityAdvisoriesConfig holds configuration for creating repository security advisories (SARIF format) from agent output
+type CreateRepositorySecurityAdvisoriesConfig struct {
 	Max    int    `yaml:"max,omitempty"`    // Maximum number of security findings to include (default: unlimited)
 	Driver string `yaml:"driver,omitempty"` // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
 }
@@ -1881,16 +1881,16 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
-		// Build create_security_report job if output.create-security-report is configured
-		if data.SafeOutputs.CreateSecurityReports != nil {
+		// Build create_repository_security_advisory job if output.create-repository-security-advisory is configured
+		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
 			// Extract the workflow filename without extension for rule ID prefix
 			workflowFilename := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-			createSecurityReportJob, err := c.buildCreateOutputSecurityReportJob(data, jobName, workflowFilename)
+			createRepositorySecurityAdvisoryJob, err := c.buildCreateOutputRepositorySecurityAdvisoryJob(data, jobName, workflowFilename)
 			if err != nil {
-				return fmt.Errorf("failed to build create_security_report job: %w", err)
+				return fmt.Errorf("failed to build create_repository_security_advisory job: %w", err)
 			}
-			if err := c.jobManager.AddJob(createSecurityReportJob); err != nil {
-				return fmt.Errorf("failed to add create_security_report job: %w", err)
+			if err := c.jobManager.AddJob(createRepositorySecurityAdvisoryJob); err != nil {
+				return fmt.Errorf("failed to add create_repository_security_advisory job: %w", err)
 			}
 		}
 
@@ -2400,15 +2400,15 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	return job, nil
 }
 
-// buildCreateOutputSecurityReportJob creates the create_security_report job
-func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateSecurityReports == nil {
-		return nil, fmt.Errorf("safe-outputs.create-security-report configuration is required")
+// buildCreateOutputRepositorySecurityAdvisoryJob creates the create_repository_security_advisory job
+func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.CreateRepositorySecurityAdvisories == nil {
+		return nil, fmt.Errorf("safe-outputs.create-repository-security-advisory configuration is required")
 	}
 
 	var steps []string
-	steps = append(steps, "      - name: Create Security Report\n")
-	steps = append(steps, "        id: create_security_report\n")
+	steps = append(steps, "      - name: Create Repository Security Advisory\n")
+	steps = append(steps, "        id: create_repository_security_advisory\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 
 	// Add environment variables
@@ -2416,11 +2416,11 @@ func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJo
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	// Pass the max configuration
-	if data.SafeOutputs.CreateSecurityReports.Max > 0 {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateSecurityReports.Max))
+	if data.SafeOutputs.CreateRepositorySecurityAdvisories.Max > 0 {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateRepositorySecurityAdvisories.Max))
 	}
 	// Pass the driver configuration, defaulting to frontmatter name
-	driverName := data.SafeOutputs.CreateSecurityReports.Driver
+	driverName := data.SafeOutputs.CreateRepositorySecurityAdvisories.Driver
 	if driverName == "" {
 		if data.FrontmatterName != "" {
 			driverName = data.FrontmatterName
@@ -2436,33 +2436,33 @@ func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJo
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createSecurityReportScript)
+	formattedScript := FormatJavaScriptForYAML(createRepositorySecurityAdvisoryScript)
 	steps = append(steps, formattedScript...)
 
 	// Add step to upload SARIF artifact
 	steps = append(steps, "      - name: Upload SARIF artifact\n")
-	steps = append(steps, "        if: steps.create_security_report.outputs.sarif_file\n")
+	steps = append(steps, "        if: steps.create_repository_security_advisory.outputs.sarif_file\n")
 	steps = append(steps, "        uses: actions/upload-artifact@v4\n")
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: security-report.sarif\n")
-	steps = append(steps, "          path: ${{ steps.create_security_report.outputs.sarif_file }}\n")
+	steps = append(steps, "          name: repository-security-advisory.sarif\n")
+	steps = append(steps, "          path: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}\n")
 
 	// Add step to upload SARIF to GitHub Code Scanning
 	steps = append(steps, "      - name: Upload SARIF to GitHub Security\n")
-	steps = append(steps, "        if: steps.create_security_report.outputs.sarif_file\n")
+	steps = append(steps, "        if: steps.create_repository_security_advisory.outputs.sarif_file\n")
 	steps = append(steps, "        uses: github/codeql-action/upload-sarif@v3\n")
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}\n")
+	steps = append(steps, "          sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}\n")
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"sarif_file":        "${{ steps.create_security_report.outputs.sarif_file }}",
-		"findings_count":    "${{ steps.create_security_report.outputs.findings_count }}",
-		"artifact_uploaded": "${{ steps.create_security_report.outputs.artifact_uploaded }}",
-		"codeql_uploaded":   "${{ steps.create_security_report.outputs.codeql_uploaded }}",
+		"sarif_file":        "${{ steps.create_repository_security_advisory.outputs.sarif_file }}",
+		"findings_count":    "${{ steps.create_repository_security_advisory.outputs.findings_count }}",
+		"artifact_uploaded": "${{ steps.create_repository_security_advisory.outputs.artifact_uploaded }}",
+		"codeql_uploaded":   "${{ steps.create_repository_security_advisory.outputs.codeql_uploaded }}",
 	}
 
-	// Build job condition - security reports can run in any context unlike PR review comments
+	// Build job condition - repository security advisories can run in any context unlike PR review comments
 	var jobCondition string
 	if data.Command != "" {
 		// Build the command trigger condition
@@ -2470,12 +2470,12 @@ func (c *Compiler) buildCreateOutputSecurityReportJob(data *WorkflowData, mainJo
 		commandConditionStr := commandCondition.Render()
 		jobCondition = commandConditionStr
 	} else {
-		// No specific condition needed - security reports can run anytime
+		// No specific condition needed - repository security advisories can run anytime
 		jobCondition = ""
 	}
 
 	job := &Job{
-		Name:           "create_security_report",
+		Name:           "create_repository_security_advisory",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      security-events: write\n      actions: read", // Need security-events:write for SARIF upload
@@ -3121,11 +3121,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			written = true
 		}
 
-		if data.SafeOutputs.CreateSecurityReports != nil {
+		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
 			if written {
 				yaml.WriteString(", ")
 			}
-			yaml.WriteString("Creating Security Reports")
+			yaml.WriteString("Creating Repository Security Advisories")
 			written = true
 		}
 
@@ -3242,13 +3242,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          \n")
 		}
 
-		if data.SafeOutputs.CreateSecurityReports != nil {
-			yaml.WriteString("          **Creating Security Reports**\n")
+		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
+			yaml.WriteString("          **Creating Repository Security Advisories**\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To create security reports (SARIF format for GitHub Code Scanning):\n")
+			yaml.WriteString("          To create repository security advisories (SARIF format for GitHub Code Scanning):\n")
 			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"create-security-report\", \"file\": \"path/to/file.js\", \"line\": 42, \"severity\": \"error\", \"message\": \"Security vulnerability description\", \"column\": 5, \"ruleIdSuffix\": \"custom-rule\"}\n")
+			yaml.WriteString("          {\"type\": \"create-repository-security-advisory\", \"file\": \"path/to/file.js\", \"line\": 42, \"severity\": \"error\", \"message\": \"Security vulnerability description\", \"column\": 5, \"ruleIdSuffix\": \"custom-rule\"}\n")
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          2. **Required fields**: `file` (string), `line` (number), `severity` (\"error\", \"warning\", \"info\", or \"note\"), `message` (string)\n")
 			yaml.WriteString("          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)\n")
@@ -3298,8 +3298,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Update documentation with latest changes\"}\n")
 			exampleCount++
 		}
-		if data.SafeOutputs.CreateSecurityReports != nil {
-			yaml.WriteString("          {\"type\": \"create-security-report\", \"file\": \"src/auth.js\", \"line\": 25, \"severity\": \"error\", \"message\": \"Potential SQL injection vulnerability\"}\n")
+		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
+			yaml.WriteString("          {\"type\": \"create-repository-security-advisory\", \"file\": \"src/auth.js\", \"line\": 25, \"severity\": \"error\", \"message\": \"Potential SQL injection vulnerability\"}\n")
 			exampleCount++
 		}
 
@@ -3404,10 +3404,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreatePullRequestReviewComments = prReviewCommentsConfig
 			}
 
-			// Handle create-security-report
-			securityReportsConfig := c.parseSecurityReportsConfig(outputMap)
+			// Handle create-repository-security-advisory
+			securityReportsConfig := c.parseRepositorySecurityAdvisoriesConfig(outputMap)
 			if securityReportsConfig != nil {
-				config.CreateSecurityReports = securityReportsConfig
+				config.CreateRepositorySecurityAdvisories = securityReportsConfig
 			}
 
 			// Parse allowed-domains configuration
@@ -3679,14 +3679,14 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 	return prReviewCommentsConfig
 }
 
-// parseSecurityReportsConfig handles create-security-report configuration
-func (c *Compiler) parseSecurityReportsConfig(outputMap map[string]any) *CreateSecurityReportsConfig {
-	if _, exists := outputMap["create-security-report"]; !exists {
+// parseRepositorySecurityAdvisoriesConfig handles create-repository-security-advisory configuration
+func (c *Compiler) parseRepositorySecurityAdvisoriesConfig(outputMap map[string]any) *CreateRepositorySecurityAdvisoriesConfig {
+	if _, exists := outputMap["create-repository-security-advisory"]; !exists {
 		return nil
 	}
 
-	configData := outputMap["create-security-report"]
-	securityReportsConfig := &CreateSecurityReportsConfig{Max: 0} // Default max is 0 (unlimited)
+	configData := outputMap["create-repository-security-advisory"]
+	securityReportsConfig := &CreateRepositorySecurityAdvisoriesConfig{Max: 0} // Default max is 0 (unlimited)
 
 	if configMap, ok := configData.(map[string]any); ok {
 		// Parse max
@@ -4012,7 +4012,30 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Collect agent output\n")
+	yaml.WriteString("      - name: Print Agent output\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          echo \"## Agent Output (JSONL)\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '``````json' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          # Ensure there's a newline after the file content if it doesn't end with one\n")
+	yaml.WriteString("          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ \"$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})\" != \"\" ]; then\n")
+	yaml.WriteString("            echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          fi\n")
+	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+
+	yaml.WriteString("      - name: Upload agentic output file\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          name: %s\n", OutputArtifactName)
+	yaml.WriteString("          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+
+	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 
@@ -4058,15 +4081,15 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 			}
 			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
 		}
-		if data.SafeOutputs.CreateSecurityReports != nil {
+		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
 			securityReportConfig := map[string]interface{}{
 				"enabled": true,
 			}
 			// Security reports typically have unlimited max, but check if configured
-			if data.SafeOutputs.CreateSecurityReports.Max > 0 {
-				securityReportConfig["max"] = data.SafeOutputs.CreateSecurityReports.Max
+			if data.SafeOutputs.CreateRepositorySecurityAdvisories.Max > 0 {
+				securityReportConfig["max"] = data.SafeOutputs.CreateRepositorySecurityAdvisories.Max
 			}
-			safeOutputsConfig["create-security-report"] = securityReportConfig
+			safeOutputsConfig["create-repository-security-advisory"] = securityReportConfig
 		}
 		if data.SafeOutputs.AddIssueLabels != nil {
 			safeOutputsConfig["add-issue-label"] = true
@@ -4111,33 +4134,15 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	// Add each line of the script with proper indentation
 	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
 
-	yaml.WriteString("      - name: Print agent output to step summary\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("      - name: Print sanitized agent output\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Agent Output (JSONL)\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````json' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          # Ensure there's a newline after the file content if it doesn't end with one\n")
-	yaml.WriteString("          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ \"$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})\" != \"\" ]; then\n")
-	yaml.WriteString("            echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          fi\n")
-	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo \"## Processed Output\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````json' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("      - name: Upload agentic output file\n")
-	yaml.WriteString("        if: always() && steps.collect_output.outputs.output != ''\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", OutputArtifactName)
-	yaml.WriteString("          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
-	yaml.WriteString("      - name: Upload agent output JSON\n")
+
+	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GITHUB_AW_AGENT_OUTPUT\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")

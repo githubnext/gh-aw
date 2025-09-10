@@ -36,7 +36,7 @@
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
-        {"$ref": "#/$defs/CreateSecurityReportOutput"}
+        {"$ref": "#/$defs/CreateRepositorySecurityAdvisoryOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -282,13 +282,13 @@
       "required": ["type", "tool", "reason"],
       "additionalProperties": false
     },
-    "CreateSecurityReportOutput": {
-      "title": "Create Security Report Output",
-      "description": "Output for generating SARIF security reports",
+    "CreateRepositorySecurityAdvisoryOutput": {
+      "title": "Create Repository Security Advisory Output",
+      "description": "Output for generating SARIF repository security advisories",
       "type": "object",
       "properties": {
         "type": {
-          "const": "create-security-report"
+          "const": "create-repository-security-advisory"
         },
         "sarif": {
           "oneOf": [
@@ -299,7 +299,7 @@
         },
         "category": {
           "type": "string",
-          "description": "Optional category for the security report"
+          "description": "Optional category for the repository security advisory"
         }
       },
       "required": ["type", "sarif"],

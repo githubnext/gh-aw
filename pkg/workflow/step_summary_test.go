@@ -56,9 +56,9 @@ This workflow tests that the step summary includes both JSONL and processed outp
 
 	lockContent := string(content)
 
-	// Verify that the "Print agent output to step summary" step exists
-	if !strings.Contains(lockContent, "- name: Print agent output to step summary") {
-		t.Error("Expected 'Print agent output to step summary' step")
+	// Verify that the "Print sanitized agent output" step exists
+	if !strings.Contains(lockContent, "- name: Print sanitized agent output") {
+		t.Error("Expected 'Print sanitized agent output' step")
 	}
 
 	// Verify that the step includes the original JSONL output section
