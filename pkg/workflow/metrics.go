@@ -6,13 +6,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ToolCallInfo represents statistics for a single tool
 type ToolCallInfo struct {
-	Name          string // Prettified tool name (e.g., "github::search_issues", "bash")
-	CallCount     int    // Number of times this tool was called
-	MaxOutputSize int    // Maximum output size in tokens for any call
+	Name          string        // Prettified tool name (e.g., "github::search_issues", "bash")
+	CallCount     int           // Number of times this tool was called
+	MaxOutputSize int           // Maximum output size in tokens for any call
+	MaxDuration   time.Duration // Maximum execution duration for any call
 }
 
 // LogMetrics represents extracted metrics from log files
