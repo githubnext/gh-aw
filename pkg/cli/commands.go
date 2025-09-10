@@ -603,7 +603,12 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 	return nil
 }
-func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, writeInstructions bool, noEmit bool) error {
+func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, writeInstructions bool, noEmit bool, purge bool) error {
+	// Validate purge flag usage
+	if purge && len(markdownFiles) > 0 {
+		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+	}
+
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 
@@ -703,6 +708,27 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		fmt.Printf("Found %d markdown files to compile\n", len(mdFiles))
 	}
 
+	// Handle purge logic: collect existing .lock.yml files before compilation
+	var existingLockFiles []string
+	var expectedLockFiles []string
+	if purge {
+		// Find all existing .lock.yml files
+		existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+		if err != nil {
+			return fmt.Errorf("failed to find existing lock files: %w", err)
+		}
+
+		// Create expected lock files list based on markdown files
+		for _, mdFile := range mdFiles {
+			lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+			expectedLockFiles = append(expectedLockFiles, lockFile)
+		}
+
+		if verbose && len(existingLockFiles) > 0 {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
+		}
+	}
+
 	// Compile each file
 	for _, file := range mdFiles {
 		if verbose {
@@ -715,6 +741,38 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 
 	if verbose {
 		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled all %d workflow files", len(mdFiles))))
+	}
+
+	// Handle purge logic: delete orphaned .lock.yml files
+	if purge && len(existingLockFiles) > 0 {
+		// Find lock files that should be deleted (exist but aren't expected)
+		expectedLockFileSet := make(map[string]bool)
+		for _, expected := range expectedLockFiles {
+			expectedLockFileSet[expected] = true
+		}
+
+		var orphanedFiles []string
+		for _, existing := range existingLockFiles {
+			if !expectedLockFileSet[existing] {
+				orphanedFiles = append(orphanedFiles, existing)
+			}
+		}
+
+		// Delete orphaned lock files
+		if len(orphanedFiles) > 0 {
+			for _, orphanedFile := range orphanedFiles {
+				if err := os.Remove(orphanedFile); err != nil {
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned lock file %s: %v", filepath.Base(orphanedFile), err)))
+				} else {
+					fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Removed orphaned lock file: %s", filepath.Base(orphanedFile))))
+				}
+			}
+			if verbose {
+				fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .lock.yml files", len(orphanedFiles))))
+			}
+		} else if verbose {
+			fmt.Println(console.FormatInfoMessage("No orphaned .lock.yml files found to purge"))
+		}
 	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated

@@ -864,6 +864,7 @@ Agentic workflows compile to GitHub Actions YAML:
   - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
   - Supports partial matching and fuzzy search for workflow names
 - **`gh aw compile --verbose`** - Show detailed compilation and validation messages
+- **`gh aw compile --purge`** - Remove orphaned `.lock.yml` files that no longer have corresponding `.md` files
 
 ## Best Practices
 
