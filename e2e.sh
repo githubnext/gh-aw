@@ -339,7 +339,7 @@ disable_workflow() {
     fi
 }
 
-trigger_workflow_dispatch() {
+trigger_workflow_dispatch_and_await_completion() {
     local workflow_name="$1"
     local workflow_file="${workflow_name}.lock.yml"
     
@@ -478,7 +478,7 @@ validate_issue_comment() {
         success "Issue #$issue_number has expected comment containing: $expected_comment_text"
         return 0
     else
-        error "Issue #$issue_number missing expected comment containing: $expected_comment_text"
+        warning "Issue #$issue_number missing expected comment containing: $expected_comment_text"
         return 1
     fi
 }
@@ -494,7 +494,7 @@ validate_issue_labels() {
         success "Issue #$issue_number has expected label: $expected_label"
         return 0
     else
-        error "Issue #$issue_number missing expected label: $expected_label"
+        warning "Issue #$issue_number missing expected label: $expected_label"
         return 1
     fi
 }
@@ -518,6 +518,8 @@ validate_issue_updated() {
     if [[ "$title" == *"Updated by $ai_type"* ]] || [[ "$title" == *"[$ai_type-updated]"* ]]; then
         success "Issue #$issue_number title was updated by $ai_type"
         return 0
+    else
+        warning "Issue #$issue_number title does not show expected update by $ai_type"
     fi
     
     # Check if body was updated
@@ -526,6 +528,8 @@ validate_issue_updated() {
     if [[ "$body" == *"Updated by $ai_type"* ]] || [[ "$body" == *"$ai_type updated this issue"* ]]; then
         success "Issue #$issue_number body was updated by $ai_type"
         return 0
+    else
+        warning "Issue #$issue_number body does not show expected update by $ai_type"
     fi
     
     # Check for update comments
@@ -534,6 +538,8 @@ validate_issue_updated() {
     if echo "$comments" | grep -q "Updated by $ai_type\|$ai_type updated this issue"; then
         success "Issue #$issue_number has update comment from $ai_type"
         return 0
+    else
+        warning "Issue #$issue_number missing expected update comment from $ai_type"
     fi
     
     # Check for update-related labels
@@ -542,6 +548,8 @@ validate_issue_updated() {
     if [[ "$labels" == *"updated-by-$ai_type"* ]] || [[ "$labels" == *"$ai_type-updated"* ]]; then
         success "Issue #$issue_number has update label from $ai_type"
         return 0
+    else
+        warning "Issue #$issue_number missing expected update label from $ai_type"
     fi
     
     return 1
@@ -845,7 +853,7 @@ run_workflow_dispatch_tests() {
     for workflow in "${workflows[@]}"; do
         progress "Testing workflow: $workflow"
         
-        if trigger_workflow_dispatch "$workflow"; then
+        if trigger_workflow_dispatch_and_await_completion "$workflow"; then
             # Validate specific outcomes based on workflow type
             case "$workflow" in
                 *"create-issue")
