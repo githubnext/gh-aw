@@ -123,27 +123,10 @@ should_run_test() {
 }
 
 get_all_test_names() {
-    echo "test-claude-create-issue"
-    echo "test-codex-create-issue"
-    echo "test-claude-create-pull-request"
-    echo "test-codex-create-pull-request"
-    echo "test-claude-create-repository-security-advisory"
-    echo "test-codex-create-repository-security-advisory"
-    echo "test-claude-mcp"
-    echo "test-codex-mcp"
-    echo "test-custom-safe-outputs"
-    echo "test-claude-add-issue-comment"
-    echo "test-codex-add-issue-comment"
-    echo "test-claude-add-issue-labels"
-    echo "test-codex-add-issue-labels"
-    echo "test-claude-command"
-    echo "test-codex-command"
-    echo "test-claude-push-to-branch"
-    echo "test-codex-push-to-branch"
-    echo "test-claude-create-pull-request-review-comment"
-    echo "test-codex-create-pull-request-review-comment"
-    echo "test-claude-update-issue"
-    echo "test-codex-update-issue"
+    get_workflow_dispatch_tests
+    get_issue_triggered_tests
+    get_command_triggered_tests
+    get_pr_triggered_tests
 }
 
 get_workflow_dispatch_tests() {
@@ -454,7 +437,7 @@ validate_issue_created() {
             issue_labels=$(gh issue view "$issue_number" --json labels --jq '.labels[].name' | tr '\n' ',' | sed 's/,$//')
             for label in ${expected_labels//,/ }; do
                 if [[ "$issue_labels" != *"$label"* ]]; then
-                    error "Issue #$issue_number missing expected label: $label"
+                    error "Issue #$issue_number missing expected label: '$label'. Actual labels: '$issue_labels'"
                     return 1
                 fi
             done
@@ -478,7 +461,7 @@ validate_issue_comment() {
         success "Issue #$issue_number has expected comment containing: $expected_comment_text"
         return 0
     else
-        warning "Issue #$issue_number missing expected comment containing: $expected_comment_text"
+        warning "(polling) Issue #$issue_number missing expected comment containing: '$expected_comment_text'. Actual comments: ${comments:0:200}..."
         return 1
     fi
 }
@@ -494,7 +477,7 @@ validate_issue_labels() {
         success "Issue #$issue_number has expected label: $expected_label"
         return 0
     else
-        warning "Issue #$issue_number missing expected label: $expected_label"
+        warning "(polling) Issue #$issue_number missing expected label: '$expected_label'. Actual labels: '$labels'"
         return 1
     fi
 }
@@ -505,54 +488,55 @@ validate_issue_updated() {
     
     # Check for various signs that the issue was updated by the AI
     local issue_data
-    issue_data=$(gh issue view "$issue_number" --json title,body,comments,labels 2>/dev/null)
+    issue_data=$(gh issue view "$issue_number" --json title,body,comments,labels,state 2>/dev/null)
     
     if [[ -z "$issue_data" ]]; then
         error "Could not retrieve issue #$issue_number data"
         return 1
     fi
     
+    local title_success=false
+    local body_success=false
+    local state_success=false
+    
     # Check if title was updated
     local title
     title=$(echo "$issue_data" | jq -r '.title')
-    if [[ "$title" == *"Updated by $ai_type"* ]] || [[ "$title" == *"[$ai_type-updated]"* ]]; then
+    if [[ "$title" == *"Processed by $ai_type"* ]]; then
         success "Issue #$issue_number title was updated by $ai_type"
-        return 0
+        title_success=true
     else
-        warning "Issue #$issue_number title does not show expected update by $ai_type"
+        warning "(polling) Issue #$issue_number title does not show expected update by $ai_type. Expected pattern: 'Processed by $ai_type'. Actual title: '$title'"
     fi
     
     # Check if body was updated
     local body
     body=$(echo "$issue_data" | jq -r '.body')
-    if [[ "$body" == *"Updated by $ai_type"* ]] || [[ "$body" == *"$ai_type updated this issue"* ]]; then
+    if [[ "$body" == *"updated by"* ]]; then
         success "Issue #$issue_number body was updated by $ai_type"
-        return 0
+        body_success=true
     else
-        warning "Issue #$issue_number body does not show expected update by $ai_type"
+        warning "(polling) Issue #$issue_number body does not show expected update by $ai_type. Expected pattern: 'updated by'. Actual body: ${body:0:200}..."
     fi
     
-    # Check for update comments
-    local comments
-    comments=$(echo "$issue_data" | jq -r '.comments[].body')
-    if echo "$comments" | grep -q "Updated by $ai_type\|$ai_type updated this issue"; then
-        success "Issue #$issue_number has update comment from $ai_type"
-        return 0
+    # Check for status closed
+    local state
+    state=$(echo "$issue_data" | jq -r '.state')
+    if [[ "$state" == "closed" ]]; then
+        success "Issue #$issue_number was closed, indicating it was processed"
+        state_success=true
     else
-        warning "Issue #$issue_number missing expected update comment from $ai_type"
+        warning "(polling) Issue #$issue_number is still open. Expected it to be closed after processing."
     fi
     
-    # Check for update-related labels
-    local labels
-    labels=$(echo "$issue_data" | jq -r '.labels[].name' | tr '\n' ',')
-    if [[ "$labels" == *"updated-by-$ai_type"* ]] || [[ "$labels" == *"$ai_type-updated"* ]]; then
-        success "Issue #$issue_number has update label from $ai_type"
+    # Only return success if all three checks passed
+    if [[ "$title_success" == true ]] && [[ "$body_success" == true ]] && [[ "$state_success" == true ]]; then
+        success "Issue #$issue_number validation passed: all checks (title, body, state) succeeded"
         return 0
     else
-        warning "Issue #$issue_number missing expected update label from $ai_type"
+        warning "(polling) Issue #$issue_number validation incomplete: title=$title_success, body=$body_success, state=$state_success"
+        return 1
     fi
-    
-    return 1
 }
 
 validate_pr_created() {
@@ -713,6 +697,7 @@ wait_for_issue_comment() {
             PASSED_TESTS+=("$test_name")
             return 0
         fi
+        info "..."
         sleep 5
         waited=$((waited + 5))
     done
@@ -733,6 +718,7 @@ wait_for_issue_labels() {
             PASSED_TESTS+=("$test_name")
             return 0
         fi
+        info "..."
         sleep 5
         waited=$((waited + 5))
     done
@@ -753,6 +739,48 @@ wait_for_issue_update() {
             PASSED_TESTS+=("$test_name")
             return 0
         fi
+        info "..."
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
+}
+
+wait_for_command_comment() {
+    local issue_number="$1"
+    local expected_text="$2"
+    local test_name="$3"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_issue_comment "$issue_number" "$expected_text"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        info "..."
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
+}
+
+wait_for_branch_creation() {
+    local branch_name="$1"
+    local test_name="$2"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_branch_created "$branch_name"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        info "..."
         sleep 5
         waited=$((waited + 5))
     done
@@ -1233,13 +1261,7 @@ run_command_tests() {
                         progress "Testing Claude command workflow"
                         post_issue_command "$claude_issue_num" "/test-claude-command What is this repository about?"
                         
-                        sleep 15 # Wait for workflow to process
-                        
-                        if validate_issue_comment "$claude_issue_num" "Claude"; then
-                            PASSED_TESTS+=("test-claude-command")
-                        else
-                            FAILED_TESTS+=("test-claude-command")
-                        fi
+                        wait_for_command_comment "$claude_issue_num" "Claude" "test-claude-command"
                     fi
                     
                     # Test push to branch command
@@ -1247,13 +1269,7 @@ run_command_tests() {
                         progress "Testing Claude push-to-branch workflow"
                         post_issue_command "$claude_issue_num" "/test-claude-push-to-branch"
                         
-                        sleep 20 # Wait for workflow to process
-                        
-                        if validate_branch_created "claude-test-branch"; then
-                            PASSED_TESTS+=("test-claude-push-to-branch")
-                        else
-                            FAILED_TESTS+=("test-claude-push-to-branch")
-                        fi
+                        wait_for_branch_creation "claude-test-branch" "test-claude-push-to-branch"
                     fi
                 else
                     error "Failed to create test issue for Claude commands"
@@ -1276,15 +1292,9 @@ run_command_tests() {
                     # Test Codex command
                     if [[ "$need_codex_command" == true ]]; then
                         progress "Testing Codex command workflow"
-                        post_issue_command "$codex_issue_num" "/test-codex-command What is this repository about?"
+                        post_issue_command "$codex_issue_num" "/test-codex-command What is 102+103?"
                         
-                        sleep 15 # Wait for workflow to process
-                        
-                        if validate_issue_comment "$codex_issue_num" "Codex"; then
-                            PASSED_TESTS+=("test-codex-command")
-                        else
-                            FAILED_TESTS+=("test-codex-command")
-                        fi
+                        wait_for_command_comment "$codex_issue_num" "Codex" "test-codex-command"
                     fi
                     
                     # Test push to branch command
@@ -1292,13 +1302,7 @@ run_command_tests() {
                         progress "Testing Codex push-to-branch workflow"
                         post_issue_command "$codex_issue_num" "/test-codex-push-to-branch"
                         
-                        sleep 20 # Wait for workflow to process
-                        
-                        if validate_branch_created "codex-test-branch"; then
-                            PASSED_TESTS+=("test-codex-push-to-branch")
-                        else
-                            FAILED_TESTS+=("test-codex-push-to-branch")
-                        fi
+                        wait_for_branch_creation "codex-test-branch" "test-codex-push-to-branch"
                     fi
                 else
                     error "Failed to create test issue for Codex commands"
