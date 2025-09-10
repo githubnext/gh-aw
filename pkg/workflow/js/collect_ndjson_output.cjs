@@ -278,6 +278,7 @@ async function main() {
         return JSON.parse(repairedJson);
       } catch (repairError) {
         // If repair also fails, throw the error
+        console.log(`invalid input json: ${jsonStr}`);
         throw new Error(
           `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
         );
