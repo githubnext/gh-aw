@@ -54,7 +54,10 @@ describe("create_repository_security_advisory.cjs", () => {
   afterEach(() => {
     // Clean up any created files
     try {
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       if (fs.existsSync(sarifFile)) {
         fs.unlinkSync(sarifFile);
       }
@@ -157,7 +160,10 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       expect(fs.existsSync(sarifFile)).toBe(true);
 
       // Check SARIF content
@@ -229,7 +235,10 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only 1 finding
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       expect(fs.existsSync(sarifFile)).toBe(true);
 
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
@@ -291,7 +300,10 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only the 1 valid finding
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       expect(fs.existsSync(sarifFile)).toBe(true);
 
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
@@ -327,7 +339,10 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check driver name
@@ -361,7 +376,10 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check default driver name
@@ -404,7 +422,10 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check first result has custom column
@@ -466,7 +487,10 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
       expect(sarifContent.runs[0].results[0].message.text).toBe(
@@ -517,7 +541,10 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check first result has custom rule ID
@@ -590,7 +617,10 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed
-      const sarifFile = path.join(process.cwd(), "repository-security-advisory.sarif");
+      const sarifFile = path.join(
+        process.cwd(),
+        "repository-security-advisory.sarif"
+      );
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
       expect(sarifContent.runs[0].results[0].message.text).toBe(
