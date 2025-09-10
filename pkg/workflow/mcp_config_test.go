@@ -461,7 +461,7 @@ func extractGitHubSection(content string) string {
 	if startIdx == -1 {
 		return ""
 	}
-	
+
 	// Find the matching closing brace
 	braceCount := 0
 	inBraces := false
@@ -473,10 +473,10 @@ func extractGitHubSection(content string) string {
 		} else if char == '}' {
 			braceCount--
 			if inBraces && braceCount == 0 {
-				return content[startIdx:i+1]
+				return content[startIdx : i+1]
 			}
 		}
 	}
-	
+
 	return ""
 }
