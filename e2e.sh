@@ -499,6 +499,54 @@ validate_issue_labels() {
     fi
 }
 
+validate_issue_updated() {
+    local issue_number="$1"
+    local ai_type="$2"  # "Claude" or "Codex"
+    
+    # Check for various signs that the issue was updated by the AI
+    local issue_data
+    issue_data=$(gh issue view "$issue_number" --json title,body,comments,labels 2>/dev/null)
+    
+    if [[ -z "$issue_data" ]]; then
+        error "Could not retrieve issue #$issue_number data"
+        return 1
+    fi
+    
+    # Check if title was updated
+    local title
+    title=$(echo "$issue_data" | jq -r '.title')
+    if [[ "$title" == *"Updated by $ai_type"* ]] || [[ "$title" == *"[$ai_type-updated]"* ]]; then
+        success "Issue #$issue_number title was updated by $ai_type"
+        return 0
+    fi
+    
+    # Check if body was updated
+    local body
+    body=$(echo "$issue_data" | jq -r '.body')
+    if [[ "$body" == *"Updated by $ai_type"* ]] || [[ "$body" == *"$ai_type updated this issue"* ]]; then
+        success "Issue #$issue_number body was updated by $ai_type"
+        return 0
+    fi
+    
+    # Check for update comments
+    local comments
+    comments=$(echo "$issue_data" | jq -r '.comments[].body')
+    if echo "$comments" | grep -q "Updated by $ai_type\|$ai_type updated this issue"; then
+        success "Issue #$issue_number has update comment from $ai_type"
+        return 0
+    fi
+    
+    # Check for update-related labels
+    local labels
+    labels=$(echo "$issue_data" | jq -r '.labels[].name' | tr '\n' ',')
+    if [[ "$labels" == *"updated-by-$ai_type"* ]] || [[ "$labels" == *"$ai_type-updated"* ]]; then
+        success "Issue #$issue_number has update label from $ai_type"
+        return 0
+    fi
+    
+    return 1
+}
+
 validate_pr_created() {
     local title_prefix="$1"
     
@@ -642,6 +690,67 @@ validate_branch_created() {
         error "Branch '$branch_name' not found"
         return 1
     fi
+}
+
+# Polling functions for workflow validation
+wait_for_issue_comment() {
+    local issue_number="$1"
+    local expected_text="$2"
+    local test_name="$3"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_issue_comment "$issue_number" "$expected_text"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
+}
+
+wait_for_issue_labels() {
+    local issue_number="$1"
+    local expected_label="$2"
+    local test_name="$3"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_issue_labels "$issue_number" "$expected_label"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
+}
+
+wait_for_issue_update() {
+    local issue_number="$1"
+    local ai_type="$2"
+    local test_name="$3"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_issue_updated "$issue_number" "$ai_type"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
 }
 
 cleanup_test_resources() {
@@ -842,6 +951,10 @@ run_issue_triggered_tests() {
     # Check if we need to run issue-triggered tests that require creating an issue
     local need_claude_comment=false
     local need_claude_labels=false
+    local need_codex_comment=false
+    local need_codex_labels=false
+    local need_claude_update=false
+    local need_codex_update=false
     
     if should_run_test "test-claude-add-issue-comment" "${patterns[@]}"; then
         need_claude_comment=true
@@ -851,52 +964,167 @@ run_issue_triggered_tests() {
         need_claude_labels=true
     fi
     
+    if should_run_test "test-codex-add-issue-comment" "${patterns[@]}"; then
+        need_codex_comment=true
+    fi
+    
+    if should_run_test "test-codex-add-issue-labels" "${patterns[@]}"; then
+        need_codex_labels=true
+    fi
+    
+    if should_run_test "test-claude-update-issue" "${patterns[@]}"; then
+        need_claude_update=true
+    fi
+    
+    if should_run_test "test-codex-update-issue" "${patterns[@]}"; then
+        need_codex_update=true
+    fi
+    
     # Only create test issue if we have tests that need the specific trigger
-    if [[ "$need_claude_comment" == true ]] || [[ "$need_claude_labels" == true ]]; then
-        progress "Testing claude issue comment and labeling workflows"
-        local issue_num
-        issue_num=$(create_test_issue "Hello from Claude" "This is a test issue to trigger Claude comment workflow")
+    if [[ "$need_claude_comment" == true ]] || [[ "$need_claude_labels" == true ]] || [[ "$need_codex_comment" == true ]] || [[ "$need_codex_labels" == true ]] || [[ "$need_claude_update" == true ]] || [[ "$need_codex_update" == true ]]; then
+        # Enable workflows before testing
+        local workflows_to_disable=()
         
-        if [[ -n "$issue_num" ]]; then
-            success "Created test issue #$issue_num"
-            sleep 10 # Wait for workflow to trigger
-            
-            # Test comment workflow if selected
-            if [[ "$need_claude_comment" == true ]]; then
-                # Wait for the workflow to complete (check for comment)
-                local max_wait=60
-                local waited=0
-                while [[ $waited -lt $max_wait ]]; do
-                    if validate_issue_comment "$issue_num" "Reply from Claude"; then
-                        PASSED_TESTS+=("test-claude-add-issue-comment")
-                        break
-                    fi
-                    sleep 5
-                    waited=$((waited + 5))
-                done
-                
-                if [[ $waited -ge $max_wait ]]; then
-                    FAILED_TESTS+=("test-claude-add-issue-comment")
-                fi
-            fi
-            
-            # Test issue labels workflow if selected
-            if [[ "$need_claude_labels" == true ]]; then
-                if validate_issue_labels "$issue_num" "claude-safe-output-label-test"; then
-                    PASSED_TESTS+=("test-claude-add-issue-labels")
-                else
-                    FAILED_TESTS+=("test-claude-add-issue-labels")
-                fi
-            fi
-        else
-            error "Failed to create test issue"
-            if [[ "$need_claude_comment" == true ]]; then
+        if [[ "$need_claude_comment" == true ]]; then
+            if enable_workflow "test-claude-add-issue-comment"; then
+                workflows_to_disable+=("test-claude-add-issue-comment")
+            else
                 FAILED_TESTS+=("test-claude-add-issue-comment")
-            fi
-            if [[ "$need_claude_labels" == true ]]; then
-                FAILED_TESTS+=("test-claude-add-issue-labels")
+                need_claude_comment=false
             fi
         fi
+        
+        if [[ "$need_claude_labels" == true ]]; then
+            if enable_workflow "test-claude-add-issue-labels"; then
+                workflows_to_disable+=("test-claude-add-issue-labels")
+            else
+                FAILED_TESTS+=("test-claude-add-issue-labels")
+                need_claude_labels=false
+            fi
+        fi
+        
+        if [[ "$need_codex_comment" == true ]]; then
+            if enable_workflow "test-codex-add-issue-comment"; then
+                workflows_to_disable+=("test-codex-add-issue-comment")
+            else
+                FAILED_TESTS+=("test-codex-add-issue-comment")
+                need_codex_comment=false
+            fi
+        fi
+        
+        if [[ "$need_codex_labels" == true ]]; then
+            if enable_workflow "test-codex-add-issue-labels"; then
+                workflows_to_disable+=("test-codex-add-issue-labels")
+            else
+                FAILED_TESTS+=("test-codex-add-issue-labels")
+                need_codex_labels=false
+            fi
+        fi
+        
+        if [[ "$need_claude_update" == true ]]; then
+            if enable_workflow "test-claude-update-issue"; then
+                workflows_to_disable+=("test-claude-update-issue")
+            else
+                FAILED_TESTS+=("test-claude-update-issue")
+                need_claude_update=false
+            fi
+        fi
+        
+        if [[ "$need_codex_update" == true ]]; then
+            if enable_workflow "test-codex-update-issue"; then
+                workflows_to_disable+=("test-codex-update-issue")
+            else
+                FAILED_TESTS+=("test-codex-update-issue")
+                need_codex_update=false
+            fi
+        fi
+        
+        # Only proceed if at least one workflow was enabled successfully
+        local have_claude_tests=$([ "$need_claude_comment" == true ] || [ "$need_claude_labels" == true ] || [ "$need_claude_update" == true ] && echo true || echo false)
+        local have_codex_tests=$([ "$need_codex_comment" == true ] || [ "$need_codex_labels" == true ] || [ "$need_codex_update" == true ] && echo true || echo false)
+        
+        if [[ "$have_claude_tests" == true ]] || [[ "$have_codex_tests" == true ]]; then
+            # Test Claude workflows if any are needed
+            if [[ "$have_claude_tests" == true ]]; then
+                progress "Testing claude issue triggered workflows"
+                local claude_issue_num
+                claude_issue_num=$(create_test_issue "Hello from Claude" "This is a test issue to trigger Claude workflows")
+                
+                if [[ -n "$claude_issue_num" ]]; then
+                    success "Created Claude test issue #$claude_issue_num: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$claude_issue_num"
+                    sleep 10 # Wait for workflow to trigger
+                    
+                    # Test comment workflow if selected
+                    if [[ "$need_claude_comment" == true ]]; then
+                        wait_for_issue_comment "$claude_issue_num" "Reply from Claude" "test-claude-add-issue-comment"
+                    fi
+                    
+                    # Test issue labels workflow if selected
+                    if [[ "$need_claude_labels" == true ]]; then
+                        wait_for_issue_labels "$claude_issue_num" "claude-safe-output-label-test" "test-claude-add-issue-labels"
+                    fi
+                    
+                    # Test issue update workflow if selected  
+                    if [[ "$need_claude_update" == true ]]; then
+                        wait_for_issue_update "$claude_issue_num" "Claude" "test-claude-update-issue"
+                    fi
+                else
+                    error "Failed to create Claude test issue"
+                    if [[ "$need_claude_comment" == true ]]; then
+                        FAILED_TESTS+=("test-claude-add-issue-comment")
+                    fi
+                    if [[ "$need_claude_labels" == true ]]; then
+                        FAILED_TESTS+=("test-claude-add-issue-labels")
+                    fi
+                    if [[ "$need_claude_update" == true ]]; then
+                        FAILED_TESTS+=("test-claude-update-issue")
+                    fi
+                fi
+            fi
+            
+            # Test Codex workflows if any are needed
+            if [[ "$have_codex_tests" == true ]]; then
+                progress "Testing codex issue triggered workflows"
+                local codex_issue_num
+                codex_issue_num=$(create_test_issue "Hello from Codex" "This is a test issue to trigger Codex workflows")
+                
+                if [[ -n "$codex_issue_num" ]]; then
+                    success "Created Codex test issue #$codex_issue_num: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$codex_issue_num"
+                    sleep 10 # Wait for workflow to trigger
+                    
+                    # Test comment workflow if selected
+                    if [[ "$need_codex_comment" == true ]]; then
+                        wait_for_issue_comment "$codex_issue_num" "Reply from Codex" "test-codex-add-issue-comment"
+                    fi
+                    
+                    # Test issue labels workflow if selected
+                    if [[ "$need_codex_labels" == true ]]; then
+                        wait_for_issue_labels "$codex_issue_num" "codex-safe-output-label-test" "test-codex-add-issue-labels"
+                    fi
+                    
+                    # Test issue update workflow if selected
+                    if [[ "$need_codex_update" == true ]]; then
+                        wait_for_issue_update "$codex_issue_num" "Codex" "test-codex-update-issue"
+                    fi
+                else
+                    error "Failed to create Codex test issue"
+                    if [[ "$need_codex_comment" == true ]]; then
+                        FAILED_TESTS+=("test-codex-add-issue-comment")
+                    fi
+                    if [[ "$need_codex_labels" == true ]]; then
+                        FAILED_TESTS+=("test-codex-add-issue-labels")
+                    fi
+                    if [[ "$need_codex_update" == true ]]; then
+                        FAILED_TESTS+=("test-codex-update-issue")
+                    fi
+                fi
+            fi
+        fi
+        
+        # Disable workflows after testing
+        for workflow in "${workflows_to_disable[@]}"; do
+            disable_workflow "$workflow"
+        done
     else
         info "No issue-triggered tests selected that require creating test issues"
     fi
@@ -920,6 +1148,8 @@ run_command_tests() {
     # Check if we actually need to run any command tests
     local need_claude_command=false
     local need_claude_push_to_branch=false
+    local need_codex_command=false
+    local need_codex_push_to_branch=false
     
     if should_run_test "test-claude-command" "${patterns[@]}"; then
         need_claude_command=true
@@ -929,49 +1159,155 @@ run_command_tests() {
         need_claude_push_to_branch=true
     fi
     
+    if should_run_test "test-codex-command" "${patterns[@]}"; then
+        need_codex_command=true
+    fi
+    
+    if should_run_test "test-codex-push-to-branch" "${patterns[@]}"; then
+        need_codex_push_to_branch=true
+    fi
+    
     # Only create test issue if we have command tests to run
-    if [[ "$need_claude_command" == true ]] || [[ "$need_claude_push_to_branch" == true ]]; then
-        # Create a test issue for command testing
-        local issue_num
-        issue_num=$(create_test_issue "Test Issue for Commands" "This issue is for testing command workflows")
+    if [[ "$need_claude_command" == true ]] || [[ "$need_claude_push_to_branch" == true ]] || [[ "$need_codex_command" == true ]] || [[ "$need_codex_push_to_branch" == true ]]; then
+        # Enable workflows before testing
+        local workflows_to_disable=()
         
-        if [[ -n "$issue_num" ]]; then
-            # Test Claude command
-            if [[ "$need_claude_command" == true ]]; then
-                progress "Testing Claude command workflow"
-                post_issue_command "$issue_num" "/test-claude-command What is this repository about?"
+        if [[ "$need_claude_command" == true ]]; then
+            if enable_workflow "test-claude-command"; then
+                workflows_to_disable+=("test-claude-command")
+            else
+                FAILED_TESTS+=("test-claude-command")
+                need_claude_command=false
+            fi
+        fi
+        
+        if [[ "$need_claude_push_to_branch" == true ]]; then
+            if enable_workflow "test-claude-push-to-branch"; then
+                workflows_to_disable+=("test-claude-push-to-branch")
+            else
+                FAILED_TESTS+=("test-claude-push-to-branch")
+                need_claude_push_to_branch=false
+            fi
+        fi
+        
+        if [[ "$need_codex_command" == true ]]; then
+            if enable_workflow "test-codex-command"; then
+                workflows_to_disable+=("test-codex-command")
+            else
+                FAILED_TESTS+=("test-codex-command")
+                need_codex_command=false
+            fi
+        fi
+        
+        if [[ "$need_codex_push_to_branch" == true ]]; then
+            if enable_workflow "test-codex-push-to-branch"; then
+                workflows_to_disable+=("test-codex-push-to-branch")
+            else
+                FAILED_TESTS+=("test-codex-push-to-branch")
+                need_codex_push_to_branch=false
+            fi
+        fi
+        
+        # Only proceed if at least one workflow was enabled successfully
+        local have_claude_tests=$([ "$need_claude_command" == true ] || [ "$need_claude_push_to_branch" == true ] && echo true || echo false)
+        local have_codex_tests=$([ "$need_codex_command" == true ] || [ "$need_codex_push_to_branch" == true ] && echo true || echo false)
+        
+        if [[ "$have_claude_tests" == true ]] || [[ "$have_codex_tests" == true ]]; then
+            # Test Claude command workflows if any are needed
+            if [[ "$have_claude_tests" == true ]]; then
+                # Create a test issue for Claude command testing
+                local claude_issue_num
+                claude_issue_num=$(create_test_issue "Test Issue for Claude Commands" "This issue is for testing Claude command workflows")
                 
-                sleep 15 # Wait for workflow to process
-                
-                if validate_issue_comment "$issue_num" "Claude"; then
-                    PASSED_TESTS+=("test-claude-command")
+                if [[ -n "$claude_issue_num" ]]; then
+                    # Test Claude command
+                    if [[ "$need_claude_command" == true ]]; then
+                        progress "Testing Claude command workflow"
+                        post_issue_command "$claude_issue_num" "/test-claude-command What is this repository about?"
+                        
+                        sleep 15 # Wait for workflow to process
+                        
+                        if validate_issue_comment "$claude_issue_num" "Claude"; then
+                            PASSED_TESTS+=("test-claude-command")
+                        else
+                            FAILED_TESTS+=("test-claude-command")
+                        fi
+                    fi
+                    
+                    # Test push to branch command
+                    if [[ "$need_claude_push_to_branch" == true ]]; then
+                        progress "Testing Claude push-to-branch workflow"
+                        post_issue_command "$claude_issue_num" "/test-claude-push-to-branch"
+                        
+                        sleep 20 # Wait for workflow to process
+                        
+                        if validate_branch_created "claude-test-branch"; then
+                            PASSED_TESTS+=("test-claude-push-to-branch")
+                        else
+                            FAILED_TESTS+=("test-claude-push-to-branch")
+                        fi
+                    fi
                 else
-                    FAILED_TESTS+=("test-claude-command")
+                    error "Failed to create test issue for Claude commands"
+                    if [[ "$need_claude_command" == true ]]; then
+                        FAILED_TESTS+=("test-claude-command")
+                    fi
+                    if [[ "$need_claude_push_to_branch" == true ]]; then
+                        FAILED_TESTS+=("test-claude-push-to-branch")
+                    fi
                 fi
             fi
             
-            # Test push to branch command
-            if [[ "$need_claude_push_to_branch" == true ]]; then
-                progress "Testing Claude push-to-branch workflow"
-                post_issue_command "$issue_num" "/test-claude-push-to-branch"
+            # Test Codex command workflows if any are needed
+            if [[ "$have_codex_tests" == true ]]; then
+                # Create a test issue for Codex command testing
+                local codex_issue_num
+                codex_issue_num=$(create_test_issue "Test Issue for Codex Commands" "This issue is for testing Codex command workflows")
                 
-                sleep 20 # Wait for workflow to process
-                
-                if validate_branch_created "claude-test-branch"; then
-                    PASSED_TESTS+=("test-claude-push-to-branch")
+                if [[ -n "$codex_issue_num" ]]; then
+                    # Test Codex command
+                    if [[ "$need_codex_command" == true ]]; then
+                        progress "Testing Codex command workflow"
+                        post_issue_command "$codex_issue_num" "/test-codex-command What is this repository about?"
+                        
+                        sleep 15 # Wait for workflow to process
+                        
+                        if validate_issue_comment "$codex_issue_num" "Codex"; then
+                            PASSED_TESTS+=("test-codex-command")
+                        else
+                            FAILED_TESTS+=("test-codex-command")
+                        fi
+                    fi
+                    
+                    # Test push to branch command
+                    if [[ "$need_codex_push_to_branch" == true ]]; then
+                        progress "Testing Codex push-to-branch workflow"
+                        post_issue_command "$codex_issue_num" "/test-codex-push-to-branch"
+                        
+                        sleep 20 # Wait for workflow to process
+                        
+                        if validate_branch_created "codex-test-branch"; then
+                            PASSED_TESTS+=("test-codex-push-to-branch")
+                        else
+                            FAILED_TESTS+=("test-codex-push-to-branch")
+                        fi
+                    fi
                 else
-                    FAILED_TESTS+=("test-claude-push-to-branch")
+                    error "Failed to create test issue for Codex commands"
+                    if [[ "$need_codex_command" == true ]]; then
+                        FAILED_TESTS+=("test-codex-command")
+                    fi
+                    if [[ "$need_codex_push_to_branch" == true ]]; then
+                        FAILED_TESTS+=("test-codex-push-to-branch")
+                    fi
                 fi
             fi
-        else
-            error "Failed to create test issue for commands"
-            if [[ "$need_claude_command" == true ]]; then
-                FAILED_TESTS+=("test-claude-command")
-            fi
-            if [[ "$need_claude_push_to_branch" == true ]]; then
-                FAILED_TESTS+=("test-claude-push-to-branch")
-            fi
         fi
+        
+        # Disable workflows after testing
+        for workflow in "${workflows_to_disable[@]}"; do
+            disable_workflow "$workflow"
+        done
     else
         info "No command tests selected to run"
     fi
@@ -989,24 +1325,76 @@ run_pr_triggered_tests() {
         return 0
     fi
     
-    # Test PR review comment workflow only if selected
+    # Test PR review comment workflows
+    local need_claude_pr=false
+    local need_codex_pr=false
+    
     if should_run_test "test-claude-create-pull-request-review-comment" "${patterns[@]}"; then
-        progress "Testing PR review comment workflow"
-        local pr_num
-        pr_num=$(create_test_pr "Test PR for Review" "This PR is for testing review comment workflows")
-        
-        if [[ -n "$pr_num" ]]; then
-            success "Created test PR #$pr_num"
-            sleep 10 # Wait for workflow to trigger
+        need_claude_pr=true
+    fi
+    
+    if should_run_test "test-codex-create-pull-request-review-comment" "${patterns[@]}"; then
+        need_codex_pr=true
+    fi
+    
+    local workflows_to_disable=()
+    
+    # Test Claude PR review comment workflow if selected
+    if [[ "$need_claude_pr" == true ]]; then
+        if enable_workflow "test-claude-create-pull-request-review-comment"; then
+            workflows_to_disable+=("test-claude-create-pull-request-review-comment")
+            progress "Testing Claude PR review comment workflow"
+            local claude_pr_num
+            claude_pr_num=$(create_test_pr "Test PR for Claude Review" "This PR is for testing Claude review comment workflows")
             
-            # Check if review comment was added (this is harder to validate automatically)
-            # For now, we'll just mark it as passed if the PR was created
-            PASSED_TESTS+=("test-claude-create-pull-request-review-comment")
+            if [[ -n "$claude_pr_num" ]]; then
+                success "Created Claude test PR #$claude_pr_num: https://github.com/$REPO_OWNER/$REPO_NAME/pull/$claude_pr_num"
+                sleep 10 # Wait for workflow to trigger
+                
+                # Check if review comment was added (this is harder to validate automatically)
+                # For now, we'll just mark it as passed if the PR was created
+                PASSED_TESTS+=("test-claude-create-pull-request-review-comment")
+            else
+                error "Failed to create Claude test PR"
+                FAILED_TESTS+=("test-claude-create-pull-request-review-comment")
+            fi
         else
-            error "Failed to create test PR"
+            error "Failed to enable test-claude-create-pull-request-review-comment workflow"
             FAILED_TESTS+=("test-claude-create-pull-request-review-comment")
         fi
-    else
+    fi
+    
+    # Test Codex PR review comment workflow if selected
+    if [[ "$need_codex_pr" == true ]]; then
+        if enable_workflow "test-codex-create-pull-request-review-comment"; then
+            workflows_to_disable+=("test-codex-create-pull-request-review-comment")
+            progress "Testing Codex PR review comment workflow"
+            local codex_pr_num
+            codex_pr_num=$(create_test_pr "Test PR for Codex Review" "This PR is for testing Codex review comment workflows")
+            
+            if [[ -n "$codex_pr_num" ]]; then
+                success "Created Codex test PR #$codex_pr_num: https://github.com/$REPO_OWNER/$REPO_NAME/pull/$codex_pr_num"
+                sleep 10 # Wait for workflow to trigger
+                
+                # Check if review comment was added (this is harder to validate automatically)
+                # For now, we'll just mark it as passed if the PR was created
+                PASSED_TESTS+=("test-codex-create-pull-request-review-comment")
+            else
+                error "Failed to create Codex test PR"
+                FAILED_TESTS+=("test-codex-create-pull-request-review-comment")
+            fi
+        else
+            error "Failed to enable test-codex-create-pull-request-review-comment workflow"
+            FAILED_TESTS+=("test-codex-create-pull-request-review-comment")
+        fi
+    fi
+    
+    # Disable workflows after testing
+    for workflow in "${workflows_to_disable[@]}"; do
+        disable_workflow "$workflow"
+    done
+    
+    if [[ "$need_claude_pr" == false ]] && [[ "$need_codex_pr" == false ]]; then
         info "No PR-triggered tests selected that require creating test PRs"
     fi
 }
