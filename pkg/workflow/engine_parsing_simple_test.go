@@ -86,6 +86,108 @@ Line 5`,
 	}
 }
 
+func TestClaudeEngine_ParseLogMetrics_WithDuration(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test Claude log with tool calls and duration information
+	claudeLogWithDuration := `[
+  {
+    "type": "assistant",
+    "message": {
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "tool_123",
+          "name": "Bash",
+          "input": {
+            "command": "echo hello"
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "tool_456",
+          "name": "mcp__github__search_issues",
+          "input": {
+            "query": "test"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "user",
+    "message": {
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "tool_123",
+          "content": "hello"
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "tool_456",
+          "content": "found issues"
+        }
+      ]
+    }
+  },
+  {
+    "type": "result",
+    "total_cost_usd": 0.005,
+    "usage": {
+      "input_tokens": 100,
+      "output_tokens": 50
+    },
+    "num_turns": 1,
+    "duration_ms": 2500
+  }
+]`
+
+	metrics := engine.ParseLogMetrics(claudeLogWithDuration, false)
+
+	// Verify basic metrics
+	if metrics.EstimatedCost != 0.005 {
+		t.Errorf("Expected cost 0.005, got %f", metrics.EstimatedCost)
+	}
+	if metrics.TokenUsage != 150 {
+		t.Errorf("Expected 150 tokens, got %d", metrics.TokenUsage)
+	}
+	if metrics.Turns != 1 {
+		t.Errorf("Expected 1 turn, got %d", metrics.Turns)
+	}
+
+	// Verify tool calls were parsed
+	if len(metrics.ToolCalls) != 2 {
+		t.Fatalf("Expected 2 tool calls, got %d", len(metrics.ToolCalls))
+	}
+
+	// Check that both tools have duration set (from total workflow duration)
+	for _, toolCall := range metrics.ToolCalls {
+		if toolCall.MaxDuration == 0 {
+			t.Errorf("Tool %s should have duration set, but MaxDuration is 0", toolCall.Name)
+		}
+		// Duration should be 2.5 seconds (2500ms)
+		expectedDuration := 2500 * 1000000 // 2.5s in nanoseconds
+		if int64(toolCall.MaxDuration) != int64(expectedDuration) {
+			t.Errorf("Tool %s expected duration %d ns, got %d ns",
+				toolCall.Name, expectedDuration, int64(toolCall.MaxDuration))
+		}
+	}
+
+	// Verify tool names are correctly prettified
+	toolNames := make(map[string]bool)
+	for _, toolCall := range metrics.ToolCalls {
+		toolNames[toolCall.Name] = true
+	}
+
+	if !toolNames["bash_echo hello"] {
+		t.Error("Expected bash tool to be named 'bash_echo hello'")
+	}
+	if !toolNames["github_search_issues"] {
+		t.Error("Expected github tool to be named 'github_search_issues'")
+	}
+}
+
 func TestCodexEngine_ParseLogMetrics_Basic(t *testing.T) {
 	engine := NewCodexEngine()
 
