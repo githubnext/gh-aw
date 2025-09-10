@@ -1,0 +1,22 @@
+{
+	"name": "Go Build Environment",
+	"image": "mcr.microsoft.com/devcontainers/go:1-bookworm",
+	"features": {
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "24"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"golang.go",
+				"GitHub.copilot-chat",
+				"GitHub.copilot",
+				"github.vscode-github-actions"
+			]
+		}
+	}
+}

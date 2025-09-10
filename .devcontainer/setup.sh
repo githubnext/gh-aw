@@ -1,7 +1,14 @@
 #!/bin/bash
 
-# install project dependencies
-make deps
+# Check if dependencies are already installed (pre-built image)
+if command -v golangci-lint >/dev/null 2>&1 && [ -f "go.sum" ]; then
+    echo "Dependencies already installed in pre-built image, skipping make deps"
+    # Just ensure go modules are up to date
+    go mod download
+else
+    echo "Installing project dependencies..."
+    make deps
+fi
 
 # configure the Vertex API access
 # take vertex_api_json from environment variable and write it to `.credentials/vertex_api.json`
@@ -12,12 +19,17 @@ fi
 mkdir -p .credentials
 echo "$VERTEX_API_JSON" > .credentials/vertex_api.json
 
-
-#install gcloud CLI
-sudo apt-get install apt-transport-https ca-certificates gnupg curl -y
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-sudo apt-get update && sudo apt-get install google-cloud-cli -y
+# Check if gcloud CLI is already installed (pre-built image)
+if command -v gcloud >/dev/null 2>&1; then
+    echo "gcloud CLI already installed in pre-built image"
+else
+    echo "Installing gcloud CLI..."
+    #install gcloud CLI
+    sudo apt-get install apt-transport-https ca-certificates gnupg curl -y
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+    sudo apt-get update && sudo apt-get install google-cloud-cli -y
+fi
 
 export GOOGLE_APPLICATION_CREDENTIALS=.credentials/vertex_api.json
 export CLAUDE_CODE_USE_VERTEX=1

@@ -270,3 +270,47 @@ We dogfood the workflows from githubnext/agentics in this repo:
 ./gh-aw add update-docs -r githubnext/agentics  --force
 ./gh-aw add weekly-research -r githubnext/agentics  --force
 ```
+
+## Pre-built Codespace Images
+
+This repository uses pre-built devcontainer images to significantly reduce codespace startup time and improve development experience reliability.
+
+### How It Works
+
+1. **Automated Image Building**: GitHub Actions workflow `.github/workflows/devcontainer.yml` automatically builds and publishes a pre-built devcontainer image to `ghcr.io/githubnext/gh-aw/devcontainer:latest`
+
+2. **Pre-installed Dependencies**: The pre-built image includes:
+   - Go development tools (golangci-lint, gopls, actionlint)
+   - Node.js 24 and npm dependencies
+   - GitHub CLI
+   - Docker-in-Docker support
+   - GitHub Actions workflow schema
+   - All project Go and npm dependencies
+
+3. **Fast Startup**: Codespace creation time is reduced from ~2-3 minutes to ~30 seconds
+
+### Workflow Triggers
+
+The pre-built image is automatically rebuilt when:
+- Changes are made to `.devcontainer/` configuration
+- `go.mod`, `go.sum` are updated (Go dependencies change)
+- `package.json`, `package-lock.json` are updated (npm dependencies change)
+- The devcontainer workflow itself is modified
+
+### Image Configuration
+
+- **Runtime Config**: `.devcontainer/devcontainer.json` - Used by codespaces (references pre-built image)
+- **Build Config**: `.devcontainer/devcontainer.build.json` - Used for building the pre-built image
+- **Setup Script**: `.devcontainer/setup.sh` - Handles runtime-specific setup (credentials, environment variables)
+
+The setup script intelligently detects if dependencies are already installed and skips expensive operations in pre-built environments.
+
+### Manual Image Rebuild
+
+You can manually trigger a rebuild of the pre-built image:
+
+```bash
+# Navigate to Actions tab in GitHub and run "Build and Publish Pre-built Devcontainer" workflow
+# Or via GitHub CLI:
+gh workflow run devcontainer.yml
+```
