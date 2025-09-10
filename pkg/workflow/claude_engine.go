@@ -859,6 +859,7 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 									Name:          prettifiedName,
 									CallCount:     1,
 									MaxOutputSize: 0, // Will be updated when we find tool results
+									MaxDuration:   0, // Will be updated when we find execution timing
 								}
 							}
 						}

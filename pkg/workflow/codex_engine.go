@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -254,6 +255,7 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 					Name:          prettifiedName,
 					CallCount:     1,
 					MaxOutputSize: 0, // TODO: Extract output size from results if available
+					MaxDuration:   0, // Will be updated when duration is found
 				}
 			}
 		}
@@ -274,8 +276,38 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 					Name:          uniqueBashName,
 					CallCount:     1,
 					MaxOutputSize: 0,
+					MaxDuration:   0, // Will be updated when duration is found
 				}
 			}
+		}
+	}
+
+	// Parse duration from success/failure lines: "] success in 0.2s" or "] failure in 1.5s"
+	if strings.Contains(line, "success in") || strings.Contains(line, "failure in") || strings.Contains(line, "failed in") {
+		// Extract duration pattern like "in 0.2s", "in 1.5s"
+		if match := regexp.MustCompile(`in\s+(\d+(?:\.\d+)?)\s*s`).FindStringSubmatch(line); len(match) > 1 {
+			if durationSeconds, err := strconv.ParseFloat(match[1], 64); err == nil {
+				duration := time.Duration(durationSeconds * float64(time.Second))
+
+				// Find the most recent tool call to associate with this duration
+				// Since we don't have direct association, we'll update the most recent entry
+				// This is a limitation of the log format, but it's the best we can do
+				e.updateMostRecentToolWithDuration(toolCallMap, duration)
+			}
+		}
+	}
+}
+
+// updateMostRecentToolWithDuration updates the tool with maximum duration
+// Since we can't perfectly correlate duration lines with specific tool calls in Codex logs,
+// we approximate by updating any tool that doesn't have a duration yet, or updating the max
+func (e *CodexEngine) updateMostRecentToolWithDuration(toolCallMap map[string]*ToolCallInfo, duration time.Duration) {
+	// Find a tool that either has no duration yet or can be updated with a larger duration
+	for _, toolInfo := range toolCallMap {
+		if toolInfo.MaxDuration == 0 || duration > toolInfo.MaxDuration {
+			toolInfo.MaxDuration = duration
+			// Only update one tool per duration line to avoid over-attribution
+			break
 		}
 	}
 }
