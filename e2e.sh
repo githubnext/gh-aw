@@ -211,7 +211,10 @@ filter_tests_by_patterns() {
         fi
     done
     
-    printf '%s\n' "${filtered_tests[@]}"
+    # Only print if there are filtered tests
+    if [[ ${#filtered_tests[@]} -gt 0 ]]; then
+        printf '%s\n' "${filtered_tests[@]}"
+    fi
 }
 
 check_prerequisites() {
