@@ -5,60 +5,60 @@ import (
 	"testing"
 )
 
-// TestSecurityReportsConfig tests the parsing of create-security-report configuration
-func TestSecurityReportsConfig(t *testing.T) {
+// TestRepositorySecurityAdvisoriesConfig tests the parsing of create-repository-security-advisory configuration
+func TestRepositorySecurityAdvisoriesConfig(t *testing.T) {
 	compiler := NewCompiler(false, "", "test-version")
 
 	tests := []struct {
 		name           string
 		frontmatter    map[string]any
-		expectedConfig *CreateSecurityReportsConfig
+		expectedConfig *CreateRepositorySecurityAdvisoriesConfig
 	}{
 		{
-			name: "basic security report configuration",
+			name: "basic repository security advisory configuration",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"create-security-report": nil,
+					"create-repository-security-advisory": nil,
 				},
 			},
-			expectedConfig: &CreateSecurityReportsConfig{Max: 0}, // 0 means unlimited
+			expectedConfig: &CreateRepositorySecurityAdvisoriesConfig{Max: 0}, // 0 means unlimited
 		},
 		{
-			name: "security report with max configuration",
+			name: "repository security advisory with max configuration",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"create-security-report": map[string]any{
+					"create-repository-security-advisory": map[string]any{
 						"max": 50,
 					},
 				},
 			},
-			expectedConfig: &CreateSecurityReportsConfig{Max: 50},
+			expectedConfig: &CreateRepositorySecurityAdvisoriesConfig{Max: 50},
 		},
 		{
-			name: "security report with driver configuration",
+			name: "repository security advisory with driver configuration",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"create-security-report": map[string]any{
+					"create-repository-security-advisory": map[string]any{
 						"driver": "Custom Security Scanner",
 					},
 				},
 			},
-			expectedConfig: &CreateSecurityReportsConfig{Max: 0, Driver: "Custom Security Scanner"},
+			expectedConfig: &CreateRepositorySecurityAdvisoriesConfig{Max: 0, Driver: "Custom Security Scanner"},
 		},
 		{
-			name: "security report with max and driver configuration",
+			name: "repository security advisory with max and driver configuration",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"create-security-report": map[string]any{
+					"create-repository-security-advisory": map[string]any{
 						"max":    25,
 						"driver": "Advanced Scanner",
 					},
 				},
 			},
-			expectedConfig: &CreateSecurityReportsConfig{Max: 25, Driver: "Advanced Scanner"},
+			expectedConfig: &CreateRepositorySecurityAdvisoriesConfig{Max: 25, Driver: "Advanced Scanner"},
 		},
 		{
-			name: "no security report configuration",
+			name: "no repository security advisory configuration",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
 					"create-issue": nil,
@@ -73,41 +73,41 @@ func TestSecurityReportsConfig(t *testing.T) {
 			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
 
 			if tt.expectedConfig == nil {
-				if config == nil || config.CreateSecurityReports == nil {
+				if config == nil || config.CreateRepositorySecurityAdvisories == nil {
 					return // Expected no config
 				}
-				t.Errorf("Expected no CreateSecurityReports config, but got: %+v", config.CreateSecurityReports)
+				t.Errorf("Expected no CreateRepositorySecurityAdvisories config, but got: %+v", config.CreateRepositorySecurityAdvisories)
 				return
 			}
 
-			if config == nil || config.CreateSecurityReports == nil {
-				t.Errorf("Expected CreateSecurityReports config, but got nil")
+			if config == nil || config.CreateRepositorySecurityAdvisories == nil {
+				t.Errorf("Expected CreateRepositorySecurityAdvisories config, but got nil")
 				return
 			}
 
-			if config.CreateSecurityReports.Max != tt.expectedConfig.Max {
-				t.Errorf("Expected Max=%d, got Max=%d", tt.expectedConfig.Max, config.CreateSecurityReports.Max)
+			if config.CreateRepositorySecurityAdvisories.Max != tt.expectedConfig.Max {
+				t.Errorf("Expected Max=%d, got Max=%d", tt.expectedConfig.Max, config.CreateRepositorySecurityAdvisories.Max)
 			}
 
-			if config.CreateSecurityReports.Driver != tt.expectedConfig.Driver {
-				t.Errorf("Expected Driver=%s, got Driver=%s", tt.expectedConfig.Driver, config.CreateSecurityReports.Driver)
+			if config.CreateRepositorySecurityAdvisories.Driver != tt.expectedConfig.Driver {
+				t.Errorf("Expected Driver=%s, got Driver=%s", tt.expectedConfig.Driver, config.CreateRepositorySecurityAdvisories.Driver)
 			}
 		})
 	}
 }
 
-// TestBuildCreateOutputSecurityReportJob tests the creation of security report job
-func TestBuildCreateOutputSecurityReportJob(t *testing.T) {
+// TestBuildCreateOutputRepositorySecurityAdvisoryJob tests the creation of repository security advisory job
+func TestBuildCreateOutputRepositorySecurityAdvisoryJob(t *testing.T) {
 	compiler := NewCompiler(false, "", "test-version")
 
 	// Test valid configuration
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreateSecurityReports: &CreateSecurityReportsConfig{Max: 0},
+			CreateRepositorySecurityAdvisories: &CreateRepositorySecurityAdvisoriesConfig{Max: 0},
 		},
 	}
 
-	job, err := compiler.buildCreateOutputSecurityReportJob(data, "main_job", "test-workflow")
+	job, err := compiler.buildCreateOutputRepositorySecurityAdvisoryJob(data, "main_job", "test-workflow")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -142,11 +142,11 @@ func TestBuildCreateOutputSecurityReportJob(t *testing.T) {
 	// Test with max configuration
 	dataWithMax := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreateSecurityReports: &CreateSecurityReportsConfig{Max: 25},
+			CreateRepositorySecurityAdvisories: &CreateRepositorySecurityAdvisoriesConfig{Max: 25},
 		},
 	}
 
-	jobWithMax, err := compiler.buildCreateOutputSecurityReportJob(dataWithMax, "main_job", "test-workflow")
+	jobWithMax, err := compiler.buildCreateOutputRepositorySecurityAdvisoryJob(dataWithMax, "main_job", "test-workflow")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -161,11 +161,11 @@ func TestBuildCreateOutputSecurityReportJob(t *testing.T) {
 		Name:            "My Security Workflow",
 		FrontmatterName: "My Security Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			CreateSecurityReports: &CreateSecurityReportsConfig{Driver: "Custom Scanner"},
+			CreateRepositorySecurityAdvisories: &CreateRepositorySecurityAdvisoriesConfig{Driver: "Custom Scanner"},
 		},
 	}
 
-	jobWithDriver, err := compiler.buildCreateOutputSecurityReportJob(dataWithDriver, "main_job", "my-workflow")
+	jobWithDriver, err := compiler.buildCreateOutputRepositorySecurityAdvisoryJob(dataWithDriver, "main_job", "my-workflow")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -180,11 +180,11 @@ func TestBuildCreateOutputSecurityReportJob(t *testing.T) {
 		Name:            "Security Analysis Workflow",
 		FrontmatterName: "Security Analysis Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			CreateSecurityReports: &CreateSecurityReportsConfig{Max: 0}, // No driver specified
+			CreateRepositorySecurityAdvisories: &CreateRepositorySecurityAdvisoriesConfig{Max: 0}, // No driver specified
 		},
 	}
 
-	jobNoDriver, err := compiler.buildCreateOutputSecurityReportJob(dataNoDriver, "main_job", "security-analysis")
+	jobNoDriver, err := compiler.buildCreateOutputRepositorySecurityAdvisoryJob(dataNoDriver, "main_job", "security-analysis")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -199,11 +199,11 @@ func TestBuildCreateOutputSecurityReportJob(t *testing.T) {
 		Name:            "Security Analysis",
 		FrontmatterName: "", // No frontmatter name
 		SafeOutputs: &SafeOutputsConfig{
-			CreateSecurityReports: &CreateSecurityReportsConfig{Max: 0}, // No driver specified
+			CreateRepositorySecurityAdvisories: &CreateRepositorySecurityAdvisoriesConfig{Max: 0}, // No driver specified
 		},
 	}
 
-	jobFallback, err := compiler.buildCreateOutputSecurityReportJob(dataFallback, "main_job", "security-analysis")
+	jobFallback, err := compiler.buildCreateOutputRepositorySecurityAdvisoryJob(dataFallback, "main_job", "security-analysis")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -220,14 +220,14 @@ func TestBuildCreateOutputSecurityReportJob(t *testing.T) {
 
 	// Test error case - no configuration
 	dataNoConfig := &WorkflowData{SafeOutputs: nil}
-	_, err = compiler.buildCreateOutputSecurityReportJob(dataNoConfig, "main_job", "test-workflow")
+	_, err = compiler.buildCreateOutputRepositorySecurityAdvisoryJob(dataNoConfig, "main_job", "test-workflow")
 	if err == nil {
 		t.Errorf("Expected error when no SafeOutputs config provided")
 	}
 }
 
-// TestParseSecurityReportsConfig tests the parsing function directly
-func TestParseSecurityReportsConfig(t *testing.T) {
+// TestParseRepositorySecurityAdvisoriesConfig tests the parsing function directly
+func TestParseRepositorySecurityAdvisoriesConfig(t *testing.T) {
 	compiler := NewCompiler(false, "", "test-version")
 
 	tests := []struct {
@@ -240,7 +240,7 @@ func TestParseSecurityReportsConfig(t *testing.T) {
 		{
 			name: "basic configuration",
 			outputMap: map[string]any{
-				"create-security-report": nil,
+				"create-repository-security-advisory": nil,
 			},
 			expectedMax:    0,
 			expectedDriver: "",
@@ -249,7 +249,7 @@ func TestParseSecurityReportsConfig(t *testing.T) {
 		{
 			name: "configuration with max",
 			outputMap: map[string]any{
-				"create-security-report": map[string]any{
+				"create-repository-security-advisory": map[string]any{
 					"max": 100,
 				},
 			},
@@ -260,7 +260,7 @@ func TestParseSecurityReportsConfig(t *testing.T) {
 		{
 			name: "configuration with driver",
 			outputMap: map[string]any{
-				"create-security-report": map[string]any{
+				"create-repository-security-advisory": map[string]any{
 					"driver": "Test Security Scanner",
 				},
 			},
@@ -271,7 +271,7 @@ func TestParseSecurityReportsConfig(t *testing.T) {
 		{
 			name: "configuration with max and driver",
 			outputMap: map[string]any{
-				"create-security-report": map[string]any{
+				"create-repository-security-advisory": map[string]any{
 					"max":    50,
 					"driver": "Combined Scanner",
 				},
@@ -293,7 +293,7 @@ func TestParseSecurityReportsConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := compiler.parseSecurityReportsConfig(tt.outputMap)
+			config := compiler.parseRepositorySecurityAdvisoriesConfig(tt.outputMap)
 
 			if tt.expectNil {
 				if config != nil {

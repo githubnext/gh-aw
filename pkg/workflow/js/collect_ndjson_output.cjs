@@ -183,8 +183,8 @@ async function main() {
         return 1; // Only one discussion allowed
       case "missing-tool":
         return 1000; // Allow many missing tool reports (default: unlimited)
-      case "create-security-report":
-        return 1000; // Allow many security reports (default: unlimited)
+      case "create-repository-security-advisory":
+        return 1000; // Allow many repository security advisories (default: unlimited)
       default:
         return 1; // Default to single item for unknown types
     }
@@ -664,11 +664,11 @@ async function main() {
           }
           break;
 
-        case "create-security-report":
+        case "create-repository-security-advisory":
           // Validate required sarif field
           if (!item.sarif) {
             errors.push(
-              `Line ${i + 1}: create-security-report requires a 'sarif' field`
+              `Line ${i + 1}: create-repository-security-advisory requires a 'sarif' field`
             );
             continue;
           }
@@ -678,7 +678,7 @@ async function main() {
             typeof item.sarif !== "string"
           ) {
             errors.push(
-              `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
+              `Line ${i + 1}: create-repository-security-advisory 'sarif' must be an object or string`
             );
             continue;
           }
@@ -690,7 +690,7 @@ async function main() {
           if (item.category !== undefined) {
             if (typeof item.category !== "string") {
               errors.push(
-                `Line ${i + 1}: create-security-report 'category' must be a string`
+                `Line ${i + 1}: create-repository-security-advisory 'category' must be a string`
               );
               continue;
             }

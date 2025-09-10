@@ -22,7 +22,7 @@ var createCommentScript string
 var createPRReviewCommentScript string
 
 //go:embed js/create_security_report.cjs
-var createSecurityReportScript string
+var createRepositorySecurityAdvisoryScript string
 
 //go:embed js/compute_text.cjs
 var computeTextScript string
