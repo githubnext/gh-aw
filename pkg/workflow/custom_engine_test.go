@@ -191,7 +191,7 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	var yaml strings.Builder
 
 	// This should generate MCP configuration structure like Claude
-	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{})
+	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, nil)
 
 	output := yaml.String()
 	expectedPrefix := "          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'"
@@ -201,6 +201,42 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 
 	if !strings.Contains(output, "\"mcpServers\"") {
 		t.Errorf("Expected MCP config to contain mcpServers section, got '%s'", output)
+	}
+}
+
+func TestCustomEngineRenderPlaywrightMCPConfigWithNetworkPermissions(t *testing.T) {
+	engine := NewCustomEngine()
+	var yaml strings.Builder
+
+	// Test with network permissions configured
+	networkPerms := &NetworkPermissions{
+		Allowed: []string{"example.com", "*.github.com"},
+	}
+
+	tools := map[string]any{
+		"playwright": map[string]any{
+			"docker_image_version": "v1.40.0",
+		},
+	}
+
+	mcpTools := []string{"playwright"}
+
+	engine.RenderMCPConfig(&yaml, tools, mcpTools, networkPerms)
+	output := yaml.String()
+
+	// Check that the output contains Playwright configuration
+	if !strings.Contains(output, `"playwright": {`) {
+		t.Errorf("Expected Playwright configuration in output")
+	}
+
+	// Check that it contains network permission environment variables
+	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
+	}
+
+	// Check that it contains the expected domains
+	if !strings.Contains(output, "example.com,*.github.com") {
+		t.Errorf("Expected allowed domains to be included in environment variable")
 	}
 }
 

@@ -140,7 +140,7 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 	return ConvertStepToYAML(stepMap)
 }
 
-func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
+func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, networkPermissions *NetworkPermissions) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
@@ -155,7 +155,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.renderGitHubCodexMCPConfig(yaml, githubTool)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
+			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, networkPermissions)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -327,7 +327,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
 // Always uses Docker-based containerized setup in GitHub Actions
-func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
+func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
 	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
@@ -340,6 +340,16 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"--shm-size=2gb\",\n")
 	yaml.WriteString("            \"--cap-add=SYS_ADMIN\",\n")
+
+	// Generate domain restriction arguments if network permissions are configured
+	if networkPermissions != nil && ShouldEnforceNetworkPermissions(networkPermissions) {
+		allowedDomains := GetAllowedDomains(networkPermissions)
+		domainArgs := generatePlaywrightDomainArgs(allowedDomains)
+		for _, arg := range domainArgs {
+			yaml.WriteString("            \"" + arg + "\",\n")
+		}
+	}
+
 	yaml.WriteString("            \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")
 	yaml.WriteString("          ]\n")
 	yaml.WriteString("          env = {}\n")

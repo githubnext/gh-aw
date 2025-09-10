@@ -5397,3 +5397,44 @@ This workflow tests that forks array fields are properly commented out in the on
 		})
 	}
 }
+
+func TestGeneratePlaywrightDomainArgs(t *testing.T) {
+	tests := []struct {
+		name           string
+		allowedDomains []string
+		expectedArgs   []string
+	}{
+		{
+			name:           "with allowed domains",
+			allowedDomains: []string{"example.com", "*.github.com"},
+			expectedArgs:   []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=example.com,*.github.com"},
+		},
+		{
+			name:           "with single domain",
+			allowedDomains: []string{"api.github.com"},
+			expectedArgs:   []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=api.github.com"},
+		},
+		{
+			name:           "with empty domains (deny all)",
+			allowedDomains: []string{},
+			expectedArgs:   []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=", "-e", "PLAYWRIGHT_BLOCK_ALL_DOMAINS=true"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generatePlaywrightDomainArgs(tt.allowedDomains)
+
+			if len(result) != len(tt.expectedArgs) {
+				t.Errorf("Expected %d args, got %d: %v", len(tt.expectedArgs), len(result), result)
+				return
+			}
+
+			for i, expected := range tt.expectedArgs {
+				if result[i] != expected {
+					t.Errorf("Expected arg[%d] = %q, got %q", i, expected, result[i])
+				}
+			}
+		})
+	}
+}

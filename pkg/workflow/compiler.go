@@ -2739,10 +2739,11 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 }
 
 // generateMCPSetup generates the MCP server configuration setup
-func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine) {
+func (c *Compiler) generateMCPSetup(yaml *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine) {
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 	var proxyTools []string
+	tools := workflowData.Tools
 
 	for toolName, toolValue := range tools {
 		// Standard MCP tools
@@ -2829,7 +2830,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
 
 	// Use the engine's RenderMCPConfig method
-	engine.RenderMCPConfig(yaml, tools, mcpTools)
+	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData.NetworkPermissions)
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {
@@ -2856,6 +2857,23 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 		}
 	}
 	return playwrightDockerImageVersion
+}
+
+// generatePlaywrightDomainArgs generates Playwright CLI arguments for domain restrictions
+// Uses environment variables to configure domain restrictions in the Playwright container
+func generatePlaywrightDomainArgs(allowedDomains []string) []string {
+	var args []string
+
+	// For now, we'll use a simple approach with environment variables
+	// The Playwright MCP server can read these to configure restrictions
+	args = append(args, "-e", "PLAYWRIGHT_ALLOWED_DOMAINS="+strings.Join(allowedDomains, ","))
+
+	// If no domains are allowed, set a flag to block all network access
+	if len(allowedDomains) == 0 {
+		args = append(args, "-e", "PLAYWRIGHT_BLOCK_ALL_DOMAINS=true")
+	}
+
+	return args
 }
 
 // generateMainJobSteps generates the steps section for the main job
@@ -2910,7 +2928,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add MCP setup
-	c.generateMCPSetup(yaml, data.Tools, engine)
+	c.generateMCPSetup(yaml, data, engine)
 
 	// Add safety checks before executing agentic tools
 	c.generateSafetyChecks(yaml, data)

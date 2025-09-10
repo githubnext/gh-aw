@@ -46,7 +46,7 @@ type CodingAgentEngine interface {
 	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
 
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
-	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string)
+	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, networkPermissions *NetworkPermissions)
 
 	// ParseLogMetrics extracts metrics from engine-specific log content
 	ParseLogMetrics(logContent string, verbose bool) LogMetrics
