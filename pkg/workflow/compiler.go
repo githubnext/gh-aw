@@ -2746,7 +2746,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	for toolName, toolValue := range tools {
 		// Standard MCP tools
-		if toolName == "github" {
+		if toolName == "github" || toolName == "playwright" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format
@@ -2843,6 +2843,19 @@ func getGitHubDockerImageVersion(githubTool any) string {
 		}
 	}
 	return githubDockerImageVersion
+}
+
+func getPlaywrightDockerImageVersion(playwrightTool any) string {
+	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
+	// Extract docker_image_version setting from tool properties
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+			if stringValue, ok := versionSetting.(string); ok {
+				playwrightDockerImageVersion = stringValue
+			}
+		}
+	}
+	return playwrightDockerImageVersion
 }
 
 // generateMainJobSteps generates the steps section for the main job

@@ -153,6 +153,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "github":
 			githubTool := tools["github"]
 			e.renderGitHubCodexMCPConfig(yaml, githubTool)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -320,6 +323,26 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
 	yaml.WriteString("          ]\n")
 	yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
+}
+
+// renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
+// Always uses Docker-based containerized setup in GitHub Actions
+func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
+	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.playwright]\n")
+
+	// Always use Docker-based Playwright MCP server for consistent containerized execution
+	yaml.WriteString("          command = \"docker\"\n")
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"run\",\n")
+	yaml.WriteString("            \"-i\",\n")
+	yaml.WriteString("            \"--rm\",\n")
+	yaml.WriteString("            \"--shm-size=2gb\",\n")
+	yaml.WriteString("            \"--cap-add=SYS_ADMIN\",\n")
+	yaml.WriteString("            \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")
+	yaml.WriteString("          ]\n")
+	yaml.WriteString("          env = {}\n")
 }
 
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml

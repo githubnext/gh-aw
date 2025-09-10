@@ -1042,6 +1042,26 @@
               "additionalProperties": false
             }
           ]
+        },
+        "playwright": {
+          "description": "Playwright browser automation tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Playwright tool with default settings"
+            },
+            {
+              "type": "object",
+              "description": "Playwright tool configuration object",
+              "properties": {
+                "docker_image_version": {
+                  "type": "string",
+                  "description": "Docker image version for Playwright container"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "additionalProperties": {

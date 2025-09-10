@@ -234,7 +234,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	// Copy existing tools that are not neutral tools
 	for key, value := range tools {
 		switch key {
-		case "bash", "web-fetch", "web-search", "edit":
+		case "bash", "web-fetch", "web-search", "edit", "playwright":
 			// These are neutral tools that need conversion - skip copying, will be converted below
 			continue
 		default:
@@ -297,6 +297,16 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		// If edit tool has specific configuration, we could handle it here
 		// For now, treating it as enabling all edit capabilities
 		_ = editTool
+	}
+
+	if playwrightTool, hasPlaywright := tools["playwright"]; hasPlaywright {
+		// playwright -> Browser, ScreenshotTool
+		claudeAllowed["Browser"] = nil
+		claudeAllowed["ScreenshotTool"] = nil
+
+		// If playwright tool has specific configuration, we could handle it here
+		// For now, treating it as enabling all browser automation capabilities
+		_ = playwrightTool
 	}
 
 	// Update claude section
@@ -534,6 +544,9 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "github":
 			githubTool := tools["github"]
 			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -571,6 +584,32 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
 	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderPlaywrightMCPConfig generates the Playwright MCP server configuration  
+// Always uses Docker-based containerized setup in GitHub Actions
+func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
+
+	yaml.WriteString("              \"playwright\": {\n")
+
+	// Always use Docker-based Playwright MCP server for consistent containerized execution
+	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"run\",\n")
+	yaml.WriteString("                  \"-i\",\n")
+	yaml.WriteString("                  \"--rm\",\n")
+	yaml.WriteString("                  \"--shm-size=2gb\",\n")
+	yaml.WriteString("                  \"--cap-add=SYS_ADMIN\",\n")
+	yaml.WriteString("                  \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")
+	yaml.WriteString("                ],\n")
+	yaml.WriteString("                \"env\": {}\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")
