@@ -81,7 +81,16 @@ mkdir -p /tmp/aw-logs
 # Run codex with log capture - pipefail ensures codex exit code is preserved
 codex exec \
   -c model=%s \
-  --full-auto "$INSTRUCTION" 2>&1 | tee %s`, model, logFile)
+  --full-auto "$INSTRUCTION" 2>&1 | tee %s
+
+# Check for authentication failures in the log and fail the workflow if detected
+if [ -f %s ]; then
+  if grep -q "401 Unauthorized\|exceeded retry limit.*401 Unauthorized" %s; then
+    echo "ERROR: Codex authentication failed - invalid or missing OpenAI API key"
+    echo "Please check that OPENAI_API_KEY secret is properly configured"
+    exit 1
+  fi
+fi`, model, logFile, logFile, logFile)
 
 	env := map[string]string{
 		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",

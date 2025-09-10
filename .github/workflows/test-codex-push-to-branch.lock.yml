@@ -372,6 +372,15 @@ jobs:
           codex exec \
             -c model=o4-mini \
             --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-push-to-branch.log
+          
+          # Check for authentication failures in the log and fail the workflow if detected
+          if [ -f /tmp/test-codex-push-to-branch.log ]; then
+            if grep -q "401 Unauthorized\|exceeded retry limit.*401 Unauthorized" /tmp/test-codex-push-to-branch.log; then
+              echo "ERROR: Codex authentication failed - invalid or missing OpenAI API key"
+              echo "Please check that OPENAI_API_KEY secret is properly configured"
+              exit 1
+            fi
+          fi
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}

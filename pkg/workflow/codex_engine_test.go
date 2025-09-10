@@ -255,3 +255,142 @@ func TestCodexEngineConvertStepToYAMLWithSection(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexEngineAuthenticationFailureDetection(t *testing.T) {
+	engine := NewCodexEngine()
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	// Should have at least one step
+	if len(steps) == 0 {
+		t.Error("Expected at least one execution step")
+		return
+	}
+
+	// Check that the execution step includes authentication failure detection
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Verify the step contains error detection logic
+	if !strings.Contains(stepContent, "401 Unauthorized") {
+		t.Errorf("Expected step to contain authentication error detection for '401 Unauthorized' pattern in:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "exceeded retry limit.*401 Unauthorized") {
+		t.Errorf("Expected step to contain authentication error detection for 'exceeded retry limit.*401 Unauthorized' pattern in:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "Codex authentication failed") {
+		t.Errorf("Expected step to contain authentication failure message in:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "exit 1") {
+		t.Errorf("Expected step to exit with error code 1 on authentication failure in:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "OPENAI_API_KEY secret is properly configured") {
+		t.Errorf("Expected step to contain instructions about OPENAI_API_KEY configuration in:\n%s", stepContent)
+	}
+
+	// Verify the error detection happens after codex execution
+	codexIndex := strings.Index(stepContent, "codex exec")
+	errorCheckIndex := strings.Index(stepContent, "401 Unauthorized")
+
+	if codexIndex == -1 {
+		t.Error("Expected step to contain 'codex exec' command")
+	}
+
+	if errorCheckIndex == -1 {
+		t.Error("Expected step to contain authentication error check")
+	}
+
+	if codexIndex != -1 && errorCheckIndex != -1 && errorCheckIndex <= codexIndex {
+		t.Error("Expected authentication error check to come after codex execution")
+	}
+
+	// Verify the error check only runs if log file exists
+	if !strings.Contains(stepContent, "if [ -f /tmp/test.log ]; then") {
+		t.Error("Expected authentication error check to only run if log file exists")
+	}
+}
+
+func TestCodexEngineErrorDetectionPatterns(t *testing.T) {
+	tests := []struct {
+		name        string
+		logContent  string
+		shouldFail  bool
+		description string
+	}{
+		{
+			name:        "no_errors",
+			logContent:  "[2025-01-15] Starting Codex execution\n[2025-01-15] Task completed successfully",
+			shouldFail:  false,
+			description: "Normal execution should not trigger authentication failure",
+		},
+		{
+			name:        "401_unauthorized_direct",
+			logContent:  "[2025-01-15] ERROR: 401 Unauthorized",
+			shouldFail:  true,
+			description: "Direct 401 Unauthorized error should trigger failure",
+		},
+		{
+			name:        "exceeded_retry_limit_with_401",
+			logContent:  "[2025-01-15] ERROR: exceeded retry limit, last status: 401 Unauthorized",
+			shouldFail:  true,
+			description: "Exceeded retry limit with 401 should trigger failure",
+		},
+		{
+			name:        "retry_messages_with_401",
+			logContent:  "[2025-01-15] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…",
+			shouldFail:  true,
+			description: "Retry messages with 401 should trigger failure",
+		},
+		{
+			name:        "other_4xx_errors",
+			logContent:  "[2025-01-15] ERROR: 403 Forbidden",
+			shouldFail:  false,
+			description: "Other HTTP errors like 403 should not trigger authentication failure detection",
+		},
+		{
+			name:        "exceeded_retry_limit_other_error",
+			logContent:  "[2025-01-15] ERROR: exceeded retry limit, last status: 500 Internal Server Error",
+			shouldFail:  false,
+			description: "Exceeded retry limit with non-401 errors should not trigger authentication failure detection",
+		},
+		{
+			name:        "mixed_errors_including_401",
+			logContent:  "[2025-01-15] ERROR: 500 Internal Server Error\n[2025-01-15] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 2/5 in 414ms…\n[2025-01-15] Task completed",
+			shouldFail:  true,
+			description: "Mixed errors including 401 should trigger failure",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test the grep pattern used in the authentication detection
+			// This simulates what happens in the actual bash command
+
+			matched := false
+			lines := strings.Split(tt.logContent, "\n")
+			for _, line := range lines {
+				// Simple pattern matching for test purposes
+				if strings.Contains(line, "401 Unauthorized") {
+					matched = true
+					break
+				}
+				if strings.Contains(line, "exceeded retry limit") && strings.Contains(line, "401 Unauthorized") {
+					matched = true
+					break
+				}
+			}
+
+			if matched != tt.shouldFail {
+				t.Errorf("Test %s failed: pattern matching result %v, expected %v for content:\n%s",
+					tt.name, matched, tt.shouldFail, tt.logContent)
+			}
+		})
+	}
+}
