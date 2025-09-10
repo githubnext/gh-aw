@@ -186,7 +186,7 @@ describe("create_pull_request.cjs", () => {
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git apply /tmp/aw.patch",
+      "git am /tmp/aw.patch",
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith("git add .", {

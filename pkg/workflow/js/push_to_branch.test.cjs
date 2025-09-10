@@ -84,7 +84,7 @@ describe("push_to_branch.cjs", () => {
       // Check that patch operations are included
       expect(scriptContent).toContain("fs.existsSync");
       expect(scriptContent).toContain("fs.readFileSync");
-      expect(scriptContent).toContain("git apply");
+      expect(scriptContent).toContain("git am");
       expect(scriptContent).toContain("git commit");
       expect(scriptContent).toContain("git push");
     });
