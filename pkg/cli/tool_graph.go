@@ -201,15 +201,17 @@ func generateToolGraph(processedRuns []ProcessedRun, verbose bool) {
 		return
 	}
 
-	if verbose {
-		fmt.Println(console.FormatInfoMessage("Analyzing tool call sequences for graph generation..."))
-	}
-
 	graph := NewToolGraph()
-
-	// Extract tool sequences from each run
 	for _, run := range processedRuns {
 		sequences := extractToolSequencesFromRun(run, verbose)
+		if verbose && len(sequences) > 0 {
+			totalTools := 0
+			for _, seq := range sequences {
+				totalTools += len(seq)
+			}
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Run %d contributed %d tool sequences with %d total tools",
+				run.Run.DatabaseID, len(sequences), totalTools)))
+		}
 		for _, sequence := range sequences {
 			graph.AddSequence(sequence)
 		}
@@ -218,10 +220,6 @@ func generateToolGraph(processedRuns []ProcessedRun, verbose bool) {
 	// Generate and display Mermaid graph only
 	mermaidGraph := graph.GenerateMermaidGraph()
 	fmt.Println(mermaidGraph)
-
-	if verbose {
-		fmt.Println(console.FormatSuccessMessage("Tool sequence graph generated successfully"))
-	}
 }
 
 // extractToolSequencesFromRun extracts tool call sequences from a single run

@@ -614,7 +614,8 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			metrics.TokenUsage = resultMetrics.TokenUsage
 			metrics.EstimatedCost = resultMetrics.EstimatedCost
 			metrics.Turns = resultMetrics.Turns
-			metrics.ToolCalls = resultMetrics.ToolCalls // Copy tool calls as well
+			metrics.ToolCalls = resultMetrics.ToolCalls         // Copy tool calls
+			metrics.ToolSequences = resultMetrics.ToolSequences // Copy tool sequences
 		}
 	}
 
@@ -810,6 +811,15 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
 	}
 
+	if verbose && len(metrics.ToolSequences) > 0 {
+		totalTools := 0
+		for _, seq := range metrics.ToolSequences {
+			totalTools += len(seq)
+		}
+		fmt.Printf("Claude parser extracted %d tool sequences with %d total tool calls\n",
+			len(metrics.ToolSequences), totalTools)
+	}
+
 	// Convert tool call map to slice
 	for _, toolInfo := range toolCallMap {
 		metrics.ToolCalls = append(metrics.ToolCalls, *toolInfo)
@@ -834,13 +844,13 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, to
 					// Extract tool name
 					if toolName, exists := contentMap["name"]; exists {
 						if nameStr, ok := toolName.(string); ok {
-							// Skip internal tools as per existing JavaScript logic
-							internalTools := []string{
-								"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
-							}
-							if slices.Contains(internalTools, nameStr) {
-								continue
-							}
+							// Skip internal tools as per existing JavaScript logic (disabled for tool graph visualization)
+							// internalTools := []string{
+							//	"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
+							// }
+							// if slices.Contains(internalTools, nameStr) {
+							//	continue
+							// }
 
 							// Prettify tool name
 							prettifiedName := PrettifyToolName(nameStr)

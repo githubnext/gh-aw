@@ -739,10 +739,12 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			return nil
 		}
 
-		// Process log files
-		if strings.HasSuffix(strings.ToLower(info.Name()), ".log") ||
-			strings.HasSuffix(strings.ToLower(info.Name()), ".txt") ||
-			strings.Contains(strings.ToLower(info.Name()), "log") {
+		// Process log files - exclude output artifacts like aw_output.txt
+		fileName := strings.ToLower(info.Name())
+		if (strings.HasSuffix(fileName, ".log") ||
+			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
+			!strings.Contains(fileName, "aw_output") &&
+			!strings.Contains(fileName, "agent_output") {
 
 			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
 			if err != nil && verbose {
@@ -760,6 +762,10 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 				// the total conversation turns for the entire workflow run
 				metrics.Turns = fileMetrics.Turns
 			}
+
+			// Aggregate tool sequences and tool calls
+			metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
+			metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
 		}
 
 		return nil
@@ -832,24 +838,10 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 
 // parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
 func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgentEngine, verbose bool) (LogMetrics, error) {
-	// Read the log file content
-	file, err := os.Open(filePath)
+	// Read the entire log file at once to avoid JSON parsing issues from chunked reading
+	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return LogMetrics{}, fmt.Errorf("error opening log file: %w", err)
-	}
-	defer file.Close()
-
-	var content []byte
-	buffer := make([]byte, 4096)
-	for {
-		n, err := file.Read(buffer)
-		if err != nil && err != io.EOF {
-			return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
-		}
-		if n == 0 {
-			break
-		}
-		content = append(content, buffer[:n]...)
+		return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
 	}
 
 	logContent := string(content)
