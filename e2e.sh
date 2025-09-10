@@ -260,6 +260,7 @@ wait_for_workflow() {
         
         if [[ $elapsed -gt $timeout_seconds ]]; then
             error "Timeout waiting for workflow '$workflow_name' after $TIMEOUT_MINUTES minutes"
+            error "View run details: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
             return 1
         fi
         
@@ -276,10 +277,12 @@ wait_for_workflow() {
                             ;;
                         "failure"|"cancelled"|"timed_out")
                             error "Workflow '$workflow_name' failed with conclusion: $run_conclusion"
+                            error "View run details: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
                             return 1
                             ;;
                         *)
                             error "Workflow '$workflow_name' completed with unexpected conclusion: $run_conclusion"
+                            error "View run details: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
                             return 1
                             ;;
                     esac
@@ -290,11 +293,13 @@ wait_for_workflow() {
                     ;;
                 *)
                     error "Workflow '$workflow_name' has unexpected status: $run_status"
+                    error "View run details: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
                     return 1
                     ;;
             esac
         else
             error "Failed to get status for workflow run $run_id"
+            error "View run details: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
             return 1
         fi
     done
@@ -554,34 +559,26 @@ validate_repository_security_advisory() {
 validate_mcp_workflow() {
     local workflow_name="$1"
     
-    # MCP workflows typically create issues or comments
-    # Look for issues created with timestamps (indicating MCP time tool usage)
+    # MCP workflows typically create issues with specific patterns indicating MCP tool usage
+    # Look for issues with MCP-specific content patterns
     local recent_issues
-    recent_issues=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.title or .body | contains("time") or contains("Time") or contains("timestamp") or contains("Timestamp")) | .title' | head -1)
+    recent_issues=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.body | contains("MCP time tool") or contains("current time is") or contains("UTC")) | .title' | head -1)
     
     if [[ -n "$recent_issues" ]]; then
         success "MCP workflow '$workflow_name' appears to have used MCP tools successfully"
         return 0
     else
-        warning "MCP workflow '$workflow_name' completed but no clear evidence of MCP tool usage found"
-        return 0  # Don't fail - the workflow may have run but not created visible output
-    fi
-}
-
-validate_network_permissions_workflow() {
-    local workflow_name="$1"
-    
-    # Network permission workflows typically fetch data from external sources
-    # Check if any issues or comments contain URLs or references to external data
-    local recent_content
-    recent_content=$(gh issue list --limit 5 --json body --jq '.[] | select(.body | contains("http") or contains("docs.github.com")) | .body' | head -1)
-    
-    if [[ -n "$recent_content" ]]; then
-        success "Network permissions workflow '$workflow_name' appears to have fetched external data"
-        return 0
-    else
-        warning "Network permissions workflow '$workflow_name' completed but no clear evidence of external data fetching found"
-        return 0  # Don't fail - the workflow may have run but not created visible output with URLs
+        # Fallback to original time-based check for broader compatibility
+        local time_issues
+        time_issues=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.title or .body | contains("time") or contains("Time") or contains("timestamp") or contains("Timestamp")) | .title' | head -1)
+        
+        if [[ -n "$time_issues" ]]; then
+            success "MCP workflow '$workflow_name' appears to have used MCP tools successfully (time-based detection)"
+            return 0
+        else
+            warning "MCP workflow '$workflow_name' completed but no clear evidence of MCP tool usage found"
+            return 1
+        fi
     fi
 }
 
@@ -612,7 +609,7 @@ validate_safe_outputs_workflow() {
         return 0
     else
         warning "Safe outputs workflow '$workflow_name' completed but no test outputs found"
-        return 0  # Don't fail - may not have triggered all outputs
+        return 1
     fi
 }
 
@@ -632,23 +629,6 @@ validate_ai_inference_workflow() {
     fi
 }
 
-validate_proxy_workflow() {
-    local workflow_name="$1"
-    
-    # Proxy workflows test network connectivity through proxies
-    # Look for any evidence of proxy usage in recent content
-    local proxy_content
-    proxy_content=$(gh issue list --limit 5 --json body --jq '.[] | select(.body | contains("proxy") or contains("Proxy") or contains("network") or contains("connection")) | .body' | head -1)
-    
-    if [[ -n "$proxy_content" ]]; then
-        success "Proxy workflow '$workflow_name' appears to have tested proxy functionality"
-        return 0
-    else
-        warning "Proxy workflow '$workflow_name' completed but no clear evidence of proxy testing found"
-        return 0  # Don't fail - proxy tests may not create visible output
-    fi
-}
-
 validate_branch_created() {
     local branch_name="$1"
     
@@ -664,35 +644,35 @@ validate_branch_created() {
 cleanup_test_resources() {
     info "Cleaning up test resources..."
     
-    # Disable all test workflows
-    info "Disabling test workflows..."
-    local test_workflows=(
-        "test-claude-create-issue"
-        "test-codex-create-issue"
-        "test-claude-create-pull-request"
-        "test-codex-create-pull-request"
-        "test-claude-create-repository-security-advisory"
-        "test-codex-create-repository-security-advisory"
-        "test-claude-mcp"
-        "test-codex-mcp"
-        "test-custom-safe-outputs"
-        "test-claude-add-issue-comment"
-        "test-codex-add-issue-comment"
-        "test-claude-add-issue-labels"
-        "test-codex-add-issue-labels"
-        "test-claude-command"
-        "test-codex-command"
-        "test-claude-push-to-branch"
-        "test-codex-push-to-branch"
-        "test-claude-create-pull-request-review-comment"
-        "test-codex-create-pull-request-review-comment"
-        "test-claude-update-issue"
-        "test-codex-update-issue"
-    )
+    # # Disable all test workflows
+    # info "Disabling test workflows..."
+    # local test_workflows=(
+    #     "test-claude-create-issue"
+    #     "test-codex-create-issue"
+    #     "test-claude-create-pull-request"
+    #     "test-codex-create-pull-request"
+    #     "test-claude-create-repository-security-advisory"
+    #     "test-codex-create-repository-security-advisory"
+    #     "test-claude-mcp"
+    #     "test-codex-mcp"
+    #     "test-custom-safe-outputs"
+    #     "test-claude-add-issue-comment"
+    #     "test-codex-add-issue-comment"
+    #     "test-claude-add-issue-labels"
+    #     "test-codex-add-issue-labels"
+    #     "test-claude-command"
+    #     "test-codex-command"
+    #     "test-claude-push-to-branch"
+    #     "test-codex-push-to-branch"
+    #     "test-claude-create-pull-request-review-comment"
+    #     "test-codex-create-pull-request-review-comment"
+    #     "test-claude-update-issue"
+    #     "test-codex-update-issue"
+    # )
     
-    for workflow in "${test_workflows[@]}"; do
-        disable_workflow "$workflow" || true  # Continue even if disable fails
-    done
+    # for workflow in "${test_workflows[@]}"; do
+    #     disable_workflow "$workflow" || true  # Continue even if disable fails
+    # done
     
     # Close test issues
     gh issue list --label "claude,automation" --limit 20 --json number --jq '.[].number' | while read -r issue_num; do
@@ -701,12 +681,19 @@ cleanup_test_resources() {
         fi
     done
     
-    # Also close issues with other test labels
-    gh issue list --label "test-safe-outputs" --limit 20 --json number --jq '.[].number' | while read -r issue_num; do
+    # Close issues with titles containing "Hello from"
+    gh issue list --limit 20 --json number,title --jq '.[] | select(.title | contains("Hello from")) | .number' | while read -r issue_num; do
         if [[ -n "$issue_num" ]]; then
             gh issue close "$issue_num" --comment "Closed by e2e test cleanup" &>/dev/null || true
         fi
     done
+    
+    # # Also close issues with other test labels
+    # gh issue list --label "test-safe-outputs" --limit 20 --json number --jq '.[].number' | while read -r issue_num; do
+    #     if [[ -n "$issue_num" ]]; then
+    #         gh issue close "$issue_num" --comment "Closed by e2e test cleanup" &>/dev/null || true
+    #     fi
+    # done
     
     # Close test PRs
     gh pr list --label "claude,automation,bot" --limit 20 --json number --jq '.[].number' | while read -r pr_num; do
@@ -715,11 +702,11 @@ cleanup_test_resources() {
         fi
     done
     
-    gh pr list --label "test-safe-outputs" --limit 20 --json number --jq '.[].number' | while read -r pr_num; do
-        if [[ -n "$pr_num" ]]; then
-            gh pr close "$pr_num" --comment "Closed by e2e test cleanup" &>/dev/null || true
-        fi
-    done
+    # gh pr list --label "test-safe-outputs" --limit 20 --json number --jq '.[].number' | while read -r pr_num; do
+    #     if [[ -n "$pr_num" ]]; then
+    #         gh pr close "$pr_num" --comment "Closed by e2e test cleanup" &>/dev/null || true
+    #     fi
+    # done
     
     # Delete test branches
     git branch -r | grep 'origin/test-pr-\|origin/claude-test-branch' | sed 's/origin\///' | while read -r branch; do
@@ -779,57 +766,54 @@ run_workflow_dispatch_tests() {
                         fi
                     fi
                     ;;
-                *)
-                    # For other workflows, apply specific validation based on workflow type
-                    case "$workflow" in
-                        *"repository-security-advisory")
-                            if validate_repository_security_advisory "$workflow"; then
-                                PASSED_TESTS+=("$workflow")
-                            else
-                                FAILED_TESTS+=("$workflow")
-                            fi
-                            ;;
-                        *"mcp")
-                            if validate_mcp_workflow "$workflow"; then
-                                PASSED_TESTS+=("$workflow")
-                            else
-                                FAILED_TESTS+=("$workflow")
-                            fi
-                            ;;
-                        *"network-permissions")
-                            if validate_network_permissions_workflow "$workflow"; then
-                                PASSED_TESTS+=("$workflow")
-                            else
-                                FAILED_TESTS+=("$workflow")
-                            fi
-                            ;;
-                        *"safe-outputs")
-                            if validate_safe_outputs_workflow "$workflow"; then
-                                PASSED_TESTS+=("$workflow")
-                            else
-                                FAILED_TESTS+=("$workflow")
-                            fi
-                            ;;
-                        *"ai-inference")
-                            if validate_ai_inference_workflow "$workflow"; then
-                                PASSED_TESTS+=("$workflow")
-                            else
-                                FAILED_TESTS+=("$workflow")
-                            fi
-                            ;;
-                        *"proxy")
-                            if validate_proxy_workflow "$workflow"; then
-                                PASSED_TESTS+=("$workflow")
-                            else
-                                FAILED_TESTS+=("$workflow")
-                            fi
-                            ;;
-                        *)
-                            # For truly unknown workflows, just check that they completed successfully
-                            success "Workflow '$workflow' completed successfully (no specific validation available)"
+                *"repository-security-advisory")
+                    if validate_security_report "$workflow"; then
+                        PASSED_TESTS+=("$workflow")
+                    else
+                        FAILED_TESTS+=("$workflow")
+                    fi
+                    ;;
+                *"mcp")
+                    # MCP workflows create issues with "Hello from Claude/Codex" titles
+                    if [[ "$workflow" == *"claude"* ]]; then
+                        if validate_issue_created "Hello from Claude" ""; then
                             PASSED_TESTS+=("$workflow")
-                            ;;
-                    esac
+                        else
+                            FAILED_TESTS+=("$workflow")
+                        fi
+                    elif [[ "$workflow" == *"codex"* ]]; then
+                        if validate_issue_created "Hello from Codex" ""; then
+                            PASSED_TESTS+=("$workflow")
+                        else
+                            FAILED_TESTS+=("$workflow")
+                        fi
+                    else
+                        # Fallback to general MCP validation
+                        if validate_mcp_workflow "$workflow"; then
+                            PASSED_TESTS+=("$workflow")
+                        else
+                            FAILED_TESTS+=("$workflow")
+                        fi
+                    fi
+                    ;;
+                *"safe-outputs")
+                    if validate_safe_outputs_workflow "$workflow"; then
+                        PASSED_TESTS+=("$workflow")
+                    else
+                        FAILED_TESTS+=("$workflow")
+                    fi
+                    ;;
+                *"ai-inference")
+                    if validate_ai_inference_workflow "$workflow"; then
+                        PASSED_TESTS+=("$workflow")
+                    else
+                        FAILED_TESTS+=("$workflow")
+                    fi
+                    ;;
+                *)
+                    # For truly unknown workflows, just check that they completed successfully
+                    success "Workflow '$workflow' completed successfully (no specific validation available)"
+                    PASSED_TESTS+=("$workflow")
                     ;;
             esac
         else
