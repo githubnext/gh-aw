@@ -266,12 +266,54 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).toContain("`fixes #789`"); // Multiple spaces normalized to single
     });
 
+    it("should preserve markdown bold patterns like **word:**", () => {
+      const input = `
+        This **word:** pattern should be preserved.
+        Multiple **example:** and **test:** patterns.
+        Mixed content: **note:** check https://evil.com and javascript:alert()
+      `;
+      const result = sanitizeContentFunction(input);
+
+      // Markdown patterns should be preserved
+      expect(result).toContain("**word:**");
+      expect(result).toContain("**example:**");
+      expect(result).toContain("**test:**");
+      expect(result).toContain("**note:**");
+
+      // But dangerous protocols should still be sanitized
+      expect(result).toContain("(redacted)"); // For evil.com and javascript
+      expect(result).not.toContain("https://evil.com");
+      expect(result).not.toContain("javascript:alert()");
+    });
+
+    it("should preserve common text patterns with colons", () => {
+      const input = `
+        title: This is a title
+        name: John Smith
+        time: 5:30pm
+        ratio: 3:1
+        Note: This is important
+        Status: Complete
+      `;
+      const result = sanitizeContentFunction(input);
+
+      // All these legitimate patterns should be preserved
+      expect(result).toContain("title: This is a title");
+      expect(result).toContain("name: John Smith");
+      expect(result).toContain("time: 5:30pm");
+      expect(result).toContain("ratio: 3:1");
+      expect(result).toContain("Note: This is important");
+      expect(result).toContain("Status: Complete");
+    });
+
     it("should handle edge cases in protocol filtering", () => {
       const input = `
         Protocols: HTTP://CAPS.COM, https://github.com/path?query=value#fragment
         More: mailto:user@domain.com tel:+1234567890 ssh://server:22/path
         Edge: ://malformed http:// https:// 
         Nested: (https://github.com) [http://bad.com] "ftp://files.com"
+        Markdown: **word:** and **example:** patterns should be preserved
+        Text patterns: title: content, name: John, time: 5:30pm, ratio: 3:1
       `;
       const result = sanitizeContentFunction(input);
 
@@ -283,6 +325,16 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).not.toContain("mailto:user@domain.com");
       expect(result).not.toContain("tel:+1234567890");
       expect(result).not.toContain("ssh://server:22/path");
+
+      // Check markdown patterns are preserved
+      expect(result).toContain("**word:**");
+      expect(result).toContain("**example:**");
+
+      // Check legitimate text patterns are preserved
+      expect(result).toContain("title: content");
+      expect(result).toContain("name: John");
+      expect(result).toContain("time: 5:30pm");
+      expect(result).toContain("ratio: 3:1");
     });
 
     it("should preserve HTTPS URLs in various contexts", () => {

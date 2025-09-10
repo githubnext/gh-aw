@@ -150,6 +150,46 @@ describe("compute_text.cjs", () => {
       expect(result).toContain("https://trusted.org");
       expect(result).toContain("(redacted)"); // for evil.com
     });
+
+    it("should preserve markdown bold patterns like **word:**", () => {
+      const input = `
+        This **word:** pattern should be preserved.
+        Multiple **example:** and **test:** patterns.
+        Mixed content: **note:** check https://evil.com and javascript:alert()
+      `;
+      const result = sanitizeContentFunction(input);
+
+      // Markdown patterns should be preserved
+      expect(result).toContain("**word:**");
+      expect(result).toContain("**example:**");
+      expect(result).toContain("**test:**");
+      expect(result).toContain("**note:**");
+
+      // But dangerous protocols should still be sanitized
+      expect(result).toContain("(redacted)"); // For evil.com and javascript
+      expect(result).not.toContain("https://evil.com");
+      expect(result).not.toContain("javascript:alert()");
+    });
+
+    it("should preserve common text patterns with colons", () => {
+      const input = `
+        title: This is a title
+        name: John Smith
+        time: 5:30pm
+        ratio: 3:1
+        Note: This is important
+        Status: Complete
+      `;
+      const result = sanitizeContentFunction(input);
+
+      // All these legitimate patterns should be preserved
+      expect(result).toContain("title: This is a title");
+      expect(result).toContain("name: John Smith");
+      expect(result).toContain("time: 5:30pm");
+      expect(result).toContain("ratio: 3:1");
+      expect(result).toContain("Note: This is important");
+      expect(result).toContain("Status: Complete");
+    });
   });
 
   describe("main function", () => {

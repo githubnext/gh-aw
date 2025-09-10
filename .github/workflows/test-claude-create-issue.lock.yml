@@ -450,12 +450,20 @@ jobs:
                  * @returns {string} The string with non-https protocols redacted
                  */
                 function sanitizeUrlProtocols(s) {
-                  // Match both protocol:// and protocol: patterns
+                  // Match protocol patterns while avoiding false positives like "**word:**"
+                  // This covers URLs like https://example.com, javascript:alert(), mailto:user@domain.com, etc.
+                  // Uses negative lookbehind to prevent matching when preceded by **
                   return s.replace(
-                    /\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi,
-                    (match, protocol) => {
-                      // Allow https (case insensitive), redact everything else
-                      return protocol.toLowerCase() === "https" ? match : "(redacted)";
+                    /(?<!\*\*)\b(?:(?:javascript|vbscript|data|file|mailto|tel|ftp|ssh):[^\s\])}'"<>&\x00-\x1f]+|\w+:\/\/[^\s\])}'"<>&\x00-\x1f]+)/gi,
+                    match => {
+                      // Extract protocol name to check if it's HTTPS
+                      const protocolMatch = match.match(/^(\w+):/);
+                      if (protocolMatch) {
+                        const protocol = protocolMatch[1].toLowerCase();
+                        // Allow https (case insensitive), redact everything else
+                        return protocol === "https" ? match : "(redacted)";
+                      }
+                      return "(redacted)";
                     }
                   );
                 }
