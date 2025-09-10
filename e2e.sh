@@ -416,6 +416,34 @@ create_test_pr() {
     fi
 }
 
+create_test_branch() {
+    local branch_name="$1"
+    local test_file_content="$2"
+    
+    # Delete the branch if it already exists to ensure clean test
+    git push origin --delete "$branch_name" &>/dev/null || true
+    
+    # Create a new branch from main
+    git checkout main &>/dev/null
+    git pull origin main &>/dev/null
+    git checkout -b "$branch_name" &>/dev/null
+    
+    # Create a test file with some content
+    echo "$test_file_content" > "test-branch-file-$(date +%s).md"
+    git add . &>/dev/null
+    git commit -m "Initial commit for $branch_name test" &>/dev/null
+    git push origin "$branch_name" &>/dev/null
+    
+    # Get the initial SHA
+    local initial_sha
+    initial_sha=$(git rev-parse HEAD)
+    
+    # Switch back to main
+    git checkout main &>/dev/null
+    
+    echo "$initial_sha"
+}
+
 post_issue_command() {
     local issue_number="$1"
     local command="$2"
@@ -672,15 +700,22 @@ validate_ai_inference_workflow() {
     fi
 }
 
-validate_branch_created() {
+validate_branch_updated() {
     local branch_name="$1"
+    local initial_sha="$2"
     
-    if git ls-remote --heads origin "$branch_name" &>/dev/null; then
-        success "Branch '$branch_name' created successfully"
-        return 0
-    else
-        error "Branch '$branch_name' not found"
+    local current_sha
+    current_sha=$(git ls-remote --heads origin "$branch_name" 2>/dev/null | cut -f1)
+    
+    if [[ -z "$current_sha" ]]; then
+        warning "(polling) Branch '$branch_name' not found"
         return 1
+    elif [[ "$current_sha" == "$initial_sha" ]]; then
+        warning "(polling) Branch '$branch_name' SHA unchanged: $current_sha"
+        return 1
+    else
+        success "Branch '$branch_name' updated successfully: $initial_sha -> $current_sha"
+        return 0
     fi
 }
 
@@ -769,14 +804,15 @@ wait_for_command_comment() {
     return 1
 }
 
-wait_for_branch_creation() {
+wait_for_branch_update() {
     local branch_name="$1"
-    local test_name="$2"
+    local initial_sha="$2"
+    local test_name="$3"
     local max_wait=240 # Max wait time in seconds (4 minutes)
     local waited=0
     
     while [[ $waited -lt $max_wait ]]; do
-        if validate_branch_created "$branch_name"; then
+        if validate_branch_updated "$branch_name" "$initial_sha"; then
             PASSED_TESTS+=("$test_name")
             return 0
         fi
@@ -857,7 +893,7 @@ cleanup_test_resources() {
     # done
     
     # Delete test branches
-    git branch -r | grep 'origin/test-pr-\|origin/claude-test-branch' | sed 's/origin\///' | while read -r branch; do
+    git branch -r | grep 'origin/test-pr-\|origin/claude-test-branch\|origin/codex-test-branch' | sed 's/origin\///' | while read -r branch; do
         if [[ -n "$branch" ]]; then
             git push origin --delete "$branch" &>/dev/null || true
         fi
@@ -1268,11 +1304,19 @@ run_command_tests() {
                     # Test push to branch command
                     if [[ "$need_claude_push_to_branch" == true ]]; then
                         progress "Testing Claude push-to-branch workflow"
-                        # Delete the branch if it already exists to ensure clean test
-                        git push origin --delete "claude-test-branch" &>/dev/null || true
-                        post_issue_command "$claude_issue_num" "/test-claude-push-to-branch"
+                        # Create a test branch with initial content
+                        local claude_initial_sha
+                        claude_initial_sha=$(create_test_branch "claude-test-branch" "# Claude Test Branch\nThis branch will be updated by the Claude push-to-branch workflow.")
                         
-                        wait_for_branch_creation "claude-test-branch" "test-claude-push-to-branch"
+                        if [[ -n "$claude_initial_sha" ]]; then
+                            success "Created Claude test branch 'claude-test-branch' with SHA: $claude_initial_sha"
+                            post_issue_command "$claude_issue_num" "/test-claude-push-to-branch"
+                            
+                            wait_for_branch_update "claude-test-branch" "$claude_initial_sha" "test-claude-push-to-branch"
+                        else
+                            error "Failed to create Claude test branch"
+                            FAILED_TESTS+=("test-claude-push-to-branch")
+                        fi
                     fi
                 else
                     error "Failed to create test issue for Claude commands"
@@ -1304,11 +1348,19 @@ run_command_tests() {
                     # Test push to branch command
                     if [[ "$need_codex_push_to_branch" == true ]]; then
                         progress "Testing Codex push-to-branch workflow"
-                        # Delete the branch if it already exists to ensure clean test
-                        git push origin --delete "codex-test-branch" &>/dev/null || true
-                        post_issue_command "$codex_issue_num" "/test-codex-push-to-branch"
+                        # Create a test branch with initial content
+                        local codex_initial_sha
+                        codex_initial_sha=$(create_test_branch "codex-test-branch" "# Codex Test Branch\nThis branch will be updated by the Codex push-to-branch workflow.")
                         
-                        wait_for_branch_creation "codex-test-branch" "test-codex-push-to-branch"
+                        if [[ -n "$codex_initial_sha" ]]; then
+                            success "Created Codex test branch 'codex-test-branch' with SHA: $codex_initial_sha"
+                            post_issue_command "$codex_issue_num" "/test-codex-push-to-branch"
+                            
+                            wait_for_branch_update "codex-test-branch" "$codex_initial_sha" "test-codex-push-to-branch"
+                        else
+                            error "Failed to create Codex test branch"
+                            FAILED_TESTS+=("test-codex-push-to-branch")
+                        fi
                     fi
                 else
                     error "Failed to create test issue for Codex commands"
