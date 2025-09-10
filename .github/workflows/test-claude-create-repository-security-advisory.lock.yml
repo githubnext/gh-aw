@@ -1676,7 +1676,7 @@ jobs:
           path: /tmp/test-claude-create-repository-security-advisory.log
           if-no-files-found: warn
 
-  create_security_report:
+  create_repository_security_advisory:
     needs: test-claude-create-repository-security-advisory
     runs-on: ubuntu-latest
     permissions:
@@ -1685,13 +1685,13 @@ jobs:
       actions: read
     timeout-minutes: 10
     outputs:
-      artifact_uploaded: ${{ steps.create_security_report.outputs.artifact_uploaded }}
-      codeql_uploaded: ${{ steps.create_security_report.outputs.codeql_uploaded }}
-      findings_count: ${{ steps.create_security_report.outputs.findings_count }}
-      sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}
+      artifact_uploaded: ${{ steps.create_repository_security_advisory.outputs.artifact_uploaded }}
+      codeql_uploaded: ${{ steps.create_repository_security_advisory.outputs.codeql_uploaded }}
+      findings_count: ${{ steps.create_repository_security_advisory.outputs.findings_count }}
+      sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
     steps:
       - name: Create Repository Security Advisory
-        id: create_security_report
+        id: create_repository_security_advisory
         uses: actions/github-script@v7
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-repository-security-advisory.outputs.output }}
@@ -1963,14 +1963,14 @@ jobs:
             }
             await main();
       - name: Upload SARIF artifact
-        if: steps.create_security_report.outputs.sarif_file
+        if: steps.create_repository_security_advisory.outputs.sarif_file
         uses: actions/upload-artifact@v4
         with:
           name: repository-security-advisory.sarif
-          path: ${{ steps.create_security_report.outputs.sarif_file }}
+          path: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
       - name: Upload SARIF to GitHub Security
-        if: steps.create_security_report.outputs.sarif_file
+        if: steps.create_repository_security_advisory.outputs.sarif_file
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}
+          sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
 

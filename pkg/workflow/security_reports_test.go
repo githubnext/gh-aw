@@ -112,8 +112,8 @@ func TestBuildCreateOutputRepositorySecurityAdvisoryJob(t *testing.T) {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if job.Name != "create_security_report" {
-		t.Errorf("Expected job name 'create_security_report', got '%s'", job.Name)
+	if job.Name != "create_repository_security_advisory" {
+		t.Errorf("Expected job name 'create_repository_security_advisory', got '%s'", job.Name)
 	}
 
 	if job.TimeoutMinutes != 10 {

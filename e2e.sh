@@ -507,7 +507,7 @@ validate_pr_created() {
     fi
 }
 
-validate_security_report() {
+validate_repository_security_advisory() {
     local workflow_name="$1"
     
     # Determine expected title based on workflow name
@@ -783,7 +783,7 @@ run_workflow_dispatch_tests() {
                     # For other workflows, apply specific validation based on workflow type
                     case "$workflow" in
                         *"repository-security-advisory")
-                            if validate_security_report "$workflow"; then
+                            if validate_repository_security_advisory "$workflow"; then
                                 PASSED_TESTS+=("$workflow")
                             else
                                 FAILED_TESTS+=("$workflow")

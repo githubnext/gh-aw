@@ -1881,16 +1881,16 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
-		// Build create_security_report job if output.create-repository-security-advisory is configured
+		// Build create_repository_security_advisory job if output.create-repository-security-advisory is configured
 		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
 			// Extract the workflow filename without extension for rule ID prefix
 			workflowFilename := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 			createRepositorySecurityAdvisoryJob, err := c.buildCreateOutputRepositorySecurityAdvisoryJob(data, jobName, workflowFilename)
 			if err != nil {
-				return fmt.Errorf("failed to build create_security_report job: %w", err)
+				return fmt.Errorf("failed to build create_repository_security_advisory job: %w", err)
 			}
 			if err := c.jobManager.AddJob(createRepositorySecurityAdvisoryJob); err != nil {
-				return fmt.Errorf("failed to add create_security_report job: %w", err)
+				return fmt.Errorf("failed to add create_repository_security_advisory job: %w", err)
 			}
 		}
 
@@ -2400,7 +2400,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	return job, nil
 }
 
-// buildCreateOutputRepositorySecurityAdvisoryJob creates the create_security_report job
+// buildCreateOutputRepositorySecurityAdvisoryJob creates the create_repository_security_advisory job
 func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateRepositorySecurityAdvisories == nil {
 		return nil, fmt.Errorf("safe-outputs.create-repository-security-advisory configuration is required")
@@ -2408,7 +2408,7 @@ func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *Workflow
 
 	var steps []string
 	steps = append(steps, "      - name: Create Repository Security Advisory\n")
-	steps = append(steps, "        id: create_security_report\n")
+	steps = append(steps, "        id: create_repository_security_advisory\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 
 	// Add environment variables
@@ -2441,25 +2441,25 @@ func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *Workflow
 
 	// Add step to upload SARIF artifact
 	steps = append(steps, "      - name: Upload SARIF artifact\n")
-	steps = append(steps, "        if: steps.create_security_report.outputs.sarif_file\n")
+	steps = append(steps, "        if: steps.create_repository_security_advisory.outputs.sarif_file\n")
 	steps = append(steps, "        uses: actions/upload-artifact@v4\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: repository-security-advisory.sarif\n")
-	steps = append(steps, "          path: ${{ steps.create_security_report.outputs.sarif_file }}\n")
+	steps = append(steps, "          path: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}\n")
 
 	// Add step to upload SARIF to GitHub Code Scanning
 	steps = append(steps, "      - name: Upload SARIF to GitHub Security\n")
-	steps = append(steps, "        if: steps.create_security_report.outputs.sarif_file\n")
+	steps = append(steps, "        if: steps.create_repository_security_advisory.outputs.sarif_file\n")
 	steps = append(steps, "        uses: github/codeql-action/upload-sarif@v3\n")
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}\n")
+	steps = append(steps, "          sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}\n")
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"sarif_file":        "${{ steps.create_security_report.outputs.sarif_file }}",
-		"findings_count":    "${{ steps.create_security_report.outputs.findings_count }}",
-		"artifact_uploaded": "${{ steps.create_security_report.outputs.artifact_uploaded }}",
-		"codeql_uploaded":   "${{ steps.create_security_report.outputs.codeql_uploaded }}",
+		"sarif_file":        "${{ steps.create_repository_security_advisory.outputs.sarif_file }}",
+		"findings_count":    "${{ steps.create_repository_security_advisory.outputs.findings_count }}",
+		"artifact_uploaded": "${{ steps.create_repository_security_advisory.outputs.artifact_uploaded }}",
+		"codeql_uploaded":   "${{ steps.create_repository_security_advisory.outputs.codeql_uploaded }}",
 	}
 
 	// Build job condition - repository security advisories can run in any context unlike PR review comments
@@ -2475,7 +2475,7 @@ func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *Workflow
 	}
 
 	job := &Job{
-		Name:           "create_security_report",
+		Name:           "create_repository_security_advisory",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      security-events: write\n      actions: read", // Need security-events:write for SARIF upload

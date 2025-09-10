@@ -33,11 +33,11 @@ global.context = mockContext;
 
 // Read the repository security advisory script
 const securityReportScript = fs.readFileSync(
-  path.join(import.meta.dirname, "create_security_report.cjs"),
+  path.join(import.meta.dirname, "create_repository_security_advisory.cjs"),
   "utf8"
 );
 
-describe("create_security_report.cjs", () => {
+describe("create_repository_security_advisory.cjs", () => {
   beforeEach(() => {
     // Reset mocks
     mockCore.setOutput.mockClear();
