@@ -1256,17 +1256,20 @@ run_command_tests() {
                 claude_issue_num=$(create_test_issue "Test Issue for Claude Commands" "This issue is for testing Claude command workflows")
                 
                 if [[ -n "$claude_issue_num" ]]; then
+                    success "Created Claude test issue #$claude_issue_num: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$claude_issue_num"
                     # Test Claude command
                     if [[ "$need_claude_command" == true ]]; then
                         progress "Testing Claude command workflow"
-                        post_issue_command "$claude_issue_num" "/test-claude-command What is this repository about?"
+                        post_issue_command "$claude_issue_num" "/test-claude-command What is 102+103?"
                         
-                        wait_for_command_comment "$claude_issue_num" "Claude" "test-claude-command"
+                        wait_for_command_comment "$claude_issue_num" "205" "test-claude-command"
                     fi
                     
                     # Test push to branch command
                     if [[ "$need_claude_push_to_branch" == true ]]; then
                         progress "Testing Claude push-to-branch workflow"
+                        # Delete the branch if it already exists to ensure clean test
+                        git push origin --delete "claude-test-branch" &>/dev/null || true
                         post_issue_command "$claude_issue_num" "/test-claude-push-to-branch"
                         
                         wait_for_branch_creation "claude-test-branch" "test-claude-push-to-branch"
@@ -1289,17 +1292,20 @@ run_command_tests() {
                 codex_issue_num=$(create_test_issue "Test Issue for Codex Commands" "This issue is for testing Codex command workflows")
                 
                 if [[ -n "$codex_issue_num" ]]; then
+                    success "Created Codex test issue #$codex_issue_num: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$codex_issue_num"
                     # Test Codex command
                     if [[ "$need_codex_command" == true ]]; then
                         progress "Testing Codex command workflow"
                         post_issue_command "$codex_issue_num" "/test-codex-command What is 102+103?"
                         
-                        wait_for_command_comment "$codex_issue_num" "Codex" "test-codex-command"
+                        wait_for_command_comment "$codex_issue_num" "205" "test-codex-command"
                     fi
                     
                     # Test push to branch command
                     if [[ "$need_codex_push_to_branch" == true ]]; then
                         progress "Testing Codex push-to-branch workflow"
+                        # Delete the branch if it already exists to ensure clean test
+                        git push origin --delete "codex-test-branch" &>/dev/null || true
                         post_issue_command "$codex_issue_num" "/test-codex-push-to-branch"
                         
                         wait_for_branch_creation "codex-test-branch" "test-codex-push-to-branch"
@@ -1502,7 +1508,7 @@ main() {
                 run_pr_triggered=true
                 shift
                 ;;
-            --dry-run)
+            --dry-run|-n)
                 dry_run=true
                 shift
                 ;;
@@ -1514,7 +1520,7 @@ main() {
                 echo "  --issue-triggered-only     Run only issue-triggered tests"
                 echo "  --command-triggered-only   Run only command-triggered tests"
                 echo "  --pr-triggered-only        Run only PR-triggered tests"
-                echo "  --dry-run                  Show what would be tested without running"
+                echo "  --dry-run, -n              Show what would be tested without running"
                 echo "  --help, -h                 Show this help message"
                 echo ""
                 echo "TEST_PATTERNS:"
@@ -1526,7 +1532,7 @@ main() {
                 echo "By default, all test suites are run."
                 exit 0
                 ;;
-            --*)
+            -*)
                 error "Unknown option: $1"
                 echo "Use --help for usage information"
                 exit 1
