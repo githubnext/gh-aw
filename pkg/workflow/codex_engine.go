@@ -313,8 +313,8 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 			}
 		}
 	}
-  
-	return "" // No tool call found  
+
+	return "" // No tool call found
 }
 
 // updateMostRecentToolWithDuration updates the tool with maximum duration

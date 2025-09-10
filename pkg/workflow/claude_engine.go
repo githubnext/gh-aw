@@ -814,9 +814,9 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 									currentSequence = append(currentSequence, sequenceInMessage...)
 								}
 							}
-            }
-          }
-        }
+						}
+					}
+				}
 			}
 		}
 
@@ -941,6 +941,73 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, to
 	}
 
 	return sequence
+}
+
+// parseToolCalls extracts tool call information from Claude log content array without sequence tracking
+func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) {
+	for _, contentItem := range contentArray {
+		if contentMap, ok := contentItem.(map[string]interface{}); ok {
+			if contentType, exists := contentMap["type"]; exists {
+				if typeStr, ok := contentType.(string); ok && typeStr == "tool_use" {
+					// Extract tool name
+					if toolName, exists := contentMap["name"]; exists {
+						if nameStr, ok := toolName.(string); ok {
+							// Prettify tool name
+							prettifiedName := PrettifyToolName(nameStr)
+
+							// Special handling for bash - each invocation is unique
+							if nameStr == "Bash" {
+								if input, exists := contentMap["input"]; exists {
+									if inputMap, ok := input.(map[string]interface{}); ok {
+										if command, exists := inputMap["command"]; exists {
+											if commandStr, ok := command.(string); ok {
+												// Create unique bash entry with command info, avoiding colons
+												uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
+												prettifiedName = uniqueBashName
+											}
+										}
+									}
+								}
+							}
+
+							// Initialize or update tool call info
+							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+								toolInfo.CallCount++
+							} else {
+								toolCallMap[prettifiedName] = &ToolCallInfo{
+									Name:          prettifiedName,
+									CallCount:     1,
+									MaxOutputSize: 0, // Will be updated when we find tool results
+									MaxDuration:   0, // Will be updated when we find execution timing
+								}
+							}
+						}
+					}
+				} else if typeStr == "tool_result" {
+					// Extract output size for tool results
+					if content, exists := contentMap["content"]; exists {
+						if contentStr, ok := content.(string); ok {
+							// Estimate token count (rough approximation: 1 token = ~4 characters)
+							outputSize := len(contentStr) / 4
+
+							// Find corresponding tool call to update max output size
+							if toolUseID, exists := contentMap["tool_use_id"]; exists {
+								if _, ok := toolUseID.(string); ok {
+									// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
+									// For now, we'll update the max output size for all tools (conservative estimate)
+									for _, toolInfo := range toolCallMap {
+										if outputSize > toolInfo.MaxOutputSize {
+											toolInfo.MaxOutputSize = outputSize
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 // shortenCommand creates a short identifier for bash commands
