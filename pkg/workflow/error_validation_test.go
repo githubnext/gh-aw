@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -147,5 +149,65 @@ func TestErrorPatternSerialization(t *testing.T) {
 
 	if pattern.MessageGroup < 1 {
 		t.Error("MessageGroup should be >= 1")
+	}
+}
+
+func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
+	// Test case for GitHub issue #668: Codex fails to report failure if unauthorised
+	engine := NewCodexEngine()
+	patterns := engine.GetErrorPatterns()
+
+	// Log content from issue #668
+	logContent := `[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…
+[2025-09-10T17:54:54] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 2/5 in 414ms…
+[2025-09-10T17:54:58] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 3/5 in 821ms…
+[2025-09-10T17:55:03] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 4/5 in 1.611s…
+[2025-09-10T17:55:08] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 5/5 in 3.039s…
+[2025-09-10T17:55:15] ERROR: exceeded retry limit, last status: 401 Unauthorized`
+
+	// Test that patterns can detect the errors
+	foundStreamErrors := 0
+	foundErrorMessages := 0
+
+	for _, pattern := range patterns {
+		regex, err := regexp.Compile(pattern.Pattern)
+		if err != nil {
+			t.Errorf("Invalid regex pattern '%s': %v", pattern.Pattern, err)
+			continue
+		}
+
+		matches := regex.FindAllString(logContent, -1)
+		if len(matches) > 0 {
+			if pattern.Description == "Codex stream errors with timestamp" {
+				foundStreamErrors = len(matches)
+			}
+			if pattern.Description == "Codex ERROR messages with timestamp" {
+				foundErrorMessages = len(matches)
+			}
+		}
+	}
+
+	// Should detect 5 stream errors and 1 ERROR message from issue #668
+	if foundStreamErrors != 5 {
+		t.Errorf("Expected 5 stream errors from issue #668, found %d", foundStreamErrors)
+	}
+	if foundErrorMessages != 1 {
+		t.Errorf("Expected 1 ERROR message from issue #668, found %d", foundErrorMessages)
+	}
+
+	// Verify the patterns specifically match 401 unauthorized content
+	streamPattern := patterns[0] // Stream error pattern
+	regex, _ := regexp.Compile(streamPattern.Pattern)
+	match := regex.FindStringSubmatch("[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…")
+
+	if len(match) < 4 {
+		t.Error("Stream error pattern should capture timestamp, level, and message groups")
+	} else {
+		if match[streamPattern.LevelGroup] != "error" {
+			t.Errorf("Expected level 'error', got '%s'", match[streamPattern.LevelGroup])
+		}
+		if !strings.Contains(match[streamPattern.MessageGroup], "401 Unauthorized") {
+			t.Errorf("Expected message to contain '401 Unauthorized', got '%s'", match[streamPattern.MessageGroup])
+		}
 	}
 }

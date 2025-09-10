@@ -110,6 +110,51 @@ Some normal log content
     const result = validateErrors(logContent, patterns);
     expect(global.core.warn).toHaveBeenCalled();
   });
+
+  test("should detect 401 unauthorized errors from issue #668", () => {
+    // Exact log content from GitHub issue #668
+    const logContent = `[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…
+[2025-09-10T17:54:54] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 2/5 in 414ms…
+[2025-09-10T17:54:58] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 3/5 in 821ms…
+[2025-09-10T17:55:03] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 4/5 in 1.611s…
+[2025-09-10T17:55:08] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 5/5 in 3.039s…
+[2025-09-10T17:55:15] ERROR: exceeded retry limit, last status: 401 Unauthorized`;
+
+    const patterns = [
+      {
+        pattern:
+          "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+stream\\s+(error):\\s+(.+)",
+        level_group: 2,
+        message_group: 3,
+        description: "Codex stream errors with timestamp",
+      },
+      {
+        pattern:
+          "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)",
+        level_group: 2,
+        message_group: 3,
+        description: "Codex ERROR messages with timestamp",
+      },
+    ];
+
+    const result = validateErrors(logContent, patterns);
+
+    // Should detect all the errors
+    expect(result).toBeDefined();
+    expect(result).toContain("Log Validation Results");
+    expect(result).toContain("🚨 **6** error(s)"); // 5 stream errors + 1 ERROR
+    expect(result).not.toContain("warning"); // These should all be errors, not warnings
+
+    // Should specifically detect 401 unauthorized errors
+    expect(result).toContain("401 Unauthorized");
+    expect(result).toContain("exceeded retry limit");
+
+    // Should include recommendations since errors were found
+    expect(result).toContain("### 💡 Recommendations");
+    expect(result).toContain(
+      "Review the errors above and check if they indicate problems with the agent execution"
+    );
+  });
 });
 
 describe("extractLevel", () => {
