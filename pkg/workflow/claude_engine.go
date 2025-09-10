@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -731,6 +732,9 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 		}
 	}
 
+	// Note: Duration extraction is handled in the main parsing logic where we have access to tool calls
+	// This is because we need to distribute duration among tool calls
+
 	return metrics
 }
 
@@ -783,6 +787,17 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 					}
 				}
 
+				// Extract duration information and distribute to tool calls
+				if durationMs, exists := entry["duration_ms"]; exists {
+					if duration := ConvertToFloat(durationMs); duration > 0 {
+						totalDuration := time.Duration(duration * float64(time.Millisecond))
+						// Distribute the total duration among tool calls
+						// Since we don't have per-tool timing, we approximate by using the total duration
+						// as the maximum duration for all tools that don't have duration set yet
+						e.distributeTotalDurationToToolCalls(toolCallMap, totalDuration)
+					}
+				}
+
 				if verbose {
 					fmt.Printf("Extracted from Claude result payload: tokens=%d, cost=%.4f, turns=%d\n",
 						metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
@@ -799,6 +814,19 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 									currentSequence = append(currentSequence, sequenceInMessage...)
 								}
 							}
+            }
+          }
+        }
+			}
+		}
+
+		// Parse tool_use entries for tool call statistics from both assistant and user entries
+		if entry["type"] == "user" || entry["type"] == "assistant" {
+			if message, exists := entry["message"]; exists {
+				if messageMap, ok := message.(map[string]interface{}); ok {
+					if content, exists := messageMap["content"]; exists {
+						if contentArray, ok := content.([]interface{}); ok {
+							e.parseToolCalls(contentArray, toolCallMap)
 						}
 					}
 				}
@@ -881,6 +909,7 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, to
 									Name:          prettifiedName,
 									CallCount:     1,
 									MaxOutputSize: 0, // Will be updated when we find tool results
+									MaxDuration:   0, // Will be updated when we find execution timing
 								}
 							}
 						}
@@ -922,6 +951,33 @@ func (e *ClaudeEngine) shortenCommand(command string) string {
 		shortened = shortened[:20] + "..."
 	}
 	return shortened
+}
+
+// distributeTotalDurationToToolCalls distributes the total workflow duration among tool calls
+// Since Claude logs don't provide per-tool timing, we approximate by assigning the total duration
+// to all tools that don't have a duration set yet, simulating that they all could have taken this long
+func (e *ClaudeEngine) distributeTotalDurationToToolCalls(toolCallMap map[string]*ToolCallInfo, totalDuration time.Duration) {
+	// Count tools that don't have duration set yet
+	toolsWithoutDuration := 0
+	for _, toolInfo := range toolCallMap {
+		if toolInfo.MaxDuration == 0 {
+			toolsWithoutDuration++
+		}
+	}
+
+	// If no tools without duration, don't update anything
+	if toolsWithoutDuration == 0 {
+		return
+	}
+
+	// For Claude logs, since we only have total duration, we assign the total duration
+	// as the maximum possible duration for each tool. This is conservative but gives
+	// users an idea of the overall workflow timing
+	for _, toolInfo := range toolCallMap {
+		if toolInfo.MaxDuration == 0 {
+			toolInfo.MaxDuration = totalDuration
+		}
+	}
 }
 
 // GetLogParserScript returns the JavaScript script name for parsing Claude logs

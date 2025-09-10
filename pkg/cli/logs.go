@@ -1005,11 +1005,15 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 				if toolCall.MaxOutputSize > existing.MaxOutputSize {
 					existing.MaxOutputSize = toolCall.MaxOutputSize
 				}
+				if toolCall.MaxDuration > existing.MaxDuration {
+					existing.MaxDuration = toolCall.MaxDuration
+				}
 			} else {
 				toolStats[displayKey] = &workflow.ToolCallInfo{
 					Name:          displayKey,
 					CallCount:     toolCall.CallCount,
 					MaxOutputSize: toolCall.MaxOutputSize,
+					MaxDuration:   toolCall.MaxDuration,
 				}
 			}
 		}
@@ -1033,7 +1037,7 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 	})
 
 	// Prepare table data
-	headers := []string{"Tool", "Calls", "Max Output (tokens)"}
+	headers := []string{"Tool", "Calls", "Max Output (tokens)", "Max Duration"}
 	var rows [][]string
 
 	for _, toolCall := range toolCalls {
@@ -1042,10 +1046,16 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 			outputStr = formatNumber(toolCall.MaxOutputSize)
 		}
 
+		durationStr := "N/A"
+		if toolCall.MaxDuration > 0 {
+			durationStr = formatDuration(toolCall.MaxDuration)
+		}
+
 		row := []string{
 			toolCall.Name,
 			fmt.Sprintf("%d", toolCall.CallCount),
 			outputStr,
+			durationStr,
 		}
 		rows = append(rows, row)
 	}
