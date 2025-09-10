@@ -152,7 +152,8 @@ async function main() {
   if (!isEmpty) {
     console.log("Applying patch...");
     try {
-      execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
+      // Patches are created with git format-patch, so use git am to apply them
+      execSync("git am /tmp/aw.patch", { stdio: "inherit" });
       console.log("Patch applied successfully");
     } catch (error) {
       core.error(
