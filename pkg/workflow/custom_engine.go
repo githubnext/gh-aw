@@ -182,7 +182,7 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	}
 }
 
-// renderPlaywrightMCPConfig generates the Playwright MCP server configuration using shared logic  
+// renderPlaywrightMCPConfig generates the Playwright MCP server configuration using shared logic
 // Always uses Docker-based containerized setup in GitHub Actions
 func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
 	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)

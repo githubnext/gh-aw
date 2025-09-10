@@ -592,7 +592,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	}
 }
 
-// renderPlaywrightMCPConfig generates the Playwright MCP server configuration  
+// renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Always uses Docker-based containerized setup in GitHub Actions
 func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
 	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)

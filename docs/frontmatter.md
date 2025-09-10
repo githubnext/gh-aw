@@ -322,6 +322,22 @@ network:
     - dotnet
     - "api.custom.com"    # Custom domain
 
+# Browser automation with Playwright
+engine:
+  id: claude
+
+network:
+  allowed:
+    - defaults
+    - playwright          # Playwright testing framework domains
+    - github              # GitHub domains for repository access
+
+tools:
+  playwright:
+    docker_image_version: "v1.40.0"
+  github:
+    allowed: ["get_file_contents", "list_commits"]
+
 # Allow all subdomains of a trusted domain
 # Note: "*.github.com" matches api.github.com, subdomain.github.com, and even nested.api.github.com
 engine:

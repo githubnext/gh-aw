@@ -50,7 +50,7 @@ The system automatically includes comprehensive default read-only GitHub tools. 
 
 **Users & Organizations**: `search_users`, `search_orgs`, `get_me`
 
-## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
+## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`, `playwright:`)
 
 Available when using `engine: claude` (it is the default engine). Configure Claude-specific capabilities and tools.
 
@@ -60,6 +60,8 @@ tools:
   web-fetch:    # Web content fetching
   web-search:   # Web search capabilities
   bash: ["echo", "ls", "git status"]  # Allowed bash commands
+  playwright:   # Browser automation with Playwright
+    docker_image_version: "v1.40.0"
 ```
 
 ### Bash Command Configuration
@@ -81,6 +83,41 @@ tools:
 - **`prefix:*`**: Allows **all commands starting with prefix**
 
 **Security Note**: Using `:*` allows unrestricted bash access. Use only in trusted environments.
+
+### Playwright Browser Automation
+
+Configure Playwright for browser automation tasks. Always runs in a containerized environment for security and consistency.
+
+```yaml
+tools:
+  playwright:
+    docker_image_version: "v1.40.0"  # Optional: specify Playwright image version
+```
+
+**Configuration Options:**
+- **`docker_image_version`**: (Optional) Specify the Playwright Docker image version from [Microsoft Container Registry](https://mcr.microsoft.com/en-us/product/playwright/about). Defaults to `"latest"`.
+
+**Provided Capabilities:**
+- **Browser automation**: Chromium, Firefox, Safari engines
+- **Page interactions**: Click, type, navigate, wait for elements
+- **Screenshots**: Capture screenshots of web pages
+- **Network interception**: Monitor and modify network requests
+- **Mobile emulation**: Test responsive designs and mobile views
+
+**Network Permissions**: For network access, include `playwright` in your network permissions:
+
+```yaml
+engine: claude
+network:
+  allowed:
+    - defaults
+    - playwright    # Enables Playwright ecosystem domains
+tools:
+  playwright:
+    docker_image_version: "v1.41.0"
+```
+
+**Container Details**: Uses `mcr.microsoft.com/playwright:{version}` with proper browser automation flags (`--shm-size=2gb`, `--cap-add=SYS_ADMIN`).
 
 ### Default Claude Tools
 
@@ -104,6 +141,8 @@ tools:
   edit:
   web-fetch:
   bash: ["echo", "ls", "git", "npm test"]
+  playwright:
+    docker_image_version: "v1.40.0"
 ```
 
 

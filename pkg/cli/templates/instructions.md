@@ -164,6 +164,7 @@ The YAML frontmatter supports these fields:
   - `web-fetch:` - Web content fetching tools
   - `web-search:` - Web search tools
   - `bash:` - Shell command tools
+  - `playwright:` - Browser automation tools
   - Custom tool names for MCP servers
 
 - **`safe-outputs:`** - Safe output processing configuration
