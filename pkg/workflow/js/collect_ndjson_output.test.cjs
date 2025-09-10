@@ -154,7 +154,7 @@ describe("collect_ndjson_output.cjs", () => {
     const failedMessage = mockCore.setFailed.mock.calls[0][0];
     expect(failedMessage).toContain("requires a 'body' string field");
     expect(failedMessage).toContain("requires a 'title' string field");
-    
+
     // setOutput should not be called because of early return
     const setOutputCalls = mockCore.setOutput.mock.calls;
     const outputCall = setOutputCalls.find(call => call[0] === "output");
@@ -650,7 +650,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("JSON parsing failed");
-      
+
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
@@ -736,7 +736,7 @@ Line 3"}
       // Check if repair succeeded by looking at mock calls
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      
+
       if (outputCall) {
         // Repair succeeded
         const parsedOutput = JSON.parse(outputCall[1]);
@@ -830,7 +830,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("JSON parsing failed");
-      
+
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
@@ -949,7 +949,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("JSON parsing failed");
-      
+
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
@@ -970,7 +970,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain("JSON parsing failed");
-      
+
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
@@ -1015,7 +1015,7 @@ Line 3"}
       // Check if repair succeeded by looking at mock calls
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
-      
+
       if (outputCall) {
         // Repair succeeded
         const parsedOutput = JSON.parse(outputCall[1]);

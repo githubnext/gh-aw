@@ -299,12 +299,6 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 	return "" // No tool call found
 }
 
-// parseCodexToolCalls extracts tool call information from Codex log lines (legacy method)
-func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*ToolCallInfo) {
-	// Use the new method but ignore the return value for backward compatibility
-	e.parseCodexToolCallsWithSequence(line, toolCallMap)
-}
-
 // shortenCommand creates a short identifier for bash commands
 func (e *CodexEngine) shortenCommand(command string) string {
 	// Take first 20 characters and remove newlines

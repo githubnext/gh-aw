@@ -904,12 +904,6 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, to
 	return sequence
 }
 
-// parseToolCalls extracts tool call information from Claude log content array (legacy method)
-func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) {
-	// Use the new method but ignore the sequence return value for backward compatibility
-	e.parseToolCallsWithSequence(contentArray, toolCallMap)
-}
-
 // shortenCommand creates a short identifier for bash commands
 func (e *ClaudeEngine) shortenCommand(command string) string {
 	// Take first 20 characters and remove newlines
