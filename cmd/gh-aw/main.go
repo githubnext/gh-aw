@@ -213,11 +213,12 @@ Examples:
 		watch, _ := cmd.Flags().GetBool("watch")
 		instructions, _ := cmd.Flags().GetBool("instructions")
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
+		purge, _ := cmd.Flags().GetBool("purge")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
-		if err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, instructions, noEmit); err != nil {
+		if err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, instructions, noEmit, purge); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -348,6 +349,7 @@ func init() {
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().Bool("instructions", false, "Generate or update GitHub Copilot instructions file")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
+	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
