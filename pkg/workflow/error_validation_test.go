@@ -56,11 +56,11 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 	// Test BaseEngine default behavior
 	t.Run("BaseEngine_defaults", func(t *testing.T) {
 		base := BaseEngine{}
-		
+
 		if base.SupportsErrorValidation() {
 			t.Error("BaseEngine should not support error validation by default")
 		}
-		
+
 		patterns := base.GetErrorPatterns()
 		if len(patterns) != 0 {
 			t.Errorf("BaseEngine should return empty error patterns, got %d", len(patterns))
@@ -70,26 +70,26 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 	// Test CodexEngine error validation support
 	t.Run("CodexEngine_error_validation", func(t *testing.T) {
 		engine := NewCodexEngine()
-		
+
 		if !engine.SupportsErrorValidation() {
 			t.Error("CodexEngine should support error validation")
 		}
-		
+
 		patterns := engine.GetErrorPatterns()
 		if len(patterns) == 0 {
 			t.Error("CodexEngine should return error patterns")
 		}
-		
+
 		// Verify patterns have expected content
 		foundStreamError := false
 		foundError := false
 		foundWarning := false
-		
+
 		for _, pattern := range patterns {
 			if pattern.Description == "Codex stream errors with timestamp" {
 				foundStreamError = true
 				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
-					t.Errorf("Stream error pattern has incorrect groups: level=%d, message=%d", 
+					t.Errorf("Stream error pattern has incorrect groups: level=%d, message=%d",
 						pattern.LevelGroup, pattern.MessageGroup)
 				}
 			}
@@ -100,7 +100,7 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 				foundWarning = true
 			}
 		}
-		
+
 		if !foundStreamError {
 			t.Error("Missing stream error pattern")
 		}
@@ -115,11 +115,11 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 	// Test ClaudeEngine default behavior (should not support error validation)
 	t.Run("ClaudeEngine_no_error_validation", func(t *testing.T) {
 		engine := NewClaudeEngine()
-		
+
 		if engine.SupportsErrorValidation() {
 			t.Error("ClaudeEngine should not support error validation by default")
 		}
-		
+
 		patterns := engine.GetErrorPatterns()
 		if len(patterns) != 0 {
 			t.Errorf("ClaudeEngine should return empty error patterns, got %d", len(patterns))
@@ -140,11 +140,11 @@ func TestErrorPatternSerialization(t *testing.T) {
 	if pattern.Pattern == "" {
 		t.Error("Pattern should not be empty")
 	}
-	
+
 	if pattern.LevelGroup < 1 {
 		t.Error("LevelGroup should be >= 1")
 	}
-	
+
 	if pattern.MessageGroup < 1 {
 		t.Error("MessageGroup should be >= 1")
 	}

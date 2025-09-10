@@ -32,14 +32,19 @@ async function main() {
 
   // Find all create-repository-security-advisory items
   const securityItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "create-repository-security-advisory"
+    /** @param {any} item */ item =>
+      item.type === "create-repository-security-advisory"
   );
   if (securityItems.length === 0) {
-    console.log("No create-repository-security-advisory items found in agent output");
+    console.log(
+      "No create-repository-security-advisory items found in agent output"
+    );
     return;
   }
 
-  console.log(`Found ${securityItems.length} create-repository-security-advisory item(s)`);
+  console.log(
+    `Found ${securityItems.length} create-repository-security-advisory item(s)`
+  );
 
   // Get the max configuration from environment variable
   const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
@@ -80,7 +85,9 @@ async function main() {
 
     // Validate required fields
     if (!securityItem.file) {
-      console.log('Missing required field "file" in repository security advisory item');
+      console.log(
+        'Missing required field "file" in repository security advisory item'
+      );
       continue;
     }
 

@@ -36,7 +36,7 @@ function main() {
 
 function getErrorPatternsFromEnv() {
   const patterns = [];
-  
+
   // Patterns are passed as environment variables with prefix ERROR_PATTERN_
   const env = process.env;
   for (const key in env) {
@@ -49,7 +49,7 @@ function getErrorPatternsFromEnv() {
       }
     }
   }
-  
+
   return patterns;
 }
 
@@ -61,21 +61,21 @@ function validateErrors(logContent, patterns) {
   for (const pattern of patterns) {
     try {
       const regex = new RegExp(pattern.pattern, "g");
-      
+
       for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const line = lines[lineIndex];
         let match;
-        
+
         while ((match = regex.exec(line)) !== null) {
           const level = extractLevel(match, pattern);
           const message = extractMessage(match, pattern, line);
-          
+
           const errorInfo = {
             line: lineIndex + 1,
             level: level,
             message: message,
             pattern: pattern.description || "Unknown pattern",
-            rawLine: line.trim()
+            rawLine: line.trim(),
           };
 
           if (level.toLowerCase() === "error") {
@@ -89,7 +89,9 @@ function validateErrors(logContent, patterns) {
         }
       }
     } catch (e) {
-      console.warn(`Error processing pattern '${pattern.description}': ${e.message}`);
+      console.warn(
+        `Error processing pattern '${pattern.description}': ${e.message}`
+      );
     }
   }
 
@@ -97,10 +99,14 @@ function validateErrors(logContent, patterns) {
 }
 
 function extractLevel(match, pattern) {
-  if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
+  if (
+    pattern.level_group &&
+    pattern.level_group > 0 &&
+    match[pattern.level_group]
+  ) {
     return match[pattern.level_group];
   }
-  
+
   // Try to infer level from the match content
   const fullMatch = match[0];
   if (fullMatch.toLowerCase().includes("error")) {
@@ -108,15 +114,19 @@ function extractLevel(match, pattern) {
   } else if (fullMatch.toLowerCase().includes("warn")) {
     return "warning";
   }
-  
+
   return "unknown";
 }
 
 function extractMessage(match, pattern, fullLine) {
-  if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
+  if (
+    pattern.message_group &&
+    pattern.message_group > 0 &&
+    match[pattern.message_group]
+  ) {
     return match[pattern.message_group].trim();
   }
-  
+
   // Fallback to the full match or line
   return match[0] || fullLine.trim();
 }
@@ -127,7 +137,7 @@ function generateValidationSummary(errors, warnings) {
   }
 
   let markdown = "## 🔍 Log Validation Results\n\n";
-  
+
   // Summary
   const totalIssues = errors.length + warnings.length;
   markdown += `Found **${totalIssues}** issue(s) in the agent log:\n`;
@@ -162,9 +172,12 @@ function generateValidationSummary(errors, warnings) {
   // Add recommendations
   if (errors.length > 0) {
     markdown += "### 💡 Recommendations\n\n";
-    markdown += "- Review the errors above and check if they indicate problems with the agent execution\n";
-    markdown += "- Consider updating the workflow configuration if errors are recurring\n";
-    markdown += "- Check the full logs for additional context around these errors\n\n";
+    markdown +=
+      "- Review the errors above and check if they indicate problems with the agent execution\n";
+    markdown +=
+      "- Consider updating the workflow configuration if errors are recurring\n";
+    markdown +=
+      "- Check the full logs for additional context around these errors\n\n";
   }
 
   return markdown;
@@ -178,13 +191,13 @@ function truncateString(str, maxLength) {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { 
-    validateErrors, 
-    extractLevel, 
-    extractMessage, 
+  module.exports = {
+    validateErrors,
+    extractLevel,
+    extractMessage,
     generateValidationSummary,
     getErrorPatternsFromEnv,
-    truncateString
+    truncateString,
   };
 }
 

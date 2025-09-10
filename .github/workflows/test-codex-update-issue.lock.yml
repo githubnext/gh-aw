@@ -719,7 +719,7 @@ jobs:
                 // U+0014 (DC4) — represented here as "\u0014"
                 // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
                 // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-                const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
+                const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
                 repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
                   const c = ch.charCodeAt(0);
                   return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
@@ -1583,7 +1583,7 @@ jobs:
                         level: level,
                         message: message,
                         pattern: pattern.description || "Unknown pattern",
-                        rawLine: line.trim()
+                        rawLine: line.trim(),
                       };
                       if (level.toLowerCase() === "error") {
                         errors.push(errorInfo);
@@ -1596,13 +1596,19 @@ jobs:
                     }
                   }
                 } catch (e) {
-                  console.warn(`Error processing pattern '${pattern.description}': ${e.message}`);
+                  console.warn(
+                    `Error processing pattern '${pattern.description}': ${e.message}`
+                  );
                 }
               }
               return generateValidationSummary(errors, warnings);
             }
             function extractLevel(match, pattern) {
-              if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
+              if (
+                pattern.level_group &&
+                pattern.level_group > 0 &&
+                match[pattern.level_group]
+              ) {
                 return match[pattern.level_group];
               }
               // Try to infer level from the match content
@@ -1615,7 +1621,11 @@ jobs:
               return "unknown";
             }
             function extractMessage(match, pattern, fullLine) {
-              if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
+              if (
+                pattern.message_group &&
+                pattern.message_group > 0 &&
+                match[pattern.message_group]
+              ) {
                 return match[pattern.message_group].trim();
               }
               // Fallback to the full match or line
@@ -1657,9 +1667,12 @@ jobs:
               // Add recommendations
               if (errors.length > 0) {
                 markdown += "### 💡 Recommendations\n\n";
-                markdown += "- Review the errors above and check if they indicate problems with the agent execution\n";
-                markdown += "- Consider updating the workflow configuration if errors are recurring\n";
-                markdown += "- Check the full logs for additional context around these errors\n\n";
+                markdown +=
+                  "- Review the errors above and check if they indicate problems with the agent execution\n";
+                markdown +=
+                  "- Consider updating the workflow configuration if errors are recurring\n";
+                markdown +=
+                  "- Check the full logs for additional context around these errors\n\n";
               }
               return markdown;
             }
@@ -1670,13 +1683,13 @@ jobs:
             }
             // Export for testing
             if (typeof module !== "undefined" && module.exports) {
-              module.exports = { 
-                validateErrors, 
-                extractLevel, 
-                extractMessage, 
+              module.exports = {
+                validateErrors,
+                extractLevel,
+                extractMessage,
                 generateValidationSummary,
                 getErrorPatternsFromEnv,
-                truncateString
+                truncateString,
               };
             }
             main();
