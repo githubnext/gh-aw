@@ -108,6 +108,7 @@ This workflow:
 ## Troubleshooting & diagnostics
 
 - `gh aw compile` — Recompile workflows
+- `gh aw compile --purge` — Recompile and remove orphaned `.lock.yml` files  
 - `gh aw status` — Check workflow installation status
 - `gh aw logs` — Download recent run logs and cost/usage analysis
 - If compilation fails, run `gh aw compile --verbose` for more details

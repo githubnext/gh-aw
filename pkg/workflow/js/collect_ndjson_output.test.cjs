@@ -932,12 +932,12 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
       expect(parsedOutput.items[0].type).toBe("create-issue");
-      
+
       // Control chars (0x00, 0x01, 0x02) removed, tab and newline preserved
       const title = parsedOutput.items[0].title;
       expect(title).toBe("Control test"); // Control chars actually get removed completely
       expect(parsedOutput.items[0].body).toBe("End of test");
-      
+
       expect(parsedOutput.errors).toHaveLength(0);
     });
 

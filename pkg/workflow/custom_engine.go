@@ -121,7 +121,7 @@ func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 }
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine
-func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
+func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	// Custom engine uses the same MCP configuration generation as Claude
 	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
 	yaml.WriteString("          {\n")

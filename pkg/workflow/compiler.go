@@ -2739,7 +2739,7 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 }
 
 // generateMCPSetup generates the MCP server configuration setup
-func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine) {
+func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 	var proxyTools []string
@@ -2829,7 +2829,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
 
 	// Use the engine's RenderMCPConfig method
-	engine.RenderMCPConfig(yaml, tools, mcpTools)
+	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {
@@ -2897,7 +2897,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add MCP setup
-	c.generateMCPSetup(yaml, data.Tools, engine)
+	c.generateMCPSetup(yaml, data.Tools, engine, data)
 
 	// Add safety checks before executing agentic tools
 	c.generateSafetyChecks(yaml, data)
