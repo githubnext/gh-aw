@@ -390,7 +390,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
-          user_agent = "Test Codex Add Issue Comment"
+          user_agent = "test-codex-add-issue-comment"
           command = "docker"
           args = [
             "run",

@@ -9,6 +9,29 @@ import (
 	"time"
 )
 
+// convertToIdentifier converts a workflow name to a valid identifier format
+// by converting to lowercase and replacing spaces with hyphens
+func convertToIdentifier(name string) string {
+	// Convert to lowercase
+	identifier := strings.ToLower(name)
+	// Replace spaces and other common separators with hyphens
+	identifier = strings.ReplaceAll(identifier, " ", "-")
+	identifier = strings.ReplaceAll(identifier, "_", "-")
+	// Remove any characters that aren't alphanumeric or hyphens
+	identifier = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(identifier, "")
+	// Remove any double hyphens that might have been created
+	identifier = regexp.MustCompile(`-+`).ReplaceAllString(identifier, "-")
+	// Remove leading/trailing hyphens
+	identifier = strings.Trim(identifier, "-")
+
+	// If the result is empty, return a default identifier
+	if identifier == "" {
+		identifier = "github-agentic-workflow"
+	}
+
+	return identifier
+}
+
 // CodexEngine represents the Codex agentic engine (experimental)
 type CodexEngine struct {
 	BaseEngine
@@ -360,10 +383,10 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
 
-	// Add user_agent field defaulting to workflow name
-	userAgent := "github-workflow"
+	// Add user_agent field defaulting to workflow identifier
+	userAgent := "github-agentic-workflow"
 	if workflowData != nil && workflowData.Name != "" {
-		userAgent = workflowData.Name
+		userAgent = convertToIdentifier(workflowData.Name)
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 

@@ -331,3 +331,121 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name         string
+		workflowName string
+		expectedUA   string
+	}{
+		{
+			name:         "workflow name with spaces",
+			workflowName: "Test Codex Create Issue",
+			expectedUA:   "test-codex-create-issue",
+		},
+		{
+			name:         "workflow name with underscores",
+			workflowName: "Test_Workflow_Name",
+			expectedUA:   "test-workflow-name",
+		},
+		{
+			name:         "already identifier format",
+			workflowName: "test-workflow",
+			expectedUA:   "test-workflow",
+		},
+		{
+			name:         "empty workflow name",
+			workflowName: "",
+			expectedUA:   "github-agentic-workflow",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{Name: tt.workflowName}
+
+			tools := map[string]any{"github": map[string]any{}}
+			mcpTools := []string{"github"}
+
+			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+			result := yaml.String()
+			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+
+			if !strings.Contains(result, expectedUserAgentLine) {
+				t.Errorf("Expected MCP config to contain %q, got:\n%s", expectedUserAgentLine, result)
+			}
+		})
+	}
+}
+
+func TestConvertToIdentifier(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple name with spaces",
+			input:    "Test Codex Create Issue",
+			expected: "test-codex-create-issue",
+		},
+		{
+			name:     "name with underscores",
+			input:    "Test_Workflow_Name",
+			expected: "test-workflow-name",
+		},
+		{
+			name:     "name with mixed separators",
+			input:    "Test Workflow_Name With Spaces",
+			expected: "test-workflow-name-with-spaces",
+		},
+		{
+			name:     "name with special characters",
+			input:    "Test@Workflow#With$Special%Characters!",
+			expected: "testworkflowwithspecialcharacters",
+		},
+		{
+			name:     "name with multiple spaces",
+			input:    "Test   Multiple    Spaces",
+			expected: "test-multiple-spaces",
+		},
+		{
+			name:     "empty name",
+			input:    "",
+			expected: "github-agentic-workflow",
+		},
+		{
+			name:     "name with only special characters",
+			input:    "@#$%!",
+			expected: "github-agentic-workflow",
+		},
+		{
+			name:     "already lowercase with hyphens",
+			input:    "already-lowercase-name",
+			expected: "already-lowercase-name",
+		},
+		{
+			name:     "name with leading/trailing spaces",
+			input:    "  Test Workflow  ",
+			expected: "test-workflow",
+		},
+		{
+			name:     "name with hyphens and underscores",
+			input:    "Test-Workflow_Name",
+			expected: "test-workflow-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertToIdentifier(tt.input)
+			if result != tt.expected {
+				t.Errorf("convertToIdentifier(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

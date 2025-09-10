@@ -61,7 +61,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
-          user_agent = "Test Codex Create Issue"
+          user_agent = "test-codex-create-issue"
           command = "docker"
           args = [
             "run",
