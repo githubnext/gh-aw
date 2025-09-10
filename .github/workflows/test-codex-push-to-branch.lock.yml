@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Codex Push To Branch"
+name: "Test Codex Push to Branch"
 on:
   issues:
     types: [opened, edited, reopened]
@@ -18,7 +18,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Test Codex Push To Branch"
+run-name: "Test Codex Push to Branch"
 
 jobs:
   task:
@@ -169,6 +169,71 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          # Test Codex Push to Branch
+          
+          This test workflow specifically tests multi-commit functionality in push-to-branch.
+          
+          **IMPORTANT: Create multiple separate commits for this test case**
+          
+          1. **First commit**: Create a file called "README-codex-test.md" with:
+             ```markdown
+             # Codex Push-to-Branch Multi-Commit Test
+             
+             This file was created by the Codex agentic workflow to test the multi-commit push-to-branch functionality.
+             
+             Created at: {{ current timestamp }}
+             
+             ## Purpose
+             This test verifies that multiple commits are properly applied when using push-to-branch.
+             ```
+          
+          2. **Second commit**: Create a JavaScript script called "codex-script.js" with:
+             ```javascript
+             #!/usr/bin/env node
+             /**
+              * Multi-commit test script created by Codex agentic workflow
+              */
+             
+             function main() {
+                 console.log("Hello from Codex agentic workflow!");
+                 console.log(`Current time: ${new Date().toISOString()}`);
+                 console.log("This script was created to test multi-commit push-to-branch functionality.");
+                 console.log("This is commit #2 in the multi-commit test.");
+             }
+             
+             if (require.main === module) {
+                 main();
+             }
+             ```
+          
+          3. **Third commit**: Create a configuration file "codex-config.json" with:
+             ```json
+             {
+                 "test_type": "multi-commit-push-to-branch",
+                 "engine": "codex",
+                 "branch": "codex-test-branch", 
+                 "commit_number": 3,
+                 "timestamp": "{{ current timestamp }}"
+             }
+             ```
+          
+          4. **Fourth commit**: Create a simple test file "codex-test-results.txt" with:
+             ```
+             Codex Multi-Commit Push-to-Branch Test Results
+             ==============================================
+             
+             Test Type: Multi-commit functionality
+             Engine: Codex
+             Branch: codex-test-branch
+             Commits Expected: 4
+             
+             This file represents the final commit in the multi-commit test sequence.
+             If you can see all 4 files (README, JavaScript script, JSON config, and this file),
+             then the multi-commit functionality is working correctly.
+             ```
+          
+          The workflow should push all these files to the codex-test-branch in separate commits, testing that `git am` properly applies multiple commits from the patch file.
+          
           Create a new file called "codex-test-file.md" with the following content:
           
           ```markdown
@@ -267,7 +332,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Test Codex Push To Branch",
+              workflow_name: "Test Codex Push to Branch",
               experimental: true,
               supports_tools_whitelist: true,
               supports_http_transport: false,
@@ -1588,12 +1653,48 @@ jobs:
               try {
                 // Try to checkout existing branch first
                 execSync("git fetch origin", { stdio: "inherit" });
-                execSync(`git checkout ${branchName}`, { stdio: "inherit" });
-                console.log("Checked out existing branch:", branchName);
+                // Check if branch exists on origin
+                try {
+                  execSync(`git rev-parse --verify origin/${branchName}`, {
+                    stdio: "pipe",
+                  });
+                  // Branch exists on origin, check it out
+                  execSync(`git checkout -B ${branchName} origin/${branchName}`, {
+                    stdio: "inherit",
+                  });
+                  console.log("Checked out existing branch from origin:", branchName);
+                } catch (originError) {
+                  // Branch doesn't exist on origin, check if it exists locally
+                  try {
+                    execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+                    // Branch exists locally, check it out
+                    execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+                    console.log("Checked out existing local branch:", branchName);
+                  } catch (localError) {
+                    // Branch doesn't exist locally or on origin, create it from default branch
+                    console.log(
+                      "Branch does not exist, creating new branch from default branch:",
+                      branchName
+                    );
+                    // Get the default branch name
+                    const defaultBranch = execSync(
+                      "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
+                      { encoding: "utf8" }
+                    ).trim();
+                    console.log("Default branch:", defaultBranch);
+                    // Ensure we have the latest default branch
+                    execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
+                    execSync(`git pull origin ${defaultBranch}`, { stdio: "inherit" });
+                    // Create new branch from default branch
+                    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+                    console.log("Created new branch from default branch:", branchName);
+                  }
+                }
               } catch (error) {
-                // Branch doesn't exist, create it
-                console.log("Branch does not exist, creating new branch:", branchName);
-                execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+                core.setFailed(
+                  `Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
               }
               // Apply the patch using git CLI (skip if empty)
               if (!isEmpty) {
@@ -1602,6 +1703,9 @@ jobs:
                   // Patches are created with git format-patch, so use git am to apply them
                   execSync("git am /tmp/aw.patch", { stdio: "inherit" });
                   console.log("Patch applied successfully");
+                  // Push the applied commits to the branch
+                  execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                  console.log("Changes committed and pushed to branch:", branchName);
                 } catch (error) {
                   core.error(
                     `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
@@ -1611,20 +1715,13 @@ jobs:
                 }
               } else {
                 console.log("Skipping patch application (empty patch)");
-              }
-              // Commit and push the changes
-              execSync("git add .", { stdio: "inherit" });
-              // Check if there are changes to commit
-              let hasChanges = false;
-              try {
-                execSync("git diff --cached --exit-code", { stdio: "ignore" });
-                // No changes to commit - apply if-no-changes configuration
+                // Handle if-no-changes configuration for empty patches
                 const message =
-                  "No changes to commit - noop operation completed successfully";
+                  "No changes to apply - noop operation completed successfully";
                 switch (ifNoChanges) {
                   case "error":
                     core.setFailed(
-                      "No changes to commit - failing as configured by if-no-changes: error"
+                      "No changes to apply - failing as configured by if-no-changes: error"
                     );
                     return;
                   case "ignore":
@@ -1635,22 +1732,9 @@ jobs:
                     console.log(message);
                     break;
                 }
-                hasChanges = false;
-              } catch (error) {
-                // Exit code != 0 means there are changes to commit, which is what we want
-                hasChanges = true;
               }
-              let commitSha;
-              if (hasChanges) {
-                const commitMessage = pushItem.message || "Apply agent changes";
-                execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
-                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-                console.log("Changes committed and pushed to branch:", branchName);
-                commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
-              } else {
-                // For noop operations, get the current HEAD commit
-                commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
-              }
+              // Get commit SHA and push URL
+              const commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
               // Get commit SHA and push URL
               const pushUrl = context.payload.repository
                 ? `${context.payload.repository.html_url}/tree/${branchName}`

@@ -1,14 +1,14 @@
 ---
 on:
   workflow_dispatch:
-  issues:
-    types: [opened]
-  pull_request:
-    types: [opened]
-  push:
-    branches: [main]
-  schedule:
-    - cron: "0 12 * * 1"  # Weekly on Mondays at noon
+  # issues:
+  #   types: [opened]
+  # pull_request:
+  #   types: [opened]
+  # push:
+  #   branches: [main]
+  # schedule:
+  #   - cron: "0 12 * * 1"  # Weekly on Mondays at noon
 
 safe-outputs:
   create-issue:

@@ -186,7 +186,15 @@ async function main() {
   console.log("Generated branch name:", branchName);
   console.log("Base branch:", baseBranch);
 
-  // Create a new branch using git CLI
+  // Create a new branch using git CLI, ensuring it's based on the correct base branch
+
+  // First, fetch latest changes and checkout the base branch
+  console.log(
+    "Fetching latest changes and checking out base branch:",
+    baseBranch
+  );
+  execSync("git fetch origin", { stdio: "inherit" });
+  execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
 
   // Handle branch creation/checkout
   const branchFromJsonl = pullRequestItem.branch
@@ -196,15 +204,15 @@ async function main() {
     console.log("Checking if branch from JSONL exists:", branchFromJsonl);
 
     console.log(
-      "Branch does not exist locally, creating new branch:",
+      "Branch does not exist locally, creating new branch from base:",
       branchFromJsonl
     );
     execSync(`git checkout -b ${branchFromJsonl}`, { stdio: "inherit" });
-    console.log("Using existing/created branch:", branchFromJsonl);
+    console.log("Created new branch from base:", branchFromJsonl);
   } else {
-    // Create and checkout new branch with generated name
+    // Create and checkout new branch with generated name from base branch
     execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-    console.log("Created and checked out new branch:", branchName);
+    console.log("Created and checked out new branch from base:", branchName);
   }
 
   // Apply the patch using git CLI (skip if empty)
@@ -213,35 +221,21 @@ async function main() {
     // Patches are created with git format-patch, so use git am to apply them
     execSync("git am /tmp/aw.patch", { stdio: "inherit" });
     console.log("Patch applied successfully");
+
+    // Push the applied commits to the branch
+    execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+    console.log("Changes pushed to branch");
   } else {
     console.log("Skipping patch application (empty patch)");
-  }
 
-  // Commit and push the changes
-  execSync("git add .", { stdio: "inherit" });
-
-  // Check if there are changes to commit
-  let hasChanges = false;
-  let gitError = null;
-
-  try {
-    execSync("git diff --cached --exit-code", { stdio: "ignore" });
-    // No changes - exit code 0
-    hasChanges = false;
-  } catch (error) {
-    // Exit code != 0 means there are changes to commit, which is what we want
-    hasChanges = true;
-  }
-
-  if (!hasChanges) {
-    // No changes to commit - apply if-no-changes configuration
+    // For empty patches, handle if-no-changes configuration
     const message =
-      "No changes to commit - noop operation completed successfully";
+      "No changes to apply - noop operation completed successfully";
 
     switch (ifNoChanges) {
       case "error":
         throw new Error(
-          "No changes to commit - failing as configured by if-no-changes: error"
+          "No changes to apply - failing as configured by if-no-changes: error"
         );
       case "ignore":
         // Silent success - no console output
@@ -251,18 +245,6 @@ async function main() {
         console.log(message);
         return;
     }
-  }
-
-  if (hasChanges) {
-    execSync(`git commit -m "Add agent output: ${title}"`, {
-      stdio: "inherit",
-    });
-    execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-    console.log("Changes committed and pushed");
-  } else {
-    // This should not happen due to the early return above, but keeping for safety
-    console.log("No changes to commit");
-    return;
   }
 
   // Create the pull request
