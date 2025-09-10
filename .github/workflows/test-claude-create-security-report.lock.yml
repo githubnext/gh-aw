@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Security Analysis with Claude"
+name: "Test Claude Create Security Report"
 "on":
   workflow_dispatch: null
 
@@ -11,7 +11,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Security Analysis with Claude"
+run-name: "Test Claude Create Security Report"
 
 jobs:
   add_reaction:
@@ -273,7 +273,7 @@ jobs:
             }
             await main();
 
-  security-analysis-with-claude:
+  test-claude-create-security-report:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -444,14 +444,14 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Security Analysis with Claude
+          # Test Claude Create Security Report
           
-          Create a new security report for the repository with title "Claude says this repository needs a security review." and adding a couple of sentences about why security is important.
+          Create a new security report for the repository with title "Claude wants security review." and adding a couple of sentences about why security is important.
           
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Creating Security Reports, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
@@ -459,9 +459,21 @@ jobs:
           
           ### Available Output Types:
           
+          **Creating Security Reports**
+          
+          To create security reports (SARIF format for GitHub Code Scanning):
+          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          ```json
+          {"type": "create-security-report", "file": "path/to/file.js", "line": 42, "severity": "error", "message": "Security vulnerability description", "column": 5, "ruleIdSuffix": "custom-rule"}
+          ```
+          2. **Required fields**: `file` (string), `line` (number), `severity` ("error", "warning", "info", or "note"), `message` (string)
+          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)
+          4. Multiple security findings can be reported by writing multiple JSON objects
+          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          
           **Example JSONL file content:**
           ```
-          # No safe outputs configured for this workflow
+          {"type": "create-security-report", "file": "src/auth.js", "line": 25, "severity": "error", "message": "Potential SQL injection vulnerability"}
           ```
           
           **Important Notes:**
@@ -491,7 +503,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Security Analysis with Claude",
+              workflow_name: "Test Claude Create Security Report",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -592,9 +604,9 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/security-analysis-with-claude.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-create-security-report.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/security-analysis-with-claude.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-create-security-report.log
           fi
           
           # Ensure log file exists
@@ -620,7 +632,7 @@ jobs:
           name: safe_output.jsonl
           path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
-      - name: Ingest agent output
+      - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
         env:
@@ -1346,7 +1358,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/security-analysis-with-claude.log
+          AGENT_LOG_FILE: /tmp/test-claude-create-security-report.log
         with:
           script: |
             function main() {
@@ -1663,12 +1675,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: security-analysis-with-claude.log
-          path: /tmp/security-analysis-with-claude.log
+          name: test-claude-create-security-report.log
+          path: /tmp/test-claude-create-security-report.log
           if-no-files-found: warn
 
   create_security_report:
-    needs: security-analysis-with-claude
+    needs: test-claude-create-security-report
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1685,7 +1697,7 @@ jobs:
         id: create_security_report
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.security-analysis-with-claude.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-security-report.outputs.output }}
           GITHUB_AW_SECURITY_REPORT_MAX: 10
           GITHUB_AW_SECURITY_REPORT_DRIVER: Test Claude Security Report
           GITHUB_AW_WORKFLOW_FILENAME: test-claude-create-security-report

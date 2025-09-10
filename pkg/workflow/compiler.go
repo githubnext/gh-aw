@@ -3121,6 +3121,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			written = true
 		}
 
+		if data.SafeOutputs.CreateSecurityReports != nil {
+			if written {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("Creating Security Reports")
+			written = true
+		}
+
 		// Missing-tool is always available
 		if written {
 			yaml.WriteString(", ")
@@ -3234,6 +3242,21 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          \n")
 		}
 
+		if data.SafeOutputs.CreateSecurityReports != nil {
+			yaml.WriteString("          **Creating Security Reports**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create security reports (SARIF format for GitHub Code Scanning):\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"create-security-report\", \"file\": \"path/to/file.js\", \"line\": 42, \"severity\": \"error\", \"message\": \"Security vulnerability description\", \"column\": 5, \"ruleIdSuffix\": \"custom-rule\"}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. **Required fields**: `file` (string), `line` (number), `severity` (\"error\", \"warning\", \"info\", or \"note\"), `message` (string)\n")
+			yaml.WriteString("          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)\n")
+			yaml.WriteString("          4. Multiple security findings can be reported by writing multiple JSON objects\n")
+			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          \n")
+		}
+
 		// Missing-tool instructions are only included when configured
 		if data.SafeOutputs.MissingTool != nil {
 			yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
@@ -3273,6 +3296,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 		if data.SafeOutputs.PushToBranch != nil {
 			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Update documentation with latest changes\"}\n")
+			exampleCount++
+		}
+		if data.SafeOutputs.CreateSecurityReports != nil {
+			yaml.WriteString("          {\"type\": \"create-security-report\", \"file\": \"src/auth.js\", \"line\": 25, \"severity\": \"error\", \"message\": \"Potential SQL injection vulnerability\"}\n")
 			exampleCount++
 		}
 

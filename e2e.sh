@@ -131,10 +131,7 @@ get_all_test_names() {
     echo "test-codex-create-security-report"
     echo "test-claude-mcp"
     echo "test-codex-mcp"
-    echo "test-ai-inference-github-models"
-    echo "test-safe-outputs-custom-engine"
-    echo "test-example-engine-network-permissions"
-    echo "test-proxy"
+    echo "test-custom-safe-outputs"
     echo "test-claude-add-issue-comment"
     echo "test-codex-add-issue-comment"
     echo "test-claude-add-issue-labels"
@@ -158,10 +155,7 @@ get_workflow_dispatch_tests() {
     echo "test-codex-create-security-report"
     echo "test-claude-mcp"
     echo "test-codex-mcp"
-    echo "test-ai-inference-github-models"
-    echo "test-safe-outputs-custom-engine"
-    echo "test-example-engine-network-permissions"
-    echo "test-proxy"
+    echo "test-custom-safe-outputs"
 }
 
 get_issue_triggered_tests() {
@@ -516,24 +510,43 @@ validate_pr_created() {
 validate_security_report() {
     local workflow_name="$1"
     
-    # Check if any security advisories or issues were created
-    local security_advisories
-    security_advisories=$(gh api repos/:owner/:repo/security-advisories --jq 'length' 2>/dev/null || echo "0")
+    # Determine expected title based on workflow name
+    local expected_title
+    if [[ "$workflow_name" == *"claude"* ]]; then
+        expected_title="Claude wants security review."
+    elif [[ "$workflow_name" == *"codex"* ]]; then
+        expected_title="Codex wants security review."
+    else
+        expected_title="security review"  # Fallback for generic matching
+    fi
     
-    if [[ "$security_advisories" -gt 0 ]]; then
-        success "Security report workflow '$workflow_name' created security advisories"
+    # Check for security advisories with the specific title
+    local security_advisories
+    security_advisories=$(gh api repos/:owner/:repo/security-advisories --jq ".[] | select(.title | contains(\"$expected_title\")) | .title" 2>/dev/null || echo "")
+    
+    if [[ -n "$security_advisories" ]]; then
+        success "Security report workflow '$workflow_name' created security advisory with expected title: '$expected_title'"
         return 0
     else
-        # Also check for issues with security-related labels
-        local security_issues
-        security_issues=$(gh issue list --label "security,vulnerability" --limit 5 --json number --jq 'length' 2>/dev/null || echo "0")
+        # Also check for issues with the specific title and security-related labels
+        local security_issue
+        security_issue=$(gh issue list --limit 10 --json title,labels --jq ".[] | select(.title | contains(\"$expected_title\")) | select(.labels[]?.name | contains(\"security\") or contains(\"vulnerability\")) | .title" 2>/dev/null | head -1)
         
-        if [[ "$security_issues" -gt 0 ]]; then
-            success "Security report workflow '$workflow_name' created security-related issues"
+        if [[ -n "$security_issue" ]]; then
+            success "Security report workflow '$workflow_name' created security issue with expected title: '$expected_title'"
             return 0
         else
-            warning "Security report workflow '$workflow_name' completed but no security reports found (may be expected if no vulnerabilities detected)"
-            return 0  # Don't fail - security reports may legitimately find nothing
+            # Fallback: check for any recent security-related content
+            local any_security_content
+            any_security_content=$(gh issue list --limit 5 --json title,body --jq ".[] | select(.title or .body | contains(\"security\") or contains(\"Security\")) | .title" 2>/dev/null | head -1)
+            
+            if [[ -n "$any_security_content" ]]; then
+                warning "Security report workflow '$workflow_name' created security content but not with expected title. Found: '$any_security_content'"
+                return 0  # Still pass - security content was created
+            else
+                error "Security report workflow '$workflow_name' completed but no security reports found with expected title: '$expected_title'"
+                return 1
+            fi
         fi
     fi
 }
@@ -662,10 +675,7 @@ cleanup_test_resources() {
         "test-codex-create-security-report"
         "test-claude-mcp"
         "test-codex-mcp"
-        #"test-ai-inference-github-models"
         "test-custom-safe-outputs"
-        #"test-example-engine-network-permissions"
-        #"test-proxy"
         "test-claude-add-issue-comment"
         "test-codex-add-issue-comment"
         "test-claude-add-issue-labels"
@@ -842,9 +852,21 @@ run_issue_triggered_tests() {
         return 0
     fi
     
-    # Test claude issue comment workflow
+    # Check if we need to run issue-triggered tests that require creating an issue
+    local need_claude_comment=false
+    local need_claude_labels=false
+    
     if should_run_test "test-claude-add-issue-comment" "${patterns[@]}"; then
-        progress "Testing claude issue comment workflow"
+        need_claude_comment=true
+    fi
+    
+    if should_run_test "test-claude-add-issue-labels" "${patterns[@]}"; then
+        need_claude_labels=true
+    fi
+    
+    # Only create test issue if we have tests that need the specific trigger
+    if [[ "$need_claude_comment" == true ]] || [[ "$need_claude_labels" == true ]]; then
+        progress "Testing claude issue comment and labeling workflows"
         local issue_num
         issue_num=$(create_test_issue "Hello from Claude" "This is a test issue to trigger Claude comment workflow")
         
@@ -852,24 +874,27 @@ run_issue_triggered_tests() {
             success "Created test issue #$issue_num"
             sleep 10 # Wait for workflow to trigger
             
-            # Wait for the workflow to complete (check for comment)
-            local max_wait=60
-            local waited=0
-            while [[ $waited -lt $max_wait ]]; do
-                if validate_issue_comment "$issue_num" "Reply from Claude"; then
-                    PASSED_TESTS+=("test-claude-add-issue-comment")
-                    break
+            # Test comment workflow if selected
+            if [[ "$need_claude_comment" == true ]]; then
+                # Wait for the workflow to complete (check for comment)
+                local max_wait=60
+                local waited=0
+                while [[ $waited -lt $max_wait ]]; do
+                    if validate_issue_comment "$issue_num" "Reply from Claude"; then
+                        PASSED_TESTS+=("test-claude-add-issue-comment")
+                        break
+                    fi
+                    sleep 5
+                    waited=$((waited + 5))
+                done
+                
+                if [[ $waited -ge $max_wait ]]; then
+                    FAILED_TESTS+=("test-claude-add-issue-comment")
                 fi
-                sleep 5
-                waited=$((waited + 5))
-            done
-            
-            if [[ $waited -ge $max_wait ]]; then
-                FAILED_TESTS+=("test-claude-add-issue-comment")
             fi
             
-            # Test issue labels workflow if it should also run
-            if should_run_test "test-claude-add-issue-labels" "${patterns[@]}"; then
+            # Test issue labels workflow if selected
+            if [[ "$need_claude_labels" == true ]]; then
                 if validate_issue_labels "$issue_num" "claude-safe-output-label-test"; then
                     PASSED_TESTS+=("test-claude-add-issue-labels")
                 else
@@ -878,11 +903,15 @@ run_issue_triggered_tests() {
             fi
         else
             error "Failed to create test issue"
-            FAILED_TESTS+=("test-claude-add-issue-comment")
-            if should_run_test "test-claude-add-issue-labels" "${patterns[@]}"; then
+            if [[ "$need_claude_comment" == true ]]; then
+                FAILED_TESTS+=("test-claude-add-issue-comment")
+            fi
+            if [[ "$need_claude_labels" == true ]]; then
                 FAILED_TESTS+=("test-claude-add-issue-labels")
             fi
         fi
+    else
+        info "No issue-triggered tests selected that require creating test issues"
     fi
     
     # Note: Additional issue-triggered tests could be added here
@@ -901,46 +930,63 @@ run_command_tests() {
         return 0
     fi
     
-    # Create a test issue for command testing
-    local issue_num
-    issue_num=$(create_test_issue "Test Issue for Commands" "This issue is for testing command workflows")
+    # Check if we actually need to run any command tests
+    local need_claude_command=false
+    local need_claude_push_to_branch=false
     
-    if [[ -n "$issue_num" ]]; then
-        # Test Claude command
-        if should_run_test "test-claude-command" "${patterns[@]}"; then
-            progress "Testing Claude command workflow"
-            post_issue_command "$issue_num" "/test-claude-command What is this repository about?"
+    if should_run_test "test-claude-command" "${patterns[@]}"; then
+        need_claude_command=true
+    fi
+    
+    if should_run_test "test-claude-push-to-branch" "${patterns[@]}"; then
+        need_claude_push_to_branch=true
+    fi
+    
+    # Only create test issue if we have command tests to run
+    if [[ "$need_claude_command" == true ]] || [[ "$need_claude_push_to_branch" == true ]]; then
+        # Create a test issue for command testing
+        local issue_num
+        issue_num=$(create_test_issue "Test Issue for Commands" "This issue is for testing command workflows")
+        
+        if [[ -n "$issue_num" ]]; then
+            # Test Claude command
+            if [[ "$need_claude_command" == true ]]; then
+                progress "Testing Claude command workflow"
+                post_issue_command "$issue_num" "/test-claude-command What is this repository about?"
+                
+                sleep 15 # Wait for workflow to process
+                
+                if validate_issue_comment "$issue_num" "Claude"; then
+                    PASSED_TESTS+=("test-claude-command")
+                else
+                    FAILED_TESTS+=("test-claude-command")
+                fi
+            fi
             
-            sleep 15 # Wait for workflow to process
-            
-            if validate_issue_comment "$issue_num" "Claude"; then
-                PASSED_TESTS+=("test-claude-command")
-            else
+            # Test push to branch command
+            if [[ "$need_claude_push_to_branch" == true ]]; then
+                progress "Testing Claude push-to-branch workflow"
+                post_issue_command "$issue_num" "/test-claude-push-to-branch"
+                
+                sleep 20 # Wait for workflow to process
+                
+                if validate_branch_created "claude-test-branch"; then
+                    PASSED_TESTS+=("test-claude-push-to-branch")
+                else
+                    FAILED_TESTS+=("test-claude-push-to-branch")
+                fi
+            fi
+        else
+            error "Failed to create test issue for commands"
+            if [[ "$need_claude_command" == true ]]; then
                 FAILED_TESTS+=("test-claude-command")
             fi
-        fi
-        
-        # Test push to branch command
-        if should_run_test "test-claude-push-to-branch" "${patterns[@]}"; then
-            progress "Testing Claude push-to-branch workflow"
-            post_issue_command "$issue_num" "/test-claude-push-to-branch"
-            
-            sleep 20 # Wait for workflow to process
-            
-            if validate_branch_created "claude-test-branch"; then
-                PASSED_TESTS+=("test-claude-push-to-branch")
-            else
+            if [[ "$need_claude_push_to_branch" == true ]]; then
                 FAILED_TESTS+=("test-claude-push-to-branch")
             fi
         fi
     else
-        error "Failed to create test issue for commands"
-        if should_run_test "test-claude-command" "${patterns[@]}"; then
-            FAILED_TESTS+=("test-claude-command")
-        fi
-        if should_run_test "test-claude-push-to-branch" "${patterns[@]}"; then
-            FAILED_TESTS+=("test-claude-push-to-branch")
-        fi
+        info "No command tests selected to run"
     fi
 }
 
@@ -956,7 +1002,7 @@ run_pr_triggered_tests() {
         return 0
     fi
     
-    # Test PR review comment workflow
+    # Test PR review comment workflow only if selected
     if should_run_test "test-claude-create-pull-request-review-comment" "${patterns[@]}"; then
         progress "Testing PR review comment workflow"
         local pr_num
@@ -973,6 +1019,8 @@ run_pr_triggered_tests() {
             error "Failed to create test PR"
             FAILED_TESTS+=("test-claude-create-pull-request-review-comment")
         fi
+    else
+        info "No PR-triggered tests selected that require creating test PRs"
     fi
 }
 
