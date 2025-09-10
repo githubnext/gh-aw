@@ -215,14 +215,7 @@ func generateToolGraph(processedRuns []ProcessedRun, verbose bool) {
 		}
 	}
 
-	// Display summary
-	fmt.Printf("\n%s\n", console.FormatListHeader("🔄 Tool Sequence Analysis"))
-	fmt.Printf("%s\n", console.FormatListHeader("========================="))
-	fmt.Println(graph.GetSummary())
-
-	// Generate and display Mermaid graph
-	fmt.Printf("\n%s\n", console.FormatListHeader("📊 Mermaid Tool Sequence Graph"))
-	fmt.Printf("%s\n", console.FormatListHeader("==============================="))
+	// Generate and display Mermaid graph only
 	mermaidGraph := graph.GenerateMermaidGraph()
 	fmt.Println(mermaidGraph)
 
