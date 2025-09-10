@@ -14,7 +14,7 @@ safe-outputs:
     body:
 ---
 
-If the title of the issue #${{ github.event.issue.number }} is exactly "[codex-test] Update Issue Test" then:
+If the title of the issue #${{ github.event.issue.number }} is exactly "Hello from Codex" then:
 
 1. Change the status to "closed"
 2. Update the title to "[UPDATED] Update Issue Test - Processed by Codex"
