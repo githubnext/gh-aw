@@ -93,8 +93,7 @@ matches_pattern() {
     local pattern="$2"
     
     # Convert glob pattern to regex
-    local regex_pattern
-    regex_pattern=$(echo "$pattern" | sed 's/\*/[^[:space:]]*/g')
+    local regex_pattern=$(echo "$pattern" | sed 's/\*/[^[:space:]]*/g')
     
     if [[ "$test_name" =~ ^${regex_pattern}$ ]]; then
         return 0
@@ -235,8 +234,7 @@ check_prerequisites() {
     fi
     
     # Check we're in the right repo
-    local current_repo
-    current_repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "")
+    local current_repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "")
     if [[ "$current_repo" != "$REPO_OWNER/$REPO_NAME" ]]; then
         error "Not in the correct repository. Expected $REPO_OWNER/$REPO_NAME, got $current_repo"
         exit 1
@@ -347,8 +345,7 @@ trigger_workflow_dispatch_and_await_completion() {
     fi
     
     # Get the run ID before triggering
-    local before_run_id
-    before_run_id=$(get_latest_run_id "$workflow_file")
+    local before_run_id=$(get_latest_run_id "$workflow_file")
     
     # Trigger the workflow using gh aw run
     if ./gh-aw run "$workflow_name" &>> "$LOG_FILE"; then
@@ -358,8 +355,7 @@ trigger_workflow_dispatch_and_await_completion() {
         sleep 5
         
         # Get the new run ID
-        local after_run_id
-        after_run_id=$(get_latest_run_id "$workflow_file")
+        local after_run_id=$(get_latest_run_id "$workflow_file")
         
         if [[ "$after_run_id" != "$before_run_id" && -n "$after_run_id" ]]; then
             local result=0
@@ -394,8 +390,7 @@ create_test_issue() {
     fi
     
     if [[ -n "$issue_url" ]]; then
-        local issue_number
-        issue_number=$(echo "$issue_url" | grep -o '[0-9]\+$')
+        local issue_number=$(echo "$issue_url" | grep -o '[0-9]\+$')
         echo "$issue_number"
     else
         echo ""
@@ -407,23 +402,34 @@ create_test_pr() {
     local body="$2"
     local branch="test-pr-$(date +%s)"
     
-    # Create a test branch and commit
-    git checkout -b "$branch" &>/dev/null
-    echo "# Test PR Content" > "test-file-$(date +%s).md"
-    git add . &>/dev/null
-    git commit -m "Test commit for PR" &>/dev/null
-    git push origin "$branch" &>/dev/null
+    # Create a remote branch from main without changing local git state
+    git push origin "main:$branch" &>/dev/null
     
-    local pr_url
-    pr_url=$(gh pr create --title "$title" --body "$body" --head "$branch" 2>/dev/null)
+    # Create a commit on the remote branch using GitHub API to make it different from main
+    local commit_message="Test commit for PR"
+    local file_content="# Test PR Content\n\nThis is a test file created for PR testing at $(date)"
+    local file_path="test-file-$(date +%s).md"
     
-    # Switch back to main
-    git checkout main &>/dev/null
+    # Get the current SHA of the branch
+    local current_sha=$(git ls-remote --heads origin "$branch" 2>/dev/null | cut -f1)
     
-    if [[ -n "$pr_url" ]]; then
-        local pr_number
-        pr_number=$(echo "$pr_url" | grep -o '[0-9]\+$')
-        echo "$pr_number"
+    if [[ -n "$current_sha" ]]; then
+        # Create a new file on the branch using GitHub API
+        gh api repos/:owner/:repo/contents/"$file_path" \
+            --method PUT \
+            --field message="$commit_message" \
+            --field content="$(echo -e "$file_content" | base64 -w 0)" \
+            --field branch="$branch" &>/dev/null
+        
+        # Create a PR using the GitHub CLI
+        local pr_url=$(gh pr create --title "$title" --body "$body" --head "$branch" --base main 2>/dev/null)
+        
+        if [[ -n "$pr_url" ]]; then
+            local pr_number=$(echo "$pr_url" | grep -o '[0-9]\+$')
+            echo "$pr_number"
+        else
+            echo ""
+        fi
     else
         echo ""
     fi
@@ -436,23 +442,11 @@ create_test_branch() {
     # Delete the branch if it already exists to ensure clean test
     git push origin --delete "$branch_name" &>/dev/null || true
     
-    # Create a new branch from main
-    git checkout main &>/dev/null
-    git pull origin main &>/dev/null
-    git checkout -b "$branch_name" &>/dev/null
+    # Create a new branch from main without changing local git state
+    git push origin "main:$branch_name" &>/dev/null
     
-    # Create a test file with some content
-    echo "$test_file_content" > "test-branch-file-$(date +%s).md"
-    git add . &>/dev/null
-    git commit -m "Initial commit for $branch_name test" &>/dev/null
-    git push origin "$branch_name" &>/dev/null
-    
-    # Get the initial SHA
-    local initial_sha
-    initial_sha=$(git rev-parse HEAD)
-    
-    # Switch back to main
-    git checkout main &>/dev/null
+    # Get the initial SHA from the remote branch
+    local initial_sha=$(git ls-remote --heads origin "$branch_name" 2>/dev/null | cut -f1)
     
     echo "$initial_sha"
 }
@@ -469,13 +463,11 @@ validate_issue_created() {
     local expected_labels="$2"
     
     # Look for recently created issues with the title prefix
-    local issue_number
-    issue_number=$(gh issue list --limit 10 --json number,title,labels --jq ".[] | select(.title | startswith(\"$title_prefix\")) | .number" | head -1)
+    local issue_number=$(gh issue list --limit 10 --json number,title,labels --jq ".[] | select(.title | startswith(\"$title_prefix\")) | .number" | head -1)
     
     if [[ -n "$issue_number" ]]; then
         if [[ -n "$expected_labels" ]]; then
-            local issue_labels
-            issue_labels=$(gh issue view "$issue_number" --json labels --jq '.labels[].name' | tr '\n' ',' | sed 's/,$//')
+            local issue_labels=$(gh issue view "$issue_number" --json labels --jq '.labels[].name' | tr '\n' ',' | sed 's/,$//')
             for label in ${expected_labels//,/ }; do
                 if [[ "$issue_labels" != *"$label"* ]]; then
                     error "Issue #$issue_number missing expected label: '$label'. Actual labels: '$issue_labels'"
@@ -495,8 +487,7 @@ validate_issue_comment() {
     local issue_number="$1"
     local expected_comment_text="$2"
     
-    local comments
-    comments=$(gh issue view "$issue_number" --json comments --jq '.comments[].body')
+    local comments=$(gh issue view "$issue_number" --json comments --jq '.comments[].body')
     
     if echo "$comments" | grep -q "$expected_comment_text"; then
         success "Issue #$issue_number has expected comment containing: $expected_comment_text"
@@ -511,8 +502,7 @@ validate_issue_labels() {
     local issue_number="$1"
     local expected_label="$2"
     
-    local labels
-    labels=$(gh issue view "$issue_number" --json labels --jq '.labels[].name' | tr '\n' ',')
+    local labels=$(gh issue view "$issue_number" --json labels --jq '.labels[].name' | tr '\n' ',')
     
     if [[ "$labels" == *"$expected_label"* ]]; then
         success "Issue #$issue_number has expected label: $expected_label"
@@ -528,8 +518,7 @@ validate_issue_updated() {
     local ai_type="$2"  # "Claude" or "Codex"
     
     # Check for various signs that the issue was updated by the AI
-    local issue_data
-    issue_data=$(gh issue view "$issue_number" --json title,body,comments,labels,state 2>/dev/null)
+    local issue_data=$(gh issue view "$issue_number" --json title,body,comments,labels,state 2>/dev/null)
     
     if [[ -z "$issue_data" ]]; then
         error "Could not retrieve issue #$issue_number data"
@@ -541,8 +530,7 @@ validate_issue_updated() {
     local state_success=false
     
     # Check if title was updated
-    local title
-    title=$(echo "$issue_data" | jq -r '.title')
+    local title=$(echo "$issue_data" | jq -r '.title')
     if [[ "$title" == *"Processed by $ai_type"* ]]; then
         success "Issue #$issue_number title was updated by $ai_type"
         title_success=true
@@ -551,8 +539,7 @@ validate_issue_updated() {
     fi
     
     # Check if body was updated
-    local body
-    body=$(echo "$issue_data" | jq -r '.body')
+    local body=$(echo "$issue_data" | jq -r '.body')
     if [[ "$body" == *"updated by"* ]]; then
         success "Issue #$issue_number body was updated by $ai_type"
         body_success=true
@@ -561,8 +548,7 @@ validate_issue_updated() {
     fi
     
     # Check for status closed
-    local state
-    state=$(echo "$issue_data" | jq -r '.state')
+    local state=$(echo "$issue_data" | jq -r '.state')
     if [[ "$state" == "closed" ]]; then
         success "Issue #$issue_number was closed, indicating it was processed"
         state_success=true
@@ -584,8 +570,7 @@ validate_pr_created() {
     local title_prefix="$1"
     
     # Look for recently created PRs with the title prefix
-    local pr_number
-    pr_number=$(gh pr list --limit 10 --json number,title --jq ".[] | select(.title | startswith(\"$title_prefix\")) | .number" | head -1)
+    local pr_number=$(gh pr list --limit 10 --json number,title --jq ".[] | select(.title | startswith(\"$title_prefix\")) | .number" | head -1)
     
     if [[ -n "$pr_number" ]]; then
         success "PR #$pr_number created successfully"
@@ -610,24 +595,21 @@ validate_repository_security_advisory() {
     fi
     
     # Check for security advisories with the specific title
-    local security_advisories
-    security_advisories=$(gh api repos/:owner/:repo/security-advisories --jq ".[] | select(.title | contains(\"$expected_title\")) | .title" 2>/dev/null || echo "")
+    local security_advisories=$(gh api repos/:owner/:repo/security-advisories --jq ".[] | select(.title | contains(\"$expected_title\")) | .title" 2>/dev/null || echo "")
     
     if [[ -n "$security_advisories" ]]; then
         success "Security report workflow '$workflow_name' created security advisory with expected title: '$expected_title'"
         return 0
     else
         # Also check for issues with the specific title and security-related labels
-        local security_issue
-        security_issue=$(gh issue list --limit 10 --json title,labels --jq ".[] | select(.title | contains(\"$expected_title\")) | select(.labels[]?.name | contains(\"security\") or contains(\"vulnerability\")) | .title" 2>/dev/null | head -1)
+        local security_issue=$(gh issue list --limit 10 --json title,labels --jq ".[] | select(.title | contains(\"$expected_title\")) | select(.labels[]?.name | contains(\"security\") or contains(\"vulnerability\")) | .title" 2>/dev/null | head -1)
         
         if [[ -n "$security_issue" ]]; then
             success "Security report workflow '$workflow_name' created security issue with expected title: '$expected_title'"
             return 0
         else
             # Fallback: check for any recent security-related content
-            local any_security_content
-            any_security_content=$(gh issue list --limit 5 --json title,body --jq ".[] | select(.title or .body | contains(\"security\") or contains(\"Security\")) | .title" 2>/dev/null | head -1)
+            local any_security_content=$(gh issue list --limit 5 --json title,body --jq ".[] | select(.title or .body | contains(\"security\") or contains(\"Security\")) | .title" 2>/dev/null | head -1)
             
             if [[ -n "$any_security_content" ]]; then
                 warning "Security report workflow '$workflow_name' created security content but not with expected title. Found: '$any_security_content'"
@@ -645,16 +627,14 @@ validate_mcp_workflow() {
     
     # MCP workflows typically create issues with specific patterns indicating MCP tool usage
     # Look for issues with MCP-specific content patterns
-    local recent_issues
-    recent_issues=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.body | contains("MCP time tool") or contains("current time is") or contains("UTC")) | .title' | head -1)
+    local recent_issues=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.body | contains("MCP time tool") or contains("current time is") or contains("UTC")) | .title' | head -1)
     
     if [[ -n "$recent_issues" ]]; then
         success "MCP workflow '$workflow_name' appears to have used MCP tools successfully"
         return 0
     else
         # Fallback to original time-based check for broader compatibility
-        local time_issues
-        time_issues=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.title or .body | contains("time") or contains("Time") or contains("timestamp") or contains("Timestamp")) | .title' | head -1)
+        local time_issues=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.title or .body | contains("time") or contains("Time") or contains("timestamp") or contains("Timestamp")) | .title' | head -1)
         
         if [[ -n "$time_issues" ]]; then
             success "MCP workflow '$workflow_name' appears to have used MCP tools successfully (time-based detection)"
@@ -673,16 +653,14 @@ validate_safe_outputs_workflow() {
     local found_outputs=0
     
     # Check for test issues
-    local test_issues
-    test_issues=$(gh issue list --label "test-safe-outputs" --limit 5 --json number --jq 'length' 2>/dev/null || echo "0")
+    local test_issues=$(gh issue list --label "test-safe-outputs" --limit 5 --json number --jq 'length' 2>/dev/null || echo "0")
     if [[ "$test_issues" -gt 0 ]]; then
         found_outputs=$((found_outputs + 1))
         success "Safe outputs workflow '$workflow_name' created test issues"
     fi
     
     # Check for test PRs
-    local test_prs
-    test_prs=$(gh pr list --label "test-safe-outputs" --limit 5 --json number --jq 'length' 2>/dev/null || echo "0")
+    local test_prs=$(gh pr list --label "test-safe-outputs" --limit 5 --json number --jq 'length' 2>/dev/null || echo "0")
     if [[ "$test_prs" -gt 0 ]]; then
         found_outputs=$((found_outputs + 1))
         success "Safe outputs workflow '$workflow_name' created test PRs"
@@ -701,8 +679,7 @@ validate_ai_inference_workflow() {
     local workflow_name="$1"
     
     # AI inference workflows typically create issues with AI-generated content
-    local ai_content
-    ai_content=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.title or .body | contains("AI") or contains("inference") or contains("model") or contains("GitHub Models")) | .title' | head -1)
+    local ai_content=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.title or .body | contains("AI") or contains("inference") or contains("model") or contains("GitHub Models")) | .title' | head -1)
     
     if [[ -n "$ai_content" ]]; then
         success "AI inference workflow '$workflow_name' appears to have used AI models successfully"
@@ -717,8 +694,7 @@ validate_branch_updated() {
     local branch_name="$1"
     local initial_sha="$2"
     
-    local current_sha
-    current_sha=$(git ls-remote --heads origin "$branch_name" 2>/dev/null | cut -f1)
+    local current_sha=$(git ls-remote --heads origin "$branch_name" 2>/dev/null | cut -f1)
     
     if [[ -z "$current_sha" ]]; then
         warning "(polling) Branch '$branch_name' not found"
@@ -1034,8 +1010,7 @@ run_issue_triggered_tests() {
                 
                 # Create a test issue for this specific workflow
                 progress "Testing $workflow"
-                local issue_num
-                issue_num=$(create_test_issue "Hello from $ai_display_name" "This is a test issue to trigger $workflow")
+                local issue_num=$(create_test_issue "Hello from $ai_display_name" "This is a test issue to trigger $workflow")
                 
                 if [[ -n "$issue_num" ]]; then
                     success "Created test issue #$issue_num for $workflow: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$issue_num"
@@ -1102,8 +1077,7 @@ run_command_tests() {
                 
                 # Create a test issue for this specific workflow
                 progress "Testing $workflow"
-                local issue_num
-                issue_num=$(create_test_issue "Test Issue for $ai_display_name Commands" "This issue is for testing $workflow")
+                local issue_num=$(create_test_issue "Test Issue for $ai_display_name Commands" "This issue is for testing $workflow")
                 
                 if [[ -n "$issue_num" ]]; then
                     success "Created test issue #$issue_num for $workflow: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$issue_num"
@@ -1118,8 +1092,7 @@ run_command_tests() {
                         *"push-to-branch")
                             progress "Testing $ai_display_name push-to-branch workflow"
                             # Create a test branch with initial content
-                            local initial_sha
-                            initial_sha=$(create_test_branch "${ai_type}-test-branch" "# $ai_display_name Test Branch\nThis branch will be updated by the $ai_display_name push-to-branch workflow.")
+                            local initial_sha=$(create_test_branch "${ai_type}-test-branch" "# $ai_display_name Test Branch\nThis branch will be updated by the $ai_display_name push-to-branch workflow.")
                             
                             if [[ -n "$initial_sha" ]]; then
                                 success "Created test branch '${ai_type}-test-branch' with SHA: $initial_sha"
@@ -1177,8 +1150,7 @@ run_pr_triggered_tests() {
                 
                 # Create a test PR for this specific workflow
                 progress "Testing $workflow"
-                local pr_num
-                pr_num=$(create_test_pr "Test PR for $ai_display_name Review" "This PR is for testing $workflow")
+                local pr_num=$(create_test_pr "Test PR for $ai_display_name Review" "This PR is for testing $workflow")
                 
                 if [[ -n "$pr_num" ]]; then
                     success "Created test PR #$pr_num for $workflow: https://github.com/$REPO_OWNER/$REPO_NAME/pull/$pr_num"
