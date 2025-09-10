@@ -112,7 +112,7 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("            echo '' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("            echo '```diff' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("            head -50 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo \"Could not display patch contents\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo \"Could not display patch contents\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("            echo '...' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("            echo '```' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("            echo '' >> $GITHUB_STEP_SUMMARY\n")
