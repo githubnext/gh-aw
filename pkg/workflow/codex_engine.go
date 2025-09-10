@@ -385,8 +385,14 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 
 	// Add user_agent field defaulting to workflow identifier
 	userAgent := "github-agentic-workflow"
-	if workflowData != nil && workflowData.Name != "" {
-		userAgent = convertToIdentifier(workflowData.Name)
+	if workflowData != nil {
+		// Check if user_agent is configured in engine config first
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			// Fall back to converting workflow name to identifier
+			userAgent = convertToIdentifier(workflowData.Name)
+		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 

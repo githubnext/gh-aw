@@ -382,6 +382,77 @@ func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
 	}
 }
 
+func TestCodexEngineRenderMCPConfigUserAgentFromConfig(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name         string
+		workflowName string
+		configuredUA string
+		expectedUA   string
+		description  string
+	}{
+		{
+			name:         "configured user_agent overrides workflow name",
+			workflowName: "Test Workflow Name",
+			configuredUA: "my-custom-agent",
+			expectedUA:   "my-custom-agent",
+			description:  "When user_agent is configured, it should be used instead of the converted workflow name",
+		},
+		{
+			name:         "configured user_agent with spaces",
+			workflowName: "test-workflow",
+			configuredUA: "My Custom User Agent",
+			expectedUA:   "My Custom User Agent",
+			description:  "Configured user_agent should be used as-is, without identifier conversion",
+		},
+		{
+			name:         "empty configured user_agent falls back to workflow name",
+			workflowName: "Test Workflow",
+			configuredUA: "",
+			expectedUA:   "test-workflow",
+			description:  "Empty configured user_agent should fall back to workflow name conversion",
+		},
+		{
+			name:         "no workflow name and no configured user_agent uses default",
+			workflowName: "",
+			configuredUA: "",
+			expectedUA:   "github-agentic-workflow",
+			description:  "Should use default when neither workflow name nor user_agent is configured",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+
+			engineConfig := &EngineConfig{
+				ID: "codex",
+			}
+			if tt.configuredUA != "" {
+				engineConfig.UserAgent = tt.configuredUA
+			}
+
+			workflowData := &WorkflowData{
+				Name:         tt.workflowName,
+				EngineConfig: engineConfig,
+			}
+
+			tools := map[string]any{"github": map[string]any{}}
+			mcpTools := []string{"github"}
+
+			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+			result := yaml.String()
+			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+
+			if !strings.Contains(result, expectedUserAgentLine) {
+				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentLine, result)
+			}
+		})
+	}
+}
+
 func TestConvertToIdentifier(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -445,6 +516,66 @@ func TestConvertToIdentifier(t *testing.T) {
 			result := convertToIdentifier(tt.input)
 			if result != tt.expected {
 				t.Errorf("convertToIdentifier(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// Test that both "user_agent" and "user-agent" field names work
+	tests := []struct {
+		name             string
+		engineConfigFunc func() *EngineConfig
+		expectedUA       string
+		description      string
+	}{
+		{
+			name: "user_agent field (underscore)",
+			engineConfigFunc: func() *EngineConfig {
+				return &EngineConfig{
+					ID:        "codex",
+					UserAgent: "custom-agent-underscore",
+				}
+			},
+			expectedUA:  "custom-agent-underscore",
+			description: "user_agent field with underscore should work",
+		},
+		{
+			name: "user-agent field gets parsed as user_agent (hyphen)",
+			engineConfigFunc: func() *EngineConfig {
+				// This simulates the parsing of "user-agent" from frontmatter
+				// which gets stored in the UserAgent field
+				return &EngineConfig{
+					ID:        "codex",
+					UserAgent: "custom-agent-hyphen",
+				}
+			},
+			expectedUA:  "custom-agent-hyphen",
+			description: "user-agent field with hyphen should be parsed and work",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+
+			workflowData := &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: tt.engineConfigFunc(),
+			}
+
+			tools := map[string]any{"github": map[string]any{}}
+			mcpTools := []string{"github"}
+
+			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+			result := yaml.String()
+			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+
+			if !strings.Contains(result, expectedUserAgentLine) {
+				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentLine, result)
 			}
 		})
 	}

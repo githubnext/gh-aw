@@ -7,12 +7,13 @@ import (
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID       string
-	Version  string
-	Model    string
-	MaxTurns string
-	Env      map[string]string
-	Steps    []map[string]any
+	ID        string
+	Version   string
+	Model     string
+	MaxTurns  string
+	UserAgent string
+	Env       map[string]string
+	Steps     []map[string]any
 }
 
 // NetworkPermissions represents network access permissions
@@ -68,6 +69,17 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'user_agent' or 'user-agent' field
+			if userAgent, hasUserAgent := engineObj["user_agent"]; hasUserAgent {
+				if userAgentStr, ok := userAgent.(string); ok {
+					config.UserAgent = userAgentStr
+				}
+			} else if userAgent, hasUserAgent := engineObj["user-agent"]; hasUserAgent {
+				if userAgentStr, ok := userAgent.(string); ok {
+					config.UserAgent = userAgentStr
 				}
 			}
 
