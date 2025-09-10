@@ -183,8 +183,8 @@ async function main() {
         return 1; // Only one discussion allowed
       case "missing-tool":
         return 1000; // Allow many missing tool reports (default: unlimited)
-      case "create-security-report":
-        return 1000; // Allow many security reports (default: unlimited)
+      case "create-repository-security-advisory":
+        return 1000; // Allow many repository security advisories (default: unlimited)
       default:
         return 1; // Default to single item for unknown types
     }
@@ -197,6 +197,16 @@ async function main() {
    */
   function repairJson(jsonStr) {
     let repaired = jsonStr.trim();
+
+    // remove invalid control characters like
+    // U+0014 (DC4) — represented here as "\u0014"
+    // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
+    // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+    const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
+    repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
+      const c = ch.charCodeAt(0);
+      return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
+    });
 
     // Fix single quotes to double quotes (must be done first)
     repaired = repaired.replace(/'/g, '"');
@@ -278,6 +288,7 @@ async function main() {
         return JSON.parse(repairedJson);
       } catch (repairError) {
         // If repair also fails, throw the error
+        console.log(`invalid input json: ${jsonStr}`);
         throw new Error(
           `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
         );
@@ -664,11 +675,11 @@ async function main() {
           }
           break;
 
-        case "create-security-report":
+        case "create-repository-security-advisory":
           // Validate required sarif field
           if (!item.sarif) {
             errors.push(
-              `Line ${i + 1}: create-security-report requires a 'sarif' field`
+              `Line ${i + 1}: create-repository-security-advisory requires a 'sarif' field`
             );
             continue;
           }
@@ -678,7 +689,7 @@ async function main() {
             typeof item.sarif !== "string"
           ) {
             errors.push(
-              `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
+              `Line ${i + 1}: create-repository-security-advisory 'sarif' must be an object or string`
             );
             continue;
           }
@@ -690,7 +701,7 @@ async function main() {
           if (item.category !== undefined) {
             if (typeof item.category !== "string") {
               errors.push(
-                `Line ${i + 1}: create-security-report 'category' must be a string`
+                `Line ${i + 1}: create-repository-security-advisory 'category' must be a string`
               );
               continue;
             }

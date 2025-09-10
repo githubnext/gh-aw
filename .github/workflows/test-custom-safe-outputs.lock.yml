@@ -4,24 +4,12 @@
 
 name: "Test Safe Outputs - Custom Engine"
 on:
-  issues:
-    types:
-    - opened
-  pull_request:
-    types:
-    - opened
-  push:
-    branches:
-    - main
-  schedule:
-  - cron: 0 12 * * 1
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}"
 
 run-name: "Test Safe Outputs - Custom Engine"
 
@@ -32,73 +20,6 @@ jobs:
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
-      - name: Check team membership for workflow
-        id: check-team-member
-        uses: actions/github-script@v7
-        env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
-        with:
-          script: |
-            async function main() {
-              const { eventName } = context;
-              // skip check for safe events
-              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                console.log(`✅ Event ${eventName} does not require validation`);
-                return;
-              }
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv
-                ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
-                : [];
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.error(
-                  "❌ Configuration error: Required permissions not specified. Contact repository administrator."
-                );
-                process.exit(1);
-              }
-              // Check if the actor has the required repository permissions
-              try {
-                console.log(
-                  `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
-                );
-                console.log(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission =
-                  await github.rest.repos.getCollaboratorPermissionLevel({
-                    owner: owner,
-                    repo: repo,
-                    username: actor,
-                  });
-                const permission = repoPermission.data.permission;
-                console.log(`Repository permission level: ${permission}`);
-                // Check if user has one of the required permission levels
-                for (const requiredPerm of requiredPermissions) {
-                  if (
-                    permission === requiredPerm ||
-                    (requiredPerm === "maintainer" && permission === "maintain")
-                  ) {
-                    console.log(`✅ User has ${permission} access to repository`);
-                    return;
-                  }
-                }
-                console.log(
-                  `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage =
-                  repoError instanceof Error ? repoError.message : String(repoError);
-                core.error(`Repository permission check failed: ${errorMessage}`);
-                process.exit(1);
-              }
-              // Fail the job when permission check fails
-              core.warning(
-                `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-              );
-              process.exit(78);
-            }
-            await main();
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Configure Git credentials
@@ -178,7 +99,7 @@ jobs:
           - **missing-tool**: Reports missing functionality (test simulation)
           - **create-discussion**: Creates repository discussions
           - **create-pull-request-review-comment**: Creates PR review comments
-          - **create-security-report**: Generates SARIF security reports
+          - **create-repository-security-advisory**: Generates SARIF repository security advisories
           
           ## Custom Engine Implementation
           
@@ -197,7 +118,7 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Creating a Pull Request, Adding Labels to Issues or Pull Requests, Updating Issues, Pushing Changes to Branch, Reporting Missing Tools or Functionality
+          ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Creating a Pull Request, Adding Labels to Issues or Pull Requests, Updating Issues, Pushing Changes to Branch, Creating Repository Security Advisories, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
@@ -263,6 +184,18 @@ jobs:
           ```
           4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
+          **Creating Repository Security Advisories**
+          
+          To create repository security advisories (SARIF format for GitHub Code Scanning):
+          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          ```json
+          {"type": "create-repository-security-advisory", "file": "path/to/file.js", "line": 42, "severity": "error", "message": "Security vulnerability description", "column": 5, "ruleIdSuffix": "custom-rule"}
+          ```
+          2. **Required fields**: `file` (string), `line` (number), `severity` ("error", "warning", "info", or "note"), `message` (string)
+          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)
+          4. Multiple security findings can be reported by writing multiple JSON objects
+          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          
           **Reporting Missing Tools or Functionality**
           
           If you need to use a tool or functionality that is not available to complete your task:
@@ -282,6 +215,7 @@ jobs:
           {"type": "create-pull-request", "title": "Fix typo", "body": "Corrected spelling mistake in documentation"}
           {"type": "add-issue-label", "labels": ["bug", "priority-high"]}
           {"type": "push-to-branch", "message": "Update documentation with latest changes"}
+          {"type": "create-repository-security-advisory", "file": "src/auth.js", "line": 25, "severity": "error", "message": "Potential SQL injection vulnerability"}
           {"type": "missing-tool", "tool": "docker", "reason": "Need Docker to build container images", "alternatives": "Could use GitHub Actions build instead"}
           ```
           
@@ -404,9 +338,9 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-      - name: Generate Security Report Output
+      - name: Generate Repository Security Advisory Output
         run: |
-          echo '{"type": "create-security-report", "file": "README.md", "line": 1, "severity": "note", "message": "This is a test security finding generated by the custom engine workflow to validate the create-security-report safe output functionality. This is a notice-level finding used for testing purposes and does not represent an actual security issue.", "ruleIdSuffix": "test-custom-engine-notice"}' >> $GITHUB_AW_SAFE_OUTPUTS
+          echo '{"type": "create-repository-security-advisory", "file": "README.md", "line": 1, "severity": "note", "message": "This is a test security finding generated by the custom engine workflow to validate the create-repository-security-advisory safe output functionality. This is a notice-level finding used for testing purposes and does not represent an actual security issue.", "ruleIdSuffix": "test-custom-engine-notice"}' >> $GITHUB_AW_SAFE_OUTPUTS
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -428,12 +362,33 @@ jobs:
         run: |
           echo "Custom steps execution completed" >> /tmp/test-safe-outputs-custom-engine.log
           touch /tmp/test-safe-outputs-custom-engine.log
-      - name: Collect agent output
+      - name: Print Agent output
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+        run: |
+          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '``````json' >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
+          # Ensure there's a newline after the file content if it doesn't end with one
+          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '``````' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+      - name: Upload agentic output file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe_output.jsonl
+          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          if-no-files-found: warn
+      - name: Ingest agent output
         id: collect_output
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true,\"target\":\"*\"},\"add-issue-label\":true,\"create-discussion\":{\"enabled\":true,\"max\":1},\"create-issue\":true,\"create-pull-request\":true,\"create-pull-request-review-comment\":{\"enabled\":true,\"max\":1},\"create-security-report\":{\"enabled\":true,\"max\":5},\"missing-tool\":{\"enabled\":true,\"max\":5},\"push-to-branch\":{\"branch\":\"triggering\",\"enabled\":true,\"target\":\"*\"},\"update-issue\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true,\"target\":\"*\"},\"add-issue-label\":true,\"create-discussion\":{\"enabled\":true,\"max\":1},\"create-issue\":true,\"create-pull-request\":true,\"create-pull-request-review-comment\":{\"enabled\":true,\"max\":1},\"create-repository-security-advisory\":{\"enabled\":true,\"max\":5},\"missing-tool\":{\"enabled\":true,\"max\":5},\"push-to-branch\":{\"branch\":\"triggering\",\"enabled\":true,\"target\":\"*\"},\"update-issue\":true}"
         with:
           script: |
             async function main() {
@@ -599,8 +554,8 @@ jobs:
                     return 1; // Only one discussion allowed
                   case "missing-tool":
                     return 1000; // Allow many missing tool reports (default: unlimited)
-                  case "create-security-report":
-                    return 1000; // Allow many security reports (default: unlimited)
+                  case "create-repository-security-advisory":
+                    return 1000; // Allow many repository security advisories (default: unlimited)
                   default:
                     return 1; // Default to single item for unknown types
                 }
@@ -612,6 +567,15 @@ jobs:
                */
               function repairJson(jsonStr) {
                 let repaired = jsonStr.trim();
+                // remove invalid control characters like
+                // U+0014 (DC4) — represented here as "\u0014"
+                // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
+                // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+                const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
+                repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
+                  const c = ch.charCodeAt(0);
+                  return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
+                });
                 // Fix single quotes to double quotes (must be done first)
                 repaired = repaired.replace(/'/g, '"');
                 // Fix missing quotes around object keys
@@ -681,6 +645,7 @@ jobs:
                     return JSON.parse(repairedJson);
                   } catch (repairError) {
                     // If repair also fails, throw the error
+                    console.log(`invalid input json: ${jsonStr}`);
                     throw new Error(
                       `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
                     );
@@ -1047,11 +1012,11 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives);
                       }
                       break;
-                    case "create-security-report":
+                    case "create-repository-security-advisory":
                       // Validate required sarif field
                       if (!item.sarif) {
                         errors.push(
-                          `Line ${i + 1}: create-security-report requires a 'sarif' field`
+                          `Line ${i + 1}: create-repository-security-advisory requires a 'sarif' field`
                         );
                         continue;
                       }
@@ -1061,7 +1026,7 @@ jobs:
                         typeof item.sarif !== "string"
                       ) {
                         errors.push(
-                          `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
+                          `Line ${i + 1}: create-repository-security-advisory 'sarif' must be an object or string`
                         );
                         continue;
                       }
@@ -1073,7 +1038,7 @@ jobs:
                       if (item.category !== undefined) {
                         if (typeof item.category !== "string") {
                           errors.push(
-                            `Line ${i + 1}: create-security-report 'category' must be a string`
+                            `Line ${i + 1}: create-repository-security-advisory 'category' must be a string`
                           );
                           continue;
                         }
@@ -1125,33 +1090,14 @@ jobs:
             }
             // Call the main function
             await main();
-      - name: Print agent output to step summary
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Print sanitized agent output
         run: |
-          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````json' >> $GITHUB_STEP_SUMMARY
-          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
-          # Ensure there's a newline after the file content if it doesn't end with one
-          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo '``````' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````json' >> $GITHUB_STEP_SUMMARY
           echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-      - name: Upload agentic output file
-        if: always() && steps.collect_output.outputs.output != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: safe_output.jsonl
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          if-no-files-found: warn
-      - name: Upload agent output JSON
+      - name: Upload sanitized agent output
         if: always() && env.GITHUB_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4
         with:
@@ -1270,7 +1216,7 @@ jobs:
             echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
             echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -50 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
             echo '...' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
@@ -2144,7 +2090,7 @@ jobs:
             }
             await main();
 
-  create_security_report:
+  create_repository_security_advisory:
     needs: test-safe-outputs-custom-engine
     runs-on: ubuntu-latest
     permissions:
@@ -2153,19 +2099,19 @@ jobs:
       actions: read
     timeout-minutes: 10
     outputs:
-      artifact_uploaded: ${{ steps.create_security_report.outputs.artifact_uploaded }}
-      codeql_uploaded: ${{ steps.create_security_report.outputs.codeql_uploaded }}
-      findings_count: ${{ steps.create_security_report.outputs.findings_count }}
-      sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}
+      artifact_uploaded: ${{ steps.create_repository_security_advisory.outputs.artifact_uploaded }}
+      codeql_uploaded: ${{ steps.create_repository_security_advisory.outputs.codeql_uploaded }}
+      findings_count: ${{ steps.create_repository_security_advisory.outputs.findings_count }}
+      sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
     steps:
-      - name: Create Security Report
-        id: create_security_report
+      - name: Create Repository Security Advisory
+        id: create_repository_security_advisory
         uses: actions/github-script@v7
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-safe-outputs-custom-engine.outputs.output }}
           GITHUB_AW_SECURITY_REPORT_MAX: 5
           GITHUB_AW_SECURITY_REPORT_DRIVER: Test Safe Outputs - Custom Engine
-          GITHUB_AW_WORKFLOW_FILENAME: test-safe-outputs-custom-engine
+          GITHUB_AW_WORKFLOW_FILENAME: test-custom-safe-outputs
         with:
           script: |
             async function main() {
@@ -2195,15 +2141,15 @@ jobs:
                 console.log("No valid items found in agent output");
                 return;
               }
-              // Find all create-security-report items
+              // Find all create-repository-security-advisory items
               const securityItems = validatedOutput.items.filter(
-                /** @param {any} item */ item => item.type === "create-security-report"
+                /** @param {any} item */ item => item.type === "create-repository-security-advisory"
               );
               if (securityItems.length === 0) {
-                console.log("No create-security-report items found in agent output");
+                console.log("No create-repository-security-advisory items found in agent output");
                 return;
               }
-              console.log(`Found ${securityItems.length} create-security-report item(s)`);
+              console.log(`Found ${securityItems.length} create-repository-security-advisory item(s)`);
               // Get the max configuration from environment variable
               const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
                 ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX)
@@ -2225,7 +2171,7 @@ jobs:
               for (let i = 0; i < securityItems.length; i++) {
                 const securityItem = securityItems[i];
                 console.log(
-                  `Processing create-security-report item ${i + 1}/${securityItems.length}:`,
+                  `Processing create-repository-security-advisory item ${i + 1}/${securityItems.length}:`,
                   {
                     file: securityItem.file,
                     line: securityItem.line,
@@ -2238,7 +2184,7 @@ jobs:
                 );
                 // Validate required fields
                 if (!securityItem.file) {
-                  console.log('Missing required field "file" in security report item');
+                  console.log('Missing required field "file" in repository security advisory item');
                   continue;
                 }
                 if (
@@ -2247,19 +2193,19 @@ jobs:
                     typeof securityItem.line !== "string")
                 ) {
                   console.log(
-                    'Missing or invalid required field "line" in security report item'
+                    'Missing or invalid required field "line" in repository security advisory item'
                   );
                   continue;
                 }
                 if (!securityItem.severity || typeof securityItem.severity !== "string") {
                   console.log(
-                    'Missing or invalid required field "severity" in security report item'
+                    'Missing or invalid required field "severity" in repository security advisory item'
                   );
                   continue;
                 }
                 if (!securityItem.message || typeof securityItem.message !== "string") {
                   console.log(
-                    'Missing or invalid required field "message" in security report item'
+                    'Missing or invalid required field "message" in repository security advisory item'
                   );
                   continue;
                 }
@@ -2277,7 +2223,7 @@ jobs:
                     typeof securityItem.column !== "string"
                   ) {
                     console.log(
-                      'Invalid field "column" in security report item (must be number or string)'
+                      'Invalid field "column" in repository security advisory item (must be number or string)'
                     );
                     continue;
                   }
@@ -2293,7 +2239,7 @@ jobs:
                 if (securityItem.ruleIdSuffix !== undefined) {
                   if (typeof securityItem.ruleIdSuffix !== "string") {
                     console.log(
-                      'Invalid field "ruleIdSuffix" in security report item (must be string)'
+                      'Invalid field "ruleIdSuffix" in repository security advisory item (must be string)'
                     );
                     continue;
                   }
@@ -2301,7 +2247,7 @@ jobs:
                   const trimmedSuffix = securityItem.ruleIdSuffix.trim();
                   if (trimmedSuffix.length === 0) {
                     console.log(
-                      'Invalid field "ruleIdSuffix" in security report item (cannot be empty)'
+                      'Invalid field "ruleIdSuffix" in repository security advisory item (cannot be empty)'
                     );
                     continue;
                   }
@@ -2388,7 +2334,7 @@ jobs:
               // Write SARIF file to filesystem
               const fs = require("fs");
               const path = require("path");
-              const sarifFileName = "security-report.sarif";
+              const sarifFileName = "repository-security-advisory.sarif";
               const sarifFilePath = path.join(process.cwd(), sarifFileName);
               try {
                 fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
@@ -2400,7 +2346,7 @@ jobs:
                 core.setOutput("artifact_uploaded", "pending");
                 core.setOutput("codeql_uploaded", "pending");
                 // Write summary with findings
-                let summaryContent = "\n\n## Security Report\n";
+                let summaryContent = "\n\n## Repository Security Advisory\n";
                 summaryContent += `Found **${validFindings.length}** security finding(s):\n\n`;
                 for (const finding of validFindings) {
                   const emoji =
@@ -2421,7 +2367,7 @@ jobs:
                 throw error;
               }
               console.log(
-                `Successfully created security report with ${validFindings.length} finding(s)`
+                `Successfully created repository security advisory with ${validFindings.length} finding(s)`
               );
               return {
                 sarifFile: sarifFilePath,
@@ -2431,16 +2377,16 @@ jobs:
             }
             await main();
       - name: Upload SARIF artifact
-        if: steps.create_security_report.outputs.sarif_file
+        if: steps.create_repository_security_advisory.outputs.sarif_file
         uses: actions/upload-artifact@v4
         with:
-          name: security-report.sarif
-          path: ${{ steps.create_security_report.outputs.sarif_file }}
+          name: repository-security-advisory.sarif
+          path: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
       - name: Upload SARIF to GitHub Security
-        if: steps.create_security_report.outputs.sarif_file
+        if: steps.create_repository_security_advisory.outputs.sarif_file
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{ steps.create_security_report.outputs.sarif_file }}
+          sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
 
   create_pull_request:
     needs: test-safe-outputs-custom-engine
@@ -2644,7 +2590,14 @@ jobs:
               }
               console.log("Generated branch name:", branchName);
               console.log("Base branch:", baseBranch);
-              // Create a new branch using git CLI
+              // Create a new branch using git CLI, ensuring it's based on the correct base branch
+              // First, fetch latest changes and checkout the base branch
+              console.log(
+                "Fetching latest changes and checking out base branch:",
+                baseBranch
+              );
+              execSync("git fetch origin", { stdio: "inherit" });
+              execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
               // Handle branch creation/checkout
               const branchFromJsonl = pullRequestItem.branch
                 ? pullRequestItem.branch.trim()
@@ -2652,45 +2605,34 @@ jobs:
               if (branchFromJsonl) {
                 console.log("Checking if branch from JSONL exists:", branchFromJsonl);
                 console.log(
-                  "Branch does not exist locally, creating new branch:",
+                  "Branch does not exist locally, creating new branch from base:",
                   branchFromJsonl
                 );
                 execSync(`git checkout -b ${branchFromJsonl}`, { stdio: "inherit" });
-                console.log("Using existing/created branch:", branchFromJsonl);
+                console.log("Created new branch from base:", branchFromJsonl);
               } else {
-                // Create and checkout new branch with generated name
+                // Create and checkout new branch with generated name from base branch
                 execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-                console.log("Created and checked out new branch:", branchName);
+                console.log("Created and checked out new branch from base:", branchName);
               }
               // Apply the patch using git CLI (skip if empty)
               if (!isEmpty) {
                 console.log("Applying patch...");
-                execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
+                // Patches are created with git format-patch, so use git am to apply them
+                execSync("git am /tmp/aw.patch", { stdio: "inherit" });
                 console.log("Patch applied successfully");
+                // Push the applied commits to the branch
+                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                console.log("Changes pushed to branch");
               } else {
                 console.log("Skipping patch application (empty patch)");
-              }
-              // Commit and push the changes
-              execSync("git add .", { stdio: "inherit" });
-              // Check if there are changes to commit
-              let hasChanges = false;
-              let gitError = null;
-              try {
-                execSync("git diff --cached --exit-code", { stdio: "ignore" });
-                // No changes - exit code 0
-                hasChanges = false;
-              } catch (error) {
-                // Exit code != 0 means there are changes to commit, which is what we want
-                hasChanges = true;
-              }
-              if (!hasChanges) {
-                // No changes to commit - apply if-no-changes configuration
+                // For empty patches, handle if-no-changes configuration
                 const message =
-                  "No changes to commit - noop operation completed successfully";
+                  "No changes to apply - noop operation completed successfully";
                 switch (ifNoChanges) {
                   case "error":
                     throw new Error(
-                      "No changes to commit - failing as configured by if-no-changes: error"
+                      "No changes to apply - failing as configured by if-no-changes: error"
                     );
                   case "ignore":
                     // Silent success - no console output
@@ -2700,17 +2642,6 @@ jobs:
                     console.log(message);
                     return;
                 }
-              }
-              if (hasChanges) {
-                execSync(`git commit -m "Add agent output: ${title}"`, {
-                  stdio: "inherit",
-                });
-                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-                console.log("Changes committed and pushed");
-              } else {
-                // This should not happen due to the early return above, but keeping for safety
-                console.log("No changes to commit");
-                return;
               }
               // Create the pull request
               const { data: pullRequest } = await github.rest.pulls.create({
@@ -3324,19 +3255,59 @@ jobs:
               try {
                 // Try to checkout existing branch first
                 execSync("git fetch origin", { stdio: "inherit" });
-                execSync(`git checkout ${branchName}`, { stdio: "inherit" });
-                console.log("Checked out existing branch:", branchName);
+                // Check if branch exists on origin
+                try {
+                  execSync(`git rev-parse --verify origin/${branchName}`, {
+                    stdio: "pipe",
+                  });
+                  // Branch exists on origin, check it out
+                  execSync(`git checkout -B ${branchName} origin/${branchName}`, {
+                    stdio: "inherit",
+                  });
+                  console.log("Checked out existing branch from origin:", branchName);
+                } catch (originError) {
+                  // Branch doesn't exist on origin, check if it exists locally
+                  try {
+                    execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+                    // Branch exists locally, check it out
+                    execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+                    console.log("Checked out existing local branch:", branchName);
+                  } catch (localError) {
+                    // Branch doesn't exist locally or on origin, create it from default branch
+                    console.log(
+                      "Branch does not exist, creating new branch from default branch:",
+                      branchName
+                    );
+                    // Get the default branch name
+                    const defaultBranch = execSync(
+                      "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
+                      { encoding: "utf8" }
+                    ).trim();
+                    console.log("Default branch:", defaultBranch);
+                    // Ensure we have the latest default branch
+                    execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
+                    execSync(`git pull origin ${defaultBranch}`, { stdio: "inherit" });
+                    // Create new branch from default branch
+                    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+                    console.log("Created new branch from default branch:", branchName);
+                  }
+                }
               } catch (error) {
-                // Branch doesn't exist, create it
-                console.log("Branch does not exist, creating new branch:", branchName);
-                execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+                core.setFailed(
+                  `Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
               }
               // Apply the patch using git CLI (skip if empty)
               if (!isEmpty) {
                 console.log("Applying patch...");
                 try {
-                  execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
+                  // Patches are created with git format-patch, so use git am to apply them
+                  execSync("git am /tmp/aw.patch", { stdio: "inherit" });
                   console.log("Patch applied successfully");
+                  // Push the applied commits to the branch
+                  execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                  console.log("Changes committed and pushed to branch:", branchName);
                 } catch (error) {
                   core.error(
                     `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
@@ -3346,20 +3317,13 @@ jobs:
                 }
               } else {
                 console.log("Skipping patch application (empty patch)");
-              }
-              // Commit and push the changes
-              execSync("git add .", { stdio: "inherit" });
-              // Check if there are changes to commit
-              let hasChanges = false;
-              try {
-                execSync("git diff --cached --exit-code", { stdio: "ignore" });
-                // No changes to commit - apply if-no-changes configuration
+                // Handle if-no-changes configuration for empty patches
                 const message =
-                  "No changes to commit - noop operation completed successfully";
+                  "No changes to apply - noop operation completed successfully";
                 switch (ifNoChanges) {
                   case "error":
                     core.setFailed(
-                      "No changes to commit - failing as configured by if-no-changes: error"
+                      "No changes to apply - failing as configured by if-no-changes: error"
                     );
                     return;
                   case "ignore":
@@ -3370,22 +3334,9 @@ jobs:
                     console.log(message);
                     break;
                 }
-                hasChanges = false;
-              } catch (error) {
-                // Exit code != 0 means there are changes to commit, which is what we want
-                hasChanges = true;
               }
-              let commitSha;
-              if (hasChanges) {
-                const commitMessage = pushItem.message || "Apply agent changes";
-                execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
-                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-                console.log("Changes committed and pushed to branch:", branchName);
-                commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
-              } else {
-                // For noop operations, get the current HEAD commit
-                commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
-              }
+              // Get commit SHA and push URL
+              const commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
               // Get commit SHA and push URL
               const pushUrl = context.payload.repository
                 ? `${context.payload.repository.html_url}/tree/${branchName}`

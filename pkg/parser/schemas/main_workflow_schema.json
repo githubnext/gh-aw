@@ -1394,11 +1394,11 @@
             }
           ]
         },
-        "create-security-report": {
+        "create-repository-security-advisory": {
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating security reports (SARIF format) from agentic workflow output",
+              "description": "Configuration for creating repository security advisories (SARIF format) from agentic workflow output",
               "properties": {
                 "max": {
                   "type": "integer",
@@ -1414,7 +1414,7 @@
             },
             {
               "type": "null",
-              "description": "Enable security report creation with default configuration (unlimited findings)"
+              "description": "Enable repository security advisory creation with default configuration (unlimited findings)"
             }
           ]
         },

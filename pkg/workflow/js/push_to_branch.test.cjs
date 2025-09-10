@@ -84,8 +84,7 @@ describe("push_to_branch.cjs", () => {
       // Check that patch operations are included
       expect(scriptContent).toContain("fs.existsSync");
       expect(scriptContent).toContain("fs.readFileSync");
-      expect(scriptContent).toContain("git apply");
-      expect(scriptContent).toContain("git commit");
+      expect(scriptContent).toContain("git am");
       expect(scriptContent).toContain("git push");
     });
 
@@ -106,7 +105,7 @@ describe("push_to_branch.cjs", () => {
       expect(scriptContent).toContain("noop operation");
       expect(scriptContent).toContain("Patch file is empty");
       expect(scriptContent).toContain(
-        "No changes to commit - noop operation completed successfully"
+        "No changes to apply - noop operation completed successfully"
       );
     });
 

@@ -268,7 +268,7 @@ func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	}
 
 	if len(analyses) == 0 {
-		fmt.Println(console.FormatInfoMessage("No access logs found in downloaded runs"))
+		fmt.Println(console.FormatInfoMessage("No access logs found"))
 		return
 	}
 

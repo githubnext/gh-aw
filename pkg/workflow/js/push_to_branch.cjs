@@ -140,20 +140,65 @@ async function main() {
   try {
     // Try to checkout existing branch first
     execSync("git fetch origin", { stdio: "inherit" });
-    execSync(`git checkout ${branchName}`, { stdio: "inherit" });
-    console.log("Checked out existing branch:", branchName);
+
+    // Check if branch exists on origin
+    try {
+      execSync(`git rev-parse --verify origin/${branchName}`, {
+        stdio: "pipe",
+      });
+      // Branch exists on origin, check it out
+      execSync(`git checkout -B ${branchName} origin/${branchName}`, {
+        stdio: "inherit",
+      });
+      console.log("Checked out existing branch from origin:", branchName);
+    } catch (originError) {
+      // Branch doesn't exist on origin, check if it exists locally
+      try {
+        execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+        // Branch exists locally, check it out
+        execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+        console.log("Checked out existing local branch:", branchName);
+      } catch (localError) {
+        // Branch doesn't exist locally or on origin, create it from default branch
+        console.log(
+          "Branch does not exist, creating new branch from default branch:",
+          branchName
+        );
+
+        // Get the default branch name
+        const defaultBranch = execSync(
+          "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
+          { encoding: "utf8" }
+        ).trim();
+        console.log("Default branch:", defaultBranch);
+
+        // Ensure we have the latest default branch
+        execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
+        execSync(`git pull origin ${defaultBranch}`, { stdio: "inherit" });
+
+        // Create new branch from default branch
+        execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+        console.log("Created new branch from default branch:", branchName);
+      }
+    }
   } catch (error) {
-    // Branch doesn't exist, create it
-    console.log("Branch does not exist, creating new branch:", branchName);
-    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+    core.setFailed(
+      `Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return;
   }
 
   // Apply the patch using git CLI (skip if empty)
   if (!isEmpty) {
     console.log("Applying patch...");
     try {
-      execSync("git apply /tmp/aw.patch", { stdio: "inherit" });
+      // Patches are created with git format-patch, so use git am to apply them
+      execSync("git am /tmp/aw.patch", { stdio: "inherit" });
       console.log("Patch applied successfully");
+
+      // Push the applied commits to the branch
+      execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+      console.log("Changes committed and pushed to branch:", branchName);
     } catch (error) {
       core.error(
         `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
@@ -163,24 +208,15 @@ async function main() {
     }
   } else {
     console.log("Skipping patch application (empty patch)");
-  }
 
-  // Commit and push the changes
-  execSync("git add .", { stdio: "inherit" });
-
-  // Check if there are changes to commit
-  let hasChanges = false;
-  try {
-    execSync("git diff --cached --exit-code", { stdio: "ignore" });
-
-    // No changes to commit - apply if-no-changes configuration
+    // Handle if-no-changes configuration for empty patches
     const message =
-      "No changes to commit - noop operation completed successfully";
+      "No changes to apply - noop operation completed successfully";
 
     switch (ifNoChanges) {
       case "error":
         core.setFailed(
-          "No changes to commit - failing as configured by if-no-changes: error"
+          "No changes to apply - failing as configured by if-no-changes: error"
         );
         return;
       case "ignore":
@@ -191,24 +227,10 @@ async function main() {
         console.log(message);
         break;
     }
-
-    hasChanges = false;
-  } catch (error) {
-    // Exit code != 0 means there are changes to commit, which is what we want
-    hasChanges = true;
   }
 
-  let commitSha;
-  if (hasChanges) {
-    const commitMessage = pushItem.message || "Apply agent changes";
-    execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
-    execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-    console.log("Changes committed and pushed to branch:", branchName);
-    commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
-  } else {
-    // For noop operations, get the current HEAD commit
-    commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
-  }
+  // Get commit SHA and push URL
+  const commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
 
   // Get commit SHA and push URL
   const pushUrl = context.payload.repository

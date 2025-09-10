@@ -30,16 +30,16 @@ async function main() {
     return;
   }
 
-  // Find all create-security-report items
+  // Find all create-repository-security-advisory items
   const securityItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "create-security-report"
+    /** @param {any} item */ item => item.type === "create-repository-security-advisory"
   );
   if (securityItems.length === 0) {
-    console.log("No create-security-report items found in agent output");
+    console.log("No create-repository-security-advisory items found in agent output");
     return;
   }
 
-  console.log(`Found ${securityItems.length} create-security-report item(s)`);
+  console.log(`Found ${securityItems.length} create-repository-security-advisory item(s)`);
 
   // Get the max configuration from environment variable
   const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
@@ -66,7 +66,7 @@ async function main() {
   for (let i = 0; i < securityItems.length; i++) {
     const securityItem = securityItems[i];
     console.log(
-      `Processing create-security-report item ${i + 1}/${securityItems.length}:`,
+      `Processing create-repository-security-advisory item ${i + 1}/${securityItems.length}:`,
       {
         file: securityItem.file,
         line: securityItem.line,
@@ -80,7 +80,7 @@ async function main() {
 
     // Validate required fields
     if (!securityItem.file) {
-      console.log('Missing required field "file" in security report item');
+      console.log('Missing required field "file" in repository security advisory item');
       continue;
     }
 
@@ -90,21 +90,21 @@ async function main() {
         typeof securityItem.line !== "string")
     ) {
       console.log(
-        'Missing or invalid required field "line" in security report item'
+        'Missing or invalid required field "line" in repository security advisory item'
       );
       continue;
     }
 
     if (!securityItem.severity || typeof securityItem.severity !== "string") {
       console.log(
-        'Missing or invalid required field "severity" in security report item'
+        'Missing or invalid required field "severity" in repository security advisory item'
       );
       continue;
     }
 
     if (!securityItem.message || typeof securityItem.message !== "string") {
       console.log(
-        'Missing or invalid required field "message" in security report item'
+        'Missing or invalid required field "message" in repository security advisory item'
       );
       continue;
     }
@@ -124,7 +124,7 @@ async function main() {
         typeof securityItem.column !== "string"
       ) {
         console.log(
-          'Invalid field "column" in security report item (must be number or string)'
+          'Invalid field "column" in repository security advisory item (must be number or string)'
         );
         continue;
       }
@@ -141,7 +141,7 @@ async function main() {
     if (securityItem.ruleIdSuffix !== undefined) {
       if (typeof securityItem.ruleIdSuffix !== "string") {
         console.log(
-          'Invalid field "ruleIdSuffix" in security report item (must be string)'
+          'Invalid field "ruleIdSuffix" in repository security advisory item (must be string)'
         );
         continue;
       }
@@ -149,7 +149,7 @@ async function main() {
       const trimmedSuffix = securityItem.ruleIdSuffix.trim();
       if (trimmedSuffix.length === 0) {
         console.log(
-          'Invalid field "ruleIdSuffix" in security report item (cannot be empty)'
+          'Invalid field "ruleIdSuffix" in repository security advisory item (cannot be empty)'
         );
         continue;
       }
@@ -245,7 +245,7 @@ async function main() {
   // Write SARIF file to filesystem
   const fs = require("fs");
   const path = require("path");
-  const sarifFileName = "security-report.sarif";
+  const sarifFileName = "repository-security-advisory.sarif";
   const sarifFilePath = path.join(process.cwd(), sarifFileName);
 
   try {
@@ -260,7 +260,7 @@ async function main() {
     core.setOutput("codeql_uploaded", "pending");
 
     // Write summary with findings
-    let summaryContent = "\n\n## Security Report\n";
+    let summaryContent = "\n\n## Repository Security Advisory\n";
     summaryContent += `Found **${validFindings.length}** security finding(s):\n\n`;
 
     for (const finding of validFindings) {
@@ -285,7 +285,7 @@ async function main() {
   }
 
   console.log(
-    `Successfully created security report with ${validFindings.length} finding(s)`
+    `Successfully created repository security advisory with ${validFindings.length} finding(s)`
   );
   return {
     sarifFile: sarifFilePath,
