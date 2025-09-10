@@ -104,6 +104,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add bash timeout environment variables from tools configuration
 	bashTimeoutEnvVars := e.extractBashTimeoutEnvVars(workflowData.Tools)
+	fmt.Printf("DEBUG: workflowData.Tools: %+v\n", workflowData.Tools)
+	fmt.Printf("DEBUG: bashTimeoutEnvVars: %+v\n", bashTimeoutEnvVars)
 	for key, value := range bashTimeoutEnvVars {
 		if claudeEnv != "" {
 			claudeEnv += "\n"
@@ -361,12 +363,16 @@ func (e *ClaudeEngine) extractBashTimeoutEnvVars(tools map[string]any) map[strin
 	envVars := make(map[string]string)
 	
 	if tools == nil {
+		fmt.Printf("DEBUG: tools is nil\n")
 		return envVars
 	}
 	
 	if bashTool, hasBash := tools["bash"]; hasBash {
+		fmt.Printf("DEBUG: Found bash tool: %+v (type: %T)\n", bashTool, bashTool)
 		if bashConfig, ok := bashTool.(map[string]any); ok {
+			fmt.Printf("DEBUG: bash tool is map: %+v\n", bashConfig)
 			if timeout, hasTimeout := bashConfig["timeout"]; hasTimeout {
+				fmt.Printf("DEBUG: Found timeout: %+v (type: %T)\n", timeout, timeout)
 				// Convert timeout to milliseconds for BASH_DEFAULT_TIMEOUT_MS
 				timeoutMs := ""
 				switch t := timeout.(type) {
@@ -385,12 +391,19 @@ func (e *ClaudeEngine) extractBashTimeoutEnvVars(tools map[string]any) map[strin
 				}
 				
 				if timeoutMs != "" {
+					fmt.Printf("DEBUG: Setting timeout env vars: %s\n", timeoutMs)
 					// Set the bash timeout environment variables
 					envVars["BASH_DEFAULT_TIMEOUT_MS"] = timeoutMs
 					envVars["BASH_MAX_TIMEOUT_MS"] = timeoutMs // Use the same value for max timeout
 				}
+			} else {
+				fmt.Printf("DEBUG: No timeout in bash config\n")
 			}
+		} else {
+			fmt.Printf("DEBUG: bash tool is not a map\n")
 		}
+	} else {
+		fmt.Printf("DEBUG: No bash tool found\n")
 	}
 	
 	return envVars
