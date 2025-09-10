@@ -72,12 +72,8 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'user_agent' or 'user-agent' field
-			if userAgent, hasUserAgent := engineObj["user_agent"]; hasUserAgent {
-				if userAgentStr, ok := userAgent.(string); ok {
-					config.UserAgent = userAgentStr
-				}
-			} else if userAgent, hasUserAgent := engineObj["user-agent"]; hasUserAgent {
+			// Extract optional 'user-agent' field
+			if userAgent, hasUserAgent := engineObj["user-agent"]; hasUserAgent {
 				if userAgentStr, ok := userAgent.(string); ok {
 					config.UserAgent = userAgentStr
 				}

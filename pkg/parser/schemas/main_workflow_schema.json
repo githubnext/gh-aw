@@ -842,10 +842,7 @@
               "type": "integer",
               "description": "Maximum number of chat iterations per run"
             },
-            "user_agent": {
-              "type": "string",
-              "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
-            },
+
             "user-agent": {
               "type": "string",
               "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"

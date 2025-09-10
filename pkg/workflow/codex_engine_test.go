@@ -524,24 +524,13 @@ func TestConvertToIdentifier(t *testing.T) {
 func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
 	engine := NewCodexEngine()
 
-	// Test that both "user_agent" and "user-agent" field names work
+	// Test that "user-agent" field name works
 	tests := []struct {
 		name             string
 		engineConfigFunc func() *EngineConfig
 		expectedUA       string
 		description      string
 	}{
-		{
-			name: "user_agent field (underscore)",
-			engineConfigFunc: func() *EngineConfig {
-				return &EngineConfig{
-					ID:        "codex",
-					UserAgent: "custom-agent-underscore",
-				}
-			},
-			expectedUA:  "custom-agent-underscore",
-			description: "user_agent field with underscore should work",
-		},
 		{
 			name: "user-agent field gets parsed as user_agent (hyphen)",
 			engineConfigFunc: func() *EngineConfig {

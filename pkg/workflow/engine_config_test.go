@@ -190,17 +190,6 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{Version: "beta", Model: "gpt-4o"},
 		},
 		{
-			name: "object format - with user_agent (underscore)",
-			frontmatter: map[string]any{
-				"engine": map[string]any{
-					"id":         "codex",
-					"user_agent": "my-custom-agent",
-				},
-			},
-			expectedEngineSetting: "codex",
-			expectedConfig:        &EngineConfig{ID: "codex", UserAgent: "my-custom-agent"},
-		},
-		{
 			name: "object format - with user-agent (hyphen)",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
@@ -212,26 +201,14 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        &EngineConfig{ID: "codex", UserAgent: "my-custom-agent-hyphen"},
 		},
 		{
-			name: "object format - user_agent takes precedence over user-agent",
-			frontmatter: map[string]any{
-				"engine": map[string]any{
-					"id":         "codex",
-					"user_agent": "underscore-agent",
-					"user-agent": "hyphen-agent",
-				},
-			},
-			expectedEngineSetting: "codex",
-			expectedConfig:        &EngineConfig{ID: "codex", UserAgent: "underscore-agent"},
-		},
-		{
-			name: "object format - complete with user_agent",
+			name: "object format - complete with user-agent",
 			frontmatter: map[string]any{
 				"engine": map[string]any{
 					"id":         "codex",
 					"version":    "beta",
 					"model":      "gpt-4o",
 					"max-turns":  3,
-					"user_agent": "complete-custom-agent",
+					"user-agent": "complete-custom-agent",
 					"env": map[string]any{
 						"CUSTOM_VAR": "value1",
 					},
