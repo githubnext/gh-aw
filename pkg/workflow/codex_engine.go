@@ -9,6 +9,29 @@ import (
 	"time"
 )
 
+// convertToIdentifier converts a workflow name to a valid identifier format
+// by converting to lowercase and replacing spaces with hyphens
+func convertToIdentifier(name string) string {
+	// Convert to lowercase
+	identifier := strings.ToLower(name)
+	// Replace spaces and other common separators with hyphens
+	identifier = strings.ReplaceAll(identifier, " ", "-")
+	identifier = strings.ReplaceAll(identifier, "_", "-")
+	// Remove any characters that aren't alphanumeric or hyphens
+	identifier = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(identifier, "")
+	// Remove any double hyphens that might have been created
+	identifier = regexp.MustCompile(`-+`).ReplaceAllString(identifier, "-")
+	// Remove leading/trailing hyphens
+	identifier = strings.Trim(identifier, "-")
+
+	// If the result is empty, return a default identifier
+	if identifier == "" {
+		identifier = "github-agentic-workflow"
+	}
+
+	return identifier
+}
+
 // CodexEngine represents the Codex agentic engine (experimental)
 type CodexEngine struct {
 	BaseEngine
@@ -141,7 +164,7 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 	return ConvertStepToYAML(stepMap)
 }
 
-func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string) {
+func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
@@ -153,7 +176,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool)
+			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -355,10 +378,23 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml
 // Always uses Docker MCP as the default
-func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any) {
+func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
+
+	// Add user_agent field defaulting to workflow identifier
+	userAgent := "github-agentic-workflow"
+	if workflowData != nil {
+		// Check if user_agent is configured in engine config first
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			// Fall back to converting workflow name to identifier
+			userAgent = convertToIdentifier(workflowData.Name)
+		}
+	}
+	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 
 	// Always use Docker-based GitHub MCP server (services mode has been removed)
 	yaml.WriteString("          command = \"docker\"\n")

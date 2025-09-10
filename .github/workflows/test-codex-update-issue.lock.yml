@@ -390,6 +390,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
+          user_agent = "test-codex-update-issue"
           command = "docker"
           args = [
             "run",
