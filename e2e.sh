@@ -123,27 +123,10 @@ should_run_test() {
 }
 
 get_all_test_names() {
-    echo "test-claude-create-issue"
-    echo "test-codex-create-issue"
-    echo "test-claude-create-pull-request"
-    echo "test-codex-create-pull-request"
-    echo "test-claude-create-repository-security-advisory"
-    echo "test-codex-create-repository-security-advisory"
-    echo "test-claude-mcp"
-    echo "test-codex-mcp"
-    echo "test-custom-safe-outputs"
-    echo "test-claude-add-issue-comment"
-    echo "test-codex-add-issue-comment"
-    echo "test-claude-add-issue-labels"
-    echo "test-codex-add-issue-labels"
-    echo "test-claude-command"
-    echo "test-codex-command"
-    echo "test-claude-push-to-branch"
-    echo "test-codex-push-to-branch"
-    echo "test-claude-create-pull-request-review-comment"
-    echo "test-codex-create-pull-request-review-comment"
-    echo "test-claude-update-issue"
-    echo "test-codex-update-issue"
+    get_workflow_dispatch_tests
+    get_issue_triggered_tests
+    get_command_triggered_tests
+    get_pr_triggered_tests
 }
 
 get_workflow_dispatch_tests() {
@@ -765,6 +748,47 @@ wait_for_issue_update() {
     return 1
 }
 
+wait_for_command_comment() {
+    local issue_number="$1"
+    local expected_text="$2"
+    local test_name="$3"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_issue_comment "$issue_number" "$expected_text"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        info "..."
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
+}
+
+wait_for_branch_creation() {
+    local branch_name="$1"
+    local test_name="$2"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_branch_created "$branch_name"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        info "..."
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
+}
+
 cleanup_test_resources() {
     info "Cleaning up test resources..."
     
@@ -1237,13 +1261,7 @@ run_command_tests() {
                         progress "Testing Claude command workflow"
                         post_issue_command "$claude_issue_num" "/test-claude-command What is this repository about?"
                         
-                        sleep 15 # Wait for workflow to process
-                        
-                        if validate_issue_comment "$claude_issue_num" "Claude"; then
-                            PASSED_TESTS+=("test-claude-command")
-                        else
-                            FAILED_TESTS+=("test-claude-command")
-                        fi
+                        wait_for_command_comment "$claude_issue_num" "Claude" "test-claude-command"
                     fi
                     
                     # Test push to branch command
@@ -1251,13 +1269,7 @@ run_command_tests() {
                         progress "Testing Claude push-to-branch workflow"
                         post_issue_command "$claude_issue_num" "/test-claude-push-to-branch"
                         
-                        sleep 20 # Wait for workflow to process
-                        
-                        if validate_branch_created "claude-test-branch"; then
-                            PASSED_TESTS+=("test-claude-push-to-branch")
-                        else
-                            FAILED_TESTS+=("test-claude-push-to-branch")
-                        fi
+                        wait_for_branch_creation "claude-test-branch" "test-claude-push-to-branch"
                     fi
                 else
                     error "Failed to create test issue for Claude commands"
@@ -1280,15 +1292,9 @@ run_command_tests() {
                     # Test Codex command
                     if [[ "$need_codex_command" == true ]]; then
                         progress "Testing Codex command workflow"
-                        post_issue_command "$codex_issue_num" "/test-codex-command What is this repository about?"
+                        post_issue_command "$codex_issue_num" "/test-codex-command What is 102+103?"
                         
-                        sleep 15 # Wait for workflow to process
-                        
-                        if validate_issue_comment "$codex_issue_num" "Codex"; then
-                            PASSED_TESTS+=("test-codex-command")
-                        else
-                            FAILED_TESTS+=("test-codex-command")
-                        fi
+                        wait_for_command_comment "$codex_issue_num" "Codex" "test-codex-command"
                     fi
                     
                     # Test push to branch command
@@ -1296,13 +1302,7 @@ run_command_tests() {
                         progress "Testing Codex push-to-branch workflow"
                         post_issue_command "$codex_issue_num" "/test-codex-push-to-branch"
                         
-                        sleep 20 # Wait for workflow to process
-                        
-                        if validate_branch_created "codex-test-branch"; then
-                            PASSED_TESTS+=("test-codex-push-to-branch")
-                        else
-                            FAILED_TESTS+=("test-codex-push-to-branch")
-                        fi
+                        wait_for_branch_creation "codex-test-branch" "test-codex-push-to-branch"
                     fi
                 else
                     error "Failed to create test issue for Codex commands"
