@@ -11,6 +11,8 @@ safe-outputs:
     labels: [claude, automation, bot]
 ---
 
+# Test Claude Create Pull Request
+
 This test workflow specifically tests multi-commit functionality in create-pull-request.
 
 **IMPORTANT: Create multiple separate commits for this test case**

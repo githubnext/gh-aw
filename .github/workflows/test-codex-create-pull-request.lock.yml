@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Project"
+name: "Test Codex Create Pull Request"
 on:
   workflow_dispatch: null
 
@@ -11,10 +11,10 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Project"
+run-name: "Test Codex Create Pull Request"
 
 jobs:
-  test-project:
+  test-codex-create-pull-request:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -84,6 +84,8 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          # Test Codex Create Pull Request
+          
           This test workflow specifically tests multi-commit functionality in create-pull-request.
           
           **IMPORTANT: Create multiple separate commits for this test case**
@@ -199,7 +201,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Test Project",
+              workflow_name: "Test Codex Create Pull Request",
               experimental: true,
               supports_tools_whitelist: true,
               supports_http_transport: false,
@@ -238,7 +240,7 @@ jobs:
           # Run codex with log capture - pipefail ensures codex exit code is preserved
           codex exec \
             -c model=o4-mini \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-project.log
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-create-pull-request.log
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -978,7 +980,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-project.log
+          AGENT_LOG_FILE: /tmp/test-codex-create-pull-request.log
         with:
           script: |
             function main() {
@@ -1235,8 +1237,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-project.log
-          path: /tmp/test-project.log
+          name: test-codex-create-pull-request.log
+          path: /tmp/test-codex-create-pull-request.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -1356,7 +1358,7 @@ jobs:
           if-no-files-found: ignore
 
   create_pull_request:
-    needs: test-project
+    needs: test-codex-create-pull-request
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1387,8 +1389,8 @@ jobs:
         id: create_pull_request
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-project.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "test-project"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-create-pull-request.outputs.output }}
+          GITHUB_AW_WORKFLOW_ID: "test-codex-create-pull-request"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_TITLE_PREFIX: "[codex-test] "
           GITHUB_AW_PR_LABELS: "codex,automation,bot"

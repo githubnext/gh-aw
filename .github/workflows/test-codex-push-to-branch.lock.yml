@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Codex Push-to-Branch Multi-Commit Test"
+name: "Test Codex Push to Branch"
 on:
   issues:
     types: [opened, edited, reopened]
@@ -18,7 +18,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Codex Push-to-Branch Multi-Commit Test"
+run-name: "Test Codex Push to Branch"
 
 jobs:
   task:
@@ -95,7 +95,7 @@ jobs:
             }
             await main();
 
-  codex-push-to-branch-multi-commit-test:
+  test-codex-push-to-branch:
     needs: task
     if: >
       contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') ||
@@ -169,6 +169,8 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          # Test Codex Push to Branch
+          
           This test workflow specifically tests multi-commit functionality in push-to-branch.
           
           **IMPORTANT: Create multiple separate commits for this test case**
@@ -330,7 +332,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Codex Push-to-Branch Multi-Commit Test",
+              workflow_name: "Test Codex Push to Branch",
               experimental: true,
               supports_tools_whitelist: true,
               supports_http_transport: false,
@@ -369,7 +371,7 @@ jobs:
           # Run codex with log capture - pipefail ensures codex exit code is preserved
           codex exec \
             -c model=o4-mini \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/codex-push-to-branch-multi-commit-test.log
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-push-to-branch.log
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1109,7 +1111,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/codex-push-to-branch-multi-commit-test.log
+          AGENT_LOG_FILE: /tmp/test-codex-push-to-branch.log
         with:
           script: |
             function main() {
@@ -1366,8 +1368,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codex-push-to-branch-multi-commit-test.log
-          path: /tmp/codex-push-to-branch-multi-commit-test.log
+          name: test-codex-push-to-branch.log
+          path: /tmp/test-codex-push-to-branch.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -1488,7 +1490,7 @@ jobs:
           if-no-files-found: ignore
 
   push_to_branch:
-    needs: codex-push-to-branch-multi-commit-test
+    needs: test-codex-push-to-branch
     if: >
       contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') ||
       contains(github.event.pull_request.body, '/test-codex-push-to-branch')
@@ -1521,7 +1523,7 @@ jobs:
         id: push_to_branch
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.codex-push-to-branch-multi-commit-test.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-push-to-branch.outputs.output }}
           GITHUB_AW_PUSH_BRANCH: "codex-test-branch"
           GITHUB_AW_PUSH_TARGET: "*"
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"

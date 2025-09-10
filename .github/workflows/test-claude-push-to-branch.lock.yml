@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Claude Push-to-Branch Multi-Commit Test"
+name: "Test Claude Push to Branch"
 on:
   issues:
     types: [opened, edited, reopened]
@@ -18,7 +18,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Claude Push-to-Branch Multi-Commit Test"
+run-name: "Test Claude Push to Branch"
 
 jobs:
   task:
@@ -95,7 +95,7 @@ jobs:
             }
             await main();
 
-  claude-push-to-branch-multi-commit-test:
+  test-claude-push-to-branch:
     needs: task
     if: >
       contains(github.event.issue.body, '/test-claude-push-to-branch') || contains(github.event.comment.body, '/test-claude-push-to-branch') ||
@@ -275,6 +275,8 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          # Test Claude Push to Branch
+          
           This test workflow specifically tests multi-commit functionality in push-to-branch.
           
           **IMPORTANT: Create multiple separate commits for this test case**
@@ -396,7 +398,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Claude Push-to-Branch Multi-Commit Test",
+              workflow_name: "Test Claude Push to Branch",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -509,13 +511,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/claude-push-to-branch-multi-commit-test.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-push-to-branch.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/claude-push-to-branch-multi-commit-test.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-push-to-branch.log
           fi
           
           # Ensure log file exists
-          touch /tmp/claude-push-to-branch-multi-commit-test.log
+          touch /tmp/test-claude-push-to-branch.log
       - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
@@ -1260,7 +1262,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/claude-push-to-branch-multi-commit-test.log
+          AGENT_LOG_FILE: /tmp/test-claude-push-to-branch.log
         with:
           script: |
             function main() {
@@ -1577,8 +1579,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: claude-push-to-branch-multi-commit-test.log
-          path: /tmp/claude-push-to-branch-multi-commit-test.log
+          name: test-claude-push-to-branch.log
+          path: /tmp/test-claude-push-to-branch.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -1699,7 +1701,7 @@ jobs:
           if-no-files-found: ignore
 
   push_to_branch:
-    needs: claude-push-to-branch-multi-commit-test
+    needs: test-claude-push-to-branch
     if: >
       contains(github.event.issue.body, '/test-claude-push-to-branch') || contains(github.event.comment.body, '/test-claude-push-to-branch') ||
       contains(github.event.pull_request.body, '/test-claude-push-to-branch')
@@ -1732,7 +1734,7 @@ jobs:
         id: push_to_branch
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.claude-push-to-branch-multi-commit-test.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-push-to-branch.outputs.output }}
           GITHUB_AW_PUSH_BRANCH: "claude-test-branch"
           GITHUB_AW_PUSH_TARGET: "*"
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
