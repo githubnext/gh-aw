@@ -2999,7 +2999,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 		return
 	}
 
-	errorValidationScript := GetLogParserScript("validate_errors")
+	errorValidationScript := validateErrorsScript
 	if errorValidationScript == "" {
 		// Skip if validation script not found
 		return

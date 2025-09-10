@@ -1,27 +1,30 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
 const {
   validateErrors,
   extractLevel,
   extractMessage,
   generateValidationSummary,
   truncateString,
-} = require("./validate_errors.cjs");
+} = await import("./validate_errors.cjs");
 
 // Mock global objects for testing
 global.console = {
-  log: jest.fn(),
-  warn: jest.fn(),
+  log: vi.fn(),
+  warn: vi.fn(),
 };
 
 global.core = {
   summary: {
-    addRaw: jest.fn(() => ({ write: jest.fn() })),
+    addRaw: vi.fn(() => ({ write: vi.fn() })),
   },
-  setFailed: jest.fn(),
+  setFailed: vi.fn(),
+  warn: vi.fn(),
 };
 
 describe("validateErrors", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("should detect errors with codex patterns", () => {
@@ -105,7 +108,7 @@ Some normal log content
 
     // Should not throw an exception
     const result = validateErrors(logContent, patterns);
-    expect(global.console.warn).toHaveBeenCalled();
+    expect(global.core.warn).toHaveBeenCalled();
   });
 });
 
@@ -219,7 +222,7 @@ describe("truncateString", () => {
     const result = truncateString(longString, 100);
 
     expect(result).toHaveLength(103); // 100 chars + "..."
-    expect(result).toEndWith("...");
+    expect(result.endsWith("...")).toBe(true);
   });
 
   test("should return short strings unchanged", () => {

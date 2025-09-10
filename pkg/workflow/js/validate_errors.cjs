@@ -4,7 +4,9 @@ function main() {
   try {
     const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!logFile) {
-      throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
+      throw new Error(
+        "GITHUB_AW_AGENT_OUTPUT environment variable is required"
+      );
     }
 
     if (!fs.existsSync(logFile)) {
@@ -14,7 +16,9 @@ function main() {
     // Get error patterns from environment variables
     const patterns = getErrorPatternsFromEnv();
     if (patterns.length === 0) {
-      throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
+      throw new Error(
+        "GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern"
+      );
     }
 
     const content = fs.readFileSync(logFile, "utf8");
@@ -34,7 +38,9 @@ function main() {
 function getErrorPatternsFromEnv() {
   const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
   if (!patternsEnv) {
-    throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
+    throw new Error(
+      "GITHUB_AW_ERROR_PATTERNS environment variable is required"
+    );
   }
 
   try {
@@ -44,7 +50,9 @@ function getErrorPatternsFromEnv() {
     }
     return patterns;
   } catch (e) {
-    throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e.message}`);
+    throw new Error(
+      `Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e.message}`
+    );
   }
 }
 
@@ -84,7 +92,7 @@ function validateErrors(logContent, patterns) {
         }
       }
     } catch (e) {
-      console.warn(
+      core.warn(
         `Error processing pattern '${pattern.description}': ${e.message}`
       );
     }
@@ -196,4 +204,7 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-main();
+// Only run main if this script is executed directly, not when imported for testing
+if (require.main === module) {
+  main();
+}
