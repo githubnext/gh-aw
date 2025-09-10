@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude Create Pull Request"
+name: "Test Project"
 on:
   workflow_dispatch: null
 
@@ -11,10 +11,10 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Claude Create Pull Request"
+run-name: "Test Project"
 
 jobs:
-  test-claude-create-pull-request:
+  test-project:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -190,13 +190,63 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Add a file "TEST.md" with content "Hello from Claude"
+          This test workflow specifically tests multi-commit functionality in create-pull-request.
           
-          Add a log file "foo.log" containing the current time. This is just a log file and isn't meant to go in the pull request.
+          **IMPORTANT: Create multiple separate commits for this test case**
           
-          Create a pull request with title "A Pull Request from Claude" and body "World"
+          1. **First commit**: Create a file "README-test.md" with content:
+             ```markdown
+             # Test Project
+             
+             This is a test project created by Claude to test multi-commit pull requests.
+             
+             Created at: {{ current timestamp }}
+             ```
           
-          Add a haiku about GitHub Actions and AI to the PR body.
+          2. **Second commit**: Create a Python script "test-script.py" with:
+             ```python
+             #!/usr/bin/env python3
+             def hello():
+                 print("Hello from Claude multi-commit test!")
+                 
+             if __name__ == "__main__":
+                 hello()
+             ```
+          
+          3. **Third commit**: Create a configuration file "config.json" with:
+             ```json
+             {
+                 "test": true,
+                 "engine": "claude",
+                 "purpose": "multi-commit-test",
+                 "timestamp": "{{ current timestamp }}"
+             }
+             ```
+          
+          4. **Fourth commit**: Create a log file "test.log" containing the current time. This is just a log file.
+          
+          Create a pull request with title "Multi-commit test from Claude" and body:
+          ```markdown
+          # Multi-Commit Test Pull Request
+          
+          This PR was created by Claude to test the multi-commit functionality in agentic workflows.
+          
+          ## Changes Made
+          
+          This PR contains exactly 4 commits:
+          1. Added README-test.md with project description
+          2. Added test-script.py with Python hello function  
+          3. Added config.json with test configuration
+          4. Added test.log with timestamp
+          
+          Each change was made in a separate commit to test that `git am` properly applies all commits from the patch file, not just the first one.
+          
+          ## Haiku about Multi-Commits
+          
+          Git commits in line,  
+          Each change tells its own story—  
+          Patch applies them all.
+          ```
           
           
           ---
@@ -253,7 +303,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude Create Pull Request",
+              workflow_name: "Test Project",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -366,13 +416,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-create-pull-request.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-project.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-create-pull-request.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-project.log
           fi
           
           # Ensure log file exists
-          touch /tmp/test-claude-create-pull-request.log
+          touch /tmp/test-project.log
       - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
@@ -1117,7 +1167,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-claude-create-pull-request.log
+          AGENT_LOG_FILE: /tmp/test-project.log
         with:
           script: |
             function main() {
@@ -1434,8 +1484,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-create-pull-request.log
-          path: /tmp/test-claude-create-pull-request.log
+          name: test-project.log
+          path: /tmp/test-project.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -1541,7 +1591,7 @@ jobs:
             echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
             echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -50 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
             echo '...' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
@@ -1555,7 +1605,7 @@ jobs:
           if-no-files-found: ignore
 
   create_pull_request:
-    needs: test-claude-create-pull-request
+    needs: test-project
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1586,8 +1636,8 @@ jobs:
         id: create_pull_request
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-create-pull-request.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "test-claude-create-pull-request"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-project.outputs.output }}
+          GITHUB_AW_WORKFLOW_ID: "test-project"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_TITLE_PREFIX: "[claude-test] "
           GITHUB_AW_PR_LABELS: "claude,automation,bot"
@@ -1756,7 +1806,14 @@ jobs:
               }
               console.log("Generated branch name:", branchName);
               console.log("Base branch:", baseBranch);
-              // Create a new branch using git CLI
+              // Create a new branch using git CLI, ensuring it's based on the correct base branch
+              // First, fetch latest changes and checkout the base branch
+              console.log(
+                "Fetching latest changes and checking out base branch:",
+                baseBranch
+              );
+              execSync("git fetch origin", { stdio: "inherit" });
+              execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
               // Handle branch creation/checkout
               const branchFromJsonl = pullRequestItem.branch
                 ? pullRequestItem.branch.trim()
@@ -1764,15 +1821,15 @@ jobs:
               if (branchFromJsonl) {
                 console.log("Checking if branch from JSONL exists:", branchFromJsonl);
                 console.log(
-                  "Branch does not exist locally, creating new branch:",
+                  "Branch does not exist locally, creating new branch from base:",
                   branchFromJsonl
                 );
                 execSync(`git checkout -b ${branchFromJsonl}`, { stdio: "inherit" });
-                console.log("Using existing/created branch:", branchFromJsonl);
+                console.log("Created new branch from base:", branchFromJsonl);
               } else {
-                // Create and checkout new branch with generated name
+                // Create and checkout new branch with generated name from base branch
                 execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-                console.log("Created and checked out new branch:", branchName);
+                console.log("Created and checked out new branch from base:", branchName);
               }
               // Apply the patch using git CLI (skip if empty)
               if (!isEmpty) {
@@ -1780,30 +1837,18 @@ jobs:
                 // Patches are created with git format-patch, so use git am to apply them
                 execSync("git am /tmp/aw.patch", { stdio: "inherit" });
                 console.log("Patch applied successfully");
+                // Push the applied commits to the branch
+                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                console.log("Changes pushed to branch");
               } else {
                 console.log("Skipping patch application (empty patch)");
-              }
-              // Commit and push the changes
-              execSync("git add .", { stdio: "inherit" });
-              // Check if there are changes to commit
-              let hasChanges = false;
-              let gitError = null;
-              try {
-                execSync("git diff --cached --exit-code", { stdio: "ignore" });
-                // No changes - exit code 0
-                hasChanges = false;
-              } catch (error) {
-                // Exit code != 0 means there are changes to commit, which is what we want
-                hasChanges = true;
-              }
-              if (!hasChanges) {
-                // No changes to commit - apply if-no-changes configuration
+                // For empty patches, handle if-no-changes configuration
                 const message =
-                  "No changes to commit - noop operation completed successfully";
+                  "No changes to apply - noop operation completed successfully";
                 switch (ifNoChanges) {
                   case "error":
                     throw new Error(
-                      "No changes to commit - failing as configured by if-no-changes: error"
+                      "No changes to apply - failing as configured by if-no-changes: error"
                     );
                   case "ignore":
                     // Silent success - no console output
@@ -1813,17 +1858,6 @@ jobs:
                     console.log(message);
                     return;
                 }
-              }
-              if (hasChanges) {
-                execSync(`git commit -m "Add agent output: ${title}"`, {
-                  stdio: "inherit",
-                });
-                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-                console.log("Changes committed and pushed");
-              } else {
-                // This should not happen due to the early return above, but keeping for safety
-                console.log("No changes to commit");
-                return;
               }
               // Create the pull request
               const { data: pullRequest } = await github.rest.pulls.create({
