@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Security Analysis with Codex"
+name: "Test Codex Create Security Report"
 "on":
   workflow_dispatch: null
 
@@ -11,7 +11,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Security Analysis with Codex"
+run-name: "Test Codex Create Security Report"
 
 jobs:
   add_reaction:
@@ -273,7 +273,7 @@ jobs:
             }
             await main();
 
-  security-analysis-with-codex:
+  test-codex-create-security-report:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -338,14 +338,14 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Security Analysis with Codex
+          # Test Codex Create Security Report
           
           Create a new security report for the repository with title "Codex wants security review." and adding a couple of sentences about why security is important.
           
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Creating Security Reports, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
@@ -353,9 +353,21 @@ jobs:
           
           ### Available Output Types:
           
+          **Creating Security Reports**
+          
+          To create security reports (SARIF format for GitHub Code Scanning):
+          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          ```json
+          {"type": "create-security-report", "file": "path/to/file.js", "line": 42, "severity": "error", "message": "Security vulnerability description", "column": 5, "ruleIdSuffix": "custom-rule"}
+          ```
+          2. **Required fields**: `file` (string), `line` (number), `severity` ("error", "warning", "info", or "note"), `message` (string)
+          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)
+          4. Multiple security findings can be reported by writing multiple JSON objects
+          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          
           **Example JSONL file content:**
           ```
-          # No safe outputs configured for this workflow
+          {"type": "create-security-report", "file": "src/auth.js", "line": 25, "severity": "error", "message": "Potential SQL injection vulnerability"}
           ```
           
           **Important Notes:**
@@ -385,7 +397,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Security Analysis with Codex",
+              workflow_name: "Test Codex Create Security Report",
               experimental: true,
               supports_tools_whitelist: true,
               supports_http_transport: false,
@@ -424,7 +436,7 @@ jobs:
           # Run codex with log capture - pipefail ensures codex exit code is preserved
           codex exec \
             -c model=o4-mini \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/security-analysis-with-codex.log
+            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-create-security-report.log
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1164,7 +1176,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/security-analysis-with-codex.log
+          AGENT_LOG_FILE: /tmp/test-codex-create-security-report.log
         with:
           script: |
             function main() {
@@ -1421,12 +1433,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: security-analysis-with-codex.log
-          path: /tmp/security-analysis-with-codex.log
+          name: test-codex-create-security-report.log
+          path: /tmp/test-codex-create-security-report.log
           if-no-files-found: warn
 
   create_security_report:
-    needs: security-analysis-with-codex
+    needs: test-codex-create-security-report
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1443,7 +1455,7 @@ jobs:
         id: create_security_report
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.security-analysis-with-codex.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-create-security-report.outputs.output }}
           GITHUB_AW_SECURITY_REPORT_MAX: 10
           GITHUB_AW_SECURITY_REPORT_DRIVER: Test Codex Security Report
           GITHUB_AW_WORKFLOW_FILENAME: test-codex-create-security-report

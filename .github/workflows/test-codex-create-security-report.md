@@ -12,6 +12,6 @@ safe-outputs:
     max: 10
 ---
 
-# Security Analysis with Codex
+# Test Codex Create Security Report
 
 Create a new security report for the repository with title "Codex wants security review." and adding a couple of sentences about why security is important.
