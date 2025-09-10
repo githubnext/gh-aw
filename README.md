@@ -24,7 +24,7 @@ on:
   issues:
     types: [opened]
 permissions:
-  issues: write
+  read-all
 safe-outputs:
   add-issue-comment:
 ---
@@ -55,6 +55,8 @@ graph TB
 ```
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
+
+**Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
 ## 📚 Samples
 
