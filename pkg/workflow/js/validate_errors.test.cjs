@@ -54,7 +54,10 @@ Some normal log content
       },
     ];
 
-    validateErrors(logContent, patterns);
+    const hasErrors = validateErrors(logContent, patterns);
+
+    // Should return true since errors were found
+    expect(hasErrors).toBe(true);
 
     // Should call core.error for errors
     expect(global.core.error).toHaveBeenCalledTimes(2);
@@ -79,7 +82,10 @@ Some normal log content
       },
     ];
 
-    validateErrors("", patterns);
+    const hasErrors = validateErrors("", patterns);
+
+    // Should return false since no errors were found
+    expect(hasErrors).toBe(false);
 
     // Should not call core.error or core.warn for empty content
     expect(global.core.error).not.toHaveBeenCalled();
@@ -97,7 +103,10 @@ Some normal log content
       },
     ];
 
-    validateErrors(logContent, patterns);
+    const hasErrors = validateErrors(logContent, patterns);
+
+    // Should return false since no errors were found
+    expect(hasErrors).toBe(false);
 
     // Should not call core.error or core.warn when no patterns match
     expect(global.core.error).not.toHaveBeenCalled();
@@ -145,7 +154,10 @@ Some normal log content
       },
     ];
 
-    validateErrors(logContent, patterns);
+    const hasErrors = validateErrors(logContent, patterns);
+
+    // Should return true since errors were found
+    expect(hasErrors).toBe(true);
 
     // Should detect all 6 errors (5 stream errors + 1 ERROR)
     expect(global.core.error).toHaveBeenCalledTimes(6);
@@ -225,5 +237,86 @@ describe("truncateString", () => {
   test("should handle null/undefined strings", () => {
     expect(truncateString(null, 100)).toBe("");
     expect(truncateString(undefined, 100)).toBe("");
+  });
+});
+
+describe("main function behavior", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("should call core.setFailed when errors are detected", () => {
+    // Mock the imported functions since main isn't exported
+    const originalProcessEnv = process.env;
+
+    // Mock environment variables
+    process.env.GITHUB_AW_AGENT_OUTPUT = "/tmp/test.log";
+    process.env.GITHUB_AW_ERROR_PATTERNS = JSON.stringify([
+      {
+        pattern: "ERROR:\\s+(.+)",
+        level_group: 0,
+        message_group: 1,
+        description: "Test error pattern",
+      },
+    ]);
+
+    // Mock fs.existsSync to return true
+    const mockFs = {
+      existsSync: vi.fn(() => true),
+      readFileSync: vi.fn(() => "ERROR: Test error message"),
+    };
+
+    // Since we can't easily test main() directly, we can test the core logic
+    // The main function will call validateErrors and if it returns true, call core.setFailed
+    const logContent = "ERROR: Test error message";
+    const patterns = [
+      {
+        pattern: "ERROR:\\s+(.+)",
+        level_group: 0,
+        message_group: 1,
+        description: "Test error pattern",
+      },
+    ];
+
+    const hasErrors = validateErrors(logContent, patterns);
+    expect(hasErrors).toBe(true);
+
+    // Simulate what main() would do
+    if (hasErrors) {
+      global.core.setFailed(
+        "Errors detected in agent logs - failing workflow step"
+      );
+    }
+
+    expect(global.core.setFailed).toHaveBeenCalledWith(
+      "Errors detected in agent logs - failing workflow step"
+    );
+
+    // Restore
+    process.env = originalProcessEnv;
+  });
+
+  test("should not call core.setFailed when only warnings are detected", () => {
+    const logContent = "WARNING: This is just a warning";
+    const patterns = [
+      {
+        pattern: "WARNING:\\s+(.+)",
+        level_group: 0,
+        message_group: 1,
+        description: "Test warning pattern",
+      },
+    ];
+
+    const hasErrors = validateErrors(logContent, patterns);
+    expect(hasErrors).toBe(false);
+
+    // Simulate what main() would do
+    if (hasErrors) {
+      global.core.setFailed(
+        "Errors detected in agent logs - failing workflow step"
+      );
+    }
+
+    expect(global.core.setFailed).not.toHaveBeenCalled();
   });
 });

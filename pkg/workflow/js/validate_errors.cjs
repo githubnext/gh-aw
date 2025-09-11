@@ -22,8 +22,13 @@ function main() {
     }
 
     const content = fs.readFileSync(logFile, "utf8");
-    validateErrors(content, patterns);
-    console.log("Error validation completed successfully");
+    const hasErrors = validateErrors(content, patterns);
+
+    if (hasErrors) {
+      core.setFailed("Errors detected in agent logs - failing workflow step");
+    } else {
+      console.log("Error validation completed successfully");
+    }
   } catch (error) {
     console.debug(error);
     core.setFailed(`Error validating log: ${error.message}`);
@@ -53,6 +58,7 @@ function getErrorPatternsFromEnv() {
 
 function validateErrors(logContent, patterns) {
   const lines = logContent.split("\n");
+  let hasErrors = false;
 
   for (const pattern of patterns) {
     const regex = new RegExp(pattern.pattern, "g");
@@ -69,12 +75,15 @@ function validateErrors(logContent, patterns) {
 
         if (level.toLowerCase() === "error") {
           core.error(errorMessage);
+          hasErrors = true;
         } else {
           core.warn(errorMessage);
         }
       }
     }
   }
+
+  return hasErrors;
 }
 
 function extractLevel(match, pattern) {

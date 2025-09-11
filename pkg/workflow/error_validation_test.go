@@ -211,3 +211,214 @@ func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
+	compiler := NewCompiler(false, "", "")
+
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expected    []ErrorPattern
+	}{
+		{
+			name:        "no error_patterns field",
+			frontmatter: map[string]any{},
+			expected:    []ErrorPattern{},
+		},
+		{
+			name: "valid error patterns",
+			frontmatter: map[string]any{
+				"error_patterns": []any{
+					map[string]any{
+						"pattern":       `ERROR:\s+(.+)`,
+						"level_group":   0,
+						"message_group": 1,
+						"description":   "Simple error pattern",
+					},
+					map[string]any{
+						"pattern":       `\[(\d{4}-\d{2}-\d{2})\]\s+(WARN):\s+(.+)`,
+						"level_group":   2,
+						"message_group": 3,
+						"description":   "Warning pattern with timestamp",
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `ERROR:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 1,
+					Description:  "Simple error pattern",
+				},
+				{
+					Pattern:      `\[(\d{4}-\d{2}-\d{2})\]\s+(WARN):\s+(.+)`,
+					LevelGroup:   2,
+					MessageGroup: 3,
+					Description:  "Warning pattern with timestamp",
+				},
+			},
+		},
+		{
+			name: "pattern with float64 groups (from YAML parsing)",
+			frontmatter: map[string]any{
+				"error_patterns": []any{
+					map[string]any{
+						"pattern":       `ERROR:\s+(.+)`,
+						"level_group":   float64(0),
+						"message_group": float64(1),
+						"description":   "Float64 group indices",
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `ERROR:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 1,
+					Description:  "Float64 group indices",
+				},
+			},
+		},
+		{
+			name: "pattern without optional fields",
+			frontmatter: map[string]any{
+				"error_patterns": []any{
+					map[string]any{
+						"pattern": `CRITICAL.*`,
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `CRITICAL.*`,
+					LevelGroup:   0,
+					MessageGroup: 0,
+					Description:  "",
+				},
+			},
+		},
+		{
+			name: "invalid patterns should be skipped",
+			frontmatter: map[string]any{
+				"error_patterns": []any{
+					map[string]any{
+						// Missing required pattern field
+						"level_group": 1,
+						"description": "Invalid - no pattern",
+					},
+					map[string]any{
+						"pattern":     `VALID:\s+(.+)`,
+						"description": "Valid pattern",
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `VALID:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 0,
+					Description:  "Valid pattern",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patterns := compiler.extractErrorPatterns(tt.frontmatter)
+
+			if len(patterns) != len(tt.expected) {
+				t.Errorf("Expected %d patterns, got %d", len(tt.expected), len(patterns))
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if i >= len(patterns) {
+					t.Errorf("Missing pattern %d", i)
+					continue
+				}
+				actual := patterns[i]
+
+				if actual.Pattern != expected.Pattern {
+					t.Errorf("Pattern %d: expected pattern '%s', got '%s'", i, expected.Pattern, actual.Pattern)
+				}
+				if actual.LevelGroup != expected.LevelGroup {
+					t.Errorf("Pattern %d: expected level_group %d, got %d", i, expected.LevelGroup, actual.LevelGroup)
+				}
+				if actual.MessageGroup != expected.MessageGroup {
+					t.Errorf("Pattern %d: expected message_group %d, got %d", i, expected.MessageGroup, actual.MessageGroup)
+				}
+				if actual.Description != expected.Description {
+					t.Errorf("Pattern %d: expected description '%s', got '%s'", i, expected.Description, actual.Description)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateErrorValidationWithFrontmatterPatterns(t *testing.T) {
+	compiler := NewCompiler(false, "", "")
+	engine := NewClaudeEngine() // Claude doesn't support error validation by default
+
+	// Test with frontmatter-defined error patterns
+	data := &WorkflowData{
+		ErrorPatterns: []ErrorPattern{
+			{
+				Pattern:      `ERROR:\s+(.+)`,
+				LevelGroup:   0,
+				MessageGroup: 1,
+				Description:  "Custom error pattern from frontmatter",
+			},
+		},
+	}
+
+	var yamlBuilder strings.Builder
+	compiler.generateErrorValidation(&yamlBuilder, engine, "/tmp/test.log", data)
+
+	generated := yamlBuilder.String()
+
+	// Should generate error validation step even though Claude doesn't support it natively
+	if !strings.Contains(generated, "Validate agent logs for errors") {
+		t.Error("Should generate error validation step with frontmatter patterns")
+	}
+
+	if !strings.Contains(generated, "GITHUB_AW_ERROR_PATTERNS") {
+		t.Error("Should include error patterns environment variable")
+	}
+
+	// Should contain the custom pattern
+	if !strings.Contains(generated, "Custom error pattern from frontmatter") {
+		t.Error("Should include custom pattern description in JSON")
+	}
+
+	// Test with empty frontmatter patterns but engine that supports validation
+	codexEngine := NewCodexEngine()
+	dataEmpty := &WorkflowData{
+		ErrorPatterns: []ErrorPattern{},
+	}
+
+	var yamlBuilder2 strings.Builder
+	compiler.generateErrorValidation(&yamlBuilder2, codexEngine, "/tmp/test.log", dataEmpty)
+
+	generated2 := yamlBuilder2.String()
+
+	// Should fall back to engine patterns
+	if !strings.Contains(generated2, "Validate agent logs for errors") {
+		t.Error("Should generate error validation step with engine patterns")
+	}
+
+	// Test with neither frontmatter patterns nor engine support
+	dataEmpty2 := &WorkflowData{
+		ErrorPatterns: []ErrorPattern{},
+	}
+
+	var yamlBuilder3 strings.Builder
+	compiler.generateErrorValidation(&yamlBuilder3, engine, "/tmp/test.log", dataEmpty2)
+
+	generated3 := yamlBuilder3.String()
+
+	// Should not generate any validation step
+	if strings.Contains(generated3, "Validate agent logs for errors") {
+		t.Error("Should not generate error validation step without patterns")
+	}
+}

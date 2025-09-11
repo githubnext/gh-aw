@@ -149,6 +149,7 @@ type WorkflowData struct {
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
+	ErrorPatterns      []ErrorPattern      // custom error patterns from frontmatter
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -649,6 +650,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 
+	// Extract error patterns from frontmatter
+	workflowData.ErrorPatterns = c.extractErrorPatterns(result.Frontmatter)
+
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
 	if err != nil {
@@ -791,6 +795,55 @@ func (c *Compiler) extractStringValue(frontmatter map[string]any, key string) st
 	}
 
 	return ""
+}
+
+// extractErrorPatterns extracts error patterns from frontmatter for custom error validation
+func (c *Compiler) extractErrorPatterns(frontmatter map[string]any) []ErrorPattern {
+	errorPatternsRaw, exists := frontmatter["error_patterns"]
+	if !exists {
+		return []ErrorPattern{}
+	}
+
+	// Handle array of error pattern objects
+	if patternsArray, ok := errorPatternsRaw.([]any); ok {
+		var patterns []ErrorPattern
+		for _, patternRaw := range patternsArray {
+			if patternMap, ok := patternRaw.(map[string]any); ok {
+				pattern := ErrorPattern{}
+
+				// Extract pattern field (required)
+				if patternStr, ok := patternMap["pattern"].(string); ok {
+					pattern.Pattern = patternStr
+				} else {
+					continue // Skip invalid patterns without pattern field
+				}
+
+				// Extract level_group field (optional, defaults to 0)
+				if levelGroup, ok := patternMap["level_group"].(int); ok {
+					pattern.LevelGroup = levelGroup
+				} else if levelGroupFloat, ok := patternMap["level_group"].(float64); ok {
+					pattern.LevelGroup = int(levelGroupFloat)
+				}
+
+				// Extract message_group field (optional, defaults to 0)
+				if messageGroup, ok := patternMap["message_group"].(int); ok {
+					pattern.MessageGroup = messageGroup
+				} else if messageGroupFloat, ok := patternMap["message_group"].(float64); ok {
+					pattern.MessageGroup = int(messageGroupFloat)
+				}
+
+				// Extract description field (optional)
+				if description, ok := patternMap["description"].(string); ok {
+					pattern.Description = description
+				}
+
+				patterns = append(patterns, pattern)
+			}
+		}
+		return patterns
+	}
+
+	return []ErrorPattern{}
 }
 
 // commentOutProcessedFieldsInOnSection comments out draft, fork, and forks fields in pull_request sections within the YAML string
@@ -2935,7 +2988,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateLogParsing(yaml, engine, logFileFull)
 
 	// Add error validation for AI execution logs
-	c.generateErrorValidation(yaml, engine, logFileFull)
+	c.generateErrorValidation(yaml, engine, logFileFull, data)
 
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
@@ -2987,15 +3040,20 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	}
 }
 
-func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string) {
-	if !engine.SupportsErrorValidation() {
-		// Skip error validation if engine doesn't support it
-		return
+func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string, data *WorkflowData) {
+	// Use frontmatter error patterns if available, otherwise fall back to engine patterns
+	var errorPatterns []ErrorPattern
+
+	if len(data.ErrorPatterns) > 0 {
+		// Use frontmatter-defined patterns
+		errorPatterns = data.ErrorPatterns
+	} else if engine.SupportsErrorValidation() {
+		// Fall back to engine-defined patterns
+		errorPatterns = engine.GetErrorPatterns()
 	}
 
-	errorPatterns := engine.GetErrorPatterns()
+	// Skip if no error patterns are available
 	if len(errorPatterns) == 0 {
-		// Skip if no error patterns are defined
 		return
 	}
 

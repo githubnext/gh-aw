@@ -1481,8 +1481,12 @@ jobs:
                   );
                 }
                 const content = fs.readFileSync(logFile, "utf8");
-                validateErrors(content, patterns);
-                console.log("Error validation completed successfully");
+                const hasErrors = validateErrors(content, patterns);
+                if (hasErrors) {
+                  core.setFailed("Errors detected in agent logs - failing workflow step");
+                } else {
+                  console.log("Error validation completed successfully");
+                }
               } catch (error) {
                 console.debug(error);
                 core.setFailed(`Error validating log: ${error.message}`);
@@ -1509,6 +1513,7 @@ jobs:
             }
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
+              let hasErrors = false;
               for (const pattern of patterns) {
                 const regex = new RegExp(pattern.pattern, "g");
                 for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
@@ -1520,12 +1525,14 @@ jobs:
                     const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
                     if (level.toLowerCase() === "error") {
                       core.error(errorMessage);
+                      hasErrors = true;
                     } else {
                       core.warn(errorMessage);
                     }
                   }
                 }
               }
+              return hasErrors;
             }
             function extractLevel(match, pattern) {
               if (
