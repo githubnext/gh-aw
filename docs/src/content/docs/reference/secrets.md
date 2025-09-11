@@ -1,3 +1,8 @@
+---
+title: Secrets Management
+description: Learn how agentic workflows handle secrets automatically and how to configure custom secret references for secure AI automation.
+---
+
 # 🔐 Secrets Management
 
 Agentic workflows automatically handle several types of secrets and support custom secret references.
