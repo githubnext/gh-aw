@@ -77,148 +77,21 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 	}
 
-	// Determine the action version to use
-	actionVersion := DefaultClaudeActionVersion // Default version
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		actionVersion = workflowData.EngineConfig.Version
-	}
+	// Add Node.js installation step
+	nodeJSStep := e.generateNodeJSInstallationStep()
+	steps = append(steps, nodeJSStep)
 
-	// Build claude_env based on hasOutput parameter and custom env vars
-	hasOutput := workflowData.SafeOutputs != nil
-	claudeEnv := ""
-	if hasOutput {
-		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-	}
+	// Add Claude CLI installation step
+	claudeCLIStep := e.generateClaudeCLIInstallationStep()
+	steps = append(steps, claudeCLIStep)
 
-	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			if claudeEnv != "" {
-				claudeEnv += "\n"
-			}
-			claudeEnv += "            " + key + ": " + value
-		}
-	}
+	// Add Claude CLI execution step
+	claudeExecutionStep := e.generateClaudeCLIExecutionStep(workflowData, logFile)
+	steps = append(steps, claudeExecutionStep)
 
-	inputs := map[string]string{
-		"prompt_file":       "/tmp/aw-prompts/prompt.txt",
-		"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
-		"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
-		"allowed_tools":     "", // Will be filled in during generation
-		"timeout_minutes":   "", // Will be filled in during generation
-	}
-
-	// Only add max_turns if it's actually specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		inputs["max_turns"] = workflowData.EngineConfig.MaxTurns
-	}
-	if claudeEnv != "" {
-		inputs["claude_env"] = "|\n" + claudeEnv
-	}
-
-	// Add model configuration if specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		inputs["model"] = workflowData.EngineConfig.Model
-	}
-
-	// Add settings parameter if network permissions are configured
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		inputs["settings"] = "/tmp/.claude/settings.json"
-	}
-
-	// Apply default Claude tools
-	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
-
-	var stepLines []string
-
-	stepName := "Execute Claude Code Action"
-	action := fmt.Sprintf("anthropics/claude-code-base-action@%s", actionVersion)
-
-	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
-	stepLines = append(stepLines, "        id: agentic_execution")
-	stepLines = append(stepLines, fmt.Sprintf("        uses: %s", action))
-	stepLines = append(stepLines, "        with:")
-
-	// Add inputs in alphabetical order by key
-	keys := make([]string, 0, len(inputs))
-	for key := range inputs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		value := inputs[key]
-		if key == "allowed_tools" {
-			if allowedTools != "" {
-				// Add comment listing all allowed tools for readability
-				comment := e.generateAllowedToolsComment(allowedTools, "          ")
-				commentLines := strings.Split(comment, "\n")
-				// Filter out empty lines to avoid breaking test logic
-				for _, line := range commentLines {
-					if line != "" {
-						stepLines = append(stepLines, line)
-					}
-				}
-				stepLines = append(stepLines, fmt.Sprintf("          %s: \"%s\"", key, allowedTools))
-			}
-		} else if key == "timeout_minutes" {
-			// Always include timeout_minutes field
-			if workflowData.TimeoutMinutes != "" {
-				// TimeoutMinutes contains the full YAML line (e.g. "timeout_minutes: 5")
-				stepLines = append(stepLines, "          "+workflowData.TimeoutMinutes)
-			} else {
-				stepLines = append(stepLines, "          timeout_minutes: 5") // Default timeout
-			}
-		} else if key == "max_turns" {
-			// max_turns is only in the map when it should be included
-			stepLines = append(stepLines, fmt.Sprintf("          max_turns: %s", value))
-		} else if value != "" {
-			if strings.HasPrefix(value, "|") {
-				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-			} else {
-				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-			}
-		}
-	}
-
-	// Add environment section - always include environment section for GITHUB_AW_PROMPT
-	stepLines = append(stepLines, "        env:")
-
-	// Always add GITHUB_AW_PROMPT for agentic workflows
-	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
-
-	if workflowData.SafeOutputs != nil {
-		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
-	}
-
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
-	}
-
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-		}
-	}
-
-	steps = append(steps, GitHubActionStep(stepLines))
-
-	// Add the log capture step
-	logCaptureLines := []string{
-		"      - name: Capture Agentic Action logs",
-		"        if: always()",
-		"        run: |",
-		"          # Copy the detailed execution file from Agentic Action if available",
-		"          if [ -n \"${{ steps.agentic_execution.outputs.execution_file }}\" ] && [ -f \"${{ steps.agentic_execution.outputs.execution_file }}\" ]; then",
-		"            cp ${{ steps.agentic_execution.outputs.execution_file }} " + logFile,
-		"          else",
-		"            echo \"No execution file output found from Agentic Action\" >> " + logFile,
-		"          fi",
-		"          ",
-		"          # Ensure log file exists",
-		"          touch " + logFile,
-	}
-	steps = append(steps, GitHubActionStep(logCaptureLines))
+	// Add the log capture step  
+	logCaptureStep := e.generateLogCaptureStep(logFile)
+	steps = append(steps, logCaptureStep)
 
 	return steps
 }
@@ -1045,6 +918,170 @@ func (e *ClaudeEngine) distributeTotalDurationToToolCalls(toolCallMap map[string
 			toolInfo.MaxDuration = totalDuration
 		}
 	}
+}
+
+// generateNodeJSInstallationStep creates a step to install Node.js
+func (e *ClaudeEngine) generateNodeJSInstallationStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Install Node.js",
+		"        uses: actions/setup-node@v4",
+		"        with:",
+		"          node-version: '20'",
+		"          cache: 'npm'",
+	}
+	return GitHubActionStep(stepLines)
+}
+
+// generateClaudeCLIInstallationStep creates a step to install Claude CLI
+func (e *ClaudeEngine) generateClaudeCLIInstallationStep() GitHubActionStep {
+	stepLines := []string{
+		"      - name: Install Claude CLI",
+		"        run: |",
+		"          # Install Claude CLI directly from npm",
+		"          npm install -g @anthropic-ai/claude-cli",
+		"          # Verify installation",
+		"          claude --version || echo 'Claude CLI installed'",
+	}
+	return GitHubActionStep(stepLines)
+}
+
+// generateClaudeCLIExecutionStep creates a step to execute Claude CLI with the workflow configuration
+func (e *ClaudeEngine) generateClaudeCLIExecutionStep(workflowData *WorkflowData, logFile string) GitHubActionStep {
+	// Apply default Claude tools
+	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
+	
+	// Build timeout configuration
+	timeoutMinutes := "5" // default
+	if workflowData.TimeoutMinutes != "" {
+		// TimeoutMinutes contains the full YAML line (e.g. "timeout_minutes: 5")
+		// Extract just the number
+		parts := strings.Split(workflowData.TimeoutMinutes, ":")
+		if len(parts) > 1 {
+			timeoutMinutes = strings.TrimSpace(parts[1])
+		}
+	}
+
+	stepLines := []string{
+		"      - name: Execute Claude CLI",
+		"        id: agentic_execution",
+		"        run: |",
+		"          set -e",
+		"          ",
+		"          # Set Claude CLI environment variables",
+		"          export ANTHROPIC_API_KEY=\"${{ secrets.ANTHROPIC_API_KEY }}\"",
+	}
+
+	// Add custom environment variables
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
+			stepLines = append(stepLines, fmt.Sprintf("          export %s=\"%s\"", key, value))
+		}
+	}
+
+	// Add safe outputs configuration
+	if workflowData.SafeOutputs != nil {
+		stepLines = append(stepLines, "          export GITHUB_AW_SAFE_OUTPUTS=\"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\"")
+	}
+
+	// Add max turns configuration 
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		stepLines = append(stepLines, fmt.Sprintf("          export GITHUB_AW_MAX_TURNS=\"%s\"", workflowData.EngineConfig.MaxTurns))
+	}
+
+	stepLines = append(stepLines, 
+		"          ",
+		"          # Create claude configuration directory",
+		"          mkdir -p ~/.claude",
+		"          ",
+		"          # Configure Claude CLI settings")
+
+	// Add settings file if network permissions are configured
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		stepLines = append(stepLines, "          cp /tmp/.claude/settings.json ~/.claude/settings.json")
+	}
+
+	// Add model configuration
+	modelConfig := "claude-3-5-sonnet-20241022" // default
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		modelConfig = workflowData.EngineConfig.Model
+	}
+
+	stepLines = append(stepLines,
+		"          ",
+		"          # Run Claude CLI with configuration",
+		fmt.Sprintf("          timeout %sm claude \\", timeoutMinutes),
+		"            --no-confirm \\",
+		"            --headless \\",
+		fmt.Sprintf("            --model %s \\", modelConfig),
+		"            --mcp-config /tmp/mcp-config/mcp-servers.json \\")
+
+	// Add allowed tools configuration
+	if allowedTools != "" {
+		// Generate allowed tools comment for readability
+		comment := e.generateAllowedToolsComment(allowedTools, "          ")
+		commentLines := strings.Split(comment, "\n")
+		stepLines = append(stepLines, "          # Allowed tools configuration:")
+		for _, line := range commentLines {
+			if line != "" {
+				stepLines = append(stepLines, "          "+line)
+			}
+		}
+		stepLines = append(stepLines, fmt.Sprintf("            --allowed-tools \"%s\" \\", allowedTools))
+	}
+
+	stepLines = append(stepLines,
+		"            --prompt-file /tmp/aw-prompts/prompt.txt \\",
+		fmt.Sprintf("            --log-file %s \\", logFile),
+		"            --output-file /tmp/claude_output.json",
+		"          ",
+		"          # Set outputs for compatibility",
+		fmt.Sprintf("          echo \"execution_file=%s\" >> $GITHUB_OUTPUT", logFile),
+	)
+
+	stepLines = append(stepLines,
+		"        env:",
+		"          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt",
+	)
+
+	if workflowData.SafeOutputs != nil {
+		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
+	}
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
+	}
+
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
+			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
+		}
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateLogCaptureStep creates a step to capture Claude CLI execution logs
+func (e *ClaudeEngine) generateLogCaptureStep(logFile string) GitHubActionStep {
+	stepLines := []string{
+		"      - name: Capture Claude CLI logs",
+		"        if: always()",
+		"        run: |",
+		"          # Copy the Claude CLI log file if it exists",
+		fmt.Sprintf("          if [ -f \"%s\" ]; then", logFile),
+		fmt.Sprintf("            echo \"Claude CLI log file found: %s\"", logFile),
+		fmt.Sprintf("            ls -la \"%s\"", logFile),
+		"          else",
+		fmt.Sprintf("            echo \"Claude CLI log file not found, creating empty log: %s\"", logFile),
+		fmt.Sprintf("            touch \"%s\"", logFile),
+		"          fi",
+		"          ",
+		"          # Also capture any other Claude output files",
+		"          if [ -f \"/tmp/claude_output.json\" ]; then",
+		"            echo \"Claude output file found: /tmp/claude_output.json\"",
+		"            cat /tmp/claude_output.json || echo \"Could not read Claude output file\"",
+		"          fi",
+	}
+	return GitHubActionStep(stepLines)
 }
 
 // GetLogParserScript returns the JavaScript script name for parsing Claude logs

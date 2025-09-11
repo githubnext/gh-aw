@@ -41,18 +41,46 @@ func TestClaudeEngine(t *testing.T) {
 		Name: "test-workflow",
 	}
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps (Node.js install + Claude CLI install + Claude CLI execution + log capture), got %d", len(steps))
 	}
 
-	// Check the main execution step
-	executionStep := steps[0]
+	// Check the Node.js installation step (step 0)
+	nodeStep := steps[0]
+	nodeStepLines := []string(nodeStep)
+	found := false
+	for _, line := range nodeStepLines {
+		if strings.Contains(line, "name: Install Node.js") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Expected Node.js installation step not found")
+	}
+
+	// Check the Claude CLI installation step (step 1)
+	cliInstallStep := steps[1]
+	cliInstallStepLines := []string(cliInstallStep)
+	found = false
+	for _, line := range cliInstallStepLines {
+		if strings.Contains(line, "name: Install Claude CLI") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("Expected Claude CLI installation step not found")
+	}
+
+	// Check the main execution step (step 2)
+	executionStep := steps[2]
 	stepLines := []string(executionStep)
 
 	// Check step name
-	found := false
+	found = false
 	for _, line := range stepLines {
-		if strings.Contains(line, "name: Execute Claude Code Action") {
+		if strings.Contains(line, "name: Execute Claude CLI") {
 			found = true
 			break
 		}
@@ -61,50 +89,62 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected step name 'Execute Claude Code Action' in step lines: %v", stepLines)
 	}
 
-	// Check action usage
+	// Check that it's a shell script execution (not the old custom action)
 	found = false
-	expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
 	for _, line := range stepLines {
-		if strings.Contains(line, "uses: "+expectedAction) {
+		if strings.Contains(line, "run: |") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected action '%s' in step lines: %v", expectedAction, stepLines)
+		t.Errorf("Expected 'run: |' for shell script execution in step lines: %v", stepLines)
 	}
 
-	// Check that required inputs are present
+	// Check that required Claude CLI configuration is present
 	stepContent := strings.Join(stepLines, "\n")
-	if !strings.Contains(stepContent, "prompt_file: /tmp/aw-prompts/prompt.txt") {
-		t.Errorf("Expected prompt_file input in step: %s", stepContent)
+	if !strings.Contains(stepContent, "--prompt-file /tmp/aw-prompts/prompt.txt") {
+		t.Errorf("Expected --prompt-file argument in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}") {
-		t.Errorf("Expected anthropic_api_key input in step: %s", stepContent)
+	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY") {
+		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "mcp_config: /tmp/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected mcp_config input in step: %s", stepContent)
+	if !strings.Contains(stepContent, "--mcp-config /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected --mcp-config argument in step: %s", stepContent)
 	}
 
-	// claude_env should not be present when hasOutput=false (security improvement)
-	if strings.Contains(stepContent, "claude_env:") {
-		t.Errorf("Expected no claude_env input for security reasons, but got it in step: %s", stepContent)
+	if !strings.Contains(stepContent, "--headless") {
+		t.Errorf("Expected --headless flag in Claude CLI command: %s", stepContent)
 	}
 
-	// Check that special fields are present but empty (will be filled during generation)
-	if !strings.Contains(stepContent, "allowed_tools:") {
-		t.Error("Expected allowed_tools input to be present in step")
+	if !strings.Contains(stepContent, "--no-confirm") {
+		t.Errorf("Expected --no-confirm flag in Claude CLI command: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "timeout_minutes:") {
-		t.Error("Expected timeout_minutes input to be present in step")
+	// Check log capture step (step 3)
+	logStep := steps[3]
+	logStepLines := []string(logStep)
+	found = false
+	for _, line := range logStepLines {
+		if strings.Contains(line, "name: Capture Claude CLI logs") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected log capture step not found in: %v", logStepLines)
+	}
+
+	// Check timeout configuration in CLI command
+	if !strings.Contains(stepContent, "timeout 5m") {
+		t.Error("Expected timeout configuration in Claude CLI command")
 	}
 
 	// max_turns should NOT be present when not specified in engine config
-	if strings.Contains(stepContent, "max_turns:") {
-		t.Error("Expected max_turns input to NOT be present when not specified in engine config")
+	if strings.Contains(stepContent, "GITHUB_AW_MAX_TURNS") {
+		t.Error("Expected max_turns environment variable to NOT be present when not specified in engine config")
 	}
 }
 
@@ -117,18 +157,17 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{}, // non-nil means hasOutput=true
 	}
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps (Node.js install + Claude CLI install + Claude CLI execution + log capture), got %d", len(steps))
 	}
 
-	// Check the main execution step
-	executionStep := steps[0]
+	// Check the main execution step (step 2)
+	executionStep := steps[2]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true, but no GH_TOKEN for security
-	expectedClaudeEnv := "claude_env: |\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-	if !strings.Contains(stepContent, expectedClaudeEnv) {
-		t.Errorf("Expected claude_env input with output '%s' in step content:\n%s", expectedClaudeEnv, stepContent)
+	// Should include GITHUB_AW_SAFE_OUTPUTS environment variable when hasOutput=true
+	if !strings.Contains(stepContent, "export GITHUB_AW_SAFE_OUTPUTS=") {
+		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS environment variable in step with safe outputs: %s", stepContent)
 	}
 }
 
@@ -151,8 +190,8 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 				Name: tc.workflowName,
 			}
 			steps := engine.GetExecutionSteps(workflowData, tc.logFile)
-			if len(steps) != 2 {
-				t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+			if len(steps) != 4 {
+				t.Fatalf("Expected 4 steps (Node.js install + Claude CLI install + Claude CLI execution + log capture), got %d", len(steps))
 			}
 
 			// Check the main execution step
