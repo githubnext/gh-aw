@@ -164,6 +164,7 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
+	Staged                          *bool                                  `yaml:"staged,omitempty"` // If true, emit step summary messages instead of making GitHub API calls
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -3502,6 +3503,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {
 				config.MissingTool = missingToolConfig
+			}
+
+			// Handle staged flag
+			if staged, exists := outputMap["staged"]; exists {
+				if stagedBool, ok := staged.(bool); ok {
+					config.Staged = &stagedBool
+				}
 			}
 		}
 	}

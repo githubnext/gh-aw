@@ -1,4 +1,7 @@
 async function main() {
+  // Check if we're in staged mode
+  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
@@ -40,6 +43,38 @@ async function main() {
   }
 
   console.log(`Found ${updateItems.length} update-issue item(s)`);
+
+  // If in staged mode, emit step summary instead of updating issues
+  if (isStaged) {
+    let summaryContent = "## 🎭 Staged Mode: Update Issues Preview\n\n";
+    summaryContent += "The following issue updates would be applied if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < updateItems.length; i++) {
+      const item = updateItems[i];
+      summaryContent += `### Issue Update ${i + 1}\n`;
+      if (item.issue_number) {
+        summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
+      } else {
+        summaryContent += `**Target:** Current issue\n\n`;
+      }
+      
+      if (item.title !== undefined) {
+        summaryContent += `**New Title:** ${item.title}\n\n`;
+      }
+      if (item.body !== undefined) {
+        summaryContent += `**New Body:**\n${item.body}\n\n`;
+      }
+      if (item.status !== undefined) {
+        summaryContent += `**New Status:** ${item.status}\n\n`;
+      }
+      summaryContent += "---\n\n";
+    }
+
+    // Write to step summary
+    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+    console.log("📝 Issue update preview written to step summary");
+    return;
+  }
 
   // Get the configuration from environment variables
   const updateTarget = process.env.GITHUB_AW_UPDATE_TARGET || "triggering";

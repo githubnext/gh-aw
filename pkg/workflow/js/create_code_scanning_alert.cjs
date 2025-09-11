@@ -46,6 +46,27 @@ async function main() {
     `Found ${securityItems.length} create-code-scanning-alert item(s)`
   );
 
+  // If in staged mode, emit step summary instead of creating code scanning alerts
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent = "## 🎭 Staged Mode: Create Code Scanning Alerts Preview\n\n";
+    summaryContent += "The following code scanning alerts would be created if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < securityItems.length; i++) {
+      const item = securityItems[i];
+      summaryContent += `### Security Finding ${i + 1}\n`;
+      summaryContent += `**File:** ${item.file || "No file provided"}\n\n`;
+      summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
+      summaryContent += `**Severity:** ${item.severity || "No severity provided"}\n\n`;
+      summaryContent += `**Message:**\n${item.message || "No message provided"}\n\n`;
+      summaryContent += "---\n\n";
+    }
+
+    // Write to step summary
+    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+    console.log("📝 Code scanning alert creation preview written to step summary");
+    return;
+  }
+
   // Get the max configuration from environment variable
   const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
     ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX)

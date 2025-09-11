@@ -42,6 +42,30 @@ async function main() {
     `Found ${createDiscussionItems.length} create-discussion item(s)`
   );
 
+  // If in staged mode, emit step summary instead of creating discussions
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+    summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < createDiscussionItems.length; i++) {
+      const item = createDiscussionItems[i];
+      summaryContent += `### Discussion ${i + 1}\n`;
+      summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+      if (item.body) {
+        summaryContent += `**Body:**\n${item.body}\n\n`;
+      }
+      if (item.category_id) {
+        summaryContent += `**Category ID:** ${item.category_id}\n\n`;
+      }
+      summaryContent += "---\n\n";
+    }
+
+    // Write to step summary
+    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+    console.log("📝 Discussion creation preview written to step summary");
+    return;
+  }
+
   // Get repository ID and discussion categories using GraphQL API
   let discussionCategories = [];
   let repositoryId = null;
