@@ -575,7 +575,7 @@ validate_issue_updated() {
         success "Issue #$issue_number was closed, indicating it was processed"
         state_success=true
     else
-        warning "(polling) Issue #$issue_number is still open. Expected it to be closed after processing."
+        warning "(polling) Issue #$issue_number is still open (state $state). Expected it to be closed after processing."
     fi
     
     # Only return success if all three checks passed
