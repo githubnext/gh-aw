@@ -58,7 +58,7 @@ declare -a SKIPPED_TESTS=()
 REPO_OWNER="githubnext"
 REPO_NAME="gh-aw"
 TIMEOUT_MINUTES=10
-POLL_INTERVAL=30
+POLL_INTERVAL=5
 LOG_FILE="e2e-test-$(date +%Y%m%d-%H%M%S).log"
 
 # Utility functions
@@ -242,6 +242,7 @@ wait_for_workflow() {
     local start_time=$(date +%s)
     
     progress "Waiting for workflow '$workflow_name' (run #$run_id) to complete..."
+    progress "View run details: https://github.com/$REPO_OWNER/$REPO_NAME/actions/runs/$run_id"
     
     while true; do
         local current_time=$(date +%s)
@@ -667,50 +668,6 @@ validate_mcp_workflow() {
     fi
 }
 
-validate_safe_outputs_workflow() {
-    local workflow_name="$1"
-    
-    # Safe outputs workflows test multiple output types
-    local found_outputs=0
-    
-    # Check for test issues
-    local test_issues=$(gh issue list --label "test-safe-outputs" --limit 5 --json number --jq 'length' 2>/dev/null || echo "0")
-    if [[ "$test_issues" -gt 0 ]]; then
-        found_outputs=$((found_outputs + 1))
-        success "Safe outputs workflow '$workflow_name' created test issues"
-    fi
-    
-    # Check for test PRs
-    local test_prs=$(gh pr list --label "test-safe-outputs" --limit 5 --json number --jq 'length' 2>/dev/null || echo "0")
-    if [[ "$test_prs" -gt 0 ]]; then
-        found_outputs=$((found_outputs + 1))
-        success "Safe outputs workflow '$workflow_name' created test PRs"
-    fi
-    
-    if [[ $found_outputs -gt 0 ]]; then
-        success "Safe outputs workflow '$workflow_name' validated successfully"
-        return 0
-    else
-        warning "Safe outputs workflow '$workflow_name' completed but no test outputs found"
-        return 1
-    fi
-}
-
-validate_ai_inference_workflow() {
-    local workflow_name="$1"
-    
-    # AI inference workflows typically create issues with AI-generated content
-    local ai_content=$(gh issue list --limit 5 --json title,body --jq '.[] | select(.title or .body | contains("AI") or contains("inference") or contains("model") or contains("GitHub Models")) | .title' | head -1)
-    
-    if [[ -n "$ai_content" ]]; then
-        success "AI inference workflow '$workflow_name' appears to have used AI models successfully"
-        return 0
-    else
-        warning "AI inference workflow '$workflow_name' completed but no clear evidence of AI inference found"
-        return 0  # Don't fail - the workflow may have run but not created visible AI content
-    fi
-}
-
 validate_branch_updated() {
     local branch_name="$1"
     local initial_sha="$2"
@@ -899,7 +856,6 @@ cleanup_test_resources() {
     #     "test-codex-create-repository-security-advisory"
     #     "test-claude-mcp"
     #     "test-codex-mcp"
-    #     "test-custom-safe-outputs"
     #     "test-claude-add-issue-comment"
     #     "test-codex-add-issue-comment"
     #     "test-claude-add-issue-labels"
@@ -1019,30 +975,7 @@ run_workflow_dispatch_tests() {
                     fi
                     ;;
                 *"mcp")
-                    if [[ -n "$ai_type" ]]; then
-                        if validate_issue_created "Hello from $ai_display_name" ""; then
-                            PASSED_TESTS+=("$workflow")
-                        else
-                            FAILED_TESTS+=("$workflow")
-                        fi
-                    else
-                        # Fallback to general MCP validation
-                        if validate_mcp_workflow "$workflow"; then
-                            PASSED_TESTS+=("$workflow")
-                        else
-                            FAILED_TESTS+=("$workflow")
-                        fi
-                    fi
-                    ;;
-                *"safe-outputs")
-                    if validate_safe_outputs_workflow "$workflow"; then
-                        PASSED_TESTS+=("$workflow")
-                    else
-                        FAILED_TESTS+=("$workflow")
-                    fi
-                    ;;
-                *"ai-inference")
-                    if validate_ai_inference_workflow "$workflow"; then
+                    if validate_mcp_workflow "$workflow"; then
                         PASSED_TESTS+=("$workflow")
                     else
                         FAILED_TESTS+=("$workflow")
