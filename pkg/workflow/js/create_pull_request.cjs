@@ -178,7 +178,7 @@ async function main() {
       "No branch name provided in JSONL, generating unique branch name"
     );
     // Generate unique branch name using cryptographic random hex
-    branchName = `${workflowId}/${randomHex}`;
+    branchName = `${workflowId}-${randomHex}`;
   } else {
     branchName = `${branchName}-${randomHex}`;
     console.log("Using branch name from JSONL with added salt:", branchName);
