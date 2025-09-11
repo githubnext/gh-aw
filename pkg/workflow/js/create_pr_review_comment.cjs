@@ -126,10 +126,7 @@ async function main() {
   }
 
   // Check if we have the commit SHA needed for creating review comments
-  if (
-    !pullRequest.head ||
-    !pullRequest.head.sha
-  ) {
+  if (!pullRequest.head || !pullRequest.head.sha) {
     console.log(
       "Pull request head commit SHA not found in payload - cannot create review comments"
     );
