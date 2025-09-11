@@ -36,6 +36,8 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
+	// Add GH_TOKEN for authentication, because we shell out to 'gh' commands
+	steps = append(steps, "          GH_TOKEN: ${{ github.token }}\n")
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	// Pass the target configuration
@@ -93,7 +95,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		Name:           "push_to_pr_branch",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    "permissions:\n      contents: write\n      pull-requests: read",
+		Permissions:    "permissions:\n      contents: write\n      pull-requests: read\n      issues: read",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
