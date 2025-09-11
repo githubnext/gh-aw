@@ -1364,7 +1364,7 @@
             }
           ]
         },
-        "create-repository-security-advisory": {
+        "create-code-scanning-alert": {
           "oneOf": [
             {
               "type": "object",
@@ -1384,7 +1384,7 @@
             },
             {
               "type": "null",
-              "description": "Enable repository security advisory creation with default configuration (unlimited findings)"
+              "description": "Enable code scanning alert creation with default configuration (unlimited findings)"
             }
           ]
         },

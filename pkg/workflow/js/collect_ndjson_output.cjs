@@ -183,7 +183,7 @@ async function main() {
         return 1; // Only one discussion allowed
       case "missing-tool":
         return 1000; // Allow many missing tool reports (default: unlimited)
-      case "create-repository-security-advisory":
+      case "create-code-scanning-alert":
         return 1000; // Allow many repository security advisories (default: unlimited)
       default:
         return 1; // Default to single item for unknown types
@@ -675,11 +675,11 @@ async function main() {
           }
           break;
 
-        case "create-repository-security-advisory":
+        case "create-code-scanning-alert":
           // Validate required fields
           if (!item.file || typeof item.file !== "string") {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory requires a 'file' field (string)`
+              `Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`
             );
             continue;
           }
@@ -689,7 +689,7 @@ async function main() {
             (typeof item.line !== "number" && typeof item.line !== "string")
           ) {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory requires a 'line' field (number or string)`
+              `Line ${i + 1}: create-code-scanning-alert requires a 'line' field (number or string)`
             );
             continue;
           }
@@ -697,19 +697,19 @@ async function main() {
           const parsedLine = parseInt(item.line, 10);
           if (isNaN(parsedLine) || parsedLine <= 0) {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory 'line' must be a valid positive integer (got: ${item.line})`
+              `Line ${i + 1}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${item.line})`
             );
             continue;
           }
           if (!item.severity || typeof item.severity !== "string") {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory requires a 'severity' field (string)`
+              `Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`
             );
             continue;
           }
           if (!item.message || typeof item.message !== "string") {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory requires a 'message' field (string)`
+              `Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`
             );
             continue;
           }
@@ -718,7 +718,7 @@ async function main() {
           const allowedSeverities = ["error", "warning", "info", "note"];
           if (!allowedSeverities.includes(item.severity.toLowerCase())) {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory 'severity' must be one of: ${allowedSeverities.join(", ")}`
+              `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
             );
             continue;
           }
@@ -730,7 +730,7 @@ async function main() {
               typeof item.column !== "string"
             ) {
               errors.push(
-                `Line ${i + 1}: create-repository-security-advisory 'column' must be a number or string`
+                `Line ${i + 1}: create-code-scanning-alert 'column' must be a number or string`
               );
               continue;
             }
@@ -738,7 +738,7 @@ async function main() {
             const parsedColumn = parseInt(item.column, 10);
             if (isNaN(parsedColumn) || parsedColumn <= 0) {
               errors.push(
-                `Line ${i + 1}: create-repository-security-advisory 'column' must be a valid positive integer (got: ${item.column})`
+                `Line ${i + 1}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${item.column})`
               );
               continue;
             }
@@ -748,13 +748,13 @@ async function main() {
           if (item.ruleIdSuffix !== undefined) {
             if (typeof item.ruleIdSuffix !== "string") {
               errors.push(
-                `Line ${i + 1}: create-repository-security-advisory 'ruleIdSuffix' must be a string`
+                `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`
               );
               continue;
             }
             if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
               errors.push(
-                `Line ${i + 1}: create-repository-security-advisory 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
+                `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
               );
               continue;
             }

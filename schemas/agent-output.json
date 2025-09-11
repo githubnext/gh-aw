@@ -36,7 +36,7 @@
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
-        {"$ref": "#/$defs/CreateRepositorySecurityAdvisoryOutput"}
+        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -282,13 +282,13 @@
       "required": ["type", "tool", "reason"],
       "additionalProperties": false
     },
-    "CreateRepositorySecurityAdvisoryOutput": {
-      "title": "Create Repository Security Advisory Output",
+    "CreateCodeScanningAlertOutput": {
+      "title": "Create Code Scanning Alert Output",
       "description": "Output for generating SARIF repository security advisories",
       "type": "object",
       "properties": {
         "type": {
-          "const": "create-repository-security-advisory"
+          "const": "create-code-scanning-alert"
         },
         "sarif": {
           "oneOf": [
@@ -299,7 +299,7 @@
         },
         "category": {
           "type": "string",
-          "description": "Optional category for the repository security advisory"
+          "description": "Optional category for the code scanning alert"
         }
       },
       "required": ["type", "sarif"],

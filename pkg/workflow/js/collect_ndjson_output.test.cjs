@@ -1354,17 +1354,17 @@ Line 3"}
     expect(mockCore.exportVariable).not.toHaveBeenCalled();
   });
 
-  describe("create-repository-security-advisory validation", () => {
-    it("should validate valid security advisory entries", async () => {
+  describe("create-code-scanning-alert validation", () => {
+    it("should validate valid code scanning alert entries", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-repository-security-advisory", "file": "src/auth.js", "line": 42, "severity": "error", "message": "SQL injection vulnerability"}
-{"type": "create-repository-security-advisory", "file": "src/utils.js", "line": 25, "severity": "warning", "message": "XSS vulnerability", "column": 10, "ruleIdSuffix": "xss-check"}
-{"type": "create-repository-security-advisory", "file": "src/complete.js", "line": "30", "severity": "NOTE", "message": "Complete example", "column": "5", "ruleIdSuffix": "complete-rule"}`;
+      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/auth.js", "line": 42, "severity": "error", "message": "SQL injection vulnerability"}
+{"type": "create-code-scanning-alert", "file": "src/utils.js", "line": 25, "severity": "warning", "message": "XSS vulnerability", "column": 10, "ruleIdSuffix": "xss-check"}
+{"type": "create-code-scanning-alert", "file": "src/complete.js", "line": "30", "severity": "NOTE", "message": "Complete example", "column": "5", "ruleIdSuffix": "complete-rule"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-repository-security-advisory": true}';
+        '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1378,7 +1378,7 @@ Line 3"}
 
       // Verify first entry
       expect(parsedOutput.items[0]).toEqual({
-        type: "create-repository-security-advisory",
+        type: "create-code-scanning-alert",
         file: "src/auth.js",
         line: 42,
         severity: "error",
@@ -1387,7 +1387,7 @@ Line 3"}
 
       // Verify second entry with optional fields
       expect(parsedOutput.items[1]).toEqual({
-        type: "create-repository-security-advisory",
+        type: "create-code-scanning-alert",
         file: "src/utils.js",
         line: 25,
         severity: "warning",
@@ -1398,7 +1398,7 @@ Line 3"}
 
       // Verify third entry with normalized severity
       expect(parsedOutput.items[2]).toEqual({
-        type: "create-repository-security-advisory",
+        type: "create-code-scanning-alert",
         file: "src/complete.js",
         line: "30",
         severity: "note", // Should be normalized to lowercase
@@ -1408,17 +1408,17 @@ Line 3"}
       });
     });
 
-    it("should reject security advisory entries with missing required fields", async () => {
+    it("should reject code scanning alert entries with missing required fields", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-repository-security-advisory", "severity": "error", "message": "Missing file field"}
-{"type": "create-repository-security-advisory", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
-{"type": "create-repository-security-advisory", "file": "src/missing2.js", "line": 10, "message": "Missing severity field"}
-{"type": "create-repository-security-advisory", "file": "src/missing3.js", "line": 10, "severity": "error"}`;
+      const ndjsonContent = `{"type": "create-code-scanning-alert", "severity": "error", "message": "Missing file field"}
+{"type": "create-code-scanning-alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
+{"type": "create-code-scanning-alert", "file": "src/missing2.js", "line": 10, "message": "Missing severity field"}
+{"type": "create-code-scanning-alert", "file": "src/missing3.js", "line": 10, "severity": "error"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-repository-security-advisory": true}';
+        '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1426,16 +1426,16 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'file' field (string)"
+        "create-code-scanning-alert requires a 'file' field (string)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'line' field (number or string)"
+        "create-code-scanning-alert requires a 'line' field (number or string)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'severity' field (string)"
+        "create-code-scanning-alert requires a 'severity' field (string)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'message' field (string)"
+        "create-code-scanning-alert requires a 'message' field (string)"
       );
 
       // setOutput should not be called because of early return
@@ -1444,17 +1444,17 @@ Line 3"}
       expect(outputCall).toBeUndefined();
     });
 
-    it("should reject security advisory entries with invalid field types", async () => {
+    it("should reject code scanning alert entries with invalid field types", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-repository-security-advisory", "file": 123, "line": 10, "severity": "error", "message": "File should be string"}
-{"type": "create-repository-security-advisory", "file": "src/test.js", "line": null, "severity": "error", "message": "Line should be number or string"}
-{"type": "create-repository-security-advisory", "file": "src/test.js", "line": 10, "severity": 123, "message": "Severity should be string"}
-{"type": "create-repository-security-advisory", "file": "src/test.js", "line": 10, "severity": "error", "message": 123}`;
+      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": 123, "line": 10, "severity": "error", "message": "File should be string"}
+{"type": "create-code-scanning-alert", "file": "src/test.js", "line": null, "severity": "error", "message": "Line should be number or string"}
+{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": 123, "message": "Severity should be string"}
+{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "error", "message": 123}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-repository-security-advisory": true}';
+        '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1462,16 +1462,16 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'file' field (string)"
+        "create-code-scanning-alert requires a 'file' field (string)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'line' field (number or string)"
+        "create-code-scanning-alert requires a 'line' field (number or string)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'severity' field (string)"
+        "create-code-scanning-alert requires a 'severity' field (string)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory requires a 'message' field (string)"
+        "create-code-scanning-alert requires a 'message' field (string)"
       );
 
       // setOutput should not be called because of early return
@@ -1480,15 +1480,15 @@ Line 3"}
       expect(outputCall).toBeUndefined();
     });
 
-    it("should reject security advisory entries with invalid severity levels", async () => {
+    it("should reject code scanning alert entries with invalid severity levels", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-repository-security-advisory", "file": "src/test.js", "line": 10, "severity": "invalid-level", "message": "Invalid severity"}
-{"type": "create-repository-security-advisory", "file": "src/test2.js", "line": 15, "severity": "critical", "message": "Unsupported severity"}`;
+      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "invalid-level", "message": "Invalid severity"}
+{"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 15, "severity": "critical", "message": "Unsupported severity"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-repository-security-advisory": true}';
+        '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1496,7 +1496,7 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'severity' must be one of: error, warning, info, note"
+        "create-code-scanning-alert 'severity' must be one of: error, warning, info, note"
       );
 
       // setOutput should not be called because of early return
@@ -1505,16 +1505,16 @@ Line 3"}
       expect(outputCall).toBeUndefined();
     });
 
-    it("should reject security advisory entries with invalid optional fields", async () => {
+    it("should reject code scanning alert entries with invalid optional fields", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-repository-security-advisory", "file": "src/test.js", "line": 10, "severity": "error", "message": "Test", "column": "invalid"}
-{"type": "create-repository-security-advisory", "file": "src/test2.js", "line": 15, "severity": "error", "message": "Test", "ruleIdSuffix": 123}
-{"type": "create-repository-security-advisory", "file": "src/test3.js", "line": 20, "severity": "error", "message": "Test", "ruleIdSuffix": "bad rule!@#"}`;
+      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "error", "message": "Test", "column": "invalid"}
+{"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 15, "severity": "error", "message": "Test", "ruleIdSuffix": 123}
+{"type": "create-code-scanning-alert", "file": "src/test3.js", "line": 20, "severity": "error", "message": "Test", "ruleIdSuffix": "bad rule!@#"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-repository-security-advisory": true}';
+        '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1522,13 +1522,13 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'column' must be a valid positive integer (got: invalid)"
+        "create-code-scanning-alert 'column' must be a valid positive integer (got: invalid)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'ruleIdSuffix' must be a string"
+        "create-code-scanning-alert 'ruleIdSuffix' must be a string"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
+        "create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
       );
 
       // setOutput should not be called because of early return
@@ -1537,11 +1537,11 @@ Line 3"}
       expect(outputCall).toBeUndefined();
     });
 
-    it("should handle mixed valid and invalid security advisory entries", async () => {
+    it("should handle mixed valid and invalid code scanning alert entries", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-repository-security-advisory", "file": "src/valid.js", "line": 10, "severity": "error", "message": "Valid entry"}
-{"type": "create-repository-security-advisory", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
-{"type": "create-repository-security-advisory", "file": "src/valid2.js", "line": 20, "severity": "warning", "message": "Another valid entry", "column": 5}`;
+      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/valid.js", "line": 10, "severity": "error", "message": "Valid entry"}
+{"type": "create-code-scanning-alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
+{"type": "create-code-scanning-alert", "file": "src/valid2.js", "line": 20, "severity": "warning", "message": "Another valid entry", "column": 5}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
@@ -1559,22 +1559,22 @@ Line 3"}
       expect(parsedOutput.items[0].file).toBe("src/valid.js");
       expect(parsedOutput.items[1].file).toBe("src/valid2.js");
       expect(parsedOutput.errors).toContain(
-        "Line 2: create-repository-security-advisory requires a 'line' field (number or string)"
+        "Line 2: create-code-scanning-alert requires a 'line' field (number or string)"
       );
     });
 
-    it("should reject security advisory entries with invalid line and column values", async () => {
+    it("should reject code scanning alert entries with invalid line and column values", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-repository-security-advisory", "file": "src/test.js", "line": "invalid", "severity": "error", "message": "Invalid line string"}
-{"type": "create-repository-security-advisory", "file": "src/test2.js", "line": 0, "severity": "error", "message": "Zero line number"}
-{"type": "create-repository-security-advisory", "file": "src/test3.js", "line": -5, "severity": "error", "message": "Negative line number"}
-{"type": "create-repository-security-advisory", "file": "src/test4.js", "line": 10, "column": "abc", "severity": "error", "message": "Invalid column string"}
-{"type": "create-repository-security-advisory", "file": "src/test5.js", "line": 10, "column": 0, "severity": "error", "message": "Zero column number"}`;
+      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": "invalid", "severity": "error", "message": "Invalid line string"}
+{"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 0, "severity": "error", "message": "Zero line number"}
+{"type": "create-code-scanning-alert", "file": "src/test3.js", "line": -5, "severity": "error", "message": "Negative line number"}
+{"type": "create-code-scanning-alert", "file": "src/test4.js", "line": 10, "column": "abc", "severity": "error", "message": "Invalid column string"}
+{"type": "create-code-scanning-alert", "file": "src/test5.js", "line": 10, "column": 0, "severity": "error", "message": "Zero column number"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-repository-security-advisory": true}';
+        '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1582,19 +1582,19 @@ Line 3"}
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'line' must be a valid positive integer (got: invalid)"
+        "create-code-scanning-alert 'line' must be a valid positive integer (got: invalid)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'line' must be a valid positive integer (got: 0)"
+        "create-code-scanning-alert 'line' must be a valid positive integer (got: 0)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'line' must be a valid positive integer (got: -5)"
+        "create-code-scanning-alert 'line' must be a valid positive integer (got: -5)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'column' must be a valid positive integer (got: abc)"
+        "create-code-scanning-alert 'column' must be a valid positive integer (got: abc)"
       );
       expect(failedMessage).toContain(
-        "create-repository-security-advisory 'column' must be a valid positive integer (got: 0)"
+        "create-code-scanning-alert 'column' must be a valid positive integer (got: 0)"
       );
 
       // setOutput should not be called because of early return
