@@ -116,6 +116,11 @@ codex exec \
 	hasOutput := workflowData.SafeOutputs != nil
 	if hasOutput {
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+
+		// Add staged flag if specified
+		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
+			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		}
 	}
 
 	// Add custom environment variables from engine config

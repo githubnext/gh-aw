@@ -31,13 +31,13 @@ const mockContext = {
 global.core = mockCore;
 global.context = mockContext;
 
-// Read the repository security advisory script
+// Read the code scanning alert script
 const securityReportScript = fs.readFileSync(
-  path.join(import.meta.dirname, "create_repository_security_advisory.cjs"),
+  path.join(import.meta.dirname, "create_code_scanning_alert.cjs"),
   "utf8"
 );
 
-describe("create_repository_security_advisory.cjs", () => {
+describe("create_code_scanning_alert.cjs", () => {
   beforeEach(() => {
     // Reset mocks
     mockCore.setOutput.mockClear();
@@ -54,10 +54,7 @@ describe("create_repository_security_advisory.cjs", () => {
   afterEach(() => {
     // Clean up any created files
     try {
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       if (fs.existsSync(sarifFile)) {
         fs.unlinkSync(sarifFile);
       }
@@ -119,7 +116,7 @@ describe("create_repository_security_advisory.cjs", () => {
       consoleSpy.mockRestore();
     });
 
-    it("should handle no repository security advisory items", async () => {
+    it("should handle no code scanning alert items", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [{ type: "create-issue", title: "Test Issue" }],
       });
@@ -128,7 +125,7 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        "No create-repository-security-advisory items found in agent output"
+        "No create-code-scanning-alert items found in agent output"
       );
 
       consoleSpy.mockRestore();
@@ -138,14 +135,14 @@ describe("create_repository_security_advisory.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
             message: "SQL injection vulnerability detected",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/utils.js",
             line: 15,
             severity: "warning",
@@ -160,10 +157,7 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       expect(fs.existsSync(sarifFile)).toBe(true);
 
       // Check SARIF content
@@ -213,14 +207,14 @@ describe("create_repository_security_advisory.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
             message: "First finding",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/utils.js",
             line: 15,
             severity: "warning",
@@ -235,10 +229,7 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only 1 finding
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       expect(fs.existsSync(sarifFile)).toBe(true);
 
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
@@ -257,35 +248,35 @@ describe("create_repository_security_advisory.cjs", () => {
       const mixedFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/valid.js",
             line: 10,
             severity: "error",
             message: "Valid finding",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             // Missing file
             line: 20,
             severity: "error",
             message: "Invalid - no file",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid.js",
             // Missing line
             severity: "error",
             message: "Invalid - no line",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid2.js",
             line: "not-a-number",
             severity: "error",
             message: "Invalid - bad line",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid3.js",
             line: 30,
             severity: "invalid-severity",
@@ -300,10 +291,7 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only the 1 valid finding
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       expect(fs.existsSync(sarifFile)).toBe(true);
 
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
@@ -325,7 +313,7 @@ describe("create_repository_security_advisory.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
@@ -339,10 +327,7 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check driver name
@@ -362,7 +347,7 @@ describe("create_repository_security_advisory.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
@@ -376,10 +361,7 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check default driver name
@@ -399,7 +381,7 @@ describe("create_repository_security_advisory.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/app.js",
             line: 42,
             column: 15,
@@ -407,7 +389,7 @@ describe("create_repository_security_advisory.cjs", () => {
             message: "Security issue with column info",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/utils.js",
             line: 25,
             // No column specified - should default to 1
@@ -422,10 +404,7 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check first result has custom column
@@ -447,7 +426,7 @@ describe("create_repository_security_advisory.cjs", () => {
       const invalidFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/valid.js",
             line: 10,
             column: 5,
@@ -455,7 +434,7 @@ describe("create_repository_security_advisory.cjs", () => {
             message: "Valid with column",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid1.js",
             line: 20,
             column: "not-a-number",
@@ -463,7 +442,7 @@ describe("create_repository_security_advisory.cjs", () => {
             message: "Invalid column - not a number",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid2.js",
             line: 30,
             column: 0,
@@ -471,7 +450,7 @@ describe("create_repository_security_advisory.cjs", () => {
             message: "Invalid column - zero",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid3.js",
             line: 40,
             column: -1,
@@ -487,10 +466,7 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
       expect(sarifContent.runs[0].results[0].message.text).toBe(
@@ -510,7 +486,7 @@ describe("create_repository_security_advisory.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
@@ -518,7 +494,7 @@ describe("create_repository_security_advisory.cjs", () => {
             ruleIdSuffix: "sql-injection",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/utils.js",
             line: 25,
             severity: "warning",
@@ -526,7 +502,7 @@ describe("create_repository_security_advisory.cjs", () => {
             ruleIdSuffix: "xss-vulnerability",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/config.js",
             line: 10,
             severity: "info",
@@ -541,10 +517,7 @@ describe("create_repository_security_advisory.cjs", () => {
 
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check first result has custom rule ID
@@ -569,7 +542,7 @@ describe("create_repository_security_advisory.cjs", () => {
       const invalidFindings = {
         items: [
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/valid.js",
             line: 10,
             severity: "error",
@@ -577,7 +550,7 @@ describe("create_repository_security_advisory.cjs", () => {
             ruleIdSuffix: "valid-rule-id_123",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid1.js",
             line: 20,
             severity: "error",
@@ -585,7 +558,7 @@ describe("create_repository_security_advisory.cjs", () => {
             ruleIdSuffix: "",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid2.js",
             line: 30,
             severity: "error",
@@ -593,7 +566,7 @@ describe("create_repository_security_advisory.cjs", () => {
             ruleIdSuffix: "   ",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid3.js",
             line: 40,
             severity: "error",
@@ -601,7 +574,7 @@ describe("create_repository_security_advisory.cjs", () => {
             ruleIdSuffix: "rule@id!",
           },
           {
-            type: "create-repository-security-advisory",
+            type: "create-code-scanning-alert",
             file: "src/invalid4.js",
             line: 50,
             severity: "error",
@@ -617,10 +590,7 @@ describe("create_repository_security_advisory.cjs", () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed
-      const sarifFile = path.join(
-        process.cwd(),
-        "repository-security-advisory.sarif"
-      );
+      const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
       expect(sarifContent.runs[0].results[0].message.text).toBe(

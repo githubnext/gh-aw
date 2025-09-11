@@ -1394,7 +1394,7 @@
             }
           ]
         },
-        "create-repository-security-advisory": {
+        "create-code-scanning-alert": {
           "oneOf": [
             {
               "type": "object",
@@ -1414,7 +1414,7 @@
             },
             {
               "type": "null",
-              "description": "Enable repository security advisory creation with default configuration (unlimited findings)"
+              "description": "Enable code scanning alert creation with default configuration (unlimited findings)"
             }
           ]
         },
@@ -1530,6 +1530,10 @@
               "description": "Enable missing tool reporting with default configuration"
             }
           ]
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"
         }
       },
       "additionalProperties": false

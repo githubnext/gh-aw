@@ -649,7 +649,7 @@ jobs:
                     return 1; // Only one discussion allowed
                   case "missing-tool":
                     return 1000; // Allow many missing tool reports (default: unlimited)
-                  case "create-repository-security-advisory":
+                  case "create-code-scanning-alert":
                     return 1000; // Allow many repository security advisories (default: unlimited)
                   default:
                     return 1; // Default to single item for unknown types
@@ -1107,11 +1107,11 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives);
                       }
                       break;
-                    case "create-repository-security-advisory":
+                    case "create-code-scanning-alert":
                       // Validate required fields
                       if (!item.file || typeof item.file !== "string") {
                         errors.push(
-                          `Line ${i + 1}: create-repository-security-advisory requires a 'file' field (string)`
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`
                         );
                         continue;
                       }
@@ -1121,7 +1121,7 @@ jobs:
                         (typeof item.line !== "number" && typeof item.line !== "string")
                       ) {
                         errors.push(
-                          `Line ${i + 1}: create-repository-security-advisory requires a 'line' field (number or string)`
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'line' field (number or string)`
                         );
                         continue;
                       }
@@ -1129,19 +1129,19 @@ jobs:
                       const parsedLine = parseInt(item.line, 10);
                       if (isNaN(parsedLine) || parsedLine <= 0) {
                         errors.push(
-                          `Line ${i + 1}: create-repository-security-advisory 'line' must be a valid positive integer (got: ${item.line})`
+                          `Line ${i + 1}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${item.line})`
                         );
                         continue;
                       }
                       if (!item.severity || typeof item.severity !== "string") {
                         errors.push(
-                          `Line ${i + 1}: create-repository-security-advisory requires a 'severity' field (string)`
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`
                         );
                         continue;
                       }
                       if (!item.message || typeof item.message !== "string") {
                         errors.push(
-                          `Line ${i + 1}: create-repository-security-advisory requires a 'message' field (string)`
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`
                         );
                         continue;
                       }
@@ -1149,7 +1149,7 @@ jobs:
                       const allowedSeverities = ["error", "warning", "info", "note"];
                       if (!allowedSeverities.includes(item.severity.toLowerCase())) {
                         errors.push(
-                          `Line ${i + 1}: create-repository-security-advisory 'severity' must be one of: ${allowedSeverities.join(", ")}`
+                          `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
                         );
                         continue;
                       }
@@ -1160,7 +1160,7 @@ jobs:
                           typeof item.column !== "string"
                         ) {
                           errors.push(
-                            `Line ${i + 1}: create-repository-security-advisory 'column' must be a number or string`
+                            `Line ${i + 1}: create-code-scanning-alert 'column' must be a number or string`
                           );
                           continue;
                         }
@@ -1168,7 +1168,7 @@ jobs:
                         const parsedColumn = parseInt(item.column, 10);
                         if (isNaN(parsedColumn) || parsedColumn <= 0) {
                           errors.push(
-                            `Line ${i + 1}: create-repository-security-advisory 'column' must be a valid positive integer (got: ${item.column})`
+                            `Line ${i + 1}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${item.column})`
                           );
                           continue;
                         }
@@ -1177,13 +1177,13 @@ jobs:
                       if (item.ruleIdSuffix !== undefined) {
                         if (typeof item.ruleIdSuffix !== "string") {
                           errors.push(
-                            `Line ${i + 1}: create-repository-security-advisory 'ruleIdSuffix' must be a string`
+                            `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`
                           );
                           continue;
                         }
                         if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
                           errors.push(
-                            `Line ${i + 1}: create-repository-security-advisory 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
+                            `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
                           );
                           continue;
                         }
@@ -1611,6 +1611,8 @@ jobs:
         with:
           script: |
             async function main() {
+              // Check if we're in staged mode
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
@@ -1646,6 +1648,28 @@ jobs:
                 return;
               }
               console.log(`Found ${createIssueItems.length} create-issue item(s)`);
+              // If in staged mode, emit step summary instead of creating issues
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent +=
+                  "The following issues would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createIssueItems.length; i++) {
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                // Write to step summary
+                await core.summary.addRaw(summaryContent).write();
+                console.log("📝 Issue creation preview written to step summary");
+                return;
+              }
               // Check if we're in an issue context (triggered by an issue event)
               const parentIssueNumber = context.payload?.issue?.number;
               // Parse labels from environment variable (comma-separated string)
@@ -1788,6 +1812,8 @@ jobs:
         with:
           script: |
             async function main() {
+              // Check if we're in staged mode
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
@@ -1823,6 +1849,27 @@ jobs:
                 return;
               }
               console.log(`Found ${commentItems.length} add-issue-comment item(s)`);
+              // If in staged mode, emit step summary instead of creating comments
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
+                summaryContent +=
+                  "The following comments would be added if staged mode was disabled:\n\n";
+                for (let i = 0; i < commentItems.length; i++) {
+                  const item = commentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  if (item.issue_number) {
+                    summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
+                  } else {
+                    summaryContent += `**Target:** Current issue/PR\n\n`;
+                  }
+                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+                  summaryContent += "---\n\n";
+                }
+                // Write to step summary
+                await core.summary.addRaw(summaryContent).write();
+                console.log("📝 Comment creation preview written to step summary");
+                return;
+              }
               // Get the target configuration from environment variable
               const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
               console.log(`Comment target configuration: ${commentTarget}`);

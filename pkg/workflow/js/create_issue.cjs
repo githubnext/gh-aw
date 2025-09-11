@@ -1,4 +1,7 @@
 async function main() {
+  // Check if we're in staged mode
+  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
@@ -39,6 +42,31 @@ async function main() {
   }
 
   console.log(`Found ${createIssueItems.length} create-issue item(s)`);
+
+  // If in staged mode, emit step summary instead of creating issues
+  if (isStaged) {
+    let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+    summaryContent +=
+      "The following issues would be created if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < createIssueItems.length; i++) {
+      const item = createIssueItems[i];
+      summaryContent += `### Issue ${i + 1}\n`;
+      summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+      if (item.body) {
+        summaryContent += `**Body:**\n${item.body}\n\n`;
+      }
+      if (item.labels && item.labels.length > 0) {
+        summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+      }
+      summaryContent += "---\n\n";
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log("📝 Issue creation preview written to step summary");
+    return;
+  }
 
   // Check if we're in an issue context (triggered by an issue event)
   const parentIssueNumber = context.payload?.issue?.number;

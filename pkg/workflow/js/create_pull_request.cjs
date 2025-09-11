@@ -5,6 +5,9 @@ const crypto = require("crypto");
 const { execSync } = require("child_process");
 
 async function main() {
+  // Check if we're in staged mode
+  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
   if (!workflowId) {
@@ -120,6 +123,36 @@ async function main() {
     bodyLength: pullRequestItem.body.length,
   });
 
+  // If in staged mode, emit step summary instead of creating PR
+  if (isStaged) {
+    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+    summaryContent +=
+      "The following pull request would be created if staged mode was disabled:\n\n";
+
+    summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+    summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+    summaryContent += `**Base:** ${baseBranch}\n\n`;
+
+    if (pullRequestItem.body) {
+      summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+    }
+
+    if (fs.existsSync("/tmp/aw.patch")) {
+      const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+      if (patchStats.trim()) {
+        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+      } else {
+        summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+      }
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log("📝 Pull request creation preview written to step summary");
+    return;
+  }
+
   // Extract title, body, and branch from the JSON item
   let title = pullRequestItem.title.trim();
   let bodyLines = pullRequestItem.body.split("\n");
@@ -171,16 +204,17 @@ async function main() {
   console.log("Draft:", draft);
   console.log("Body length:", body.length);
 
+  const randomHex = crypto.randomBytes(8).toString("hex");
   // Use branch name from JSONL if provided, otherwise generate unique branch name
   if (!branchName) {
     console.log(
       "No branch name provided in JSONL, generating unique branch name"
     );
     // Generate unique branch name using cryptographic random hex
-    const randomHex = crypto.randomBytes(8).toString("hex");
-    branchName = `${workflowId}/${randomHex}`;
+    branchName = `${workflowId}-${randomHex}`;
   } else {
-    console.log("Using branch name from JSONL:", branchName);
+    branchName = `${branchName}-${randomHex}`;
+    console.log("Using branch name from JSONL with added salt:", branchName);
   }
 
   console.log("Generated branch name:", branchName);
@@ -197,23 +231,12 @@ async function main() {
   execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
 
   // Handle branch creation/checkout
-  const branchFromJsonl = pullRequestItem.branch
-    ? pullRequestItem.branch.trim()
-    : null;
-  if (branchFromJsonl) {
-    console.log("Checking if branch from JSONL exists:", branchFromJsonl);
-
-    console.log(
-      "Branch does not exist locally, creating new branch from base:",
-      branchFromJsonl
-    );
-    execSync(`git checkout -b ${branchFromJsonl}`, { stdio: "inherit" });
-    console.log("Created new branch from base:", branchFromJsonl);
-  } else {
-    // Create and checkout new branch with generated name from base branch
-    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-    console.log("Created and checked out new branch from base:", branchName);
-  }
+  console.log(
+    "Branch should not exist locally, creating new branch from base:",
+    branchName
+  );
+  execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+  console.log("Created new branch from base:", branchName);
 
   // Apply the patch using git CLI (skip if empty)
   if (!isEmpty) {

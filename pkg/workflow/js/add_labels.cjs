@@ -43,6 +43,28 @@ async function main() {
     labelsCount: labelsItem.labels.length,
   });
 
+  // If in staged mode, emit step summary instead of adding labels
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
+    summaryContent +=
+      "The following labels would be added if staged mode was disabled:\n\n";
+
+    if (labelsItem.issue_number) {
+      summaryContent += `**Target Issue:** #${labelsItem.issue_number}\n\n`;
+    } else {
+      summaryContent += `**Target:** Current issue/PR\n\n`;
+    }
+
+    if (labelsItem.labels && labelsItem.labels.length > 0) {
+      summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log("📝 Label addition preview written to step summary");
+    return;
+  }
+
   // Read the allowed labels from environment variable (optional)
   const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
   let allowedLabels = null;
