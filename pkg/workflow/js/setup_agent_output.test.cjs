@@ -101,6 +101,5 @@ describe("setup_agent_output.cjs", () => {
 
       consoleSpy.mockRestore();
     });
-
   });
 });
