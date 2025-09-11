@@ -182,7 +182,7 @@ engine:
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
 - **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
-- **`error_patterns`** (optional): Custom regex patterns for detecting errors in agent logs (see [Error Validation](#error-validation-error_patterns))
+- **`error_patterns`** (optional): Custom regex patterns for detecting errors in agent logs (see [Error Validation](#error-validation-engineerror_patterns))
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
@@ -236,9 +236,11 @@ engine:
 - Pass authentication tokens: `API_TOKEN: ${{ secrets.CUSTOM_TOKEN }}`
 - Enable debug modes: `DEBUG_MODE: true`
 
-## Error Validation (`error_patterns`)
+## Error Validation (`engine.error_patterns`)
 
 The `error_patterns` configuration within the engine section enables automatic detection and reporting of errors in agentic workflow logs. When errors are detected, the workflow step will fail, providing immediate feedback about issues during execution.
+
+**Important**: Error patterns must be defined under the `engine:` section of the workflow frontmatter, not as a top-level property.
 
 ### How Error Validation Works
 
