@@ -569,9 +569,11 @@ validate_issue_updated() {
         warning "(polling) Issue #$issue_number body does not show expected update by $ai_type. Expected pattern: 'updated by'. Actual body: ${body:0:200}..."
     fi
     
-    # Check for status closed
+    # Check for status closed (case-insensitive)
     local state=$(echo "$issue_data" | jq -r '.state')
-    if [[ "$state" == "closed" ]]; then
+    local state_lc="${state,,}"  # convert to lowercase for comparison
+
+    if [[ "$state_lc" == "closed" ]]; then
         success "Issue #$issue_number was closed, indicating it was processed"
         state_success=true
     else
