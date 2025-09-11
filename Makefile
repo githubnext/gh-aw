@@ -77,7 +77,7 @@ deps-dev: deps copy-copilot-to-claude download-github-actions-schema
 # Install docs dependencies
 .PHONY: docs-deps
 docs-deps:
-	npm ci
+	cd docs && npm ci
 
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
@@ -170,17 +170,17 @@ watch: build
 # Documentation development server
 .PHONY: docs-dev
 docs-dev: docs-deps
-	npm run docs:dev
+	cd docs && npm run dev
 
 # Build documentation
 .PHONY: docs-build
 docs-build: docs-deps
-	npm run docs:build
+	cd docs && npm run build
 
 # Preview built documentation
 .PHONY: docs-preview
 docs-preview: docs-deps
-	npm run docs:preview
+	cd docs && npm run preview
 
 # Create and push a patch release (increments patch version)
 .PHONY: patch-release

@@ -20,7 +20,8 @@ go.work
 # Build output
 dist/
 build/
-docs-dist/
+docs/dist/
+docs/.astro/
 
 # IDE files
 .idea/
@@ -53,3 +54,4 @@ logs/
 
 .github/instructions/github-agentic-workflows.instructions.md
 node_modules/
+docs/node_modules/

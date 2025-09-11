@@ -1,0 +1,69 @@
+/* Custom styles for GitHub Agentic Workflows documentation */
+
+:root {
+	--sl-hue-accent: 212;
+	--sl-color-accent-low: #102a4c;
+	--sl-color-accent: #3a7bd5;
+	--sl-color-accent-high: #b6d7ff;
+	--sl-color-white: #ffffff;
+	--sl-color-gray-1: #f1f3f5;
+	--sl-color-gray-2: #e9ecef;
+	--sl-color-gray-3: #dee2e6;
+	--sl-color-gray-4: #ced4da;
+	--sl-color-gray-5: #adb5bd;
+	--sl-color-gray-6: #6c757d;
+	--sl-color-black: #212529;
+}
+
+[data-theme='dark'] {
+	--sl-color-accent-low: #1a3456;
+	--sl-color-accent: #4a8ce8;
+	--sl-color-accent-high: #9cc5ff;
+	--sl-color-white: #ffffff;
+	--sl-color-gray-1: #2d3748;
+	--sl-color-gray-2: #4a5568;
+	--sl-color-gray-3: #718096;
+	--sl-color-gray-4: #a0aec0;
+	--sl-color-gray-5: #cbd5e0;
+	--sl-color-gray-6: #e2e8f0;
+	--sl-color-black: #1a202c;
+}
+
+/* Enhance code blocks */
+pre {
+	padding: 1.5rem;
+	border-radius: 0.5rem;
+	overflow-x: auto;
+}
+
+/* Improve table styling */
+table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 1.5rem 0;
+}
+
+table th,
+table td {
+	padding: 0.75rem;
+	text-align: left;
+	border-bottom: 1px solid var(--sl-color-gray-3);
+}
+
+table th {
+	font-weight: 600;
+	background-color: var(--sl-color-gray-1);
+}
+
+/* Enhance callouts */
+.sl-markdown-content > blockquote {
+	margin: 1.5rem 0;
+	padding: 1rem 1.5rem;
+	border-left: 4px solid var(--sl-color-accent);
+	background-color: var(--sl-color-gray-1);
+	border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.sl-markdown-content > blockquote p {
+	margin: 0;
+}
