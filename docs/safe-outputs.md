@@ -10,7 +10,7 @@ One of the primary security features of GitHub Agentic Workflows is "safe output
 | **Issue Comments** | `add-issue-comment:` | Post comments on issues or pull requests | 1 |
 | **Pull Request Creation** | `create-pull-request:` | Create pull requests with code changes | 1 |
 | **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
-| **Repository Security Advisories** | `create-repository-security-advisory:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
+| **Repository Security Advisories** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
 | **Label Addition** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
 | **Issue Updates** | `update-issue:` | Update issue status, title, or body | 1 |
 | **Push to Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
@@ -249,20 +249,20 @@ The compiled workflow will have additional prompting describing that, to create 
 - Comments are automatically positioned on the correct side of the diff
 - Maximum comment limits prevent spam
 
-### Repository Security Advisory Creation (`create-repository-security-advisory:`)
+### Code Scanning Alert Creation (`create-code-scanning-alert:`)
 
-Adding `create-repository-security-advisory:` to the `safe-outputs:` section declares that the workflow should conclude with creating repository security advisories in SARIF format based on the workflow's security analysis findings. The SARIF file is uploaded as an artifact and submitted to GitHub Code Scanning.
+Adding `create-code-scanning-alert:` to the `safe-outputs:` section declares that the workflow should conclude with creating repository security advisories in SARIF format based on the workflow's security analysis findings. The SARIF file is uploaded as an artifact and submitted to GitHub Code Scanning.
 
 **Basic Configuration:**
 ```yaml
 safe-outputs:
-  create-repository-security-advisory:
+  create-code-scanning-alert:
 ```
 
 **With Configuration:**
 ```yaml
 safe-outputs:
-  create-repository-security-advisory:
+  create-code-scanning-alert:
     max: 50                         # Optional: maximum number of security findings (default: unlimited)
 ```
 
