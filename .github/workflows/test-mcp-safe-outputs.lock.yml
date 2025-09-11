@@ -184,8 +184,8 @@ jobs:
                 "command": "node",
                 "args": ["/tmp/safe-outputs-mcp/safe_outputs_mcp_server.js"],
                 "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "$GITHUB_AW_SAFE_OUTPUTS",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "$GITHUB_AW_SAFE_OUTPUTS_CONFIG"
+                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}"
                 }
               }
             }

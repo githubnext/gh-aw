@@ -438,8 +438,8 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 	yaml.WriteString("          args = [\"/tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\"]\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.safe-outputs.env]\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS = \"$GITHUB_AW_SAFE_OUTPUTS\"\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS_CONFIG = \"$GITHUB_AW_SAFE_OUTPUTS_CONFIG\"\n")
+	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\"\n")
+	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS_CONFIG = \"${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}\"\n")
 }
 
 // GetLogParserScript returns the JavaScript script name for parsing Codex logs
