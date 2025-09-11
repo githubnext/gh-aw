@@ -1568,7 +1568,6 @@ jobs:
         if: always()
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_PUSH_TARGET: ""
         run: |
           # Check current git status
           echo "Current git status:"

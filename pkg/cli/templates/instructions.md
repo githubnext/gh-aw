@@ -143,7 +143,7 @@ The YAML frontmatter supports these fields:
     - Each JSON object must be on a single line (JSONL format)
     - All string values should be properly escaped JSON strings
     - The `type` field is required and must match the configured safe output types
-    - File changes for `create-pull-request` and `push-to-pr-branch` are collected automatically via `git add -A`
+    - File changes for `create-pull-request` and `push-to-pr-branch` are made by committing to a branch
     - Output entries are processed only if the corresponding safe output type is configured in the workflow frontmatter
     - Invalid JSON entries are ignored with warnings in the workflow logs
 

@@ -187,7 +187,7 @@ safe-outputs:
 At most one pull request is currently supported.
 
 The agentic part of your workflow should instruct to:
-1. **Make code changes**: Make any code changes in the working directory—these are automatically collected using `git add -A` and committed
+1. **Make code changes**: Make code changes and commit them to a branch 
 2. **Create pull request**: Describe the pull request title and body content you want
 
 **Example natural language to generate the output:**

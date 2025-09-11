@@ -21,7 +21,7 @@ safe-outputs:
     target: "triggering"
 ---
 
-# Test Push to Branch
+# Test Push to PR Branch
 
 This is a test workflow to validate push-to-pr-branch configuration parsing.
 
@@ -226,7 +226,7 @@ This workflow uses null configuration which should default to "triggering".
 
 	// Check that no target is set (should use default)
 	if strings.Contains(lockContent, "GITHUB_AW_PUSH_TARGET:") {
-		t.Errorf("Expected no target to be set when using null config")
+		t.Errorf("Expected no target to be set when using null config, %s", lockContent)
 	}
 }
 
