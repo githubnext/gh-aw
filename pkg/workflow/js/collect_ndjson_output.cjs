@@ -676,36 +676,97 @@ async function main() {
           break;
 
         case "create-repository-security-advisory":
-          // Validate required sarif field
-          if (!item.sarif) {
+          // Validate required fields
+          if (!item.file || typeof item.file !== "string") {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory requires a 'sarif' field`
+              `Line ${i + 1}: create-repository-security-advisory requires a 'file' field (string)`
             );
             continue;
           }
-          // SARIF content can be object or string
           if (
-            typeof item.sarif !== "object" &&
-            typeof item.sarif !== "string"
+            item.line === undefined ||
+            item.line === null ||
+            (typeof item.line !== "number" && typeof item.line !== "string")
           ) {
             errors.push(
-              `Line ${i + 1}: create-repository-security-advisory 'sarif' must be an object or string`
+              `Line ${i + 1}: create-repository-security-advisory requires a 'line' field (number or string)`
             );
             continue;
           }
-          // If SARIF is a string, sanitize it
-          if (typeof item.sarif === "string") {
-            item.sarif = sanitizeContent(item.sarif);
+          // Additional validation: line must be parseable as a positive integer
+          const parsedLine = parseInt(item.line, 10);
+          if (isNaN(parsedLine) || parsedLine <= 0) {
+            errors.push(
+              `Line ${i + 1}: create-repository-security-advisory 'line' must be a valid positive integer (got: ${item.line})`
+            );
+            continue;
           }
-          // Validate optional category field
-          if (item.category !== undefined) {
-            if (typeof item.category !== "string") {
+          if (!item.severity || typeof item.severity !== "string") {
+            errors.push(
+              `Line ${i + 1}: create-repository-security-advisory requires a 'severity' field (string)`
+            );
+            continue;
+          }
+          if (!item.message || typeof item.message !== "string") {
+            errors.push(
+              `Line ${i + 1}: create-repository-security-advisory requires a 'message' field (string)`
+            );
+            continue;
+          }
+
+          // Validate severity level
+          const allowedSeverities = ["error", "warning", "info", "note"];
+          if (!allowedSeverities.includes(item.severity.toLowerCase())) {
+            errors.push(
+              `Line ${i + 1}: create-repository-security-advisory 'severity' must be one of: ${allowedSeverities.join(", ")}`
+            );
+            continue;
+          }
+
+          // Validate optional column field
+          if (item.column !== undefined) {
+            if (
+              typeof item.column !== "number" &&
+              typeof item.column !== "string"
+            ) {
               errors.push(
-                `Line ${i + 1}: create-repository-security-advisory 'category' must be a string`
+                `Line ${i + 1}: create-repository-security-advisory 'column' must be a number or string`
               );
               continue;
             }
-            item.category = sanitizeContent(item.category);
+            // Additional validation: must be parseable as a positive integer
+            const parsedColumn = parseInt(item.column, 10);
+            if (isNaN(parsedColumn) || parsedColumn <= 0) {
+              errors.push(
+                `Line ${i + 1}: create-repository-security-advisory 'column' must be a valid positive integer (got: ${item.column})`
+              );
+              continue;
+            }
+          }
+
+          // Validate optional ruleIdSuffix field
+          if (item.ruleIdSuffix !== undefined) {
+            if (typeof item.ruleIdSuffix !== "string") {
+              errors.push(
+                `Line ${i + 1}: create-repository-security-advisory 'ruleIdSuffix' must be a string`
+              );
+              continue;
+            }
+            if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
+              errors.push(
+                `Line ${i + 1}: create-repository-security-advisory 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
+              );
+              continue;
+            }
+          }
+
+          // Normalize severity to lowercase and sanitize string fields
+          item.severity = item.severity.toLowerCase();
+          item.file = sanitizeContent(item.file);
+          item.severity = sanitizeContent(item.severity);
+          item.message = sanitizeContent(item.message);
+          if (item.ruleIdSuffix) {
+            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
           }
           break;
 
