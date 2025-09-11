@@ -3785,8 +3785,7 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) *PushToPullRequestBranchConfig {
 	if configData, exists := outputMap["push-to-pr-branch"]; exists {
 		pushToBranchConfig := &PushToPullRequestBranchConfig{
-			Branch:      "triggering", // Default branch value
-			IfNoChanges: "warn",       // Default behavior: warn when no changes
+			IfNoChanges: "warn", // Default behavior: warn when no changes
 		}
 
 		// Handle the case where configData is nil (push-to-pr-branch: with no value)

@@ -601,7 +601,7 @@ jobs:
                 // U+0014 (DC4) — represented here as "\u0014"
                 // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
                 // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-                const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
+                const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
                 repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
                   const c = ch.charCodeAt(0);
                   return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
@@ -1495,11 +1495,10 @@ jobs:
                 # Extract branch from push-to-pr-branch line using simple grep and sed
                 elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pr-branch"'; then
                   echo "Found push-to-pr-branch line: $line"
-                  # For push-to-pr-branch, we don't extract branch from JSONL since it's configured in the workflow
-                  # The branch name should come from the environment variable GITHUB_AW_PUSH_BRANCH
-                  if [ -n "$GITHUB_AW_PUSH_BRANCH" ]; then
-                    BRANCH_NAME="$GITHUB_AW_PUSH_BRANCH"
-                    echo "Using configured push-to-pr-branch target: $BRANCH_NAME"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
                     break
                   fi
                 fi

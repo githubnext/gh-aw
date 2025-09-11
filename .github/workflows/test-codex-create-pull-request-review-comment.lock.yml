@@ -341,6 +341,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
+          user_agent = "test-codex-create-pull-request-review-comment"
           command = "docker"
           args = [
             "run",
@@ -461,7 +462,28 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      - name: Collect agent output
+      - name: Print Agent output
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+        run: |
+          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '``````json' >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
+          # Ensure there's a newline after the file content if it doesn't end with one
+          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '``````' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+      - name: Upload agentic output file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe_output.jsonl
+          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          if-no-files-found: warn
+      - name: Ingest agent output
         id: collect_output
         uses: actions/github-script@v7
         env:
@@ -633,7 +655,7 @@ jobs:
                   case "missing-tool":
                     return 1000; // Allow many missing tool reports (default: unlimited)
                   case "create-repository-security-advisory":
-                    return 1000; // Allow many security reports (default: unlimited)
+                    return 1000; // Allow many repository security advisories (default: unlimited)
                   default:
                     return 1; // Default to single item for unknown types
                 }
@@ -645,6 +667,15 @@ jobs:
                */
               function repairJson(jsonStr) {
                 let repaired = jsonStr.trim();
+                // remove invalid control characters like
+                // U+0014 (DC4) — represented here as "\u0014"
+                // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
+                // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+                const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
+                repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
+                  const c = ch.charCodeAt(0);
+                  return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
+                });
                 // Fix single quotes to double quotes (must be done first)
                 repaired = repaired.replace(/'/g, '"');
                 // Fix missing quotes around object keys
@@ -714,6 +745,7 @@ jobs:
                     return JSON.parse(repairedJson);
                   } catch (repairError) {
                     // If repair also fails, throw the error
+                    console.log(`invalid input json: ${jsonStr}`);
                     throw new Error(
                       `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
                     );
@@ -1158,33 +1190,14 @@ jobs:
             }
             // Call the main function
             await main();
-      - name: Print agent output to step summary
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Print sanitized agent output
         run: |
-          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````json' >> $GITHUB_STEP_SUMMARY
-          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
-          # Ensure there's a newline after the file content if it doesn't end with one
-          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo '``````' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````json' >> $GITHUB_STEP_SUMMARY
           echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-      - name: Upload agentic output file
-        if: always() && steps.collect_output.outputs.output != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: safe_output.jsonl
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          if-no-files-found: warn
-      - name: Upload agent output JSON
+      - name: Upload sanitized agent output
         if: always() && env.GITHUB_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4
         with:
