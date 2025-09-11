@@ -74,6 +74,11 @@ deps-dev: deps copy-copilot-to-claude download-github-actions-schema
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	npm ci
 
+# Install docs dependencies
+.PHONY: docs-deps
+docs-deps:
+	npm ci
+
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
 download-github-actions-schema:
@@ -161,6 +166,21 @@ dev: build
 .PHONY: watch
 watch: build
 	./$(BINARY_NAME) compile --watch
+
+# Documentation development server
+.PHONY: docs-dev
+docs-dev: docs-deps
+	npm run docs:dev
+
+# Build documentation
+.PHONY: docs-build
+docs-build: docs-deps
+	npm run docs:build
+
+# Preview built documentation
+.PHONY: docs-preview
+docs-preview: docs-deps
+	npm run docs:preview
 
 # Create and push a patch release (increments patch version)
 .PHONY: patch-release
@@ -258,4 +278,8 @@ help:
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  patch-release    - Create and push patch release (increments patch version)"
 	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"
+	@echo "  docs-dev         - Start documentation development server"
+	@echo "  docs-build       - Build documentation site"
+	@echo "  docs-preview     - Preview built documentation"
+	@echo "  docs-deps        - Install documentation dependencies"
 	@echo "  help             - Show this help message"
