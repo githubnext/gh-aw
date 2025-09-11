@@ -542,7 +542,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("            \"mcpServers\": {\n")
 
 	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
 	totalServers := len(mcpTools)
 	if hasSafeOutputs {
 		totalServers++

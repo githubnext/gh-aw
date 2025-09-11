@@ -172,7 +172,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          persistence = \"none\"\n")
 
 	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("          \n")
 		yaml.WriteString("          [mcp_servers.safe_outputs]\n")

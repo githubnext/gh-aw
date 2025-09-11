@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -52,7 +51,7 @@ func NewMCPClient(t *testing.T, outputFile string, config map[string]interface{}
 	// Set up environment
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", outputFile))
-	
+
 	if config != nil {
 		configJSON, err := json.Marshal(config)
 		if err != nil {
@@ -204,9 +203,9 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]interface{}{
-		"create-issue":     map[string]interface{}{"enabled": true},
+		"create-issue":      map[string]interface{}{"enabled": true},
 		"create-discussion": map[string]interface{}{"enabled": true},
-		"missing-tool":     map[string]interface{}{"enabled": true},
+		"missing-tool":      map[string]interface{}{"enabled": true},
 	}
 
 	client := NewMCPClient(t, tempFile, config)
@@ -247,12 +246,12 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected tool to be an object, got %T", tool)
 		}
-		
+
 		name, ok := toolObj["name"].(string)
 		if !ok {
 			t.Fatalf("Expected tool name to be a string, got %T", toolObj["name"])
 		}
-		
+
 		toolNames[i] = name
 	}
 
@@ -493,7 +492,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]interface{}{
-		"create-issue":       map[string]interface{}{"enabled": true},
+		"create-issue":      map[string]interface{}{"enabled": true},
 		"add-issue-comment": map[string]interface{}{"enabled": true},
 	}
 
@@ -502,8 +501,8 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 
 	// Call multiple tools in sequence
 	tools := []struct {
-		name string
-		args map[string]interface{}
+		name         string
+		args         map[string]interface{}
 		expectedType string
 	}{
 		{
@@ -545,7 +544,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 	}
 
 	// Verify multiple entries in output file
-	content, err := ioutil.ReadFile(tempFile)
+	content, err := os.ReadFile(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to read output file: %v", err)
 	}
@@ -573,13 +572,13 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 
 func createTempOutputFile(t *testing.T) string {
 	t.Helper()
-	
-	tmpFile, err := ioutil.TempFile("", "safe_outputs_test_*.jsonl")
+
+	tmpFile, err := os.CreateTemp("", "safe_outputs_test_*.jsonl")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 	tmpFile.Close()
-	
+
 	return tmpFile.Name()
 }
 
@@ -589,7 +588,7 @@ func verifyOutputFile(t *testing.T, filename string, expectedType string, expect
 	// Wait a bit for file to be written
 	time.Sleep(100 * time.Millisecond)
 
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("failed to read output file: %w", err)
 	}

@@ -34,7 +34,7 @@ Test safe outputs workflow with MCP server integration.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	
+
 	// Compile the workflow
 	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
@@ -48,28 +48,28 @@ Test safe outputs workflow with MCP server integration.
 		t.Fatalf("Failed to read generated lock file: %v", err)
 	}
 	yamlStr := string(yamlContent)
-	
+
 	// Check that safe-outputs MCP server file is written
 	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs-mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
-	
+
 	// Check that safe_outputs is included in MCP configuration
 	if !strings.Contains(yamlStr, `"safe_outputs": {`) {
 		t.Error("Expected safe_outputs in MCP server configuration")
 	}
-	
+
 	// Check that the MCP server is configured with correct command
 	if !strings.Contains(yamlStr, `"command": "node"`) ||
 		!strings.Contains(yamlStr, `"/tmp/safe-outputs-mcp-server.cjs"`) {
 		t.Error("Expected safe_outputs MCP server to be configured with node command")
 	}
-	
+
 	// Check that safe outputs config is properly set
 	if !strings.Contains(yamlStr, "GITHUB_AW_SAFE_OUTPUTS_CONFIG") {
 		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_CONFIG environment variable to be set")
 	}
-	
+
 	t.Log("Safe outputs MCP server integration test passed")
 }
 
@@ -96,7 +96,7 @@ Test workflow without safe outputs.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	
+
 	// Compile the workflow
 	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
@@ -110,17 +110,17 @@ Test workflow without safe outputs.
 		t.Fatalf("Failed to read generated lock file: %v", err)
 	}
 	yamlStr := string(yamlContent)
-	
+
 	// Check that safe-outputs MCP server file is NOT written
 	if strings.Contains(yamlStr, "cat > /tmp/safe-outputs-mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to NOT be written when safe-outputs are disabled")
 	}
-	
+
 	// Check that safe_outputs is NOT included in MCP configuration
 	if strings.Contains(yamlStr, `"safe_outputs": {`) {
 		t.Error("Expected safe_outputs to NOT be in MCP server configuration when disabled")
 	}
-	
+
 	t.Log("Safe outputs MCP server disabled test passed")
 }
 
@@ -150,7 +150,7 @@ Test safe outputs workflow with Codex engine.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	
+
 	// Compile the workflow
 	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
@@ -164,21 +164,21 @@ Test safe outputs workflow with Codex engine.
 		t.Fatalf("Failed to read generated lock file: %v", err)
 	}
 	yamlStr := string(yamlContent)
-	
+
 	// Check that safe-outputs MCP server file is written
 	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs-mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
-	
+
 	// Check that safe_outputs is included in TOML configuration for Codex
 	if !strings.Contains(yamlStr, "[mcp_servers.safe_outputs]") {
 		t.Error("Expected safe_outputs in Codex MCP server TOML configuration")
 	}
-	
+
 	// Check that the MCP server is configured with correct command in TOML format
 	if !strings.Contains(yamlStr, `command = "node"`) {
 		t.Error("Expected safe_outputs MCP server to be configured with node command in TOML")
 	}
-	
+
 	t.Log("Safe outputs MCP server Codex integration test passed")
 }

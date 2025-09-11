@@ -2828,7 +2828,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
 
 	// Write safe-outputs MCP server if enabled
-	hasSafeOutputs := workflowData.SafeOutputs != nil && c.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && c.hasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Write safe-outputs MCP server\n")
