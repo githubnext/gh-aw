@@ -1,4 +1,7 @@
 async function main() {
+  // Check if we're in staged mode
+  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
@@ -40,6 +43,30 @@ async function main() {
   }
 
   console.log(`Found ${commentItems.length} add-issue-comment item(s)`);
+
+  // If in staged mode, emit step summary instead of creating comments
+  if (isStaged) {
+    let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
+    summaryContent +=
+      "The following comments would be added if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < commentItems.length; i++) {
+      const item = commentItems[i];
+      summaryContent += `### Comment ${i + 1}\n`;
+      if (item.issue_number) {
+        summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
+      } else {
+        summaryContent += `**Target:** Current issue/PR\n\n`;
+      }
+      summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+      summaryContent += "---\n\n";
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log("📝 Comment creation preview written to step summary");
+    return;
+  }
 
   // Get the target configuration from environment variable
   const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
