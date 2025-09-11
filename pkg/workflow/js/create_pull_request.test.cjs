@@ -182,7 +182,7 @@ describe("create_pull_request.cjs", () => {
 
     // Verify git operations (excluding git config which is handled by workflow)
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git checkout -b test-workflow/1234567890abcdef",
+      "git checkout -b test-workflow-1234567890abcdef",
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
@@ -190,7 +190,7 @@ describe("create_pull_request.cjs", () => {
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git push origin test-workflow/1234567890abcdef",
+      "git push origin test-workflow-1234567890abcdef",
       { stdio: "inherit" }
     );
 
@@ -200,7 +200,7 @@ describe("create_pull_request.cjs", () => {
       repo: "testrepo",
       title: "New Feature",
       body: expect.stringContaining("This adds a new feature to the codebase."),
-      head: "test-workflow/1234567890abcdef",
+      head: "test-workflow-1234567890abcdef",
       base: "main",
       draft: true, // default value
     });
@@ -215,7 +215,7 @@ describe("create_pull_request.cjs", () => {
     );
     expect(mockDependencies.core.setOutput).toHaveBeenCalledWith(
       "branch_name",
-      "test-workflow/1234567890abcdef"
+      "test-workflow-1234567890abcdef"
     );
   });
 
