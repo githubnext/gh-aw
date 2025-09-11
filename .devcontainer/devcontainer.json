@@ -19,6 +19,11 @@
 					"permissions": {
 						"contents": "read"
 					}
+				},
+				"githubnext/gh-aw-test": {
+					"permissions": {
+						"contents": "write"
+					}
 				}
 			}
 		}
