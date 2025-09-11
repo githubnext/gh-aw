@@ -1,0 +1,439 @@
+package workflow
+
+import (
+	"regexp"
+	"strings"
+	"testing"
+)
+
+func TestErrorPatternStruct(t *testing.T) {
+	tests := []struct {
+		name        string
+		pattern     ErrorPattern
+		expectValid bool
+	}{
+		{
+			name: "valid error pattern with level and message groups",
+			pattern: ErrorPattern{
+				Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)`,
+				LevelGroup:   2,
+				MessageGroup: 3,
+				Description:  "Test error pattern",
+			},
+			expectValid: true,
+		},
+		{
+			name: "valid pattern with zero groups (defaults)",
+			pattern: ErrorPattern{
+				Pattern:     `ERROR: .+`,
+				Description: "Simple error pattern",
+			},
+			expectValid: true,
+		},
+		{
+			name: "empty pattern",
+			pattern: ErrorPattern{
+				Pattern:     "",
+				Description: "Empty pattern",
+			},
+			expectValid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.pattern.Pattern == "" && tt.expectValid {
+				t.Errorf("Expected valid pattern but got empty pattern")
+			}
+			if tt.pattern.Pattern != "" && !tt.expectValid {
+				// This test case is for checking empty patterns, which we consider invalid
+				return
+			}
+			// Additional validation could be added here
+		})
+	}
+}
+
+func TestCodingAgentEngineErrorValidation(t *testing.T) {
+	// Test BaseEngine default behavior
+	t.Run("BaseEngine_defaults", func(t *testing.T) {
+		base := BaseEngine{}
+
+		patterns := base.GetErrorPatterns()
+		if len(patterns) != 0 {
+			t.Errorf("BaseEngine should return empty error patterns, got %d", len(patterns))
+		}
+	})
+
+	// Test CodexEngine error validation support
+	t.Run("CodexEngine_error_validation", func(t *testing.T) {
+		engine := NewCodexEngine()
+
+		patterns := engine.GetErrorPatterns()
+		if len(patterns) == 0 {
+			t.Error("CodexEngine should return error patterns")
+		}
+
+		// Verify patterns have expected content
+		foundStreamError := false
+		foundError := false
+		foundWarning := false
+
+		for _, pattern := range patterns {
+			if pattern.Description == "Codex stream errors with timestamp" {
+				foundStreamError = true
+				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
+					t.Errorf("Stream error pattern has incorrect groups: level=%d, message=%d",
+						pattern.LevelGroup, pattern.MessageGroup)
+				}
+			}
+			if pattern.Description == "Codex ERROR messages with timestamp" {
+				foundError = true
+			}
+			if pattern.Description == "Codex warning messages with timestamp" {
+				foundWarning = true
+			}
+		}
+
+		if !foundStreamError {
+			t.Error("Missing stream error pattern")
+		}
+		if !foundError {
+			t.Error("Missing ERROR pattern")
+		}
+		if !foundWarning {
+			t.Error("Missing warning pattern")
+		}
+	})
+
+	// Test ClaudeEngine default behavior (should return empty error patterns)
+	t.Run("ClaudeEngine_no_error_validation", func(t *testing.T) {
+		engine := NewClaudeEngine()
+
+		patterns := engine.GetErrorPatterns()
+		if len(patterns) != 0 {
+			t.Errorf("ClaudeEngine should return empty error patterns, got %d", len(patterns))
+		}
+	})
+}
+
+func TestErrorPatternSerialization(t *testing.T) {
+	pattern := ErrorPattern{
+		Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)`,
+		LevelGroup:   2,
+		MessageGroup: 3,
+		Description:  "Test pattern",
+	}
+
+	// Test JSON serialization - this would be used in the workflow compiler
+	// We just verify the struct can be used with json operations
+	if pattern.Pattern == "" {
+		t.Error("Pattern should not be empty")
+	}
+
+	if pattern.LevelGroup < 1 {
+		t.Error("LevelGroup should be >= 1")
+	}
+
+	if pattern.MessageGroup < 1 {
+		t.Error("MessageGroup should be >= 1")
+	}
+}
+
+func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
+	// Test case for GitHub issue #668: Codex fails to report failure if unauthorised
+	engine := NewCodexEngine()
+	patterns := engine.GetErrorPatterns()
+
+	// Log content from issue #668
+	logContent := `[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…
+[2025-09-10T17:54:54] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 2/5 in 414ms…
+[2025-09-10T17:54:58] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 3/5 in 821ms…
+[2025-09-10T17:55:03] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 4/5 in 1.611s…
+[2025-09-10T17:55:08] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 5/5 in 3.039s…
+[2025-09-10T17:55:15] ERROR: exceeded retry limit, last status: 401 Unauthorized`
+
+	// Test that patterns can detect the errors
+	foundStreamErrors := 0
+	foundErrorMessages := 0
+
+	for _, pattern := range patterns {
+		regex, err := regexp.Compile(pattern.Pattern)
+		if err != nil {
+			t.Errorf("Invalid regex pattern '%s': %v", pattern.Pattern, err)
+			continue
+		}
+
+		matches := regex.FindAllString(logContent, -1)
+		if len(matches) > 0 {
+			if pattern.Description == "Codex stream errors with timestamp" {
+				foundStreamErrors = len(matches)
+			}
+			if pattern.Description == "Codex ERROR messages with timestamp" {
+				foundErrorMessages = len(matches)
+			}
+		}
+	}
+
+	// Should detect 5 stream errors and 1 ERROR message from issue #668
+	if foundStreamErrors != 5 {
+		t.Errorf("Expected 5 stream errors from issue #668, found %d", foundStreamErrors)
+	}
+	if foundErrorMessages != 1 {
+		t.Errorf("Expected 1 ERROR message from issue #668, found %d", foundErrorMessages)
+	}
+
+	// Verify the patterns specifically match 401 unauthorized content
+	streamPattern := patterns[0] // Stream error pattern
+	regex, _ := regexp.Compile(streamPattern.Pattern)
+	match := regex.FindStringSubmatch("[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…")
+
+	if len(match) < 4 {
+		t.Error("Stream error pattern should capture timestamp, level, and message groups")
+	} else {
+		if match[streamPattern.LevelGroup] != "error" {
+			t.Errorf("Expected level 'error', got '%s'", match[streamPattern.LevelGroup])
+		}
+		if !strings.Contains(match[streamPattern.MessageGroup], "401 Unauthorized") {
+			t.Errorf("Expected message to contain '401 Unauthorized', got '%s'", match[streamPattern.MessageGroup])
+		}
+	}
+}
+
+func TestExtractErrorPatternsFromEngineConfig(t *testing.T) {
+	compiler := NewCompiler(false, "", "")
+
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expected    []ErrorPattern
+	}{
+		{
+			name: "no error_patterns field in engine",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+				},
+			},
+			expected: []ErrorPattern{},
+		},
+		{
+			name: "valid error patterns in engine config",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							"pattern":       `ERROR:\s+(.+)`,
+							"level_group":   0,
+							"message_group": 1,
+							"description":   "Simple error pattern",
+						},
+						map[string]any{
+							"pattern":       `\[(\d{4}-\d{2}-\d{2})\]\s+(WARN):\s+(.+)`,
+							"level_group":   2,
+							"message_group": 3,
+							"description":   "Warning pattern with timestamp",
+						},
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `ERROR:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 1,
+					Description:  "Simple error pattern",
+				},
+				{
+					Pattern:      `\[(\d{4}-\d{2}-\d{2})\]\s+(WARN):\s+(.+)`,
+					LevelGroup:   2,
+					MessageGroup: 3,
+					Description:  "Warning pattern with timestamp",
+				},
+			},
+		},
+		{
+			name: "pattern with float64 groups (from YAML parsing)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							"pattern":       `ERROR:\s+(.+)`,
+							"level_group":   float64(0),
+							"message_group": float64(1),
+							"description":   "Float64 group indices",
+						},
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `ERROR:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 1,
+					Description:  "Float64 group indices",
+				},
+			},
+		},
+		{
+			name: "pattern without optional fields",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							"pattern": `CRITICAL.*`,
+						},
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `CRITICAL.*`,
+					LevelGroup:   0,
+					MessageGroup: 0,
+					Description:  "",
+				},
+			},
+		},
+		{
+			name: "invalid patterns should be skipped",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							// Missing required pattern field
+							"level_group": 1,
+							"description": "Invalid - no pattern",
+						},
+						map[string]any{
+							"pattern":     `VALID:\s+(.+)`,
+							"description": "Valid pattern",
+						},
+					},
+				},
+			},
+			expected: []ErrorPattern{
+				{
+					Pattern:      `VALID:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 0,
+					Description:  "Valid pattern",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, engineConfig := compiler.extractEngineConfig(tt.frontmatter)
+
+			var patterns []ErrorPattern
+			if engineConfig != nil {
+				patterns = engineConfig.ErrorPatterns
+			}
+
+			if len(patterns) != len(tt.expected) {
+				t.Errorf("Expected %d patterns, got %d", len(tt.expected), len(patterns))
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if i >= len(patterns) {
+					t.Errorf("Missing pattern %d", i)
+					continue
+				}
+				actual := patterns[i]
+
+				if actual.Pattern != expected.Pattern {
+					t.Errorf("Pattern %d: expected pattern '%s', got '%s'", i, expected.Pattern, actual.Pattern)
+				}
+				if actual.LevelGroup != expected.LevelGroup {
+					t.Errorf("Pattern %d: expected level_group %d, got %d", i, expected.LevelGroup, actual.LevelGroup)
+				}
+				if actual.MessageGroup != expected.MessageGroup {
+					t.Errorf("Pattern %d: expected message_group %d, got %d", i, expected.MessageGroup, actual.MessageGroup)
+				}
+				if actual.Description != expected.Description {
+					t.Errorf("Pattern %d: expected description '%s', got '%s'", i, expected.Description, actual.Description)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
+	compiler := NewCompiler(false, "", "")
+	engine := NewClaudeEngine() // Claude doesn't support error validation by default
+
+	// Test with engine config defined error patterns
+	data := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+			ErrorPatterns: []ErrorPattern{
+				{
+					Pattern:      `ERROR:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 1,
+					Description:  "Custom error pattern from engine config",
+				},
+			},
+		},
+	}
+
+	var yamlBuilder strings.Builder
+	compiler.generateErrorValidation(&yamlBuilder, engine, "/tmp/test.log", data)
+
+	generated := yamlBuilder.String()
+
+	// Should generate error validation step even though Claude doesn't support it natively
+	if !strings.Contains(generated, "Validate agent logs for errors") {
+		t.Error("Should generate error validation step with frontmatter patterns")
+	}
+
+	if !strings.Contains(generated, "GITHUB_AW_ERROR_PATTERNS") {
+		t.Error("Should include error patterns environment variable")
+	}
+
+	// Should contain the custom pattern
+	if !strings.Contains(generated, "Custom error pattern from engine config") {
+		t.Error("Should include custom pattern description in JSON")
+	}
+
+	// Test with empty engine config patterns but engine that supports validation
+	codexEngine := NewCodexEngine()
+	dataEmpty := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			ID:            "codex",
+			ErrorPatterns: []ErrorPattern{},
+		},
+	}
+
+	var yamlBuilder2 strings.Builder
+	compiler.generateErrorValidation(&yamlBuilder2, codexEngine, "/tmp/test.log", dataEmpty)
+
+	generated2 := yamlBuilder2.String()
+
+	// Should fall back to engine patterns
+	if !strings.Contains(generated2, "Validate agent logs for errors") {
+		t.Error("Should generate error validation step with engine patterns")
+	}
+
+	// Test with no engine config and engine that doesn't support error validation
+	dataEmpty2 := &WorkflowData{
+		EngineConfig: nil,
+	}
+
+	var yamlBuilder3 strings.Builder
+	compiler.generateErrorValidation(&yamlBuilder3, engine, "/tmp/test.log", dataEmpty2)
+
+	generated3 := yamlBuilder3.String()
+
+	// Should not generate any validation step
+	if strings.Contains(generated3, "Validate agent logs for errors") {
+		t.Error("Should not generate error validation step without patterns")
+	}
+}

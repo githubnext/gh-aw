@@ -210,6 +210,7 @@ Here are additional guidelines to consider when designing a feature that generat
 
 1. **Prefer JavaScript actions over shell scripts** for GitHub API interactions
 2. **Use @actions/core utilities** for proper workflow integration
+3. **Always use `core.warn` instead of `console.warn`** in GitHub Actions scripts for proper workflow integration and logging
 
 ### Important Files to Check When Making Changes
 - **Always check** `cmd/gh-aw/main.go` after modifying CLI commands
