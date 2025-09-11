@@ -10,7 +10,8 @@
 				"golang.go",
 				"GitHub.copilot-chat",
 				"GitHub.copilot",
-				"github.vscode-github-actions"
+				"github.vscode-github-actions",
+				"astro-build.astro-vscode"
 			]
 		},
 		"codespaces": {
