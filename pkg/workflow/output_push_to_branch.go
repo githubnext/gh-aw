@@ -4,8 +4,8 @@ import (
 	"fmt"
 )
 
-// buildCreateOutputPushToBranchJob creates the push_to_pr_branch job
-func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
+// buildCreateOutputPushToPullRequestBranchJob creates the push_to_pr_branch job
+func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.PushToPullRequestBranch == nil {
 		return nil, fmt.Errorf("safe-outputs.push-to-pr-branch configuration is required")
 	}

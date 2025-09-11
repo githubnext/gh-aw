@@ -161,7 +161,7 @@ type SafeOutputsConfig struct {
 	CreateRepositorySecurityAdvisories *CreateRepositorySecurityAdvisoriesConfig `yaml:"create-repository-security-advisory,omitempty"`
 	AddIssueLabels                     *AddIssueLabelsConfig                     `yaml:"add-issue-label,omitempty"`
 	UpdateIssues                       *UpdateIssuesConfig                       `yaml:"update-issue,omitempty"`
-	PushToPullRequestBranch            *PushToBranchConfig                       `yaml:"push-to-pr-branch,omitempty"`
+	PushToPullRequestBranch            *PushToPullRequestBranchConfig            `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                        *MissingToolConfig                        `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                     []string                                  `yaml:"allowed-domains,omitempty"`
 }
@@ -227,8 +227,8 @@ type UpdateIssuesConfig struct {
 	Max    int    `yaml:"max,omitempty"`    // Maximum number of issues to update (default: 1)
 }
 
-// PushToBranchConfig holds configuration for pushing changes to a specific branch from agent output
-type PushToBranchConfig struct {
+// PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
+type PushToPullRequestBranchConfig struct {
 	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-issue-comment but for pull requests
 	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 }
@@ -1928,7 +1928,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 		// Build push_to_pr_branch job if output.push-to-pr-branch is configured
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
-			pushToBranchJob, err := c.buildCreateOutputPushToBranchJob(data, jobName)
+			pushToBranchJob, err := c.buildCreateOutputPushToPullRequestBranchJob(data, jobName)
 			if err != nil {
 				return fmt.Errorf("failed to build push_to_pr_branch job: %w", err)
 			}
@@ -3493,7 +3493,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle push-to-pr-branch
-			pushToBranchConfig := c.parsePushToBranchConfig(outputMap)
+			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
 			if pushToBranchConfig != nil {
 				config.PushToPullRequestBranch = pushToBranchConfig
 			}
@@ -3781,10 +3781,10 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 	return nil
 }
 
-// parsePushToBranchConfig handles push-to-pr-branch configuration
-func (c *Compiler) parsePushToBranchConfig(outputMap map[string]any) *PushToBranchConfig {
+// parsePushToPullRequestBranchConfig handles push-to-pr-branch configuration
+func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) *PushToPullRequestBranchConfig {
 	if configData, exists := outputMap["push-to-pr-branch"]; exists {
-		pushToBranchConfig := &PushToBranchConfig{
+		pushToBranchConfig := &PushToPullRequestBranchConfig{
 			Branch:      "triggering", // Default branch value
 			IfNoChanges: "warn",       // Default behavior: warn when no changes
 		}

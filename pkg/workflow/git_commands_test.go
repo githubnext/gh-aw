@@ -33,7 +33,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 			name:  "push-to-pr-branch enabled - should add git commands",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToBranchConfig{Branch: "main"},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{Branch: "main"},
 			},
 			expectGit: true,
 		},
@@ -155,7 +155,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 			name:  "push-to-pr-branch enabled - should add editing tools",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToBranchConfig{Branch: "main"},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{Branch: "main"},
 			},
 			expectEditingTools: true,
 		},
@@ -270,7 +270,7 @@ func TestNeedsGitCommands(t *testing.T) {
 		{
 			name: "push-to-pr-branch enabled",
 			safeOutputs: &SafeOutputsConfig{
-				PushToPullRequestBranch: &PushToBranchConfig{Branch: "main"},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{Branch: "main"},
 			},
 			expected: true,
 		},
@@ -278,7 +278,7 @@ func TestNeedsGitCommands(t *testing.T) {
 			name: "both enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests:      &CreatePullRequestsConfig{},
-				PushToPullRequestBranch: &PushToBranchConfig{Branch: "main"},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{Branch: "main"},
 			},
 			expected: true,
 		},

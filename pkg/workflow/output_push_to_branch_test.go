@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestPushToBranchConfigParsing(t *testing.T) {
+func TestPushToPullRequestBranchConfigParsing(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -76,7 +76,7 @@ Please make changes and push them to the feature branch.
 	}
 }
 
-func TestPushToBranchWithTargetAsterisk(t *testing.T) {
+func TestPushToPullRequestBranchWithTargetAsterisk(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -128,7 +128,7 @@ This workflow allows pushing to any pull request.
 	}
 }
 
-func TestPushToBranchDefaultBranch(t *testing.T) {
+func TestPushToPullRequestBranchDefaultBranch(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -177,7 +177,7 @@ This workflow uses the default branch value.
 	}
 }
 
-func TestPushToBranchNullConfig(t *testing.T) {
+func TestPushToPullRequestBranchNullConfig(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -230,7 +230,7 @@ This workflow uses null configuration which should default to "triggering".
 	}
 }
 
-func TestPushToBranchMinimalConfig(t *testing.T) {
+func TestPushToPullRequestBranchMinimalConfig(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -286,7 +286,7 @@ This workflow has minimal push-to-pr-branch configuration.
 	}
 }
 
-func TestPushToBranchWithIfNoChangesError(t *testing.T) {
+func TestPushToPullRequestBranchWithIfNoChangesError(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -334,7 +334,7 @@ This workflow fails when there are no changes.
 	}
 }
 
-func TestPushToBranchWithIfNoChangesIgnore(t *testing.T) {
+func TestPushToPullRequestBranchWithIfNoChangesIgnore(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -381,7 +381,7 @@ This workflow ignores when there are no changes.
 	}
 }
 
-func TestPushToBranchDefaultIfNoChanges(t *testing.T) {
+func TestPushToPullRequestBranchDefaultIfNoChanges(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -427,7 +427,7 @@ This workflow uses default if-no-changes behavior.
 	}
 }
 
-func TestPushToBranchExplicitTriggering(t *testing.T) {
+func TestPushToPullRequestBranchExplicitTriggering(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 

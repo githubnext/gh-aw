@@ -133,7 +133,7 @@ This is a test workflow that should automatically get additional Claude tools wh
 	}
 }
 
-func TestAdditionalClaudeToolsIntegrationWithPushToBranch(t *testing.T) {
+func TestAdditionalClaudeToolsIntegrationWithPushToPullRequestBranch(t *testing.T) {
 	// Create a simple workflow with push-to-pr-branch enabled
 	workflowContent := `---
 name: Test Additional Claude Tools Integration with Push to Branch
