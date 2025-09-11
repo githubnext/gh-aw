@@ -141,16 +141,13 @@ jobs:
               // Generate a random filename for the output file
               const randomId = crypto.randomBytes(8).toString("hex");
               const outputFile = `/tmp/aw_output_${randomId}.txt`;
-              // Ensure the /tmp directory exists and create empty output file
+              // Ensure the /tmp directory exists
               fs.mkdirSync("/tmp", { recursive: true });
-              fs.writeFileSync(outputFile, "", { mode: 0o644 });
-              // Verify the file was created and is writable
-              if (!fs.existsSync(outputFile)) {
-                throw new Error(`Failed to create output file: ${outputFile}`);
-              }
+              // We don't create the file, as the name is sufficiently random
+              // and some engines (Claude) fails first Write to the file
+              // if it exists and has not been read.
               // Set the environment variable for subsequent steps
               core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
-              console.log("Created agentic output file:", outputFile);
               // Also set as step output for reference
               core.setOutput("output_file", outputFile);
             }
@@ -384,7 +381,28 @@ jobs:
           
           # Ensure log file exists
           touch /tmp/accessibility-color-contrast-screenshot-analysis.log
-      - name: Collect agent output
+      - name: Print Agent output
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+        run: |
+          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '``````json' >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
+          # Ensure there's a newline after the file content if it doesn't end with one
+          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '``````' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+      - name: Upload agentic output file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe_output.jsonl
+          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          if-no-files-found: warn
+      - name: Ingest agent output
         id: collect_output
         uses: actions/github-script@v7
         env:
@@ -549,14 +567,14 @@ jobs:
                     return 5; // Only one labels operation allowed
                   case "update-issue":
                     return 1; // Only one issue update allowed
-                  case "push-to-branch":
+                  case "push-to-pr-branch":
                     return 1; // Only one push to branch allowed
                   case "create-discussion":
                     return 1; // Only one discussion allowed
                   case "missing-tool":
                     return 1000; // Allow many missing tool reports (default: unlimited)
-                  case "create-security-report":
-                    return 1000; // Allow many security reports (default: unlimited)
+                  case "create-code-scanning-alert":
+                    return 1000; // Allow many repository security advisories (default: unlimited)
                   default:
                     return 1; // Default to single item for unknown types
                 }
@@ -568,6 +586,15 @@ jobs:
                */
               function repairJson(jsonStr) {
                 let repaired = jsonStr.trim();
+                // remove invalid control characters like
+                // U+0014 (DC4) — represented here as "\u0014"
+                // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
+                // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+                const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
+                repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
+                  const c = ch.charCodeAt(0);
+                  return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
+                });
                 // Fix single quotes to double quotes (must be done first)
                 repaired = repaired.replace(/'/g, '"');
                 // Fix missing quotes around object keys
@@ -637,6 +664,7 @@ jobs:
                     return JSON.parse(repairedJson);
                   } catch (repairError) {
                     // If repair also fails, throw the error
+                    console.log(`invalid input json: ${jsonStr}`);
                     throw new Error(
                       `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
                     );
@@ -848,12 +876,12 @@ jobs:
                         }
                       }
                       break;
-                    case "push-to-branch":
+                    case "push-to-pr-branch":
                       // Validate message if provided (optional)
                       if (item.message !== undefined) {
                         if (typeof item.message !== "string") {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'message' must be a string`
+                            `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
                           );
                           continue;
                         }
@@ -866,7 +894,7 @@ jobs:
                           typeof item.pull_request_number !== "string"
                         ) {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`
+                            `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
                           );
                           continue;
                         }
@@ -1003,37 +1031,94 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives);
                       }
                       break;
-                    case "create-security-report":
-                      // Validate required sarif field
-                      if (!item.sarif) {
+                    case "create-code-scanning-alert":
+                      // Validate required fields
+                      if (!item.file || typeof item.file !== "string") {
                         errors.push(
-                          `Line ${i + 1}: create-security-report requires a 'sarif' field`
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`
                         );
                         continue;
                       }
-                      // SARIF content can be object or string
                       if (
-                        typeof item.sarif !== "object" &&
-                        typeof item.sarif !== "string"
+                        item.line === undefined ||
+                        item.line === null ||
+                        (typeof item.line !== "number" && typeof item.line !== "string")
                       ) {
                         errors.push(
-                          `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'line' field (number or string)`
                         );
                         continue;
                       }
-                      // If SARIF is a string, sanitize it
-                      if (typeof item.sarif === "string") {
-                        item.sarif = sanitizeContent(item.sarif);
+                      // Additional validation: line must be parseable as a positive integer
+                      const parsedLine = parseInt(item.line, 10);
+                      if (isNaN(parsedLine) || parsedLine <= 0) {
+                        errors.push(
+                          `Line ${i + 1}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${item.line})`
+                        );
+                        continue;
                       }
-                      // Validate optional category field
-                      if (item.category !== undefined) {
-                        if (typeof item.category !== "string") {
+                      if (!item.severity || typeof item.severity !== "string") {
+                        errors.push(
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`
+                        );
+                        continue;
+                      }
+                      if (!item.message || typeof item.message !== "string") {
+                        errors.push(
+                          `Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`
+                        );
+                        continue;
+                      }
+                      // Validate severity level
+                      const allowedSeverities = ["error", "warning", "info", "note"];
+                      if (!allowedSeverities.includes(item.severity.toLowerCase())) {
+                        errors.push(
+                          `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
+                        );
+                        continue;
+                      }
+                      // Validate optional column field
+                      if (item.column !== undefined) {
+                        if (
+                          typeof item.column !== "number" &&
+                          typeof item.column !== "string"
+                        ) {
                           errors.push(
-                            `Line ${i + 1}: create-security-report 'category' must be a string`
+                            `Line ${i + 1}: create-code-scanning-alert 'column' must be a number or string`
                           );
                           continue;
                         }
-                        item.category = sanitizeContent(item.category);
+                        // Additional validation: must be parseable as a positive integer
+                        const parsedColumn = parseInt(item.column, 10);
+                        if (isNaN(parsedColumn) || parsedColumn <= 0) {
+                          errors.push(
+                            `Line ${i + 1}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${item.column})`
+                          );
+                          continue;
+                        }
+                      }
+                      // Validate optional ruleIdSuffix field
+                      if (item.ruleIdSuffix !== undefined) {
+                        if (typeof item.ruleIdSuffix !== "string") {
+                          errors.push(
+                            `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`
+                          );
+                          continue;
+                        }
+                        if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
+                          errors.push(
+                            `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
+                          );
+                          continue;
+                        }
+                      }
+                      // Normalize severity to lowercase and sanitize string fields
+                      item.severity = item.severity.toLowerCase();
+                      item.file = sanitizeContent(item.file);
+                      item.severity = sanitizeContent(item.severity);
+                      item.message = sanitizeContent(item.message);
+                      if (item.ruleIdSuffix) {
+                        item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
                       }
                       break;
                     default:
@@ -1074,40 +1159,21 @@ jobs:
                 // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
                 core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
-                console.error(`Failed to write agent output file: ${error.message}`);
+                core.error(`Failed to write agent output file: ${error.message}`);
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
             }
             // Call the main function
             await main();
-      - name: Print agent output to step summary
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Print sanitized agent output
         run: |
-          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````json' >> $GITHUB_STEP_SUMMARY
-          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
-          # Ensure there's a newline after the file content if it doesn't end with one
-          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo '``````' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````json' >> $GITHUB_STEP_SUMMARY
           echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-      - name: Upload agentic output file
-        if: always() && steps.collect_output.outputs.output != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: safe_output.jsonl
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          if-no-files-found: warn
-      - name: Upload agent output JSON
+      - name: Upload sanitized agent output
         if: always() && env.GITHUB_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4
         with:
@@ -1537,6 +1603,8 @@ jobs:
         with:
           script: |
             async function main() {
+              // Check if we're in staged mode
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
@@ -1572,6 +1640,28 @@ jobs:
                 return;
               }
               console.log(`Found ${createIssueItems.length} create-issue item(s)`);
+              // If in staged mode, emit step summary instead of creating issues
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent +=
+                  "The following issues would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createIssueItems.length; i++) {
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                // Write to step summary
+                await core.summary.addRaw(summaryContent).write();
+                console.log("📝 Issue creation preview written to step summary");
+                return;
+              }
               // Check if we're in an issue context (triggered by an issue event)
               const parentIssueNumber = context.payload?.issue?.number;
               // Parse labels from environment variable (comma-separated string)

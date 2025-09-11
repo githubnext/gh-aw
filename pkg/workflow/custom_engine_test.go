@@ -213,6 +213,10 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		Allowed: []string{"external.example.com"}, // This should be ignored for Playwright
 	}
 
+	workflowData := &WorkflowData{
+		NetworkPermissions: networkPerms,
+	}
+
 	tools := map[string]any{
 		"playwright": map[string]any{
 			"docker_image_version": "v1.40.0",
@@ -222,7 +226,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 
 	mcpTools := []string{"playwright"}
 
-	engine.RenderMCPConfig(&yaml, tools, mcpTools, networkPerms)
+	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
 	output := yaml.String()
 
 	// Check that the output contains Playwright configuration
@@ -255,6 +259,10 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		Allowed: []string{"external.example.com"}, // This should be ignored for Playwright
 	}
 
+	workflowData := &WorkflowData{
+		NetworkPermissions: networkPerms,
+	}
+
 	tools := map[string]any{
 		"playwright": map[string]any{
 			"docker_image_version": "v1.40.0",
@@ -264,7 +272,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 
 	mcpTools := []string{"playwright"}
 
-	engine.RenderMCPConfig(&yaml, tools, mcpTools, networkPerms)
+	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
 	output := yaml.String()
 
 	// Check that the output contains Playwright configuration

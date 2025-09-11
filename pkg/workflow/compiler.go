@@ -2743,9 +2743,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 	var proxyTools []string
-	tools := workflowData.Tools
+	workflowTools := workflowData.Tools
 
-	for toolName, toolValue := range tools {
+	for toolName, toolValue := range workflowTools {
 		// Standard MCP tools
 		if toolName == "github" || toolName == "playwright" {
 			mcpTools = append(mcpTools, toolName)

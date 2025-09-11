@@ -139,7 +139,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubMCPConfig(yaml, githubTool, isLast, workflowData)
+			e.renderGitHubMCPConfig(yaml, githubTool, isLast)
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)

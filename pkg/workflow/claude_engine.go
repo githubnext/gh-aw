@@ -554,7 +554,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.networkPermissions)
+			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {

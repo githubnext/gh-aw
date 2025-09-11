@@ -184,7 +184,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.networkPermissions)
+			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
