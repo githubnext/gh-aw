@@ -603,10 +603,22 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 	return nil
 }
-func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, writeInstructions bool, noEmit bool, purge bool) error {
+func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, workflowDir string, writeInstructions bool, noEmit bool, purge bool) error {
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
 		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+	}
+
+	// Validate and set default for workflow directory
+	if workflowDir == "" {
+		workflowDir = ".github/workflows"
+	} else {
+		// Ensure the path is relative
+		if filepath.IsAbs(workflowDir) {
+			return fmt.Errorf("workflow-dir must be a relative path, got: %s", workflowDir)
+		}
+		// Clean the path to avoid issues with ".." or other problematic elements
+		workflowDir = filepath.Clean(workflowDir)
 	}
 
 	// Create compiler with verbose flag and AI engine override
@@ -684,10 +696,10 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		return fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
 	}
 
-	// Compile all markdown files in .github/workflows relative to git root
-	workflowsDir := filepath.Join(gitRoot, ".github/workflows")
+	// Compile all markdown files in the specified workflow directory relative to git root
+	workflowsDir := filepath.Join(gitRoot, workflowDir)
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("the .github/workflows directory does not exist in git root (%s)", gitRoot)
+		return fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
 	}
 
 	if verbose {
