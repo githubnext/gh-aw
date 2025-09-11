@@ -2,7 +2,7 @@ function main() {
   const fs = require("fs");
 
   try {
-    const logFile = process.env.AGENT_LOG_FILE;
+    const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!logFile) {
       console.log("No agent log file specified");
       return;
