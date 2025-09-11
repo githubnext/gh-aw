@@ -3288,6 +3288,22 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          \n")
 		}
 
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			yaml.WriteString("          **Creating a Pull Request Review Comment**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a review comment on a pull request:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"create-pull-request-review-comment\", \"body\": \"Your comment content in markdown\", \"path\": \"file/path.ext\", \"start_line\": 10, \"line\": 10, \"side\": \"RIGHT\"}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. The `path` field specifies the file path in the pull request where the comment should be added\n")
+			yaml.WriteString("          3. The `line` field specifies the line number in the file for the comment\n")
+			yaml.WriteString("          4. The optional `start_line` field is optional and can be used to specify the start of a multi-line comment range\n")
+			yaml.WriteString("          5. The optional `side` field indicates whether the comment is on the \"RIGHT\" (new code) or \"LEFT\" (old code) side of the diff\n")
+			yaml.WriteString("          6. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          \n")
+		}
+
 		yaml.WriteString("          **Example JSONL file content:**\n")
 		yaml.WriteString("          ```\n")
 
@@ -3315,6 +3331,15 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			yaml.WriteString("          {\"type\": \"create-code-scanning-alert\", \"file\": \"src/auth.js\", \"line\": 25, \"severity\": \"error\", \"message\": \"Potential SQL injection vulnerability\"}\n")
+			exampleCount++
+		}
+		if data.SafeOutputs.UpdateIssues != nil {
+			yaml.WriteString("          {\"type\": \"update-issue\", \"title\": \"Updated Issue Title\", \"body\": \"Expanded issue description.\", \"status\": \"open\"}\n")
+			exampleCount++
+		}
+
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			yaml.WriteString("          {\"type\": \"create-pull-request-review-comment\", \"body\": \"Consider renaming this variable for clarity.\", \"path\": \"src/main.py\", \"start_line\": 41, \"line\": 42, \"side\": \"RIGHT\"}\n")
 			exampleCount++
 		}
 
