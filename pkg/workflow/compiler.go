@@ -2369,8 +2369,8 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
-	// Only run in pull request context
-	baseCondition := "github.event.pull_request.number"
+	// We only run in pull request context, Note that in pull request comments only github.event.issue.pull_request is set.
+	baseCondition := "(github.event.issue.pull_request || github.event.pull_request)"
 
 	// If this is a command workflow, combine the command trigger condition with the base condition
 	var jobCondition string

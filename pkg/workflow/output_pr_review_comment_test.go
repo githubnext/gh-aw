@@ -243,7 +243,7 @@ This workflow tests job generation for PR review comments.
 		}
 
 		// Verify job condition is correct for PR context
-		if !strings.Contains(workflowContent, "if: github.event.pull_request.number") {
+		if !strings.Contains(workflowContent, "if: (github.event.issue.pull_request || github.event.pull_request)") {
 			t.Error("Expected job condition to check for pull request context")
 		}
 
