@@ -2859,12 +2859,9 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	return playwrightDockerImageVersion
 }
 
-// generatePlaywrightDomainArgs generates Playwright CLI arguments for domain restrictions
-// Uses environment variables to configure domain restrictions in the Playwright container
-// Supports the same domain bundle resolution as top-level network configuration, defaulting to localhost only
-func generatePlaywrightDomainArgs(playwrightTool any, networkPermissions *NetworkPermissions) []string {
-	var args []string
-
+// generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
+// Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
+func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
 	// Default to localhost only (same as Copilot agent default)
 	allowedDomains := []string{"localhost", "127.0.0.1"}
 
@@ -2896,6 +2893,17 @@ func generatePlaywrightDomainArgs(playwrightTool any, networkPermissions *Networ
 		}
 	}
 
+	return allowedDomains
+}
+
+// generatePlaywrightDomainArgs generates Playwright CLI arguments for domain restrictions
+// Uses environment variables to configure domain restrictions in the Playwright container
+// Supports the same domain bundle resolution as top-level network configuration, defaulting to localhost only
+// DEPRECATED: Use generatePlaywrightAllowedDomains with env field pattern instead
+func generatePlaywrightDomainArgs(playwrightTool any, networkPermissions *NetworkPermissions) []string {
+	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
+
+	var args []string
 	// The Playwright MCP server can read these to configure restrictions
 	args = append(args, "-e", "PLAYWRIGHT_ALLOWED_DOMAINS="+strings.Join(allowedDomains, ","))
 

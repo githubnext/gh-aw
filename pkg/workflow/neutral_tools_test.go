@@ -97,8 +97,8 @@ func TestExpandNeutralToolsToClaudeTools(t *testing.T) {
 			expected: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Browser":        nil,
-						"ScreenshotTool": nil,
+						// Playwright provides its own containerized browser automation
+						// Do not enable Claude's built-in Browser and ScreenshotTool to avoid conflicts
 					},
 				},
 			},
@@ -115,15 +115,15 @@ func TestExpandNeutralToolsToClaudeTools(t *testing.T) {
 			expected: map[string]any{
 				"claude": map[string]any{
 					"allowed": map[string]any{
-						"Bash":           []any{"echo"},
-						"WebFetch":       nil,
-						"WebSearch":      nil,
-						"Edit":           nil,
-						"MultiEdit":      nil,
-						"NotebookEdit":   nil,
-						"Write":          nil,
-						"Browser":        nil,
-						"ScreenshotTool": nil,
+						"Bash":         []any{"echo"},
+						"WebFetch":     nil,
+						"WebSearch":    nil,
+						"Edit":         nil,
+						"MultiEdit":    nil,
+						"NotebookEdit": nil,
+						"Write":        nil,
+						// Playwright provides its own containerized browser automation
+						// Do not enable Claude's built-in Browser and ScreenshotTool to avoid conflicts
 					},
 				},
 			},

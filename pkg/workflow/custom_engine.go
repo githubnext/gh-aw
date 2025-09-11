@@ -198,16 +198,27 @@ func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                  \"--shm-size=2gb\",\n")
 	yaml.WriteString("                  \"--cap-add=SYS_ADMIN\",\n")
 
-	// Generate domain restriction arguments from Playwright tool configuration with bundle resolution
-	// Always add domain arguments (defaults to localhost if not configured)
-	domainArgs := generatePlaywrightDomainArgs(playwrightTool, networkPermissions)
-	for _, arg := range domainArgs {
-		yaml.WriteString("                  \"" + arg + "\",\n")
+	// Get domain values for environment variables
+	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
+
+	// Add environment variable declarations in args (like github MCP server pattern)
+	yaml.WriteString("                  \"-e\",\n")
+	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\",\n")
+	if len(allowedDomains) == 0 {
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\",\n")
 	}
 
 	yaml.WriteString("                  \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")
 	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {}\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\": \"" + strings.Join(allowedDomains, ",") + "\"")
+	if len(allowedDomains) == 0 {
+		yaml.WriteString(",\n")
+		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\": \"true\"")
+	}
+	yaml.WriteString("\n")
+	yaml.WriteString("                }\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")
