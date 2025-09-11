@@ -2970,6 +2970,13 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          # Copy the log file from step output\n")
+	yaml.WriteString("          cp ${{ steps.agentic_execution.outputs.execution_file }} ")
+	yaml.WriteString(logFileFull)
+	yaml.WriteString(" || echo 'Could not copy execution file'\n")
+	yaml.WriteString("      - name: Generate step summary from logs\n")
+	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          AGENT_LOG_FILE: %s\n", logFileFull)

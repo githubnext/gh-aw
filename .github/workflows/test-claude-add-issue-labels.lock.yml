@@ -470,7 +470,7 @@ jobs:
               // Generate a random filename for the output file
               const randomId = crypto.randomBytes(8).toString("hex");
               const outputFile = `/tmp/aw_output_${randomId}.txt`;
-              // Ensure the /tmp directory exists 
+              // Ensure the /tmp directory exists
               fs.mkdirSync("/tmp", { recursive: true });
               // We don't create the file, as the name is sufficiently random
               // and some engines (Claude) fails first Write to the file
@@ -597,12 +597,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - name: Install Claude CLI
-        run: |
-          # Install Claude CLI directly from npm
-          npm install -g @anthropic-ai/claude-cli
-          # Verify installation
-          claude --version || echo 'Claude CLI installed'
       - name: Execute Claude CLI
         id: agentic_execution
         run: |
@@ -618,8 +612,8 @@ jobs:
           # Configure Claude CLI settings
           cp /tmp/.claude/settings.json ~/.claude/settings.json
           
-          # Run Claude CLI with configuration
-          timeout 5m claude \
+          # Run Claude CLI with configuration (using npx)
+          npx @anthropic-ai/claude-cli \
             --no-confirm \
             --headless \
             --model claude-3-5-sonnet-20241022 \
@@ -1459,6 +1453,11 @@ jobs:
         run: |
           rm -f output.txt
       - name: Parse agent logs for step summary
+        if: always()
+        run: |
+          # Copy the log file from step output
+          cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-add-issue-labels.log || echo 'Could not copy execution file'
+      - name: Generate step summary from logs
         if: always()
         uses: actions/github-script@v7
         env:

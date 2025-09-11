@@ -6,7 +6,7 @@ function main() {
   const randomId = crypto.randomBytes(8).toString("hex");
   const outputFile = `/tmp/aw_output_${randomId}.txt`;
 
-  // Ensure the /tmp directory exists 
+  // Ensure the /tmp directory exists
   fs.mkdirSync("/tmp", { recursive: true });
 
   // We don't create the file, as the name is sufficiently random

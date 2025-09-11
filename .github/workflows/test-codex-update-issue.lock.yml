@@ -368,7 +368,7 @@ jobs:
               // Generate a random filename for the output file
               const randomId = crypto.randomBytes(8).toString("hex");
               const outputFile = `/tmp/aw_output_${randomId}.txt`;
-              // Ensure the /tmp directory exists 
+              // Ensure the /tmp directory exists
               fs.mkdirSync("/tmp", { recursive: true });
               // We don't create the file, as the name is sufficiently random
               // and some engines (Claude) fails first Write to the file
@@ -1251,6 +1251,11 @@ jobs:
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Parse agent logs for step summary
+        if: always()
+        run: |
+          # Copy the log file from step output
+          cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-codex-update-issue.log || echo 'Could not copy execution file'
+      - name: Generate step summary from logs
         if: always()
         uses: actions/github-script@v7
         env:

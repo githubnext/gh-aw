@@ -81,15 +81,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	nodeJSStep := e.generateNodeJSInstallationStep()
 	steps = append(steps, nodeJSStep)
 
-	// Add Claude CLI installation step
-	claudeCLIStep := e.generateClaudeCLIInstallationStep()
-	steps = append(steps, claudeCLIStep)
-
-	// Add Claude CLI execution step
+	// Add Claude CLI execution step (using npx)
 	claudeExecutionStep := e.generateClaudeCLIExecutionStep(workflowData, logFile)
 	steps = append(steps, claudeExecutionStep)
 
-	// Add the log capture step  
+	// Add the log capture step
 	logCaptureStep := e.generateLogCaptureStep(logFile)
 	steps = append(steps, logCaptureStep)
 
@@ -932,34 +928,10 @@ func (e *ClaudeEngine) generateNodeJSInstallationStep() GitHubActionStep {
 	return GitHubActionStep(stepLines)
 }
 
-// generateClaudeCLIInstallationStep creates a step to install Claude CLI
-func (e *ClaudeEngine) generateClaudeCLIInstallationStep() GitHubActionStep {
-	stepLines := []string{
-		"      - name: Install Claude CLI",
-		"        run: |",
-		"          # Install Claude CLI directly from npm",
-		"          npm install -g @anthropic-ai/claude-cli",
-		"          # Verify installation",
-		"          claude --version || echo 'Claude CLI installed'",
-	}
-	return GitHubActionStep(stepLines)
-}
-
 // generateClaudeCLIExecutionStep creates a step to execute Claude CLI with the workflow configuration
 func (e *ClaudeEngine) generateClaudeCLIExecutionStep(workflowData *WorkflowData, logFile string) GitHubActionStep {
 	// Apply default Claude tools
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
-	
-	// Build timeout configuration
-	timeoutMinutes := "5" // default
-	if workflowData.TimeoutMinutes != "" {
-		// TimeoutMinutes contains the full YAML line (e.g. "timeout_minutes: 5")
-		// Extract just the number
-		parts := strings.Split(workflowData.TimeoutMinutes, ":")
-		if len(parts) > 1 {
-			timeoutMinutes = strings.TrimSpace(parts[1])
-		}
-	}
 
 	stepLines := []string{
 		"      - name: Execute Claude CLI",
@@ -983,12 +955,12 @@ func (e *ClaudeEngine) generateClaudeCLIExecutionStep(workflowData *WorkflowData
 		stepLines = append(stepLines, "          export GITHUB_AW_SAFE_OUTPUTS=\"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\"")
 	}
 
-	// Add max turns configuration 
+	// Add max turns configuration
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		stepLines = append(stepLines, fmt.Sprintf("          export GITHUB_AW_MAX_TURNS=\"%s\"", workflowData.EngineConfig.MaxTurns))
 	}
 
-	stepLines = append(stepLines, 
+	stepLines = append(stepLines,
 		"          ",
 		"          # Create claude configuration directory",
 		"          mkdir -p ~/.claude",
@@ -1008,8 +980,8 @@ func (e *ClaudeEngine) generateClaudeCLIExecutionStep(workflowData *WorkflowData
 
 	stepLines = append(stepLines,
 		"          ",
-		"          # Run Claude CLI with configuration",
-		fmt.Sprintf("          timeout %sm claude \\", timeoutMinutes),
+		"          # Run Claude CLI with configuration (using npx)",
+		"          npx @anthropic-ai/claude-cli \\",
 		"            --no-confirm \\",
 		"            --headless \\",
 		fmt.Sprintf("            --model %s \\", modelConfig),
