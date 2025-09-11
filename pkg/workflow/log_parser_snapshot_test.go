@@ -121,7 +121,7 @@ const core = {
 };
 
 // Set up environment
-process.env.AGENT_LOG_FILE = '%s';
+process.env.GITHUB_AW_AGENT_OUTPUT = '%s';
 
 // Override require to provide our mock
 const originalRequire = require;

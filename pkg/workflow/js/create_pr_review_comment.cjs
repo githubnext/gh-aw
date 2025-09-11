@@ -78,11 +78,14 @@ async function main() {
   const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
   console.log(`Default comment side configuration: ${defaultSide}`);
 
-  // Check if we're in a pull request context
+  // Check if we're in a pull request context, or an issue comment context on a PR
   const isPRContext =
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
-    context.eventName === "pull_request_review_comment";
+    context.eventName === "pull_request_review_comment" ||
+    (context.eventName === "issue_comment" &&
+      context.payload.issue &&
+      context.payload.issue.pull_request);
 
   if (!isPRContext) {
     console.log(
@@ -90,8 +93,9 @@ async function main() {
     );
     return;
   }
+  const pullRequest = context.payload.pull_request || context.payload.issue.pull_request;
 
-  if (!context.payload.pull_request) {
+  if (!pullRequest) {
     console.log(
       "Pull request context detected but no pull request found in payload"
     );
@@ -100,8 +104,8 @@ async function main() {
 
   // Check if we have the commit SHA needed for creating review comments
   if (
-    !context.payload.pull_request.head ||
-    !context.payload.pull_request.head.sha
+    !pullRequest.head ||
+    !pullRequest.head.sha
   ) {
     console.log(
       "Pull request head commit SHA not found in payload - cannot create review comments"
@@ -109,7 +113,7 @@ async function main() {
     return;
   }
 
-  const pullRequestNumber = context.payload.pull_request.number;
+  const pullRequestNumber = pullRequest.number;
   console.log(`Creating review comments on PR #${pullRequestNumber}`);
 
   const createdComments = [];
@@ -199,7 +203,7 @@ async function main() {
         pull_number: pullRequestNumber,
         body: body,
         path: commentItem.path,
-        commit_id: context.payload.pull_request.head.sha, // Required for creating review comments
+        commit_id: pullRequest.head.sha, // Required for creating review comments
         line: line,
         side: side,
       };
