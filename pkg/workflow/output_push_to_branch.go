@@ -65,8 +65,8 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		// Allow pushing to any pull request - no specific context required
 		baseCondition = "always()"
 	} else {
-		// Default behavior: only run in pull request context
-		baseCondition = "github.event.pull_request.number"
+		// Default behavior: only run in pull request context, or issue context with a linked PR
+		baseCondition = "(github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request"
 	}
 
 	// If this is a command workflow, combine the command trigger condition with the base condition

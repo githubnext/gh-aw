@@ -148,8 +148,10 @@ async function main() {
     }
   }
 
+  const triggerinPrNumber = context.payload?.pull_request?.number || context.payload.issue.pull_request?.number;
+
   // Check if we're in a pull request context when required
-  if (target === "triggering" && !context.payload.pull_request) {
+  if (target === "triggering" && !triggerinPrNumber) {
     core.setFailed(
       'push-to-pr-branch with target "triggering" requires pull request context'
     );
@@ -160,7 +162,7 @@ async function main() {
   let pullNumber;
   if (target === "triggering") {
     // Use the number of the triggering pull request
-    pullNumber = context.payload.pull_request.number;
+    pullNumber = triggerinPrNumber;
   } else if (target === "*") {
     if (pushItem.pull_number) {
       pullNumber = parseInt(pushItem.pull_number, 10);
