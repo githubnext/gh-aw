@@ -514,7 +514,8 @@ jobs:
           cache: 'npm'
       - name: Install Claude CLI
         run: |
-          npm install -g @anthropic-ai/claude-3-5-sonnet-20241022-desktop
+          # Install Claude CLI directly from npm
+          npm install -g @anthropic-ai/claude-cli
           # Verify installation
           claude --version || echo 'Claude CLI installed'
       - name: Execute Claude CLI
