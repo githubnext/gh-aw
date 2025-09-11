@@ -32,13 +32,10 @@ async function main() {
 
   // Find all create-code-scanning-alert items
   const securityItems = validatedOutput.items.filter(
-    /** @param {any} item */ item =>
-      item.type === "create-code-scanning-alert"
+    /** @param {any} item */ item => item.type === "create-code-scanning-alert"
   );
   if (securityItems.length === 0) {
-    console.log(
-      "No create-code-scanning-alert items found in agent output"
-    );
+    console.log("No create-code-scanning-alert items found in agent output");
     return;
   }
 
@@ -85,9 +82,7 @@ async function main() {
 
     // Validate required fields
     if (!securityItem.file) {
-      console.log(
-        'Missing required field "file" in code scanning alert item'
-      );
+      console.log('Missing required field "file" in code scanning alert item');
       continue;
     }
 
