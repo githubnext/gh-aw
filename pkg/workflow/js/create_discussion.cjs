@@ -62,10 +62,7 @@ async function main() {
     }
 
     // Write to step summary
-    require("fs").appendFileSync(
-      process.env.GITHUB_STEP_SUMMARY,
-      summaryContent
-    );
+    await core.summary.addRaw(summaryContent).write();
     console.log("📝 Discussion creation preview written to step summary");
     return;
   }

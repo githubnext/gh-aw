@@ -131,7 +131,7 @@ async function main() {
     }
 
     // Write to step summary
-    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+    await core.summary.addRaw(summaryContent).write();
     console.log("📝 Push to PR branch preview written to step summary");
     return;
   }
