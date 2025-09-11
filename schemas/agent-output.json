@@ -32,7 +32,7 @@
         {"$ref": "#/$defs/CreatePullRequestOutput"},
         {"$ref": "#/$defs/AddIssueLabelOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
-        {"$ref": "#/$defs/PushToBranchOutput"},
+        {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
@@ -170,13 +170,13 @@
       "required": ["type"],
       "additionalProperties": false
     },
-    "PushToBranchOutput": {
+    "PushToPullRequestBranchOutput": {
       "title": "Push to Branch Output",
       "description": "Output for pushing changes directly to a branch",
       "type": "object",
       "properties": {
         "type": {
-          "const": "push-to-branch"
+          "const": "push-to-pr-branch"
         },
         "message": {
           "type": "string",

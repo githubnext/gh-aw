@@ -1337,7 +1337,7 @@ Line 3"}
     fs.writeFileSync = originalWriteFileSync;
 
     // Verify the error was logged but the script continued to work
-    expect(console.error).toHaveBeenCalledWith(
+    expect(mockCore.error).toHaveBeenCalledWith(
       "Failed to write agent output file: Permission denied"
     );
 
