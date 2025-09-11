@@ -172,7 +172,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          persistence = \"none\"\n")
 
 	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("          \n")
 		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
@@ -442,18 +442,4 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 // GetLogParserScript returns the JavaScript script name for parsing Codex logs
 func (e *CodexEngine) GetLogParserScript() string {
 	return "parse_codex_log"
-}
-
-// hasSafeOutputsEnabled checks if any safe-outputs are enabled
-func (e *CodexEngine) hasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
-	return safeOutputs.CreateIssues != nil ||
-		safeOutputs.CreateDiscussions != nil ||
-		safeOutputs.AddIssueComments != nil ||
-		safeOutputs.CreatePullRequests != nil ||
-		safeOutputs.CreatePullRequestReviewComments != nil ||
-		safeOutputs.CreateRepositorySecurityAdvisories != nil ||
-		safeOutputs.AddIssueLabels != nil ||
-		safeOutputs.UpdateIssues != nil ||
-		safeOutputs.PushToPullRequestBranch != nil ||
-		safeOutputs.MissingTool != nil
 }

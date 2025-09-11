@@ -1,8 +1,8 @@
 package workflow
 
 import (
-	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,41 +11,19 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// MCPRequest represents an MCP JSON-RPC 2.0 request
-type MCPRequest struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      interface{} `json:"id,omitempty"`
-	Method  string      `json:"method"`
-	Params  interface{} `json:"params,omitempty"`
+// MCPTestClient wraps the MCP Go SDK client for testing
+type MCPTestClient struct {
+	client  *mcp.Client
+	session *mcp.ClientSession
+	cmd     *exec.Cmd
 }
 
-// MCPResponse represents an MCP JSON-RPC 2.0 response
-type MCPResponse struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      interface{} `json:"id"`
-	Result  interface{} `json:"result,omitempty"`
-	Error   *MCPError   `json:"error,omitempty"`
-}
-
-// MCPError represents an MCP JSON-RPC 2.0 error
-type MCPError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-}
-
-// MCPClient wraps communication with the MCP server
-type MCPClient struct {
-	cmd    *exec.Cmd
-	stdin  *bufio.Writer
-	stdout *bufio.Reader
-	stderr *bufio.Reader
-}
-
-// NewMCPClient creates a new MCP client for testing
-func NewMCPClient(t *testing.T, outputFile string, config map[string]interface{}) *MCPClient {
+// NewMCPTestClient creates a new MCP client using the Go SDK
+func NewMCPTestClient(t *testing.T, outputFile string, config map[string]interface{}) *MCPTestClient {
 	t.Helper()
 
 	// Set up environment
@@ -60,121 +38,53 @@ func NewMCPClient(t *testing.T, outputFile string, config map[string]interface{}
 		env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS_CONFIG=%s", string(configJSON)))
 	}
 
-	// Start the MCP server
+	// Create command for the MCP server
 	cmd := exec.Command("node", "js/safe_outputs_mcp_server.cjs")
 	cmd.Dir = filepath.Dir("") // Use current working directory context
 	cmd.Env = env
 
-	stdin, err := cmd.StdinPipe()
+	// Create MCP client with command transport
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	transport := mcp.NewCommandTransport(cmd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
 	if err != nil {
-		t.Fatalf("Failed to get stdin pipe: %v", err)
+		t.Fatalf("Failed to connect to MCP server: %v", err)
 	}
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		t.Fatalf("Failed to get stdout pipe: %v", err)
+	return &MCPTestClient{
+		client:  client,
+		session: session,
+		cmd:     cmd,
 	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		t.Fatalf("Failed to get stderr pipe: %v", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("Failed to start MCP server: %v", err)
-	}
-
-	client := &MCPClient{
-		cmd:    cmd,
-		stdin:  bufio.NewWriter(stdin),
-		stdout: bufio.NewReader(stdout),
-		stderr: bufio.NewReader(stderr),
-	}
-
-	// Initialize the server
-	initReq := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      1,
-		Method:  "initialize",
-		Params: map[string]interface{}{
-			"clientInfo": map[string]string{
-				"name":    "test-client",
-				"version": "1.0.0",
-			},
-		},
-	}
-
-	_, err = client.SendRequest(initReq)
-	if err != nil {
-		client.Close()
-		t.Fatalf("Failed to initialize MCP server: %v", err)
-	}
-
-	return client
 }
 
-// SendRequest sends a request to the MCP server and returns the response
-func (c *MCPClient) SendRequest(req MCPRequest) (*MCPResponse, error) {
-	// Serialize request
-	reqJSON, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+// CallTool calls a tool using the MCP Go SDK
+func (c *MCPTestClient) CallTool(ctx context.Context, name string, arguments map[string]any) (*mcp.CallToolResult, error) {
+	params := &mcp.CallToolParams{
+		Name:      name,
+		Arguments: arguments,
 	}
-
-	// Send Content-Length header and body
-	header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(reqJSON))
-	if _, err := c.stdin.WriteString(header); err != nil {
-		return nil, fmt.Errorf("failed to write header: %w", err)
-	}
-	if _, err := c.stdin.Write(reqJSON); err != nil {
-		return nil, fmt.Errorf("failed to write body: %w", err)
-	}
-	if err := c.stdin.Flush(); err != nil {
-		return nil, fmt.Errorf("failed to flush: %w", err)
-	}
-
-	// Read response
-	return c.ReadResponse()
+	return c.session.CallTool(ctx, params)
 }
 
-// ReadResponse reads a response from the MCP server
-func (c *MCPClient) ReadResponse() (*MCPResponse, error) {
-	// Read Content-Length header
-	line, err := c.stdout.ReadString('\n')
-	if err != nil {
-		return nil, fmt.Errorf("failed to read header line: %w", err)
-	}
-
-	var contentLength int
-	if _, err := fmt.Sscanf(line, "Content-Length: %d", &contentLength); err != nil {
-		return nil, fmt.Errorf("failed to parse content length from '%s': %w", strings.TrimSpace(line), err)
-	}
-
-	// Read empty line
-	if _, err := c.stdout.ReadString('\n'); err != nil {
-		return nil, fmt.Errorf("failed to read empty line: %w", err)
-	}
-
-	// Read body
-	body := make([]byte, contentLength)
-	if _, err := c.stdout.Read(body); err != nil {
-		return nil, fmt.Errorf("failed to read body: %w", err)
-	}
-
-	// Parse response
-	var resp MCPResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
-	return &resp, nil
+// ListTools lists available tools using the MCP Go SDK
+func (c *MCPTestClient) ListTools(ctx context.Context) (*mcp.ListToolsResult, error) {
+	return c.session.ListTools(ctx, &mcp.ListToolsParams{})
 }
 
-// Close closes the MCP client
-func (c *MCPClient) Close() {
-	c.stdin.Flush()
-	c.cmd.Process.Kill()
-	c.cmd.Wait()
+// Close closes the MCP client and cleans up resources
+func (c *MCPTestClient) Close() {
+	if c.session != nil {
+		c.session.Close()
+	}
 }
 
 func TestSafeOutputsMCPServer_Initialize(t *testing.T) {
@@ -191,11 +101,11 @@ func TestSafeOutputsMCPServer_Initialize(t *testing.T) {
 		},
 	}
 
-	client := NewMCPClient(t, tempFile, config)
+	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
-	// Server was already initialized in NewMCPClient, so if we got here, initialization worked
-	t.Log("MCP server initialized successfully")
+	// If we got here, initialization worked (handled by Connect in the SDK)
+	t.Log("MCP server initialized successfully using Go MCP SDK")
 }
 
 func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
@@ -208,51 +118,19 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 		"missing-tool":      map[string]interface{}{"enabled": true},
 	}
 
-	client := NewMCPClient(t, tempFile, config)
+	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
-	// Request tools list
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      2,
-		Method:  "tools/list",
-		Params:  map[string]interface{}{},
-	}
-
-	resp, err := client.SendRequest(req)
+	ctx := context.Background()
+	result, err := client.ListTools(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get tools list: %v", err)
 	}
 
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %+v", resp.Error)
-	}
-
-	// Check result structure
-	result, ok := resp.Result.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected result to be an object, got %T", resp.Result)
-	}
-
-	tools, ok := result["tools"].([]interface{})
-	if !ok {
-		t.Fatalf("Expected tools to be an array, got %T", result["tools"])
-	}
-
 	// Verify enabled tools are present
-	toolNames := make([]string, len(tools))
-	for i, tool := range tools {
-		toolObj, ok := tool.(map[string]interface{})
-		if !ok {
-			t.Fatalf("Expected tool to be an object, got %T", tool)
-		}
-
-		name, ok := toolObj["name"].(string)
-		if !ok {
-			t.Fatalf("Expected tool name to be a string, got %T", toolObj["name"])
-		}
-
-		toolNames[i] = name
+	toolNames := make([]string, len(result.Tools))
+	for i, tool := range result.Tools {
+		toolNames[i] = tool.Name
 	}
 
 	expectedTools := []string{"create_issue", "create_discussion", "missing_tool"}
@@ -283,60 +161,33 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 		},
 	}
 
-	client := NewMCPClient(t, tempFile, config)
+	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
 	// Call create_issue tool
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      3,
-		Method:  "tools/call",
-		Params: map[string]interface{}{
-			"name": "create_issue",
-			"arguments": map[string]interface{}{
-				"title":  "Test Issue",
-				"body":   "This is a test issue created by MCP server",
-				"labels": []string{"bug", "test"},
-			},
-		},
-	}
-
-	resp, err := client.SendRequest(req)
+	ctx := context.Background()
+	result, err := client.CallTool(ctx, "create_issue", map[string]any{
+		"title":  "Test Issue",
+		"body":   "This is a test issue created by MCP server",
+		"labels": []string{"bug", "test"},
+	})
 	if err != nil {
 		t.Fatalf("Failed to call create_issue: %v", err)
 	}
 
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %+v", resp.Error)
-	}
-
 	// Check response structure
-	result, ok := resp.Result.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected result to be an object, got %T", resp.Result)
-	}
-
-	content, ok := result["content"].([]interface{})
-	if !ok {
-		t.Fatalf("Expected content to be an array, got %T", result["content"])
-	}
-
-	if len(content) == 0 {
+	if len(result.Content) == 0 {
 		t.Fatalf("Expected at least one content item")
 	}
 
-	contentItem, ok := content[0].(map[string]interface{})
+	// Type assert to text content (should be safe since we're generating text content)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
 	if !ok {
-		t.Fatalf("Expected content item to be an object, got %T", content[0])
+		t.Fatalf("Expected first content item to be text content, got %T", result.Content[0])
 	}
 
-	text, ok := contentItem["text"].(string)
-	if !ok {
-		t.Fatalf("Expected text to be a string, got %T", contentItem["text"])
-	}
-
-	if !strings.Contains(text, "Issue creation queued") {
-		t.Errorf("Expected response to mention issue creation, got: %s", text)
+	if !strings.Contains(textContent.Text, "Issue creation queued") {
+		t.Errorf("Expected response to mention issue creation, got: %s", textContent.Text)
 	}
 
 	// Verify output file was written
@@ -348,7 +199,7 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
 
-	t.Log("create_issue tool executed successfully")
+	t.Log("create_issue tool executed successfully using Go MCP SDK")
 }
 
 func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
@@ -361,31 +212,18 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 		},
 	}
 
-	client := NewMCPClient(t, tempFile, config)
+	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
 	// Call missing_tool
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      4,
-		Method:  "tools/call",
-		Params: map[string]interface{}{
-			"name": "missing_tool",
-			"arguments": map[string]interface{}{
-				"tool":         "advanced-analyzer",
-				"reason":       "Need to analyze complex data structures",
-				"alternatives": "Could use basic analysis tools with manual processing",
-			},
-		},
-	}
-
-	resp, err := client.SendRequest(req)
+	ctx := context.Background()
+	_, err := client.CallTool(ctx, "missing_tool", map[string]any{
+		"tool":         "advanced-analyzer",
+		"reason":       "Need to analyze complex data structures",
+		"alternatives": "Could use basic analysis tools with manual processing",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call missing_tool: %v", err)
-	}
-
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %+v", resp.Error)
 	}
 
 	// Verify output file was written
@@ -397,7 +235,7 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
 
-	t.Log("missing_tool executed successfully")
+	t.Log("missing_tool executed successfully using Go MCP SDK")
 }
 
 func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
@@ -410,38 +248,26 @@ func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
 		},
 	}
 
-	client := NewMCPClient(t, tempFile, config)
+	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
-	// Try to call disabled tool
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      5,
-		Method:  "tools/call",
-		Params: map[string]interface{}{
-			"name": "create_issue",
-			"arguments": map[string]interface{}{
-				"title": "This should fail",
-				"body":  "Tool is disabled",
-			},
-		},
-	}
-
-	resp, err := client.SendRequest(req)
-	if err != nil {
-		t.Fatalf("Failed to call disabled tool: %v", err)
-	}
+	// Try to call disabled tool - should return an error
+	ctx := context.Background()
+	_, err := client.CallTool(ctx, "create_issue", map[string]any{
+		"title": "This should fail",
+		"body":  "Tool is disabled",
+	})
 
 	// Should get an error
-	if resp.Error == nil {
+	if err == nil {
 		t.Fatalf("Expected error for disabled tool, got success")
 	}
 
-	if !strings.Contains(resp.Error.Message, "create-issue safe-output is not enabled") && !strings.Contains(resp.Error.Message, "Tool 'create_issue' failed") {
-		t.Errorf("Expected error about disabled tool, got: %s", resp.Error.Message)
+	if !strings.Contains(err.Error(), "create-issue safe-output is not enabled") && !strings.Contains(err.Error(), "Tool 'create_issue' failed") {
+		t.Errorf("Expected error about disabled tool, got: %s", err.Error())
 	}
 
-	t.Log("Disabled tool correctly rejected")
+	t.Log("Disabled tool correctly rejected using Go MCP SDK")
 }
 
 func TestSafeOutputsMCPServer_UnknownTool(t *testing.T) {
@@ -452,39 +278,23 @@ func TestSafeOutputsMCPServer_UnknownTool(t *testing.T) {
 		"create-issue": map[string]interface{}{"enabled": true},
 	}
 
-	client := NewMCPClient(t, tempFile, config)
+	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
 	// Try to call unknown tool
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      6,
-		Method:  "tools/call",
-		Params: map[string]interface{}{
-			"name":      "nonexistent_tool",
-			"arguments": map[string]interface{}{},
-		},
-	}
-
-	resp, err := client.SendRequest(req)
-	if err != nil {
-		t.Fatalf("Failed to call unknown tool: %v", err)
-	}
+	ctx := context.Background()
+	_, err := client.CallTool(ctx, "nonexistent_tool", map[string]any{})
 
 	// Should get a "Tool not found" error
-	if resp.Error == nil {
+	if err == nil {
 		t.Fatalf("Expected error for unknown tool, got success")
 	}
 
-	if resp.Error.Code != -32601 {
-		t.Errorf("Expected error code -32601 (Method not found), got %d", resp.Error.Code)
+	if !strings.Contains(err.Error(), "Tool not found") {
+		t.Errorf("Expected 'Tool not found' error, got: %s", err.Error())
 	}
 
-	if !strings.Contains(resp.Error.Message, "Tool not found") {
-		t.Errorf("Expected 'Tool not found' error, got: %s", resp.Error.Message)
-	}
-
-	t.Log("Unknown tool correctly rejected")
+	t.Log("Unknown tool correctly rejected using Go MCP SDK")
 }
 
 func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
@@ -496,18 +306,18 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 		"add-issue-comment": map[string]interface{}{"enabled": true},
 	}
 
-	client := NewMCPClient(t, tempFile, config)
+	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
 	// Call multiple tools in sequence
 	tools := []struct {
 		name         string
-		args         map[string]interface{}
+		args         map[string]any
 		expectedType string
 	}{
 		{
 			name: "create_issue",
-			args: map[string]interface{}{
+			args: map[string]any{
 				"title": "First Issue",
 				"body":  "First test issue",
 			},
@@ -515,31 +325,18 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 		},
 		{
 			name: "add_issue_comment",
-			args: map[string]interface{}{
+			args: map[string]any{
 				"body": "This is a comment",
 			},
 			expectedType: "add-issue-comment",
 		},
 	}
 
-	for i, tool := range tools {
-		req := MCPRequest{
-			JSONRPC: "2.0",
-			ID:      10 + i,
-			Method:  "tools/call",
-			Params: map[string]interface{}{
-				"name":      tool.name,
-				"arguments": tool.args,
-			},
-		}
-
-		resp, err := client.SendRequest(req)
+	ctx := context.Background()
+	for _, tool := range tools {
+		_, err := client.CallTool(ctx, tool.name, tool.args)
 		if err != nil {
 			t.Fatalf("Failed to call tool %s: %v", tool.name, err)
-		}
-
-		if resp.Error != nil {
-			t.Fatalf("MCP error for tool %s: %+v", tool.name, resp.Error)
 		}
 	}
 
@@ -565,7 +362,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 		}
 	}
 
-	t.Log("Multiple tools executed successfully")
+	t.Log("Multiple tools executed successfully using Go MCP SDK")
 }
 
 // Helper functions
