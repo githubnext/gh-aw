@@ -93,13 +93,36 @@ async function main() {
     );
     return;
   }
-  const pullRequest = context.payload.pull_request || context.payload.issue.pull_request;
+  let pullRequest = context.payload.pull_request;
 
   if (!pullRequest) {
-    console.log(
-      "Pull request context detected but no pull request found in payload"
-    );
-    return;
+    //No, github.event.issue.pull_request does not contain the full pull request data like head.sha. It only includes a minimal object with a url pointing to the pull request API resource.
+    //To get full PR details (like head.sha, base.ref, etc.), you need to make an API call using that URL.
+
+    if (context.payload.issue.pull_request) {
+      // Fetch full pull request details using the GitHub API
+      const prUrl = context.payload.issue.pull_request.url;
+      try {
+        const { data: fullPR } = await github.request(`GET ${prUrl}`, {
+          headers: {
+            Accept: "application/vnd.github+json",
+          },
+        });
+        pullRequest = fullPR;
+        console.log("Fetched full pull request details from API");
+      } catch (error) {
+        console.log(
+          "Failed to fetch full pull request details:",
+          error instanceof Error ? error.message : String(error)
+        );
+        return;
+      }
+    } else {
+      console.log(
+        "Pull request data not found in payload - cannot create review comments"
+      );
+      return;
+    }
   }
 
   // Check if we have the commit SHA needed for creating review comments
