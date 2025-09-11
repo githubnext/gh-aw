@@ -281,8 +281,8 @@ jobs:
               } catch (error) {
                 // Don't fail the entire job if comment editing fails - just log it
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                console.warn("Failed to edit comment with workflow link:", errorMessage);
-                console.warn(
+                core.warn("Failed to edit comment with workflow link:", errorMessage);
+                core.warn(
                   "This is not critical - the reaction was still added successfully"
                 );
               }
@@ -319,7 +319,7 @@ jobs:
               // Generate a random filename for the output file
               const randomId = crypto.randomBytes(8).toString("hex");
               const outputFile = `/tmp/aw_output_${randomId}.txt`;
-              // Ensure the /tmp directory exists 
+              // Ensure the /tmp directory exists
               fs.mkdirSync("/tmp", { recursive: true });
               // We don't create the file, as the name is sufficiently random
               // and some engines (Claude) fails first Write to the file
@@ -1180,7 +1180,7 @@ jobs:
                 // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
                 core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
-                console.error(`Failed to write agent output file: ${error.message}`);
+                core.error(`Failed to write agent output file: ${error.message}`);
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);

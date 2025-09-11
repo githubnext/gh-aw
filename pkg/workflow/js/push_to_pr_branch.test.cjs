@@ -39,7 +39,7 @@ describe("push_to_pr_branch.cjs", () => {
     global.context = mockContext;
     global.mockFs = mockFs;
     global.mockExecSync = mockExecSync;
-    
+
     // Execute the script
     return await eval(`(async () => { ${pushToPrBranchScript} })()`);
   };
@@ -74,7 +74,7 @@ describe("push_to_pr_branch.cjs", () => {
       "pkg/workflow/js/push_to_pr_branch.cjs"
     );
     pushToPrBranchScript = fs.readFileSync(scriptPath, "utf8");
-    
+
     // Modify the script to inject our mocks and make core available
     pushToPrBranchScript = pushToPrBranchScript.replace(
       'async function main() {\n  /** @type {typeof import("fs")} */\n  const fs = require("fs");\n  const { execSync } = require("child_process");',
@@ -128,9 +128,9 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should handle missing patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pr-branch", content: "test" }]
+        items: [{ type: "push-to-pr-branch", content: "test" }],
       });
-      
+
       mockFs.existsSync.mockReturnValue(false);
 
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -138,7 +138,9 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("No patch file found - cannot push without changes");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "No patch file found - cannot push without changes"
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
@@ -146,24 +148,26 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should fail when patch file missing and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pr-branch", content: "test" }]
+        items: [{ type: "push-to-pr-branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
-      
+
       mockFs.existsSync.mockReturnValue(false);
 
       // Execute the script
       await executeScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("No patch file found - cannot push without changes");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        "No patch file found - cannot push without changes"
+      );
     });
 
     it("should silently succeed when patch file missing and if-no-changes is 'ignore'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pr-branch", content: "test" }]
+        items: [{ type: "push-to-pr-branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "ignore";
-      
+
       mockFs.existsSync.mockReturnValue(false);
 
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -179,18 +183,22 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should handle patch file with error content", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pr-branch", content: "test" }]
+        items: [{ type: "push-to-pr-branch", content: "test" }],
       });
-      
+
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("Failed to generate patch: some error");
+      mockFs.readFileSync.mockReturnValue(
+        "Failed to generate patch: some error"
+      );
 
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("Patch file contains error message - cannot push without changes");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Patch file contains error message - cannot push without changes"
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
@@ -198,12 +206,12 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should handle empty patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pr-branch", content: "test" }]
+        items: [{ type: "push-to-pr-branch", content: "test" }],
       });
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("");
-      
+
       // Mock the git command to return a branch name
       mockExecSync.mockReturnValue("feature-branch");
 
@@ -212,8 +220,13 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
-      expect(consoleSpy).toHaveBeenCalledWith("Agent output content length:", expect.any(Number));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Patch file is empty - no changes to apply (noop operation)"
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Agent output content length:",
+        expect.any(Number)
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
@@ -221,17 +234,19 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should fail when empty patch and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pr-branch", content: "test" }]
+        items: [{ type: "push-to-pr-branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("   ");
 
       // Execute the script
       await executeScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("No changes to push - failing as configured by if-no-changes: error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        "No changes to push - failing as configured by if-no-changes: error"
+      );
     });
 
     it("should handle valid patch content and parse JSON output", async () => {
@@ -239,16 +254,18 @@ describe("push_to_pr_branch.cjs", () => {
         items: [
           {
             type: "push-to-pr-branch",
-            content: "some changes to push"
-          }
-        ]
+            content: "some changes to push",
+          },
+        ],
       };
-      
+
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-      
+
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
-      
+      mockFs.readFileSync.mockReturnValue(
+        "diff --git a/file.txt b/file.txt\n+new content"
+      );
+
       // Mock the git commands that will be called
       mockExecSync.mockReturnValue("feature-branch");
 
@@ -257,9 +274,17 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("Agent output content length:", JSON.stringify(validOutput).length);
-      expect(consoleSpy).toHaveBeenCalledWith("Patch content validation passed");
-      expect(consoleSpy).toHaveBeenCalledWith("Target configuration:", "triggering");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Agent output content length:",
+        JSON.stringify(validOutput).length
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Patch content validation passed"
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Target configuration:",
+        "triggering"
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
@@ -267,7 +292,7 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should handle invalid JSON in agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json content";
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("some patch content");
 
@@ -287,9 +312,9 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should handle agent output without valid items array", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: "not an array"
+        items: "not an array",
       });
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("some patch content");
 
@@ -298,7 +323,9 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("No valid items found in agent output");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "No valid items found in agent output"
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
@@ -306,13 +333,13 @@ describe("push_to_pr_branch.cjs", () => {
 
     it("should use custom target configuration", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pr-branch", content: "test" }]
+        items: [{ type: "push-to-pr-branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_TARGET = "custom-target";
-      
+
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("some patch content");
-      
+
       // Mock the git commands
       mockExecSync.mockReturnValue("feature-branch");
 
@@ -321,7 +348,10 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("Target configuration:", "custom-target");
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Target configuration:",
+        "custom-target"
+      );
 
       consoleSpy.mockRestore();
     });

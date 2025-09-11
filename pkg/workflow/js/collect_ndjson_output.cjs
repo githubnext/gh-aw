@@ -756,7 +756,7 @@ async function main() {
     // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
     core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
   } catch (error) {
-    console.error(`Failed to write agent output file: ${error.message}`);
+    core.error(`Failed to write agent output file: ${error.message}`);
   }
 
   core.setOutput("output", JSON.stringify(validatedOutput));
