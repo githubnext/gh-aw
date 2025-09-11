@@ -135,7 +135,7 @@ async function main() {
     pullNumber = context.payload.pull_request.number;
   } else if (target === "*") {
     if (pushItem.pull_number) {
-        pullNumber = parseInt(pushItem.pull_number, 10);
+      pullNumber = parseInt(pushItem.pull_number, 10);
     }
   } else {
     // Target is a specific pull request number
@@ -148,14 +148,16 @@ async function main() {
       `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
       { encoding: "utf8" }
     ).trim();
-    
+
     if (prInfo) {
       branchName = prInfo;
     } else {
       throw new Error("No head branch found for PR");
     }
   } catch (error) {
-    console.log(`Warning: Could not fetch PR ${pullNumber} details: ${error.message}`);
+    console.log(
+      `Warning: Could not fetch PR ${pullNumber} details: ${error.message}`
+    );
     // Exit with failure if we cannot determine the branch name
     core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
     return;

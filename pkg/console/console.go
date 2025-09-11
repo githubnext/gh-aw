@@ -225,7 +225,7 @@ func FormatWarningMessage(message string) string {
 var (
 	tableHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.Color("#BD93F9")).
+				Foreground(lipgloss.Color("#F8F8F2")).
 				Background(lipgloss.Color("#44475A"))
 
 	tableCellStyle = lipgloss.NewStyle().

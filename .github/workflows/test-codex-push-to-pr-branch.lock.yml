@@ -129,7 +129,7 @@ jobs:
               // Generate a random filename for the output file
               const randomId = crypto.randomBytes(8).toString("hex");
               const outputFile = `/tmp/aw_output_${randomId}.txt`;
-              // Ensure the /tmp directory exists 
+              // Ensure the /tmp directory exists
               fs.mkdirSync("/tmp", { recursive: true });
               // We don't create the file, as the name is sufficiently random
               // and some engines (Claude) fails first Write to the file
@@ -1585,7 +1585,7 @@ jobs:
                 pullNumber = context.payload.pull_request.number;
               } else if (target === "*") {
                 if (pushItem.pull_number) {
-                    pullNumber = parseInt(pushItem.pull_number, 10);
+                  pullNumber = parseInt(pushItem.pull_number, 10);
                 }
               } else {
                 // Target is a specific pull request number
@@ -1604,7 +1604,9 @@ jobs:
                   throw new Error("No head branch found for PR");
                 }
               } catch (error) {
-                console.log(`Warning: Could not fetch PR ${pullNumber} details: ${error.message}`);
+                console.log(
+                  `Warning: Could not fetch PR ${pullNumber} details: ${error.message}`
+                );
                 // Exit with failure if we cannot determine the branch name
                 core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
                 return;
