@@ -578,7 +578,7 @@ jobs:
                     return 5; // Only one labels operation allowed
                   case "update-issue":
                     return 1; // Only one issue update allowed
-                  case "push-to-branch":
+                  case "push-to-pr-branch":
                     return 1; // Only one push to branch allowed
                   case "create-discussion":
                     return 1; // Only one discussion allowed
@@ -887,12 +887,12 @@ jobs:
                         }
                       }
                       break;
-                    case "push-to-branch":
+                    case "push-to-pr-branch":
                       // Validate message if provided (optional)
                       if (item.message !== undefined) {
                         if (typeof item.message !== "string") {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'message' must be a string`
+                            `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
                           );
                           continue;
                         }
@@ -905,7 +905,7 @@ jobs:
                           typeof item.pull_request_number !== "string"
                         ) {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`
+                            `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
                           );
                           continue;
                         }
@@ -1492,14 +1492,14 @@ jobs:
                     echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
                     break
                   fi
-                # Extract branch from push-to-branch line using simple grep and sed
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-branch"'; then
-                  echo "Found push-to-branch line: $line"
-                  # For push-to-branch, we don't extract branch from JSONL since it's configured in the workflow
+                # Extract branch from push-to-pr-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pr-branch"'; then
+                  echo "Found push-to-pr-branch line: $line"
+                  # For push-to-pr-branch, we don't extract branch from JSONL since it's configured in the workflow
                   # The branch name should come from the environment variable GITHUB_AW_PUSH_BRANCH
                   if [ -n "$GITHUB_AW_PUSH_BRANCH" ]; then
                     BRANCH_NAME="$GITHUB_AW_PUSH_BRANCH"
-                    echo "Using configured push-to-branch target: $BRANCH_NAME"
+                    echo "Using configured push-to-pr-branch target: $BRANCH_NAME"
                     break
                   fi
                 fi

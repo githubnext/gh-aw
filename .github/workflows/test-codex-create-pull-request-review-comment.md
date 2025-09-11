@@ -1,13 +1,11 @@
 ---
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  command:
+    name: test-codex-create-pull-request-review-comment
   reaction: eyes
 
 engine: 
   id: codex
-
-if: contains(github.event.pull_request.title, 'prr')
 
 safe-outputs:
   create-pull-request-review-comment:
@@ -16,7 +14,7 @@ safe-outputs:
 
 Analyze the pull request and create a few targeted review comments on the code changes.
 
-Create 2-3 review comments focusing on:
+You MUST create 2 review comments focusing on:
 1. Code quality and best practices
 2. Potential security issues or improvements
 3. Performance optimizations or concerns

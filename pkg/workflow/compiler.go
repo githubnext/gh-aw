@@ -161,7 +161,7 @@ type SafeOutputsConfig struct {
 	CreateRepositorySecurityAdvisories *CreateRepositorySecurityAdvisoriesConfig `yaml:"create-repository-security-advisory,omitempty"`
 	AddIssueLabels                     *AddIssueLabelsConfig                     `yaml:"add-issue-label,omitempty"`
 	UpdateIssues                       *UpdateIssuesConfig                       `yaml:"update-issue,omitempty"`
-	PushToBranch                       *PushToBranchConfig                       `yaml:"push-to-branch,omitempty"`
+	PushToBranch                       *PushToBranchConfig                       `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                        *MissingToolConfig                        `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                     []string                                  `yaml:"allowed-domains,omitempty"`
 }
@@ -229,8 +229,7 @@ type UpdateIssuesConfig struct {
 
 // PushToBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToBranchConfig struct {
-	Branch      string `yaml:"branch"`                  // The branch to push changes to (defaults to "triggering")
-	Target      string `yaml:"target,omitempty"`        // Target for push-to-branch: like add-issue-comment but for pull requests
+	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-issue-comment but for pull requests
 	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 }
 
@@ -1591,7 +1590,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	githubConfig["allowed"] = newAllowed
 	tools["github"] = githubConfig
 
-	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-branch
+	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pr-branch
 	if safeOutputs != nil && needsGitCommands(safeOutputs) {
 
 		// Add edit tool with null value
@@ -1927,14 +1926,14 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
-		// Build push_to_branch job if output.push-to-branch is configured
+		// Build push_to_pr_branch job if output.push-to-pr-branch is configured
 		if data.SafeOutputs.PushToBranch != nil {
 			pushToBranchJob, err := c.buildCreateOutputPushToBranchJob(data, jobName)
 			if err != nil {
-				return fmt.Errorf("failed to build push_to_branch job: %w", err)
+				return fmt.Errorf("failed to build push_to_pr_branch job: %w", err)
 			}
 			if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
-				return fmt.Errorf("failed to add push_to_branch job: %w", err)
+				return fmt.Errorf("failed to add push_to_pr_branch job: %w", err)
 			}
 		}
 
@@ -3212,6 +3211,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			if data.SafeOutputs.UpdateIssues.Body != nil {
 				fields = append(fields, "\"body\": \"Updated issue body in markdown\"")
 			}
+			if data.SafeOutputs.UpdateIssues.Target == "*" {
+				fields = append(fields, "\"issue_number\": \"The issue number to update\"")
+			}
 
 			if len(fields) > 0 {
 				yaml.WriteString("          {\"type\": \"update-issue\"")
@@ -3229,14 +3231,26 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 
 		if data.SafeOutputs.PushToBranch != nil {
-			yaml.WriteString("          **Pushing Changes to Branch**\n")
+			yaml.WriteString("          **Pushing Changes to Pull Request Branch**\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To push changes to a branch, for example to add code to a pull request:\n")
+			yaml.WriteString("          To push changes to the branch of a pull request:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
-			yaml.WriteString("          2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-			yaml.WriteString("          3. Indicate your intention to push to the branch by writing to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          3. Indicate your intention to push the branch to the repo by writing to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Commit message describing the changes\"}\n")
+			var fields []string
+			fields = append(fields, "\"type\": \"push-to-pr-branch\"")
+			if data.SafeOutputs.PushToBranch.Target == "*" {
+				fields = append(fields, "\"pull_number\": \"The pull number to update\"")
+			}
+			fields = append(fields, "\"branch_name\": \"The name of the branch to push to, should be the branch name associated with the pull request\"")
+			fields = append(fields, "\"message\": \"Commit message describing the changes\"")
+
+			yaml.WriteString("          {")
+			for _, field := range fields {
+				yaml.WriteString(", " + field)
+			}
+			yaml.WriteString("}\n")
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
@@ -3295,7 +3309,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			exampleCount++
 		}
 		if data.SafeOutputs.PushToBranch != nil {
-			yaml.WriteString("          {\"type\": \"push-to-branch\", \"message\": \"Update documentation with latest changes\"}\n")
+			yaml.WriteString("          {\"type\": \"push-to-pr-branch\", \"message\": \"Update documentation with latest changes\"}\n")
 			exampleCount++
 		}
 		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
@@ -3478,7 +3492,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UpdateIssues = updateIssuesConfig
 			}
 
-			// Handle push-to-branch
+			// Handle push-to-pr-branch
 			pushToBranchConfig := c.parsePushToBranchConfig(outputMap)
 			if pushToBranchConfig != nil {
 				config.PushToBranch = pushToBranchConfig
@@ -3767,27 +3781,20 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 	return nil
 }
 
-// parsePushToBranchConfig handles push-to-branch configuration
+// parsePushToBranchConfig handles push-to-pr-branch configuration
 func (c *Compiler) parsePushToBranchConfig(outputMap map[string]any) *PushToBranchConfig {
-	if configData, exists := outputMap["push-to-branch"]; exists {
+	if configData, exists := outputMap["push-to-pr-branch"]; exists {
 		pushToBranchConfig := &PushToBranchConfig{
 			Branch:      "triggering", // Default branch value
 			IfNoChanges: "warn",       // Default behavior: warn when no changes
 		}
 
-		// Handle the case where configData is nil (push-to-branch: with no value)
+		// Handle the case where configData is nil (push-to-pr-branch: with no value)
 		if configData == nil {
 			return pushToBranchConfig
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse branch (optional, defaults to "triggering")
-			if branch, exists := configMap["branch"]; exists {
-				if branchStr, ok := branch.(string); ok {
-					pushToBranchConfig.Branch = branchStr
-				}
-			}
-
 			// Parse target (optional, similar to add-issue-comment)
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
@@ -4100,12 +4107,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		if data.SafeOutputs.PushToBranch != nil {
 			pushToBranchConfig := map[string]interface{}{
 				"enabled": true,
-				"branch":  data.SafeOutputs.PushToBranch.Branch,
 			}
 			if data.SafeOutputs.PushToBranch.Target != "" {
 				pushToBranchConfig["target"] = data.SafeOutputs.PushToBranch.Target
 			}
-			safeOutputsConfig["push-to-branch"] = pushToBranchConfig
+			safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]interface{}{

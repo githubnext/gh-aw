@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 
-describe("push_to_branch.cjs", () => {
+describe("push_to_pr_branch.cjs", () => {
   let mockCore;
 
   beforeEach(() => {
@@ -30,7 +30,6 @@ describe("push_to_branch.cjs", () => {
     };
 
     // Clear environment variables
-    delete process.env.GITHUB_AW_PUSH_BRANCH;
     delete process.env.GITHUB_AW_PUSH_TARGET;
     delete process.env.GITHUB_AW_AGENT_OUTPUT;
   });
@@ -45,19 +44,18 @@ describe("push_to_branch.cjs", () => {
 
   describe("Script validation", () => {
     it("should have valid JavaScript syntax", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Basic syntax validation - should not contain obvious errors
       expect(scriptContent).toContain("async function main()");
-      expect(scriptContent).toContain("GITHUB_AW_PUSH_BRANCH");
       expect(scriptContent).toContain("core.setFailed");
       expect(scriptContent).toContain("/tmp/aw.patch");
       expect(scriptContent).toContain("await main()");
     });
 
     it("should export a main function", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that the script has the expected structure
@@ -65,11 +63,10 @@ describe("push_to_branch.cjs", () => {
     });
 
     it("should handle required environment variables", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that environment variables are handled
-      expect(scriptContent).toContain("process.env.GITHUB_AW_PUSH_BRANCH");
       expect(scriptContent).toContain("process.env.GITHUB_AW_AGENT_OUTPUT");
       expect(scriptContent).toContain("process.env.GITHUB_AW_PUSH_TARGET");
       expect(scriptContent).toContain(
@@ -78,7 +75,7 @@ describe("push_to_branch.cjs", () => {
     });
 
     it("should handle patch file operations", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that patch operations are included
@@ -89,7 +86,7 @@ describe("push_to_branch.cjs", () => {
     });
 
     it("should validate branch operations", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that git branch operations are handled (git config is handled by workflow)
@@ -98,7 +95,7 @@ describe("push_to_branch.cjs", () => {
     });
 
     it("should handle empty patches as noop operations", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that empty patches are handled gracefully
@@ -110,7 +107,7 @@ describe("push_to_branch.cjs", () => {
     });
 
     it("should handle if-no-changes configuration options", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that environment variable is read
@@ -122,7 +119,7 @@ describe("push_to_branch.cjs", () => {
     });
 
     it("should still fail on actual error conditions", () => {
-      const scriptPath = path.join(__dirname, "push_to_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that actual errors still cause failures

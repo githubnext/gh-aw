@@ -13,7 +13,7 @@ One of the primary security features of GitHub Agentic Workflows is "safe output
 | **Repository Security Advisories** | `create-repository-security-advisory:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
 | **Label Addition** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
 | **Issue Updates** | `update-issue:` | Update issue status, title, or body | 1 |
-| **Push to Branch** | `push-to-branch:` | Push changes directly to a branch | 1 |
+| **Push to Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
 
 ## Overview (`safe-outputs:`)
@@ -377,20 +377,20 @@ Update the issue based on your analysis. You can change the title, body content,
 - Update count is limited by `max` setting (default: 1)
 - Only GitHub's `issues.update` API endpoint is used
 
-### Push to Branch (`push-to-branch:`)
+### Push to Pull Request Branch (`push-to-pr-branch:`)
 
-Adding `push-to-branch:` to the `safe-outputs:` section declares that the workflow should conclude with pushing changes to a specific branch based on the agentic workflow's output. This is useful for applying code changes directly to a designated branch within pull requests.
+Adding `push-to-pr-branch:` to the `safe-outputs:` section declares that the workflow should conclude with pushing additional changes to the branch associated with a pull request. This is useful for applying code changes directly to a designated branch within pull requests.
 
 **Basic Configuration:**
 ```yaml
 safe-outputs:
-  push-to-branch:
+  push-to-pr-branch:
 ```
 
 **With Configuration:**
 ```yaml
 safe-outputs:
-  push-to-branch:
+  push-to-pr-branch:
     target: "*"                          # Optional: target for push operations
                                          # "triggering" (default) - only push in triggering PR context
                                          # "*" - allow pushes to any pull request (requires pull_request_number in agent output)
@@ -419,7 +419,7 @@ Analyze the pull request and make necessary code improvements.
 ```yaml
 # Always succeed, warn when no changes (default behavior)
 safe-outputs:
-  push-to-branch:
+  push-to-pr-branch:
     branch: feature-branch
     if-no-changes: "warn"
 ```
@@ -427,7 +427,7 @@ safe-outputs:
 ```yaml
 # Fail when no changes are made (strict mode)
 safe-outputs:
-  push-to-branch:
+  push-to-pr-branch:
     branch: feature-branch
     if-no-changes: "error"
 ```
@@ -435,7 +435,7 @@ safe-outputs:
 ```yaml
 # Silent success, no output when no changes
 safe-outputs:
-  push-to-branch:
+  push-to-pr-branch:
     branch: feature-branch
     if-no-changes: "ignore"
 ```
@@ -465,7 +465,7 @@ Similar to GitHub's `actions/upload-artifact` action, you can configure how the 
 - Label count is limited by `max` setting (default: 3) - exceeding this limit causes job failure
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
 
-When `create-pull-request` or `push-to-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
+When `create-pull-request` or `push-to-pr-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
 
 ### Missing Tool Reporting (`missing-tool:`)
 
@@ -506,7 +506,7 @@ The compiled workflow will have additional prompting describing that, to report 
 
 ## Automatically Added Tools
 
-When `create-pull-request` or `push-to-branch` are configured, these Claude tools are automatically added:
+When `create-pull-request` or `push-to-pr-branch` are configured, these Claude tools are automatically added:
 
 - **Edit**: Allows editing existing files
 - **MultiEdit**: Allows making multiple edits to files in a single operation

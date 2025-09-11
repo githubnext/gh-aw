@@ -3,27 +3,31 @@
 #   gh aw compile
 
 name: "Test Claude Create Pull Request Review Comment"
-"on":
+on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created, edited]
   pull_request:
-    types:
-    - opened
-    - synchronize
-    - reopened
+    types: [opened, edited, reopened]
+  pull_request_review_comment:
+    types: [created, edited]
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
 run-name: "Test Claude Create Pull Request Review Comment"
 
 jobs:
   task:
-    if: contains(github.event.pull_request.title, 'prr')
+    if: >
+      ((contains(github.event.issue.body, '/test-claude-create-pull-request-review-comment')) || (contains(github.event.comment.body, '/test-claude-create-pull-request-review-comment'))) ||
+      (contains(github.event.pull_request.body, '/test-claude-create-pull-request-review-comment'))
     runs-on: ubuntu-latest
     steps:
-      - name: Check team membership for workflow
+      - name: Check team membership for command workflow
         id: check-team-member
         uses: actions/github-script@v7
         env:
@@ -109,6 +113,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_REACTION: eyes
+          GITHUB_AW_COMMAND: test-claude-create-pull-request-review-comment
         with:
           script: |
             async function main() {
@@ -286,7 +291,10 @@ jobs:
 
   test-claude-create-pull-request-review-comment:
     needs: task
-    if: contains(github.event.pull_request.title, 'prr')
+    if: >
+      contains(github.event.issue.body, '/test-claude-create-pull-request-review-comment') ||
+      contains(github.event.comment.body, '/test-claude-create-pull-request-review-comment') ||
+      contains(github.event.pull_request.body, '/test-claude-create-pull-request-review-comment')
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -457,9 +465,9 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Analyze the pull request and create a few targeted review comments on the code changes. 
+          Analyze the pull request #${github.event.pull_request.number} and create a few targeted review comments on the code changes. 
           
-          Create 2-3 review comments focusing on:
+          You MUST create 2 review comments focusing on:
           1. Code quality and best practices
           2. Potential security issues or improvements  
           3. Performance optimizations or concerns
@@ -622,28 +630,7 @@ jobs:
           
           # Ensure log file exists
           touch /tmp/test-claude-create-pull-request-review-comment.log
-      - name: Print Agent output
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-        run: |
-          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````json' >> $GITHUB_STEP_SUMMARY
-          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
-          # Ensure there's a newline after the file content if it doesn't end with one
-          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo '``````' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-      - name: Upload agentic output file
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: safe_output.jsonl
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          if-no-files-found: warn
-      - name: Ingest agent output
+      - name: Collect agent output
         id: collect_output
         uses: actions/github-script@v7
         env:
@@ -808,14 +795,14 @@ jobs:
                     return 5; // Only one labels operation allowed
                   case "update-issue":
                     return 1; // Only one issue update allowed
-                  case "push-to-branch":
+                  case "push-to-pr-branch":
                     return 1; // Only one push to branch allowed
                   case "create-discussion":
                     return 1; // Only one discussion allowed
                   case "missing-tool":
                     return 1000; // Allow many missing tool reports (default: unlimited)
                   case "create-repository-security-advisory":
-                    return 1000; // Allow many repository security advisories (default: unlimited)
+                    return 1000; // Allow many security reports (default: unlimited)
                   default:
                     return 1; // Default to single item for unknown types
                 }
@@ -827,15 +814,6 @@ jobs:
                */
               function repairJson(jsonStr) {
                 let repaired = jsonStr.trim();
-                // remove invalid control characters like
-                // U+0014 (DC4) — represented here as "\u0014"
-                // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
-                // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-                const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
-                repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
-                  const c = ch.charCodeAt(0);
-                  return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
-                });
                 // Fix single quotes to double quotes (must be done first)
                 repaired = repaired.replace(/'/g, '"');
                 // Fix missing quotes around object keys
@@ -905,7 +883,6 @@ jobs:
                     return JSON.parse(repairedJson);
                   } catch (repairError) {
                     // If repair also fails, throw the error
-                    console.log(`invalid input json: ${jsonStr}`);
                     throw new Error(
                       `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
                     );
@@ -1117,12 +1094,12 @@ jobs:
                         }
                       }
                       break;
-                    case "push-to-branch":
+                    case "push-to-pr-branch":
                       // Validate message if provided (optional)
                       if (item.message !== undefined) {
                         if (typeof item.message !== "string") {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'message' must be a string`
+                            `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
                           );
                           continue;
                         }
@@ -1135,7 +1112,7 @@ jobs:
                           typeof item.pull_request_number !== "string"
                         ) {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`
+                            `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
                           );
                           continue;
                         }
@@ -1350,14 +1327,33 @@ jobs:
             }
             // Call the main function
             await main();
-      - name: Print sanitized agent output
+      - name: Print agent output to step summary
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
+          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '``````json' >> $GITHUB_STEP_SUMMARY
+          cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
+          # Ensure there's a newline after the file content if it doesn't end with one
+          if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '``````' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````json' >> $GITHUB_STEP_SUMMARY
           echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-      - name: Upload sanitized agent output
+      - name: Upload agentic output file
+        if: always() && steps.collect_output.outputs.output != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe_output.jsonl
+          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          if-no-files-found: warn
+      - name: Upload agent output JSON
         if: always() && env.GITHUB_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4
         with:
@@ -1701,7 +1697,9 @@ jobs:
 
   create_pr_review_comment:
     needs: test-claude-create-pull-request-review-comment
-    if: github.event.pull_request.number
+    if: >
+      (contains(github.event.issue.body, '/test-claude-create-pull-request-review-comment') || contains(github.event.comment.body, '/test-claude-create-pull-request-review-comment') ||
+      contains(github.event.pull_request.body, '/test-claude-create-pull-request-review-comment')) && (github.event.pull_request.number)
     runs-on: ubuntu-latest
     permissions:
       contents: read

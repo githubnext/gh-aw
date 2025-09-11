@@ -1,18 +1,18 @@
 ---
 on:
   command:
-    name: test-claude-push-to-branch
+    name: test-claude-push-to-pr-branch
 
 engine: 
   id: claude
 
 safe-outputs:
-  push-to-branch:
+  push-to-pr-branch:
 ---
 
 # Test Claude Push to Branch
 
-This test workflow specifically tests multi-commit functionality in push-to-branch.
+This test workflow specifically tests multi-commit functionality in push-to-pr-branch.
 
 **IMPORTANT: Create multiple separate commits for this test case**
 
@@ -20,12 +20,12 @@ This test workflow specifically tests multi-commit functionality in push-to-bran
    ```markdown
    # Claude Push-to-Branch Multi-Commit Test
    
-   This file was created by the Claude agentic workflow to test the multi-commit push-to-branch functionality.
+   This file was created by the Claude agentic workflow to test the multi-commit push-to-pr-branch functionality.
    
    Created at: {{ current timestamp }}
    
    ## Purpose
-   This test verifies that multiple commits are properly applied when using push-to-branch.
+   This test verifies that multiple commits are properly applied when using push-to-pr-branch.
    ```
 
 2. **Second commit**: Create a Python script called "claude-script.py" with:
@@ -40,7 +40,7 @@ This test workflow specifically tests multi-commit functionality in push-to-bran
    def main():
        print("Hello from Claude agentic workflow!")
        print(f"Current time: {datetime.datetime.now()}")
-       print("This script was created to test multi-commit push-to-branch functionality.")
+       print("This script was created to test multi-commit push-to-pr-branch functionality.")
        print("This is commit #2 in the multi-commit test.")
    
    if __name__ == "__main__":

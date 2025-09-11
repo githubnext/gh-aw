@@ -30,7 +30,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 			expectGit: true,
 		},
 		{
-			name:  "push-to-branch enabled - should add git commands",
+			name:  "push-to-pr-branch enabled - should add git commands",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				PushToBranch: &PushToBranchConfig{Branch: "main"},
@@ -152,7 +152,7 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 			expectEditingTools: true,
 		},
 		{
-			name:  "push-to-branch enabled - should add editing tools",
+			name:  "push-to-pr-branch enabled - should add editing tools",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				PushToBranch: &PushToBranchConfig{Branch: "main"},
@@ -268,7 +268,7 @@ func TestNeedsGitCommands(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "push-to-branch enabled",
+			name: "push-to-pr-branch enabled",
 			safeOutputs: &SafeOutputsConfig{
 				PushToBranch: &PushToBranchConfig{Branch: "main"},
 			},

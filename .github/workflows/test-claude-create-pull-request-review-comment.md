@@ -1,22 +1,20 @@
 ---
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  command:
+    name: test-claude-create-pull-request-review-comment
   reaction: eyes
 
 engine: 
   id: claude
-
-if: contains(github.event.pull_request.title, 'prr')
 
 safe-outputs:
   create-pull-request-review-comment:
     max: 3
 ---
 
-Analyze the pull request and create a few targeted review comments on the code changes. 
+Analyze the pull request #${github.event.pull_request.number} and create a few targeted review comments on the code changes. 
 
-Create 2-3 review comments focusing on:
+You MUST create 2 review comments focusing on:
 1. Code quality and best practices
 2. Potential security issues or improvements  
 3. Performance optimizations or concerns

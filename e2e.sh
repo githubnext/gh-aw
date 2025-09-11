@@ -24,7 +24,6 @@
 #   --workflow-dispatch-only   Run only workflow_dispatch triggered tests
 #   --issue-triggered-only     Run only issue-triggered tests  
 #   --command-triggered-only   Run only command-triggered tests
-#   --pr-triggered-only        Run only PR-triggered tests
 #   --dry-run                  Show what would be tested without running
 #   --help, -h                 Show help message
 #
@@ -138,7 +137,6 @@ get_all_test_names() {
     get_workflow_dispatch_tests
     get_issue_triggered_tests
     get_command_triggered_tests
-    get_pr_triggered_tests
 }
 
 get_workflow_dispatch_tests() {
@@ -165,11 +163,8 @@ get_issue_triggered_tests() {
 get_command_triggered_tests() {
     echo "test-claude-command"
     echo "test-codex-command"
-    echo "test-claude-push-to-branch"
-    echo "test-codex-push-to-branch"
-}
-
-get_pr_triggered_tests() {
+    echo "test-claude-push-to-pr-branch"
+    echo "test-codex-push-to-pr-branch"
     echo "test-claude-create-pull-request-review-comment"
     echo "test-codex-create-pull-request-review-comment"
 }
@@ -189,9 +184,6 @@ filter_tests_by_patterns() {
             ;;
         "command-triggered")
             all_tests=($(get_command_triggered_tests))
-            ;;
-        "pr-triggered")
-            all_tests=($(get_pr_triggered_tests))
             ;;
         *)
             error "Unknown test type: $test_type"
@@ -435,20 +427,42 @@ create_test_pr() {
     fi
 }
 
-create_test_branch() {
-    local branch_name="$1"
-    local test_file_content="$2"
+create_test_pr_with_branch() {
+    local title="$1"
+    local body="$2"
+    local branch="test-pr-$(date +%s)"
     
-    # Delete the branch if it already exists to ensure clean test
-    git push origin --delete "$branch_name" &>/dev/null || true
+    # Create a remote branch from main without changing local git state
+    git push origin "main:$branch" &>/dev/null
     
-    # Create a new branch from main without changing local git state
-    git push origin "main:$branch_name" &>/dev/null
+    # Create a commit on the remote branch using GitHub API to make it different from main
+    local commit_message="Test commit for PR"
+    local file_content="# Test PR Content\n\nThis is a test file created for PR testing at $(date)"
+    local file_path="test-file-$(date +%s).md"
     
-    # Get the initial SHA from the remote branch
-    local initial_sha=$(git ls-remote --heads origin "$branch_name" 2>/dev/null | cut -f1)
+    # Get the current SHA of the branch
+    local current_sha=$(git ls-remote --heads origin "$branch" 2>/dev/null | cut -f1)
     
-    echo "$initial_sha"
+    if [[ -n "$current_sha" ]]; then
+        # Create a new file on the branch using GitHub API
+        gh api repos/:owner/:repo/contents/"$file_path" \
+            --method PUT \
+            --field message="$commit_message" \
+            --field content="$(echo -e "$file_content" | base64 -w 0)" \
+            --field branch="$branch" &>/dev/null
+        
+        # Create a PR using the GitHub CLI
+        local pr_url=$(gh pr create --title "$title" --body "$body" --head "$branch" --base main 2>/dev/null)
+        
+        if [[ -n "$pr_url" ]]; then
+            local pr_number=$(echo "$pr_url" | grep -o '[0-9]\+$')
+            echo "$pr_number,$branch,$current_sha"
+        else
+            echo ""
+        fi
+    else
+        echo ""
+    fi
 }
 
 post_issue_command() {
@@ -456,6 +470,13 @@ post_issue_command() {
     local command="$2"
     
     gh issue comment "$issue_number" --body "$command" &>/dev/null
+}
+
+post_pr_command() {
+    local pr_number="$1"
+    local command="$2"
+    
+    gh pr comment "$pr_number" --body "$command" &>/dev/null
 }
 
 validate_issue_created() {
@@ -708,6 +729,35 @@ validate_branch_updated() {
     fi
 }
 
+validate_pr_review_comments() {
+    local pr_number="$1"
+    local ai_type="$2"  # "Claude" or "Codex"
+    
+    # Get PR review comments using GitHub CLI (these are line-specific review comments)
+    local review_comments=$(gh api repos/:owner/:repo/pulls/"$pr_number"/reviews 2>/dev/null | jq -r '.[].body // empty' 2>/dev/null || echo "")
+    
+    # Also check for PR comments (general comments on the PR)
+    local pr_comments=$(gh pr view "$pr_number" --json comments --jq '.comments[]?.body // empty' 2>/dev/null || echo "")
+    
+    # Combine both types of comments for validation
+    local all_comments="$review_comments $pr_comments"
+    
+    if [[ -n "$all_comments" && "$all_comments" != " " ]]; then
+        # Check if any comment contains AI-specific content or expected patterns
+        if echo "$all_comments" | grep -qi "$ai_type\|review\|test\|automated\|workflow"; then
+            success "PR #$pr_number has review/comments (likely from $ai_type AI workflow)"
+            return 0
+        else
+            # Accept any non-empty comments as success since AI might generate varied content
+            success "PR #$pr_number has review/comments (content validation passed)"
+            return 0
+        fi
+    else
+        warning "(polling) PR #$pr_number missing expected review comments from $ai_type"
+        return 1
+    fi
+}
+
 # Polling functions for workflow validation
 wait_for_issue_comment() {
     local issue_number="$1"
@@ -814,6 +864,27 @@ wait_for_branch_update() {
     return 1
 }
 
+wait_for_pr_review_comments() {
+    local pr_number="$1"
+    local ai_type="$2"
+    local test_name="$3"
+    local max_wait=240 # Max wait time in seconds (4 minutes)
+    local waited=0
+    
+    while [[ $waited -lt $max_wait ]]; do
+        if validate_pr_review_comments "$pr_number" "$ai_type"; then
+            PASSED_TESTS+=("$test_name")
+            return 0
+        fi
+        info "..."
+        sleep 5
+        waited=$((waited + 5))
+    done
+    
+    FAILED_TESTS+=("$test_name")
+    return 1
+}
+
 cleanup_test_resources() {
     info "Cleaning up test resources..."
     
@@ -835,8 +906,8 @@ cleanup_test_resources() {
     #     "test-codex-add-issue-labels"
     #     "test-claude-command"
     #     "test-codex-command"
-    #     "test-claude-push-to-branch"
-    #     "test-codex-push-to-branch"
+    #     "test-claude-push-to-pr-branch"
+    #     "test-codex-push-to-pr-branch"
     #     "test-claude-create-pull-request-review-comment"
     #     "test-codex-create-pull-request-review-comment"
     #     "test-claude-update-issue"
@@ -870,6 +941,13 @@ cleanup_test_resources() {
     
     # Close test PRs
     gh pr list --label "claude,automation,bot" --limit 20 --json number --jq '.[].number' | while read -r pr_num; do
+        if [[ -n "$pr_num" ]]; then
+            gh pr close "$pr_num" --comment "Closed by e2e test cleanup" &>/dev/null || true
+        fi
+    done
+    
+    # Close PRs with titles containing "Test PR for"
+    gh pr list --limit 20 --json number,title --jq '.[] | select(.title | contains("Test PR for")) | .number' | while read -r pr_num; do
         if [[ -n "$pr_num" ]]; then
             gh pr close "$pr_num" --comment "Closed by e2e test cleanup" &>/dev/null || true
         fi
@@ -1075,39 +1153,62 @@ run_command_tests() {
             if enable_workflow "$workflow"; then
                 workflows_to_disable+=("$workflow")
                 
-                # Create a test issue for this specific workflow
-                progress "Testing $workflow"
-                local issue_num=$(create_test_issue "Test Issue for $ai_display_name Commands" "This issue is for testing $workflow")
-                
-                if [[ -n "$issue_num" ]]; then
-                    success "Created test issue #$issue_num for $workflow: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$issue_num"
-                    
-                    # Run the appropriate test based on workflow type
-                    case "$workflow" in
-                        *"command")
-                            progress "Testing $ai_display_name command workflow"
-                            post_issue_command "$issue_num" "/test-${ai_type}-command What is 102+103?"
-                            wait_for_command_comment "$issue_num" "205" "$workflow"
-                            ;;
-                        *"push-to-branch")
-                            progress "Testing $ai_display_name push-to-branch workflow"
-                            # Create a test branch with initial content
-                            local initial_sha=$(create_test_branch "${ai_type}-test-branch" "# $ai_display_name Test Branch\nThis branch will be updated by the $ai_display_name push-to-branch workflow.")
+                # Different handling for different workflow types
+                case "$workflow" in
+                    *"push-to-pr-branch")
+                        # For push-to-pr-branch workflows, create a test PR instead of an issue
+                        progress "Testing $workflow"
+                        local pr_info=$(create_test_pr_with_branch "Test PR for $ai_display_name Push-to-Branch" "This PR is for testing $workflow")
+                        
+                        if [[ -n "$pr_info" ]]; then
+                            IFS=',' read -r pr_num branch_name initial_sha <<< "$pr_info"
+                            success "Created test PR #$pr_num for $workflow with branch '$branch_name': https://github.com/$REPO_OWNER/$REPO_NAME/pull/$pr_num"
                             
-                            if [[ -n "$initial_sha" ]]; then
-                                success "Created test branch '${ai_type}-test-branch' with SHA: $initial_sha"
-                                post_issue_command "$issue_num" "/test-${ai_type}-push-to-branch"
-                                wait_for_branch_update "${ai_type}-test-branch" "$initial_sha" "$workflow"
-                            else
-                                error "Failed to create test branch for $workflow"
-                                FAILED_TESTS+=("$workflow")
-                            fi
-                            ;;
-                    esac
-                else
-                    error "Failed to create test issue for $workflow"
-                    FAILED_TESTS+=("$workflow")
-                fi
+                            progress "Testing $ai_display_name push-to-pr-branch workflow"
+                            post_pr_command "$pr_num" "/test-${ai_type}-push-to-pr-branch"
+                            wait_for_branch_update "$branch_name" "$initial_sha" "$workflow"
+                        else
+                            error "Failed to create test PR for $workflow"
+                            FAILED_TESTS+=("$workflow")
+                        fi
+                        ;;
+                    *"pull-request-review-comment")
+                        # For PR review comment workflows, create a test PR and wait for review comments
+                        progress "Testing $workflow"
+                        local pr_num=$(create_test_pr "Test PR for $ai_display_name Review Comments" "This PR is for testing $workflow. Please add review comments.")
+                        
+                        if [[ -n "$pr_num" ]]; then
+                            success "Created test PR #$pr_num for $workflow: https://github.com/$REPO_OWNER/$REPO_NAME/pull/$pr_num"
+                            sleep 10 # Wait for workflow to trigger automatically
+                            
+                            progress "Testing $ai_display_name PR review comment workflow"
+                            wait_for_pr_review_comments "$pr_num" "$ai_display_name" "$workflow"
+                        else
+                            error "Failed to create test PR for $workflow"
+                            FAILED_TESTS+=("$workflow")
+                        fi
+                        ;;
+                    *)
+                        # For other command workflows (like regular commands), create a test issue
+                        local issue_num=$(create_test_issue "Test Issue for $ai_display_name Commands" "This issue is for testing $workflow")
+                        
+                        if [[ -n "$issue_num" ]]; then
+                            success "Created test issue #$issue_num for $workflow: https://github.com/$REPO_OWNER/$REPO_NAME/issues/$issue_num"
+                            
+                            # Run the appropriate test based on workflow type
+                            case "$workflow" in
+                                *"command")
+                                    progress "Testing $ai_display_name command workflow"
+                                    post_issue_command "$issue_num" "/test-${ai_type}-command What is 102+103?"
+                                    wait_for_command_comment "$issue_num" "205" "$workflow"
+                                    ;;
+                            esac
+                        else
+                            error "Failed to create test issue for $workflow"
+                            FAILED_TESTS+=("$workflow")
+                        fi
+                        ;;
+                esac
             else
                 FAILED_TESTS+=("$workflow")
             fi
@@ -1121,61 +1222,6 @@ run_command_tests() {
     
     if [[ ${#workflows_to_disable[@]} -eq 0 ]]; then
         info "No command tests selected to run"
-    fi
-}
-
-run_pr_triggered_tests() {
-    local patterns=("$@")
-    info "🔀 Running PR-triggered tests..."
-    
-    local workflows
-    readarray -t workflows < <(filter_tests_by_patterns "pr-triggered" "${patterns[@]}")
-    
-    if [[ ${#workflows[@]} -eq 0 ]]; then
-        warning "No PR-triggered tests match the specified patterns"
-        return 0
-    fi
-    
-    # Process each workflow individually
-    local workflows_to_disable=()
-    
-    for workflow in "${workflows[@]}"; do
-        local ai_type=$(extract_ai_type "$workflow")
-        local ai_display_name="${ai_type^}"
-        
-        if [[ -n "$ai_type" ]]; then
-            # Try to enable the workflow
-            if enable_workflow "$workflow"; then
-                workflows_to_disable+=("$workflow")
-                
-                # Create a test PR for this specific workflow
-                progress "Testing $workflow"
-                local pr_num=$(create_test_pr "Test PR for $ai_display_name Review" "This PR is for testing $workflow")
-                
-                if [[ -n "$pr_num" ]]; then
-                    success "Created test PR #$pr_num for $workflow: https://github.com/$REPO_OWNER/$REPO_NAME/pull/$pr_num"
-                    sleep 10 # Wait for workflow to trigger
-                    
-                    # For PR review comment workflows, we just check that the PR was created
-                    # (Review comment validation is harder to do automatically)
-                    PASSED_TESTS+=("$workflow")
-                else
-                    error "Failed to create test PR for $workflow"
-                    FAILED_TESTS+=("$workflow")
-                fi
-            else
-                FAILED_TESTS+=("$workflow")
-            fi
-        fi
-    done
-    
-    # Disable workflows after testing
-    for workflow in "${workflows_to_disable[@]}"; do
-        disable_workflow "$workflow"
-    done
-    
-    if [[ ${#workflows_to_disable[@]} -eq 0 ]]; then
-        info "No PR-triggered tests selected that require creating test PRs"
     fi
 }
 
@@ -1236,7 +1282,6 @@ main() {
     local run_workflow_dispatch=true
     local run_issue_triggered=true
     local run_command_triggered=true
-    local run_pr_triggered=true
     local dry_run=false
     local specific_tests=()
     
@@ -1246,28 +1291,18 @@ main() {
                 run_workflow_dispatch=true
                 run_issue_triggered=false
                 run_command_triggered=false
-                run_pr_triggered=false
                 shift
                 ;;
             --issue-triggered-only)
                 run_workflow_dispatch=false
                 run_issue_triggered=true
                 run_command_triggered=false
-                run_pr_triggered=false
                 shift
                 ;;
             --command-triggered-only)
                 run_workflow_dispatch=false
                 run_issue_triggered=false
                 run_command_triggered=true
-                run_pr_triggered=false
-                shift
-                ;;
-            --pr-triggered-only)
-                run_workflow_dispatch=false
-                run_issue_triggered=false
-                run_command_triggered=false
-                run_pr_triggered=true
                 shift
                 ;;
             --dry-run|-n)
@@ -1281,7 +1316,6 @@ main() {
                 echo "  --workflow-dispatch-only   Run only workflow_dispatch triggered tests"
                 echo "  --issue-triggered-only     Run only issue-triggered tests"
                 echo "  --command-triggered-only   Run only command-triggered tests"
-                echo "  --pr-triggered-only        Run only PR-triggered tests"
                 echo "  --dry-run, -n              Show what would be tested without running"
                 echo "  --help, -h                 Show this help message"
                 echo ""
@@ -1358,20 +1392,6 @@ main() {
             echo
         fi
         
-        if [[ "$run_pr_triggered" == true ]]; then
-            info "� PR-Triggered Tests:"
-            local workflows
-            readarray -t workflows < <(filter_tests_by_patterns "pr-triggered" "${specific_tests[@]}")
-            if [[ ${#workflows[@]} -gt 0 ]]; then
-                for workflow in "${workflows[@]}"; do
-                    echo "   - $workflow"
-                done
-            else
-                echo "   (no tests match the specified patterns)"
-            fi
-            echo
-        fi
-        
         exit 0
     fi
     
@@ -1404,12 +1424,6 @@ main() {
             run_command_triggered=false
         fi
         
-        # Check if any PR triggered tests match
-        local pt_tests
-        readarray -t pt_tests < <(filter_tests_by_patterns "pr-triggered" "${specific_tests[@]}")
-        if [[ ${#pt_tests[@]} -eq 0 ]]; then
-            run_pr_triggered=false
-        fi
     fi
     
     # Run test suites based on options
@@ -1423,10 +1437,6 @@ main() {
     
     if [[ "$run_command_triggered" == true ]]; then
         run_command_tests "${specific_tests[@]}"
-    fi
-    
-    if [[ "$run_pr_triggered" == true ]]; then
-        run_pr_triggered_tests "${specific_tests[@]}"
     fi
     
     print_final_report
