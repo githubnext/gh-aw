@@ -39,6 +39,9 @@ then run the `compile` command to generate the lock file.
 
 ```sh
 gh aw compile
+
+# Or clean up orphaned .lock.yml files from deleted workflows
+gh aw compile --purge
 ```
 
 ## File Organization
@@ -106,6 +109,7 @@ When you run `gh aw compile`, the system:
 2. **Processes** the frontmatter and markdown content
 3. **Generates** corresponding `.lock.yml` GitHub Actions workflow files
 4. **Updates** `.gitattributes` to mark generated files
+5. **Optionally removes orphaned `.lock.yml` files** (with `--purge` flag)
 
 ### Lock File Characteristics
 

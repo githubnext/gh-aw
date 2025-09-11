@@ -177,14 +177,14 @@ async function main() {
         return 5; // Only one labels operation allowed
       case "update-issue":
         return 1; // Only one issue update allowed
-      case "push-to-branch":
+      case "push-to-pr-branch":
         return 1; // Only one push to branch allowed
       case "create-discussion":
         return 1; // Only one discussion allowed
       case "missing-tool":
         return 1000; // Allow many missing tool reports (default: unlimited)
-      case "create-security-report":
-        return 1000; // Allow many security reports (default: unlimited)
+      case "create-code-scanning-alert":
+        return 1000; // Allow many repository security advisories (default: unlimited)
       default:
         return 1; // Default to single item for unknown types
     }
@@ -197,6 +197,16 @@ async function main() {
    */
   function repairJson(jsonStr) {
     let repaired = jsonStr.trim();
+
+    // remove invalid control characters like
+    // U+0014 (DC4) — represented here as "\u0014"
+    // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
+    // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+    const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
+    repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
+      const c = ch.charCodeAt(0);
+      return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
+    });
 
     // Fix single quotes to double quotes (must be done first)
     repaired = repaired.replace(/'/g, '"');
@@ -278,6 +288,7 @@ async function main() {
         return JSON.parse(repairedJson);
       } catch (repairError) {
         // If repair also fails, throw the error
+        console.log(`invalid input json: ${jsonStr}`);
         throw new Error(
           `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
         );
@@ -507,12 +518,12 @@ async function main() {
           }
           break;
 
-        case "push-to-branch":
+        case "push-to-pr-branch":
           // Validate message if provided (optional)
           if (item.message !== undefined) {
             if (typeof item.message !== "string") {
               errors.push(
-                `Line ${i + 1}: push-to-branch 'message' must be a string`
+                `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
               );
               continue;
             }
@@ -525,7 +536,7 @@ async function main() {
               typeof item.pull_request_number !== "string"
             ) {
               errors.push(
-                `Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`
+                `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
               );
               continue;
             }
@@ -664,37 +675,98 @@ async function main() {
           }
           break;
 
-        case "create-security-report":
-          // Validate required sarif field
-          if (!item.sarif) {
+        case "create-code-scanning-alert":
+          // Validate required fields
+          if (!item.file || typeof item.file !== "string") {
             errors.push(
-              `Line ${i + 1}: create-security-report requires a 'sarif' field`
+              `Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`
             );
             continue;
           }
-          // SARIF content can be object or string
           if (
-            typeof item.sarif !== "object" &&
-            typeof item.sarif !== "string"
+            item.line === undefined ||
+            item.line === null ||
+            (typeof item.line !== "number" && typeof item.line !== "string")
           ) {
             errors.push(
-              `Line ${i + 1}: create-security-report 'sarif' must be an object or string`
+              `Line ${i + 1}: create-code-scanning-alert requires a 'line' field (number or string)`
             );
             continue;
           }
-          // If SARIF is a string, sanitize it
-          if (typeof item.sarif === "string") {
-            item.sarif = sanitizeContent(item.sarif);
+          // Additional validation: line must be parseable as a positive integer
+          const parsedLine = parseInt(item.line, 10);
+          if (isNaN(parsedLine) || parsedLine <= 0) {
+            errors.push(
+              `Line ${i + 1}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${item.line})`
+            );
+            continue;
           }
-          // Validate optional category field
-          if (item.category !== undefined) {
-            if (typeof item.category !== "string") {
+          if (!item.severity || typeof item.severity !== "string") {
+            errors.push(
+              `Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`
+            );
+            continue;
+          }
+          if (!item.message || typeof item.message !== "string") {
+            errors.push(
+              `Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`
+            );
+            continue;
+          }
+
+          // Validate severity level
+          const allowedSeverities = ["error", "warning", "info", "note"];
+          if (!allowedSeverities.includes(item.severity.toLowerCase())) {
+            errors.push(
+              `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
+            );
+            continue;
+          }
+
+          // Validate optional column field
+          if (item.column !== undefined) {
+            if (
+              typeof item.column !== "number" &&
+              typeof item.column !== "string"
+            ) {
               errors.push(
-                `Line ${i + 1}: create-security-report 'category' must be a string`
+                `Line ${i + 1}: create-code-scanning-alert 'column' must be a number or string`
               );
               continue;
             }
-            item.category = sanitizeContent(item.category);
+            // Additional validation: must be parseable as a positive integer
+            const parsedColumn = parseInt(item.column, 10);
+            if (isNaN(parsedColumn) || parsedColumn <= 0) {
+              errors.push(
+                `Line ${i + 1}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${item.column})`
+              );
+              continue;
+            }
+          }
+
+          // Validate optional ruleIdSuffix field
+          if (item.ruleIdSuffix !== undefined) {
+            if (typeof item.ruleIdSuffix !== "string") {
+              errors.push(
+                `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`
+              );
+              continue;
+            }
+            if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
+              errors.push(
+                `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
+              );
+              continue;
+            }
+          }
+
+          // Normalize severity to lowercase and sanitize string fields
+          item.severity = item.severity.toLowerCase();
+          item.file = sanitizeContent(item.file);
+          item.severity = sanitizeContent(item.severity);
+          item.message = sanitizeContent(item.message);
+          if (item.ruleIdSuffix) {
+            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
           }
           break;
 
@@ -745,7 +817,7 @@ async function main() {
     // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
     core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
   } catch (error) {
-    console.error(`Failed to write agent output file: ${error.message}`);
+    core.error(`Failed to write agent output file: ${error.message}`);
   }
 
   core.setOutput("output", JSON.stringify(validatedOutput));

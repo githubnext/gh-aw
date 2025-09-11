@@ -6,7 +6,31 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
+
+// convertToIdentifier converts a workflow name to a valid identifier format
+// by converting to lowercase and replacing spaces with hyphens
+func convertToIdentifier(name string) string {
+	// Convert to lowercase
+	identifier := strings.ToLower(name)
+	// Replace spaces and other common separators with hyphens
+	identifier = strings.ReplaceAll(identifier, " ", "-")
+	identifier = strings.ReplaceAll(identifier, "_", "-")
+	// Remove any characters that aren't alphanumeric or hyphens
+	identifier = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(identifier, "")
+	// Remove any double hyphens that might have been created
+	identifier = regexp.MustCompile(`-+`).ReplaceAllString(identifier, "-")
+	// Remove leading/trailing hyphens
+	identifier = strings.Trim(identifier, "-")
+
+	// If the result is empty, return a default identifier
+	if identifier == "" {
+		identifier = "github-agentic-workflow"
+	}
+
+	return identifier
+}
 
 // CodexEngine represents the Codex agentic engine (experimental)
 type CodexEngine struct {
@@ -92,6 +116,11 @@ codex exec \
 	hasOutput := workflowData.SafeOutputs != nil
 	if hasOutput {
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+
+		// Add staged flag if specified
+		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
+			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		}
 	}
 
 	// Add custom environment variables from engine config
@@ -140,7 +169,7 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 	return ConvertStepToYAML(stepMap)
 }
 
-func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, networkPermissions *NetworkPermissions) {
+func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
@@ -152,10 +181,10 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool)
+			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, networkPermissions)
+			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.networkPermissions)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -180,6 +209,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	turns := 0
 	inThinkingSection := false
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls
+	var currentSequence []string                  // Track tool sequence
 
 	for _, line := range lines {
 		// Skip empty lines
@@ -192,13 +222,20 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 			if !inThinkingSection {
 				turns++
 				inThinkingSection = true
+				// Start of a new thinking section, save previous sequence if any
+				if len(currentSequence) > 0 {
+					metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+					currentSequence = []string{}
+				}
 			}
 		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") {
 			inThinkingSection = false
 		}
 
-		// Extract tool calls from Codex logs
-		e.parseCodexToolCalls(line, toolCallMap)
+		// Extract tool calls from Codex logs and add to sequence
+		if toolName := e.parseCodexToolCallsWithSequence(line, toolCallMap); toolName != "" {
+			currentSequence = append(currentSequence, toolName)
+		}
 
 		// Extract Codex-specific token usage (always sum for Codex)
 		if tokenUsage := e.extractCodexTokenUsage(line); tokenUsage > 0 {
@@ -213,6 +250,11 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		if strings.Contains(lowerLine, "warning") {
 			metrics.WarningCount++
 		}
+	}
+
+	// Add final sequence if any
+	if len(currentSequence) > 0 {
+		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
 	}
 
 	metrics.TokenUsage = totalTokenUsage
@@ -231,8 +273,8 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	return metrics
 }
 
-// parseCodexToolCalls extracts tool call information from Codex log lines
-func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*ToolCallInfo) {
+// parseCodexToolCallsWithSequence extracts tool call information from Codex log lines and returns tool name
+func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap map[string]*ToolCallInfo) string {
 	// Parse tool calls: "] tool provider.method(...)"
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
 		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
@@ -257,8 +299,11 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 					Name:          prettifiedName,
 					CallCount:     1,
 					MaxOutputSize: 0, // TODO: Extract output size from results if available
+					MaxDuration:   0, // Will be updated when duration is found
 				}
 			}
+
+			return prettifiedName
 		}
 	}
 
@@ -277,8 +322,42 @@ func (e *CodexEngine) parseCodexToolCalls(line string, toolCallMap map[string]*T
 					Name:          uniqueBashName,
 					CallCount:     1,
 					MaxOutputSize: 0,
+					MaxDuration:   0, // Will be updated when duration is found
 				}
 			}
+
+			return uniqueBashName
+		}
+	}
+
+	// Parse duration from success/failure lines: "] success in 0.2s" or "] failure in 1.5s"
+	if strings.Contains(line, "success in") || strings.Contains(line, "failure in") || strings.Contains(line, "failed in") {
+		// Extract duration pattern like "in 0.2s", "in 1.5s"
+		if match := regexp.MustCompile(`in\s+(\d+(?:\.\d+)?)\s*s`).FindStringSubmatch(line); len(match) > 1 {
+			if durationSeconds, err := strconv.ParseFloat(match[1], 64); err == nil {
+				duration := time.Duration(durationSeconds * float64(time.Second))
+
+				// Find the most recent tool call to associate with this duration
+				// Since we don't have direct association, we'll update the most recent entry
+				// This is a limitation of the log format, but it's the best we can do
+				e.updateMostRecentToolWithDuration(toolCallMap, duration)
+			}
+		}
+	}
+
+	return "" // No tool call found
+}
+
+// updateMostRecentToolWithDuration updates the tool with maximum duration
+// Since we can't perfectly correlate duration lines with specific tool calls in Codex logs,
+// we approximate by updating any tool that doesn't have a duration yet, or updating the max
+func (e *CodexEngine) updateMostRecentToolWithDuration(toolCallMap map[string]*ToolCallInfo, duration time.Duration) {
+	// Find a tool that either has no duration yet or can be updated with a larger duration
+	for _, toolInfo := range toolCallMap {
+		if toolInfo.MaxDuration == 0 || duration > toolInfo.MaxDuration {
+			toolInfo.MaxDuration = duration
+			// Only update one tool per duration line to avoid over-attribution
+			break
 		}
 	}
 }
@@ -307,10 +386,23 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml
 // Always uses Docker MCP as the default
-func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any) {
+func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
+
+	// Add user_agent field defaulting to workflow identifier
+	userAgent := "github-agentic-workflow"
+	if workflowData != nil {
+		// Check if user_agent is configured in engine config first
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			// Fall back to converting workflow name to identifier
+			userAgent = convertToIdentifier(workflowData.Name)
+		}
+	}
+	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 
 	// Always use Docker-based GitHub MCP server (services mode has been removed)
 	yaml.WriteString("          command = \"docker\"\n")

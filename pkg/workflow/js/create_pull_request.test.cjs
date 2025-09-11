@@ -182,26 +182,15 @@ describe("create_pull_request.cjs", () => {
 
     // Verify git operations (excluding git config which is handled by workflow)
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git checkout -b test-workflow/1234567890abcdef",
+      "git checkout -b test-workflow-1234567890abcdef",
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git apply /tmp/aw.patch",
-      { stdio: "inherit" }
-    );
-    expect(mockDependencies.execSync).toHaveBeenCalledWith("git add .", {
-      stdio: "inherit",
-    });
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git diff --cached --exit-code",
-      { stdio: "ignore" }
-    );
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      'git commit -m "Add agent output: New Feature"',
+      "git am /tmp/aw.patch",
       { stdio: "inherit" }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git push origin test-workflow/1234567890abcdef",
+      "git push origin test-workflow-1234567890abcdef",
       { stdio: "inherit" }
     );
 
@@ -211,7 +200,7 @@ describe("create_pull_request.cjs", () => {
       repo: "testrepo",
       title: "New Feature",
       body: expect.stringContaining("This adds a new feature to the codebase."),
-      head: "test-workflow/1234567890abcdef",
+      head: "test-workflow-1234567890abcdef",
       base: "main",
       draft: true, // default value
     });
@@ -226,7 +215,7 @@ describe("create_pull_request.cjs", () => {
     );
     expect(mockDependencies.core.setOutput).toHaveBeenCalledWith(
       "branch_name",
-      "test-workflow/1234567890abcdef"
+      "test-workflow-1234567890abcdef"
     );
   });
 
@@ -560,55 +549,6 @@ describe("create_pull_request.cjs", () => {
 
       expect(mockDependencies.console.log).toHaveBeenCalledWith(
         "Patch file contains error message - cannot create pull request without changes"
-      );
-      expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
-    });
-
-    it("should handle no changes to commit with warn behavior", async () => {
-      // Mock valid patch content but no changes after git add
-      mockDependencies.fs.readFileSync.mockReturnValue(
-        "diff --git a/file.txt b/file.txt\n+content"
-      );
-      mockDependencies.execSync.mockImplementation(command => {
-        if (command === "git diff --cached --exit-code") {
-          // Return with exit code 0 (no changes)
-          return "";
-        }
-        if (command.includes("git commit")) {
-          throw new Error("Should not reach commit");
-        }
-      });
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "warn";
-
-      const mainFunction = createMainFunction(mockDependencies);
-
-      await mainFunction();
-
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
-        "No changes to commit - noop operation completed successfully"
-      );
-      expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
-    });
-
-    it("should handle no changes to commit with error behavior", async () => {
-      // Mock valid patch content but no changes after git add
-      mockDependencies.fs.readFileSync.mockReturnValue(
-        "diff --git a/file.txt b/file.txt\n+content"
-      );
-      mockDependencies.execSync.mockImplementation(command => {
-        if (command === "git diff --cached --exit-code") {
-          // Return with exit code 0 (no changes) - don't throw an error
-          return "";
-        }
-        // For other git commands, return normally
-        return "";
-      });
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "error";
-
-      const mainFunction = createMainFunction(mockDependencies);
-
-      await expect(mainFunction()).rejects.toThrow(
-        "No changes to commit - failing as configured by if-no-changes: error"
       );
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });

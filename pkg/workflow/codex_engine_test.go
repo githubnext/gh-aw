@@ -255,3 +255,317 @@ func TestCodexEngineConvertStepToYAMLWithSection(t *testing.T) {
 		}
 	}
 }
+
+func TestCodexEngineRenderMCPConfig(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name     string
+		tools    map[string]any
+		mcpTools []string
+		expected []string
+	}{
+		{
+			name: "github tool with user_agent",
+			tools: map[string]any{
+				"github": map[string]any{},
+			},
+			mcpTools: []string{"github"},
+			expected: []string{
+				"cat > /tmp/mcp-config/config.toml << EOF",
+				"[history]",
+				"persistence = \"none\"",
+				"",
+				"[mcp_servers.github]",
+				"user_agent = \"test-workflow\"",
+				"command = \"docker\"",
+				"args = [",
+				"\"run\",",
+				"\"-i\",",
+				"\"--rm\",",
+				"\"-e\",",
+				"\"GITHUB_PERSONAL_ACCESS_TOKEN\",",
+				"\"ghcr.io/github/github-mcp-server:sha-09deac4\"",
+				"]",
+				"env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }",
+				"EOF",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{Name: "test-workflow"}
+			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
+
+			result := yaml.String()
+			lines := strings.Split(strings.TrimSpace(result), "\n")
+
+			// Remove indentation from both expected and actual lines for comparison
+			var normalizedResult []string
+			for _, line := range lines {
+				normalizedResult = append(normalizedResult, strings.TrimSpace(line))
+			}
+
+			var normalizedExpected []string
+			for _, line := range tt.expected {
+				normalizedExpected = append(normalizedExpected, strings.TrimSpace(line))
+			}
+
+			if len(normalizedResult) != len(normalizedExpected) {
+				t.Errorf("Expected %d lines, got %d", len(normalizedExpected), len(normalizedResult))
+				t.Errorf("Expected:\n%s", strings.Join(normalizedExpected, "\n"))
+				t.Errorf("Got:\n%s", strings.Join(normalizedResult, "\n"))
+				return
+			}
+
+			for i, expectedLine := range normalizedExpected {
+				if i < len(normalizedResult) {
+					actualLine := normalizedResult[i]
+					if actualLine != expectedLine {
+						t.Errorf("Line %d mismatch:\nExpected: %s\nActual:   %s", i+1, expectedLine, actualLine)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name         string
+		workflowName string
+		expectedUA   string
+	}{
+		{
+			name:         "workflow name with spaces",
+			workflowName: "Test Codex Create Issue",
+			expectedUA:   "test-codex-create-issue",
+		},
+		{
+			name:         "workflow name with underscores",
+			workflowName: "Test_Workflow_Name",
+			expectedUA:   "test-workflow-name",
+		},
+		{
+			name:         "already identifier format",
+			workflowName: "test-workflow",
+			expectedUA:   "test-workflow",
+		},
+		{
+			name:         "empty workflow name",
+			workflowName: "",
+			expectedUA:   "github-agentic-workflow",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{Name: tt.workflowName}
+
+			tools := map[string]any{"github": map[string]any{}}
+			mcpTools := []string{"github"}
+
+			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+			result := yaml.String()
+			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+
+			if !strings.Contains(result, expectedUserAgentLine) {
+				t.Errorf("Expected MCP config to contain %q, got:\n%s", expectedUserAgentLine, result)
+			}
+		})
+	}
+}
+
+func TestCodexEngineRenderMCPConfigUserAgentFromConfig(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name         string
+		workflowName string
+		configuredUA string
+		expectedUA   string
+		description  string
+	}{
+		{
+			name:         "configured user_agent overrides workflow name",
+			workflowName: "Test Workflow Name",
+			configuredUA: "my-custom-agent",
+			expectedUA:   "my-custom-agent",
+			description:  "When user_agent is configured, it should be used instead of the converted workflow name",
+		},
+		{
+			name:         "configured user_agent with spaces",
+			workflowName: "test-workflow",
+			configuredUA: "My Custom User Agent",
+			expectedUA:   "My Custom User Agent",
+			description:  "Configured user_agent should be used as-is, without identifier conversion",
+		},
+		{
+			name:         "empty configured user_agent falls back to workflow name",
+			workflowName: "Test Workflow",
+			configuredUA: "",
+			expectedUA:   "test-workflow",
+			description:  "Empty configured user_agent should fall back to workflow name conversion",
+		},
+		{
+			name:         "no workflow name and no configured user_agent uses default",
+			workflowName: "",
+			configuredUA: "",
+			expectedUA:   "github-agentic-workflow",
+			description:  "Should use default when neither workflow name nor user_agent is configured",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+
+			engineConfig := &EngineConfig{
+				ID: "codex",
+			}
+			if tt.configuredUA != "" {
+				engineConfig.UserAgent = tt.configuredUA
+			}
+
+			workflowData := &WorkflowData{
+				Name:         tt.workflowName,
+				EngineConfig: engineConfig,
+			}
+
+			tools := map[string]any{"github": map[string]any{}}
+			mcpTools := []string{"github"}
+
+			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+			result := yaml.String()
+			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+
+			if !strings.Contains(result, expectedUserAgentLine) {
+				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentLine, result)
+			}
+		})
+	}
+}
+
+func TestConvertToIdentifier(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple name with spaces",
+			input:    "Test Codex Create Issue",
+			expected: "test-codex-create-issue",
+		},
+		{
+			name:     "name with underscores",
+			input:    "Test_Workflow_Name",
+			expected: "test-workflow-name",
+		},
+		{
+			name:     "name with mixed separators",
+			input:    "Test Workflow_Name With Spaces",
+			expected: "test-workflow-name-with-spaces",
+		},
+		{
+			name:     "name with special characters",
+			input:    "Test@Workflow#With$Special%Characters!",
+			expected: "testworkflowwithspecialcharacters",
+		},
+		{
+			name:     "name with multiple spaces",
+			input:    "Test   Multiple    Spaces",
+			expected: "test-multiple-spaces",
+		},
+		{
+			name:     "empty name",
+			input:    "",
+			expected: "github-agentic-workflow",
+		},
+		{
+			name:     "name with only special characters",
+			input:    "@#$%!",
+			expected: "github-agentic-workflow",
+		},
+		{
+			name:     "already lowercase with hyphens",
+			input:    "already-lowercase-name",
+			expected: "already-lowercase-name",
+		},
+		{
+			name:     "name with leading/trailing spaces",
+			input:    "  Test Workflow  ",
+			expected: "test-workflow",
+		},
+		{
+			name:     "name with hyphens and underscores",
+			input:    "Test-Workflow_Name",
+			expected: "test-workflow-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertToIdentifier(tt.input)
+			if result != tt.expected {
+				t.Errorf("convertToIdentifier(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// Test that "user-agent" field name works
+	tests := []struct {
+		name             string
+		engineConfigFunc func() *EngineConfig
+		expectedUA       string
+		description      string
+	}{
+		{
+			name: "user-agent field gets parsed as user_agent (hyphen)",
+			engineConfigFunc: func() *EngineConfig {
+				// This simulates the parsing of "user-agent" from frontmatter
+				// which gets stored in the UserAgent field
+				return &EngineConfig{
+					ID:        "codex",
+					UserAgent: "custom-agent-hyphen",
+				}
+			},
+			expectedUA:  "custom-agent-hyphen",
+			description: "user-agent field with hyphen should be parsed and work",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+
+			workflowData := &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: tt.engineConfigFunc(),
+			}
+
+			tools := map[string]any{"github": map[string]any{}}
+			mcpTools := []string{"github"}
+
+			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+			result := yaml.String()
+			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+
+			if !strings.Contains(result, expectedUserAgentLine) {
+				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentLine, result)
+			}
+		})
+	}
+}

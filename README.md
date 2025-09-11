@@ -13,6 +13,30 @@ Ready to get your first agentic workflow running? Follow our step-by-step [Quick
 
 Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [Concepts](docs/concepts.md).
 
+## 🔧 How It Works
+
+GitHub Agentic Workflows transforms natural language markdown files into GitHub Actions that are executed by AI agents. Here's a simple example:
+
+```markdown
+---
+on:
+  issues:
+    types: [opened]
+permissions: read-all 
+safe-outputs:
+  add-issue-comment:
+---
+# Issue Clarifier
+
+Analyze the current issue and ask for additional details if the issue is unclear.
+```
+
+The `gh aw` cli compiles this into a GitHub Actions Workflow (.yml) that runs an AI agent (Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository.
+
+The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
+
+**Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
+
 ## 📚 Samples
 
 Explore ready-to-use agentic workflows for research, development, and automation tasks. See [Samples](docs/samples.md) for a complete list of demonstrator workflows including:

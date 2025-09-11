@@ -147,13 +147,13 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 			expectedInConfig: []string{"create-pull-request-review-comment"},
 		},
 		{
-			name: "create-security-report config",
+			name: "create-code-scanning-alert config",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"create-security-report": map[string]any{},
+					"create-code-scanning-alert": map[string]any{},
 				},
 			},
-			expectedInConfig: []string{"create-security-report"},
+			expectedInConfig: []string{"create-code-scanning-alert"},
 		},
 		{
 			name: "multiple safe outputs including previously missing ones",
@@ -162,7 +162,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 					"create-issue":                       map[string]any{"max": 1},
 					"create-discussion":                  map[string]any{"max": 3},
 					"create-pull-request-review-comment": map[string]any{"max": 10},
-					"create-security-report":             map[string]any{},
+					"create-code-scanning-alert":         map[string]any{},
 					"add-issue-comment":                  map[string]any{},
 				},
 			},
@@ -170,7 +170,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 				"create-issue",
 				"create-discussion",
 				"create-pull-request-review-comment",
-				"create-security-report",
+				"create-code-scanning-alert",
 				"add-issue-comment",
 			},
 		},

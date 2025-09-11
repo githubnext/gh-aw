@@ -842,6 +842,11 @@
               "type": "integer",
               "description": "Maximum number of chat iterations per run"
             },
+
+            "user-agent": {
+              "type": "string",
+              "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
+            },
             "env": {
               "type": "object",
               "description": "Custom environment variables to pass to the agentic engine",
@@ -1395,11 +1400,11 @@
             }
           ]
         },
-        "create-security-report": {
+        "create-code-scanning-alert": {
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating security reports (SARIF format) from agentic workflow output",
+              "description": "Configuration for creating repository security advisories (SARIF format) from agentic workflow output",
               "properties": {
                 "max": {
                   "type": "integer",
@@ -1415,7 +1420,7 @@
             },
             {
               "type": "null",
-              "description": "Enable security report creation with default configuration (unlimited findings)"
+              "description": "Enable code scanning alert creation with default configuration (unlimited findings)"
             }
           ]
         },
@@ -1484,7 +1489,7 @@
             }
           ]
         },
-        "push-to-branch": {
+        "push-to-pr-branch": {
           "oneOf": [
             {
               "type": "null",
@@ -1531,6 +1536,10 @@
               "description": "Enable missing tool reporting with default configuration"
             }
           ]
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"
         }
       },
       "additionalProperties": false

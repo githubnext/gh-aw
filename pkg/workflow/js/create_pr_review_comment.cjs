@@ -46,6 +46,34 @@ async function main() {
     `Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`
   );
 
+  // If in staged mode, emit step summary instead of creating review comments
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent =
+      "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
+    summaryContent +=
+      "The following review comments would be created if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < reviewCommentItems.length; i++) {
+      const item = reviewCommentItems[i];
+      summaryContent += `### Review Comment ${i + 1}\n`;
+      summaryContent += `**File:** ${item.path || "No path provided"}\n\n`;
+      summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
+      if (item.start_line) {
+        summaryContent += `**Start Line:** ${item.start_line}\n\n`;
+      }
+      summaryContent += `**Side:** ${item.side || "RIGHT"}\n\n`;
+      summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+      summaryContent += "---\n\n";
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log(
+      "📝 PR review comment creation preview written to step summary"
+    );
+    return;
+  }
+
   // Get the side configuration from environment variable
   const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
   console.log(`Default comment side configuration: ${defaultSide}`);

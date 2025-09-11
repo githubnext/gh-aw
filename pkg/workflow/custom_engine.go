@@ -52,6 +52,11 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
 			if workflowData.SafeOutputs != nil {
 				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+
+				// Add staged flag if specified
+				if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
+					envVars["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+				}
 			}
 
 			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
@@ -121,7 +126,7 @@ func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 }
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine
-func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, networkPermissions *NetworkPermissions) {
+func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	// Custom engine uses the same MCP configuration generation as Claude
 	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
@@ -134,10 +139,10 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubMCPConfig(yaml, githubTool, isLast)
+			e.renderGitHubMCPConfig(yaml, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, networkPermissions)
+			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {

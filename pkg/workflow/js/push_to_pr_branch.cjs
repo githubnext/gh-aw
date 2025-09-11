@@ -1,0 +1,327 @@
+async function main() {
+  /** @type {typeof import("fs")} */
+  const fs = require("fs");
+  const { execSync } = require("child_process");
+
+  // Environment validation - fail early if required variables are missing
+  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  if (outputContent.trim() === "") {
+    console.log("Agent output content is empty");
+    return;
+  }
+
+  const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
+  const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
+
+  // Check if patch file exists and has valid content
+  if (!fs.existsSync("/tmp/aw.patch")) {
+    const message = "No patch file found - cannot push without changes";
+
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(message);
+        return;
+      case "ignore":
+        // Silent success - no console output
+        return;
+      case "warn":
+      default:
+        console.log(message);
+        return;
+    }
+  }
+
+  const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+
+  // Check for actual error conditions (but allow empty patches as valid noop)
+  if (patchContent.includes("Failed to generate patch")) {
+    const message =
+      "Patch file contains error message - cannot push without changes";
+
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(message);
+        return;
+      case "ignore":
+        // Silent success - no console output
+        return;
+      case "warn":
+      default:
+        console.log(message);
+        return;
+    }
+  }
+
+  // Empty patch is valid - behavior depends on if-no-changes configuration
+  const isEmpty = !patchContent || !patchContent.trim();
+  if (isEmpty) {
+    const message =
+      "Patch file is empty - no changes to apply (noop operation)";
+
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(
+          "No changes to push - failing as configured by if-no-changes: error"
+        );
+        return;
+      case "ignore":
+        // Silent success - no console output
+        break;
+      case "warn":
+      default:
+        console.log(message);
+        break;
+    }
+  }
+
+  console.log("Agent output content length:", outputContent.length);
+  if (!isEmpty) {
+    console.log("Patch content validation passed");
+  }
+  console.log("Target configuration:", target);
+
+  // Parse the validated output JSON
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    console.log(
+      "Error parsing agent output JSON:",
+      error instanceof Error ? error.message : String(error)
+    );
+    return;
+  }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    console.log("No valid items found in agent output");
+    return;
+  }
+
+  // Find the push-to-pr-branch item
+  const pushItem = validatedOutput.items.find(
+    /** @param {any} item */ item => item.type === "push-to-pr-branch"
+  );
+  if (!pushItem) {
+    console.log("No push-to-pr-branch item found in agent output");
+    return;
+  }
+
+  console.log("Found push-to-pr-branch item");
+
+  // If in staged mode, emit step summary instead of pushing changes
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
+    summaryContent +=
+      "The following changes would be pushed if staged mode was disabled:\n\n";
+
+    summaryContent += `**Target:** ${target}\n\n`;
+
+    if (pushItem.commit_message) {
+      summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
+    }
+
+    if (fs.existsSync("/tmp/aw.patch")) {
+      const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+      if (patchStats.trim()) {
+        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+      } else {
+        summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+      }
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log("📝 Push to PR branch preview written to step summary");
+    return;
+  }
+
+  // Validate target configuration for pull request context
+  if (target !== "*" && target !== "triggering") {
+    // If target is a specific number, validate it's a valid pull request number
+    const pullNumber = parseInt(target, 10);
+    if (isNaN(pullNumber)) {
+      core.setFailed(
+        'Invalid target configuration: must be "triggering", "*", or a valid pull request number'
+      );
+      return;
+    }
+  }
+
+  // Check if we're in a pull request context when required
+  if (target === "triggering" && !context.payload.pull_request) {
+    core.setFailed(
+      'push-to-pr-branch with target "triggering" requires pull request context'
+    );
+    return;
+  }
+
+  // Compute the target branch name based on target configuration
+  let pullNumber;
+  if (target === "triggering") {
+    // Use the number of the triggering pull request
+    pullNumber = context.payload.pull_request.number;
+  } else if (target === "*") {
+    if (pushItem.pull_number) {
+      pullNumber = parseInt(pushItem.pull_number, 10);
+    }
+  } else {
+    // Target is a specific pull request number
+    pullNumber = parseInt(target, 10);
+  }
+  let branchName;
+  // Fetch the specific PR to get its head branch
+  try {
+    const prInfo = execSync(
+      `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
+      { encoding: "utf8" }
+    ).trim();
+
+    if (prInfo) {
+      branchName = prInfo;
+    } else {
+      throw new Error("No head branch found for PR");
+    }
+  } catch (error) {
+    console.log(
+      `Warning: Could not fetch PR ${pullNumber} details: ${error.message}`
+    );
+    // Exit with failure if we cannot determine the branch name
+    core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+    return;
+  }
+
+  console.log("Target branch:", branchName);
+
+  // Check if patch has actual changes (not just empty)
+  const hasChanges = !isEmpty;
+
+  // Switch to or create the target branch
+  console.log("Switching to branch:", branchName);
+  try {
+    // Try to checkout existing branch first
+    execSync("git fetch origin", { stdio: "inherit" });
+
+    // Check if branch exists on origin
+    try {
+      execSync(`git rev-parse --verify origin/${branchName}`, {
+        stdio: "pipe",
+      });
+      // Branch exists on origin, check it out
+      execSync(`git checkout -B ${branchName} origin/${branchName}`, {
+        stdio: "inherit",
+      });
+      console.log("Checked out existing branch from origin:", branchName);
+    } catch (originError) {
+      // Branch doesn't exist on origin, check if it exists locally
+      try {
+        execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+        // Branch exists locally, check it out
+        execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+        console.log("Checked out existing local branch:", branchName);
+      } catch (localError) {
+        // Branch doesn't exist locally or on origin, create it from default branch
+        console.log(
+          "Branch does not exist, creating new branch from default branch:",
+          branchName
+        );
+
+        // Get the default branch name
+        const defaultBranch = execSync(
+          "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
+          { encoding: "utf8" }
+        ).trim();
+        console.log("Default branch:", defaultBranch);
+
+        // Ensure we have the latest default branch
+        execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
+        execSync(`git pull origin ${defaultBranch}`, { stdio: "inherit" });
+
+        // Create new branch from default branch
+        execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+        console.log("Created new branch from default branch:", branchName);
+      }
+    }
+  } catch (error) {
+    core.setFailed(
+      `Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return;
+  }
+
+  // Apply the patch using git CLI (skip if empty)
+  if (!isEmpty) {
+    console.log("Applying patch...");
+    try {
+      // Patches are created with git format-patch, so use git am to apply them
+      execSync("git am /tmp/aw.patch", { stdio: "inherit" });
+      console.log("Patch applied successfully");
+
+      // Push the applied commits to the branch
+      execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+      console.log("Changes committed and pushed to branch:", branchName);
+    } catch (error) {
+      core.error(
+        `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
+      );
+      core.setFailed("Failed to apply patch");
+      return;
+    }
+  } else {
+    console.log("Skipping patch application (empty patch)");
+
+    // Handle if-no-changes configuration for empty patches
+    const message =
+      "No changes to apply - noop operation completed successfully";
+
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(
+          "No changes to apply - failing as configured by if-no-changes: error"
+        );
+        return;
+      case "ignore":
+        // Silent success - no console output
+        break;
+      case "warn":
+      default:
+        console.log(message);
+        break;
+    }
+  }
+
+  // Get commit SHA and push URL
+  const commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+
+  // Get commit SHA and push URL
+  const pushUrl = context.payload.repository
+    ? `${context.payload.repository.html_url}/tree/${branchName}`
+    : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+
+  // Set outputs
+  core.setOutput("branch_name", branchName);
+  core.setOutput("commit_sha", commitSha);
+  core.setOutput("push_url", pushUrl);
+
+  // Write summary to GitHub Actions summary
+  const summaryTitle = hasChanges
+    ? "Push to Branch"
+    : "Push to Branch (No Changes)";
+  const summaryContent = hasChanges
+    ? `
+## ${summaryTitle}
+- **Branch**: \`${branchName}\`
+- **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+- **URL**: [${pushUrl}](${pushUrl})
+`
+    : `
+## ${summaryTitle}
+- **Branch**: \`${branchName}\`
+- **Status**: No changes to apply (noop operation)
+- **URL**: [${pushUrl}](${pushUrl})
+`;
+
+  await core.summary.addRaw(summaryContent).write();
+}
+
+await main();

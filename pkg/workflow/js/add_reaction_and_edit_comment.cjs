@@ -1,14 +1,14 @@
 async function main() {
   // Read inputs from environment variables
   const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-  const alias = process.env.GITHUB_AW_ALIAS; // Only present for alias workflows
+  const command = process.env.GITHUB_AW_COMMAND; // Only present for command workflows
   const runId = context.runId;
   const runUrl = context.payload.repository
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
     : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
   console.log("Reaction type:", reaction);
-  console.log("Alias name:", alias || "none");
+  console.log("Command name:", command || "none");
   console.log("Run ID:", runId);
   console.log("Run URL:", runUrl);
 
@@ -59,8 +59,8 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-        // Only edit comments for alias workflows
-        shouldEditComment = alias ? true : false;
+        // Only edit comments for command workflows
+        shouldEditComment = command ? true : false;
         break;
 
       case "pull_request":
@@ -83,8 +83,8 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-        // Only edit comments for alias workflows
-        shouldEditComment = alias ? true : false;
+        // Only edit comments for command workflows
+        shouldEditComment = command ? true : false;
         break;
 
       default:
@@ -102,9 +102,9 @@ async function main() {
       console.log("Comment update endpoint:", commentUpdateEndpoint);
       await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
     } else {
-      if (!alias && commentUpdateEndpoint) {
+      if (!command && commentUpdateEndpoint) {
         console.log(
-          "Skipping comment edit - only available for alias workflows"
+          "Skipping comment edit - only available for command workflows"
         );
       } else {
         console.log("Skipping comment edit for event type:", eventName);
@@ -182,8 +182,8 @@ async function editCommentWithWorkflowLink(endpoint, runUrl) {
   } catch (error) {
     // Don't fail the entire job if comment editing fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn("Failed to edit comment with workflow link:", errorMessage);
-    console.warn(
+    core.warn("Failed to edit comment with workflow link:", errorMessage);
+    core.warn(
       "This is not critical - the reaction was still added successfully"
     );
   }

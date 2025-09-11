@@ -130,7 +130,7 @@ The YAML frontmatter supports these fields:
     echo '{"type": "create-pull-request-review-comment", "path": "file.js", "line": 10, "body": "Review comment"}' >> $GITHUB_AW_SAFE_OUTPUTS
     
     # Push to branch (after making file changes)
-    echo '{"type": "push-to-branch", "message": "Commit message"}' >> $GITHUB_AW_SAFE_OUTPUTS
+    echo '{"type": "push-to-pr-branch", "message": "Commit message"}' >> $GITHUB_AW_SAFE_OUTPUTS
     
     # Create a discussion
     echo '{"type": "create-discussion", "title": "Discussion Title", "body": "Discussion content"}' >> $GITHUB_AW_SAFE_OUTPUTS
@@ -143,7 +143,7 @@ The YAML frontmatter supports these fields:
     - Each JSON object must be on a single line (JSONL format)
     - All string values should be properly escaped JSON strings
     - The `type` field is required and must match the configured safe output types
-    - File changes for `create-pull-request` and `push-to-branch` are collected automatically via `git add -A`
+    - File changes for `create-pull-request` and `push-to-pr-branch` are made by committing to a branch
     - Output entries are processed only if the corresponding safe output type is configured in the workflow frontmatter
     - Invalid JSON entries are ignored with warnings in the workflow logs
 
@@ -865,6 +865,7 @@ Agentic workflows compile to GitHub Actions YAML:
   - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
   - Supports partial matching and fuzzy search for workflow names
 - **`gh aw compile --verbose`** - Show detailed compilation and validation messages
+- **`gh aw compile --purge`** - Remove orphaned `.lock.yml` files that no longer have corresponding `.md` files
 
 ## Best Practices
 

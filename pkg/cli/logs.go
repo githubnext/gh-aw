@@ -132,7 +132,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
   ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
   ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
-  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory`,
+  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
+  ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
@@ -165,6 +166,7 @@ Examples:
 			outputDir, _ := cmd.Flags().GetString("output")
 			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -204,7 +206,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -221,12 +223,13 @@ Examples:
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
+	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -409,6 +412,11 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Display missing tools analysis
 	displayMissingToolsAnalysis(processedRuns, verbose)
+
+	// Generate tool sequence graph if requested
+	if toolGraph {
+		generateToolGraph(processedRuns, verbose)
+	}
 
 	// Display logs location prominently
 	absOutputDir, _ := filepath.Abs(outputDir)
@@ -731,10 +739,12 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			return nil
 		}
 
-		// Process log files
-		if strings.HasSuffix(strings.ToLower(info.Name()), ".log") ||
-			strings.HasSuffix(strings.ToLower(info.Name()), ".txt") ||
-			strings.Contains(strings.ToLower(info.Name()), "log") {
+		// Process log files - exclude output artifacts like aw_output.txt
+		fileName := strings.ToLower(info.Name())
+		if (strings.HasSuffix(fileName, ".log") ||
+			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
+			!strings.Contains(fileName, "aw_output") &&
+			!strings.Contains(fileName, "agent_output") {
 
 			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
 			if err != nil && verbose {
@@ -752,6 +762,10 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 				// the total conversation turns for the entire workflow run
 				metrics.Turns = fileMetrics.Turns
 			}
+
+			// Aggregate tool sequences and tool calls
+			metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
+			metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
 		}
 
 		return nil
@@ -824,24 +838,10 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 
 // parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
 func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgentEngine, verbose bool) (LogMetrics, error) {
-	// Read the log file content
-	file, err := os.Open(filePath)
+	// Read the entire log file at once to avoid JSON parsing issues from chunked reading
+	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return LogMetrics{}, fmt.Errorf("error opening log file: %w", err)
-	}
-	defer file.Close()
-
-	var content []byte
-	buffer := make([]byte, 4096)
-	for {
-		n, err := file.Read(buffer)
-		if err != nil && err != io.EOF {
-			return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
-		}
-		if n == 0 {
-			break
-		}
-		content = append(content, buffer[:n]...)
+		return LogMetrics{}, fmt.Errorf("error reading log file: %w", err)
 	}
 
 	logContent := string(content)
@@ -970,7 +970,7 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 
 		// For now, let's extract metrics from the run if available
 		// We'll process log files to get tool call information
-		logMetrics := extractLogMetricsFromRun(processedRun)
+		logMetrics := ExtractLogMetricsFromRun(processedRun)
 
 		for _, toolCall := range logMetrics.ToolCalls {
 			var displayKey string
@@ -1005,11 +1005,15 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 				if toolCall.MaxOutputSize > existing.MaxOutputSize {
 					existing.MaxOutputSize = toolCall.MaxOutputSize
 				}
+				if toolCall.MaxDuration > existing.MaxDuration {
+					existing.MaxDuration = toolCall.MaxDuration
+				}
 			} else {
 				toolStats[displayKey] = &workflow.ToolCallInfo{
 					Name:          displayKey,
 					CallCount:     toolCall.CallCount,
 					MaxOutputSize: toolCall.MaxOutputSize,
+					MaxDuration:   toolCall.MaxDuration,
 				}
 			}
 		}
@@ -1033,7 +1037,7 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 	})
 
 	// Prepare table data
-	headers := []string{"Tool", "Calls", "Max Output (tokens)"}
+	headers := []string{"Tool", "Calls", "Max Output (tokens)", "Max Duration"}
 	var rows [][]string
 
 	for _, toolCall := range toolCalls {
@@ -1042,10 +1046,16 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 			outputStr = formatNumber(toolCall.MaxOutputSize)
 		}
 
+		durationStr := "N/A"
+		if toolCall.MaxDuration > 0 {
+			durationStr = formatDuration(toolCall.MaxDuration)
+		}
+
 		row := []string{
 			toolCall.Name,
 			fmt.Sprintf("%d", toolCall.CallCount),
 			outputStr,
+			durationStr,
 		}
 		rows = append(rows, row)
 	}
@@ -1060,8 +1070,8 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 	fmt.Print(console.RenderTable(tableConfig))
 }
 
-// extractLogMetricsFromRun extracts log metrics from a processed run's log directory
-func extractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
+// ExtractLogMetricsFromRun extracts log metrics from a processed run's log directory
+func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	// Use the LogsPath from the WorkflowRun to get metrics
 	if processedRun.Run.LogsPath == "" {
 		return workflow.LogMetrics{}
