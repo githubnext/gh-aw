@@ -154,12 +154,7 @@ recompile: build
 	./$(BINARY_NAME) compile --validate --instructions
 	@if [ -d "pkg/cli/workflows" ]; then \
 		echo "Compiling test workflows from pkg/cli/workflows..."; \
-		for workflow in pkg/cli/workflows/test-*.md; do \
-			if [ -f "$$workflow" ]; then \
-				echo "Compiling $$workflow"; \
-				./$(BINARY_NAME) compile "$$workflow" --validate; \
-			fi; \
-		done; \
+		./$(BINARY_NAME) compile --workflow-dir pkg/cli/workflows --validate; \
 	fi
 
 # Run development server
