@@ -1,3 +1,8 @@
+---
+title: Secrets Management
+description: Guide for managing GitHub tokens, AI API keys, and custom secrets in agentic workflows with automatic provisioning and security best practices.
+---
+
 # 🔐 Secrets Management
 
 Agentic workflows automatically handle several types of secrets and support custom secret references.

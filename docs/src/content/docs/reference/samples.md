@@ -1,3 +1,8 @@
+---
+title: Sample Workflows
+description: Ready-to-use agentic workflow examples for research, development, and automation tasks including weekly research, dependency updates, and QA workflows.
+---
+
 # Sample Workflows
 
 **Demonstrator Research & Planning Workflows**

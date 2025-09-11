@@ -1,3 +1,8 @@
+---
+title: Quick Start Guide
+description: Get your first GitHub Agentic Workflow running in minutes with step-by-step installation and setup instructions.
+---
+
 # 🚀 Quick Start — Get your first workflow running
 
 This guide will get you from zero to a running agentic workflow in minutes. You'll install the extension, add a sample workflow, set up the required secrets, and run it.

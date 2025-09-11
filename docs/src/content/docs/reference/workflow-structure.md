@@ -1,3 +1,8 @@
+---
+title: Workflow Structure
+description: Learn how agentic workflows are organized, directory structure, file naming conventions, and compilation process within your repository.
+---
+
 # 📋 Workflow Structure
 
 This guide explains how agentic workflows are organized and structured within your repository.

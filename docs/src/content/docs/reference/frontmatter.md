@@ -1,5 +1,6 @@
 ---
 title: Frontmatter Options for GitHub Agentic Workflows
+description: Complete reference guide for YAML frontmatter configuration options in GitHub Agentic Workflows, including triggers, permissions, AI engine settings, network access, and safe outputs.
 ---
 
 This guide covers all available frontmatter configuration options for GitHub Agentic Workflows.

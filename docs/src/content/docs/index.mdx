@@ -1,36 +1,106 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
+title: GitHub Agentic Workflows
+description: Write agentic workflows in natural language markdown and run them safely in GitHub Actions. From GitHub Next and Microsoft Research.
 template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
+  tagline: Write agentic workflows in natural language markdown, and run them safely in GitHub Actions
   image:
     file: ../../assets/houston.webp
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Quick Start Guide
+      link: /reference/quick-start/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
+    - text: View on GitHub
+      link: https://github.com/githubnext/gh-aw
       icon: external
       variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## What are GitHub Agentic Workflows?
+
+GitHub Agentic Workflows enable AI agents to perform complex, multi-step tasks in your repository automatically. They combine the power of AI with GitHub's collaboration platform to enable **Continuous AI** — the systematic, automated application of AI to software collaboration.
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+	<Card title="Natural Language Instructions" icon="pencil">
+		Write workflows in markdown with natural language instructions instead of complex code.
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	<Card title="AI-Powered Automation" icon="rocket">
+		AI agents understand context, make decisions, and take actions based on repository activity.
 	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
+	<Card title="Secure by Design" icon="shield">
+		Read-only permissions by default with write operations through sanitized safe-outputs.
 	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+	<Card title="GitHub Actions Integration" icon="github">
+		Built on top of GitHub Actions with familiar triggers, permissions, and workflow syntax.
+	</Card>
+</CardGrid>
+
+## How It Works
+
+Transform natural language workflows into GitHub Actions that are executed by AI agents:
+
+```markdown
+---
+on:
+  issues:
+    types: [opened]
+permissions: read-all 
+safe-outputs:
+  add-issue-comment:
+---
+# Issue Clarifier
+
+Analyze the current issue and ask for additional details if the issue is unclear.
+```
+
+The `gh aw` CLI compiles this into a GitHub Actions workflow that runs an AI agent (Claude, Codex, etc.) whenever a new issue is opened.
+
+## Core Features
+
+<CardGrid>
+	<Card title="🔧 CLI Management" icon="setting">
+		Install, compile, and manage workflows with the `gh aw` CLI extension.
+	</Card>
+	<Card title="🤖 Multiple AI Engines" icon="rocket">
+		Support for Claude, Codex, and custom AI engines with configurable models.
+	</Card>
+	<Card title="🔒 Safe Outputs" icon="shield">
+		Create issues, comments, and PRs without giving workflows write permissions.
+	</Card>
+	<Card title="🔌 MCP Integration" icon="puzzle">
+		Connect to external tools and services via Model Context Protocol.
+	</Card>
+	<Card title="📝 Rich Configuration" icon="list-format">
+		Comprehensive frontmatter options for triggers, permissions, and tools.
+	</Card>
+	<Card title="🎯 Command Triggers" icon="command-palette">
+		Special slash commands and mention triggers for interactive workflows.
+	</Card>
+</CardGrid>
+
+## Ready-to-Use Workflows
+
+Explore sample workflows for common automation tasks:
+
+- **Research & Planning**: Weekly research, team status reports, daily planning, issue triage
+- **Development**: Dependency updates, documentation maintenance, QA tasks, test coverage improvements
+- **Security**: Performance optimization, accessibility reviews, security monitoring
+
+## Get Started
+
+<CardGrid stagger>
+	<Card title="Quick Start" icon="rocket">
+		[Get your first workflow running](/reference/quick-start/) in minutes with our step-by-step guide.
+	</Card>
+	<Card title="Learn Concepts" icon="open-book">
+		[Understand the core concepts](/reference/concepts/) behind agentic workflows and AI automation.
+	</Card>
+	<Card title="Browse Samples" icon="document">
+		[Explore sample workflows](/reference/samples/) for research, development, and automation.
+	</Card>
+	<Card title="CLI Reference" icon="terminal">
+		[Master the commands](/reference/commands/) for managing workflows with the GitHub CLI.
 	</Card>
 </CardGrid>

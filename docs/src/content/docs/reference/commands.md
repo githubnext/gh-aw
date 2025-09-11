@@ -1,3 +1,8 @@
+---
+title: Workflow Management Commands
+description: Complete CLI reference for managing GitHub Agentic Workflows, including installation, compilation, and workflow lifecycle commands.
+---
+
 # 🛠️ Workflow Management Commands
 
 This guide covers all available commands for managing agentic workflows with the GitHub CLI extension.

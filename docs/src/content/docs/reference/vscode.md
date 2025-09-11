@@ -1,3 +1,8 @@
+---
+title: Visual Studio Code Integration
+description: Tools and integrations for improving the developer experience when authoring GitHub Agentic Workflows in VS Code and other IDEs.
+---
+
 # Visual Studio Code Integration
 
 The `gh aw` cli provides a few tools to improve your developer experience in Visual Studio Code (or other IDEs).

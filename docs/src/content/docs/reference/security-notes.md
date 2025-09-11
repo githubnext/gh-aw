@@ -1,3 +1,8 @@
+---
+title: Security Notes
+description: Security considerations, constraints, and best practices for GitHub Agentic Workflows including sandboxing, permissions, and emerging security controls.
+---
+
 # Security Notes
 
 > [!CAUTION]

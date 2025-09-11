@@ -1,3 +1,8 @@
+---
+title: Command Triggers
+description: Guide for creating workflows that respond to slash commands and mentions in issues and comments using the special command trigger syntax.
+---
+
 # 🏷️ Command Triggers
 
 This guide covers command triggers and context text functionality for agentic workflows.

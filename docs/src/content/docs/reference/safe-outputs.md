@@ -1,3 +1,8 @@
+---
+title: Safe Output Processing
+description: Security feature for creating GitHub issues, comments, and pull requests without giving agentic workflows write permissions, with complete configuration reference.
+---
+
 # 🔒 Safe Output Processing
 
 One of the primary security features of GitHub Agentic Workflows is "safe output processing", enabling the creation of GitHub issues, comments, pull requests, and other outputs without giving the agentic portion of the workflow write permissions.

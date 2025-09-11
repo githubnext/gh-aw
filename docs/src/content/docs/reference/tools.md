@@ -1,3 +1,8 @@
+---
+title: Tools Configuration
+description: Reference guide for configuring GitHub API tools and AI capabilities available to agentic workflows, including built-in and custom tools.
+---
+
 # 🔧 Tools Configuration
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools and Claude-specific tools.
