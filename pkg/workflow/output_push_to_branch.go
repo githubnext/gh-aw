@@ -6,7 +6,7 @@ import (
 
 // buildCreateOutputPushToBranchJob creates the push_to_pr_branch job
 func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.PushToBranch == nil {
+	if data.SafeOutputs == nil || data.SafeOutputs.PushToPullRequestBranch == nil {
 		return nil, fmt.Errorf("safe-outputs.push-to-pr-branch configuration is required")
 	}
 
@@ -39,11 +39,11 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	// Pass the target configuration
-	if data.SafeOutputs.PushToBranch.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToBranch.Target))
+	if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))
 	}
 	// Pass the if-no-changes configuration
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToBranch.IfNoChanges))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -61,7 +61,7 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 
 	// Determine the job condition based on target configuration
 	var baseCondition string
-	if data.SafeOutputs.PushToBranch.Target == "*" {
+	if data.SafeOutputs.PushToPullRequestBranch.Target == "*" {
 		// Allow pushing to any pull request - no specific context required
 		baseCondition = "always()"
 	} else {

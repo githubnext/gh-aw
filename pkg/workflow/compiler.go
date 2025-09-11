@@ -161,7 +161,7 @@ type SafeOutputsConfig struct {
 	CreateRepositorySecurityAdvisories *CreateRepositorySecurityAdvisoriesConfig `yaml:"create-repository-security-advisory,omitempty"`
 	AddIssueLabels                     *AddIssueLabelsConfig                     `yaml:"add-issue-label,omitempty"`
 	UpdateIssues                       *UpdateIssuesConfig                       `yaml:"update-issue,omitempty"`
-	PushToBranch                       *PushToBranchConfig                       `yaml:"push-to-pr-branch,omitempty"`
+	PushToPullRequestBranch            *PushToBranchConfig                       `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                        *MissingToolConfig                        `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                     []string                                  `yaml:"allowed-domains,omitempty"`
 }
@@ -1653,7 +1653,7 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
 	}
-	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToBranch != nil
+	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
 }
 
 // detectTextOutputUsage checks if the markdown content uses ${{ needs.task.outputs.text }}
@@ -1927,7 +1927,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		}
 
 		// Build push_to_pr_branch job if output.push-to-pr-branch is configured
-		if data.SafeOutputs.PushToBranch != nil {
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchJob, err := c.buildCreateOutputPushToBranchJob(data, jobName)
 			if err != nil {
 				return fmt.Errorf("failed to build push_to_pr_branch job: %w", err)
@@ -2937,7 +2937,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
 	// Add git patch generation step only if safe-outputs create-pull-request feature is used
-	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToBranch != nil) {
+	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
 		c.generateGitPatchStep(yaml, data)
 	}
 
@@ -3112,7 +3112,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			written = true
 		}
 
-		if data.SafeOutputs.PushToBranch != nil {
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			if written {
 				yaml.WriteString(", ")
 			}
@@ -3230,7 +3230,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          \n")
 		}
 
-		if data.SafeOutputs.PushToBranch != nil {
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			yaml.WriteString("          **Pushing Changes to Pull Request Branch**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To push changes to the branch of a pull request:\n")
@@ -3240,7 +3240,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          ```json\n")
 			var fields []string
 			fields = append(fields, "\"type\": \"push-to-pr-branch\"")
-			if data.SafeOutputs.PushToBranch.Target == "*" {
+			if data.SafeOutputs.PushToPullRequestBranch.Target == "*" {
 				fields = append(fields, "\"pull_number\": \"The pull number to update\"")
 			}
 			fields = append(fields, "\"branch_name\": \"The name of the branch to push to, should be the branch name associated with the pull request\"")
@@ -3308,7 +3308,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"bug\", \"priority-high\"]}\n")
 			exampleCount++
 		}
-		if data.SafeOutputs.PushToBranch != nil {
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			yaml.WriteString("          {\"type\": \"push-to-pr-branch\", \"message\": \"Update documentation with latest changes\"}\n")
 			exampleCount++
 		}
@@ -3495,7 +3495,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Handle push-to-pr-branch
 			pushToBranchConfig := c.parsePushToBranchConfig(outputMap)
 			if pushToBranchConfig != nil {
-				config.PushToBranch = pushToBranchConfig
+				config.PushToPullRequestBranch = pushToBranchConfig
 			}
 
 			// Handle missing-tool (parse configuration if present)
@@ -4104,12 +4104,12 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		if data.SafeOutputs.UpdateIssues != nil {
 			safeOutputsConfig["update-issue"] = true
 		}
-		if data.SafeOutputs.PushToBranch != nil {
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]interface{}{
 				"enabled": true,
 			}
-			if data.SafeOutputs.PushToBranch.Target != "" {
-				pushToBranchConfig["target"] = data.SafeOutputs.PushToBranch.Target
+			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
+				pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 			}
 			safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
 		}

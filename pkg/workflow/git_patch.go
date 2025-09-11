@@ -9,8 +9,8 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	// Add push-to-pr-branch configuration if available
-	if data.SafeOutputs != nil && data.SafeOutputs.PushToBranch != nil {
-		yaml.WriteString("          GITHUB_AW_PUSH_TARGET: \"" + data.SafeOutputs.PushToBranch.Target + "\"\n")
+	if data.SafeOutputs != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
+		yaml.WriteString("          GITHUB_AW_PUSH_TARGET: \"" + data.SafeOutputs.PushToPullRequestBranch.Target + "\"\n")
 	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          # Check current git status\n")
