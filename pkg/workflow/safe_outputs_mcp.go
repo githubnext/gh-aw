@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 )
 
-//go:embed js/safe_outputs_mcp_server.js
+//go:embed mcp-safe-outputs/safe_outputs_mcp_server.js
 var safeOutputsMCPServerJS string
 
-//go:embed mcp_package.json
+//go:embed mcp-safe-outputs/mcp_package.json
 var mcpPackageJSON string
 
-//go:embed mcp_package-lock.json
+//go:embed mcp-safe-outputs/mcp_package-lock.json
 var mcpPackageLockJSON string
 
 // SafeOutputsMCPServerScript contains the compiled JavaScript MCP server

@@ -8,7 +8,7 @@
     "checkJs": true,
     "declaration": false,
     "outDir": "./dist/js",
-    "rootDir": "./pkg/workflow/js",
+    "rootDir": "./pkg/workflow",
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -41,7 +41,7 @@
     "pkg/workflow/js/create_pull_request.cjs",
     "pkg/workflow/js/sanitize_output.cjs",
     "pkg/workflow/js/setup_agent_output.cjs",
-    "pkg/workflow/js/safe_outputs_mcp_server.ts",
+    "pkg/workflow/mcp-safe-outputs/safe_outputs_mcp_server.ts",
     "pkg/workflow/js/types/*.d.ts"
   ],
   "exclude": [

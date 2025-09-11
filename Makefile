@@ -232,9 +232,9 @@ copy-copilot-to-claude:
 mcp-install:
 	@echo "Installing MCP server dependencies..."
 	@mkdir -p /tmp/mcp-install
-	@cp pkg/workflow/mcp_package.json /tmp/mcp-install/package.json
+	@cp pkg/workflow/mcp-safe-outputs/mcp_package.json /tmp/mcp-install/package.json
 	@cd /tmp/mcp-install && npm install
-	@cp /tmp/mcp-install/package-lock.json pkg/workflow/mcp_package-lock.json
+	@cp /tmp/mcp-install/package-lock.json pkg/workflow/mcp-safe-outputs/mcp_package-lock.json
 	@rm -rf /tmp/mcp-install
 	@echo "✓ MCP server package-lock.json updated"
 	@echo "⚠️  Remember to commit the updated mcp_package-lock.json file"
