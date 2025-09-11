@@ -861,6 +861,36 @@
                 "type": "object",
                 "additionalProperties": true
               }
+            },
+            "error_patterns": {
+              "type": "array",
+              "description": "Custom error patterns for validating agent logs",
+              "items": {
+                "type": "object",
+                "description": "Error pattern definition",
+                "properties": {
+                  "pattern": {
+                    "type": "string",
+                    "description": "Regular expression pattern to match log lines"
+                  },
+                  "level_group": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
+                  },
+                  "message_group": {
+                    "type": "integer", 
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Human-readable description of what this pattern matches"
+                  }
+                },
+                "required": ["pattern"],
+                "additionalProperties": false
+              }
             }
           },
           "required": [
@@ -1523,36 +1553,6 @@
           "minItems": 1
         }
       ]
-    },
-    "error_patterns": {
-      "type": "array",
-      "description": "Custom error patterns for validating agent logs",
-      "items": {
-        "type": "object",
-        "description": "Error pattern definition",
-        "properties": {
-          "pattern": {
-            "type": "string",
-            "description": "Regular expression pattern to match log lines"
-          },
-          "level_group": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
-          },
-          "message_group": {
-            "type": "integer", 
-            "minimum": 0,
-            "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
-          },
-          "description": {
-            "type": "string",
-            "description": "Human-readable description of what this pattern matches"
-          }
-        },
-        "required": ["pattern"],
-        "additionalProperties": false
-      }
     }
   },
   "additionalProperties": false

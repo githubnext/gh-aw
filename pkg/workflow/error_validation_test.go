@@ -212,7 +212,7 @@ func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 	}
 }
 
-func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
+func TestExtractErrorPatternsFromEngineConfig(t *testing.T) {
 	compiler := NewCompiler(false, "", "")
 
 	tests := []struct {
@@ -221,25 +221,32 @@ func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
 		expected    []ErrorPattern
 	}{
 		{
-			name:        "no error_patterns field",
-			frontmatter: map[string]any{},
-			expected:    []ErrorPattern{},
+			name: "no error_patterns field in engine",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id": "claude",
+				},
+			},
+			expected: []ErrorPattern{},
 		},
 		{
-			name: "valid error patterns",
+			name: "valid error patterns in engine config",
 			frontmatter: map[string]any{
-				"error_patterns": []any{
-					map[string]any{
-						"pattern":       `ERROR:\s+(.+)`,
-						"level_group":   0,
-						"message_group": 1,
-						"description":   "Simple error pattern",
-					},
-					map[string]any{
-						"pattern":       `\[(\d{4}-\d{2}-\d{2})\]\s+(WARN):\s+(.+)`,
-						"level_group":   2,
-						"message_group": 3,
-						"description":   "Warning pattern with timestamp",
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							"pattern":       `ERROR:\s+(.+)`,
+							"level_group":   0,
+							"message_group": 1,
+							"description":   "Simple error pattern",
+						},
+						map[string]any{
+							"pattern":       `\[(\d{4}-\d{2}-\d{2})\]\s+(WARN):\s+(.+)`,
+							"level_group":   2,
+							"message_group": 3,
+							"description":   "Warning pattern with timestamp",
+						},
 					},
 				},
 			},
@@ -261,12 +268,15 @@ func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
 		{
 			name: "pattern with float64 groups (from YAML parsing)",
 			frontmatter: map[string]any{
-				"error_patterns": []any{
-					map[string]any{
-						"pattern":       `ERROR:\s+(.+)`,
-						"level_group":   float64(0),
-						"message_group": float64(1),
-						"description":   "Float64 group indices",
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							"pattern":       `ERROR:\s+(.+)`,
+							"level_group":   float64(0),
+							"message_group": float64(1),
+							"description":   "Float64 group indices",
+						},
 					},
 				},
 			},
@@ -282,9 +292,12 @@ func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
 		{
 			name: "pattern without optional fields",
 			frontmatter: map[string]any{
-				"error_patterns": []any{
-					map[string]any{
-						"pattern": `CRITICAL.*`,
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							"pattern": `CRITICAL.*`,
+						},
 					},
 				},
 			},
@@ -300,15 +313,18 @@ func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
 		{
 			name: "invalid patterns should be skipped",
 			frontmatter: map[string]any{
-				"error_patterns": []any{
-					map[string]any{
-						// Missing required pattern field
-						"level_group": 1,
-						"description": "Invalid - no pattern",
-					},
-					map[string]any{
-						"pattern":     `VALID:\s+(.+)`,
-						"description": "Valid pattern",
+				"engine": map[string]any{
+					"id": "claude",
+					"error_patterns": []any{
+						map[string]any{
+							// Missing required pattern field
+							"level_group": 1,
+							"description": "Invalid - no pattern",
+						},
+						map[string]any{
+							"pattern":     `VALID:\s+(.+)`,
+							"description": "Valid pattern",
+						},
 					},
 				},
 			},
@@ -325,7 +341,12 @@ func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			patterns := compiler.extractErrorPatterns(tt.frontmatter)
+			_, engineConfig := compiler.extractEngineConfig(tt.frontmatter)
+
+			var patterns []ErrorPattern
+			if engineConfig != nil {
+				patterns = engineConfig.ErrorPatterns
+			}
 
 			if len(patterns) != len(tt.expected) {
 				t.Errorf("Expected %d patterns, got %d", len(tt.expected), len(patterns))
@@ -356,18 +377,21 @@ func TestExtractErrorPatternsFromFrontmatter(t *testing.T) {
 	}
 }
 
-func TestGenerateErrorValidationWithFrontmatterPatterns(t *testing.T) {
+func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 	compiler := NewCompiler(false, "", "")
 	engine := NewClaudeEngine() // Claude doesn't support error validation by default
 
-	// Test with frontmatter-defined error patterns
+	// Test with engine config defined error patterns
 	data := &WorkflowData{
-		ErrorPatterns: []ErrorPattern{
-			{
-				Pattern:      `ERROR:\s+(.+)`,
-				LevelGroup:   0,
-				MessageGroup: 1,
-				Description:  "Custom error pattern from frontmatter",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+			ErrorPatterns: []ErrorPattern{
+				{
+					Pattern:      `ERROR:\s+(.+)`,
+					LevelGroup:   0,
+					MessageGroup: 1,
+					Description:  "Custom error pattern from engine config",
+				},
 			},
 		},
 	}
@@ -387,14 +411,17 @@ func TestGenerateErrorValidationWithFrontmatterPatterns(t *testing.T) {
 	}
 
 	// Should contain the custom pattern
-	if !strings.Contains(generated, "Custom error pattern from frontmatter") {
+	if !strings.Contains(generated, "Custom error pattern from engine config") {
 		t.Error("Should include custom pattern description in JSON")
 	}
 
-	// Test with empty frontmatter patterns but engine that supports validation
+	// Test with empty engine config patterns but engine that supports validation
 	codexEngine := NewCodexEngine()
 	dataEmpty := &WorkflowData{
-		ErrorPatterns: []ErrorPattern{},
+		EngineConfig: &EngineConfig{
+			ID:            "codex",
+			ErrorPatterns: []ErrorPattern{},
+		},
 	}
 
 	var yamlBuilder2 strings.Builder
@@ -407,9 +434,9 @@ func TestGenerateErrorValidationWithFrontmatterPatterns(t *testing.T) {
 		t.Error("Should generate error validation step with engine patterns")
 	}
 
-	// Test with neither frontmatter patterns nor engine support
+	// Test with no engine config and engine that doesn't support error validation
 	dataEmpty2 := &WorkflowData{
-		ErrorPatterns: []ErrorPattern{},
+		EngineConfig: nil,
 	}
 
 	var yamlBuilder3 strings.Builder
