@@ -524,16 +524,7 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 
 // hasSafeOutputsEnabled checks if any safe-outputs are enabled
 func (e *ClaudeEngine) hasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
-	return safeOutputs.CreateIssues != nil ||
-		safeOutputs.CreateDiscussions != nil ||
-		safeOutputs.AddIssueComments != nil ||
-		safeOutputs.CreatePullRequests != nil ||
-		safeOutputs.CreatePullRequestReviewComments != nil ||
-		safeOutputs.CreateRepositorySecurityAdvisories != nil ||
-		safeOutputs.AddIssueLabels != nil ||
-		safeOutputs.UpdateIssues != nil ||
-		safeOutputs.PushToPullRequestBranch != nil ||
-		safeOutputs.MissingTool != nil
+	return HasSafeOutputsEnabled(safeOutputs)
 }
 
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
