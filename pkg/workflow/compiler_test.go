@@ -5445,11 +5445,32 @@ func TestGeneratePlaywrightDomainArgs(t *testing.T) {
 			},
 			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=example.com"},
 		},
+		{
+			name: "with bundle domains - defaults",
+			playwrightTool: map[string]any{
+				"allowed_domains": []string{"defaults"},
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"},
+		},
+		{
+			name: "with bundle domains - github",
+			playwrightTool: map[string]any{
+				"allowed_domains": []string{"github"},
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com"},
+		},
+		{
+			name: "with mixed bundle and direct domains",
+			playwrightTool: map[string]any{
+				"allowed_domains": []string{"github", "example.com"},
+			},
+			expectedArgs: []string{"-e", "PLAYWRIGHT_ALLOWED_DOMAINS=*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com,example.com"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generatePlaywrightDomainArgs(tt.playwrightTool)
+			result := generatePlaywrightDomainArgs(tt.playwrightTool, nil)
 
 			if len(result) != len(tt.expectedArgs) {
 				t.Errorf("Expected %d args, got %d: %v", len(tt.expectedArgs), len(result), result)

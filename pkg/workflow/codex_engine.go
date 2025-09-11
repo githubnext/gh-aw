@@ -155,7 +155,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.renderGitHubCodexMCPConfig(yaml, githubTool)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
+			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, networkPermissions)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -327,7 +327,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
 // Always uses Docker-based containerized setup in GitHub Actions
-func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
+func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
 	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
@@ -341,9 +341,9 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	yaml.WriteString("            \"--shm-size=2gb\",\n")
 	yaml.WriteString("            \"--cap-add=SYS_ADMIN\",\n")
 
-	// Generate domain restriction arguments from Playwright tool configuration
+	// Generate domain restriction arguments from Playwright tool configuration with bundle resolution
 	// Always add domain arguments (defaults to localhost if not configured)
-	domainArgs := generatePlaywrightDomainArgs(playwrightTool)
+	domainArgs := generatePlaywrightDomainArgs(playwrightTool, networkPermissions)
 	for _, arg := range domainArgs {
 		yaml.WriteString("            \"" + arg + "\",\n")
 	}

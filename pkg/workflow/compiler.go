@@ -2861,8 +2861,8 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 
 // generatePlaywrightDomainArgs generates Playwright CLI arguments for domain restrictions
 // Uses environment variables to configure domain restrictions in the Playwright container
-// Extracts allowed_domains from the Playwright tool configuration, defaulting to localhost only
-func generatePlaywrightDomainArgs(playwrightTool any) []string {
+// Supports the same domain bundle resolution as top-level network configuration, defaulting to localhost only
+func generatePlaywrightDomainArgs(playwrightTool any, networkPermissions *NetworkPermissions) []string {
 	var args []string
 
 	// Default to localhost only (same as Copilot agent default)
@@ -2871,21 +2871,28 @@ func generatePlaywrightDomainArgs(playwrightTool any) []string {
 	// Extract allowed_domains from Playwright tool configuration
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
+			// Create a mock NetworkPermissions structure to use the same domain resolution logic
+			playwrightNetwork := &NetworkPermissions{}
+
 			switch domains := domainsConfig.(type) {
 			case []string:
-				allowedDomains = domains
+				playwrightNetwork.Allowed = domains
 			case []any:
 				// Convert []any to []string
-				allowedDomains = make([]string, len(domains))
+				allowedDomainsSlice := make([]string, len(domains))
 				for i, domain := range domains {
 					if domainStr, ok := domain.(string); ok {
-						allowedDomains[i] = domainStr
+						allowedDomainsSlice[i] = domainStr
 					}
 				}
+				playwrightNetwork.Allowed = allowedDomainsSlice
 			case string:
 				// Single domain as string
-				allowedDomains = []string{domains}
+				playwrightNetwork.Allowed = []string{domains}
 			}
+
+			// Use the same domain bundle resolution as the top-level network configuration
+			allowedDomains = GetAllowedDomains(playwrightNetwork)
 		}
 	}
 
