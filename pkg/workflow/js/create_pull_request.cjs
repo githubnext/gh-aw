@@ -171,16 +171,17 @@ async function main() {
   console.log("Draft:", draft);
   console.log("Body length:", body.length);
 
+  const randomHex = crypto.randomBytes(8).toString("hex");
   // Use branch name from JSONL if provided, otherwise generate unique branch name
   if (!branchName) {
     console.log(
       "No branch name provided in JSONL, generating unique branch name"
     );
     // Generate unique branch name using cryptographic random hex
-    const randomHex = crypto.randomBytes(8).toString("hex");
     branchName = `${workflowId}/${randomHex}`;
   } else {
-    console.log("Using branch name from JSONL:", branchName);
+    branchName = `${branchName}-${randomHex}`;
+    console.log("Using branch name from JSONL with added salt:", branchName);
   }
 
   console.log("Generated branch name:", branchName);
@@ -197,23 +198,12 @@ async function main() {
   execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
 
   // Handle branch creation/checkout
-  const branchFromJsonl = pullRequestItem.branch
-    ? pullRequestItem.branch.trim()
-    : null;
-  if (branchFromJsonl) {
-    console.log("Checking if branch from JSONL exists:", branchFromJsonl);
-
-    console.log(
-      "Branch does not exist locally, creating new branch from base:",
-      branchFromJsonl
-    );
-    execSync(`git checkout -b ${branchFromJsonl}`, { stdio: "inherit" });
-    console.log("Created new branch from base:", branchFromJsonl);
-  } else {
-    // Create and checkout new branch with generated name from base branch
-    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-    console.log("Created and checked out new branch from base:", branchName);
-  }
+  console.log(
+    "Branch should not exist locally, creating new branch from base:",
+    branchName
+  );
+  execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+  console.log("Created new branch from base:", branchName);
 
   // Apply the patch using git CLI (skip if empty)
   if (!isEmpty) {
