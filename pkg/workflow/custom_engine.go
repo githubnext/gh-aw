@@ -127,9 +127,32 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
+	// Add safe-outputs MCP server if safe-outputs are configured
+	hasSafeOutputs := workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	totalServers := len(mcpTools)
+	if hasSafeOutputs {
+		totalServers++
+	}
+
+	serverCount := 0
+
+	// Generate safe-outputs MCP server configuration first if enabled
+	if hasSafeOutputs {
+		yaml.WriteString("              \"safe_outputs\": {\n")
+		yaml.WriteString("                \"command\": \"node\",\n")
+		yaml.WriteString("                \"args\": [\"/tmp/safe-outputs-mcp-server.cjs\"]\n")
+		serverCount++
+		if serverCount < totalServers {
+			yaml.WriteString("              },\n")
+		} else {
+			yaml.WriteString("              }\n")
+		}
+	}
+
 	// Generate configuration for each MCP tool using shared logic
-	for i, toolName := range mcpTools {
-		isLast := i == len(mcpTools)-1
+	for _, toolName := range mcpTools {
+		serverCount++
+		isLast := serverCount == totalServers
 
 		switch toolName {
 		case "github":
@@ -262,4 +285,18 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 // GetLogParserScript returns the JavaScript script name for parsing custom engine logs
 func (e *CustomEngine) GetLogParserScript() string {
 	return "parse_custom_log"
+}
+
+// hasSafeOutputsEnabled checks if any safe-outputs are enabled
+func (e *CustomEngine) hasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+	return safeOutputs.CreateIssues != nil ||
+		safeOutputs.CreateDiscussions != nil ||
+		safeOutputs.AddIssueComments != nil ||
+		safeOutputs.CreatePullRequests != nil ||
+		safeOutputs.CreatePullRequestReviewComments != nil ||
+		safeOutputs.CreateRepositorySecurityAdvisories != nil ||
+		safeOutputs.AddIssueLabels != nil ||
+		safeOutputs.UpdateIssues != nil ||
+		safeOutputs.PushToPullRequestBranch != nil ||
+		safeOutputs.MissingTool != nil
 }

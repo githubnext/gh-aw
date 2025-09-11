@@ -60,6 +60,9 @@ var parseCodexLogScript string
 //go:embed js/missing_tool.cjs
 var missingToolScript string
 
+//go:embed js/safe_outputs_mcp_server.cjs
+var safeOutputsMCPServerScript string
+
 // FormatJavaScriptForYAML formats a JavaScript script with proper indentation for embedding in YAML
 func FormatJavaScriptForYAML(script string) []string {
 	var formattedLines []string

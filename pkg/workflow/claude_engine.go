@@ -522,14 +522,51 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 	return comment.String()
 }
 
+// hasSafeOutputsEnabled checks if any safe-outputs are enabled
+func (e *ClaudeEngine) hasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+	return safeOutputs.CreateIssues != nil ||
+		safeOutputs.CreateDiscussions != nil ||
+		safeOutputs.AddIssueComments != nil ||
+		safeOutputs.CreatePullRequests != nil ||
+		safeOutputs.CreatePullRequestReviewComments != nil ||
+		safeOutputs.CreateRepositorySecurityAdvisories != nil ||
+		safeOutputs.AddIssueLabels != nil ||
+		safeOutputs.UpdateIssues != nil ||
+		safeOutputs.PushToPullRequestBranch != nil ||
+		safeOutputs.MissingTool != nil
+}
+
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
+	// Add safe-outputs MCP server if safe-outputs are configured
+	hasSafeOutputs := workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	totalServers := len(mcpTools)
+	if hasSafeOutputs {
+		totalServers++
+	}
+
+	serverCount := 0
+
+	// Generate safe-outputs MCP server configuration first if enabled
+	if hasSafeOutputs {
+		yaml.WriteString("              \"safe_outputs\": {\n")
+		yaml.WriteString("                \"command\": \"node\",\n")
+		yaml.WriteString("                \"args\": [\"/tmp/safe-outputs-mcp-server.cjs\"]\n")
+		serverCount++
+		if serverCount < totalServers {
+			yaml.WriteString("              },\n")
+		} else {
+			yaml.WriteString("              }\n")
+		}
+	}
+
 	// Generate configuration for each MCP tool
-	for i, toolName := range mcpTools {
-		isLast := i == len(mcpTools)-1
+	for _, toolName := range mcpTools {
+		serverCount++
+		isLast := serverCount == totalServers
 
 		switch toolName {
 		case "github":
