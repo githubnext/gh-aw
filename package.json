@@ -21,5 +21,8 @@
     "test:js-coverage": "vitest run --coverage",
     "format:cjs": "prettier --write 'pkg/workflow/js/**/*.cjs'",
     "lint:cjs": "prettier --check 'pkg/workflow/js/**/*.cjs'"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5"
   }
 }
