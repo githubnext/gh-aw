@@ -183,6 +183,7 @@ jobs:
               "safe-outputs": {
                 "command": "node",
                 "args": ["/tmp/safe-outputs-mcp/safe_outputs_mcp_server.js"],
+                "cwd": "/tmp/safe-outputs-mcp",
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
                   "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}"

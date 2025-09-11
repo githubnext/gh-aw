@@ -436,6 +436,7 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 	yaml.WriteString("          [mcp_servers.safe-outputs]\n")
 	yaml.WriteString("          command = \"node\"\n")
 	yaml.WriteString("          args = [\"/tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\"]\n")
+	yaml.WriteString("          cwd = \"/tmp/safe-outputs-mcp\"\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.safe-outputs.env]\n")
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\"\n")
