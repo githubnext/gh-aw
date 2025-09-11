@@ -433,11 +433,6 @@ func (e *CodexEngine) GetLogParserScript() string {
 	return "parse_codex_log"
 }
 
-// SupportsErrorValidation returns true as Codex engine supports error validation
-func (e *CodexEngine) SupportsErrorValidation() bool {
-	return true
-}
-
 // GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{

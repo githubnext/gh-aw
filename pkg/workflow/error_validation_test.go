@@ -59,10 +59,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 	t.Run("BaseEngine_defaults", func(t *testing.T) {
 		base := BaseEngine{}
 
-		if base.SupportsErrorValidation() {
-			t.Error("BaseEngine should not support error validation by default")
-		}
-
 		patterns := base.GetErrorPatterns()
 		if len(patterns) != 0 {
 			t.Errorf("BaseEngine should return empty error patterns, got %d", len(patterns))
@@ -72,10 +68,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 	// Test CodexEngine error validation support
 	t.Run("CodexEngine_error_validation", func(t *testing.T) {
 		engine := NewCodexEngine()
-
-		if !engine.SupportsErrorValidation() {
-			t.Error("CodexEngine should support error validation")
-		}
 
 		patterns := engine.GetErrorPatterns()
 		if len(patterns) == 0 {
@@ -114,13 +106,9 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 	})
 
-	// Test ClaudeEngine default behavior (should not support error validation)
+	// Test ClaudeEngine default behavior (should return empty error patterns)
 	t.Run("ClaudeEngine_no_error_validation", func(t *testing.T) {
 		engine := NewClaudeEngine()
-
-		if engine.SupportsErrorValidation() {
-			t.Error("ClaudeEngine should not support error validation by default")
-		}
 
 		patterns := engine.GetErrorPatterns()
 		if len(patterns) != 0 {

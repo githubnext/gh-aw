@@ -54,9 +54,6 @@ type CodingAgentEngine interface {
 	// GetLogParserScript returns the name of the JavaScript script to parse logs for this engine
 	GetLogParserScript() string
 
-	// SupportsErrorValidation returns true if this engine supports regex-based error validation
-	SupportsErrorValidation() bool
-
 	// GetErrorPatterns returns regex patterns for extracting error messages from logs
 	GetErrorPatterns() []ErrorPattern
 }
@@ -117,11 +114,6 @@ func (e *BaseEngine) SupportsMaxTurns() bool {
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
 func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
-}
-
-// SupportsErrorValidation returns false by default (engines can override)
-func (e *BaseEngine) SupportsErrorValidation() bool {
-	return false
 }
 
 // GetErrorPatterns returns an empty list by default (engines can override)

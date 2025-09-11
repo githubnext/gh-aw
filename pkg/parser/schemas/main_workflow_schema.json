@@ -871,7 +871,7 @@
                 "properties": {
                   "pattern": {
                     "type": "string",
-                    "description": "Regular expression pattern to match log lines"
+                    "description": "Ecma script regular expression pattern to match log lines"
                   },
                   "level_group": {
                     "type": "integer",

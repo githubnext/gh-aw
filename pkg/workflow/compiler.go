@@ -2987,15 +2987,16 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 }
 
 func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string, data *WorkflowData) {
-	// Use engine config error patterns if available, otherwise fall back to engine patterns
+	// Concatenate engine error patterns and configured error patterns
 	var errorPatterns []ErrorPattern
 
+	// Add engine-defined patterns
+	enginePatterns := engine.GetErrorPatterns()
+	errorPatterns = append(errorPatterns, enginePatterns...)
+
+	// Add user-configured patterns from engine config
 	if data.EngineConfig != nil && len(data.EngineConfig.ErrorPatterns) > 0 {
-		// Use engine config defined patterns
-		errorPatterns = data.EngineConfig.ErrorPatterns
-	} else if engine.SupportsErrorValidation() {
-		// Fall back to engine-defined patterns
-		errorPatterns = engine.GetErrorPatterns()
+		errorPatterns = append(errorPatterns, data.EngineConfig.ErrorPatterns...)
 	}
 
 	// Skip if no error patterns are available

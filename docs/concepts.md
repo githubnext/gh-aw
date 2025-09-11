@@ -99,18 +99,6 @@ Workflows can use various tools through the Model Context Protocol (MCP):
 
 Learn more in [Tools Configuration](tools.md) and [MCPs](mcps.md).
 
-### Error Validation and Monitoring
-
-Agentic workflows can automatically detect and report errors during execution:
-
-- **Automatic Error Detection** — Scan agent logs for error patterns using regex
-- **Workflow Failure** — Automatically fail workflow steps when errors are detected
-- **Built-in Patterns** — Codex engine includes predefined error patterns
-- **Custom Patterns** — Define custom error detection via frontmatter configuration
-- **GitHub Actions Integration** — Errors appear in workflow logs and summaries
-
-This ensures that agentic workflows fail fast when issues occur, rather than appearing to succeed while containing hidden errors. See [Error Validation](frontmatter.md#error-validation-error_patterns) for configuration details.
-
 ## Building Effective Workflows
 
 ### Best Practices
