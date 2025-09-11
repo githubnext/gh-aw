@@ -1453,6 +1453,13 @@ jobs:
               module.exports = { parseCodexLog, formatBashCommand, truncateString };
             }
             main();
+      - name: Upload agent logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-codex-create-pull-request-review-comment.log
+          path: /tmp/test-codex-create-pull-request-review-comment.log
+          if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v7
@@ -1581,13 +1588,6 @@ jobs:
             if (require.main === module) {
               main();
             }
-      - name: Upload agent logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-codex-create-pull-request-review-comment.log
-          path: /tmp/test-codex-create-pull-request-review-comment.log
-          if-no-files-found: warn
 
   create_pr_review_comment:
     needs: test-codex-create-pull-request-review-comment

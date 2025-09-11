@@ -1507,6 +1507,13 @@ jobs:
               module.exports = { parseCodexLog, formatBashCommand, truncateString };
             }
             main();
+      - name: Upload agent logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-codex-add-issue-labels.log
+          path: /tmp/test-codex-add-issue-labels.log
+          if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v7
@@ -1635,13 +1642,6 @@ jobs:
             if (require.main === module) {
               main();
             }
-      - name: Upload agent logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-codex-add-issue-labels.log
-          path: /tmp/test-codex-add-issue-labels.log
-          if-no-files-found: warn
 
   add_labels:
     needs: test-codex-add-issue-labels

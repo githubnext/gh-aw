@@ -2987,11 +2987,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine, logFileFull)
 
-	// Add error validation for AI execution logs
-	c.generateErrorValidation(yaml, engine, logFileFull, data)
-
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
+
+	// Add error validation for AI execution logs
+	c.generateErrorValidation(yaml, engine, logFileFull, data)
 
 	// Add git patch generation step only if safe-outputs create-pull-request feature is used
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToBranch != nil) {
