@@ -227,6 +227,18 @@ copy-copilot-to-claude:
 	@cp .github/copilot-instructions.md CLAUDE.md
 	@echo "✓ Copied .github/copilot-instructions.md to CLAUDE.md"
 
+# Update MCP server npm dependencies
+.PHONY: mcp-install
+mcp-install:
+	@echo "Installing MCP server dependencies..."
+	@mkdir -p /tmp/mcp-install
+	@cp pkg/workflow/mcp_package.json /tmp/mcp-install/package.json
+	@cd /tmp/mcp-install && npm install
+	@cp /tmp/mcp-install/package-lock.json pkg/workflow/mcp_package-lock.json
+	@rm -rf /tmp/mcp-install
+	@echo "✓ MCP server package-lock.json updated"
+	@echo "⚠️  Remember to commit the updated mcp_package-lock.json file"
+
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
 agent-finish: deps-dev fmt fmt-cjs lint js build test-all recompile
@@ -255,6 +267,7 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  recompile        - Recompile all workflow files (depends on build)"
 	@echo "  copy-copilot-to-claude - Copy copilot instructions to Claude instructions file"
+	@echo "  mcp-install      - Update MCP server npm dependencies and regenerate lock file"
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  patch-release    - Create and push patch release (increments patch version)"
 	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"
