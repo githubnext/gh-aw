@@ -1,17 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const {
-  validateErrors,
-  extractLevel,
-  extractMessage,
-  generateValidationSummary,
-  truncateString,
-} = await import("./validate_errors.cjs");
+const { validateErrors, extractLevel, extractMessage, truncateString } =
+  await import("./validate_errors.cjs");
 
 // Mock global objects for testing
 global.console = {
   log: vi.fn(),
   warn: vi.fn(),
+  debug: vi.fn(),
 };
 
 global.core = {
@@ -20,6 +16,7 @@ global.core = {
   },
   setFailed: vi.fn(),
   warn: vi.fn(),
+  error: vi.fn(),
 };
 
 describe("validateErrors", () => {
@@ -57,13 +54,19 @@ Some normal log content
       },
     ];
 
-    const result = validateErrors(logContent, patterns);
+    validateErrors(logContent, patterns);
 
-    expect(result).toBeDefined();
-    expect(result).toContain("Log Validation Results");
-    expect(result).toContain("🚨 **2** error(s)");
-    expect(result).toContain("⚠️ **1** warning(s)");
-    expect(result).toContain("exceeded retry limit");
+    // Should call core.error for errors
+    expect(global.core.error).toHaveBeenCalledTimes(2);
+    expect(global.core.error).toHaveBeenCalledWith(
+      expect.stringContaining("exceeded retry limit")
+    );
+
+    // Should call core.warn for warnings
+    expect(global.core.warn).toHaveBeenCalledTimes(1);
+    expect(global.core.warn).toHaveBeenCalledWith(
+      expect.stringContaining("This is a warning message")
+    );
   });
 
   test("should handle empty log content", () => {
@@ -76,8 +79,11 @@ Some normal log content
       },
     ];
 
-    const result = validateErrors("", patterns);
-    expect(result).toBeNull();
+    validateErrors("", patterns);
+
+    // Should not call core.error or core.warn for empty content
+    expect(global.core.error).not.toHaveBeenCalled();
+    expect(global.core.warn).not.toHaveBeenCalled();
   });
 
   test("should handle no matching patterns", () => {
@@ -91,11 +97,14 @@ Some normal log content
       },
     ];
 
-    const result = validateErrors(logContent, patterns);
-    expect(result).toBeNull();
+    validateErrors(logContent, patterns);
+
+    // Should not call core.error or core.warn when no patterns match
+    expect(global.core.error).not.toHaveBeenCalled();
+    expect(global.core.warn).not.toHaveBeenCalled();
   });
 
-  test("should handle invalid regex patterns gracefully", () => {
+  test("should crash with invalid regex patterns", () => {
     const logContent = "ERROR: Something went wrong";
     const patterns = [
       {
@@ -106,9 +115,8 @@ Some normal log content
       },
     ];
 
-    // Should not throw an exception
-    const result = validateErrors(logContent, patterns);
-    expect(global.core.warn).toHaveBeenCalled();
+    // Should throw an exception instead of handling gracefully
+    expect(() => validateErrors(logContent, patterns)).toThrow();
   });
 
   test("should detect 401 unauthorized errors from issue #668", () => {
@@ -137,22 +145,17 @@ Some normal log content
       },
     ];
 
-    const result = validateErrors(logContent, patterns);
+    validateErrors(logContent, patterns);
 
-    // Should detect all the errors
-    expect(result).toBeDefined();
-    expect(result).toContain("Log Validation Results");
-    expect(result).toContain("🚨 **6** error(s)"); // 5 stream errors + 1 ERROR
-    expect(result).not.toContain("warning"); // These should all be errors, not warnings
+    // Should detect all 6 errors (5 stream errors + 1 ERROR)
+    expect(global.core.error).toHaveBeenCalledTimes(6);
 
-    // Should specifically detect 401 unauthorized errors
-    expect(result).toContain("401 Unauthorized");
-    expect(result).toContain("exceeded retry limit");
-
-    // Should include recommendations since errors were found
-    expect(result).toContain("### 💡 Recommendations");
-    expect(result).toContain(
-      "Review the errors above and check if they indicate problems with the agent execution"
+    // Verify calls contain the expected content
+    expect(global.core.error).toHaveBeenCalledWith(
+      expect.stringContaining("401 Unauthorized")
+    );
+    expect(global.core.error).toHaveBeenCalledWith(
+      expect.stringContaining("exceeded retry limit")
     );
   });
 });
@@ -200,64 +203,6 @@ describe("extractMessage", () => {
 
     const message = extractMessage(match, pattern, fullLine);
     expect(message).toBe("ERROR: Something went wrong");
-  });
-});
-
-describe("generateValidationSummary", () => {
-  test("should return null when no issues found", () => {
-    const result = generateValidationSummary([], []);
-    expect(result).toBeNull();
-  });
-
-  test("should generate proper markdown for errors and warnings", () => {
-    const errors = [
-      {
-        line: 1,
-        level: "error",
-        message: "Critical failure",
-        pattern: "Error pattern",
-        rawLine: "[2025-09-10T17:54:49] ERROR: Critical failure",
-      },
-    ];
-
-    const warnings = [
-      {
-        line: 2,
-        level: "warning",
-        message: "Minor issue",
-        pattern: "Warning pattern",
-        rawLine: "[2025-09-10T17:54:50] WARNING: Minor issue",
-      },
-    ];
-
-    const result = generateValidationSummary(errors, warnings);
-
-    expect(result).toContain("## 🔍 Log Validation Results");
-    expect(result).toContain("🚨 **1** error(s)");
-    expect(result).toContain("⚠️ **1** warning(s)");
-    expect(result).toContain("### 🚨 Errors");
-    expect(result).toContain("### ⚠️ Warnings");
-    expect(result).toContain("Critical failure");
-    expect(result).toContain("Minor issue");
-    expect(result).toContain("### 💡 Recommendations");
-  });
-
-  test("should handle warnings only", () => {
-    const warnings = [
-      {
-        line: 1,
-        level: "warning",
-        message: "Just a warning",
-        pattern: "Warning pattern",
-        rawLine: "WARNING: Just a warning",
-      },
-    ];
-
-    const result = generateValidationSummary([], warnings);
-
-    expect(result).toContain("⚠️ **1** warning(s)");
-    expect(result).not.toContain("🚨");
-    expect(result).not.toContain("### 💡 Recommendations");
   });
 });
 
