@@ -2,31 +2,32 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Codex Create Repository Security Advisory"
-"on":
-  workflow_dispatch: null
+name: "Test Claude Push to Branch"
+on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited, reopened]
+  pull_request_review_comment:
+    types: [created, edited]
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Test Codex Create Repository Security Advisory"
+run-name: "Test Claude Push to Branch"
 
 jobs:
-  add_reaction:
+  task:
     if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
-      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      (github.event.pull_request.head.repo.full_name == github.repository)
+      ((contains(github.event.issue.body, '/test-claude-push-to-pr-branch')) || (contains(github.event.comment.body, '/test-claude-push-to-pr-branch'))) ||
+      (contains(github.event.pull_request.body, '/test-claude-push-to-pr-branch'))
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
-      - name: Check team membership for workflow
+      - name: Check team membership for command workflow
         id: check-team-member
         uses: actions/github-script@v7
         env:
@@ -93,187 +94,12 @@ jobs:
               process.exit(78);
             }
             await main();
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: actions/github-script@v7
-        env:
-          GITHUB_AW_REACTION: eyes
-        with:
-          script: |
-            async function main() {
-              // Read inputs from environment variables
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const alias = process.env.GITHUB_AW_ALIAS; // Only present for alias workflows
-              const runId = context.runId;
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              console.log("Reaction type:", reaction);
-              console.log("Alias name:", alias || "none");
-              console.log("Run ID:", runId);
-              console.log("Run URL:", runUrl);
-              // Validate reaction type
-              const validReactions = [
-                "+1",
-                "-1",
-                "laugh",
-                "confused",
-                "heart",
-                "hooray",
-                "rocket",
-                "eyes",
-              ];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(
-                  `Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`
-                );
-                return;
-              }
-              // Determine the API endpoint based on the event type
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldEditComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    // Don't edit issue bodies for now - this might be more complex
-                    shouldEditComment = false;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    // Only edit comments for alias workflows
-                    shouldEditComment = alias ? true : false;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    // PRs are "issues" for the reactions endpoint
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    // Don't edit PR bodies for now - this might be more complex
-                    shouldEditComment = false;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    // Only edit comments for alias workflows
-                    shouldEditComment = alias ? true : false;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                console.log("Reaction API endpoint:", reactionEndpoint);
-                // Add reaction first
-                await addReaction(reactionEndpoint, reaction);
-                // Then edit comment if applicable and if it's a comment event
-                if (shouldEditComment && commentUpdateEndpoint) {
-                  console.log("Comment update endpoint:", commentUpdateEndpoint);
-                  await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
-                } else {
-                  if (!alias && commentUpdateEndpoint) {
-                    console.log(
-                      "Skipping comment edit - only available for alias workflows"
-                    );
-                  } else {
-                    console.log("Skipping comment edit for event type:", eventName);
-                  }
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(
-                  `Failed to process reaction and comment edit: ${errorMessage}`
-                );
-              }
-            }
-            /**
-             * Add a reaction to a GitHub issue, PR, or comment
-             * @param {string} endpoint - The GitHub API endpoint to add the reaction to
-             * @param {string} reaction - The reaction type to add
-             */
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                console.log(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                console.log(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            /**
-             * Edit a comment to add a workflow run link
-             * @param {string} endpoint - The GitHub API endpoint to update the comment
-             * @param {string} runUrl - The URL of the workflow run
-             */
-            async function editCommentWithWorkflowLink(endpoint, runUrl) {
-              try {
-                // First, get the current comment content
-                const getResponse = await github.request("GET " + endpoint, {
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                const originalBody = getResponse.data.body || "";
-                const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
-                // Check if we've already added a workflow link to avoid duplicates
-                if (originalBody.includes("*🤖 [Workflow run](")) {
-                  console.log(
-                    "Comment already contains a workflow run link, skipping edit"
-                  );
-                  return;
-                }
-                const updatedBody = originalBody + workflowLinkText;
-                // Update the comment
-                const updateResponse = await github.request("PATCH " + endpoint, {
-                  body: updatedBody,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                console.log(`Successfully updated comment with workflow link`);
-                console.log(`Comment ID: ${updateResponse.data.id}`);
-              } catch (error) {
-                // Don't fail the entire job if comment editing fails - just log it
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.warn("Failed to edit comment with workflow link:", errorMessage);
-                console.warn(
-                  "This is not critical - the reaction was still added successfully"
-                );
-              }
-            }
-            await main();
 
-  test-codex-create-repository-security-advisory:
+  test-claude-push-to-branch:
+    needs: task
+    if: >
+      contains(github.event.issue.body, '/test-claude-push-to-pr-branch') || contains(github.event.comment.body, '/test-claude-push-to-pr-branch') ||
+      contains(github.event.pull_request.body, '/test-claude-push-to-pr-branch')
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -281,12 +107,119 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install Codex
-        run: npm install -g @openai/codex
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Generate Claude Settings
+        run: |
+          mkdir -p /tmp/.claude
+          cat > /tmp/.claude/settings.json << 'EOF'
+          {
+            "hooks": {
+              "PreToolUse": [
+                {
+                  "matcher": "WebFetch|WebSearch",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": ".claude/hooks/network_permissions.py"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          EOF
+      - name: Generate Network Permissions Hook
+        run: |
+          mkdir -p .claude/hooks
+          cat > .claude/hooks/network_permissions.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Network permissions validator for Claude Code engine.
+          Generated by gh-aw from engine network permissions configuration.
+          """
+          
+          import json
+          import sys
+          import urllib.parse
+          import re
+          
+          # Domain allow-list (populated during generation)
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]
+          
+          def extract_domain(url_or_query):
+              """Extract domain from URL or search query."""
+              if not url_or_query:
+                  return None
+              
+              if url_or_query.startswith(('http://', 'https://')):
+                  return urllib.parse.urlparse(url_or_query).netloc.lower()
+              
+              # Check for domain patterns in search queries
+              match = re.search(r'site:([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', url_or_query)
+              if match:
+                  return match.group(1).lower()
+              
+              return None
+          
+          def is_domain_allowed(domain):
+              """Check if domain is allowed."""
+              if not domain:
+                  # If no domain detected, allow only if not under deny-all policy
+                  return bool(ALLOWED_DOMAINS)  # False if empty list (deny-all), True if has domains
+              
+              # Empty allowed domains means deny all
+              if not ALLOWED_DOMAINS:
+                  return False
+              
+              for pattern in ALLOWED_DOMAINS:
+                  regex = pattern.replace('.', r'\.').replace('*', '.*')
+                  if re.match(f'^{regex}$', domain):
+                      return True
+              return False
+          
+          # Main logic
+          try:
+              data = json.load(sys.stdin)
+              tool_name = data.get('tool_name', '')
+              tool_input = data.get('tool_input', {})
+              
+              if tool_name not in ['WebFetch', 'WebSearch']:
+                  sys.exit(0)  # Allow other tools
+              
+              target = tool_input.get('url') or tool_input.get('query', '')
+              domain = extract_domain(target)
+              
+              # For WebSearch, apply domain restrictions consistently
+              # If no domain detected in search query, check if restrictions are in place
+              if tool_name == 'WebSearch' and not domain:
+                  # Since this hook is only generated when network permissions are configured,
+                  # empty ALLOWED_DOMAINS means deny-all policy
+                  if not ALLOWED_DOMAINS:  # Empty list means deny all
+                      print(f"Network access blocked: deny-all policy in effect", file=sys.stderr)
+                      print(f"No domains are allowed for WebSearch", file=sys.stderr)
+                      sys.exit(2)  # Block under deny-all policy
+                  else:
+                      print(f"Network access blocked for web-search: no specific domain detected", file=sys.stderr)
+                      print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
+                      sys.exit(2)  # Block general searches when domain allowlist is configured
+              
+              if not is_domain_allowed(domain):
+                  print(f"Network access blocked for domain: {domain}", file=sys.stderr)
+                  print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
+                  sys.exit(2)  # Block with feedback to Claude
+              
+              sys.exit(0)  # Allow
+              
+          except Exception as e:
+              print(f"Network validation error: {e}", file=sys.stderr)
+              sys.exit(2)  # Block on errors
+          
+          EOF
+          chmod +x .claude/hooks/network_permissions.py
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
@@ -315,22 +248,25 @@ jobs:
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/config.toml << EOF
-          [history]
-          persistence = "none"
-          
-          [mcp_servers.github]
-          user_agent = "test-codex-create-repository-security-advisory"
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "ghcr.io/github/github-mcp-server:sha-09deac4"
-          ]
-          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
+          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
+          {
+            "mcpServers": {
+              "github": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                }
+              }
+            }
+          }
           EOF
       - name: Create prompt
         env:
@@ -339,14 +275,49 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Codex Create Repository Security Advisory
+          # Test Claude Push to Branch
           
-          Create a new repository security advisory for the repository with title "Codex wants security review." and adding a couple of sentences about why security is important.
+          This test workflow specifically tests multi-commit functionality in push-to-pr-branch.
+          
+          **IMPORTANT: Create multiple separate commits for this test case**
+          
+          1. **First commit**: Create a file called "README-claude-test.md" with:
+             ```markdown
+             # Claude Push-to-Branch Multi-Commit Test
+             
+             This file was created by the Claude agentic workflow to test the multi-commit push-to-pr-branch functionality.
+             
+             Created at: {{ current timestamp }}
+             
+             ## Purpose
+             This test verifies that multiple commits are properly applied when using push-to-pr-branch.
+             ```
+          
+          2. **Second commit**: Create a Python script called "claude-script.py" with:
+             ```python
+             #!/usr/bin/env python3
+             """
+             Multi-commit test script created by Claude agentic workflow
+             """
+             
+             import datetime
+             
+             def main():
+                 print("Hello from Claude agentic workflow!")
+                 print(f"Current time: {datetime.datetime.now()}")
+                 print("This script was created to test multi-commit push-to-pr-branch functionality.")
+                 print("This is commit #2 in the multi-commit test.")
+             
+             if __name__ == "__main__":
+                 main()
+             ```
+          
+          Push these changes to the branch for the pull request #${github.event.pull_request.number}
           
           
           ---
           
-          ## Creating Repository Security Advisories, Reporting Missing Tools or Functionality
+          ## Pushing Changes to Branch, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
           
@@ -354,21 +325,20 @@ jobs:
           
           ### Available Output Types:
           
-          **Creating Repository Security Advisories**
+          **Pushing Changes to Pull Request Branch**
           
-          To create repository security advisories (SARIF format for GitHub Code Scanning):
-          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          To push changes to the branch of a pull request:
+          1. Make any file changes directly in the working directory
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Indicate your intention to push the branch to the repo by writing to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
-          {"type": "create-repository-security-advisory", "file": "path/to/file.js", "line": 42, "severity": "error", "message": "Security vulnerability description", "column": 5, "ruleIdSuffix": "custom-rule"}
+          {, "type": "push-to-pr-branch", "branch_name": "The name of the branch to push to, should be the branch name associated with the pull request", "message": "Commit message describing the changes"}
           ```
-          2. **Required fields**: `file` (string), `line` (number), `severity` ("error", "warning", "info", or "note"), `message` (string)
-          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)
-          4. Multiple security findings can be reported by writing multiple JSON objects
-          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```
-          {"type": "create-repository-security-advisory", "file": "src/auth.js", "line": 25, "severity": "error", "message": "Potential SQL injection vulnerability"}
+          {"type": "push-to-pr-branch", "message": "Update documentation with latest changes"}
           ```
           
           **Important Notes:**
@@ -394,14 +364,14 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "codex",
-              engine_name: "Codex",
+              engine_id: "claude",
+              engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Codex Create Repository Security Advisory",
-              experimental: true,
+              workflow_name: "Test Claude Push to Branch",
+              experimental: false,
               supports_tools_whitelist: true,
-              supports_http_transport: false,
+              supports_http_transport: true,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
@@ -425,24 +395,99 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
-      - name: Run Codex
-        run: |
-          set -o pipefail
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          export CODEX_HOME=/tmp/mcp-config
-          
-          # Create log directory outside git repo
-          mkdir -p /tmp/aw-logs
-          
-          # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex exec \
-            -c model=o4-mini \
-            --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-create-repository-security-advisory.log
+      - name: Execute Claude Code Action
+        id: agentic_execution
+        uses: anthropics/claude-code-base-action@v0.0.56
+        with:
+          # Allowed tools (sorted):
+          # - Bash(git add:*)
+          # - Bash(git branch:*)
+          # - Bash(git checkout:*)
+          # - Bash(git commit:*)
+          # - Bash(git merge:*)
+          # - Bash(git rm:*)
+          # - Bash(git switch:*)
+          # - BashOutput
+          # - Edit
+          # - ExitPlanMode
+          # - Glob
+          # - Grep
+          # - KillBash
+          # - LS
+          # - MultiEdit
+          # - NotebookEdit
+          # - NotebookRead
+          # - Read
+          # - Task
+          # - TodoWrite
+          # - Write
+          # - mcp__github__download_workflow_run_artifact
+          # - mcp__github__get_code_scanning_alert
+          # - mcp__github__get_commit
+          # - mcp__github__get_dependabot_alert
+          # - mcp__github__get_discussion
+          # - mcp__github__get_discussion_comments
+          # - mcp__github__get_file_contents
+          # - mcp__github__get_issue
+          # - mcp__github__get_issue_comments
+          # - mcp__github__get_job_logs
+          # - mcp__github__get_me
+          # - mcp__github__get_notification_details
+          # - mcp__github__get_pull_request
+          # - mcp__github__get_pull_request_comments
+          # - mcp__github__get_pull_request_diff
+          # - mcp__github__get_pull_request_files
+          # - mcp__github__get_pull_request_reviews
+          # - mcp__github__get_pull_request_status
+          # - mcp__github__get_secret_scanning_alert
+          # - mcp__github__get_tag
+          # - mcp__github__get_workflow_run
+          # - mcp__github__get_workflow_run_logs
+          # - mcp__github__get_workflow_run_usage
+          # - mcp__github__list_branches
+          # - mcp__github__list_code_scanning_alerts
+          # - mcp__github__list_commits
+          # - mcp__github__list_dependabot_alerts
+          # - mcp__github__list_discussion_categories
+          # - mcp__github__list_discussions
+          # - mcp__github__list_issues
+          # - mcp__github__list_notifications
+          # - mcp__github__list_pull_requests
+          # - mcp__github__list_secret_scanning_alerts
+          # - mcp__github__list_tags
+          # - mcp__github__list_workflow_jobs
+          # - mcp__github__list_workflow_run_artifacts
+          # - mcp__github__list_workflow_runs
+          # - mcp__github__list_workflows
+          # - mcp__github__search_code
+          # - mcp__github__search_issues
+          # - mcp__github__search_orgs
+          # - mcp__github__search_pull_requests
+          # - mcp__github__search_repositories
+          # - mcp__github__search_users
+          allowed_tools: "Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_env: |
+            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          prompt_file: /tmp/aw-prompts/prompt.txt
+          settings: /tmp/.claude/settings.json
+          timeout_minutes: 5
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Capture Agentic Action logs
+        if: always()
+        run: |
+          # Copy the detailed execution file from Agentic Action if available
+          if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-push-to-branch.log
+          else
+            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-push-to-branch.log
+          fi
+          
+          # Ensure log file exists
+          touch /tmp/test-claude-push-to-branch.log
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -469,7 +514,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-repository-security-advisory\":{\"enabled\":true,\"max\":10}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pr-branch\":{\"enabled\":true}}"
         with:
           script: |
             async function main() {
@@ -1185,16 +1230,27 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_outputs
+          path: |
+            output.txt
+          if-no-files-found: ignore
+      - name: Clean up engine output files
+        run: |
+          rm -f output.txt
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v7
         env:
-          AGENT_LOG_FILE: /tmp/test-codex-create-repository-security-advisory.log
+          AGENT_LOG_FILE: /tmp/test-claude-push-to-branch.log
         with:
           script: |
             function main() {
               const fs = require("fs");
               try {
+                // Get the log file path from environment
                 const logFile = process.env.AGENT_LOG_FILE;
                 if (!logFile) {
                   console.log("No agent log file specified");
@@ -1204,81 +1260,74 @@ jobs:
                   console.log(`Log file not found: ${logFile}`);
                   return;
                 }
-                const content = fs.readFileSync(logFile, "utf8");
-                const parsedLog = parseCodexLog(content);
-                if (parsedLog) {
-                  core.summary.addRaw(parsedLog).write();
-                  console.log("Codex log parsed successfully");
-                } else {
-                  core.error("Failed to parse Codex log");
-                }
+                const logContent = fs.readFileSync(logFile, "utf8");
+                const markdown = parseClaudeLog(logContent);
+                // Append to GitHub step summary
+                core.summary.addRaw(markdown).write();
               } catch (error) {
+                core.error(`Error parsing Claude log: ${error.message}`);
                 core.setFailed(error.message);
               }
             }
-            function parseCodexLog(logContent) {
+            function parseClaudeLog(logContent) {
               try {
-                const lines = logContent.split("\n");
+                const logEntries = JSON.parse(logContent);
+                if (!Array.isArray(logEntries)) {
+                  return "## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n";
+                }
                 let markdown = "## 🤖 Commands and Tools\n\n";
-                const commandSummary = [];
-                // First pass: collect commands for summary
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  // Detect tool usage and exec commands
-                  if (line.includes("] tool ") && line.includes("(")) {
-                    // Extract tool name
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (
-                          nextLine.includes("failure in") ||
-                          nextLine.includes("error in") ||
-                          nextLine.includes("failed in")
-                        ) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      if (toolName.includes(".")) {
-                        // Format as provider::method
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        commandSummary.push(
-                          `* ${statusIcon} \`${provider}::${method}(...)\``
-                        );
-                      } else {
-                        commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
+                const toolUsePairs = new Map(); // Map tool_use_id to tool_result
+                const commandSummary = []; // For the succinct summary
+                // First pass: collect tool results by tool_use_id
+                for (const entry of logEntries) {
+                  if (entry.type === "user" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "tool_result" && content.tool_use_id) {
+                        toolUsePairs.set(content.tool_use_id, content);
                       }
                     }
-                  } else if (line.includes("] exec ")) {
-                    // Extract exec command
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (
-                          nextLine.includes("failed in") ||
-                          nextLine.includes("error")
+                  }
+                }
+                // Collect all tool uses for summary
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "tool_use") {
+                        const toolName = content.name;
+                        const input = content.input || {};
+                        // Skip internal tools - only show external commands and API calls
+                        if (
+                          [
+                            "Read",
+                            "Write",
+                            "Edit",
+                            "MultiEdit",
+                            "LS",
+                            "Grep",
+                            "Glob",
+                            "TodoWrite",
+                          ].includes(toolName)
                         ) {
-                          statusIcon = "❌";
-                          break;
+                          continue; // Skip internal file operations and searches
+                        }
+                        // Find the corresponding tool result to get status
+                        const toolResult = toolUsePairs.get(content.id);
+                        let statusIcon = "❓";
+                        if (toolResult) {
+                          statusIcon = toolResult.is_error === true ? "❌" : "✅";
+                        }
+                        // Add to command summary (only external tools)
+                        if (toolName === "Bash") {
+                          const formattedCommand = formatBashCommand(input.command || "");
+                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+                        } else if (toolName.startsWith("mcp__")) {
+                          const mcpName = formatMcpName(toolName);
+                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+                        } else {
+                          // Handle other external tools (if any)
+                          commandSummary.push(`* ${statusIcon} ${toolName}`);
                         }
                       }
-                      commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
                     }
                   }
                 }
@@ -1290,128 +1339,189 @@ jobs:
                 } else {
                   markdown += "No commands or tools used.\n";
                 }
-                // Add Information section
+                // Add Information section from the last entry with result metadata
                 markdown += "\n## 📊 Information\n\n";
-                // Extract metadata from Codex logs
-                let totalTokens = 0;
-                const tokenMatches = logContent.match(/tokens used: (\d+)/g);
-                if (tokenMatches) {
-                  for (const match of tokenMatches) {
-                    const tokens = parseInt(match.match(/(\d+)/)[1]);
-                    totalTokens += tokens;
+                // Find the last entry with metadata
+                const lastEntry = logEntries[logEntries.length - 1];
+                if (
+                  lastEntry &&
+                  (lastEntry.num_turns ||
+                    lastEntry.duration_ms ||
+                    lastEntry.total_cost_usd ||
+                    lastEntry.usage)
+                ) {
+                  if (lastEntry.num_turns) {
+                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
                   }
-                }
-                if (totalTokens > 0) {
-                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
-                }
-                // Count tool calls and exec commands
-                const toolCalls = (logContent.match(/\] tool /g) || []).length;
-                const execCommands = (logContent.match(/\] exec /g) || []).length;
-                if (toolCalls > 0) {
-                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
-                }
-                if (execCommands > 0) {
-                  markdown += `**Commands Executed:** ${execCommands}\n\n`;
+                  if (lastEntry.duration_ms) {
+                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
+                    const minutes = Math.floor(durationSec / 60);
+                    const seconds = durationSec % 60;
+                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
+                  }
+                  if (lastEntry.total_cost_usd) {
+                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
+                  }
+                  if (lastEntry.usage) {
+                    const usage = lastEntry.usage;
+                    if (usage.input_tokens || usage.output_tokens) {
+                      markdown += `**Token Usage:**\n`;
+                      if (usage.input_tokens)
+                        markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_creation_input_tokens)
+                        markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_read_input_tokens)
+                        markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                      if (usage.output_tokens)
+                        markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                      markdown += "\n";
+                    }
+                  }
+                  if (
+                    lastEntry.permission_denials &&
+                    lastEntry.permission_denials.length > 0
+                  ) {
+                    markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                  }
                 }
                 markdown += "\n## 🤖 Reasoning\n\n";
-                // Second pass: process full conversation flow with interleaved reasoning, tools, and commands
-                let inThinkingSection = false;
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  // Skip metadata lines
-                  if (
-                    line.includes("OpenAI Codex") ||
-                    line.startsWith("--------") ||
-                    line.includes("workdir:") ||
-                    line.includes("model:") ||
-                    line.includes("provider:") ||
-                    line.includes("approval:") ||
-                    line.includes("sandbox:") ||
-                    line.includes("reasoning effort:") ||
-                    line.includes("reasoning summaries:") ||
-                    line.includes("tokens used:")
-                  ) {
-                    continue;
-                  }
-                  // Process thinking sections
-                  if (line.includes("] thinking")) {
-                    inThinkingSection = true;
-                    continue;
-                  }
-                  // Process tool calls
-                  if (line.includes("] tool ") && line.includes("(")) {
-                    inThinkingSection = false;
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (
-                          nextLine.includes("failure in") ||
-                          nextLine.includes("error in") ||
-                          nextLine.includes("failed in")
-                        ) {
-                          statusIcon = "❌";
-                          break;
+                // Second pass: process assistant messages in sequence
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "text" && content.text) {
+                        // Add reasoning text directly (no header)
+                        const text = content.text.trim();
+                        if (text && text.length > 0) {
+                          markdown += text + "\n\n";
+                        }
+                      } else if (content.type === "tool_use") {
+                        // Process tool use with its result
+                        const toolResult = toolUsePairs.get(content.id);
+                        const toolMarkdown = formatToolUse(content, toolResult);
+                        if (toolMarkdown) {
+                          markdown += toolMarkdown;
                         }
                       }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
-                      } else {
-                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
-                      }
                     }
-                    continue;
-                  }
-                  // Process exec commands
-                  if (line.includes("] exec ")) {
-                    inThinkingSection = false;
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (
-                          nextLine.includes("failed in") ||
-                          nextLine.includes("error")
-                        ) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-                    }
-                    continue;
-                  }
-                  // Process thinking content
-                  if (
-                    inThinkingSection &&
-                    line.trim().length > 20 &&
-                    !line.startsWith("[2025-")
-                  ) {
-                    const trimmed = line.trim();
-                    // Add thinking content directly
-                    markdown += `${trimmed}\n\n`;
                   }
                 }
                 return markdown;
               } catch (error) {
-                core.error(`Error parsing Codex log: ${error}`);
-                return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
+                return `## Agent Log Summary\n\nError parsing Claude log: ${error.message}\n`;
               }
+            }
+            function formatToolUse(toolUse, toolResult) {
+              const toolName = toolUse.name;
+              const input = toolUse.input || {};
+              // Skip TodoWrite except the very last one (we'll handle this separately)
+              if (toolName === "TodoWrite") {
+                return ""; // Skip for now, would need global context to find the last one
+              }
+              // Helper function to determine status icon
+              function getStatusIcon() {
+                if (toolResult) {
+                  return toolResult.is_error === true ? "❌" : "✅";
+                }
+                return "❓"; // Unknown by default
+              }
+              let markdown = "";
+              const statusIcon = getStatusIcon();
+              switch (toolName) {
+                case "Bash":
+                  const command = input.command || "";
+                  const description = input.description || "";
+                  // Format the command to be single line
+                  const formattedCommand = formatBashCommand(command);
+                  if (description) {
+                    markdown += `${description}:\n\n`;
+                  }
+                  markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
+                  break;
+                case "Read":
+                  const filePath = input.file_path || input.path || "";
+                  const relativePath = filePath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  ); // Remove /home/runner/work/repo/repo/ prefix
+                  markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
+                  break;
+                case "Write":
+                case "Edit":
+                case "MultiEdit":
+                  const writeFilePath = input.file_path || input.path || "";
+                  const writeRelativePath = writeFilePath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  );
+                  markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
+                  break;
+                case "Grep":
+                case "Glob":
+                  const query = input.query || input.pattern || "";
+                  markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
+                  break;
+                case "LS":
+                  const lsPath = input.path || "";
+                  const lsRelativePath = lsPath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  );
+                  markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
+                  break;
+                default:
+                  // Handle MCP calls and other tools
+                  if (toolName.startsWith("mcp__")) {
+                    const mcpName = formatMcpName(toolName);
+                    const params = formatMcpParameters(input);
+                    markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
+                  } else {
+                    // Generic tool formatting - show the tool name and main parameters
+                    const keys = Object.keys(input);
+                    if (keys.length > 0) {
+                      // Try to find the most important parameter
+                      const mainParam =
+                        keys.find(k =>
+                          ["query", "command", "path", "file_path", "content"].includes(k)
+                        ) || keys[0];
+                      const value = String(input[mainParam] || "");
+                      if (value) {
+                        markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
+                      } else {
+                        markdown += `${statusIcon} ${toolName}\n\n`;
+                      }
+                    } else {
+                      markdown += `${statusIcon} ${toolName}\n\n`;
+                    }
+                  }
+              }
+              return markdown;
+            }
+            function formatMcpName(toolName) {
+              // Convert mcp__github__search_issues to github::search_issues
+              if (toolName.startsWith("mcp__")) {
+                const parts = toolName.split("__");
+                if (parts.length >= 3) {
+                  const provider = parts[1]; // github, etc.
+                  const method = parts.slice(2).join("_"); // search_issues, etc.
+                  return `${provider}::${method}`;
+                }
+              }
+              return toolName;
+            }
+            function formatMcpParameters(input) {
+              const keys = Object.keys(input);
+              if (keys.length === 0) return "";
+              const paramStrs = [];
+              for (const key of keys.slice(0, 4)) {
+                // Show up to 4 parameters
+                const value = String(input[key] || "");
+                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
+              }
+              if (keys.length > 4) {
+                paramStrs.push("...");
+              }
+              return paramStrs.join(", ");
             }
             function formatBashCommand(command) {
               if (!command) return "";
@@ -1439,53 +1549,246 @@ jobs:
             }
             // Export for testing
             if (typeof module !== "undefined" && module.exports) {
-              module.exports = { parseCodexLog, formatBashCommand, truncateString };
+              module.exports = {
+                parseClaudeLog,
+                formatToolUse,
+                formatBashCommand,
+                truncateString,
+              };
             }
             main();
       - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-codex-create-repository-security-advisory.log
-          path: /tmp/test-codex-create-repository-security-advisory.log
+          name: test-claude-push-to-branch.log
+          path: /tmp/test-claude-push-to-branch.log
           if-no-files-found: warn
+      - name: Generate git patch
+        if: always()
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+        run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          
+          # Extract branch name from JSONL output
+          BRANCH_NAME=""
+          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+            echo "Checking for branch name in JSONL output..."
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then
+                # Extract branch from create-pull-request line using simple grep and sed
+                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create-pull-request"'; then
+                  echo "Found create-pull-request line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    break
+                  fi
+                # Extract branch from push-to-pr-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pr-branch"'; then
+                  echo "Found push-to-pr-branch line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    break
+                  fi
+                fi
+              fi
+            done < "$GITHUB_AW_SAFE_OUTPUTS"
+          fi
+          
+          # Get the initial commit SHA from the base branch of the pull request
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ]; then
+            INITIAL_SHA="$GITHUB_BASE_REF"
+          else
+            INITIAL_SHA="$GITHUB_SHA"
+          fi
+          echo "Base commit SHA: $INITIAL_SHA"
+          
+          # If we have a branch name, check if that branch exists and get its diff
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "Looking for branch: $BRANCH_NAME"
+            # Check if the branch exists
+            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
+              # Generate patch from the base to the branch
+              git format-patch "$INITIAL_SHA".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              echo "Patch file created from branch: $BRANCH_NAME"
+            else
+              echo "Branch $BRANCH_NAME does not exist, falling back to current HEAD"
+              BRANCH_NAME=""
+            fi
+          fi
+          
+          # If no branch or branch doesn't exist, use the existing logic
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "Using current HEAD for patch generation"
+            # Stage any unstaged files
+            git add -A || true
+            # Check if there are staged files to commit
+            if ! git diff --cached --quiet; then
+              echo "Staged files found, committing them..."
+              git commit -m "[agent] staged files" || true
+              echo "Staged files committed"
+            else
+              echo "No staged files to commit"
+            fi
+            # Check updated git status
+            echo "Updated git status after committing staged files:"
+            git status
+            # Show compact diff information between initial commit and HEAD (committed changes only)
+            echo '## Git diff' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            git diff --name-only "$INITIAL_SHA"..HEAD >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            # Check if there are any committed changes since the initial commit
+            if git diff --quiet "$INITIAL_SHA" HEAD; then
+              echo "No committed changes detected since initial commit"
+              echo "Skipping patch generation - no committed changes to create patch from"
+            else
+              echo "Committed changes detected, generating patch..."
+              # Generate patch from initial commit to HEAD (committed changes only)
+              git format-patch "$INITIAL_SHA"..HEAD --stdout > /tmp/aw.patch || echo "Failed to generate patch" > /tmp/aw.patch
+              echo "Patch file created at /tmp/aw.patch"
+            fi
+          fi
+          
+          # Show patch info if it exists
+          if [ -f /tmp/aw.patch ]; then
+            ls -la /tmp/aw.patch
+            # Show the first 50 lines of the patch for review
+            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            echo '...' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw.patch
+          path: /tmp/aw.patch
+          if-no-files-found: ignore
 
-  create_repository_security_advisory:
-    needs: test-codex-create-repository-security-advisory
+  push_to_pr_branch:
+    needs: test-claude-push-to-branch
+    if: >
+      (contains(github.event.issue.body, '/test-claude-push-to-pr-branch') || contains(github.event.comment.body, '/test-claude-push-to-pr-branch') ||
+      contains(github.event.pull_request.body, '/test-claude-push-to-pr-branch')) && (github.event.pull_request.number)
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      security-events: write
-      actions: read
+      contents: write
+      pull-requests: read
     timeout-minutes: 10
     outputs:
-      artifact_uploaded: ${{ steps.create_repository_security_advisory.outputs.artifact_uploaded }}
-      codeql_uploaded: ${{ steps.create_repository_security_advisory.outputs.codeql_uploaded }}
-      findings_count: ${{ steps.create_repository_security_advisory.outputs.findings_count }}
-      sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
+      branch_name: ${{ steps.push_to_pr_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_pr_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_pr_branch.outputs.push_url }}
     steps:
-      - name: Create Repository Security Advisory
-        id: create_repository_security_advisory
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: aw.patch
+          path: /tmp/
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Push to Branch
+        id: push_to_pr_branch
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-create-repository-security-advisory.outputs.output }}
-          GITHUB_AW_SECURITY_REPORT_MAX: 10
-          GITHUB_AW_SECURITY_REPORT_DRIVER: Test Codex Repository Security Advisory
-          GITHUB_AW_WORKFLOW_FILENAME: test-codex-create-repository-security-advisory
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-push-to-branch.outputs.output }}
+          GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
         with:
           script: |
             async function main() {
-              // Read the validated output content from environment variable
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
+              /** @type {typeof import("fs")} */
+              const fs = require("fs");
+              const { execSync } = require("child_process");
+              // Environment validation - fail early if required variables are missing
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
                 console.log("Agent output content is empty");
                 return;
               }
+              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
+              const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
+              // Check if patch file exists and has valid content
+              if (!fs.existsSync("/tmp/aw.patch")) {
+                const message = "No patch file found - cannot push without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(message);
+                    return;
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+              // Check for actual error conditions (but allow empty patches as valid noop)
+              if (patchContent.includes("Failed to generate patch")) {
+                const message =
+                  "Patch file contains error message - cannot push without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(message);
+                    return;
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    return;
+                }
+              }
+              // Empty patch is valid - behavior depends on if-no-changes configuration
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (isEmpty) {
+                const message =
+                  "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(
+                      "No changes to push - failing as configured by if-no-changes: error"
+                    );
+                    return;
+                  case "ignore":
+                    // Silent success - no console output
+                    break;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    break;
+                }
+              }
               console.log("Agent output content length:", outputContent.length);
+              if (!isEmpty) {
+                console.log("Patch content validation passed");
+              }
+              console.log("Target configuration:", target);
               // Parse the validated output JSON
               let validatedOutput;
               try {
@@ -1501,257 +1804,180 @@ jobs:
                 console.log("No valid items found in agent output");
                 return;
               }
-              // Find all create-repository-security-advisory items
-              const securityItems = validatedOutput.items.filter(
-                /** @param {any} item */ item =>
-                  item.type === "create-repository-security-advisory"
+              // Find the push-to-pr-branch item
+              const pushItem = validatedOutput.items.find(
+                /** @param {any} item */ item => item.type === "push-to-pr-branch"
               );
-              if (securityItems.length === 0) {
-                console.log(
-                  "No create-repository-security-advisory items found in agent output"
+              if (!pushItem) {
+                console.log("No push-to-pr-branch item found in agent output");
+                return;
+              }
+              console.log("Found push-to-pr-branch item");
+              // Validate target configuration for pull request context
+              if (target !== "*" && target !== "triggering") {
+                // If target is a specific number, validate it's a valid pull request number
+                const pullNumber = parseInt(target, 10);
+                if (isNaN(pullNumber)) {
+                  core.setFailed(
+                    'Invalid target configuration: must be "triggering", "*", or a valid pull request number'
+                  );
+                  return;
+                }
+              }
+              // Check if we're in a pull request context when required
+              if (target === "triggering" && !context.payload.pull_request) {
+                core.setFailed(
+                  'push-to-pr-branch with target "triggering" requires pull request context'
                 );
                 return;
               }
-              console.log(
-                `Found ${securityItems.length} create-repository-security-advisory item(s)`
-              );
-              // Get the max configuration from environment variable
-              const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
-                ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX)
-                : 0; // 0 means unlimited
-              console.log(
-                `Max findings configuration: ${maxFindings === 0 ? "unlimited" : maxFindings}`
-              );
-              // Get the driver configuration from environment variable
-              const driverName =
-                process.env.GITHUB_AW_SECURITY_REPORT_DRIVER ||
-                "GitHub Agentic Workflows Security Scanner";
-              console.log(`Driver name: ${driverName}`);
-              // Get the workflow filename for rule ID prefix
-              const workflowFilename =
-                process.env.GITHUB_AW_WORKFLOW_FILENAME || "workflow";
-              console.log(`Workflow filename for rule ID prefix: ${workflowFilename}`);
-              const validFindings = [];
-              // Process each security item and validate the findings
-              for (let i = 0; i < securityItems.length; i++) {
-                const securityItem = securityItems[i];
-                console.log(
-                  `Processing create-repository-security-advisory item ${i + 1}/${securityItems.length}:`,
-                  {
-                    file: securityItem.file,
-                    line: securityItem.line,
-                    severity: securityItem.severity,
-                    messageLength: securityItem.message
-                      ? securityItem.message.length
-                      : "undefined",
-                    ruleIdSuffix: securityItem.ruleIdSuffix || "not specified",
-                  }
-                );
-                // Validate required fields
-                if (!securityItem.file) {
-                  console.log(
-                    'Missing required field "file" in repository security advisory item'
-                  );
-                  continue;
+              // Compute the target branch name based on target configuration
+              let pullNumber;
+              if (target === "triggering") {
+                // Use the number of the triggering pull request
+                pullNumber = context.payload.pull_request.number;
+              } else if (target === "*") {
+                if (pushItem.pull_number) {
+                    pullNumber = parseInt(pushItem.pull_number, 10);
                 }
-                if (
-                  !securityItem.line ||
-                  (typeof securityItem.line !== "number" &&
-                    typeof securityItem.line !== "string")
-                ) {
-                  console.log(
-                    'Missing or invalid required field "line" in repository security advisory item'
-                  );
-                  continue;
-                }
-                if (!securityItem.severity || typeof securityItem.severity !== "string") {
-                  console.log(
-                    'Missing or invalid required field "severity" in repository security advisory item'
-                  );
-                  continue;
-                }
-                if (!securityItem.message || typeof securityItem.message !== "string") {
-                  console.log(
-                    'Missing or invalid required field "message" in repository security advisory item'
-                  );
-                  continue;
-                }
-                // Parse line number
-                const line = parseInt(securityItem.line, 10);
-                if (isNaN(line) || line <= 0) {
-                  console.log(`Invalid line number: ${securityItem.line}`);
-                  continue;
-                }
-                // Parse optional column number
-                let column = 1; // Default to column 1
-                if (securityItem.column !== undefined) {
-                  if (
-                    typeof securityItem.column !== "number" &&
-                    typeof securityItem.column !== "string"
-                  ) {
-                    console.log(
-                      'Invalid field "column" in repository security advisory item (must be number or string)'
-                    );
-                    continue;
-                  }
-                  const parsedColumn = parseInt(securityItem.column, 10);
-                  if (isNaN(parsedColumn) || parsedColumn <= 0) {
-                    console.log(`Invalid column number: ${securityItem.column}`);
-                    continue;
-                  }
-                  column = parsedColumn;
-                }
-                // Parse optional rule ID suffix
-                let ruleIdSuffix = null;
-                if (securityItem.ruleIdSuffix !== undefined) {
-                  if (typeof securityItem.ruleIdSuffix !== "string") {
-                    console.log(
-                      'Invalid field "ruleIdSuffix" in repository security advisory item (must be string)'
-                    );
-                    continue;
-                  }
-                  // Validate that the suffix doesn't contain invalid characters
-                  const trimmedSuffix = securityItem.ruleIdSuffix.trim();
-                  if (trimmedSuffix.length === 0) {
-                    console.log(
-                      'Invalid field "ruleIdSuffix" in repository security advisory item (cannot be empty)'
-                    );
-                    continue;
-                  }
-                  // Check for characters that would be problematic in rule IDs
-                  if (!/^[a-zA-Z0-9_-]+$/.test(trimmedSuffix)) {
-                    console.log(
-                      `Invalid ruleIdSuffix "${trimmedSuffix}" (must contain only alphanumeric characters, hyphens, and underscores)`
-                    );
-                    continue;
-                  }
-                  ruleIdSuffix = trimmedSuffix;
-                }
-                // Validate severity level and map to SARIF level
-                const severityMap = {
-                  error: "error",
-                  warning: "warning",
-                  info: "note",
-                  note: "note",
-                };
-                const normalizedSeverity = securityItem.severity.toLowerCase();
-                if (!severityMap[normalizedSeverity]) {
-                  console.log(
-                    `Invalid severity level: ${securityItem.severity} (must be error, warning, info, or note)`
-                  );
-                  continue;
-                }
-                const sarifLevel = severityMap[normalizedSeverity];
-                // Create a valid finding object
-                validFindings.push({
-                  file: securityItem.file.trim(),
-                  line: line,
-                  column: column,
-                  severity: normalizedSeverity,
-                  sarifLevel: sarifLevel,
-                  message: securityItem.message.trim(),
-                  ruleIdSuffix: ruleIdSuffix,
-                });
-                // Check if we've reached the max limit
-                if (maxFindings > 0 && validFindings.length >= maxFindings) {
-                  console.log(`Reached maximum findings limit: ${maxFindings}`);
-                  break;
-                }
+              } else {
+                // Target is a specific pull request number
+                pullNumber = parseInt(target, 10);
               }
-              if (validFindings.length === 0) {
-                console.log("No valid security findings to report");
-                return;
-              }
-              console.log(`Processing ${validFindings.length} valid security finding(s)`);
-              // Generate SARIF file
-              const sarifContent = {
-                $schema:
-                  "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
-                version: "2.1.0",
-                runs: [
-                  {
-                    tool: {
-                      driver: {
-                        name: driverName,
-                        version: "1.0.0",
-                        informationUri: "https://github.com/githubnext/gh-aw-copilots",
-                      },
-                    },
-                    results: validFindings.map((finding, index) => ({
-                      ruleId: finding.ruleIdSuffix
-                        ? `${workflowFilename}-${finding.ruleIdSuffix}`
-                        : `${workflowFilename}-security-finding-${index + 1}`,
-                      message: { text: finding.message },
-                      level: finding.sarifLevel,
-                      locations: [
-                        {
-                          physicalLocation: {
-                            artifactLocation: { uri: finding.file },
-                            region: {
-                              startLine: finding.line,
-                              startColumn: finding.column,
-                            },
-                          },
-                        },
-                      ],
-                    })),
-                  },
-                ],
-              };
-              // Write SARIF file to filesystem
-              const fs = require("fs");
-              const path = require("path");
-              const sarifFileName = "repository-security-advisory.sarif";
-              const sarifFilePath = path.join(process.cwd(), sarifFileName);
+              let branchName;
+              // Fetch the specific PR to get its head branch
               try {
-                fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
-                console.log(`✓ Created SARIF file: ${sarifFilePath}`);
-                console.log(`SARIF file size: ${fs.statSync(sarifFilePath).size} bytes`);
-                // Set outputs for the GitHub Action
-                core.setOutput("sarif_file", sarifFilePath);
-                core.setOutput("findings_count", validFindings.length);
-                core.setOutput("artifact_uploaded", "pending");
-                core.setOutput("codeql_uploaded", "pending");
-                // Write summary with findings
-                let summaryContent = "\n\n## Repository Security Advisory\n";
-                summaryContent += `Found **${validFindings.length}** security finding(s):\n\n`;
-                for (const finding of validFindings) {
-                  const emoji =
-                    finding.severity === "error"
-                      ? "🔴"
-                      : finding.severity === "warning"
-                        ? "🟡"
-                        : "🔵";
-                  summaryContent += `${emoji} **${finding.severity.toUpperCase()}** in \`${finding.file}:${finding.line}\`: ${finding.message}\n`;
+                const prInfo = execSync(
+                  `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
+                  { encoding: "utf8" }
+                ).trim();
+                if (prInfo) {
+                  branchName = prInfo;
+                } else {
+                  throw new Error("No head branch found for PR");
                 }
-                summaryContent += `\n📄 SARIF file created: \`${sarifFileName}\`\n`;
-                summaryContent += `🔍 Findings will be uploaded to GitHub Code Scanning\n`;
-                await core.summary.addRaw(summaryContent).write();
               } catch (error) {
-                core.error(
-                  `✗ Failed to create SARIF file: ${error instanceof Error ? error.message : String(error)}`
-                );
-                throw error;
+                console.log(`Warning: Could not fetch PR ${pullNumber} details: ${error.message}`);
+                // Exit with failure if we cannot determine the branch name
+                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+                return;
               }
-              console.log(
-                `Successfully created repository security advisory with ${validFindings.length} finding(s)`
-              );
-              return {
-                sarifFile: sarifFilePath,
-                findingsCount: validFindings.length,
-                findings: validFindings,
-              };
+              console.log("Target branch:", branchName);
+              // Check if patch has actual changes (not just empty)
+              const hasChanges = !isEmpty;
+              // Switch to or create the target branch
+              console.log("Switching to branch:", branchName);
+              try {
+                // Try to checkout existing branch first
+                execSync("git fetch origin", { stdio: "inherit" });
+                // Check if branch exists on origin
+                try {
+                  execSync(`git rev-parse --verify origin/${branchName}`, {
+                    stdio: "pipe",
+                  });
+                  // Branch exists on origin, check it out
+                  execSync(`git checkout -B ${branchName} origin/${branchName}`, {
+                    stdio: "inherit",
+                  });
+                  console.log("Checked out existing branch from origin:", branchName);
+                } catch (originError) {
+                  // Branch doesn't exist on origin, check if it exists locally
+                  try {
+                    execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
+                    // Branch exists locally, check it out
+                    execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+                    console.log("Checked out existing local branch:", branchName);
+                  } catch (localError) {
+                    // Branch doesn't exist locally or on origin, create it from default branch
+                    console.log(
+                      "Branch does not exist, creating new branch from default branch:",
+                      branchName
+                    );
+                    // Get the default branch name
+                    const defaultBranch = execSync(
+                      "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
+                      { encoding: "utf8" }
+                    ).trim();
+                    console.log("Default branch:", defaultBranch);
+                    // Ensure we have the latest default branch
+                    execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
+                    execSync(`git pull origin ${defaultBranch}`, { stdio: "inherit" });
+                    // Create new branch from default branch
+                    execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+                    console.log("Created new branch from default branch:", branchName);
+                  }
+                }
+              } catch (error) {
+                core.setFailed(
+                  `Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
+              }
+              // Apply the patch using git CLI (skip if empty)
+              if (!isEmpty) {
+                console.log("Applying patch...");
+                try {
+                  // Patches are created with git format-patch, so use git am to apply them
+                  execSync("git am /tmp/aw.patch", { stdio: "inherit" });
+                  console.log("Patch applied successfully");
+                  // Push the applied commits to the branch
+                  execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                  console.log("Changes committed and pushed to branch:", branchName);
+                } catch (error) {
+                  core.error(
+                    `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
+                  );
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
+              } else {
+                console.log("Skipping patch application (empty patch)");
+                // Handle if-no-changes configuration for empty patches
+                const message =
+                  "No changes to apply - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(
+                      "No changes to apply - failing as configured by if-no-changes: error"
+                    );
+                    return;
+                  case "ignore":
+                    // Silent success - no console output
+                    break;
+                  case "warn":
+                  default:
+                    console.log(message);
+                    break;
+                }
+              }
+              // Get commit SHA and push URL
+              const commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+              // Get commit SHA and push URL
+              const pushUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/tree/${branchName}`
+                : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+              // Set outputs
+              core.setOutput("branch_name", branchName);
+              core.setOutput("commit_sha", commitSha);
+              core.setOutput("push_url", pushUrl);
+              // Write summary to GitHub Actions summary
+              const summaryTitle = hasChanges
+                ? "Push to Branch"
+                : "Push to Branch (No Changes)";
+              const summaryContent = hasChanges
+                ? `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+            - **URL**: [${pushUrl}](${pushUrl})
+            `
+                : `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Status**: No changes to apply (noop operation)
+            - **URL**: [${pushUrl}](${pushUrl})
+            `;
+              await core.summary.addRaw(summaryContent).write();
             }
             await main();
-      - name: Upload SARIF artifact
-        if: steps.create_repository_security_advisory.outputs.sarif_file
-        uses: actions/upload-artifact@v4
-        with:
-          name: repository-security-advisory.sarif
-          path: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
-      - name: Upload SARIF to GitHub Security
-        if: steps.create_repository_security_advisory.outputs.sarif_file
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}
 

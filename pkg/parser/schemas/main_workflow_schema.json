@@ -1453,7 +1453,7 @@
             }
           ]
         },
-        "push-to-branch": {
+        "push-to-pr-branch": {
           "oneOf": [
             {
               "type": "null",

@@ -1035,7 +1035,7 @@ jobs:
                     return 5; // Only one labels operation allowed
                   case "update-issue":
                     return 1; // Only one issue update allowed
-                  case "push-to-branch":
+                  case "push-to-pr-branch":
                     return 1; // Only one push to branch allowed
                   case "create-discussion":
                     return 1; // Only one discussion allowed
@@ -1058,7 +1058,7 @@ jobs:
                 // U+0014 (DC4) — represented here as "\u0014"
                 // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
                 // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-                const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
+                const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
                 repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
                   const c = ch.charCodeAt(0);
                   return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
@@ -1344,12 +1344,12 @@ jobs:
                         }
                       }
                       break;
-                    case "push-to-branch":
+                    case "push-to-pr-branch":
                       // Validate message if provided (optional)
                       if (item.message !== undefined) {
                         if (typeof item.message !== "string") {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'message' must be a string`
+                            `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
                           );
                           continue;
                         }
@@ -1362,7 +1362,7 @@ jobs:
                           typeof item.pull_request_number !== "string"
                         ) {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`
+                            `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
                           );
                           continue;
                         }

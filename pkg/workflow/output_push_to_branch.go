@@ -4,15 +4,10 @@ import (
 	"fmt"
 )
 
-// buildCreateOutputPushToBranchJob creates the push_to_branch job
-func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.PushToBranch == nil {
-		return nil, fmt.Errorf("safe-outputs.push-to-branch configuration is required")
-	}
-
-	// Branch should have a default value of "triggering" set by the parser
-	if data.SafeOutputs.PushToBranch.Branch == "" {
-		return nil, fmt.Errorf("safe-outputs.push-to-branch branch configuration is invalid")
+// buildCreateOutputPushToPullRequestBranchJob creates the push_to_pr_branch job
+func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.PushToPullRequestBranch == nil {
+		return nil, fmt.Errorf("safe-outputs.push-to-pr-branch configuration is required")
 	}
 
 	var steps []string
@@ -36,21 +31,19 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 
 	// Step 4: Push to Branch
 	steps = append(steps, "      - name: Push to Branch\n")
-	steps = append(steps, "        id: push_to_branch\n")
+	steps = append(steps, "        id: push_to_pr_branch\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	// Pass the branch configuration
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_BRANCH: %q\n", data.SafeOutputs.PushToBranch.Branch))
 	// Pass the target configuration
-	if data.SafeOutputs.PushToBranch.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToBranch.Target))
+	if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))
 	}
 	// Pass the if-no-changes configuration
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToBranch.IfNoChanges))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -61,14 +54,14 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"branch_name": "${{ steps.push_to_branch.outputs.branch_name }}",
-		"commit_sha":  "${{ steps.push_to_branch.outputs.commit_sha }}",
-		"push_url":    "${{ steps.push_to_branch.outputs.push_url }}",
+		"branch_name": "${{ steps.push_to_pr_branch.outputs.branch_name }}",
+		"commit_sha":  "${{ steps.push_to_pr_branch.outputs.commit_sha }}",
+		"push_url":    "${{ steps.push_to_pr_branch.outputs.push_url }}",
 	}
 
 	// Determine the job condition based on target configuration
 	var baseCondition string
-	if data.SafeOutputs.PushToBranch.Target == "*" {
+	if data.SafeOutputs.PushToPullRequestBranch.Target == "*" {
 		// Allow pushing to any pull request - no specific context required
 		baseCondition = "always()"
 	} else {
@@ -97,7 +90,7 @@ func (c *Compiler) buildCreateOutputPushToBranchJob(data *WorkflowData, mainJobN
 	}
 
 	job := &Job{
-		Name:           "push_to_branch",
+		Name:           "push_to_pr_branch",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: write\n      pull-requests: read",

@@ -1,18 +1,18 @@
 ---
 on:
   command:
-    name: test-codex-push-to-branch
+    name: test-codex-push-to-pr-branch
 
 engine: 
   id: codex
 
 safe-outputs:
-  push-to-branch:
+  push-to-pr-branch:
 ---
 
 # Test Codex Push to Branch
 
-This test workflow specifically tests multi-commit functionality in push-to-branch.
+This test workflow specifically tests multi-commit functionality in push-to-pr-branch.
 
 **IMPORTANT: Create multiple separate commits for this test case**
 
@@ -20,12 +20,12 @@ This test workflow specifically tests multi-commit functionality in push-to-bran
    ```markdown
    # Codex Push-to-Branch Multi-Commit Test
    
-   This file was created by the Codex agentic workflow to test the multi-commit push-to-branch functionality.
+   This file was created by the Codex agentic workflow to test the multi-commit push-to-pr-branch functionality.
    
    Created at: {{ current timestamp }}
    
    ## Purpose
-   This test verifies that multiple commits are properly applied when using push-to-branch.
+   This test verifies that multiple commits are properly applied when using push-to-pr-branch.
    ```
 
 2. **Second commit**: Create a Python script called "codex-script.py" with:
@@ -40,7 +40,7 @@ This test workflow specifically tests multi-commit functionality in push-to-bran
    def main():
        print("Hello from Codex agentic workflow!")
        print(f"Current time: {datetime.datetime.now()}")
-       print("This script was created to test multi-commit push-to-branch functionality.")
+       print("This script was created to test multi-commit push-to-pr-branch functionality.")
        print("This is commit #2 in the multi-commit test.")
    
    if __name__ == "__main__":

@@ -23,8 +23,8 @@ run-name: "Test Codex Push to Branch"
 jobs:
   task:
     if: >
-      ((contains(github.event.issue.body, '/test-codex-push-to-branch')) || (contains(github.event.comment.body, '/test-codex-push-to-branch'))) ||
-      (contains(github.event.pull_request.body, '/test-codex-push-to-branch'))
+      ((contains(github.event.issue.body, '/test-codex-push-to-pr-branch')) || (contains(github.event.comment.body, '/test-codex-push-to-pr-branch'))) ||
+      (contains(github.event.pull_request.body, '/test-codex-push-to-pr-branch'))
     runs-on: ubuntu-latest
     steps:
       - name: Check team membership for command workflow
@@ -98,8 +98,8 @@ jobs:
   test-codex-push-to-branch:
     needs: task
     if: >
-      contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') ||
-      contains(github.event.pull_request.body, '/test-codex-push-to-branch')
+      contains(github.event.issue.body, '/test-codex-push-to-pr-branch') || contains(github.event.comment.body, '/test-codex-push-to-pr-branch') ||
+      contains(github.event.pull_request.body, '/test-codex-push-to-pr-branch')
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -151,6 +151,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
+          user_agent = "test-codex-push-to-branch"
           command = "docker"
           args = [
             "run",
@@ -171,7 +172,7 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Test Codex Push to Branch
           
-          This test workflow specifically tests multi-commit functionality in push-to-branch.
+          This test workflow specifically tests multi-commit functionality in push-to-pr-branch.
           
           **IMPORTANT: Create multiple separate commits for this test case**
           
@@ -179,12 +180,12 @@ jobs:
              ```markdown
              # Codex Push-to-Branch Multi-Commit Test
              
-             This file was created by the Codex agentic workflow to test the multi-commit push-to-branch functionality.
+             This file was created by the Codex agentic workflow to test the multi-commit push-to-pr-branch functionality.
              
              Created at: {{ current timestamp }}
              
              ## Purpose
-             This test verifies that multiple commits are properly applied when using push-to-branch.
+             This test verifies that multiple commits are properly applied when using push-to-pr-branch.
              ```
           
           2. **Second commit**: Create a Python script called "codex-script.py" with:
@@ -199,7 +200,7 @@ jobs:
              def main():
                  print("Hello from Codex agentic workflow!")
                  print(f"Current time: {datetime.datetime.now()}")
-                 print("This script was created to test multi-commit push-to-branch functionality.")
+                 print("This script was created to test multi-commit push-to-pr-branch functionality.")
                  print("This is commit #2 in the multi-commit test.")
              
              if __name__ == "__main__":
@@ -219,20 +220,20 @@ jobs:
           
           ### Available Output Types:
           
-          **Pushing Changes to Branch**
+          **Pushing Changes to Pull Request Branch**
           
-          To push changes to a branch, for example to add code to a pull request:
+          To push changes to the branch of a pull request:
           1. Make any file changes directly in the working directory
-          2. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          3. Indicate your intention to push to the branch by writing to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Indicate your intention to push the branch to the repo by writing to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
-          {"type": "push-to-branch", "message": "Commit message describing the changes"}
+          {, "type": "push-to-pr-branch", "branch_name": "The name of the branch to push to, should be the branch name associated with the pull request", "message": "Commit message describing the changes"}
           ```
           4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
           
           **Example JSONL file content:**
           ```
-          {"type": "push-to-branch", "message": "Update documentation with latest changes"}
+          {"type": "push-to-pr-branch", "message": "Update documentation with latest changes"}
           ```
           
           **Important Notes:**
@@ -333,7 +334,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-branch\":{\"branch\":\"triggering\",\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pr-branch\":{\"enabled\":true}}"
         with:
           script: |
             async function main() {
@@ -493,7 +494,7 @@ jobs:
                     return 5; // Only one labels operation allowed
                   case "update-issue":
                     return 1; // Only one issue update allowed
-                  case "push-to-branch":
+                  case "push-to-pr-branch":
                     return 1; // Only one push to branch allowed
                   case "create-discussion":
                     return 1; // Only one discussion allowed
@@ -516,7 +517,7 @@ jobs:
                 // U+0014 (DC4) — represented here as "\u0014"
                 // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
                 // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-                const _ctrl = {8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r"};
+                const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
                 repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
                   const c = ch.charCodeAt(0);
                   return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
@@ -802,12 +803,12 @@ jobs:
                         }
                       }
                       break;
-                    case "push-to-branch":
+                    case "push-to-pr-branch":
                       // Validate message if provided (optional)
                       if (item.message !== undefined) {
                         if (typeof item.message !== "string") {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'message' must be a string`
+                            `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
                           );
                           continue;
                         }
@@ -820,7 +821,7 @@ jobs:
                           typeof item.pull_request_number !== "string"
                         ) {
                           errors.push(
-                            `Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`
+                            `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
                           );
                           continue;
                         }
@@ -1317,7 +1318,6 @@ jobs:
         if: always()
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_PUSH_BRANCH: "triggering"
         run: |
           # Check current git status
           echo "Current git status:"
@@ -1338,14 +1338,13 @@ jobs:
                     echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
                     break
                   fi
-                # Extract branch from push-to-branch line using simple grep and sed
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-branch"'; then
-                  echo "Found push-to-branch line: $line"
-                  # For push-to-branch, we don't extract branch from JSONL since it's configured in the workflow
-                  # The branch name should come from the environment variable GITHUB_AW_PUSH_BRANCH
-                  if [ -n "$GITHUB_AW_PUSH_BRANCH" ]; then
-                    BRANCH_NAME="$GITHUB_AW_PUSH_BRANCH"
-                    echo "Using configured push-to-branch target: $BRANCH_NAME"
+                # Extract branch from push-to-pr-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pr-branch"'; then
+                  echo "Found push-to-pr-branch line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
                     break
                   fi
                 fi
@@ -1431,20 +1430,20 @@ jobs:
           path: /tmp/aw.patch
           if-no-files-found: ignore
 
-  push_to_branch:
+  push_to_pr_branch:
     needs: test-codex-push-to-branch
     if: >
-      (contains(github.event.issue.body, '/test-codex-push-to-branch') || contains(github.event.comment.body, '/test-codex-push-to-branch') ||
-      contains(github.event.pull_request.body, '/test-codex-push-to-branch')) && (github.event.pull_request.number)
+      (contains(github.event.issue.body, '/test-codex-push-to-pr-branch') || contains(github.event.comment.body, '/test-codex-push-to-pr-branch') ||
+      contains(github.event.pull_request.body, '/test-codex-push-to-pr-branch')) && (github.event.pull_request.number)
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: read
     timeout-minutes: 10
     outputs:
-      branch_name: ${{ steps.push_to_branch.outputs.branch_name }}
-      commit_sha: ${{ steps.push_to_branch.outputs.commit_sha }}
-      push_url: ${{ steps.push_to_branch.outputs.push_url }}
+      branch_name: ${{ steps.push_to_pr_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_pr_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_pr_branch.outputs.push_url }}
     steps:
       - name: Download patch artifact
         continue-on-error: true
@@ -1462,11 +1461,10 @@ jobs:
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
       - name: Push to Branch
-        id: push_to_branch
+        id: push_to_pr_branch
         uses: actions/github-script@v7
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-codex-push-to-branch.outputs.output }}
-          GITHUB_AW_PUSH_BRANCH: "triggering"
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
         with:
           script: |
@@ -1475,11 +1473,6 @@ jobs:
               const fs = require("fs");
               const { execSync } = require("child_process");
               // Environment validation - fail early if required variables are missing
-              const branchName = process.env.GITHUB_AW_PUSH_BRANCH;
-              if (!branchName) {
-                core.setFailed("GITHUB_AW_PUSH_BRANCH environment variable is required");
-                return;
-              }
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
                 console.log("Agent output content is empty");
@@ -1545,7 +1538,6 @@ jobs:
               if (!isEmpty) {
                 console.log("Patch content validation passed");
               }
-              console.log("Target branch:", branchName);
               console.log("Target configuration:", target);
               // Parse the validated output JSON
               let validatedOutput;
@@ -1562,20 +1554,20 @@ jobs:
                 console.log("No valid items found in agent output");
                 return;
               }
-              // Find the push-to-branch item
+              // Find the push-to-pr-branch item
               const pushItem = validatedOutput.items.find(
-                /** @param {any} item */ item => item.type === "push-to-branch"
+                /** @param {any} item */ item => item.type === "push-to-pr-branch"
               );
               if (!pushItem) {
-                console.log("No push-to-branch item found in agent output");
+                console.log("No push-to-pr-branch item found in agent output");
                 return;
               }
-              console.log("Found push-to-branch item");
+              console.log("Found push-to-pr-branch item");
               // Validate target configuration for pull request context
               if (target !== "*" && target !== "triggering") {
                 // If target is a specific number, validate it's a valid pull request number
-                const targetNumber = parseInt(target, 10);
-                if (isNaN(targetNumber)) {
+                const pullNumber = parseInt(target, 10);
+                if (isNaN(pullNumber)) {
                   core.setFailed(
                     'Invalid target configuration: must be "triggering", "*", or a valid pull request number'
                   );
@@ -1585,10 +1577,44 @@ jobs:
               // Check if we're in a pull request context when required
               if (target === "triggering" && !context.payload.pull_request) {
                 core.setFailed(
-                  'push-to-branch with target "triggering" requires pull request context'
+                  'push-to-pr-branch with target "triggering" requires pull request context'
                 );
                 return;
               }
+              // Compute the target branch name based on target configuration
+              let pullNumber;
+              if (target === "triggering") {
+                // Use the number of the triggering pull request
+                pullNumber = context.payload.pull_request.number;
+              } else if (target === "*") {
+                if (pushItem.pull_number) {
+                    pullNumber = parseInt(pushItem.pull_number, 10);
+                }
+              } else {
+                // Target is a specific pull request number
+                pullNumber = parseInt(target, 10);
+              }
+              let branchName;
+              // Fetch the specific PR to get its head branch
+              try {
+                const prInfo = execSync(
+                  `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
+                  { encoding: "utf8" }
+                ).trim();
+                if (prInfo) {
+                  branchName = prInfo;
+                } else {
+                  throw new Error("No head branch found for PR");
+                }
+              } catch (error) {
+                console.log(`Warning: Could not fetch PR ${pullNumber} details: ${error.message}`);
+                // Exit with failure if we cannot determine the branch name
+                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+                return;
+              }
+              console.log("Target branch:", branchName);
+              // Check if patch has actual changes (not just empty)
+              const hasChanges = !isEmpty;
               // Switch to or create the target branch
               console.log("Switching to branch:", branchName);
               try {

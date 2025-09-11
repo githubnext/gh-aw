@@ -36,7 +36,7 @@ var addLabelsScript string
 //go:embed js/update_issue.cjs
 var updateIssueScript string
 
-//go:embed js/push_to_branch.cjs
+//go:embed js/push_to_pr_branch.cjs
 var pushToBranchScript string
 
 //go:embed js/setup_agent_output.cjs

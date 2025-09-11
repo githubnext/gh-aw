@@ -177,7 +177,7 @@ async function main() {
         return 5; // Only one labels operation allowed
       case "update-issue":
         return 1; // Only one issue update allowed
-      case "push-to-branch":
+      case "push-to-pr-branch":
         return 1; // Only one push to branch allowed
       case "create-discussion":
         return 1; // Only one discussion allowed
@@ -518,12 +518,12 @@ async function main() {
           }
           break;
 
-        case "push-to-branch":
+        case "push-to-pr-branch":
           // Validate message if provided (optional)
           if (item.message !== undefined) {
             if (typeof item.message !== "string") {
               errors.push(
-                `Line ${i + 1}: push-to-branch 'message' must be a string`
+                `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
               );
               continue;
             }
@@ -536,7 +536,7 @@ async function main() {
               typeof item.pull_request_number !== "string"
             ) {
               errors.push(
-                `Line ${i + 1}: push-to-branch 'pull_request_number' must be a number or string`
+                `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
               );
               continue;
             }

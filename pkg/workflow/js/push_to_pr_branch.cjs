@@ -4,12 +4,6 @@ async function main() {
   const { execSync } = require("child_process");
 
   // Environment validation - fail early if required variables are missing
-  const branchName = process.env.GITHUB_AW_PUSH_BRANCH;
-  if (!branchName) {
-    core.setFailed("GITHUB_AW_PUSH_BRANCH environment variable is required");
-    return;
-  }
-
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   if (outputContent.trim() === "") {
     console.log("Agent output content is empty");
@@ -84,7 +78,6 @@ async function main() {
   if (!isEmpty) {
     console.log("Patch content validation passed");
   }
-  console.log("Target branch:", branchName);
   console.log("Target configuration:", target);
 
   // Parse the validated output JSON
@@ -104,22 +97,22 @@ async function main() {
     return;
   }
 
-  // Find the push-to-branch item
+  // Find the push-to-pr-branch item
   const pushItem = validatedOutput.items.find(
-    /** @param {any} item */ item => item.type === "push-to-branch"
+    /** @param {any} item */ item => item.type === "push-to-pr-branch"
   );
   if (!pushItem) {
-    console.log("No push-to-branch item found in agent output");
+    console.log("No push-to-pr-branch item found in agent output");
     return;
   }
 
-  console.log("Found push-to-branch item");
+  console.log("Found push-to-pr-branch item");
 
   // Validate target configuration for pull request context
   if (target !== "*" && target !== "triggering") {
     // If target is a specific number, validate it's a valid pull request number
-    const targetNumber = parseInt(target, 10);
-    if (isNaN(targetNumber)) {
+    const pullNumber = parseInt(target, 10);
+    if (isNaN(pullNumber)) {
       core.setFailed(
         'Invalid target configuration: must be "triggering", "*", or a valid pull request number'
       );
@@ -130,10 +123,48 @@ async function main() {
   // Check if we're in a pull request context when required
   if (target === "triggering" && !context.payload.pull_request) {
     core.setFailed(
-      'push-to-branch with target "triggering" requires pull request context'
+      'push-to-pr-branch with target "triggering" requires pull request context'
     );
     return;
   }
+
+  // Compute the target branch name based on target configuration
+  let pullNumber;
+  if (target === "triggering") {
+    // Use the number of the triggering pull request
+    pullNumber = context.payload.pull_request.number;
+  } else if (target === "*") {
+    if (pushItem.pull_number) {
+        pullNumber = parseInt(pushItem.pull_number, 10);
+    }
+  } else {
+    // Target is a specific pull request number
+    pullNumber = parseInt(target, 10);
+  }
+  let branchName;
+  // Fetch the specific PR to get its head branch
+  try {
+    const prInfo = execSync(
+      `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
+      { encoding: "utf8" }
+    ).trim();
+    
+    if (prInfo) {
+      branchName = prInfo;
+    } else {
+      throw new Error("No head branch found for PR");
+    }
+  } catch (error) {
+    console.log(`Warning: Could not fetch PR ${pullNumber} details: ${error.message}`);
+    // Exit with failure if we cannot determine the branch name
+    core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+    return;
+  }
+
+  console.log("Target branch:", branchName);
+
+  // Check if patch has actual changes (not just empty)
+  const hasChanges = !isEmpty;
 
   // Switch to or create the target branch
   console.log("Switching to branch:", branchName);
