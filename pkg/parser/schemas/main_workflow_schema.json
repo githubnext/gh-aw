@@ -1500,6 +1500,10 @@
               "description": "Enable missing tool reporting with default configuration"
             }
           ]
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"
         }
       },
       "additionalProperties": false
