@@ -177,6 +177,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "github":
 			githubTool := tools["github"]
 			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
+		case "safe-outputs":
+			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -426,6 +428,18 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 	}
 
 	return nil
+}
+
+// renderSafeOutputsCodexMCPConfig generates safe-outputs MCP server configuration for Codex
+func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, workflowData *WorkflowData) {
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.safe-outputs]\n")
+	yaml.WriteString("          command = \"node\"\n")
+	yaml.WriteString("          args = [\"/tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\"]\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.safe-outputs.env]\n")
+	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS = \"$GITHUB_AW_SAFE_OUTPUTS\"\n")
+	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS_CONFIG = \"$GITHUB_AW_SAFE_OUTPUTS_CONFIG\"\n")
 }
 
 // GetLogParserScript returns the JavaScript script name for parsing Codex logs

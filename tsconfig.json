@@ -22,7 +22,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "noEmit": true,
+    "noEmit": false,
     "allowUnreachableCode": true,
     "allowUnusedLabels": true,
     "noUnusedLocals": false,
@@ -41,6 +41,7 @@
     "pkg/workflow/js/create_pull_request.cjs",
     "pkg/workflow/js/sanitize_output.cjs",
     "pkg/workflow/js/setup_agent_output.cjs",
+    "pkg/workflow/js/safe_outputs_mcp_server.ts",
     "pkg/workflow/js/types/*.d.ts"
   ],
   "exclude": [

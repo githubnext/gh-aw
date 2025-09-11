@@ -135,6 +135,8 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "github":
 			githubTool := tools["github"]
 			e.renderGitHubMCPConfig(yaml, githubTool, isLast)
+		case "safe-outputs":
+			e.renderSafeOutputsMCPConfig(yaml, isLast, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -201,6 +203,23 @@ func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName str
 	}
 
 	return nil
+}
+
+// renderSafeOutputsMCPConfig generates safe-outputs MCP server configuration for Custom engine
+func (e *CustomEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+	yaml.WriteString("              \"safe-outputs\": {\n")
+	yaml.WriteString("                \"command\": \"node\",\n")
+	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\"],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"$GITHUB_AW_SAFE_OUTPUTS\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"$GITHUB_AW_SAFE_OUTPUTS_CONFIG\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // ParseLogMetrics implements basic log parsing for custom engine

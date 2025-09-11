@@ -164,6 +164,7 @@ type SafeOutputsConfig struct {
 	PushToBranch                       *PushToBranchConfig                       `yaml:"push-to-branch,omitempty"`
 	MissingTool                        *MissingToolConfig                        `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                     []string                                  `yaml:"allowed-domains,omitempty"`
+	MCP                                *bool                                     `yaml:"mcp,omitempty"` // Enable MCP-based safe outputs instead of JSONL
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -2744,6 +2745,13 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	var mcpTools []string
 	var proxyTools []string
 
+	// Check if safe-outputs MCP mode is enabled
+	hasSafeOutputsMCP := false
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MCP != nil && *workflowData.SafeOutputs.MCP {
+		mcpTools = append(mcpTools, "safe-outputs")
+		hasSafeOutputsMCP = true
+	}
+
 	for toolName, toolValue := range tools {
 		// Standard MCP tools
 		if toolName == "github" {
@@ -2827,6 +2835,17 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("      - name: Setup MCPs\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
+
+	// Write safe-outputs MCP server if enabled
+	if hasSafeOutputsMCP {
+		yaml.WriteString("          # Write safe-outputs MCP server JavaScript\n")
+		yaml.WriteString("          mkdir -p /tmp/safe-outputs-mcp\n")
+		yaml.WriteString("          cat > /tmp/safe-outputs-mcp/safe_outputs_mcp_server.js << 'SAFE_OUTPUTS_MCP_EOF'\n")
+		yaml.WriteString(SafeOutputsMCPServerScript())
+		yaml.WriteString("\nSAFE_OUTPUTS_MCP_EOF\n")
+		yaml.WriteString("          chmod +x /tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\n")
+		yaml.WriteString("          \n")
+	}
 
 	// Use the engine's RenderMCPConfig method
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)

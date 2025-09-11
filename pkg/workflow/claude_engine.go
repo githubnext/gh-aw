@@ -535,6 +535,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "github":
 			githubTool := tools["github"]
 			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast, workflowData)
+		case "safe-outputs":
+			e.renderSafeOutputsClaudeMCPConfig(yaml, isLast, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -602,6 +604,23 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 	}
 
 	return nil
+}
+
+// renderSafeOutputsClaudeMCPConfig generates safe-outputs MCP server configuration for Claude
+func (e *ClaudeEngine) renderSafeOutputsClaudeMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+	yaml.WriteString("              \"safe-outputs\": {\n")
+	yaml.WriteString("                \"command\": \"node\",\n")
+	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\"],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"$GITHUB_AW_SAFE_OUTPUTS\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"$GITHUB_AW_SAFE_OUTPUTS_CONFIG\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Claude

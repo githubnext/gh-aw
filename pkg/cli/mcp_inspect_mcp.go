@@ -202,7 +202,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	session, err := client.Connect(connectCtx, transport)
+	session, err := client.Connect(connectCtx, transport, &mcp.ClientSessionOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to MCP server: %w", err)
 	}
@@ -292,7 +292,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	session, err := client.Connect(connectCtx, transport)
+	session, err := client.Connect(connectCtx, transport, &mcp.ClientSessionOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to HTTP MCP server: %w", err)
 	}
