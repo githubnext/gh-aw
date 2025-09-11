@@ -201,7 +201,7 @@ class SafeOutputsMCPServer {
             return JSON.parse(configEnv);
         }
         catch (error) {
-            throw new Error(`Failed to parse GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${error}`);
+            throw new Error('Failed to parse GITHUB_AW_SAFE_OUTPUTS_CONFIG: ' + error);
         }
     }
     setupToolHandlers() {
@@ -228,12 +228,12 @@ class SafeOutputsMCPServer {
                 return {
                     content: [{
                             type: 'text',
-                            text: `Successfully wrote ${name} entry to safe outputs file`
+                            text: 'Successfully wrote ' + name + ' entry to safe outputs file'
                         }]
                 };
             }
             catch (error) {
-                throw new Error(`Failed to write to safe outputs file: ${error}`);
+                throw new Error('Failed to write to safe outputs file: ' + error);
             }
         });
     }

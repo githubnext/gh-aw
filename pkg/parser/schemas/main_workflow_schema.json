@@ -1500,6 +1500,10 @@
               "description": "Enable missing tool reporting with default configuration"
             }
           ]
+        },
+        "mcp": {
+          "type": "boolean",
+          "description": "Enable MCP-based safe outputs instead of JSONL (default: false)"
         }
       },
       "additionalProperties": false

@@ -25,13 +25,13 @@ func WriteSafeOutputsMCPServerToTemp() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	
+
 	// Write the JavaScript file
 	serverPath := filepath.Join(tempDir, "safe_outputs_mcp_server.js")
 	err = os.WriteFile(serverPath, []byte(safeOutputsMCPServerJS), 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to write MCP server file: %w", err)
 	}
-	
+
 	return serverPath, nil
 }

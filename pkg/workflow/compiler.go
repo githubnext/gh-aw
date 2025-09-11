@@ -2,6 +2,7 @@ package workflow
 
 import (
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2840,9 +2841,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if hasSafeOutputsMCP {
 		yaml.WriteString("          # Write safe-outputs MCP server JavaScript\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs-mcp\n")
-		yaml.WriteString("          cat > /tmp/safe-outputs-mcp/safe_outputs_mcp_server.js << 'SAFE_OUTPUTS_MCP_EOF'\n")
-		yaml.WriteString(SafeOutputsMCPServerScript())
-		yaml.WriteString("\nSAFE_OUTPUTS_MCP_EOF\n")
+
+		// Use base64 encoding to avoid HERE document issues
+		jsContent := SafeOutputsMCPServerScript()
+		encoded := base64.StdEncoding.EncodeToString([]byte(jsContent))
+
+		yaml.WriteString("          echo '" + encoded + "' | base64 -d > /tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\n")
 		yaml.WriteString("          chmod +x /tmp/safe-outputs-mcp/safe_outputs_mcp_server.js\n")
 		yaml.WriteString("          \n")
 	}
@@ -3507,6 +3511,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {
 				config.MissingTool = missingToolConfig
+			}
+
+			// Handle mcp flag
+			if mcpVal, exists := outputMap["mcp"]; exists {
+				if mcpBool, ok := mcpVal.(bool); ok {
+					config.MCP = &mcpBool
+				}
 			}
 		}
 	}
