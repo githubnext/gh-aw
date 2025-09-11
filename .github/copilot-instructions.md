@@ -478,6 +478,7 @@ The gh-aw tool provides:
 - **Markdown workflow parsing**: Converts natural language workflows from markdown to GitHub Actions YAML
 - **Workflow management**: Add, remove, enable, disable agentic workflows
 - **AI processor integration**: Supports Claude, Codex, and other AI processors
+- **Browser automation**: Playwright integration for web testing and accessibility analysis
 - **Local execution**: Run workflows locally for testing
 - **Package management**: Install workflow packages from GitHub repositories
 
@@ -491,6 +492,36 @@ on:
     - cron: "0 9 * * 1"
 ---
 ```
+
+### Playwright Browser Automation
+Playwright is integrated as a neutral tool for browser automation, web testing, and accessibility analysis:
+
+```yaml
+---
+engine: claude
+
+tools:
+  playwright:
+    docker_image_version: "v1.41.0"
+    allowed_domains: ["github.com", "*.github.com"]
+
+safe-outputs:
+  create-issue:
+    title-prefix: "[Accessibility] "
+    labels: [accessibility, playwright]
+    max: 1
+---
+```
+
+**Key Features**:
+- **Containerized execution**: Uses Microsoft's official Playwright Docker images
+- **Domain restrictions**: Network access controlled via `allowed_domains` configuration
+- **Multi-browser support**: Chromium, Firefox, Safari engines
+- **Accessibility analysis**: WCAG compliance scanning and accessibility tree analysis
+- **Visual testing**: Screenshots and visual regression testing
+- **Security**: Isolated container environment with network controls
+
+**Documentation**: See [Playwright Guide](docs/playwright.md) for complete configuration and examples.
 
 ### Workflow File Structure
 - **`.md` files**: Natural language workflow definitions in `.github/workflows/`

@@ -92,32 +92,24 @@ Configure Playwright for browser automation tasks. Always runs in a containerize
 tools:
   playwright:
     docker_image_version: "v1.40.0"  # Optional: specify Playwright image version
+    allowed_domains: ["github.com", "*.github.com"]  # Required: domain restrictions
 ```
 
 **Configuration Options:**
 - **`docker_image_version`**: (Optional) Specify the Playwright Docker image version from [Microsoft Container Registry](https://mcr.microsoft.com/en-us/product/playwright/about). Defaults to `"latest"`.
+- **`allowed_domains`**: (Required) Array of allowed domains for network access. Supports wildcards (`*.example.com`).
 
 **Provided Capabilities:**
 - **Browser automation**: Chromium, Firefox, Safari engines
 - **Page interactions**: Click, type, navigate, wait for elements
 - **Screenshots**: Capture screenshots of web pages
+- **Accessibility analysis**: WCAG compliance scanning and accessibility tree analysis
 - **Network interception**: Monitor and modify network requests
 - **Mobile emulation**: Test responsive designs and mobile views
 
-**Network Permissions**: For network access, include `playwright` in your network permissions:
-
-```yaml
-engine: claude
-network:
-  allowed:
-    - defaults
-    - playwright    # Enables Playwright ecosystem domains
-tools:
-  playwright:
-    docker_image_version: "v1.41.0"
-```
-
 **Container Details**: Uses `mcr.microsoft.com/playwright:{version}` with proper browser automation flags (`--shm-size=2gb`, `--cap-add=SYS_ADMIN`).
+
+> **📘 Complete Playwright Guide:** See the [Playwright Documentation](playwright.md) for detailed configuration, security considerations, examples, and troubleshooting.
 
 ### Default Claude Tools
 
@@ -167,6 +159,7 @@ tools:
 
 - [Commands](commands.md) - CLI commands for workflow management
 - [MCPs](mcps.md) - Complete Model Context Protocol setup and usage
+- [Playwright](playwright.md) - Complete Playwright browser automation guide
 - [Workflow Structure](workflow-structure.md) - Directory layout and organization
 - [Frontmatter Options](frontmatter.md) - All configuration options
 - [Include Directives](include-directives.md) - Modularizing workflows with includes
