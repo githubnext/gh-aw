@@ -52,7 +52,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
 			if workflowData.SafeOutputs != nil {
 				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-				
+
 				// Add staged flag if specified
 				if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
 					envVars["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"

@@ -111,19 +111,20 @@ async function main() {
   // If in staged mode, emit step summary instead of pushing changes
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-    summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
-    
+    summaryContent +=
+      "The following changes would be pushed if staged mode was disabled:\n\n";
+
     summaryContent += `**Target:** ${target}\n\n`;
-    
+
     if (pushItem.commit_message) {
       summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
     }
-    
+
     if (fs.existsSync("/tmp/aw.patch")) {
       const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
       if (patchStats.trim()) {
-        summaryContent += `**Changes:** Patch file exists with ${patchStats.split('\n').length} lines\n\n`;
-        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? '\n... (truncated)' : ''}\n\`\`\`\n\n</details>\n\n`;
+        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
       } else {
         summaryContent += `**Changes:** No changes (empty patch)\n\n`;
       }

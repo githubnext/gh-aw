@@ -45,7 +45,8 @@ async function main() {
   // If in staged mode, emit step summary instead of creating discussions
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-    summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+    summaryContent +=
+      "The following discussions would be created if staged mode was disabled:\n\n";
 
     for (let i = 0; i < createDiscussionItems.length; i++) {
       const item = createDiscussionItems[i];
@@ -61,7 +62,10 @@ async function main() {
     }
 
     // Write to step summary
-    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+    require("fs").appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      summaryContent
+    );
     console.log("📝 Discussion creation preview written to step summary");
     return;
   }

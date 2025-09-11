@@ -48,8 +48,10 @@ async function main() {
 
   // If in staged mode, emit step summary instead of creating review comments
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
-    summaryContent += "The following review comments would be created if staged mode was disabled:\n\n";
+    let summaryContent =
+      "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
+    summaryContent +=
+      "The following review comments would be created if staged mode was disabled:\n\n";
 
     for (let i = 0; i < reviewCommentItems.length; i++) {
       const item = reviewCommentItems[i];
@@ -65,8 +67,13 @@ async function main() {
     }
 
     // Write to step summary
-    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
-    console.log("📝 PR review comment creation preview written to step summary");
+    require("fs").appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      summaryContent
+    );
+    console.log(
+      "📝 PR review comment creation preview written to step summary"
+    );
     return;
   }
 

@@ -1651,7 +1651,8 @@ jobs:
               // If in staged mode, emit step summary instead of creating issues
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
+                summaryContent +=
+                  "The following issues would be created if staged mode was disabled:\n\n";
                 for (let i = 0; i < createIssueItems.length; i++) {
                   const item = createIssueItems[i];
                   summaryContent += `### Issue ${i + 1}\n`;
@@ -1665,7 +1666,10 @@ jobs:
                   summaryContent += "---\n\n";
                 }
                 // Write to step summary
-                require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+                require("fs").appendFileSync(
+                  process.env.GITHUB_STEP_SUMMARY,
+                  summaryContent
+                );
                 console.log("📝 Issue creation preview written to step summary");
                 return;
               }
@@ -1851,7 +1855,8 @@ jobs:
               // If in staged mode, emit step summary instead of creating comments
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                summaryContent +=
+                  "The following comments would be added if staged mode was disabled:\n\n";
                 for (let i = 0; i < commentItems.length; i++) {
                   const item = commentItems[i];
                   summaryContent += `### Comment ${i + 1}\n`;
@@ -1864,7 +1869,10 @@ jobs:
                   summaryContent += "---\n\n";
                 }
                 // Write to step summary
-                require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+                require("fs").appendFileSync(
+                  process.env.GITHUB_STEP_SUMMARY,
+                  summaryContent
+                );
                 console.log("📝 Comment creation preview written to step summary");
                 return;
               }

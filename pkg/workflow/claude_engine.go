@@ -88,7 +88,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	claudeEnv := ""
 	if hasOutput {
 		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-		
+
 		// Add staged flag if specified
 		if workflowData.SafeOutputs.Staged != nil {
 			if *workflowData.SafeOutputs.Staged {

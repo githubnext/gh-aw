@@ -1,7 +1,7 @@
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-  
+
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
@@ -47,7 +47,8 @@ async function main() {
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-    summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+    summaryContent +=
+      "The following comments would be added if staged mode was disabled:\n\n";
 
     for (let i = 0; i < commentItems.length; i++) {
       const item = commentItems[i];
@@ -62,7 +63,10 @@ async function main() {
     }
 
     // Write to step summary
-    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+    require("fs").appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      summaryContent
+    );
     console.log("📝 Comment creation preview written to step summary");
     return;
   }

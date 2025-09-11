@@ -32,13 +32,10 @@ async function main() {
 
   // Find all create-code-scanning-alert items
   const securityItems = validatedOutput.items.filter(
-    /** @param {any} item */ item =>
-      item.type === "create-code-scanning-alert"
+    /** @param {any} item */ item => item.type === "create-code-scanning-alert"
   );
   if (securityItems.length === 0) {
-    console.log(
-      "No create-code-scanning-alert items found in agent output"
-    );
+    console.log("No create-code-scanning-alert items found in agent output");
     return;
   }
 
@@ -48,8 +45,10 @@ async function main() {
 
   // If in staged mode, emit step summary instead of creating code scanning alerts
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Create Code Scanning Alerts Preview\n\n";
-    summaryContent += "The following code scanning alerts would be created if staged mode was disabled:\n\n";
+    let summaryContent =
+      "## 🎭 Staged Mode: Create Code Scanning Alerts Preview\n\n";
+    summaryContent +=
+      "The following code scanning alerts would be created if staged mode was disabled:\n\n";
 
     for (let i = 0; i < securityItems.length; i++) {
       const item = securityItems[i];
@@ -62,8 +61,13 @@ async function main() {
     }
 
     // Write to step summary
-    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
-    console.log("📝 Code scanning alert creation preview written to step summary");
+    require("fs").appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      summaryContent
+    );
+    console.log(
+      "📝 Code scanning alert creation preview written to step summary"
+    );
     return;
   }
 
@@ -106,9 +110,7 @@ async function main() {
 
     // Validate required fields
     if (!securityItem.file) {
-      console.log(
-        'Missing required field "file" in code scanning alert item'
-      );
+      console.log('Missing required field "file" in code scanning alert item');
       continue;
     }
 

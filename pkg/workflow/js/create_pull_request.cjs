@@ -7,7 +7,7 @@ const { execSync } = require("child_process");
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-  
+
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
   if (!workflowId) {
@@ -126,28 +126,32 @@ async function main() {
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-    
+    summaryContent +=
+      "The following pull request would be created if staged mode was disabled:\n\n";
+
     summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
     summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
     summaryContent += `**Base:** ${baseBranch}\n\n`;
-    
+
     if (pullRequestItem.body) {
       summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
     }
-    
+
     if (fs.existsSync("/tmp/aw.patch")) {
       const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
       if (patchStats.trim()) {
-        summaryContent += `**Changes:** Patch file exists with ${patchStats.split('\n').length} lines\n\n`;
-        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? '\n... (truncated)' : ''}\n\`\`\`\n\n</details>\n\n`;
+        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
       } else {
         summaryContent += `**Changes:** No changes (empty patch)\n\n`;
       }
     }
 
-    // Write to step summary  
-    require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+    // Write to step summary
+    require("fs").appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      summaryContent
+    );
     console.log("📝 Pull request creation preview written to step summary");
     return;
   }
