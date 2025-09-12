@@ -7,6 +7,7 @@ import starlightLinksValidator from 'starlight-links-validator';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://githubnext.github.io/gh-aw/',
+	base: '/gh-aw/',
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
