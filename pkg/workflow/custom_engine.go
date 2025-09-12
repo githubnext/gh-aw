@@ -160,8 +160,6 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          EOF\n")
 }
 
-
-
 // renderGitHubMCPConfig generates the GitHub MCP server configuration using shared logic
 func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)

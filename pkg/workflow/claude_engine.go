@@ -565,8 +565,6 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          EOF\n")
 }
 
-
-
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration
 // Always uses Docker MCP as the default
 func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
