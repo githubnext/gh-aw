@@ -1,14 +1,12 @@
 const fs = require("fs");
-const path = require("path");
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
 const safeOutputsConfig = JSON.parse(configEnv);
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set");
-
+const SERVER_INFO = { name: "gh-aw-safe-outputs", version: "1.0.0" };
 function writeMessage(obj) {
   const json = JSON.stringify(obj);
   const bytes = encoder.encode(json);
@@ -70,18 +68,15 @@ function replyError(id, code, message, data) {
   writeMessage(res);
 }
 
-// Check if a safe-output type is enabled
+function normalizeToolName(name) {
+  return name.replace(/_/g, "-"); // Convert to kebab-case
+}
+
 function isToolEnabled(toolType) {
-  return safeOutputsConfig[toolType] && safeOutputsConfig[toolType].enabled;
+  const name = normalizeToolName(toolType);
+  return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
 }
 
-// Get max limit for a tool type
-function getToolMaxLimit(toolType) {
-  const config = safeOutputsConfig[toolType];
-  return config && config.max ? config.max : 0; // 0 means unlimited
-}
-
-// Append safe output entry to file
 function appendSafeOutput(entry) {
   if (!outputFile) {
     throw new Error("No output file configured");
@@ -306,7 +301,6 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }].filter(({ name }) => isToolEnabled(name)).map(tool => [tool.name, tool]));
-const SERVER_INFO = { name: "gh-aw-safe-outputs", version: "1.0.0" };
 
 function handleMessage(req) {
   const { id, method, params } = req;
@@ -346,12 +340,12 @@ function handleMessage(req) {
         replyError(id, -32602, "Invalid params: 'name' must be a string");
         return;
       }
-      const tool = TOOLS[name];
+      const toolName = normalizeToolName(name);
+      const tool = TOOLS[toolName];
       if (!tool) {
         replyError(id, -32601, `Tool not found: ${name}`);
         return;
       }
-
       const handler = tool.handler || defaultHandler(tool.name);
       (async () => {
         try {
@@ -373,5 +367,8 @@ function handleMessage(req) {
   }
 }
 process.stderr.write(
-  `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n  tools: ${Object.keys(TOOLS).join(", ")}\n`
+  `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
 );
+process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`)
+process.stderr.write(`[${SERVER_INFO.name}]  config: ${safeOutputsConfig}\n`)
+process.stderr.write(`[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`)
