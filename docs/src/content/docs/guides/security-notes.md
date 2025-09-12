@@ -304,10 +304,10 @@ Claude exposes richer default tools and optional Bash; codex relies more on CLI 
 
 ## See also
 
-- [Tools Configuration](tools.md)
-- [MCPs](mcps.md)
-- [Secrets Management](secrets.md)
-- [Workflow Structure](workflow-structure.md)
+- [Tools Configuration](tools/)
+- [MCPs](mcps/)
+- [Secrets Management](secrets/)
+- [Workflow Structure](/reference-docs/workflow-structure/)
 
 ## References
 

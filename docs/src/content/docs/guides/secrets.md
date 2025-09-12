@@ -106,9 +106,9 @@ env:
 
 ## Related Documentation
 
-- [Commands](commands.md) - CLI commands for workflow management
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Frontmatter Options](frontmatter.md) - All configuration options
-- [Tools Configuration](tools.md) - GitHub and other tools setup
-- [MCPs](mcps.md) - Model Context Protocol setup and configuration
-- [Include Directives](include-directives.md) - Modularizing workflows with includes
+- [Commands](/reference-docs/commands/) - CLI commands for workflow management
+- [Workflow Structure](/reference-docs/workflow-structure/) - Directory layout and organization
+- [Frontmatter Options](/reference-docs/frontmatter/) - All configuration options
+- [Tools Configuration](tools/) - GitHub and other tools setup
+- [MCPs](mcps/) - Model Context Protocol setup and configuration
+- [Include Directives](include-directives/) - Modularizing workflows with includes

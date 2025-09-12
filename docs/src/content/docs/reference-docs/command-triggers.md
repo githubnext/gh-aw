@@ -96,6 +96,6 @@ See [Visual Feedback (`reaction:`)](frontmatter.md#visual-feedback-reaction) for
 
 ## Related Documentation
 
-- [Frontmatter Options](frontmatter.md) - All configuration options for workflows
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Commands](commands.md) - CLI commands for workflow management
+- [Frontmatter Options](frontmatter/) - All configuration options for workflows
+- [Workflow Structure](workflow-structure/) - Directory layout and organization
+- [Commands](commands/) - CLI commands for workflow management

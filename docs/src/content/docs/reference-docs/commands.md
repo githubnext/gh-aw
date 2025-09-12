@@ -241,7 +241,7 @@ gh aw logs --format json -o ./exports/
 
 The `mcp-inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
 
-> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](mcps.md).
+> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](/guides/mcps/).
 
 ```bash
 # List all workflows that contain MCP server configurations
@@ -345,9 +345,9 @@ gh aw uninstall org/repo --local
 
 ## Related Documentation
 
-- [Workflow Structure](workflow-structure.md) - Directory layout and file organization
-- [Frontmatter Options](frontmatter.md) - Configuration options for workflows
-- [Safe Outputs](safe-outputs.md) - Secure output processing including issue updates
-- [Tools Configuration](tools.md) - GitHub and MCP server configuration
-- [Include Directives](include-directives.md) - Modularizing workflows with includes
-- [Secrets Management](secrets.md) - Managing secrets and environment variables
+- [Workflow Structure](workflow-structure/) - Directory layout and file organization
+- [Frontmatter Options](frontmatter/) - Configuration options for workflows
+- [Safe Outputs](/guides/safe-outputs/) - Secure output processing including issue updates
+- [Tools Configuration](/guides/tools/) - GitHub and MCP server configuration
+- [Include Directives](/guides/include-directives/) - Modularizing workflows with includes
+- [Secrets Management](/guides/secrets/) - Managing secrets and environment variables

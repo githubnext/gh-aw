@@ -3,7 +3,7 @@ title: Introduction to GitHub Agentic Workflows
 description: Learn the core concepts and capabilities of GitHub Agentic Workflows, combining AI agents with GitHub's collaboration platform for Continuous AI.
 ---
 
-Now that you've [got your first workflow running](quick-start.md), let's dive deeper into the concepts and capabilities of GitHub Agentic Workflows.
+Now that you've [got your first workflow running](quick-start/), let's dive deeper into the concepts and capabilities of GitHub Agentic Workflows.
 
 GitHub Agentic Workflows represent a new paradigm where AI agents can perform complex, multi-step tasks in conjunction with your team automatically. They combine the power of AI with GitHub's collaboration platform to enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — the systematic, automated application of AI to software collaboration.
 
@@ -45,7 +45,7 @@ Analyze this issue and provide helpful triage comments...
 
 Another crucial difference from traditional agentic prompting is that GitHub Agentic Workflows can contain triggers, permissions and other declarative elements. This works towards more reliable and more secure agentic programming, setting the AI up to contribute to success, in a partially sandboxed way, at the right time in your team's work.
 
-See [Workflow Structure](workflow-structure.md) and [Frontmatter Options](frontmatter.md) for details of file layout and configuration options.
+See [Workflow Structure](/reference-docs/workflow-structure/) and [Frontmatter Options](/reference-docs/frontmatter/) for details of file layout and configuration options.
 
 ## Understanding AI Engines
 
@@ -89,7 +89,7 @@ Agentic workflows require careful security consideration:
 - **Input validation** — All inputs are automatically sanitized
 - **Human oversight** — Critical actions can require human approval
 
-See [Security Notes](security-notes.md) for comprehensive guidelines.
+See [Security Notes](/guides/security-notes/) for comprehensive guidelines.
 
 ### Tools and MCPs
 
@@ -100,7 +100,7 @@ Workflows can use various tools through the Model Context Protocol (MCP):
 - **File operations** — Read, write, and analyze repository files
 - **Custom MCPs** — Build your own tool integrations
 
-Learn more in [Tools Configuration](tools.md) and [MCPs](mcps.md).
+Learn more in [Tools Configuration](/guides/tools/) and [MCPs](/guides/mcps/).
 
 ## Building Effective Workflows
 
@@ -111,23 +111,23 @@ Learn more in [Tools Configuration](tools.md) and [MCPs](mcps.md).
 3. **Test iteratively** — Use `gh aw compile --watch` and `gh aw run` during development
 4. **Monitor costs** — Use `gh aw logs` to track AI usage and optimize
 5. **Review outputs** — Always verify AI-generated content before merging
-6. **Use safe outputs** — Leverage [Safe Output Processing](safe-outputs.md) to automatically create issues, comments, and PRs from agentic workflow output
+6. **Use safe outputs** — Leverage [Safe Output Processing](/guides/safe-outputs/) to automatically create issues, comments, and PRs from agentic workflow output
 
 ### Common Patterns
 
 - **Event-driven** — Respond to issues, PRs, pushes, etc.
 - **Scheduled** — Regular maintenance and reporting tasks
 - **Alias-triggered** — Activated by @mentions in comments
-- **Secure** — User minimal permissions and protect against untrusted content, see [Security Notes](security-notes.md)
+- **Secure** — User minimal permissions and protect against untrusted content, see [Security Notes](/guides/security-notes/)
 
 ## Next Steps
 
 Ready to build more sophisticated workflows? Explore:
 
-- **[Workflow Structure](workflow-structure.md)** — Detailed file organization and security
-- **[Frontmatter Options](frontmatter.md)** — Complete configuration reference
-- **[Tools Configuration](tools.md)** — Available tools and permissions
-- **[Security Notes](security-notes.md)** — Important security considerations
-- **[VS Code Integration](vscode.md)** — Enhanced authoring experience
+- **[Workflow Structure](/reference-docs/workflow-structure/)** — Detailed file organization and security
+- **[Frontmatter Options](/reference-docs/frontmatter/)** — Complete configuration reference
+- **[Tools Configuration](/guides/tools/)** — Available tools and permissions
+- **[Security Notes](/guides/security-notes/)** — Important security considerations
+- **[VS Code Integration](/guides/vscode/)** — Enhanced authoring experience
 
 The power of agentic workflows lies in their ability to understand context, make intelligent decisions, and take meaningful actions — all while maintaining the reliability you expect from GitHub Actions.

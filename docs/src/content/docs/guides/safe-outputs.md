@@ -555,7 +555,7 @@ safe-outputs:
 
 ## Related Documentation
 
-- [Frontmatter Options](frontmatter.md) - All configuration options for workflows
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Command Triggers](command-triggers.md) - Special /mention triggers and context text
-- [Commands](commands.md) - CLI commands for workflow management
+- [Frontmatter Options](/reference-docs/frontmatter/) - All configuration options for workflows
+- [Workflow Structure](/reference-docs/workflow-structure/) - Directory layout and organization
+- [Command Triggers](/reference-docs/command-triggers/) - Special /mention triggers and context text
+- [Commands](/reference-docs/commands/) - CLI commands for workflow management

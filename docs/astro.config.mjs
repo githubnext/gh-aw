@@ -10,8 +10,16 @@ export default defineConfig({
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' }],
 			sidebar: [
 				{
+					label: 'Getting Started',
+					autogenerate: { directory: 'getting-started' },
+				},
+				{
+					label: 'Guides',
+					autogenerate: { directory: 'guides' },
+				},
+				{
 					label: 'Reference',
-					autogenerate: { directory: 'reference' },
+					autogenerate: { directory: 'reference-docs' },
 				},
 			],
 		}),
