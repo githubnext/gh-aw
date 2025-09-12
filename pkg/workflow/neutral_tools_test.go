@@ -90,12 +90,24 @@ func TestExpandNeutralToolsToClaudeTools(t *testing.T) {
 			},
 		},
 		{
+			name: "playwright tool",
+			input: map[string]any{
+				"playwright": nil,
+			},
+			expected: map[string]any{
+				"claude": map[string]any{
+					"allowed": map[string]any{},
+				},
+			},
+		},
+		{
 			name: "all neutral tools",
 			input: map[string]any{
 				"bash":       []any{"echo"},
 				"web-fetch":  nil,
 				"web-search": nil,
 				"edit":       nil,
+				"playwright": nil,
 			},
 			expected: map[string]any{
 				"claude": map[string]any{

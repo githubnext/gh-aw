@@ -2797,10 +2797,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 	var proxyTools []string
+	workflowTools := workflowData.Tools
 
-	for toolName, toolValue := range tools {
+	for toolName, toolValue := range workflowTools {
 		// Standard MCP tools
-		if toolName == "github" {
+		if toolName == "github" || toolName == "playwright" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format
@@ -2897,6 +2898,70 @@ func getGitHubDockerImageVersion(githubTool any) string {
 		}
 	}
 	return githubDockerImageVersion
+}
+
+func getPlaywrightDockerImageVersion(playwrightTool any) string {
+	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
+	// Extract docker_image_version setting from tool properties
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+			if stringValue, ok := versionSetting.(string); ok {
+				playwrightDockerImageVersion = stringValue
+			}
+		}
+	}
+	return playwrightDockerImageVersion
+}
+
+// generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
+// Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
+func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
+	// Default to localhost only (same as Copilot agent default)
+	allowedDomains := []string{"localhost", "127.0.0.1"}
+
+	// Extract allowed_domains from Playwright tool configuration
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
+			// Create a mock NetworkPermissions structure to use the same domain resolution logic
+			playwrightNetwork := &NetworkPermissions{}
+
+			switch domains := domainsConfig.(type) {
+			case []string:
+				playwrightNetwork.Allowed = domains
+			case []any:
+				// Convert []any to []string
+				allowedDomainsSlice := make([]string, len(domains))
+				for i, domain := range domains {
+					if domainStr, ok := domain.(string); ok {
+						allowedDomainsSlice[i] = domainStr
+					}
+				}
+				playwrightNetwork.Allowed = allowedDomainsSlice
+			case string:
+				// Single domain as string
+				playwrightNetwork.Allowed = []string{domains}
+			}
+
+			// Use the same domain bundle resolution as the top-level network configuration
+			allowedDomains = GetAllowedDomains(playwrightNetwork)
+		}
+	}
+
+	return allowedDomains
+}
+
+// PlaywrightDockerArgs represents the common Docker arguments for Playwright container
+type PlaywrightDockerArgs struct {
+	ImageVersion   string
+	AllowedDomains []string
+}
+
+// generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
+func generatePlaywrightDockerArgs(playwrightTool any, networkPermissions *NetworkPermissions) PlaywrightDockerArgs {
+	return PlaywrightDockerArgs{
+		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),
+		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool, networkPermissions),
+	}
 }
 
 // generateMainJobSteps generates the steps section for the main job

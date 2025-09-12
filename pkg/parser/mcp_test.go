@@ -73,6 +73,74 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
+			name: "Playwright tool default configuration",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"github.com", "*.github.com"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:latest",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "github.com,*.github.com"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with custom Docker image",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains":      []any{"example.com"},
+						"docker_image_version": "v1.41.0",
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:v1.41.0",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "example.com"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with localhost default",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:latest",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,127.0.0.1"},
+				},
+			},
+		},
+		{
 			name: "Custom MCP server with stdio type",
 			frontmatter: map[string]any{
 				"tools": map[string]any{

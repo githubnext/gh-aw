@@ -47,8 +47,125 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	}
 
 	for toolName, toolValue := range tools {
-		// Skip non-MCP tools unless it's github (which is MCP by default)
-		if toolName != "github" {
+		// Handle built-in MCP tools (github and playwright)
+		if toolName == "github" || toolName == "playwright" {
+			// Apply server filter if specified
+			if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
+				continue
+			}
+
+			if toolName == "github" {
+				// Handle GitHub MCP server - always use Docker by default
+				config := MCPServerConfig{
+					Name:    "github",
+					Type:    "docker", // GitHub defaults to Docker (local containerized)
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:sha-09deac4",
+					},
+					Env: make(map[string]string),
+				}
+
+				// Try to get GitHub token, but don't fail if it's not available
+				// This allows tests to run without GitHub authentication
+				if githubToken, err := GetGitHubToken(); err == nil {
+					config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
+				} else {
+					// Set a placeholder that will be validated later during connection
+					config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
+				}
+
+				// Check for custom GitHub configuration
+				if toolConfig, ok := toolValue.(map[string]any); ok {
+					if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
+						if allowedSlice, ok := allowed.([]any); ok {
+							for _, item := range allowedSlice {
+								if str, ok := item.(string); ok {
+									config.Allowed = append(config.Allowed, str)
+								}
+							}
+						}
+					}
+
+					// Check for custom Docker image version
+					if version, exists := toolConfig["docker_image_version"]; exists {
+						if versionStr, ok := version.(string); ok {
+							dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
+							// Update the Docker image in args
+							for i, arg := range config.Args {
+								if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
+									config.Args[i] = dockerImage
+									break
+								}
+							}
+						}
+					}
+				}
+
+				configs = append(configs, config)
+			} else if toolName == "playwright" {
+				// Handle Playwright MCP server - always use Docker by default
+				config := MCPServerConfig{
+					Name:    "playwright",
+					Type:    "docker", // Playwright defaults to Docker (containerized)
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:latest",
+					},
+					Env: make(map[string]string),
+				}
+
+				// Set default allowed domains to localhost only (matches implementation)
+				allowedDomains := []string{"localhost", "127.0.0.1"}
+
+				// Check for custom Playwright configuration
+				if toolConfig, ok := toolValue.(map[string]any); ok {
+					// Handle allowed_domains configuration with bundle resolution
+					if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
+						// For now, we'll use a simple conversion. In a full implementation,
+						// we'd need to use the same domain bundle resolution as the compiler
+						switch domains := domainsConfig.(type) {
+						case []string:
+							allowedDomains = domains
+						case []any:
+							allowedDomains = make([]string, len(domains))
+							for i, domain := range domains {
+								if domainStr, ok := domain.(string); ok {
+									allowedDomains[i] = domainStr
+								}
+							}
+						case string:
+							allowedDomains = []string{domains}
+						}
+					}
+
+					// Check for custom Docker image version
+					if version, exists := toolConfig["docker_image_version"]; exists {
+						if versionStr, ok := version.(string); ok {
+							dockerImage := "mcr.microsoft.com/playwright:" + versionStr
+							// Update the Docker image in args
+							for i, arg := range config.Args {
+								if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
+									config.Args[i] = dockerImage
+									break
+								}
+							}
+						}
+					}
+				}
+
+				config.Env["PLAYWRIGHT_ALLOWED_DOMAINS"] = strings.Join(allowedDomains, ",")
+				if len(allowedDomains) == 0 {
+					config.Env["PLAYWRIGHT_BLOCK_ALL_DOMAINS"] = "true"
+				}
+
+				configs = append(configs, config)
+			}
+		} else {
+			// Handle custom MCP tools (those with explicit MCP configuration)
 			toolConfig, ok := toolValue.(map[string]any)
 			if !ok {
 				continue
@@ -68,60 +185,6 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 			// Apply server filter if specified
 			if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
 				continue
-			}
-
-			configs = append(configs, config)
-		} else {
-			// Handle GitHub MCP server - always use Docker by default
-			if serverFilter != "" && !strings.Contains("github", strings.ToLower(serverFilter)) {
-				continue
-			}
-
-			config := MCPServerConfig{
-				Name:    "github",
-				Type:    "docker", // GitHub defaults to Docker (local containerized)
-				Command: "docker",
-				Args: []string{
-					"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-					"ghcr.io/github/github-mcp-server:sha-09deac4",
-				},
-				Env: make(map[string]string),
-			}
-
-			// Try to get GitHub token, but don't fail if it's not available
-			// This allows tests to run without GitHub authentication
-			if githubToken, err := GetGitHubToken(); err == nil {
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
-			} else {
-				// Set a placeholder that will be validated later during connection
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
-			}
-
-			// Check for custom GitHub configuration
-			if toolConfig, ok := toolValue.(map[string]any); ok {
-				if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
-					if allowedSlice, ok := allowed.([]any); ok {
-						for _, item := range allowedSlice {
-							if str, ok := item.(string); ok {
-								config.Allowed = append(config.Allowed, str)
-							}
-						}
-					}
-				}
-
-				// Check for custom Docker image version
-				if version, exists := toolConfig["docker_image_version"]; exists {
-					if versionStr, ok := version.(string); ok {
-						dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
-						// Update the Docker image in args
-						for i, arg := range config.Args {
-							if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
-								config.Args[i] = dockerImage
-								break
-							}
-						}
-					}
-				}
 			}
 
 			configs = append(configs, config)

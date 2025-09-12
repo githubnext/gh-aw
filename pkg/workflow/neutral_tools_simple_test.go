@@ -13,6 +13,7 @@ func TestNeutralToolsExpandsToClaudeTools(t *testing.T) {
 		"web-fetch":  nil,
 		"web-search": nil,
 		"edit":       nil,
+		"playwright": nil,
 		"github": map[string]any{
 			"allowed": []any{"list_issues"},
 		},

@@ -172,11 +172,6 @@ engine:
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com
     DEBUG_MODE: "true"
-  error_patterns:                   # Optional: custom error detection patterns
-    - pattern: 'ERROR:\s+(.+)'
-      level_group: 0
-      message_group: 1
-      description: "Application errors"
 ```
 
 **Fields:**
@@ -185,7 +180,6 @@ engine:
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
 - **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
-- **`error_patterns`** (optional): Custom regex patterns for detecting errors in agent logs (see [Error Validation](#error-validation-engineerror_patterns))
 
 **Model Defaults:**
 - **Claude**: Uses the default model from the claude-code-base-action (typically latest Claude model)
@@ -351,6 +345,91 @@ error_patterns:
 - **Debugging Support**: Log files are uploaded as artifacts before validation for troubleshooting
 - **Flexible Pattern Matching**: Support for complex regex patterns with capture groups
 - **Engine Agnostic**: Works with any engine when custom patterns are provided
+
+## Tools Configuration (`tools:`)
+
+The `tools:` section specifies which tools and MCP (Model Context Protocol) servers are available to the AI engine. This enables integration with GitHub APIs, browser automation, and other external services.
+
+### GitHub Tool
+
+Enable GitHub API access for issue management, pull requests, and repository operations:
+
+```yaml
+tools:
+  github:
+    # Uses default GitHub API access with workflow permissions
+```
+
+Extended GitHub tool configuration:
+```yaml
+tools:
+  github:
+    docker_image_version: "latest"  # Optional: specify MCP server version
+```
+
+### Playwright Tool
+
+Enable browser automation and web testing capabilities using containerized Playwright:
+
+```yaml
+tools:
+  playwright:
+    allowed_domains: ["github.com", "*.example.com"]
+```
+
+**Playwright Configuration Options:**
+
+```yaml
+tools:
+  playwright:
+    docker_image_version: "latest"                    # Optional: Playwright Docker image version
+    allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
+```
+
+**Domain Configuration:**
+
+The `allowed_domains` field supports the same ecosystem bundle resolution as the top-level `network:` configuration, with **localhost-only** as the default for enhanced security:
+
+**Ecosystem Bundle Examples:**
+```yaml
+tools:
+  playwright:
+    allowed_domains: 
+      - "defaults"              # Basic infrastructure domains
+      - "github"               # GitHub domains (github.com, api.github.com, etc.)
+      - "node"                 # Node.js ecosystem
+      - "python"               # Python ecosystem
+      - "*.example.com"        # Custom domain with wildcard
+```
+
+**Security Model:**
+- **Default**: `["localhost", "127.0.0.1"]` - localhost access only
+- **Ecosystem bundles**: Use same identifiers as `network:` configuration
+- **Custom domains**: Support exact matches and wildcard patterns
+- **Containerized execution**: Isolated Docker environment for security
+
+**Available Ecosystem Identifiers:**
+Same as `network:` configuration: `defaults`, `github`, `node`, `python`, `containers`, `java`, `rust`, `playwright`, etc.
+
+### Custom MCP Tools
+
+Add custom Model Context Protocol servers:
+
+```yaml
+tools:
+  custom-api:
+    mcp:
+      command: "node"
+      args: ["custom-mcp-server.js"]
+      env:
+        API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
+```
+
+**Tool Execution:**
+- Tools are configured as MCP servers that run alongside the AI engine
+- Each tool provides specific capabilities (APIs, browser automation, etc.)
+- Tools run in isolated environments with controlled access
+- Domain restrictions apply to network-enabled tools like Playwright
 
 ## Network Permissions (`network:`)
 
