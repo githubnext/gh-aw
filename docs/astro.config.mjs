@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
+import starlightGitHubAlerts from 'starlight-github-alerts';
 
 // https://astro.build/config
 export default defineConfig({
@@ -12,6 +13,7 @@ export default defineConfig({
 			title: 'GitHub Agentic Workflows',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' }],
 			plugins: [
+				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: false,
 					errorOnLocalLinks: false,
