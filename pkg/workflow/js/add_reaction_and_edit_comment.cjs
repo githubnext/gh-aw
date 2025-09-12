@@ -182,7 +182,10 @@ async function editCommentWithWorkflowLink(endpoint, runUrl) {
   } catch (error) {
     // Don't fail the entire job if comment editing fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
-    core.warning("Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully):", errorMessage);
+    core.warning(
+      "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully):",
+      errorMessage
+    );
   }
 }
 
