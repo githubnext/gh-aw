@@ -68,12 +68,8 @@ function replyError(id, code, message, data) {
   writeMessage(res);
 }
 
-function normalizeToolName(name) {
-  return name.replace(/-/g, "_"); // Convert to kebab-case
-}
-
 function isToolEnabled(toolType) {
-  const name = normalizeToolName(toolType);
+  const name = toolType.replace(/_/g, "-")
   return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
 }
 
@@ -301,7 +297,6 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }].filter(({ name }) => isToolEnabled(name)).map(tool => [tool.name, tool]));
-if (!TOOLS.length) throw new Error("No tools enabled in configuration");
 
 function handleMessage(req) {
   const { id, method, params } = req;
@@ -341,7 +336,7 @@ function handleMessage(req) {
         replyError(id, -32602, "Invalid params: 'name' must be a string");
         return;
       }
-      const toolName = normalizeToolName(name);
+      const toolName = name.replace(/-/g, "_"); // Convert to snake_case  
       const tool = TOOLS[toolName];
       if (!tool) {
         replyError(id, -32601, `Tool not found: ${toolName}`);
@@ -373,3 +368,4 @@ process.stderr.write(
 process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`)
 process.stderr.write(`[${SERVER_INFO.name}]  config: ${safeOutputsConfig}\n`)
 process.stderr.write(`[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`)
+if (!TOOLS.length) throw new Error("No tools enabled in configuration");
