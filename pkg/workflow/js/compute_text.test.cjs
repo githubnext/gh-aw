@@ -99,6 +99,29 @@ describe("compute_text.cjs", () => {
       expect(result).toContain('"quotes"');
     });
 
+    it("should handle self-closing XML tags without whitespace", () => {
+      const input = 'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("(br/)");
+      expect(result).toContain('(img src="test.jpg"/)');
+      expect(result).toContain('(meta charset="utf-8"/)');
+    });
+
+    it("should handle self-closing XML tags with whitespace", () => {
+      const input = 'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("(br /)");
+      expect(result).toContain('(img src="test.jpg" /)');
+      expect(result).toContain('(meta charset="utf-8" /)');
+    });
+
+    it("should handle XML tags with various whitespace patterns", () => {
+      const input = 'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain('(div\tclass="test")content(/div)');
+      expect(result).toContain('(span\n  id="test")text(/span)');
+    });
+
     it("should redact non-https protocols", () => {
       const input = "Visit http://example.com or ftp://files.com";
       const result = sanitizeContentFunction(input);

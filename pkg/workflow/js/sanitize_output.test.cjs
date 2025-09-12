@@ -89,6 +89,29 @@ describe("sanitize_output.cjs", () => {
       expect(result).toContain("& more");
     });
 
+    it("should handle self-closing XML tags without whitespace", () => {
+      const input = 'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("(br/)");
+      expect(result).toContain('(img src="test.jpg"/)');
+      expect(result).toContain('(meta charset="utf-8"/)');
+    });
+
+    it("should handle self-closing XML tags with whitespace", () => {
+      const input = 'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("(br /)");
+      expect(result).toContain('(img src="test.jpg" /)');
+      expect(result).toContain('(meta charset="utf-8" /)');
+    });
+
+    it("should handle XML tags with various whitespace patterns", () => {
+      const input = 'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain('(div\tclass="test")content(/div)');
+      expect(result).toContain('(span\n  id="test")text(/span)');
+    });
+
     it("should preserve non-XML uses of < and > characters", () => {
       const input = "Math: x < y, array[5] > 3, and <div>content</div>";
       const result = sanitizeContentFunction(input);

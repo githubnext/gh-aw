@@ -86,7 +86,7 @@ function sanitizeContent(content) {
     return (
       s
         // Standard XML tags: <tag>, <tag attr="value">, <tag/>, </tag>
-        .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s+[^>]*)?>/g, match => {
+        .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
           // Extract the tag name and content without < >
           const innerContent = match.slice(1, -1);
           return `(${innerContent})`;
