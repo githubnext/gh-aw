@@ -141,10 +141,11 @@ jobs:
               core.setOutput("output_file", outputFile);
             }
             main();
-      - name: Setup Safe Outputs MCP
-        env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":true}"
+      - name: Setup Safe Outputs
         run: |
+          cat >> $GITHUB_ENV << 'EOF'
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG={"create-issue":true}
+          EOF
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -521,6 +522,10 @@ jobs:
               "safe_outputs": {
                 "command": "node",
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"]
+                "env": {
+                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}"
+                }
               },
               "github": {
                 "command": "docker",
