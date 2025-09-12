@@ -167,6 +167,7 @@ Examples:
 			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
+			noStaged, _ := cmd.Flags().GetBool("no-staged")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -206,7 +207,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph, noStaged); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -224,12 +225,13 @@ Examples:
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
+	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool, noStaged bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -339,6 +341,20 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 							}
 						}
 						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+					}
+					continue
+				}
+			}
+
+			// Apply staged filtering if --no-staged flag is specified
+			if noStaged {
+				// Check if the run is staged
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+				isStaged := checkIfWorkflowIsStaged(awInfoPath, verbose)
+
+				if isStaged {
+					if verbose {
+						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
 					}
 					continue
 				}
@@ -834,6 +850,68 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 	}
 
 	return engine
+}
+
+// checkIfWorkflowIsStaged reads aw_info.json and checks if the workflow is staged
+// Handles cases where aw_info.json is a file or a directory containing the actual file
+func checkIfWorkflowIsStaged(infoFilePath string, verbose bool) bool {
+	var data []byte
+	var err error
+
+	// Check if the path exists and determine if it's a file or directory
+	stat, statErr := os.Stat(infoFilePath)
+	if statErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json for staged check: %v", statErr)))
+		}
+		return false // If no aw_info.json, assume not staged
+	}
+
+	if stat.IsDir() {
+		// It's a directory - look for nested aw_info.json
+		nestedPath := filepath.Join(infoFilePath, "aw_info.json")
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("aw_info.json is a directory, trying nested file for staged check: %s", nestedPath)))
+		}
+		data, err = os.ReadFile(nestedPath)
+	} else {
+		// It's a regular file
+		data, err = os.ReadFile(infoFilePath)
+	}
+
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json for staged check: %v", err)))
+		}
+		return false // If can't read, assume not staged
+	}
+
+	var info map[string]interface{}
+	if err := json.Unmarshal(data, &info); err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json for staged check: %v", err)))
+		}
+		return false // If can't parse, assume not staged
+	}
+
+	// Check for staged value - it could be a boolean or a string
+	stagedValue, exists := info["staged"]
+	if !exists {
+		return false // If staged key doesn't exist, assume not staged
+	}
+
+	// Handle both boolean and string representations
+	switch v := stagedValue.(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true"
+	default:
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Invalid staged value type in aw_info.json: %T", stagedValue)))
+		}
+		return false
+	}
 }
 
 // parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
