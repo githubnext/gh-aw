@@ -1,10 +1,25 @@
+async function setCancelled(message) {
+  try {
+    await github.rest.actions.cancelWorkflowRun({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      run_id: context.runId,
+    });
+    core.info(`Cancellation requested for this workflow run: ${message}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.warning(`Failed to cancel workflow run: ${errorMessage}`);
+    core.setFailed(message); // Fallback if API call fails
+  }
+}
+
 async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;
 
   // Check if the actor has repository access (admin, maintain permissions)
   try {
-    console.log(
+    core.info(
       `Checking if user '${actor}' is admin or maintainer of ${owner}/${repo}`
     );
 
@@ -16,10 +31,10 @@ async function main() {
       });
 
     const permission = repoPermission.data.permission;
-    console.log(`Repository permission level: ${permission}`);
+    core.info(`Repository permission level: ${permission}`);
 
     if (permission === "admin" || permission === "maintain") {
-      console.log(`User has ${permission} access to repository`);
+      core.info(`User has ${permission} access to repository`);
       core.setOutput("is_team_member", "true");
       return;
     }
@@ -29,6 +44,13 @@ async function main() {
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
+  // Cancel the workflow when team membership check fails
+  core.warning(
+    `❌ Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`
+  );
+  await setCancelled(
+    `Access denied: User '${actor}' is not authorized for this workflow`
+  );
   core.setOutput("is_team_member", "false");
 }
 await main();

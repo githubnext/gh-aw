@@ -25,11 +25,10 @@ concurrency:
 run-name: "Test Safe Output - Create Code Scanning Alert"
 
 jobs:
-  test-safe-output-create-code-scanning-alert:
+  task:
     runs-on: ubuntu-latest
-    permissions: read-all
-    outputs:
-      output: ${{ steps.collect_output.outputs.output }}
+    permissions:
+      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
     steps:
       - name: Check team membership for workflow
         id: check-team-member
@@ -38,12 +37,26 @@ jobs:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
+            async function setCancelled(message) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: context.runId,
+                });
+                core.info(`Cancellation requested for this workflow run: ${message}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to cancel workflow run: ${errorMessage}`);
+                core.setFailed(message); // Fallback if API call fails
+              }
+            }
             async function main() {
               const { eventName } = context;
               // skip check for safe events
               const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
               if (safeEvents.includes(eventName)) {
-                console.log(`✅ Event ${eventName} does not require validation`);
+                core.info(`✅ Event ${eventName} does not require validation`);
                 return;
               }
               const actor = context.actor;
@@ -56,17 +69,17 @@ jobs:
                 core.error(
                   "❌ Configuration error: Required permissions not specified. Contact repository administrator."
                 );
-                core.setCancelled(
+                await setCancelled(
                   "Configuration error: Required permissions not specified"
                 );
                 return;
               }
               // Check if the actor has the required repository permissions
               try {
-                console.log(
+                core.debug(
                   `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
                 );
-                console.log(`Required permissions: ${requiredPermissions.join(", ")}`);
+                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
                 const repoPermission =
                   await github.rest.repos.getCollaboratorPermissionLevel({
                     owner: owner,
@@ -74,36 +87,44 @@ jobs:
                     username: actor,
                   });
                 const permission = repoPermission.data.permission;
-                console.log(`Repository permission level: ${permission}`);
+                core.debug(`Repository permission level: ${permission}`);
                 // Check if user has one of the required permission levels
                 for (const requiredPerm of requiredPermissions) {
                   if (
                     permission === requiredPerm ||
                     (requiredPerm === "maintainer" && permission === "maintain")
                   ) {
-                    console.log(`✅ User has ${permission} access to repository`);
+                    core.info(`✅ User has ${permission} access to repository`);
                     return;
                   }
                 }
-                console.log(
+                core.warning(
                   `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
                 );
               } catch (repoError) {
                 const errorMessage =
                   repoError instanceof Error ? repoError.message : String(repoError);
                 core.error(`Repository permission check failed: ${errorMessage}`);
-                core.setCancelled(`Repository permission check failed: ${errorMessage}`);
+                await setCancelled(`Repository permission check failed: ${errorMessage}`);
                 return;
               }
-              // Cancel the job when permission check fails
+              // Cancel the workflow when permission check fails
               core.warning(
                 `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
-              core.setCancelled(
+              await setCancelled(
                 `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
             }
             await main();
+
+  test-safe-output-create-code-scanning-alert:
+    needs: task
+    runs-on: ubuntu-latest
+    permissions: read-all
+    outputs:
+      output: ${{ steps.collect_output.outputs.output }}
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Setup agent output
@@ -476,7 +497,7 @@ jobs:
               /**
                * Gets the maximum allowed count for a given output type
                * @param {string} itemType - The output item type
-               * @param {Object} config - The safe-outputs configuration
+               * @param {any} config - The safe-outputs configuration
                * @returns {number} The maximum allowed count
                */
               function getMaxAllowedForType(itemType, config) {
@@ -526,6 +547,7 @@ jobs:
                 // U+0014 (DC4) — represented here as "\u0014"
                 // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
                 // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+                /** @type {Record<number, string>} */
                 const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
                 repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
                   const c = ch.charCodeAt(0);
@@ -600,9 +622,17 @@ jobs:
                     return JSON.parse(repairedJson);
                   } catch (repairError) {
                     // If repair also fails, throw the error
-                    console.log(`invalid input json: ${jsonStr}`);
+                    core.info(`invalid input json: ${jsonStr}`);
+                    const originalMsg =
+                      originalError instanceof Error
+                        ? originalError.message
+                        : String(originalError);
+                    const repairMsg =
+                      repairError instanceof Error
+                        ? repairError.message
+                        : String(repairError);
                     throw new Error(
-                      `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
+                      `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
                     );
                   }
                 }
@@ -610,33 +640,34 @@ jobs:
               const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
               const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
               if (!outputFile) {
-                console.log("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+                core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
                 return;
               }
               if (!fs.existsSync(outputFile)) {
-                console.log("Output file does not exist:", outputFile);
+                core.info(`Output file does not exist: ${outputFile}`);
                 core.setOutput("output", "");
                 return;
               }
               const outputContent = fs.readFileSync(outputFile, "utf8");
               if (outputContent.trim() === "") {
-                console.log("Output file is empty");
+                core.info("Output file is empty");
                 core.setOutput("output", "");
                 return;
               }
-              console.log("Raw output content length:", outputContent.length);
+              core.info(`Raw output content length: ${outputContent.length}`);
               // Parse the safe-outputs configuration
+              /** @type {any} */
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
                   expectedOutputTypes = JSON.parse(safeOutputsConfig);
-                  console.log("Expected output types:", Object.keys(expectedOutputTypes));
-                } catch (error) {
-                  console.log(
-                    "Warning: Could not parse safe-outputs config:",
-                    error.message
+                  core.info(
+                    `Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
                   );
+                } catch (error) {
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
                 }
               }
               // Parse JSONL content
@@ -647,6 +678,7 @@ jobs:
                 const line = lines[i].trim();
                 if (line === "") continue; // Skip empty lines
                 try {
+                  /** @type {any} */
                   const item = parseJsonWithRepair(line);
                   // If item is undefined (failed to parse), add error and process next line
                   if (item === undefined) {
@@ -697,8 +729,9 @@ jobs:
                       item.body = sanitizeContent(item.body);
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label =>
-                          typeof label === "string" ? sanitizeContent(label) : label
+                        item.labels = item.labels.map(
+                          /** @param {any} label */ label =>
+                            typeof label === "string" ? sanitizeContent(label) : label
                         );
                       }
                       break;
@@ -734,8 +767,9 @@ jobs:
                       }
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label =>
-                          typeof label === "string" ? sanitizeContent(label) : label
+                        item.labels = item.labels.map(
+                          /** @param {any} label */ label =>
+                            typeof label === "string" ? sanitizeContent(label) : label
                         );
                       }
                       break;
@@ -746,14 +780,20 @@ jobs:
                         );
                         continue;
                       }
-                      if (item.labels.some(label => typeof label !== "string")) {
+                      if (
+                        item.labels.some(
+                          /** @param {any} label */ label => typeof label !== "string"
+                        )
+                      ) {
                         errors.push(
                           `Line ${i + 1}: add-issue-label labels array must contain only strings`
                         );
                         continue;
                       }
                       // Sanitize label strings
-                      item.labels = item.labels.map(label => sanitizeContent(label));
+                      item.labels = item.labels.map(
+                        /** @param {any} label */ label => sanitizeContent(label)
+                      );
                       break;
                     case "update-issue":
                       // Check that at least one updateable field is provided
@@ -1061,10 +1101,11 @@ jobs:
                       errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
                       continue;
                   }
-                  console.log(`Line ${i + 1}: Valid ${itemType} item`);
+                  core.info(`Line ${i + 1}: Valid ${itemType} item`);
                   parsedItems.push(item);
                 } catch (error) {
-                  errors.push(`Line ${i + 1}: Invalid JSON - ${error.message}`);
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
                 }
               }
               // Report validation results
@@ -1078,7 +1119,7 @@ jobs:
                 // For now, we'll continue with valid items but log the errors
                 // In the future, we might want to fail the workflow for invalid items
               }
-              console.log(`Successfully parsed ${parsedItems.length} valid output items`);
+              core.info(`Successfully parsed ${parsedItems.length} valid output items`);
               // Set the parsed and validated items as output
               const validatedOutput = {
                 items: parsedItems,
@@ -1091,11 +1132,12 @@ jobs:
                 // Ensure the /tmp directory exists
                 fs.mkdirSync("/tmp", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
-                console.log(`Stored validated output to: ${agentOutputFile}`);
+                core.info(`Stored validated output to: ${agentOutputFile}`);
                 // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
                 core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
-                core.error(`Failed to write agent output file: ${error.message}`);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to write agent output file: ${errorMsg}`);
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
@@ -1152,27 +1194,26 @@ jobs:
               // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
-                console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               if (outputContent.trim() === "") {
-                console.log("Agent output content is empty");
+                core.info("Agent output content is empty");
                 return;
               }
-              console.log("Agent output content length:", outputContent.length);
+              core.info(`Agent output content length: ${outputContent.length}`);
               // Parse the validated output JSON
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                console.log(
-                  "Error parsing agent output JSON:",
-                  error instanceof Error ? error.message : String(error)
+                core.setFailed(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
                 );
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                console.log("No valid items found in agent output");
+                core.info("No valid items found in agent output");
                 return;
               }
               // Find all create-code-scanning-alert items
@@ -1180,12 +1221,10 @@ jobs:
                 /** @param {any} item */ item => item.type === "create-code-scanning-alert"
               );
               if (securityItems.length === 0) {
-                console.log("No create-code-scanning-alert items found in agent output");
+                core.info("No create-code-scanning-alert items found in agent output");
                 return;
               }
-              console.log(
-                `Found ${securityItems.length} create-code-scanning-alert item(s)`
-              );
+              core.info(`Found ${securityItems.length} create-code-scanning-alert item(s)`);
               // If in staged mode, emit step summary instead of creating code scanning alerts
               if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
                 let summaryContent =
@@ -1203,7 +1242,7 @@ jobs:
                 }
                 // Write to step summary
                 await core.summary.addRaw(summaryContent).write();
-                console.log(
+                core.info(
                   "📝 Code scanning alert creation preview written to step summary"
                 );
                 return;
@@ -1212,37 +1251,28 @@ jobs:
               const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
                 ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX)
                 : 0; // 0 means unlimited
-              console.log(
+              core.info(
                 `Max findings configuration: ${maxFindings === 0 ? "unlimited" : maxFindings}`
               );
               // Get the driver configuration from environment variable
               const driverName =
                 process.env.GITHUB_AW_SECURITY_REPORT_DRIVER ||
                 "GitHub Agentic Workflows Security Scanner";
-              console.log(`Driver name: ${driverName}`);
+              core.info(`Driver name: ${driverName}`);
               // Get the workflow filename for rule ID prefix
               const workflowFilename =
                 process.env.GITHUB_AW_WORKFLOW_FILENAME || "workflow";
-              console.log(`Workflow filename for rule ID prefix: ${workflowFilename}`);
+              core.info(`Workflow filename for rule ID prefix: ${workflowFilename}`);
               const validFindings = [];
               // Process each security item and validate the findings
               for (let i = 0; i < securityItems.length; i++) {
                 const securityItem = securityItems[i];
-                console.log(
-                  `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}:`,
-                  {
-                    file: securityItem.file,
-                    line: securityItem.line,
-                    severity: securityItem.severity,
-                    messageLength: securityItem.message
-                      ? securityItem.message.length
-                      : "undefined",
-                    ruleIdSuffix: securityItem.ruleIdSuffix || "not specified",
-                  }
+                core.info(
+                  `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}: file=${securityItem.file}, line=${securityItem.line}, severity=${securityItem.severity}, messageLength=${securityItem.message ? securityItem.message.length : "undefined"}, ruleIdSuffix=${securityItem.ruleIdSuffix || "not specified"}`
                 );
                 // Validate required fields
                 if (!securityItem.file) {
-                  console.log('Missing required field "file" in code scanning alert item');
+                  core.info('Missing required field "file" in code scanning alert item');
                   continue;
                 }
                 if (
@@ -1250,19 +1280,19 @@ jobs:
                   (typeof securityItem.line !== "number" &&
                     typeof securityItem.line !== "string")
                 ) {
-                  console.log(
+                  core.info(
                     'Missing or invalid required field "line" in code scanning alert item'
                   );
                   continue;
                 }
                 if (!securityItem.severity || typeof securityItem.severity !== "string") {
-                  console.log(
+                  core.info(
                     'Missing or invalid required field "severity" in code scanning alert item'
                   );
                   continue;
                 }
                 if (!securityItem.message || typeof securityItem.message !== "string") {
-                  console.log(
+                  core.info(
                     'Missing or invalid required field "message" in code scanning alert item'
                   );
                   continue;
@@ -1270,7 +1300,7 @@ jobs:
                 // Parse line number
                 const line = parseInt(securityItem.line, 10);
                 if (isNaN(line) || line <= 0) {
-                  console.log(`Invalid line number: ${securityItem.line}`);
+                  core.info(`Invalid line number: ${securityItem.line}`);
                   continue;
                 }
                 // Parse optional column number
@@ -1280,14 +1310,14 @@ jobs:
                     typeof securityItem.column !== "number" &&
                     typeof securityItem.column !== "string"
                   ) {
-                    console.log(
+                    core.info(
                       'Invalid field "column" in code scanning alert item (must be number or string)'
                     );
                     continue;
                   }
                   const parsedColumn = parseInt(securityItem.column, 10);
                   if (isNaN(parsedColumn) || parsedColumn <= 0) {
-                    console.log(`Invalid column number: ${securityItem.column}`);
+                    core.info(`Invalid column number: ${securityItem.column}`);
                     continue;
                   }
                   column = parsedColumn;
@@ -1296,7 +1326,7 @@ jobs:
                 let ruleIdSuffix = null;
                 if (securityItem.ruleIdSuffix !== undefined) {
                   if (typeof securityItem.ruleIdSuffix !== "string") {
-                    console.log(
+                    core.info(
                       'Invalid field "ruleIdSuffix" in code scanning alert item (must be string)'
                     );
                     continue;
@@ -1304,14 +1334,14 @@ jobs:
                   // Validate that the suffix doesn't contain invalid characters
                   const trimmedSuffix = securityItem.ruleIdSuffix.trim();
                   if (trimmedSuffix.length === 0) {
-                    console.log(
+                    core.info(
                       'Invalid field "ruleIdSuffix" in code scanning alert item (cannot be empty)'
                     );
                     continue;
                   }
                   // Check for characters that would be problematic in rule IDs
                   if (!/^[a-zA-Z0-9_-]+$/.test(trimmedSuffix)) {
-                    console.log(
+                    core.info(
                       `Invalid ruleIdSuffix "${trimmedSuffix}" (must contain only alphanumeric characters, hyphens, and underscores)`
                     );
                     continue;
@@ -1319,6 +1349,7 @@ jobs:
                   ruleIdSuffix = trimmedSuffix;
                 }
                 // Validate severity level and map to SARIF level
+                /** @type {Record<string, string>} */
                 const severityMap = {
                   error: "error",
                   warning: "warning",
@@ -1327,7 +1358,7 @@ jobs:
                 };
                 const normalizedSeverity = securityItem.severity.toLowerCase();
                 if (!severityMap[normalizedSeverity]) {
-                  console.log(
+                  core.info(
                     `Invalid severity level: ${securityItem.severity} (must be error, warning, info, or note)`
                   );
                   continue;
@@ -1345,15 +1376,15 @@ jobs:
                 });
                 // Check if we've reached the max limit
                 if (maxFindings > 0 && validFindings.length >= maxFindings) {
-                  console.log(`Reached maximum findings limit: ${maxFindings}`);
+                  core.info(`Reached maximum findings limit: ${maxFindings}`);
                   break;
                 }
               }
               if (validFindings.length === 0) {
-                console.log("No valid security findings to report");
+                core.info("No valid security findings to report");
                 return;
               }
-              console.log(`Processing ${validFindings.length} valid security finding(s)`);
+              core.info(`Processing ${validFindings.length} valid security finding(s)`);
               // Generate SARIF file
               const sarifContent = {
                 $schema:
@@ -1396,8 +1427,8 @@ jobs:
               const sarifFilePath = path.join(process.cwd(), sarifFileName);
               try {
                 fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
-                console.log(`✓ Created SARIF file: ${sarifFilePath}`);
-                console.log(`SARIF file size: ${fs.statSync(sarifFilePath).size} bytes`);
+                core.info(`✓ Created SARIF file: ${sarifFilePath}`);
+                core.info(`SARIF file size: ${fs.statSync(sarifFilePath).size} bytes`);
                 // Set outputs for the GitHub Action
                 core.setOutput("sarif_file", sarifFilePath);
                 core.setOutput("findings_count", validFindings.length);
@@ -1424,7 +1455,7 @@ jobs:
                 );
                 throw error;
               }
-              console.log(
+              core.info(
                 `Successfully created code scanning alert with ${validFindings.length} finding(s)`
               );
               return {

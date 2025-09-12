@@ -1,10 +1,25 @@
+async function setCancelled(message) {
+  try {
+    await github.rest.actions.cancelWorkflowRun({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      run_id: context.runId,
+    });
+    core.info(`Cancellation requested for this workflow run: ${message}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.warning(`Failed to cancel workflow run: ${errorMessage}`);
+    core.setFailed(message); // Fallback if API call fails
+  }
+}
+
 async function main() {
   const { eventName } = context;
 
   // skip check for safe events
   const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
   if (safeEvents.includes(eventName)) {
-    console.log(`✅ Event ${eventName} does not require validation`);
+    core.info(`✅ Event ${eventName} does not require validation`);
     return;
   }
 
@@ -19,7 +34,7 @@ async function main() {
     core.error(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    core.setCancelled(
+    await setCancelled(
       "Configuration error: Required permissions not specified"
     );
     return;
@@ -27,10 +42,10 @@ async function main() {
 
   // Check if the actor has the required repository permissions
   try {
-    console.log(
+    core.debug(
       `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
     );
-    console.log(`Required permissions: ${requiredPermissions.join(", ")}`);
+    core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
 
     const repoPermission =
       await github.rest.repos.getCollaboratorPermissionLevel({
@@ -40,7 +55,7 @@ async function main() {
       });
 
     const permission = repoPermission.data.permission;
-    console.log(`Repository permission level: ${permission}`);
+    core.debug(`Repository permission level: ${permission}`);
 
     // Check if user has one of the required permission levels
     for (const requiredPerm of requiredPermissions) {
@@ -48,27 +63,27 @@ async function main() {
         permission === requiredPerm ||
         (requiredPerm === "maintainer" && permission === "maintain")
       ) {
-        console.log(`✅ User has ${permission} access to repository`);
+        core.info(`✅ User has ${permission} access to repository`);
         return;
       }
     }
 
-    console.log(
+    core.warning(
       `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
     );
   } catch (repoError) {
     const errorMessage =
       repoError instanceof Error ? repoError.message : String(repoError);
     core.error(`Repository permission check failed: ${errorMessage}`);
-    core.setCancelled(`Repository permission check failed: ${errorMessage}`);
+    await setCancelled(`Repository permission check failed: ${errorMessage}`);
     return;
   }
 
-  // Cancel the job when permission check fails
+  // Cancel the workflow when permission check fails
   core.warning(
     `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
-  core.setCancelled(
+  await setCancelled(
     `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
 }

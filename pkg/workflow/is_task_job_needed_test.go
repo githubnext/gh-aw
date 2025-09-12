@@ -22,9 +22,9 @@ func TestIsTaskJobNeeded(t *testing.T) {
 	})
 
 	t.Run("default_permission_check", func(t *testing.T) {
-		data := &WorkflowData{} // No explicit Roles field, permission checks now integrated into individual jobs
-		if compiler.isTaskJobNeeded(data) {
-			t.Errorf("Expected isTaskJobNeeded to be false - permission checks are now integrated into individual jobs, not task job")
+		data := &WorkflowData{} // No explicit Roles field, permission checks are consolidated in task job
+		if !compiler.isTaskJobNeeded(data) {
+			t.Errorf("Expected isTaskJobNeeded to be true - permission checks are now consolidated in task job")
 		}
 	})
 }

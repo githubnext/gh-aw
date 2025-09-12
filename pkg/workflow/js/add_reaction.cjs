@@ -2,7 +2,7 @@ async function main() {
   // Read inputs from environment variables
   const reaction = process.env.GITHUB_AW_REACTION || "eyes";
 
-  console.log("Reaction type:", reaction);
+  core.info(`Reaction type: ${reaction}`);
 
   // Validate reaction type
   const validReactions = [
@@ -73,7 +73,7 @@ async function main() {
         return;
     }
 
-    console.log("API endpoint:", endpoint);
+    core.info(`API endpoint: ${endpoint}`);
 
     await addReaction(endpoint, reaction);
   } catch (error) {
@@ -98,10 +98,10 @@ async function addReaction(endpoint, reaction) {
 
   const reactionId = response.data?.id;
   if (reactionId) {
-    console.log(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+    core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
     core.setOutput("reaction-id", reactionId.toString());
   } else {
-    console.log(`Successfully added reaction: ${reaction}`);
+    core.info(`Successfully added reaction: ${reaction}`);
     core.setOutput("reaction-id", "");
   }
 }

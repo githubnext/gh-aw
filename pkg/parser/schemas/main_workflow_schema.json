@@ -1077,6 +1077,42 @@
               "additionalProperties": false
             }
           ]
+        },
+        "playwright": {
+          "description": "Playwright browser automation tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Playwright tool with default settings (localhost only)"
+            },
+            {
+              "type": "object",
+              "description": "Playwright tool configuration object",
+              "properties": {
+                "docker_image_version": {
+                  "type": "string",
+                  "description": "Docker image version for Playwright container"
+                },
+                "allowed_domains": {
+                  "description": "Domains allowed for Playwright network access (defaults to localhost only)",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "List of allowed domains or domain patterns",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Single allowed domain"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "additionalProperties": {

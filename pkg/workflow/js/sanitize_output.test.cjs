@@ -4,9 +4,45 @@ import path from "path";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
-  setOutput: vi.fn(),
+  // Core logging functions
+  debug: vi.fn(),
+  info: vi.fn(),
+  notice: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
+
+  // Core workflow functions
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+  exportVariable: vi.fn(),
+  setSecret: vi.fn(),
+
+  // Input/state functions (less commonly used but included for completeness)
+  getInput: vi.fn(),
+  getBooleanInput: vi.fn(),
+  getMultilineInput: vi.fn(),
+  getState: vi.fn(),
+  saveState: vi.fn(),
+
+  // Group functions
+  startGroup: vi.fn(),
+  endGroup: vi.fn(),
+  group: vi.fn(),
+
+  // Other utility functions
+  addPath: vi.fn(),
+  setCommandEcho: vi.fn(),
+  isDebug: vi.fn().mockReturnValue(false),
+  getIDToken: vi.fn(),
+  toPlatformPath: vi.fn(),
+  toPosixPath: vi.fn(),
+  toWin32Path: vi.fn(),
+
+  // Summary object with chainable methods
+  summary: {
+    addRaw: vi.fn().mockReturnThis(),
+    write: vi.fn().mockResolvedValue(),
+  },
 };
 
 // Set up global variables
@@ -515,17 +551,13 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     it("should handle missing GITHUB_AW_SAFE_OUTPUTS environment variable", async () => {
       delete process.env.GITHUB_AW_SAFE_OUTPUTS;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "GITHUB_AW_SAFE_OUTPUTS not set, no output to collect"
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle non-existent output file", async () => {
