@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   release:
     types: [created]
+  push:
+    paths:
+      - 'docs/**'
 
 # Allow this job to clone the repo and create a page deployment
 permissions:
@@ -14,7 +17,7 @@ permissions:
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.ref }}"
   cancel-in-progress: false
 
 jobs:
@@ -45,6 +48,7 @@ jobs:
           path: ./docs/dist
 
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
