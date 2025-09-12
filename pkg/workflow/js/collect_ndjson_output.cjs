@@ -289,7 +289,7 @@ async function main() {
         return JSON.parse(repairedJson);
       } catch (repairError) {
         // If repair also fails, throw the error
-        console.log(`invalid input json: ${jsonStr}`);
+        core.info(`invalid input json: ${jsonStr}`);
         const originalMsg =
           originalError instanceof Error
             ? originalError.message
@@ -309,25 +309,25 @@ async function main() {
   const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 
   if (!outputFile) {
-    console.log("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+    core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
     core.setOutput("output", "");
     return;
   }
 
   if (!fs.existsSync(outputFile)) {
-    console.log("Output file does not exist:", outputFile);
+    core.info(`Output file does not exist:: ${outputFile}`);
     core.setOutput("output", "");
     return;
   }
 
   const outputContent = fs.readFileSync(outputFile, "utf8");
   if (outputContent.trim() === "") {
-    console.log("Output file is empty");
+    core.info("Output file is empty");
     core.setOutput("output", "");
     return;
   }
 
-  console.log("Raw output content length:", outputContent.length);
+  core.info(`Raw output content length:: ${outputContent.length}`);
 
   // Parse the safe-outputs configuration
   /** @type {any} */
@@ -335,10 +335,12 @@ async function main() {
   if (safeOutputsConfig) {
     try {
       expectedOutputTypes = JSON.parse(safeOutputsConfig);
-      console.log("Expected output types:", Object.keys(expectedOutputTypes));
+      core.info(
+        `Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
+      );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.log("Warning: Could not parse safe-outputs config:", errorMsg);
+      core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
     }
   }
 
@@ -792,7 +794,7 @@ async function main() {
           continue;
       }
 
-      console.log(`Line ${i + 1}: Valid ${itemType} item`);
+      core.info(`Line ${i + 1}: Valid ${itemType} item`);
       parsedItems.push(item);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -814,7 +816,7 @@ async function main() {
     // In the future, we might want to fail the workflow for invalid items
   }
 
-  console.log(`Successfully parsed ${parsedItems.length} valid output items`);
+  core.info(`Successfully parsed ${parsedItems.length} valid output items`);
 
   // Set the parsed and validated items as output
   const validatedOutput = {
@@ -830,7 +832,7 @@ async function main() {
     // Ensure the /tmp directory exists
     fs.mkdirSync("/tmp", { recursive: true });
     fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
-    console.log(`Stored validated output to: ${agentOutputFile}`);
+    core.info(`Stored validated output to: ${agentOutputFile}`);
 
     // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
     core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);

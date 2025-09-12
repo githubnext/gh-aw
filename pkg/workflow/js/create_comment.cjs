@@ -5,31 +5,30 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
   if (outputContent.trim() === "") {
-    console.log("Agent output content is empty");
+    core.info("Agent output content is empty");
     return;
   }
 
-  console.log("Agent output content length:", outputContent.length);
+  core.info(`Agent output content length:: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log(
-      "Error parsing agent output JSON:",
-      error instanceof Error ? error.message : String(error)
+    core.info(
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log("No valid items found in agent output");
+    core.info("No valid items found in agent output");
     return;
   }
 
@@ -38,11 +37,11 @@ async function main() {
     /** @param {any} item */ item => item.type === "add-issue-comment"
   );
   if (commentItems.length === 0) {
-    console.log("No add-issue-comment items found in agent output");
+    core.info("No add-issue-comment items found in agent output");
     return;
   }
 
-  console.log(`Found ${commentItems.length} add-issue-comment item(s)`);
+  core.info(`Found ${commentItems.length} add-issue-comment item(s)`);
 
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
@@ -64,13 +63,13 @@ async function main() {
 
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
-    console.log("📝 Comment creation preview written to step summary");
+    core.info("📝 Comment creation preview written to step summary");
     return;
   }
 
   // Get the target configuration from environment variable
   const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-  console.log(`Comment target configuration: ${commentTarget}`);
+  core.info(`Comment target configuration: ${commentTarget}`);
 
   // Check if we're in an issue or pull request context
   const isIssueContext =
@@ -82,7 +81,7 @@ async function main() {
 
   // Validate context based on target configuration
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-    console.log(
+    core.info(
       'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
     );
     return;
@@ -93,9 +92,8 @@ async function main() {
   // Process each comment item
   for (let i = 0; i < commentItems.length; i++) {
     const commentItem = commentItems[i];
-    console.log(
-      `Processing add-issue-comment item ${i + 1}/${commentItems.length}:`,
-      { bodyLength: commentItem.body.length }
+    core.info(
+      `Processing add-issue-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
     );
 
     // Determine the issue/PR number and comment endpoint for this comment
@@ -107,14 +105,14 @@ async function main() {
       if (commentItem.issue_number) {
         issueNumber = parseInt(commentItem.issue_number, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          console.log(
+          core.info(
             `Invalid issue number specified: ${commentItem.issue_number}`
           );
           continue;
         }
         commentEndpoint = "issues";
       } else {
-        console.log(
+        core.info(
           'Target is "*" but no issue_number specified in comment item'
         );
         continue;
@@ -123,7 +121,7 @@ async function main() {
       // Explicit issue number specified in target
       issueNumber = parseInt(commentTarget, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        console.log(
+        core.info(
           `Invalid issue number in target configuration: ${commentTarget}`
         );
         continue;
@@ -136,7 +134,7 @@ async function main() {
           issueNumber = context.payload.issue.number;
           commentEndpoint = "issues";
         } else {
-          console.log("Issue context detected but no issue found in payload");
+          core.info("Issue context detected but no issue found in payload");
           continue;
         }
       } else if (isPRContext) {
@@ -144,7 +142,7 @@ async function main() {
           issueNumber = context.payload.pull_request.number;
           commentEndpoint = "issues"; // PR comments use the issues API endpoint
         } else {
-          console.log(
+          core.info(
             "Pull request context detected but no pull request found in payload"
           );
           continue;
@@ -153,7 +151,7 @@ async function main() {
     }
 
     if (!issueNumber) {
-      console.log("Could not determine issue or pull request number");
+      core.info("Could not determine issue or pull request number");
       continue;
     }
 
@@ -166,8 +164,8 @@ async function main() {
       : `https://github.com/actions/runs/${runId}`;
     body += `\n\n> Generated by Agentic Workflow [Run](${runUrl})\n`;
 
-    console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-    console.log("Comment content length:", body.length);
+    core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+    core.info(`Comment content length:: ${body.length}`);
 
     try {
       // Create the comment using GitHub API
@@ -178,7 +176,7 @@ async function main() {
         body: body,
       });
 
-      console.log("Created comment #" + comment.id + ": " + comment.html_url);
+      core.info("Created comment #" + comment.id + ": " + comment.html_url);
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)
@@ -203,7 +201,7 @@ async function main() {
     await core.summary.addRaw(summaryContent).write();
   }
 
-  console.log(`Successfully created ${createdComments.length} comment(s)`);
+  core.info(`Successfully created ${createdComments.length} comment(s)`);
   return createdComments;
 }
 await main();

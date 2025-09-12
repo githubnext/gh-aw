@@ -6,7 +6,7 @@ async function main() {
   // Environment validation - fail early if required variables are missing
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   if (outputContent.trim() === "") {
-    console.log("Agent output content is empty");
+    core.info("Agent output content is empty");
     return;
   }
 
@@ -26,7 +26,7 @@ async function main() {
         return;
       case "warn":
       default:
-        console.log(message);
+        core.info(message);
         return;
     }
   }
@@ -47,7 +47,7 @@ async function main() {
         return;
       case "warn":
       default:
-        console.log(message);
+        core.info(message);
         return;
     }
   }
@@ -69,31 +69,30 @@ async function main() {
         break;
       case "warn":
       default:
-        console.log(message);
+        core.info(message);
         break;
     }
   }
 
-  console.log("Agent output content length:", outputContent.length);
+  core.info(`Agent output content length:: ${outputContent.length}`);
   if (!isEmpty) {
-    console.log("Patch content validation passed");
+    core.info("Patch content validation passed");
   }
-  console.log("Target configuration:", target);
+  core.info(`Target configuration:: ${target}`);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log(
-      "Error parsing agent output JSON:",
-      error instanceof Error ? error.message : String(error)
+    core.info(
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log("No valid items found in agent output");
+    core.info("No valid items found in agent output");
     return;
   }
 
@@ -102,11 +101,11 @@ async function main() {
     /** @param {any} item */ item => item.type === "push-to-pr-branch"
   );
   if (!pushItem) {
-    console.log("No push-to-pr-branch item found in agent output");
+    core.info("No push-to-pr-branch item found in agent output");
     return;
   }
 
-  console.log("Found push-to-pr-branch item");
+  core.info("Found push-to-pr-branch item");
 
   // If in staged mode, emit step summary instead of pushing changes
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
@@ -132,7 +131,7 @@ async function main() {
 
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
-    console.log("📝 Push to PR branch preview written to step summary");
+    core.info("📝 Push to PR branch preview written to step summary");
     return;
   }
 
@@ -184,7 +183,7 @@ async function main() {
       throw new Error("No head branch found for PR");
     }
   } catch (error) {
-    console.log(
+    core.info(
       `Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`
     );
     // Exit with failure if we cannot determine the branch name
@@ -192,13 +191,13 @@ async function main() {
     return;
   }
 
-  console.log("Target branch:", branchName);
+  core.info(`Target branch:: ${branchName}`);
 
   // Check if patch has actual changes (not just empty)
   const hasChanges = !isEmpty;
 
   // Switch to or create the target branch
-  console.log("Switching to branch:", branchName);
+  core.info(`Switching to branch:: ${branchName}`);
   try {
     // Try to checkout existing branch first
     execSync("git fetch origin", { stdio: "inherit" });
@@ -212,19 +211,18 @@ async function main() {
       execSync(`git checkout -B ${branchName} origin/${branchName}`, {
         stdio: "inherit",
       });
-      console.log("Checked out existing branch from origin:", branchName);
+      core.info(`Checked out existing branch from origin:: ${branchName}`);
     } catch (originError) {
       // Branch doesn't exist on origin, check if it exists locally
       try {
         execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
         // Branch exists locally, check it out
         execSync(`git checkout ${branchName}`, { stdio: "inherit" });
-        console.log("Checked out existing local branch:", branchName);
+        core.info(`Checked out existing local branch:: ${branchName}`);
       } catch (localError) {
         // Branch doesn't exist locally or on origin, create it from default branch
-        console.log(
-          "Branch does not exist, creating new branch from default branch:",
-          branchName
+        core.info(
+          `Branch does not exist, creating new branch from default branch: ${branchName}`
         );
 
         // Get the default branch name
@@ -232,7 +230,7 @@ async function main() {
           "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
           { encoding: "utf8" }
         ).trim();
-        console.log("Default branch:", defaultBranch);
+        core.info(`Default branch:: ${defaultBranch}`);
 
         // Ensure we have the latest default branch
         execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
@@ -240,7 +238,7 @@ async function main() {
 
         // Create new branch from default branch
         execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-        console.log("Created new branch from default branch:", branchName);
+        core.info(`Created new branch from default branch:: ${branchName}`);
       }
     }
   } catch (error) {
@@ -252,15 +250,15 @@ async function main() {
 
   // Apply the patch using git CLI (skip if empty)
   if (!isEmpty) {
-    console.log("Applying patch...");
+    core.info("Applying patch...");
     try {
       // Patches are created with git format-patch, so use git am to apply them
       execSync("git am /tmp/aw.patch", { stdio: "inherit" });
-      console.log("Patch applied successfully");
+      core.info("Patch applied successfully");
 
       // Push the applied commits to the branch
       execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-      console.log("Changes committed and pushed to branch:", branchName);
+      core.info(`Changes committed and pushed to branch:: ${branchName}`);
     } catch (error) {
       core.error(
         `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
@@ -269,7 +267,7 @@ async function main() {
       return;
     }
   } else {
-    console.log("Skipping patch application (empty patch)");
+    core.info("Skipping patch application (empty patch)");
 
     // Handle if-no-changes configuration for empty patches
     const message =
@@ -286,7 +284,7 @@ async function main() {
         break;
       case "warn":
       default:
-        console.log(message);
+        core.info(message);
         break;
     }
   }

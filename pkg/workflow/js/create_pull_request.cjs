@@ -149,7 +149,9 @@ async function main() {
     return;
   }
 
-  core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+  core.debug(
+    `Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`
+  );
 
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {
@@ -319,7 +321,7 @@ async function main() {
       issue_number: pullRequest.number,
       labels: labels,
     });
-    console.log("Added labels to pull request:", labels);
+    core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
   }
 
   // Set output for other jobs to use

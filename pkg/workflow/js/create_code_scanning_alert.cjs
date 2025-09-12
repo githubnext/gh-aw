@@ -2,31 +2,30 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
   if (outputContent.trim() === "") {
-    console.log("Agent output content is empty");
+    core.info("Agent output content is empty");
     return;
   }
 
-  console.log("Agent output content length:", outputContent.length);
+  core.info(`Agent output content length:: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log(
-      "Error parsing agent output JSON:",
-      error instanceof Error ? error.message : String(error)
+    core.info(
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log("No valid items found in agent output");
+    core.info("No valid items found in agent output");
     return;
   }
 
@@ -35,13 +34,11 @@ async function main() {
     /** @param {any} item */ item => item.type === "create-code-scanning-alert"
   );
   if (securityItems.length === 0) {
-    console.log("No create-code-scanning-alert items found in agent output");
+    core.info("No create-code-scanning-alert items found in agent output");
     return;
   }
 
-  console.log(
-    `Found ${securityItems.length} create-code-scanning-alert item(s)`
-  );
+  core.info(`Found ${securityItems.length} create-code-scanning-alert item(s)`);
 
   // If in staged mode, emit step summary instead of creating code scanning alerts
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
@@ -62,7 +59,7 @@ async function main() {
 
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
-    console.log(
+    core.info(
       "📝 Code scanning alert creation preview written to step summary"
     );
     return;
@@ -72,7 +69,7 @@ async function main() {
   const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
     ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX)
     : 0; // 0 means unlimited
-  console.log(
+  core.info(
     `Max findings configuration: ${maxFindings === 0 ? "unlimited" : maxFindings}`
   );
 
@@ -80,34 +77,25 @@ async function main() {
   const driverName =
     process.env.GITHUB_AW_SECURITY_REPORT_DRIVER ||
     "GitHub Agentic Workflows Security Scanner";
-  console.log(`Driver name: ${driverName}`);
+  core.info(`Driver name: ${driverName}`);
 
   // Get the workflow filename for rule ID prefix
   const workflowFilename =
     process.env.GITHUB_AW_WORKFLOW_FILENAME || "workflow";
-  console.log(`Workflow filename for rule ID prefix: ${workflowFilename}`);
+  core.info(`Workflow filename for rule ID prefix: ${workflowFilename}`);
 
   const validFindings = [];
 
   // Process each security item and validate the findings
   for (let i = 0; i < securityItems.length; i++) {
     const securityItem = securityItems[i];
-    console.log(
-      `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}:`,
-      {
-        file: securityItem.file,
-        line: securityItem.line,
-        severity: securityItem.severity,
-        messageLength: securityItem.message
-          ? securityItem.message.length
-          : "undefined",
-        ruleIdSuffix: securityItem.ruleIdSuffix || "not specified",
-      }
+    core.info(
+      `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}: file=${securityItem.file}, line=${securityItem.line}, severity=${securityItem.severity}, messageLength=${securityItem.message ? securityItem.message.length : "undefined"}, ruleIdSuffix=${securityItem.ruleIdSuffix || "not specified"}`
     );
 
     // Validate required fields
     if (!securityItem.file) {
-      console.log('Missing required field "file" in code scanning alert item');
+      core.info('Missing required field "file" in code scanning alert item');
       continue;
     }
 
@@ -116,21 +104,21 @@ async function main() {
       (typeof securityItem.line !== "number" &&
         typeof securityItem.line !== "string")
     ) {
-      console.log(
+      core.info(
         'Missing or invalid required field "line" in code scanning alert item'
       );
       continue;
     }
 
     if (!securityItem.severity || typeof securityItem.severity !== "string") {
-      console.log(
+      core.info(
         'Missing or invalid required field "severity" in code scanning alert item'
       );
       continue;
     }
 
     if (!securityItem.message || typeof securityItem.message !== "string") {
-      console.log(
+      core.info(
         'Missing or invalid required field "message" in code scanning alert item'
       );
       continue;
@@ -139,7 +127,7 @@ async function main() {
     // Parse line number
     const line = parseInt(securityItem.line, 10);
     if (isNaN(line) || line <= 0) {
-      console.log(`Invalid line number: ${securityItem.line}`);
+      core.info(`Invalid line number: ${securityItem.line}`);
       continue;
     }
 
@@ -150,14 +138,14 @@ async function main() {
         typeof securityItem.column !== "number" &&
         typeof securityItem.column !== "string"
       ) {
-        console.log(
+        core.info(
           'Invalid field "column" in code scanning alert item (must be number or string)'
         );
         continue;
       }
       const parsedColumn = parseInt(securityItem.column, 10);
       if (isNaN(parsedColumn) || parsedColumn <= 0) {
-        console.log(`Invalid column number: ${securityItem.column}`);
+        core.info(`Invalid column number: ${securityItem.column}`);
         continue;
       }
       column = parsedColumn;
@@ -167,7 +155,7 @@ async function main() {
     let ruleIdSuffix = null;
     if (securityItem.ruleIdSuffix !== undefined) {
       if (typeof securityItem.ruleIdSuffix !== "string") {
-        console.log(
+        core.info(
           'Invalid field "ruleIdSuffix" in code scanning alert item (must be string)'
         );
         continue;
@@ -175,14 +163,14 @@ async function main() {
       // Validate that the suffix doesn't contain invalid characters
       const trimmedSuffix = securityItem.ruleIdSuffix.trim();
       if (trimmedSuffix.length === 0) {
-        console.log(
+        core.info(
           'Invalid field "ruleIdSuffix" in code scanning alert item (cannot be empty)'
         );
         continue;
       }
       // Check for characters that would be problematic in rule IDs
       if (!/^[a-zA-Z0-9_-]+$/.test(trimmedSuffix)) {
-        console.log(
+        core.info(
           `Invalid ruleIdSuffix "${trimmedSuffix}" (must contain only alphanumeric characters, hyphens, and underscores)`
         );
         continue;
@@ -201,7 +189,7 @@ async function main() {
 
     const normalizedSeverity = securityItem.severity.toLowerCase();
     if (!severityMap[normalizedSeverity]) {
-      console.log(
+      core.info(
         `Invalid severity level: ${securityItem.severity} (must be error, warning, info, or note)`
       );
       continue;
@@ -222,17 +210,17 @@ async function main() {
 
     // Check if we've reached the max limit
     if (maxFindings > 0 && validFindings.length >= maxFindings) {
-      console.log(`Reached maximum findings limit: ${maxFindings}`);
+      core.info(`Reached maximum findings limit: ${maxFindings}`);
       break;
     }
   }
 
   if (validFindings.length === 0) {
-    console.log("No valid security findings to report");
+    core.info("No valid security findings to report");
     return;
   }
 
-  console.log(`Processing ${validFindings.length} valid security finding(s)`);
+  core.info(`Processing ${validFindings.length} valid security finding(s)`);
 
   // Generate SARIF file
   const sarifContent = {
@@ -278,8 +266,8 @@ async function main() {
 
   try {
     fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
-    console.log(`✓ Created SARIF file: ${sarifFilePath}`);
-    console.log(`SARIF file size: ${fs.statSync(sarifFilePath).size} bytes`);
+    core.info(`✓ Created SARIF file: ${sarifFilePath}`);
+    core.info(`SARIF file size: ${fs.statSync(sarifFilePath).size} bytes`);
 
     // Set outputs for the GitHub Action
     core.setOutput("sarif_file", sarifFilePath);
@@ -312,7 +300,7 @@ async function main() {
     throw error;
   }
 
-  console.log(
+  core.info(
     `Successfully created code scanning alert with ${validFindings.length} finding(s)`
   );
   return {

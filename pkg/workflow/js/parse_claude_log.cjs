@@ -5,12 +5,12 @@ function main() {
     // Get the log file path from environment
     const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!logFile) {
-      console.log("No agent log file specified");
+      core.info("No agent log file specified");
       return;
     }
 
     if (!fs.existsSync(logFile)) {
-      console.log(`Log file not found: ${logFile}`);
+      core.info(`Log file not found: ${logFile}`);
       return;
     }
 
