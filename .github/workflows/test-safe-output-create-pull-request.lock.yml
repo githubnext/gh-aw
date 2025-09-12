@@ -49,9 +49,7 @@ jobs:
                 core.error(
                   "❌ Configuration error: Required permissions not specified. Contact repository administrator."
                 );
-                core.setCancelled(
-                  "Configuration error: Required permissions not specified"
-                );
+                core.setFailed("Configuration error: Required permissions not specified");
                 return;
               }
               // Check if the actor has the required repository permissions
@@ -85,14 +83,14 @@ jobs:
                 const errorMessage =
                   repoError instanceof Error ? repoError.message : String(repoError);
                 core.error(`Repository permission check failed: ${errorMessage}`);
-                core.setCancelled(`Repository permission check failed: ${errorMessage}`);
+                core.setFailed(`Repository permission check failed: ${errorMessage}`);
                 return;
               }
               // Cancel the job when permission check fails
               core.warning(
                 `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
-              core.setCancelled(
+              core.setFailed(
                 `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
             }
@@ -474,7 +472,7 @@ jobs:
               /**
                * Gets the maximum allowed count for a given output type
                * @param {string} itemType - The output item type
-               * @param {Object} config - The safe-outputs configuration
+               * @param {any} config - The safe-outputs configuration
                * @returns {number} The maximum allowed count
                */
               function getMaxAllowedForType(itemType, config) {
@@ -524,6 +522,7 @@ jobs:
                 // U+0014 (DC4) — represented here as "\u0014"
                 // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
                 // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+                /** @type {Record<number, string>} */
                 const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
                 repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
                   const c = ch.charCodeAt(0);
@@ -599,8 +598,16 @@ jobs:
                   } catch (repairError) {
                     // If repair also fails, throw the error
                     console.log(`invalid input json: ${jsonStr}`);
+                    const originalMsg =
+                      originalError instanceof Error
+                        ? originalError.message
+                        : String(originalError);
+                    const repairMsg =
+                      repairError instanceof Error
+                        ? repairError.message
+                        : String(repairError);
                     throw new Error(
-                      `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
+                      `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
                     );
                   }
                 }
@@ -625,16 +632,15 @@ jobs:
               }
               console.log("Raw output content length:", outputContent.length);
               // Parse the safe-outputs configuration
+              /** @type {any} */
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
                   expectedOutputTypes = JSON.parse(safeOutputsConfig);
                   console.log("Expected output types:", Object.keys(expectedOutputTypes));
                 } catch (error) {
-                  console.log(
-                    "Warning: Could not parse safe-outputs config:",
-                    error.message
-                  );
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  console.log("Warning: Could not parse safe-outputs config:", errorMsg);
                 }
               }
               // Parse JSONL content
@@ -645,6 +651,7 @@ jobs:
                 const line = lines[i].trim();
                 if (line === "") continue; // Skip empty lines
                 try {
+                  /** @type {any} */
                   const item = parseJsonWithRepair(line);
                   // If item is undefined (failed to parse), add error and process next line
                   if (item === undefined) {
@@ -695,8 +702,9 @@ jobs:
                       item.body = sanitizeContent(item.body);
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label =>
-                          typeof label === "string" ? sanitizeContent(label) : label
+                        item.labels = item.labels.map(
+                          /** @param {any} label */ label =>
+                            typeof label === "string" ? sanitizeContent(label) : label
                         );
                       }
                       break;
@@ -732,8 +740,9 @@ jobs:
                       }
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label =>
-                          typeof label === "string" ? sanitizeContent(label) : label
+                        item.labels = item.labels.map(
+                          /** @param {any} label */ label =>
+                            typeof label === "string" ? sanitizeContent(label) : label
                         );
                       }
                       break;
@@ -744,14 +753,20 @@ jobs:
                         );
                         continue;
                       }
-                      if (item.labels.some(label => typeof label !== "string")) {
+                      if (
+                        item.labels.some(
+                          /** @param {any} label */ label => typeof label !== "string"
+                        )
+                      ) {
                         errors.push(
                           `Line ${i + 1}: add-issue-label labels array must contain only strings`
                         );
                         continue;
                       }
                       // Sanitize label strings
-                      item.labels = item.labels.map(label => sanitizeContent(label));
+                      item.labels = item.labels.map(
+                        /** @param {any} label */ label => sanitizeContent(label)
+                      );
                       break;
                     case "update-issue":
                       // Check that at least one updateable field is provided
@@ -1062,7 +1077,8 @@ jobs:
                   console.log(`Line ${i + 1}: Valid ${itemType} item`);
                   parsedItems.push(item);
                 } catch (error) {
-                  errors.push(`Line ${i + 1}: Invalid JSON - ${error.message}`);
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
                 }
               }
               // Report validation results
@@ -1093,7 +1109,8 @@ jobs:
                 // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
                 core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
-                core.error(`Failed to write agent output file: ${error.message}`);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to write agent output file: ${errorMsg}`);
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
@@ -1297,7 +1314,7 @@ jobs:
               }
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
-                console.log("Agent output content is empty");
+                core.info("Agent output content is empty");
               }
               const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
               // Check if patch file exists and has valid content
@@ -1313,7 +1330,7 @@ jobs:
                   summaryContent += `**Message:** ${message}\n\n`;
                   // Write to step summary
                   await core.summary.addRaw(summaryContent).write();
-                  console.log(
+                  core.info(
                     "📝 Pull request creation preview written to step summary (no patch file)"
                   );
                   return;
@@ -1326,7 +1343,7 @@ jobs:
                     return;
                   case "warn":
                   default:
-                    console.log(message);
+                    core.warning(message);
                     return;
                 }
               }
@@ -1344,7 +1361,7 @@ jobs:
                   summaryContent += `**Message:** ${message}\n\n`;
                   // Write to step summary
                   await core.summary.addRaw(summaryContent).write();
-                  console.log(
+                  core.info(
                     "📝 Pull request creation preview written to step summary (patch error)"
                   );
                   return;
@@ -1357,7 +1374,7 @@ jobs:
                     return;
                   case "warn":
                   default:
-                    console.log(message);
+                    core.warning(message);
                     return;
                 }
               }
@@ -1376,29 +1393,28 @@ jobs:
                     return;
                   case "warn":
                   default:
-                    console.log(message);
+                    core.warning(message);
                     return;
                 }
               }
-              console.log("Agent output content length:", outputContent.length);
+              core.debug(`Agent output content length: ${outputContent.length}`);
               if (!isEmpty) {
-                console.log("Patch content validation passed");
+                core.info("Patch content validation passed");
               } else {
-                console.log("Patch file is empty - processing noop operation");
+                core.info("Patch file is empty - processing noop operation");
               }
               // Parse the validated output JSON
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                console.log(
-                  "Error parsing agent output JSON:",
-                  error instanceof Error ? error.message : String(error)
+                core.error(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
                 );
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                console.log("No valid items found in agent output");
+                core.warning("No valid items found in agent output");
                 return;
               }
               // Find the create-pull-request item
@@ -1406,13 +1422,10 @@ jobs:
                 /** @param {any} item */ item => item.type === "create-pull-request"
               );
               if (!pullRequestItem) {
-                console.log("No create-pull-request item found in agent output");
+                core.warning("No create-pull-request item found in agent output");
                 return;
               }
-              console.log("Found create-pull-request item:", {
-                title: pullRequestItem.title,
-                bodyLength: pullRequestItem.body.length,
-              });
+              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
               // If in staged mode, emit step summary instead of creating PR
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
@@ -1435,7 +1448,7 @@ jobs:
                 }
                 // Write to step summary
                 await core.summary.addRaw(summaryContent).write();
-                console.log("📝 Pull request creation preview written to step summary");
+                core.info("📝 Pull request creation preview written to step summary");
                 return;
               }
               // Extract title, body, and branch from the JSON item
@@ -1477,50 +1490,48 @@ jobs:
               // Parse draft setting from environment variable (defaults to true)
               const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
               const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              console.log("Creating pull request with title:", title);
-              console.log("Labels:", labels);
-              console.log("Draft:", draft);
-              console.log("Body length:", body.length);
+              core.info(`Creating pull request with title: ${title}`);
+              core.debug(`Labels: ${JSON.stringify(labels)}`);
+              core.debug(`Draft: ${draft}`);
+              core.debug(`Body length: ${body.length}`);
               const randomHex = crypto.randomBytes(8).toString("hex");
               // Use branch name from JSONL if provided, otherwise generate unique branch name
               if (!branchName) {
-                console.log(
+                core.debug(
                   "No branch name provided in JSONL, generating unique branch name"
                 );
                 // Generate unique branch name using cryptographic random hex
                 branchName = `${workflowId}-${randomHex}`;
               } else {
                 branchName = `${branchName}-${randomHex}`;
-                console.log("Using branch name from JSONL with added salt:", branchName);
+                core.debug(`Using branch name from JSONL with added salt: ${branchName}`);
               }
-              console.log("Generated branch name:", branchName);
-              console.log("Base branch:", baseBranch);
+              core.info(`Generated branch name: ${branchName}`);
+              core.debug(`Base branch: ${baseBranch}`);
               // Create a new branch using git CLI, ensuring it's based on the correct base branch
               // First, fetch latest changes and checkout the base branch
-              console.log(
-                "Fetching latest changes and checking out base branch:",
-                baseBranch
+              core.debug(
+                `Fetching latest changes and checking out base branch: ${baseBranch}`
               );
               execSync("git fetch origin", { stdio: "inherit" });
               execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
               // Handle branch creation/checkout
-              console.log(
-                "Branch should not exist locally, creating new branch from base:",
-                branchName
+              core.debug(
+                `Branch should not exist locally, creating new branch from base: ${branchName}`
               );
               execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-              console.log("Created new branch from base:", branchName);
+              core.info(`Created new branch from base: ${branchName}`);
               // Apply the patch using git CLI (skip if empty)
               if (!isEmpty) {
-                console.log("Applying patch...");
+                core.info("Applying patch...");
                 // Patches are created with git format-patch, so use git am to apply them
                 execSync("git am /tmp/aw.patch", { stdio: "inherit" });
-                console.log("Patch applied successfully");
+                core.info("Patch applied successfully");
                 // Push the applied commits to the branch
                 execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-                console.log("Changes pushed to branch");
+                core.info("Changes pushed to branch");
               } else {
-                console.log("Skipping patch application (empty patch)");
+                core.info("Skipping patch application (empty patch)");
                 // For empty patches, handle if-no-changes configuration
                 const message =
                   "No changes to apply - noop operation completed successfully";
@@ -1534,7 +1545,7 @@ jobs:
                     return;
                   case "warn":
                   default:
-                    console.log(message);
+                    core.warning(message);
                     return;
                 }
               }
@@ -1548,8 +1559,8 @@ jobs:
                 base: baseBranch,
                 draft: draft,
               });
-              console.log(
-                "Created pull request #" + pullRequest.number + ": " + pullRequest.html_url
+              core.info(
+                `Created pull request #${pullRequest.number}: ${pullRequest.html_url}`
               );
               // Add labels if specified
               if (labels.length > 0) {
