@@ -19,7 +19,7 @@ async function main() {
     core.error(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    core.setCancelled(
+    core.setFailed(
       "Configuration error: Required permissions not specified"
     );
     return;
@@ -60,7 +60,7 @@ async function main() {
     const errorMessage =
       repoError instanceof Error ? repoError.message : String(repoError);
     core.error(`Repository permission check failed: ${errorMessage}`);
-    core.setCancelled(`Repository permission check failed: ${errorMessage}`);
+    core.setFailed(`Repository permission check failed: ${errorMessage}`);
     return;
   }
 
@@ -68,7 +68,7 @@ async function main() {
   core.warning(
     `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
-  core.setCancelled(
+  core.setFailed(
     `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
 }

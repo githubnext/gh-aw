@@ -149,7 +149,7 @@ async function main() {
   /**
    * Gets the maximum allowed count for a given output type
    * @param {string} itemType - The output item type
-   * @param {Object} config - The safe-outputs configuration
+   * @param {any} config - The safe-outputs configuration
    * @returns {number} The maximum allowed count
    */
   function getMaxAllowedForType(itemType, config) {
@@ -202,6 +202,7 @@ async function main() {
     // U+0014 (DC4) — represented here as "\u0014"
     // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
     // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+    /** @type {Record<number, string>} */
     const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
     repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
       const c = ch.charCodeAt(0);
@@ -289,8 +290,10 @@ async function main() {
       } catch (repairError) {
         // If repair also fails, throw the error
         console.log(`invalid input json: ${jsonStr}`);
+        const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
+        const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
         throw new Error(
-          `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
+          `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
         );
       }
     }
@@ -321,15 +324,17 @@ async function main() {
   console.log("Raw output content length:", outputContent.length);
 
   // Parse the safe-outputs configuration
+  /** @type {any} */
   let expectedOutputTypes = {};
   if (safeOutputsConfig) {
     try {
       expectedOutputTypes = JSON.parse(safeOutputsConfig);
       console.log("Expected output types:", Object.keys(expectedOutputTypes));
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       console.log(
         "Warning: Could not parse safe-outputs config:",
-        error.message
+        errorMsg
       );
     }
   }
@@ -343,6 +348,7 @@ async function main() {
     const line = lines[i].trim();
     if (line === "") continue; // Skip empty lines
     try {
+      /** @type {any} */
       const item = parseJsonWithRepair(line);
 
       // If item is undefined (failed to parse), add error and process next line
@@ -398,7 +404,7 @@ async function main() {
           item.body = sanitizeContent(item.body);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label =>
+            item.labels = item.labels.map(/** @param {any} label */ label =>
               typeof label === "string" ? sanitizeContent(label) : label
             );
           }
@@ -437,7 +443,7 @@ async function main() {
           }
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label =>
+            item.labels = item.labels.map(/** @param {any} label */ label =>
               typeof label === "string" ? sanitizeContent(label) : label
             );
           }
@@ -450,14 +456,14 @@ async function main() {
             );
             continue;
           }
-          if (item.labels.some(label => typeof label !== "string")) {
+          if (item.labels.some(/** @param {any} label */ label => typeof label !== "string")) {
             errors.push(
               `Line ${i + 1}: add-issue-label labels array must contain only strings`
             );
             continue;
           }
           // Sanitize label strings
-          item.labels = item.labels.map(label => sanitizeContent(label));
+          item.labels = item.labels.map(/** @param {any} label */ label => sanitizeContent(label));
           break;
 
         case "update-issue":
@@ -778,7 +784,8 @@ async function main() {
       console.log(`Line ${i + 1}: Valid ${itemType} item`);
       parsedItems.push(item);
     } catch (error) {
-      errors.push(`Line ${i + 1}: Invalid JSON - ${error.message}`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
     }
   }
 
@@ -817,7 +824,8 @@ async function main() {
     // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
     core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
   } catch (error) {
-    core.error(`Failed to write agent output file: ${error.message}`);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to write agent output file: ${errorMsg}`);
   }
 
   core.setOutput("output", JSON.stringify(validatedOutput));

@@ -97,7 +97,7 @@ async function main() {
       queryResult.repository.discussionCategories.nodes || [];
     console.log(
       "Available categories:",
-      discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
+      discussionCategories.map(/** @param {any} cat */ cat => ({ name: cat.name, id: cat.id }))
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

@@ -191,6 +191,7 @@ async function main() {
     }
 
     // Validate severity level and map to SARIF level
+    /** @type {Record<string, string>} */
     const severityMap = {
       error: "error",
       warning: "warning",

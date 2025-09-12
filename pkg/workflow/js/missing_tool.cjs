@@ -13,6 +13,7 @@ async function main() {
     core.info(`Maximum reports allowed: ${maxReports}`);
   }
 
+  /** @type {any[]} */
   const missingTools = [];
 
   // Return early if no agent output
