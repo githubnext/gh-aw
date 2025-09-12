@@ -91,7 +91,7 @@ func TestMCPServerConfigProvider(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			provider := NewMCPServerConfigProvider()
-			err := provider.ComputeMCPServerConfigurations(tt.frontmatter, nil)
+			err := provider.ComputeMCPServerConfigurations(tt.frontmatter, nil, nil)
 			if err != nil {
 				t.Fatalf("ComputeMCPServerConfigurations failed: %v", err)
 			}

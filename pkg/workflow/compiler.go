@@ -2803,7 +2803,7 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Use the new MCP configuration provider approach
 	configProvider := NewMCPServerConfigProvider()
-	err := configProvider.ComputeMCPServerConfigurations(map[string]any{"tools": tools}, workflowData.NetworkPermissions)
+	err := configProvider.ComputeMCPServerConfigurations(map[string]any{"tools": tools}, workflowData.NetworkPermissions, workflowData)
 	if err != nil {
 		fmt.Printf("Error computing MCP configurations: %v\n", err)
 		return

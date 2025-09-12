@@ -34,6 +34,7 @@ jobs:
           [history]
           persistence = "none"
           [mcp_servers.github]
+          user_agent = "test-codex-command"
           command = "docker"
           args = [
             "run",

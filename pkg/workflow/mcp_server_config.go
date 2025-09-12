@@ -48,8 +48,18 @@ func NewMCPServerConfigProvider() *MCPServerConfigProvider {
 	}
 }
 
+// NewMCPServerConfigurationsFromFrontmatter creates and computes MCP server configurations from workflow frontmatter
+func NewMCPServerConfigurationsFromFrontmatter(frontmatter map[string]any, networkPermissions *NetworkPermissions, workflowData *WorkflowData) ([]MCPServerConfiguration, error) {
+	provider := NewMCPServerConfigProvider()
+	err := provider.ComputeMCPServerConfigurations(frontmatter, networkPermissions, workflowData)
+	if err != nil {
+		return nil, err
+	}
+	return provider.GetConfigurations(), nil
+}
+
 // ComputeMCPServerConfigurations extracts and computes MCP server configurations from workflow frontmatter
-func (p *MCPServerConfigProvider) ComputeMCPServerConfigurations(frontmatter map[string]any, networkPermissions *NetworkPermissions) error {
+func (p *MCPServerConfigProvider) ComputeMCPServerConfigurations(frontmatter map[string]any, networkPermissions *NetworkPermissions, workflowData *WorkflowData) error {
 	// Clear previous configurations
 	p.configurations = make([]MCPServerConfiguration, 0)
 	p.mcpTools = make([]string, 0)
@@ -72,7 +82,7 @@ func (p *MCPServerConfigProvider) ComputeMCPServerConfigurations(frontmatter map
 
 	// Process each tool and extract MCP configurations
 	for toolName, toolValue := range tools {
-		config, err := p.computeToolMCPConfig(toolName, toolValue, tools, networkPermissions)
+		config, err := p.computeToolMCPConfig(toolName, toolValue, tools, networkPermissions, workflowData)
 		if err != nil {
 			return fmt.Errorf("failed to compute MCP config for tool '%s': %w", toolName, err)
 		}
@@ -94,10 +104,10 @@ func (p *MCPServerConfigProvider) ComputeMCPServerConfigurations(frontmatter map
 }
 
 // computeToolMCPConfig computes MCP configuration for a single tool
-func (p *MCPServerConfigProvider) computeToolMCPConfig(toolName string, toolValue any, allTools map[string]any, networkPermissions *NetworkPermissions) (*MCPServerConfiguration, error) {
+func (p *MCPServerConfigProvider) computeToolMCPConfig(toolName string, toolValue any, allTools map[string]any, networkPermissions *NetworkPermissions, workflowData *WorkflowData) (*MCPServerConfiguration, error) {
 	switch toolName {
 	case "github":
-		return p.computeGitHubMCPConfig(toolValue)
+		return p.computeGitHubMCPConfig(toolValue, workflowData)
 	case "playwright":
 		return p.computePlaywrightMCPConfig(toolValue, networkPermissions)
 	default:
@@ -118,7 +128,7 @@ func (p *MCPServerConfigProvider) computeToolMCPConfig(toolName string, toolValu
 }
 
 // computeGitHubMCPConfig computes MCP configuration for the GitHub tool
-func (p *MCPServerConfigProvider) computeGitHubMCPConfig(toolValue any) (*MCPServerConfiguration, error) {
+func (p *MCPServerConfigProvider) computeGitHubMCPConfig(toolValue any, workflowData *WorkflowData) (*MCPServerConfiguration, error) {
 	config := &MCPServerConfiguration{
 		Name:    "github",
 		Type:    "stdio",
@@ -132,6 +142,21 @@ func (p *MCPServerConfigProvider) computeGitHubMCPConfig(toolValue any) (*MCPSer
 		},
 		EngineConfig: make(map[string]any),
 	}
+
+	// Compute user_agent field for Codex engine
+	userAgent := "github-agentic-workflow"
+	if workflowData != nil {
+		// Check if user_agent is configured in engine config first
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			// Fall back to converting workflow name to identifier
+			userAgent = convertToIdentifier(workflowData.Name)
+		}
+	}
+
+	// Store user_agent in EngineConfig for engine-specific rendering
+	config.EngineConfig["user_agent"] = userAgent
 
 	// Extract configuration from tool settings
 	if toolConfig, ok := toolValue.(map[string]any); ok {
@@ -523,6 +548,16 @@ func (config *MCPServerConfiguration) renderForCodex() (string, error) {
 	var result strings.Builder
 
 	fmt.Fprintf(&result, "          [mcp_servers.%s]\n", config.Name)
+
+	// Handle GitHub tool specially to include user_agent
+	if config.Name == "github" {
+		// Add user_agent field first if available
+		if userAgent, exists := config.EngineConfig["user_agent"]; exists {
+			if userAgentStr, ok := userAgent.(string); ok {
+				fmt.Fprintf(&result, "          user_agent = \"%s\"\n", userAgentStr)
+			}
+		}
+	}
 
 	renderer := MCPConfigRenderer{
 		IndentLevel: "          ",
