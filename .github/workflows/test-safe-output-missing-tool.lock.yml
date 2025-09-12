@@ -615,7 +615,7 @@ jobs:
 
             function handleMessage(msg) {
                 if (msg.method && !msg.id) {
-                    console.debug("<- notification", msg.method, msg.params || "");
+                    console.error("<- notification", msg.method, msg.params || "");
                     return;
                 }
                 if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
@@ -625,11 +625,11 @@ jobs:
                         if (msg.error) waiter.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
                         else waiter.resolve(msg.result);
                     } else {
-                        console.debug("<- response with unknown id", msg.id);
+                        console.error("<- response with unknown id", msg.id);
                     }
                     return;
                 }
-                console.debug("<- unexpected message", msg);
+                console.error("<- unexpected message", msg);
             }
 
             child.stdout.on("data", (chunk) => {
@@ -664,39 +664,27 @@ jobs:
                 process.stderr.write("[server] " + d.toString());
             });
             child.on("exit", (code, sig) => {
-                console.log("server exited", code, sig);
+                console.error("server exited", code, sig);
             });
 
             (async () => {
                 try {
-                    console.debug("Starting MCP client -> spawning server at", serverPath);
+                    console.error("Starting MCP client -> spawning server at", serverPath);
                     const init = await sendRequest("initialize", {
                         clientInfo: { name: "mcp-stdio-client", version: "0.1.0" },
                         protocolVersion: "2024-11-05",
                     });
-                    console.debug("initialize ->", init);
+                    console.error("initialize ->", init);
                     const toolsList = await sendRequest("tools/list", {});
-                    console.debug("tools/list ->", toolsList);
-                    for (const entry of toolCalls) {
-                        let name, args;
-                        if (!entry) continue;
-                        if (entry.method === "tools/call" && entry.params) {
-                            name = entry.params.name;
-                            args = entry.params.arguments || {};
-                        } else if (entry.name) {
-                            name = entry.name;
-                            args = entry.arguments || {};
-                        } else {
-                            console.warn("Skipping invalid tool call entry:", entry);
-                            continue;
-                        }
-
-                        console.log("Calling tool:", name, args);
+                    console.error("tools/list ->", toolsList);
+                    for (const toolCall of toolCalls) {
+                        const { type, ...args } = toolCall;
+                        console.error("Calling tool:", type, args);
                         try {
-                            const res = await sendRequest("tools/call", { name, arguments: args });
-                            console.log("tools/call ->", res);
+                            const res = await sendRequest("tools/call", { name: type, arguments: args });
+                            console.error("tools/call ->", res);
                         } catch (err) {
-                            console.error("tools/call error for", name, err);
+                            console.error("tools/call error for", type, err);
                         }
                     }
 
