@@ -8,6 +8,7 @@ import starlightGitHubAlerts from 'starlight-github-alerts';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://githubnext.github.io/gh-aw/',
+	base: '/gh-aw/',
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
