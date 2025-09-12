@@ -13,7 +13,7 @@ async function main() {
     return;
   }
 
-  core.info(`Agent output content length:: ${outputContent.length}`);
+  core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
@@ -132,9 +132,9 @@ async function main() {
     // Prepare the body content
     const body = bodyLines.join("\n").trim();
 
-    core.info(`Creating issue with title:: ${title}`);
-    core.info(`Labels:: ${labels}`);
-    core.info(`Body length:: ${body.length}`);
+    core.info(`Creating issue with title: ${title}`);
+    core.info(`Labels: ${labels}`);
+    core.info(`Body length: ${body.length}`);
 
     try {
       // Create the issue using GitHub API

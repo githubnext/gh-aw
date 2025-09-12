@@ -14,7 +14,7 @@ async function main() {
     return;
   }
 
-  core.info(`Agent output content length:: ${outputContent.length}`);
+  core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;

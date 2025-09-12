@@ -183,9 +183,9 @@ async function main() {
     // Prepare the body content
     const body = bodyLines.join("\n").trim();
 
-    core.info(`Creating discussion with title:: ${title}`);
-    core.info(`Category ID:: ${categoryId}`);
-    core.info(`Body length:: ${body.length}`);
+    core.info(`Creating discussion with title: ${title}`);
+    core.info(`Category ID: ${categoryId}`);
+    core.info(`Body length: ${body.length}`);
 
     try {
       // Create the discussion using GraphQL API with parameterized mutation

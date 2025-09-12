@@ -315,7 +315,7 @@ async function main() {
   }
 
   if (!fs.existsSync(outputFile)) {
-    core.info(`Output file does not exist:: ${outputFile}`);
+    core.info(`Output file does not exist: ${outputFile}`);
     core.setOutput("output", "");
     return;
   }
@@ -327,7 +327,7 @@ async function main() {
     return;
   }
 
-  core.info(`Raw output content length:: ${outputContent.length}`);
+  core.info(`Raw output content length: ${outputContent.length}`);
 
   // Parse the safe-outputs configuration
   /** @type {any} */

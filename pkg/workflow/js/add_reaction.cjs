@@ -2,7 +2,7 @@ async function main() {
   // Read inputs from environment variables
   const reaction = process.env.GITHUB_AW_REACTION || "eyes";
 
-  core.info(`Reaction type:: ${reaction}`);
+  core.info(`Reaction type: ${reaction}`);
 
   // Validate reaction type
   const validReactions = [
@@ -73,7 +73,7 @@ async function main() {
         return;
     }
 
-    core.info(`API endpoint:: ${endpoint}`);
+    core.info(`API endpoint: ${endpoint}`);
 
     await addReaction(endpoint, reaction);
   } catch (error) {

@@ -11,7 +11,7 @@ async function main() {
     return;
   }
 
-  core.info(`Agent output content length:: ${outputContent.length}`);
+  core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
@@ -203,7 +203,7 @@ async function main() {
     core.info(
       `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`
     );
-    core.info(`Comment content length:: ${body.length}`);
+    core.info(`Comment content length: ${body.length}`);
 
     try {
       // Prepare the request parameters

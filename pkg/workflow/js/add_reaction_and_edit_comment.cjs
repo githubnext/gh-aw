@@ -7,10 +7,10 @@ async function main() {
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
     : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-  core.info(`Reaction type:: ${reaction}`);
-  core.info(`Command name:: ${command || "none"}`);
-  core.info(`Run ID:: ${runId}`);
-  core.info(`Run URL:: ${runUrl}`);
+  core.info(`Reaction type: ${reaction}`);
+  core.info(`Command name: ${command || "none"}`);
+  core.info(`Run ID: ${runId}`);
+  core.info(`Run URL: ${runUrl}`);
 
   // Validate reaction type
   const validReactions = [
@@ -92,14 +92,14 @@ async function main() {
         return;
     }
 
-    core.info(`Reaction API endpoint:: ${reactionEndpoint}`);
+    core.info(`Reaction API endpoint: ${reactionEndpoint}`);
 
     // Add reaction first
     await addReaction(reactionEndpoint, reaction);
 
     // Then edit comment if applicable and if it's a comment event
     if (shouldEditComment && commentUpdateEndpoint) {
-      core.info(`Comment update endpoint:: ${commentUpdateEndpoint}`);
+      core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
       await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
     } else {
       if (!command && commentUpdateEndpoint) {
@@ -107,7 +107,7 @@ async function main() {
           "Skipping comment edit - only available for command workflows"
         );
       } else {
-        core.info(`Skipping comment edit for event type:: ${eventName}`);
+        core.info(`Skipping comment edit for event type: ${eventName}`);
       }
     }
   } catch (error) {

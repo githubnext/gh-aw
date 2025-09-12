@@ -74,11 +74,11 @@ async function main() {
     }
   }
 
-  core.info(`Agent output content length:: ${outputContent.length}`);
+  core.info(`Agent output content length: ${outputContent.length}`);
   if (!isEmpty) {
     core.info("Patch content validation passed");
   }
-  core.info(`Target configuration:: ${target}`);
+  core.info(`Target configuration: ${target}`);
 
   // Parse the validated output JSON
   let validatedOutput;
@@ -191,13 +191,13 @@ async function main() {
     return;
   }
 
-  core.info(`Target branch:: ${branchName}`);
+  core.info(`Target branch: ${branchName}`);
 
   // Check if patch has actual changes (not just empty)
   const hasChanges = !isEmpty;
 
   // Switch to or create the target branch
-  core.info(`Switching to branch:: ${branchName}`);
+  core.info(`Switching to branch: ${branchName}`);
   try {
     // Try to checkout existing branch first
     execSync("git fetch origin", { stdio: "inherit" });
@@ -211,14 +211,14 @@ async function main() {
       execSync(`git checkout -B ${branchName} origin/${branchName}`, {
         stdio: "inherit",
       });
-      core.info(`Checked out existing branch from origin:: ${branchName}`);
+      core.info(`Checked out existing branch from origin: ${branchName}`);
     } catch (originError) {
       // Branch doesn't exist on origin, check if it exists locally
       try {
         execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
         // Branch exists locally, check it out
         execSync(`git checkout ${branchName}`, { stdio: "inherit" });
-        core.info(`Checked out existing local branch:: ${branchName}`);
+        core.info(`Checked out existing local branch: ${branchName}`);
       } catch (localError) {
         // Branch doesn't exist locally or on origin, create it from default branch
         core.info(
@@ -230,7 +230,7 @@ async function main() {
           "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
           { encoding: "utf8" }
         ).trim();
-        core.info(`Default branch:: ${defaultBranch}`);
+        core.info(`Default branch: ${defaultBranch}`);
 
         // Ensure we have the latest default branch
         execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
@@ -238,7 +238,7 @@ async function main() {
 
         // Create new branch from default branch
         execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-        core.info(`Created new branch from default branch:: ${branchName}`);
+        core.info(`Created new branch from default branch: ${branchName}`);
       }
     }
   } catch (error) {
@@ -258,7 +258,7 @@ async function main() {
 
       // Push the applied commits to the branch
       execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-      core.info(`Changes committed and pushed to branch:: ${branchName}`);
+      core.info(`Changes committed and pushed to branch: ${branchName}`);
     } catch (error) {
       core.error(
         `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
