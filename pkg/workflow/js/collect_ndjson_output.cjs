@@ -4,10 +4,11 @@ async function main() {
   /**
    * Sanitizes content for safe output in GitHub Actions
    * @param {string} content - The content to sanitize
-   * @param {boolean} forIssueContent - Whether this is for GitHub issue/comment/PR content (skips XML escaping)
+   * @param {Object} options - Sanitization options
+   * @param {boolean} options.xml - Whether to apply XML character escaping (default: true)
    * @returns {string} The sanitized content
    */
-  function sanitizeContent(content, forIssueContent = false) {
+  function sanitizeContent(content, options = { xml: true }) {
     if (!content || typeof content !== "string") {
       return "";
     }
@@ -39,7 +40,7 @@ async function main() {
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
     // XML character escaping - skip for GitHub issue content which uses Markdown
-    if (!forIssueContent) {
+    if (options.xml) {
       sanitized = sanitized
         .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
         .replace(/</g, "&lt;")
@@ -397,12 +398,14 @@ async function main() {
             continue;
           }
           // Sanitize text content for issue creation
-          item.title = sanitizeContent(item.title, true);
-          item.body = sanitizeContent(item.body, true);
+          item.title = sanitizeContent(item.title, { xml: false });
+          item.body = sanitizeContent(item.body, { xml: false });
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(label =>
-              typeof label === "string" ? sanitizeContent(label, true) : label
+              typeof label === "string"
+                ? sanitizeContent(label, { xml: false })
+                : label
             );
           }
           break;
@@ -415,7 +418,7 @@ async function main() {
             continue;
           }
           // Sanitize text content for issue comment
-          item.body = sanitizeContent(item.body, true);
+          item.body = sanitizeContent(item.body, { xml: false });
           break;
 
         case "create-pull-request":
@@ -432,16 +435,18 @@ async function main() {
             continue;
           }
           // Sanitize text content for pull request creation
-          item.title = sanitizeContent(item.title, true);
-          item.body = sanitizeContent(item.body, true);
+          item.title = sanitizeContent(item.title, { xml: false });
+          item.body = sanitizeContent(item.body, { xml: false });
           // Sanitize branch name if present
           if (item.branch && typeof item.branch === "string") {
-            item.branch = sanitizeContent(item.branch, true);
+            item.branch = sanitizeContent(item.branch, { xml: false });
           }
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(label =>
-              typeof label === "string" ? sanitizeContent(label, true) : label
+              typeof label === "string"
+                ? sanitizeContent(label, { xml: false })
+                : label
             );
           }
           break;
@@ -460,7 +465,9 @@ async function main() {
             continue;
           }
           // Sanitize label strings for issues
-          item.labels = item.labels.map(label => sanitizeContent(label, true));
+          item.labels = item.labels.map(label =>
+            sanitizeContent(label, { xml: false })
+          );
           break;
 
         case "update-issue":
@@ -495,7 +502,7 @@ async function main() {
               );
               continue;
             }
-            item.title = sanitizeContent(item.title, true);
+            item.title = sanitizeContent(item.title, { xml: false });
           }
           // Validate body if provided
           if (item.body !== undefined) {
@@ -505,7 +512,7 @@ async function main() {
               );
               continue;
             }
-            item.body = sanitizeContent(item.body, true);
+            item.body = sanitizeContent(item.body, { xml: false });
           }
           // Validate issue_number if provided (for target "*")
           if (item.issue_number !== undefined) {
@@ -530,7 +537,7 @@ async function main() {
               );
               continue;
             }
-            item.message = sanitizeContent(item.message);
+            item.message = sanitizeContent(item.message, { xml: true });
           }
           // Validate pull_request_number if provided (for target "*")
           if (item.pull_request_number !== undefined) {
@@ -584,7 +591,7 @@ async function main() {
             continue;
           }
           // Sanitize required text content for PR review comment
-          item.body = sanitizeContent(item.body, true);
+          item.body = sanitizeContent(item.body, { xml: false });
           // Validate optional start_line field
           if (item.start_line !== undefined) {
             if (
@@ -644,8 +651,8 @@ async function main() {
             continue;
           }
           // Sanitize text content for discussion creation
-          item.title = sanitizeContent(item.title, true);
-          item.body = sanitizeContent(item.body, true);
+          item.title = sanitizeContent(item.title, { xml: false });
+          item.body = sanitizeContent(item.body, { xml: false });
           break;
 
         case "missing-tool":
@@ -664,8 +671,8 @@ async function main() {
             continue;
           }
           // Sanitize text content for missing tool reporting
-          item.tool = sanitizeContent(item.tool);
-          item.reason = sanitizeContent(item.reason);
+          item.tool = sanitizeContent(item.tool, { xml: true });
+          item.reason = sanitizeContent(item.reason, { xml: true });
           // Validate optional alternatives field
           if (item.alternatives !== undefined) {
             if (typeof item.alternatives !== "string") {
@@ -674,7 +681,9 @@ async function main() {
               );
               continue;
             }
-            item.alternatives = sanitizeContent(item.alternatives);
+            item.alternatives = sanitizeContent(item.alternatives, {
+              xml: true,
+            });
           }
           break;
 
@@ -765,11 +774,13 @@ async function main() {
 
           // Normalize severity to lowercase and sanitize string fields
           item.severity = item.severity.toLowerCase();
-          item.file = sanitizeContent(item.file);
-          item.severity = sanitizeContent(item.severity);
-          item.message = sanitizeContent(item.message);
+          item.file = sanitizeContent(item.file, { xml: true });
+          item.severity = sanitizeContent(item.severity, { xml: true });
+          item.message = sanitizeContent(item.message, { xml: true });
           if (item.ruleIdSuffix) {
-            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
+            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, {
+              xml: true,
+            });
           }
           break;
 
