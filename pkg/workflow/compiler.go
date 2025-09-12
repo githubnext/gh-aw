@@ -1779,13 +1779,13 @@ func (c *Compiler) needsPermissionChecksWithFrontmatter(data *WorkflowData, fron
 }
 
 // isTaskJobNeeded determines if the task job is required
-func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
+func (c *Compiler) isTaskJobNeeded(data *WorkflowData, needsPermissionCheck bool) bool {
 	// Task job is needed if:
 	// 1. Command is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
 	// 4. Permission checks are needed (consolidated team member validation)
-	return data.Command != "" || data.NeedsTextOutput || data.If != "" || c.needsPermissionChecks(data)
+	return data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
@@ -1812,7 +1812,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		needsPermissionCheck = c.needsPermissionChecks(data)
 	}
 
-	if c.isTaskJobNeeded(data) || needsPermissionCheck {
+	if c.isTaskJobNeeded(data, needsPermissionCheck) {
 		taskJob, err := c.buildTaskJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build task job: %w", err)
@@ -3318,11 +3318,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To add a comment to an issue or pull request:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          1. Append an entry on a new line to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"add-issue-comment\", \"body\": \"Your comment content in markdown\"}\n")
 			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          2. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3330,11 +3330,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          **Creating an Issue**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To create an issue:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          1. Append an entry on a new line to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-issue\", \"title\": \"Issue title\", \"body\": \"Issue body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
 			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          2. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3349,7 +3349,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-pull-request\", \"branch\": \"branch-name\", \"title\": \"PR title\", \"body\": \"PR body in markdown\", \"labels\": [\"optional\", \"labels\"]}\n")
 			yaml.WriteString("          ```\n")
-			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          5. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3357,11 +3357,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To add labels to a pull request:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          1. Append an entry on a new line to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"add-issue-label\", \"labels\": [\"label1\", \"label2\", \"label3\"]}\n")
 			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          2. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3397,7 +3397,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			}
 
 			yaml.WriteString("          ```\n")
-			yaml.WriteString("          2. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3407,7 +3406,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          To push changes to the branch of a pull request:\n")
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 			yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-			yaml.WriteString("          3. Indicate your intention to push the branch to the repo by writing to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          3. Indicate your intention to push the branch to the repo by appending an entry on a new line to the file \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			var fields []string
 			fields = append(fields, "\"type\": \"push-to-pr-branch\"")
@@ -3423,7 +3422,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			}
 			yaml.WriteString("}\n")
 			yaml.WriteString("          ```\n")
-			yaml.WriteString("          4. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          4. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3431,14 +3430,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          **Creating Repository Security Advisories**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To create repository security advisories (SARIF format for GitHub Code Scanning):\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          1. Append an entry on a new line \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-code-scanning-alert\", \"file\": \"path/to/file.js\", \"line\": 42, \"severity\": \"error\", \"message\": \"Security vulnerability description\", \"column\": 5, \"ruleIdSuffix\": \"custom-rule\"}\n")
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          2. **Required fields**: `file` (string), `line` (number), `severity` (\"error\", \"warning\", \"info\", or \"note\"), `message` (string)\n")
 			yaml.WriteString("          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)\n")
 			yaml.WriteString("          4. Multiple security findings can be reported by writing multiple JSON objects\n")
-			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          5. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3447,14 +3446,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          If you need to use a tool or functionality that is not available to complete your task:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          1. Append an entry on a new line \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"missing-tool\", \"tool\": \"tool-name\", \"reason\": \"Why this tool is needed\", \"alternatives\": \"Suggested alternatives or workarounds\"}\n")
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          2. The `tool` field should specify the name or type of missing functionality\n")
 			yaml.WriteString("          3. The `reason` field should explain why this tool/functionality is required to complete the task\n")
 			yaml.WriteString("          4. The `alternatives` field is optional but can suggest workarounds or alternative approaches\n")
-			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          5. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3462,7 +3461,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          **Creating a Pull Request Review Comment**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To create a review comment on a pull request:\n")
-			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          1. Append an entry on a new line \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
 			yaml.WriteString("          {\"type\": \"create-pull-request-review-comment\", \"body\": \"Your comment content in markdown\", \"path\": \"file/path.ext\", \"start_line\": 10, \"line\": 10, \"side\": \"RIGHT\"}\n")
 			yaml.WriteString("          ```\n")
@@ -3470,7 +3469,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          3. The `line` field specifies the line number in the file for the comment\n")
 			yaml.WriteString("          4. The optional `start_line` field is optional and can be used to specify the start of a multi-line comment range\n")
 			yaml.WriteString("          5. The optional `side` field indicates whether the comment is on the \"RIGHT\" (new code) or \"LEFT\" (old code) side of the diff\n")
-			yaml.WriteString("          6. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          6. After you write to that file, read it back and check it is valid, see below.\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3531,6 +3530,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          - Each JSON object must be on its own line\n")
 		yaml.WriteString("          - Only include output types that are configured for this workflow\n")
 		yaml.WriteString("          - The content of this file will be automatically processed and executed\n")
+		yaml.WriteString("          - After you write or append to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", read it back as JSONL and check it is valid. Make sure it actually puts multiple entries on different lines rather than trying to separate entries on one line with the text \"\\n\" - we've seen you make this mistake before, be careful! Maybe run a bash script to check the validity of the JSONL line by line if you have access to bash. If there are any problems with the JSONL make any necessary corrections to it to fix it up\n")
 		yaml.WriteString("          \n")
 	}
 

@@ -19,14 +19,7 @@ concurrency:
 run-name: "Test Safe Output - Missing Tool"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Task job condition barrier
-        run: echo "Task job executed - conditions satisfied"
-
   test-safe-output-missing-tool:
-    needs: task
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -134,14 +127,14 @@ jobs:
           **Reporting Missing Tools or Functionality**
           
           If you need to use a tool or functionality that is not available to complete your task:
-          1. Write an entry to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          1. Append an entry on a new line "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
           ```json
           {"type": "missing-tool", "tool": "tool-name", "reason": "Why this tool is needed", "alternatives": "Suggested alternatives or workarounds"}
           ```
           2. The `tool` field should specify the name or type of missing functionality
           3. The `reason` field should explain why this tool/functionality is required to complete the task
           4. The `alternatives` field is optional but can suggest workarounds or alternative approaches
-          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up
+          5. After you write to that file, read it back and check it is valid, see below.
           
           **Example JSONL file content:**
           ```
@@ -153,6 +146,7 @@ jobs:
           - Each JSON object must be on its own line
           - Only include output types that are configured for this workflow
           - The content of this file will be automatically processed and executed
+          - After you write or append to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", read it back as JSONL and check it is valid. Make sure it actually puts multiple entries on different lines rather than trying to separate entries on one line with the text "\n" - we've seen you make this mistake before, be careful! Maybe run a bash script to check the validity of the JSONL line by line if you have access to bash. If there are any problems with the JSONL make any necessary corrections to it to fix it up
           
           EOF
       - name: Print prompt to step summary
