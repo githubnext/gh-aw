@@ -233,6 +233,119 @@ engine:
 - Pass authentication tokens: `API_TOKEN: ${{ secrets.CUSTOM_TOKEN }}`
 - Enable debug modes: `DEBUG_MODE: true`
 
+## Error Validation (`engine.error_patterns`)
+
+The `error_patterns` configuration within the engine section enables automatic detection and reporting of errors in agentic workflow logs. When errors are detected, the workflow step will fail, providing immediate feedback about issues during execution.
+
+**Important**: Error patterns must be defined under the `engine:` section of the workflow frontmatter, not as a top-level property.
+
+### How Error Validation Works
+
+1. **Log Analysis**: After the agentic step completes, a validation step scans the agent's output logs
+2. **Pattern Matching**: Uses regular expressions to identify error and warning messages
+3. **Workflow Failure**: If errors are detected, the workflow step fails with `core.setFailed()`
+4. **GitHub Actions Integration**: Errors and warnings are reported using `core.error()` and `core.warn()` for proper GitHub Actions logging
+
+### Engine Support
+
+- **Codex Engine**: Built-in error patterns for common Codex log formats (no configuration needed)
+- **Claude Engine**: No built-in patterns - requires custom `error_patterns` for error validation
+- **Custom Engines**: Fully supported via custom `error_patterns` configuration
+
+### Configuration Syntax
+
+```yaml
+engine:
+  id: claude  # Works with any engine (claude, codex, custom)
+  error_patterns:
+    - pattern: 'ERROR:\s+(.+)'           # Required: regex pattern
+      level_group: 0                     # Optional: capture group for error level (0 = infer)
+      message_group: 1                   # Optional: capture group for message (0 = full match)
+      description: "Application errors"  # Optional: human-readable description
+    - pattern: '\[(\d{4}-\d{2}-\d{2})\]\s+(WARN|WARNING):\s+(.+)'
+      level_group: 2                     # "WARN" or "WARNING" in group 2
+      message_group: 3                   # Error message in group 3
+      description: "Timestamped warnings"
+```
+
+### Pattern Configuration
+
+**Required Fields:**
+- `pattern`: Regular expression to match log lines
+
+**Optional Fields:**
+- `level_group`: Capture group index (1-based) containing the error level (ERROR, WARN, etc.)
+  - Use `0` to automatically infer level from pattern content or treat all matches as errors
+- `message_group`: Capture group index (1-based) containing the error message
+  - Use `0` to use the entire regex match as the message
+- `description`: Human-readable description of what the pattern matches
+
+### Example Patterns
+
+**Basic Error Detection:**
+```yaml
+engine:
+  id: claude
+  error_patterns:
+    - pattern: 'ERROR:.+'
+      description: "Simple error detection"
+```
+
+**Structured Log Parsing:**
+```yaml
+engine:
+  id: claude
+  error_patterns:
+    - pattern: '\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR|WARN):\s+(.+)'
+      level_group: 2    # ERROR or WARN in capture group 2
+      message_group: 3  # Actual message in capture group 3
+      description: "ISO timestamp logs with levels"
+```
+
+**API Error Detection:**
+```yaml
+engine:
+  id: claude
+  error_patterns:
+    - pattern: 'HTTP (\d+) (Client Error|Server Error): (.+)'
+      level_group: 2    # "Client Error" or "Server Error"
+      message_group: 3  # Error description
+      description: "HTTP API errors"
+    - pattern: 'exceeded retry limit.*status: (\d+) (.+)'
+      level_group: 0    # Treat all as errors
+      message_group: 0  # Use full match as message
+      description: "API retry failures"
+```
+
+### Built-in Codex Patterns
+
+The Codex engine includes these predefined patterns:
+
+```yaml
+# Equivalent built-in patterns (no configuration needed for Codex)
+error_patterns:
+  - pattern: '\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+stream\s+(error):\s+(.+)'
+    level_group: 2
+    message_group: 3
+    description: "Codex stream errors with timestamp"
+  - pattern: '\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)'
+    level_group: 2
+    message_group: 3
+    description: "Codex ERROR messages with timestamp"
+  - pattern: '\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(WARN|WARNING):\s+(.+)'
+    level_group: 2
+    message_group: 3
+    description: "Codex warning messages with timestamp"
+```
+
+### Benefits
+
+- **Automatic Failure Detection**: Workflow steps fail immediately when errors are detected
+- **GitHub Actions Integration**: Errors appear properly in workflow logs and summaries
+- **Debugging Support**: Log files are uploaded as artifacts before validation for troubleshooting
+- **Flexible Pattern Matching**: Support for complex regex patterns with capture groups
+- **Engine Agnostic**: Works with any engine when custom patterns are provided
+
 ## Tools Configuration (`tools:`)
 
 The `tools:` section specifies which tools and MCP (Model Context Protocol) servers are available to the AI engine. This enables integration with GitHub APIs, browser automation, and other external services.
