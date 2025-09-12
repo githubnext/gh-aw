@@ -152,7 +152,7 @@ describe("create_pull_request.cjs", () => {
 
     await mainFunction();
 
-    expect(mockDependencies.console.log).toHaveBeenCalledWith(
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
       "No patch file found - cannot create pull request without changes"
     );
     expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe("create_pull_request.cjs", () => {
 
     await mainFunction();
 
-    expect(mockDependencies.console.log).toHaveBeenCalledWith(
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
       "Patch file is empty - no changes to apply (noop operation)"
     );
     expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -499,7 +499,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
         "Patch file is empty - no changes to apply (noop operation)"
       );
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -513,7 +513,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.console.log).not.toHaveBeenCalledWith(
+      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(
         expect.stringContaining("Patch file is empty")
       );
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -539,7 +539,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
         "No patch file found - cannot create pull request without changes"
       );
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -553,7 +553,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.console.log).not.toHaveBeenCalledWith(
+      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(
         expect.stringContaining("No patch file found")
       );
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -581,7 +581,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
         "Patch file contains error message - cannot create pull request without changes"
       );
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -595,7 +595,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
         "Patch file is empty - no changes to apply (noop operation)"
       );
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -634,7 +634,7 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.core.summary.write).toHaveBeenCalled();
 
       // Verify console log for staged mode
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
         "📝 Pull request creation preview written to step summary"
       );
 
@@ -741,7 +741,7 @@ describe("create_pull_request.cjs", () => {
       );
 
       // Verify console log for staged mode
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
         "📝 Pull request creation preview written to step summary (no patch file)"
       );
     });
@@ -765,7 +765,7 @@ describe("create_pull_request.cjs", () => {
       );
 
       // Verify console log for staged mode
-      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
         "📝 Pull request creation preview written to step summary (patch error)"
       );
     });
