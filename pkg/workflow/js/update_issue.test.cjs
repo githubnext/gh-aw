@@ -10,25 +10,25 @@ const mockCore = {
   notice: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
-  
+
   // Core workflow functions
   setFailed: vi.fn(),
   setOutput: vi.fn(),
   exportVariable: vi.fn(),
   setSecret: vi.fn(),
-  
+
   // Input/state functions (less commonly used but included for completeness)
   getInput: vi.fn(),
   getBooleanInput: vi.fn(),
   getMultilineInput: vi.fn(),
   getState: vi.fn(),
   saveState: vi.fn(),
-  
+
   // Group functions
   startGroup: vi.fn(),
   endGroup: vi.fn(),
   group: vi.fn(),
-  
+
   // Other utility functions
   addPath: vi.fn(),
   setCommandEcho: vi.fn(),
@@ -37,7 +37,7 @@ const mockCore = {
   toPlatformPath: vi.fn(),
   toPosixPath: vi.fn(),
   toWin32Path: vi.fn(),
-  
+
   // Summary object with chainable methods
   summary: {
     addRaw: vi.fn().mockReturnThis(),
