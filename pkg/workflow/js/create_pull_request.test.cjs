@@ -593,7 +593,9 @@ describe("create_pull_request.cjs", () => {
 
       // Verify that step summary was written
       expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(
-        expect.stringContaining("## 🎭 Staged Mode: Create Pull Request Preview")
+        expect.stringContaining(
+          "## 🎭 Staged Mode: Create Pull Request Preview"
+        )
       );
       expect(mockDependencies.core.summary.write).toHaveBeenCalled();
 
@@ -622,7 +624,9 @@ describe("create_pull_request.cjs", () => {
       expect(summaryCall).toContain("**Branch:** feature-test");
       expect(summaryCall).toContain("**Base:** main");
       expect(summaryCall).toContain("**Body:**");
-      expect(summaryCall).toContain("This is a test PR for staged mode functionality.");
+      expect(summaryCall).toContain(
+        "This is a test PR for staged mode functionality."
+      );
       expect(summaryCall).toContain("**Changes:** Patch file exists with");
       expect(summaryCall).toContain("Show patch preview");
       expect(summaryCall).toContain("diff --git a/test.txt");
@@ -672,13 +676,15 @@ describe("create_pull_request.cjs", () => {
 
       // Verify no git operations were performed
       expect(mockDependencies.execSync).not.toHaveBeenCalledWith(
-        expect.stringContaining("git"), 
+        expect.stringContaining("git"),
         expect.anything()
       );
 
       // Verify no GitHub API calls were made
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
-      expect(mockDependencies.github.rest.issues.addLabels).not.toHaveBeenCalled();
+      expect(
+        mockDependencies.github.rest.issues.addLabels
+      ).not.toHaveBeenCalled();
 
       // Verify no outputs were set
       expect(mockDependencies.core.setOutput).not.toHaveBeenCalled();
@@ -696,7 +702,9 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
       const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
       expect(summaryCall).toContain("⚠️ No patch file found");
-      expect(summaryCall).toContain("No patch file found - cannot create pull request without changes");
+      expect(summaryCall).toContain(
+        "No patch file found - cannot create pull request without changes"
+      );
 
       // Verify console log for staged mode
       expect(mockDependencies.console.log).toHaveBeenCalledWith(
@@ -706,7 +714,9 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle patch error in staged mode", async () => {
       mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.fs.readFileSync.mockReturnValue("Failed to generate patch: some error occurred");
+      mockDependencies.fs.readFileSync.mockReturnValue(
+        "Failed to generate patch: some error occurred"
+      );
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -716,7 +726,9 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
       const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
       expect(summaryCall).toContain("⚠️ Patch file contains error");
-      expect(summaryCall).toContain("Patch file contains error message - cannot create pull request without changes");
+      expect(summaryCall).toContain(
+        "Patch file contains error message - cannot create pull request without changes"
+      );
 
       // Verify console log for staged mode
       expect(mockDependencies.console.log).toHaveBeenCalledWith(

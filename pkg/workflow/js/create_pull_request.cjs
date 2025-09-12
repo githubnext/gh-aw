@@ -38,10 +38,12 @@ async function main() {
         "The following pull request would be created if staged mode was disabled:\n\n";
       summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
       summaryContent += `**Message:** ${message}\n\n`;
-      
+
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
-      console.log("📝 Pull request creation preview written to step summary (no patch file)");
+      console.log(
+        "📝 Pull request creation preview written to step summary (no patch file)"
+      );
       return;
     }
 
@@ -72,10 +74,12 @@ async function main() {
         "The following pull request would be created if staged mode was disabled:\n\n";
       summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
       summaryContent += `**Message:** ${message}\n\n`;
-      
+
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
-      console.log("📝 Pull request creation preview written to step summary (patch error)");
+      console.log(
+        "📝 Pull request creation preview written to step summary (patch error)"
+      );
       return;
     }
 
