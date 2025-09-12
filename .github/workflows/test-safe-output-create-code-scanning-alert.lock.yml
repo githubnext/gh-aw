@@ -613,36 +613,7 @@ jobs:
           
           ## Creating Repository Security Advisories, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
-          
-          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.
-          
-          ### Available Output Types:
-          
-          **Creating Repository Security Advisories**
-          
-          To create repository security advisories (SARIF format for GitHub Code Scanning):
-          1. Append an entry on a new line "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
-          ```json
-          {"type": "create-code-scanning-alert", "file": "path/to/file.js", "line": 42, "severity": "error", "message": "Security vulnerability description", "column": 5, "ruleIdSuffix": "custom-rule"}
-          ```
-          2. **Required fields**: `file` (string), `line` (number), `severity` ("error", "warning", "info", or "note"), `message` (string)
-          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)
-          4. Multiple security findings can be reported by writing multiple JSON objects
-          5. After you write to that file, read it back and check it is valid, see below.
-          
-          **Example JSONL file content:**
-          ```
-          {"type": "create-code-scanning-alert", "file": "src/auth.js", "line": 25, "severity": "error", "message": "Potential SQL injection vulnerability"}
-          ```
-          
-          **Important Notes:**
-          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions
-          - Each JSON object must be on its own line
-          - Only include output types that are configured for this workflow
-          - The content of this file will be automatically processed and executed
-          - After you write or append to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", read it back as JSONL and check it is valid. Make sure it actually puts multiple entries on different lines rather than trying to separate entries on one line with the text "\n" - we've seen you make this mistake before, be careful! Maybe run a bash script to check the validity of the JSONL line by line if you have access to bash. If there are any problems with the JSONL make any necessary corrections to it to fix it up
-          
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           EOF
       - name: Print prompt to step summary
         run: |

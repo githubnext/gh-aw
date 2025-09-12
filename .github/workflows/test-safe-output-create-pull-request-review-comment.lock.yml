@@ -604,37 +604,7 @@ jobs:
           
           ## Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
-          
-          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.
-          
-          ### Available Output Types:
-          
-          **Creating a Pull Request Review Comment**
-          
-          To create a review comment on a pull request:
-          1. Append an entry on a new line "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
-          ```json
-          {"type": "create-pull-request-review-comment", "body": "Your comment content in markdown", "path": "file/path.ext", "start_line": 10, "line": 10, "side": "RIGHT"}
-          ```
-          2. The `path` field specifies the file path in the pull request where the comment should be added
-          3. The `line` field specifies the line number in the file for the comment
-          4. The optional `start_line` field is optional and can be used to specify the start of a multi-line comment range
-          5. The optional `side` field indicates whether the comment is on the "RIGHT" (new code) or "LEFT" (old code) side of the diff
-          6. After you write to that file, read it back and check it is valid, see below.
-          
-          **Example JSONL file content:**
-          ```
-          {"type": "create-pull-request-review-comment", "body": "Consider renaming this variable for clarity.", "path": "src/main.py", "start_line": 41, "line": 42, "side": "RIGHT"}
-          ```
-          
-          **Important Notes:**
-          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions
-          - Each JSON object must be on its own line
-          - Only include output types that are configured for this workflow
-          - The content of this file will be automatically processed and executed
-          - After you write or append to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", read it back as JSONL and check it is valid. Make sure it actually puts multiple entries on different lines rather than trying to separate entries on one line with the text "\n" - we've seen you make this mistake before, be careful! Maybe run a bash script to check the validity of the JSONL line by line if you have access to bash. If there are any problems with the JSONL make any necessary corrections to it to fix it up
-          
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           EOF
       - name: Print prompt to step summary
         run: |
