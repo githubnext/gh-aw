@@ -1839,7 +1839,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if data.SafeOutputs != nil {
 		// Build create_issue job if output.create_issue is configured
 		if data.SafeOutputs.CreateIssues != nil {
-			createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName, taskJobCreated)
+			createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName, taskJobCreated, frontmatter)
 			if err != nil {
 				return fmt.Errorf("failed to build create_issue job: %w", err)
 			}
@@ -2029,9 +2029,9 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 
 	// Add actions: write permission if team member checks are present
 	_, hasExplicitRoles := frontmatter["roles"]
-	requiresWorkflowCancellation := data.Command != "" || 
+	requiresWorkflowCancellation := data.Command != "" ||
 		(needsPermissionCheck && hasExplicitRoles)
-	
+
 	if requiresWorkflowCancellation {
 		job.Permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read"
 	}
@@ -2114,9 +2114,10 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 	permissions := "permissions:\n      issues: write\n      pull-requests: write"
 
 	// Add actions: write permission if team member checks are present for command workflows
-	requiresWorkflowCancellation := data.Command != "" || 
-		(!taskJobCreated && c.needsPermissionChecks(data) && len(data.Roles) > 0)
-		
+	_, hasExplicitRoles := frontmatter["roles"]
+	requiresWorkflowCancellation := data.Command != "" ||
+		(!taskJobCreated && c.needsPermissionChecks(data) && hasExplicitRoles)
+
 	if requiresWorkflowCancellation {
 		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      issues: write\n      pull-requests: write\n      contents: read"
 	}
@@ -2135,7 +2136,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 }
 
 // buildCreateOutputIssueJob creates the create_issue job
-func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string, taskJobCreated bool) (*Job, error) {
+func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
 		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
 	}
@@ -2215,9 +2216,10 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	permissions := "permissions:\n      contents: read\n      issues: write"
 
 	// Add actions: write permission if team member checks are present for command workflows
-	requiresWorkflowCancellation := data.Command != "" || 
-		(!taskJobCreated && c.needsPermissionChecks(data) && len(data.Roles) > 0)
-		
+	_, hasExplicitRoles := frontmatter["roles"]
+	requiresWorkflowCancellation := data.Command != "" ||
+		(!taskJobCreated && c.needsPermissionChecks(data) && hasExplicitRoles)
+
 	if requiresWorkflowCancellation {
 		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read\n      issues: write"
 	}

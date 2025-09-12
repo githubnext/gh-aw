@@ -34,7 +34,9 @@ async function main() {
     core.error(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    await setCancelled("Configuration error: Required permissions not specified");
+    await setCancelled(
+      "Configuration error: Required permissions not specified"
+    );
     return;
   }
 
