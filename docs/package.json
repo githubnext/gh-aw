@@ -7,12 +7,14 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "validate-links": "astro build"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.35.2",
     "astro": "^5.6.1",
     "sharp": "^0.34.2",
+    "starlight-links-validator": "^0.17.2",
     "starlight-llms-txt": "^0.6.0"
   }
 }

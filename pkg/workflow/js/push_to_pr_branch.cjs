@@ -151,9 +151,9 @@ async function main() {
   // Compute the target branch name based on target configuration
   let pullNumber;
   if (target === "triggering") {
-
     // Use the number of the triggering pull request
-    pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
+    pullNumber =
+      context.payload?.pull_request?.number || context.payload?.issue?.number;
 
     // Check if we're in a pull request context when required
     if (!pullNumber) {
