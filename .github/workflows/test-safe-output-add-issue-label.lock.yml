@@ -1140,6 +1140,7 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-safe-output-add-issue-label.outputs.output }}
           GITHUB_AW_LABELS_ALLOWED: "test-safe-output,automation,bug,enhancement,documentation,question"
           GITHUB_AW_LABELS_MAX_COUNT: 3
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             async function main() {
