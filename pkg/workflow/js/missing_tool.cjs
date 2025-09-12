@@ -105,5 +105,5 @@ async function main() {
 
 main().catch(error => {
   core.error(`Error processing missing-tool reports: ${error}`);
-  process.exit(1);
+  core.setFailed(`Error processing missing-tool reports: ${error}`);
 });
