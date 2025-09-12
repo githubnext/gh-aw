@@ -77,7 +77,7 @@ function validateErrors(logContent, patterns) {
           core.error(errorMessage);
           hasErrors = true;
         } else {
-          core.warn(errorMessage);
+          core.warning(errorMessage);
         }
       }
     }
