@@ -27,7 +27,7 @@ function main() {
     if (hasErrors) {
       core.setFailed("Errors detected in agent logs - failing workflow step");
     } else {
-      console.log("Error validation completed successfully");
+      core.info("Error validation completed successfully");
     }
   } catch (error) {
     console.debug(error);
