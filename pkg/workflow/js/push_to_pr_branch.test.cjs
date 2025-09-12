@@ -132,30 +132,24 @@ describe("push_to_pr_branch.cjs", () => {
       // Remove the output content environment variable
       delete process.env.GITHUB_AW_AGENT_OUTPUT;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("Agent output content is empty");
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should skip when agent output is empty", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith("Agent output content is empty");
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle missing patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -164,18 +158,15 @@ describe("push_to_pr_branch.cjs", () => {
 
       mockFs.existsSync.mockReturnValue(false);
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "No patch file found - cannot push without changes"
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should fail when patch file missing and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -201,16 +192,13 @@ describe("push_to_pr_branch.cjs", () => {
 
       mockFs.existsSync.mockReturnValue(false);
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
       expect(consoleSpy).not.toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle patch file with error content", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -222,18 +210,15 @@ describe("push_to_pr_branch.cjs", () => {
         "Failed to generate patch: some error"
       );
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "Patch file contains error message - cannot push without changes"
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle empty patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -246,22 +231,17 @@ describe("push_to_pr_branch.cjs", () => {
       // Mock the git command to return a branch name
       mockExecSync.mockReturnValue("feature-branch");
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "Patch file is empty - no changes to apply (noop operation)"
       );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Agent output content length:",
-        expect.any(Number)
+      expect(mockCore.info).toHaveBeenCalledWith(`Agent output content length: ${expect.any(Number}`)
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should fail when empty patch and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -300,26 +280,19 @@ describe("push_to_pr_branch.cjs", () => {
       // Mock the git commands that will be called
       mockExecSync.mockReturnValue("feature-branch");
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Agent output content length:",
-        JSON.stringify(validOutput).length
+      expect(mockCore.info).toHaveBeenCalledWith(`Agent output content length: ${JSON.stringify(validOutput}`).length
       );
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "Patch content validation passed"
       );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Target configuration:",
-        "triggering"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`Target configuration: ${"triggering"
+      }`);
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle invalid JSON in agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json content";
@@ -327,19 +300,14 @@ describe("push_to_pr_branch.cjs", () => {
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("some patch content");
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error parsing agent output JSON:",
-        expect.any(String)
+      expect(mockCore.info).toHaveBeenCalledWith(`Error parsing agent output JSON: ${expect.any(String}`)
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle agent output without valid items array", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -349,18 +317,15 @@ describe("push_to_pr_branch.cjs", () => {
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("some patch content");
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "No valid items found in agent output"
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should use custom target configuration", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -374,18 +339,13 @@ describe("push_to_pr_branch.cjs", () => {
       // Mock the git commands
       mockExecSync.mockReturnValue("feature-branch");
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Target configuration:",
-        "custom-target"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`Target configuration: ${"custom-target"
+      }`);
 
-      consoleSpy.mockRestore();
-    });
+      });
   });
 
   describe("Script validation", () => {

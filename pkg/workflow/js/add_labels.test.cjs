@@ -305,15 +305,12 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "issue_comment";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should work with pull_request event", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -329,8 +326,6 @@ describe("add_labels.cjs", () => {
       global.context.payload.pull_request = { number: 456 };
       delete global.context.payload.issue;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
@@ -341,8 +336,7 @@ describe("add_labels.cjs", () => {
         labels: ["bug"],
       });
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should work with pull_request_review event", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -358,8 +352,6 @@ describe("add_labels.cjs", () => {
       global.context.payload.pull_request = { number: 789 };
       delete global.context.payload.issue;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
@@ -370,8 +362,7 @@ describe("add_labels.cjs", () => {
         labels: ["bug"],
       });
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should fail when issue context detected but no issue in payload", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -431,8 +422,6 @@ describe("add_labels.cjs", () => {
       });
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
@@ -450,8 +439,7 @@ describe("add_labels.cjs", () => {
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should skip empty lines in agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -464,8 +452,6 @@ describe("add_labels.cjs", () => {
       });
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
@@ -476,8 +462,7 @@ describe("add_labels.cjs", () => {
         labels: ["bug", "enhancement"],
       });
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should fail when line starts with dash (removal indication)", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -510,8 +495,6 @@ describe("add_labels.cjs", () => {
       });
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
@@ -522,8 +505,7 @@ describe("add_labels.cjs", () => {
         labels: ["bug", "enhancement"], // Duplicates removed
       });
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should enforce max count limit", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -676,8 +658,7 @@ describe("add_labels.cjs", () => {
         "Failed to add labels: Label does not exist"
       );
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle non-Error objects in catch block", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -707,8 +688,7 @@ describe("add_labels.cjs", () => {
         "Failed to add labels: Something went wrong"
       );
 
-      consoleSpy.mockRestore();
-    });
+      });
   });
 
   describe("Output and logging", () => {
@@ -743,20 +723,17 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature";
       process.env.GITHUB_AW_LABELS_MAX_COUNT = "5";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Allowed labels:", [
+      expect(mockCore.debug).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify([
         "bug",
         "enhancement",
         "feature",
-      ]);
-      expect(consoleSpy).toHaveBeenCalledWith("Max count:", 5);
+      ])}`);
+      expect(mockCore.debug).toHaveBeenCalledWith("Max count: 5");
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should log requested labels", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -769,19 +746,16 @@ describe("add_labels.cjs", () => {
       });
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Requested labels:", [
+      expect(mockCore.debug).toHaveBeenCalledWith(`Requested labels: ${JSON.stringify([
         "bug",
         "enhancement",
         "invalid",
-      ]);
+      ])}`);
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should log final labels being added", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -794,18 +768,12 @@ describe("add_labels.cjs", () => {
       });
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Adding 2 labels to issue #123:",
-        ["bug", "enhancement"]
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`Adding 2 labels to issue #123: ${JSON.stringify(["bug", "enhancement"])}`);
 
-      consoleSpy.mockRestore();
-    });
+      });
   });
 
   describe("Edge cases", () => {
@@ -820,16 +788,14 @@ describe("add_labels.cjs", () => {
       });
       process.env.GITHUB_AW_LABELS_ALLOWED = " bug , enhancement , feature ";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Allowed labels:", [
+      expect(mockCore.debug).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify([
         "bug",
         "enhancement",
         "feature",
-      ]);
+      ])}`);
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -837,8 +803,7 @@ describe("add_labels.cjs", () => {
         labels: ["bug", "enhancement"],
       });
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle empty entries in allowed labels", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -851,18 +816,15 @@ describe("add_labels.cjs", () => {
       });
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,,enhancement,";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Allowed labels:", [
+      expect(mockCore.debug).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify([
         "bug",
         "enhancement",
-      ]);
+      ])}`);
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should handle single label output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -877,8 +839,6 @@ describe("add_labels.cjs", () => {
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
@@ -891,7 +851,6 @@ describe("add_labels.cjs", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("labels_added", "bug");
 
-      consoleSpy.mockRestore();
-    });
+      });
   });
 });
