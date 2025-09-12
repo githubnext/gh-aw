@@ -7,7 +7,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddIssueComments != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
-		safeOutputs.CreateRepositorySecurityAdvisories != nil ||
+		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AddIssueLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||

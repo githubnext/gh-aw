@@ -301,13 +301,20 @@ TOOLS["create_pull_request"] = {
   description: "Create a new GitHub pull request",
   inputSchema: {
     type: "object",
-    required: ["title", "body", "head", "base"],
+    required: ["title", "body"],
     properties: {
       title: { type: "string", description: "Pull request title" },
       body: { type: "string", description: "Pull request body/description" },
-      head: { type: "string", description: "Head branch name" },
-      base: { type: "string", description: "Base branch name" },
-      draft: { type: "boolean", description: "Create as draft PR" },
+      branch: {
+        type: "string",
+        description:
+          "Optional branch name (will be auto-generated if not provided)",
+      },
+      labels: {
+        type: "array",
+        items: { type: "string" },
+        description: "Optional labels to add to the PR",
+      },
     },
     additionalProperties: false,
   },
@@ -320,12 +327,11 @@ TOOLS["create_pull_request"] = {
       type: "create-pull-request",
       title: args.title,
       body: args.body,
-      head: args.head,
-      base: args.base,
     };
 
-    if (args.draft !== undefined) {
-      entry.draft = args.draft;
+    if (args.branch) entry.branch = args.branch;
+    if (args.labels && Array.isArray(args.labels)) {
+      entry.labels = args.labels;
     }
 
     appendSafeOutput(entry);
@@ -347,14 +353,22 @@ TOOLS["create_pull_request_review_comment"] = {
   description: "Create a review comment on a GitHub pull request",
   inputSchema: {
     type: "object",
-    required: ["body"],
+    required: ["path", "line", "body"],
     properties: {
-      body: { type: "string", description: "Review comment body" },
-      path: { type: "string", description: "File path for line comment" },
-      line: { type: "number", description: "Line number for comment" },
-      pull_number: {
-        type: "number",
-        description: "PR number (optional for current context)",
+      path: { type: "string", description: "File path for the review comment" },
+      line: {
+        type: ["number", "string"],
+        description: "Line number for the comment",
+      },
+      body: { type: "string", description: "Comment body content" },
+      start_line: {
+        type: ["number", "string"],
+        description: "Optional start line for multi-line comments",
+      },
+      side: {
+        type: "string",
+        enum: ["LEFT", "RIGHT"],
+        description: "Optional side of the diff: LEFT or RIGHT",
       },
     },
     additionalProperties: false,
@@ -368,12 +382,13 @@ TOOLS["create_pull_request_review_comment"] = {
 
     const entry = {
       type: "create-pull-request-review-comment",
+      path: args.path,
+      line: args.line,
       body: args.body,
     };
 
-    if (args.path) entry.path = args.path;
-    if (args.line) entry.line = args.line;
-    if (args.pull_number) entry.pull_number = args.pull_number;
+    if (args.start_line !== undefined) entry.start_line = args.start_line;
+    if (args.side) entry.side = args.side;
 
     appendSafeOutput(entry);
 
@@ -388,40 +403,57 @@ TOOLS["create_pull_request_review_comment"] = {
   },
 };
 
-// Create-repository-security-advisory tool
-TOOLS["create_repository_security_advisory"] = {
-  name: "create_repository_security_advisory",
-  description: "Create a repository security advisory",
+// Create-code-scanning-alert tool
+TOOLS["create_code_scanning_alert"] = {
+  name: "create_code_scanning_alert",
+  description: "Create a code scanning alert",
   inputSchema: {
     type: "object",
-    required: ["summary", "description"],
+    required: ["file", "line", "severity", "message"],
     properties: {
-      summary: { type: "string", description: "Advisory summary" },
-      description: { type: "string", description: "Advisory description" },
+      file: {
+        type: "string",
+        description: "File path where the issue was found",
+      },
+      line: {
+        type: ["number", "string"],
+        description: "Line number where the issue was found",
+      },
       severity: {
         type: "string",
-        enum: ["low", "moderate", "high", "critical"],
-        description: "Advisory severity",
+        enum: ["error", "warning", "info", "note"],
+        description: "Severity level",
       },
-      cve_id: { type: "string", description: "CVE ID if known" },
+      message: {
+        type: "string",
+        description: "Alert message describing the issue",
+      },
+      column: {
+        type: ["number", "string"],
+        description: "Optional column number",
+      },
+      ruleIdSuffix: {
+        type: "string",
+        description: "Optional rule ID suffix for uniqueness",
+      },
     },
     additionalProperties: false,
   },
   async handler(args) {
-    if (!isToolEnabled("create-repository-security-advisory")) {
-      throw new Error(
-        "create-repository-security-advisory safe-output is not enabled"
-      );
+    if (!isToolEnabled("create-code-scanning-alert")) {
+      throw new Error("create-code-scanning-alert safe-output is not enabled");
     }
 
     const entry = {
-      type: "create-repository-security-advisory",
-      summary: args.summary,
-      description: args.description,
+      type: "create-code-scanning-alert",
+      file: args.file,
+      line: args.line,
+      severity: args.severity,
+      message: args.message,
     };
 
-    if (args.severity) entry.severity = args.severity;
-    if (args.cve_id) entry.cve_id = args.cve_id;
+    if (args.column !== undefined) entry.column = args.column;
+    if (args.ruleIdSuffix) entry.ruleIdSuffix = args.ruleIdSuffix;
 
     appendSafeOutput(entry);
 
@@ -429,7 +461,7 @@ TOOLS["create_repository_security_advisory"] = {
       content: [
         {
           type: "text",
-          text: `Security advisory creation queued: "${args.summary}"`,
+          text: `Code scanning alert creation queued: "${args.message}"`,
         },
       ],
     };
@@ -490,16 +522,16 @@ TOOLS["update_issue"] = {
   inputSchema: {
     type: "object",
     properties: {
-      title: { type: "string", description: "New issue title" },
-      body: { type: "string", description: "New issue body" },
-      state: {
+      status: {
         type: "string",
         enum: ["open", "closed"],
-        description: "Issue state",
+        description: "Optional new issue status",
       },
+      title: { type: "string", description: "Optional new issue title" },
+      body: { type: "string", description: "Optional new issue body" },
       issue_number: {
-        type: "number",
-        description: "Issue number (optional for current context)",
+        type: ["number", "string"],
+        description: "Optional issue number for target '*'",
       },
     },
     additionalProperties: false,
@@ -513,15 +545,15 @@ TOOLS["update_issue"] = {
       type: "update-issue",
     };
 
+    if (args.status) entry.status = args.status;
     if (args.title) entry.title = args.title;
     if (args.body) entry.body = args.body;
-    if (args.state) entry.state = args.state;
-    if (args.issue_number) entry.issue_number = args.issue_number;
+    if (args.issue_number !== undefined) entry.issue_number = args.issue_number;
 
     // Must have at least one field to update
-    if (!args.title && !args.body && !args.state) {
+    if (!args.status && !args.title && !args.body) {
       throw new Error(
-        "Must specify at least one field to update (title, body, or state)"
+        "Must specify at least one field to update (status, title, or body)"
       );
     }
 
@@ -544,24 +576,11 @@ TOOLS["push_to_pr_branch"] = {
   description: "Push changes to a pull request branch",
   inputSchema: {
     type: "object",
-    required: ["files"],
     properties: {
-      files: {
-        type: "array",
-        items: {
-          type: "object",
-          required: ["path", "content"],
-          properties: {
-            path: { type: "string", description: "File path" },
-            content: { type: "string", description: "File content" },
-          },
-        },
-        description: "Files to create or update",
-      },
-      commit_message: { type: "string", description: "Commit message" },
-      branch: {
-        type: "string",
-        description: "Branch name (optional for current context)",
+      message: { type: "string", description: "Optional commit message" },
+      pull_request_number: {
+        type: ["number", "string"],
+        description: "Optional pull request number for target '*'",
       },
     },
     additionalProperties: false,
@@ -573,11 +592,11 @@ TOOLS["push_to_pr_branch"] = {
 
     const entry = {
       type: "push-to-pr-branch",
-      files: args.files,
     };
 
-    if (args.commit_message) entry.commit_message = args.commit_message;
-    if (args.branch) entry.branch = args.branch;
+    if (args.message) entry.message = args.message;
+    if (args.pull_request_number !== undefined)
+      entry.pull_request_number = args.pull_request_number;
 
     appendSafeOutput(entry);
 
@@ -585,7 +604,7 @@ TOOLS["push_to_pr_branch"] = {
       content: [
         {
           type: "text",
-          text: `Branch push queued with ${args.files.length} file(s)`,
+          text: "Branch push queued",
         },
       ],
     };
