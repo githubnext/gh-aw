@@ -568,7 +568,7 @@ jobs:
           script: |
             const { spawn } = require("child_process");
             const path = require("path");
-            const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+            const serverPath = path.join("/tmp/safe-outputs/mcp-server.cjs");
             const { GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS } = env;
             function parseJsonl(input) {
                 if (!input) return [];
