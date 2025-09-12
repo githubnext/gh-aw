@@ -260,6 +260,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
+              staged: true,
               created_at: new Date().toISOString()
             };
             
@@ -1312,7 +1313,9 @@ jobs:
                   summaryContent += `**Message:** ${message}\n\n`;
                   // Write to step summary
                   await core.summary.addRaw(summaryContent).write();
-                  console.log("📝 Pull request creation preview written to step summary (no patch file)");
+                  console.log(
+                    "📝 Pull request creation preview written to step summary (no patch file)"
+                  );
                   return;
                 }
                 switch (ifNoChanges) {
@@ -1341,7 +1344,9 @@ jobs:
                   summaryContent += `**Message:** ${message}\n\n`;
                   // Write to step summary
                   await core.summary.addRaw(summaryContent).write();
-                  console.log("📝 Pull request creation preview written to step summary (patch error)");
+                  console.log(
+                    "📝 Pull request creation preview written to step summary (patch error)"
+                  );
                   return;
                 }
                 switch (ifNoChanges) {

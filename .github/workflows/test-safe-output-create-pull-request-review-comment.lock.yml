@@ -257,6 +257,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
+              staged: true,
               created_at: new Date().toISOString()
             };
             
