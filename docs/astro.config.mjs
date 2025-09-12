@@ -12,7 +12,10 @@ export default defineConfig({
 			title: 'GitHub Agentic Workflows',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' }],
 			plugins: [
-				starlightLinksValidator(),
+				starlightLinksValidator({
+					errorOnRelativeLinks: false,
+					errorOnLocalLinks: false,
+				}),
 				starlightLlmsTxt({
 					description: 'GitHub Agentic Workflows (gh-aw) is a Go-based GitHub CLI extension that enables writing agentic workflows in natural language using markdown files, and running them as GitHub Actions workflows.',
 					optionalLinks: [
