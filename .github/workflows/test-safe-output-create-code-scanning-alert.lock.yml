@@ -25,11 +25,10 @@ concurrency:
 run-name: "Test Safe Output - Create Code Scanning Alert"
 
 jobs:
-  test-safe-output-create-code-scanning-alert:
+  task:
     runs-on: ubuntu-latest
-    permissions: read-all
-    outputs:
-      output: ${{ steps.collect_output.outputs.output }}
+    permissions:
+      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
     steps:
       - name: Check team membership for workflow
         id: check-team-member
@@ -38,6 +37,20 @@ jobs:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
+            async function setCancelled(message) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: context.runId,
+                });
+                core.info(`Cancellation requested for this workflow run: ${message}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to cancel workflow run: ${errorMessage}`);
+                core.setFailed(message); // Fallback if API call fails
+              }
+            }
             async function main() {
               const { eventName } = context;
               // skip check for safe events
@@ -56,7 +69,9 @@ jobs:
                 core.error(
                   "❌ Configuration error: Required permissions not specified. Contact repository administrator."
                 );
-                core.setFailed("Configuration error: Required permissions not specified");
+                await setCancelled(
+                  "Configuration error: Required permissions not specified"
+                );
                 return;
               }
               // Check if the actor has the required repository permissions
@@ -90,18 +105,26 @@ jobs:
                 const errorMessage =
                   repoError instanceof Error ? repoError.message : String(repoError);
                 core.error(`Repository permission check failed: ${errorMessage}`);
-                core.setFailed(`Repository permission check failed: ${errorMessage}`);
+                await setCancelled(`Repository permission check failed: ${errorMessage}`);
                 return;
               }
-              // Cancel the job when permission check fails
+              // Cancel the workflow when permission check fails
               core.warning(
                 `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
-              core.setFailed(
+              await setCancelled(
                 `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
             }
             await main();
+
+  test-safe-output-create-code-scanning-alert:
+    needs: task
+    runs-on: ubuntu-latest
+    permissions: read-all
+    outputs:
+      output: ${{ steps.collect_output.outputs.output }}
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Setup agent output

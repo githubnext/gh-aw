@@ -18,7 +18,7 @@ func TestCreateIssueJobWithStagedFlag(t *testing.T) {
 		},
 	}
 
-	job, err := c.buildCreateOutputIssueJob(workflowData, "main_job", false)
+	job, err := c.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error building create issue job: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestCreateIssueJobWithStagedFlag(t *testing.T) {
 	// Test with staged: false
 	workflowData.SafeOutputs.Staged = &[]bool{false}[0] // pointer to false
 
-	job, err = c.buildCreateOutputIssueJob(workflowData, "main_job", false)
+	job, err = c.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error building create issue job: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestCreateIssueJobWithStagedFlag(t *testing.T) {
 	// Test with staged: nil (not specified)
 	workflowData.SafeOutputs.Staged = nil
 
-	job, err = c.buildCreateOutputIssueJob(workflowData, "main_job", false)
+	job, err = c.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error building create issue job: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestCreateIssueJobWithoutSafeOutputs(t *testing.T) {
 		SafeOutputs: nil,
 	}
 
-	_, err := c.buildCreateOutputIssueJob(workflowData, "main_job", false)
+	_, err := c.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
 	if err == nil {
 		t.Error("Expected error when SafeOutputs is nil")
 	}
@@ -90,7 +90,7 @@ func TestCreateIssueJobWithoutSafeOutputs(t *testing.T) {
 		Staged:             &[]bool{true}[0],
 	}
 
-	_, err = c.buildCreateOutputIssueJob(workflowData, "main_job", false)
+	_, err = c.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
 	if err == nil {
 		t.Error("Expected error when CreateIssues is nil")
 	}
