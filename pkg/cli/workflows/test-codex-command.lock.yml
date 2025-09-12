@@ -92,6 +92,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
+              staged: false,
               created_at: new Date().toISOString()
             };
             
@@ -462,7 +463,7 @@ jobs:
                       core.error(errorMessage);
                       hasErrors = true;
                     } else {
-                      core.warn(errorMessage);
+                      core.warning(errorMessage);
                     }
                   }
                 }

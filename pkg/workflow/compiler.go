@@ -4092,6 +4092,14 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("              sha: context.sha,\n")
 	yaml.WriteString("              actor: context.actor,\n")
 	yaml.WriteString("              event_name: context.eventName,\n")
+
+	// Add staged value from safe-outputs configuration
+	stagedValue := "false"
+	if data.SafeOutputs != nil && data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
+		stagedValue = "true"
+	}
+	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
+
 	yaml.WriteString("              created_at: new Date().toISOString()\n")
 
 	yaml.WriteString("            };\n")

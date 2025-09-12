@@ -15,7 +15,7 @@ global.core = {
     addRaw: vi.fn(() => ({ write: vi.fn() })),
   },
   setFailed: vi.fn(),
-  warn: vi.fn(),
+  warning: vi.fn(),
   error: vi.fn(),
 };
 
@@ -65,9 +65,9 @@ Some normal log content
       expect.stringContaining("exceeded retry limit")
     );
 
-    // Should call core.warn for warnings
-    expect(global.core.warn).toHaveBeenCalledTimes(1);
-    expect(global.core.warn).toHaveBeenCalledWith(
+    // Should call core.warning for warnings
+    expect(global.core.warning).toHaveBeenCalledTimes(1);
+    expect(global.core.warning).toHaveBeenCalledWith(
       expect.stringContaining("This is a warning message")
     );
   });
@@ -87,9 +87,9 @@ Some normal log content
     // Should return false since no errors were found
     expect(hasErrors).toBe(false);
 
-    // Should not call core.error or core.warn for empty content
+    // Should not call core.error or core.warning for empty content
     expect(global.core.error).not.toHaveBeenCalled();
-    expect(global.core.warn).not.toHaveBeenCalled();
+    expect(global.core.warning).not.toHaveBeenCalled();
   });
 
   test("should handle no matching patterns", () => {
@@ -108,9 +108,9 @@ Some normal log content
     // Should return false since no errors were found
     expect(hasErrors).toBe(false);
 
-    // Should not call core.error or core.warn when no patterns match
+    // Should not call core.error or core.warning when no patterns match
     expect(global.core.error).not.toHaveBeenCalled();
-    expect(global.core.warn).not.toHaveBeenCalled();
+    expect(global.core.warning).not.toHaveBeenCalled();
   });
 
   test("should crash with invalid regex patterns", () => {

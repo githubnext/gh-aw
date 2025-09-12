@@ -567,4 +567,173 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
   });
+
+  describe("staged mode functionality", () => {
+    beforeEach(() => {
+      mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create-pull-request",
+            title: "Staged Mode Test PR",
+            body: "This is a test PR for staged mode functionality.",
+            branch: "feature-test",
+          },
+        ],
+      });
+    });
+
+    it("should write step summary instead of creating PR when in staged mode", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+
+      const mainFunction = createMainFunction(mockDependencies);
+
+      await mainFunction();
+
+      // Verify that step summary was written
+      expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "## 🎭 Staged Mode: Create Pull Request Preview"
+        )
+      );
+      expect(mockDependencies.core.summary.write).toHaveBeenCalled();
+
+      // Verify console log for staged mode
+      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+        "📝 Pull request creation preview written to step summary"
+      );
+
+      // Verify that actual PR creation was not called
+      expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
+      expect(mockDependencies.execSync).not.toHaveBeenCalled();
+    });
+
+    it("should include patch information in staged mode summary", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.fs.readFileSync.mockReturnValue(
+        "diff --git a/test.txt b/test.txt\n+added line\n-removed line"
+      );
+
+      const mainFunction = createMainFunction(mockDependencies);
+
+      await mainFunction();
+
+      const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("**Title:** Staged Mode Test PR");
+      expect(summaryCall).toContain("**Branch:** feature-test");
+      expect(summaryCall).toContain("**Base:** main");
+      expect(summaryCall).toContain("**Body:**");
+      expect(summaryCall).toContain(
+        "This is a test PR for staged mode functionality."
+      );
+      expect(summaryCall).toContain("**Changes:** Patch file exists with");
+      expect(summaryCall).toContain("Show patch preview");
+      expect(summaryCall).toContain("diff --git a/test.txt");
+    });
+
+    it("should handle empty patch in staged mode", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.fs.readFileSync.mockReturnValue("");
+
+      const mainFunction = createMainFunction(mockDependencies);
+
+      await mainFunction();
+
+      // Verify that step summary was written
+      expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
+      const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("**Changes:** No changes (empty patch)");
+      expect(summaryCall).not.toContain("Show patch preview");
+    });
+
+    it("should use auto-generated branch when no branch specified in staged mode", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create-pull-request",
+            title: "PR without branch",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mainFunction = createMainFunction(mockDependencies);
+
+      await mainFunction();
+
+      const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("**Branch:** auto-generated");
+    });
+
+    it("should not execute git operations in staged mode", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+
+      const mainFunction = createMainFunction(mockDependencies);
+
+      await mainFunction();
+
+      // Verify no git operations were performed
+      expect(mockDependencies.execSync).not.toHaveBeenCalledWith(
+        expect.stringContaining("git"),
+        expect.anything()
+      );
+
+      // Verify no GitHub API calls were made
+      expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
+      expect(
+        mockDependencies.github.rest.issues.addLabels
+      ).not.toHaveBeenCalled();
+
+      // Verify no outputs were set
+      expect(mockDependencies.core.setOutput).not.toHaveBeenCalled();
+    });
+
+    it("should handle missing patch file in staged mode", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.fs.existsSync.mockReturnValue(false);
+
+      const mainFunction = createMainFunction(mockDependencies);
+
+      await mainFunction();
+
+      // Verify that step summary was written showing the missing patch file
+      expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
+      const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("⚠️ No patch file found");
+      expect(summaryCall).toContain(
+        "No patch file found - cannot create pull request without changes"
+      );
+
+      // Verify console log for staged mode
+      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+        "📝 Pull request creation preview written to step summary (no patch file)"
+      );
+    });
+
+    it("should handle patch error in staged mode", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.fs.readFileSync.mockReturnValue(
+        "Failed to generate patch: some error occurred"
+      );
+
+      const mainFunction = createMainFunction(mockDependencies);
+
+      await mainFunction();
+
+      // Verify that step summary was written showing the patch error
+      expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
+      const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("⚠️ Patch file contains error");
+      expect(summaryCall).toContain(
+        "Patch file contains error message - cannot create pull request without changes"
+      );
+
+      // Verify console log for staged mode
+      expect(mockDependencies.console.log).toHaveBeenCalledWith(
+        "📝 Pull request creation preview written to step summary (patch error)"
+      );
+    });
+  });
 });
