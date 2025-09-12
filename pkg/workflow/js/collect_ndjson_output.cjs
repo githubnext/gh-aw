@@ -290,8 +290,14 @@ async function main() {
       } catch (repairError) {
         // If repair also fails, throw the error
         console.log(`invalid input json: ${jsonStr}`);
-        const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
-        const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
+        const originalMsg =
+          originalError instanceof Error
+            ? originalError.message
+            : String(originalError);
+        const repairMsg =
+          repairError instanceof Error
+            ? repairError.message
+            : String(repairError);
         throw new Error(
           `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
         );
@@ -332,10 +338,7 @@ async function main() {
       console.log("Expected output types:", Object.keys(expectedOutputTypes));
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.log(
-        "Warning: Could not parse safe-outputs config:",
-        errorMsg
-      );
+      console.log("Warning: Could not parse safe-outputs config:", errorMsg);
     }
   }
 
@@ -404,8 +407,9 @@ async function main() {
           item.body = sanitizeContent(item.body);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(/** @param {any} label */ label =>
-              typeof label === "string" ? sanitizeContent(label) : label
+            item.labels = item.labels.map(
+              /** @param {any} label */ label =>
+                typeof label === "string" ? sanitizeContent(label) : label
             );
           }
           break;
@@ -443,8 +447,9 @@ async function main() {
           }
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(/** @param {any} label */ label =>
-              typeof label === "string" ? sanitizeContent(label) : label
+            item.labels = item.labels.map(
+              /** @param {any} label */ label =>
+                typeof label === "string" ? sanitizeContent(label) : label
             );
           }
           break;
@@ -456,14 +461,20 @@ async function main() {
             );
             continue;
           }
-          if (item.labels.some(/** @param {any} label */ label => typeof label !== "string")) {
+          if (
+            item.labels.some(
+              /** @param {any} label */ label => typeof label !== "string"
+            )
+          ) {
             errors.push(
               `Line ${i + 1}: add-issue-label labels array must contain only strings`
             );
             continue;
           }
           // Sanitize label strings
-          item.labels = item.labels.map(/** @param {any} label */ label => sanitizeContent(label));
+          item.labels = item.labels.map(
+            /** @param {any} label */ label => sanitizeContent(label)
+          );
           break;
 
         case "update-issue":

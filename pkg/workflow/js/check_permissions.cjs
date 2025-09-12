@@ -19,9 +19,7 @@ async function main() {
     core.error(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    core.setFailed(
-      "Configuration error: Required permissions not specified"
-    );
+    core.setFailed("Configuration error: Required permissions not specified");
     return;
   }
 

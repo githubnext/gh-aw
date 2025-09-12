@@ -31,7 +31,9 @@ function main() {
     }
   } catch (error) {
     console.debug(error);
-    core.setFailed(`Error validating log: ${error.message}`);
+    core.setFailed(
+      `Error validating log: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -51,11 +53,16 @@ function getErrorPatternsFromEnv() {
     return patterns;
   } catch (e) {
     throw new Error(
-      `Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e.message}`
+      `Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`
     );
   }
 }
 
+/**
+ * @param {string} logContent
+ * @param {any[]} patterns
+ * @returns {boolean}
+ */
 function validateErrors(logContent, patterns) {
   const lines = logContent.split("\n");
   let hasErrors = false;
@@ -86,6 +93,11 @@ function validateErrors(logContent, patterns) {
   return hasErrors;
 }
 
+/**
+ * @param {any} match
+ * @param {any} pattern
+ * @returns {string}
+ */
 function extractLevel(match, pattern) {
   if (
     pattern.level_group &&
@@ -106,6 +118,12 @@ function extractLevel(match, pattern) {
   return "unknown";
 }
 
+/**
+ * @param {any} match
+ * @param {any} pattern
+ * @param {any} fullLine
+ * @returns {string}
+ */
 function extractMessage(match, pattern, fullLine) {
   if (
     pattern.message_group &&
@@ -119,6 +137,11 @@ function extractMessage(match, pattern, fullLine) {
   return match[0] || fullLine.trim();
 }
 
+/**
+ * @param {any} str
+ * @param {any} maxLength
+ * @returns {string}
+ */
 function truncateString(str, maxLength) {
   if (!str) return "";
   if (str.length <= maxLength) return str;

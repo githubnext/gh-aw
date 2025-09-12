@@ -217,6 +217,7 @@ async function main() {
 
     try {
       // Prepare the request parameters
+      /** @type {any} */
       const requestParams = {
         owner: context.repo.owner,
         repo: context.repo.repo,

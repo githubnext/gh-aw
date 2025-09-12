@@ -185,7 +185,7 @@ async function main() {
     }
   } catch (error) {
     console.log(
-      `Warning: Could not fetch PR ${pullNumber} details: ${error.message}`
+      `Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`
     );
     // Exit with failure if we cannot determine the branch name
     core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);

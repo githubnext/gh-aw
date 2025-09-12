@@ -158,6 +158,7 @@ async function main() {
     console.log(`Updating issue #${issueNumber}`);
 
     // Build the update object based on allowed fields and provided values
+    /** @type {any} */
     const updateData = {};
     let hasUpdates = false;
 

@@ -21,6 +21,7 @@ This JavaScript file will be run using the GitHub Action `actions/github-script@
 
 ## Common errors
 
+- avoid `any` type as much as possible, use specific types or `unknown` instead
 - catch handler: check if error is an instance of Error before accessing message property
 
 ```js
@@ -35,4 +36,6 @@ catch (error) {
 
 Run `make js` to run the typescript compiler.
 
-Run `make fmt:cjs` after editing to format the file.
+Run `make lint-cjs` to lint the files.
+
+Run `make fmt-cjs` after editing to format the file.
