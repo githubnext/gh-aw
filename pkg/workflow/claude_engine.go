@@ -310,11 +310,6 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		_ = editTool
 	}
 
-	if playwrightTool, hasPlaywright := tools["playwright"]; hasPlaywright {
-		// Playwright provides its own containerized browser automation
-		_ = playwrightTool
-	}
-
 	// Update claude section
 	claudeSection["allowed"] = claudeAllowed
 	result["claude"] = claudeSection
