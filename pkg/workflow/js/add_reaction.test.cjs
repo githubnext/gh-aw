@@ -105,13 +105,9 @@ describe("add_reaction.cjs", () => {
         data: { id: 123, content: "eyes" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Reaction type:", "eyes");
-
-      consoleSpy.mockRestore();
+      expect(mockCore.info).toHaveBeenCalledWith(`Reaction type: ${"eyes"}`);
     });
 
     it("should fail with invalid reaction type", async () => {
@@ -161,13 +157,10 @@ describe("add_reaction.cjs", () => {
         data: { id: 456, content: "eyes" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "API endpoint:",
-        "/repos/testowner/testrepo/issues/123/reactions"
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`
       );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/reactions",
@@ -176,8 +169,6 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle issue_comment event", async () => {
@@ -188,13 +179,10 @@ describe("add_reaction.cjs", () => {
         data: { id: 456, content: "eyes" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "API endpoint:",
-        "/repos/testowner/testrepo/issues/comments/789/reactions"
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/comments/789/reactions"}`
       );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/comments/789/reactions",
@@ -203,8 +191,6 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle pull_request event", async () => {
@@ -215,13 +201,10 @@ describe("add_reaction.cjs", () => {
         data: { id: 789, content: "eyes" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "API endpoint:",
-        "/repos/testowner/testrepo/issues/456/reactions"
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/456/reactions"}`
       );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/456/reactions",
@@ -230,8 +213,6 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle pull_request_review_comment event", async () => {
@@ -242,13 +223,10 @@ describe("add_reaction.cjs", () => {
         data: { id: 654, content: "eyes" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "API endpoint:",
-        "/repos/testowner/testrepo/pulls/comments/321/reactions"
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/pulls/comments/321/reactions"}`
       );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/pulls/comments/321/reactions",
@@ -257,8 +235,6 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should fail on unsupported event type", async () => {
@@ -302,16 +278,12 @@ describe("add_reaction.cjs", () => {
         data: { id: 123, content: "heart" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "Successfully added reaction: heart (id: 123)"
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "123");
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle response without ID", async () => {
@@ -321,16 +293,12 @@ describe("add_reaction.cjs", () => {
         data: { content: "rocket" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "Successfully added reaction: rocket"
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "");
-
-      consoleSpy.mockRestore();
     });
   });
 
@@ -351,8 +319,6 @@ describe("add_reaction.cjs", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add reaction: API Error"
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle non-Error objects in catch block", async () => {
@@ -371,8 +337,6 @@ describe("add_reaction.cjs", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add reaction: String error"
       );
-
-      consoleSpy.mockRestore();
     });
   });
 
@@ -384,13 +348,9 @@ describe("add_reaction.cjs", () => {
         data: { id: 123, content: "rocket" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Reaction type:", "rocket");
-
-      consoleSpy.mockRestore();
+      expect(mockCore.info).toHaveBeenCalledWith(`Reaction type: ${"rocket"}`);
     });
 
     it("should log API endpoint", async () => {
@@ -398,16 +358,11 @@ describe("add_reaction.cjs", () => {
         data: { id: 123, content: "eyes" },
       });
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "API endpoint:",
-        "/repos/testowner/testrepo/issues/123/reactions"
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`
       );
-
-      consoleSpy.mockRestore();
     });
   });
 });

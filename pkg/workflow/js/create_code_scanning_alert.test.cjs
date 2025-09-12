@@ -97,70 +97,51 @@ describe("create_code_scanning_alert.cjs", () => {
 
   describe("main function", () => {
     it("should handle missing environment variable", async () => {
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "No GITHUB_AW_AGENT_OUTPUT environment variable found"
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle empty agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Agent output content is empty");
-
-      consoleSpy.mockRestore();
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Agent output content is empty"
+      );
     });
 
     it("should handle invalid JSON", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error parsing agent output JSON:",
-        expect.any(String)
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringMatching(/Error parsing agent output JSON:/)
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle missing items array", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         status: "success",
       });
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "No valid items found in agent output"
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle no code scanning alert items", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [{ type: "create-issue", title: "Test Issue" }],
       });
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockCore.info).toHaveBeenCalledWith(
         "No create-code-scanning-alert items found in agent output"
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should create SARIF file for valid security findings", async () => {
@@ -184,8 +165,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created
@@ -229,8 +208,6 @@ describe("create_code_scanning_alert.cjs", () => {
       // Check summary was written
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
     });
 
     it("should respect max findings limit", async () => {
@@ -256,8 +233,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only 1 finding
@@ -272,8 +247,6 @@ describe("create_code_scanning_alert.cjs", () => {
 
       // Check output reflects the limit
       expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", 1);
-
-      consoleSpy.mockRestore();
     });
 
     it("should validate and filter invalid security findings", async () => {
@@ -318,8 +291,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(mixedFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only the 1 valid finding
@@ -334,8 +305,6 @@ describe("create_code_scanning_alert.cjs", () => {
 
       // Check outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", 1);
-
-      consoleSpy.mockRestore();
     });
 
     it("should use custom driver name when configured", async () => {
@@ -355,8 +324,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -371,8 +338,6 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[0].ruleId).toBe(
         "security-scan-security-finding-1"
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should use default driver name when not configured", async () => {
@@ -389,8 +354,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -405,8 +368,6 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[0].ruleId).toBe(
         "workflow-security-finding-1"
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should support optional column specification", async () => {
@@ -432,8 +393,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -450,8 +409,6 @@ describe("create_code_scanning_alert.cjs", () => {
         sarifContent.runs[0].results[1].locations[0].physicalLocation.region
           .startColumn
       ).toBe(1);
-
-      consoleSpy.mockRestore();
     });
 
     it("should validate column numbers", async () => {
@@ -493,8 +450,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(invalidFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed
@@ -508,8 +463,6 @@ describe("create_code_scanning_alert.cjs", () => {
         sarifContent.runs[0].results[0].locations[0].physicalLocation.region
           .startColumn
       ).toBe(5);
-
-      consoleSpy.mockRestore();
     });
 
     it("should support optional ruleIdSuffix specification", async () => {
@@ -545,8 +498,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -566,8 +517,6 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[2].ruleId).toBe(
         "security-scan-security-finding-3"
       );
-
-      consoleSpy.mockRestore();
     });
 
     it("should validate ruleIdSuffix values", async () => {
@@ -617,8 +566,6 @@ describe("create_code_scanning_alert.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(invalidFindings);
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed
@@ -631,8 +578,6 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[0].ruleId).toBe(
         "workflow-valid-rule-id_123"
       );
-
-      consoleSpy.mockRestore();
     });
   });
 });

@@ -563,18 +563,13 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     it("should handle non-existent output file", async () => {
       process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/non-existent-file.txt";
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Output file does not exist:",
-        "/tmp/non-existent-file.txt"
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `Output file does not exist: ${"/tmp/non-existent-file.txt"}`
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle empty output file", async () => {
@@ -582,15 +577,12 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       fs.writeFileSync(testFile, "   \n  \t  \n  ");
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Output file is empty");
+      expect(mockCore.info).toHaveBeenCalledWith("Output file is empty");
       expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
 
-      consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
     });
 
@@ -601,14 +593,11 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       fs.writeFileSync(testFile, testContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Collected agentic output (sanitized):",
-        expect.stringContaining("`@user`")
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Collected agentic output \(sanitized\):.*@user/)
       );
 
       const outputCall = mockCore.setOutput.mock.calls.find(
@@ -623,7 +612,6 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(sanitizedOutput).toContain("(redacted)"); // HTTP URL
       expect(sanitizedOutput).toContain("https://github.com/repo"); // HTTPS URL preserved
 
-      consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
     });
 
@@ -633,22 +621,19 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       fs.writeFileSync(testFile, longContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      const logCalls = consoleSpy.mock.calls;
+      const logCalls = mockCore.info.mock.calls;
       const outputLogCall = logCalls.find(
         call =>
           call[0] && call[0].includes("Collected agentic output (sanitized):")
       );
 
       expect(outputLogCall).toBeDefined();
-      expect(outputLogCall[1]).toContain("...");
-      expect(outputLogCall[1].length).toBeLessThan(longContent.length);
+      expect(outputLogCall[0]).toContain("...");
+      expect(outputLogCall[0].length).toBeLessThan(longContent.length);
 
-      consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
     });
 
@@ -667,8 +652,6 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       let thrownError = null;
       try {
         // Execute the script - it should throw but we catch it
@@ -682,8 +665,6 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       // Restore spies
       readFileSyncSpy.mockRestore();
-      consoleSpy.mockRestore();
-
       // Clean up
       if (fs.existsSync(testFile)) {
         fs.unlinkSync(testFile);
@@ -696,8 +677,6 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       fs.writeFileSync(testFile, binaryData);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
@@ -707,7 +686,6 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       );
       expect(outputCall).toBeDefined();
 
-      consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
     });
 
@@ -717,15 +695,12 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       fs.writeFileSync(testFile, whitespaceContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(consoleSpy).toHaveBeenCalledWith("Output file is empty");
+      expect(mockCore.info).toHaveBeenCalledWith("Output file is empty");
       expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
 
-      consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
     });
 
@@ -738,8 +713,6 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const testFile = "/tmp/test-large-mixed.txt";
       fs.writeFileSync(testFile, repeatedContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -760,7 +733,6 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).toContain("(redacted)"); // evil.com
       expect(result).toContain("(script)"); // XML tag conversion
 
-      consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
     });
 
@@ -770,12 +742,10 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       fs.writeFileSync(testFile, shortContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      const logCalls = consoleSpy.mock.calls;
+      const logCalls = mockCore.info.mock.calls;
       const outputLogCall = logCalls.find(
         call =>
           call[0] && call[0].includes("Collected agentic output (sanitized):")
@@ -783,10 +753,9 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       expect(outputLogCall).toBeDefined();
       // Should not have ... for short content
-      expect(outputLogCall[1]).not.toContain("...");
-      expect(outputLogCall[1]).toContain("`@user`");
+      expect(outputLogCall[0]).not.toContain("...");
+      expect(outputLogCall[0]).toContain("`@user`");
 
-      consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
     });
   });
