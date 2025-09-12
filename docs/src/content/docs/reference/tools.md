@@ -3,8 +3,6 @@ title: Tools Configuration
 description: Configure GitHub API tools and AI capabilities available to your agentic workflows, including GitHub tools and Claude-specific integrations.
 ---
 
-# 🔧 Tools Configuration
-
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools and Claude-specific tools.
 
 > **📘 Looking for MCP servers?** See the complete [MCPs](mcps.md) for Model Context Protocol configuration, debugging, and examples.

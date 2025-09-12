@@ -3,8 +3,6 @@ title: Introduction to GitHub Agentic Workflows
 description: Learn the core concepts and capabilities of GitHub Agentic Workflows, combining AI agents with GitHub's collaboration platform for Continuous AI.
 ---
 
-# 📖 Introduction to GitHub Agentic Workflows
-
 Now that you've [got your first workflow running](quick-start.md), let's dive deeper into the concepts and capabilities of GitHub Agentic Workflows.
 
 GitHub Agentic Workflows represent a new paradigm where AI agents can perform complex, multi-step tasks in conjunction with your team automatically. They combine the power of AI with GitHub's collaboration platform to enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — the systematic, automated application of AI to software collaboration.
