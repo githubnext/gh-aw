@@ -2547,6 +2547,11 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
 
+	// Pass the staged flag if it's set to true
+	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
+		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
