@@ -1779,13 +1779,13 @@ func (c *Compiler) needsPermissionChecksWithFrontmatter(data *WorkflowData, fron
 }
 
 // isTaskJobNeeded determines if the task job is required
-func (c *Compiler) isTaskJobNeeded(data *WorkflowData) bool {
+func (c *Compiler) isTaskJobNeeded(data *WorkflowData, needsPermissionCheck bool) bool {
 	// Task job is needed if:
 	// 1. Command is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
 	// 4. Permission checks are needed (consolidated team member validation)
-	return data.Command != "" || data.NeedsTextOutput || data.If != "" || c.needsPermissionChecks(data)
+	return data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
@@ -1812,7 +1812,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		needsPermissionCheck = c.needsPermissionChecks(data)
 	}
 
-	if c.isTaskJobNeeded(data) || needsPermissionCheck {
+	if c.isTaskJobNeeded(data, needsPermissionCheck) {
 		taskJob, err := c.buildTaskJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build task job: %w", err)

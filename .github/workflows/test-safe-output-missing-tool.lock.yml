@@ -19,14 +19,7 @@ concurrency:
 run-name: "Test Safe Output - Missing Tool"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Task job condition barrier
-        run: echo "Task job executed - conditions satisfied"
-
   test-safe-output-missing-tool:
-    needs: task
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
