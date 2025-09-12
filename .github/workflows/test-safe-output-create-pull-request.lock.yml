@@ -1295,6 +1295,7 @@ jobs:
           GITHUB_AW_PR_LABELS: "test-safe-output,automation"
           GITHUB_AW_PR_DRAFT: "true"
           GITHUB_AW_PR_IF_NO_CHANGES: "warn"
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             /** @type {typeof import("fs")} */
