@@ -127,17 +127,13 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_UPDATE_TITLE = "true";
     global.context.eventName = "push"; // Not an issue event
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       'Target is "triggering" but not running in issue context, skipping issue update'
     );
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it("should update issue title successfully", async () => {
@@ -308,17 +304,13 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_UPDATE_BODY = "false";
     global.context.eventName = "issues";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "No valid updates to apply for this item"
     );
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it("should validate status values", async () => {
@@ -333,16 +325,12 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_UPDATE_STATUS = "true";
     global.context.eventName = "issues";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Invalid status value: invalid. Must be 'open' or 'closed'"
     );
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 });
