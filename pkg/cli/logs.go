@@ -86,6 +86,21 @@ type DownloadResult struct {
 	LogsPath       string
 }
 
+// AwInfo represents the structure of aw_info.json files
+type AwInfo struct {
+	EngineID     string `json:"engine_id"`
+	EngineName   string `json:"engine_name"`
+	Model        string `json:"model"`
+	Version      string `json:"version"`
+	WorkflowName string `json:"workflow_name"`
+	Staged       bool   `json:"staged"`
+	CreatedAt    string `json:"created_at"`
+	// Additional fields that might be present
+	RunID      interface{} `json:"run_id,omitempty"`
+	RunNumber  interface{} `json:"run_number,omitempty"`
+	Repository string      `json:"repository,omitempty"`
+}
+
 // Constants for the iterative algorithm
 const (
 	// MaxIterations limits how many batches we fetch to prevent infinite loops
@@ -350,7 +365,11 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			if noStaged {
 				// Check if the run is staged
 				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
-				isStaged := checkIfWorkflowIsStaged(awInfoPath, verbose)
+				info, err := parseAwInfo(awInfoPath, verbose)
+				var isStaged bool
+				if err == nil && info != nil {
+					isStaged = info.Staged
+				}
 
 				if isStaged {
 					if verbose {
@@ -790,9 +809,9 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	return metrics, err
 }
 
-// extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+// parseAwInfo reads and parses aw_info.json file, returning the parsed data
 // Handles cases where aw_info.json is a file or a directory containing the actual file
-func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingAgentEngine {
+func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
 	var data []byte
 	var err error
 
@@ -802,7 +821,7 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json: %v", statErr)))
 		}
-		return nil
+		return nil, statErr
 	}
 
 	if stat.IsDir() {
@@ -821,19 +840,29 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json: %v", err)))
 		}
-		return nil
+		return nil, err
 	}
 
-	var info map[string]interface{}
+	var info AwInfo
 	if err := json.Unmarshal(data, &info); err != nil {
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json: %v", err)))
 		}
+		return nil, err
+	}
+
+	return &info, nil
+}
+
+// extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+// Handles cases where aw_info.json is a file or a directory containing the actual file
+func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingAgentEngine {
+	info, err := parseAwInfo(infoFilePath, verbose)
+	if err != nil {
 		return nil
 	}
 
-	engineID, ok := info["engine_id"].(string)
-	if !ok || engineID == "" {
+	if info.EngineID == "" {
 		if verbose {
 			fmt.Println(console.FormatWarningMessage("No engine_id found in aw_info.json"))
 		}
@@ -841,77 +870,15 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 	}
 
 	registry := workflow.GetGlobalEngineRegistry()
-	engine, err := registry.GetEngine(engineID)
+	engine, err := registry.GetEngine(info.EngineID)
 	if err != nil {
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", engineID)))
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", info.EngineID)))
 		}
 		return nil
 	}
 
 	return engine
-}
-
-// checkIfWorkflowIsStaged reads aw_info.json and checks if the workflow is staged
-// Handles cases where aw_info.json is a file or a directory containing the actual file
-func checkIfWorkflowIsStaged(infoFilePath string, verbose bool) bool {
-	var data []byte
-	var err error
-
-	// Check if the path exists and determine if it's a file or directory
-	stat, statErr := os.Stat(infoFilePath)
-	if statErr != nil {
-		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json for staged check: %v", statErr)))
-		}
-		return false // If no aw_info.json, assume not staged
-	}
-
-	if stat.IsDir() {
-		// It's a directory - look for nested aw_info.json
-		nestedPath := filepath.Join(infoFilePath, "aw_info.json")
-		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("aw_info.json is a directory, trying nested file for staged check: %s", nestedPath)))
-		}
-		data, err = os.ReadFile(nestedPath)
-	} else {
-		// It's a regular file
-		data, err = os.ReadFile(infoFilePath)
-	}
-
-	if err != nil {
-		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json for staged check: %v", err)))
-		}
-		return false // If can't read, assume not staged
-	}
-
-	var info map[string]interface{}
-	if err := json.Unmarshal(data, &info); err != nil {
-		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json for staged check: %v", err)))
-		}
-		return false // If can't parse, assume not staged
-	}
-
-	// Check for staged value - it could be a boolean or a string
-	stagedValue, exists := info["staged"]
-	if !exists {
-		return false // If staged key doesn't exist, assume not staged
-	}
-
-	// Handle both boolean and string representations
-	switch v := stagedValue.(type) {
-	case bool:
-		return v
-	case string:
-		return v == "true"
-	default:
-		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Invalid staged value type in aw_info.json: %T", stagedValue)))
-		}
-		return false
-	}
 }
 
 // parseLogFileWithEngine parses a log file using a specific engine or falls back to auto-detection
