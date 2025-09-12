@@ -4,7 +4,7 @@ async function main() {
 
   // Check if the actor has repository access (admin, maintain permissions)
   try {
-    console.log(
+    core.info(
       `Checking if user '${actor}' is admin or maintainer of ${owner}/${repo}`
     );
 
@@ -16,10 +16,10 @@ async function main() {
       });
 
     const permission = repoPermission.data.permission;
-    console.log(`Repository permission level: ${permission}`);
+    core.info(`Repository permission level: ${permission}`);
 
     if (permission === "admin" || permission === "maintain") {
-      console.log(`User has ${permission} access to repository`);
+      core.info(`User has ${permission} access to repository`);
       core.setOutput("is_team_member", "true");
       return;
     }

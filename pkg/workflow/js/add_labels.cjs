@@ -2,31 +2,30 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
   if (outputContent.trim() === "") {
-    console.log("Agent output content is empty");
+    core.info("Agent output content is empty");
     return;
   }
 
-  console.log("Agent output content length:", outputContent.length);
+  core.debug(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log(
-      "Error parsing agent output JSON:",
-      error instanceof Error ? error.message : String(error)
+    core.setFailed(
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log("No valid items found in agent output");
+    core.warning("No valid items found in agent output");
     return;
   }
 
@@ -35,13 +34,13 @@ async function main() {
     /** @param {any} item */ item => item.type === "add-issue-label"
   );
   if (!labelsItem) {
-    console.log("No add-issue-label item found in agent output");
+    core.warning("No add-issue-label item found in agent output");
     return;
   }
 
-  console.log("Found add-issue-label item:", {
-    labelsCount: labelsItem.labels.length,
-  });
+  core.debug(
+    `Found add-issue-label item with ${labelsItem.labels.length} labels`
+  );
 
   // If in staged mode, emit step summary instead of adding labels
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
@@ -61,7 +60,7 @@ async function main() {
 
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
-    console.log("📝 Label addition preview written to step summary");
+    core.info("📝 Label addition preview written to step summary");
     return;
   }
 
@@ -80,9 +79,9 @@ async function main() {
   }
 
   if (allowedLabels) {
-    console.log("Allowed labels:", allowedLabels);
+    core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
   } else {
-    console.log("No label restrictions - any labels are allowed");
+    core.debug("No label restrictions - any labels are allowed");
   }
 
   // Read the max limit from environment variable (default: 3)
@@ -95,7 +94,7 @@ async function main() {
     return;
   }
 
-  console.log("Max count:", maxCount);
+  core.debug(`Max count: ${maxCount}`);
 
   // Check if we're in an issue or pull request context
   const isIssueContext =
@@ -143,7 +142,7 @@ async function main() {
 
   // Extract labels from the JSON item
   const requestedLabels = labelsItem.labels || [];
-  console.log("Requested labels:", requestedLabels);
+  core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
 
   // Check for label removal attempts (labels starting with '-')
   for (const label of requestedLabels) {
@@ -171,12 +170,12 @@ async function main() {
 
   // Enforce max limit
   if (uniqueLabels.length > maxCount) {
-    console.log(`too many labels, keep ${maxCount}`);
+    core.debug(`too many labels, keep ${maxCount}`);
     uniqueLabels = uniqueLabels.slice(0, maxCount);
   }
 
   if (uniqueLabels.length === 0) {
-    console.log("No labels to add");
+    core.info("No labels to add");
     core.setOutput("labels_added", "");
     await core.summary
       .addRaw(
@@ -190,9 +189,8 @@ No labels were added (no valid labels found in agent output).
     return;
   }
 
-  console.log(
-    `Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}:`,
-    uniqueLabels
+  core.info(
+    `Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`
   );
 
   try {
@@ -204,7 +202,7 @@ No labels were added (no valid labels found in agent output).
       labels: uniqueLabels,
     });
 
-    console.log(
+    core.info(
       `Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`
     );
 

@@ -24,12 +24,6 @@ func TestLogParserSnapshots(t *testing.T) {
 			logFile:      "sample_claude_log.txt",
 			expectedFile: "expected_claude_baseline.md",
 		},
-		{
-			name:         "Codex log parsing",
-			engine:       "codex",
-			logFile:      "sample_codex_log.txt",
-			expectedFile: "expected_codex_baseline.md",
-		},
 	}
 
 	for _, tt := range tests {

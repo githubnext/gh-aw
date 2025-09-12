@@ -13,6 +13,7 @@ async function main() {
     core.info(`Maximum reports allowed: ${maxReports}`);
   }
 
+  /** @type {any[]} */
   const missingTools = [];
 
   // Return early if no agent output
@@ -28,7 +29,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(agentOutput);
   } catch (error) {
-    core.error(
+    core.setFailed(
       `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;

@@ -7,10 +7,10 @@ async function main() {
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
     : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-  console.log("Reaction type:", reaction);
-  console.log("Command name:", command || "none");
-  console.log("Run ID:", runId);
-  console.log("Run URL:", runUrl);
+  core.info(`Reaction type: ${reaction}`);
+  core.info(`Command name: ${command || "none"}`);
+  core.info(`Run ID: ${runId}`);
+  core.info(`Run URL: ${runUrl}`);
 
   // Validate reaction type
   const validReactions = [
@@ -92,22 +92,22 @@ async function main() {
         return;
     }
 
-    console.log("Reaction API endpoint:", reactionEndpoint);
+    core.info(`Reaction API endpoint: ${reactionEndpoint}`);
 
     // Add reaction first
     await addReaction(reactionEndpoint, reaction);
 
     // Then edit comment if applicable and if it's a comment event
     if (shouldEditComment && commentUpdateEndpoint) {
-      console.log("Comment update endpoint:", commentUpdateEndpoint);
+      core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
       await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
     } else {
       if (!command && commentUpdateEndpoint) {
-        console.log(
+        core.info(
           "Skipping comment edit - only available for command workflows"
         );
       } else {
-        console.log("Skipping comment edit for event type:", eventName);
+        core.info(`Skipping comment edit for event type: ${eventName}`);
       }
     }
   } catch (error) {
@@ -134,10 +134,10 @@ async function addReaction(endpoint, reaction) {
 
   const reactionId = response.data?.id;
   if (reactionId) {
-    console.log(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+    core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
     core.setOutput("reaction-id", reactionId.toString());
   } else {
-    console.log(`Successfully added reaction: ${reaction}`);
+    core.info(`Successfully added reaction: ${reaction}`);
     core.setOutput("reaction-id", "");
   }
 }
@@ -161,9 +161,7 @@ async function editCommentWithWorkflowLink(endpoint, runUrl) {
 
     // Check if we've already added a workflow link to avoid duplicates
     if (originalBody.includes("*🤖 [Workflow run](")) {
-      console.log(
-        "Comment already contains a workflow run link, skipping edit"
-      );
+      core.info("Comment already contains a workflow run link, skipping edit");
       return;
     }
 
@@ -177,12 +175,15 @@ async function editCommentWithWorkflowLink(endpoint, runUrl) {
       },
     });
 
-    console.log(`Successfully updated comment with workflow link`);
-    console.log(`Comment ID: ${updateResponse.data.id}`);
+    core.info(`Successfully updated comment with workflow link`);
+    core.info(`Comment ID: ${updateResponse.data.id}`);
   } catch (error) {
     // Don't fail the entire job if comment editing fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
-    core.warning("Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully):", errorMessage);
+    core.warning(
+      "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " +
+        errorMessage
+    );
   }
 }
 

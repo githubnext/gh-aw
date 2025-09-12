@@ -2,30 +2,29 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
   if (outputContent.trim() === "") {
-    console.log("Agent output content is empty");
+    core.info("Agent output content is empty");
     return;
   }
 
-  console.log("Agent output content length:", outputContent.length);
+  core.debug(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log(
-      "Error parsing agent output JSON:",
-      error instanceof Error ? error.message : String(error)
+    core.setFailed(
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log("No valid items found in agent output");
+    core.warning("No valid items found in agent output");
     return;
   }
 
@@ -34,13 +33,11 @@ async function main() {
     /** @param {any} item */ item => item.type === "create-discussion"
   );
   if (createDiscussionItems.length === 0) {
-    console.log("No create-discussion items found in agent output");
+    core.warning("No create-discussion items found in agent output");
     return;
   }
 
-  console.log(
-    `Found ${createDiscussionItems.length} create-discussion item(s)`
-  );
+  core.debug(`Found ${createDiscussionItems.length} create-discussion item(s)`);
 
   // If in staged mode, emit step summary instead of creating discussions
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
@@ -63,7 +60,7 @@ async function main() {
 
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
-    console.log("📝 Discussion creation preview written to step summary");
+    core.info("📝 Discussion creation preview written to step summary");
     return;
   }
 
@@ -95,9 +92,12 @@ async function main() {
     repositoryId = queryResult.repository.id;
     discussionCategories =
       queryResult.repository.discussionCategories.nodes || [];
-    console.log(
-      "Available categories:",
-      discussionCategories.map(cat => ({ name: cat.name, id: cat.id }))
+    core.info(
+      `Available categories: ${JSON.stringify(
+        discussionCategories.map(
+          /** @param {any} cat */ cat => ({ name: cat.name, id: cat.id })
+        )
+      )}`
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -108,10 +108,10 @@ async function main() {
       errorMessage.includes("not found") ||
       errorMessage.includes("Could not resolve to a Repository")
     ) {
-      console.log(
+      core.info(
         "⚠ Cannot create discussions: Discussions are not enabled for this repository"
       );
-      console.log(
+      core.info(
         "Consider enabling discussions in repository settings if you want to create discussions automatically"
       );
       return; // Exit gracefully without creating discussions
@@ -126,7 +126,7 @@ async function main() {
   if (!categoryId && discussionCategories.length > 0) {
     // Default to the first category if none specified
     categoryId = discussionCategories[0].id;
-    console.log(
+    core.info(
       `No category-id specified, using default category: ${discussionCategories[0].name} (${categoryId})`
     );
   }
@@ -147,12 +147,8 @@ async function main() {
   // Process each create-discussion item
   for (let i = 0; i < createDiscussionItems.length; i++) {
     const createDiscussionItem = createDiscussionItems[i];
-    console.log(
-      `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}:`,
-      {
-        title: createDiscussionItem.title,
-        bodyLength: createDiscussionItem.body.length,
-      }
+    core.info(
+      `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
     );
 
     // Extract title and body from the JSON item
@@ -187,9 +183,9 @@ async function main() {
     // Prepare the body content
     const body = bodyLines.join("\n").trim();
 
-    console.log("Creating discussion with title:", title);
-    console.log("Category ID:", categoryId);
-    console.log("Body length:", body.length);
+    core.info(`Creating discussion with title: ${title}`);
+    core.info(`Category ID: ${categoryId}`);
+    core.info(`Body length: ${body.length}`);
 
     try {
       // Create the discussion using GraphQL API with parameterized mutation
@@ -220,7 +216,7 @@ async function main() {
 
       const discussion = mutationResult.createDiscussion.discussion;
 
-      console.log(
+      core.info(
         "Created discussion #" + discussion.number + ": " + discussion.url
       );
       createdDiscussions.push(discussion);
@@ -247,8 +243,6 @@ async function main() {
     await core.summary.addRaw(summaryContent).write();
   }
 
-  console.log(
-    `Successfully created ${createdDiscussions.length} discussion(s)`
-  );
+  core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
 }
 await main();

@@ -5,30 +5,29 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
   if (outputContent.trim() === "") {
-    console.log("Agent output content is empty");
+    core.info("Agent output content is empty");
     return;
   }
 
-  console.log("Agent output content length:", outputContent.length);
+  core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log(
-      "Error parsing agent output JSON:",
-      error instanceof Error ? error.message : String(error)
+    core.setFailed(
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log("No valid items found in agent output");
+    core.info("No valid items found in agent output");
     return;
   }
 
@@ -37,11 +36,11 @@ async function main() {
     /** @param {any} item */ item => item.type === "create-issue"
   );
   if (createIssueItems.length === 0) {
-    console.log("No create-issue items found in agent output");
+    core.info("No create-issue items found in agent output");
     return;
   }
 
-  console.log(`Found ${createIssueItems.length} create-issue item(s)`);
+  core.info(`Found ${createIssueItems.length} create-issue item(s)`);
 
   // If in staged mode, emit step summary instead of creating issues
   if (isStaged) {
@@ -64,7 +63,7 @@ async function main() {
 
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
-    console.log("📝 Issue creation preview written to step summary");
+    core.info("📝 Issue creation preview written to step summary");
     return;
   }
 
@@ -85,9 +84,8 @@ async function main() {
   // Process each create-issue item
   for (let i = 0; i < createIssueItems.length; i++) {
     const createIssueItem = createIssueItems[i];
-    console.log(
-      `Processing create-issue item ${i + 1}/${createIssueItems.length}:`,
-      { title: createIssueItem.title, bodyLength: createIssueItem.body.length }
+    core.info(
+      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
     );
 
     // Merge environment labels with item-specific labels
@@ -112,7 +110,7 @@ async function main() {
     }
 
     if (parentIssueNumber) {
-      console.log("Detected issue context, parent issue #" + parentIssueNumber);
+      core.info("Detected issue context, parent issue #" + parentIssueNumber);
 
       // Add reference to parent issue in the child issue body
       bodyLines.push(`Related to #${parentIssueNumber}`);
@@ -134,9 +132,9 @@ async function main() {
     // Prepare the body content
     const body = bodyLines.join("\n").trim();
 
-    console.log("Creating issue with title:", title);
-    console.log("Labels:", labels);
-    console.log("Body length:", body.length);
+    core.info(`Creating issue with title: ${title}`);
+    core.info(`Labels: ${labels}`);
+    core.info(`Body length: ${body.length}`);
 
     try {
       // Create the issue using GitHub API
@@ -148,7 +146,7 @@ async function main() {
         labels: labels,
       });
 
-      console.log("Created issue #" + issue.number + ": " + issue.html_url);
+      core.info("Created issue #" + issue.number + ": " + issue.html_url);
       createdIssues.push(issue);
 
       // If we have a parent issue, add a comment to it referencing the new child issue
@@ -160,11 +158,10 @@ async function main() {
             issue_number: parentIssueNumber,
             body: `Created related issue: #${issue.number}`,
           });
-          console.log("Added comment to parent issue #" + parentIssueNumber);
+          core.info("Added comment to parent issue #" + parentIssueNumber);
         } catch (error) {
-          console.log(
-            "Warning: Could not add comment to parent issue:",
-            error instanceof Error ? error.message : String(error)
+          core.info(
+            `Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`
           );
         }
       }
@@ -182,10 +179,10 @@ async function main() {
       if (
         errorMessage.includes("Issues has been disabled in this repository")
       ) {
-        console.log(
+        core.info(
           `⚠ Cannot create issue "${title}": Issues are disabled for this repository`
         );
-        console.log(
+        core.info(
           "Consider enabling issues in repository settings if you want to create issues automatically"
         );
         continue; // Skip this issue but continue processing others
@@ -205,6 +202,6 @@ async function main() {
     await core.summary.addRaw(summaryContent).write();
   }
 
-  console.log(`Successfully created ${createdIssues.length} issue(s)`);
+  core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }
 await main();
