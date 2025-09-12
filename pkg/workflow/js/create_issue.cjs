@@ -20,7 +20,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.info(
+    core.setFailed(
       `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;

@@ -17,7 +17,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.error(
+    core.setFailed(
       `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
@@ -93,9 +93,11 @@ async function main() {
     discussionCategories =
       queryResult.repository.discussionCategories.nodes || [];
     core.info(
-      `Available categories: ${JSON.stringify(discussionCategories.map(
-        /** @param {any} cat */ cat => ({ name: cat.name, id: cat.id })
-      ))}`
+      `Available categories: ${JSON.stringify(
+        discussionCategories.map(
+          /** @param {any} cat */ cat => ({ name: cat.name, id: cat.id })
+        )
+      )}`
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
