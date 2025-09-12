@@ -1,4 +1,7 @@
-# 🏷️ Command Triggers
+---
+title: Command Triggers
+description: Learn about command triggers and context text functionality for agentic workflows, including special @mention triggers for interactive automation.
+---
 
 This guide covers command triggers and context text functionality for agentic workflows.
 

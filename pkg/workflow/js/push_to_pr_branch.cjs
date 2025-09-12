@@ -148,19 +148,20 @@ async function main() {
     }
   }
 
-  // Check if we're in a pull request context when required
-  if (target === "triggering" && !context.payload.pull_request) {
-    core.setFailed(
-      'push-to-pr-branch with target "triggering" requires pull request context'
-    );
-    return;
-  }
-
   // Compute the target branch name based on target configuration
   let pullNumber;
   if (target === "triggering") {
     // Use the number of the triggering pull request
-    pullNumber = context.payload.pull_request.number;
+    pullNumber =
+      context.payload?.pull_request?.number || context.payload?.issue?.number;
+
+    // Check if we're in a pull request context when required
+    if (!pullNumber) {
+      core.setFailed(
+        'push-to-pr-branch with target "triggering" requires pull request context'
+      );
+      return;
+    }
   } else if (target === "*") {
     if (pushItem.pull_number) {
       pullNumber = parseInt(pushItem.pull_number, 10);

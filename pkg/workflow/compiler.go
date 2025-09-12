@@ -2370,7 +2370,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	}
 
 	// We only run in pull request context, Note that in pull request comments only github.event.issue.pull_request is set.
-	baseCondition := "(github.event.issue.pull_request || github.event.pull_request)"
+	baseCondition := "(github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request"
 
 	// If this is a command workflow, combine the command trigger condition with the base condition
 	var jobCondition string

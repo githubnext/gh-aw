@@ -1,4 +1,7 @@
-# Security Notes
+---
+title: Security Notes
+description: Important security considerations for GitHub Agentic Workflows, including sandboxing, permissions, and best practices for safe agentic automation.
+---
 
 > [!CAUTION]
 > GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.

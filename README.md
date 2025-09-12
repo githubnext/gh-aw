@@ -7,11 +7,11 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 
 ## 🚀 Quick Start
 
-Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](docs/quick-start.md) to install the extension, add a sample workflow, and see it in action.
+Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](docs/src/content/docs/reference/quick-start.md) to install the extension, add a sample workflow, and see it in action.
 
 ## 📖 Overview
 
-Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [Concepts](docs/concepts.md).
+Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [Concepts](docs/src/content/docs/reference/concepts.md).
 
 ## 🔧 How It Works
 
@@ -39,14 +39,14 @@ The AI agent reads your repository context, understands the issue content, and t
 
 ## 📚 Samples
 
-Explore ready-to-use agentic workflows for research, development, and automation tasks. See [Samples](docs/samples.md) for a complete list of demonstrator workflows including:
+Explore ready-to-use agentic workflows for research, development, and automation tasks. See [Samples](docs/src/content/docs/reference/samples.md) for a complete list of demonstrator workflows including:
 
 - **Research & Planning**: Weekly research, team status reports, daily planning, and issue triage
 - **Coding & Development**: Dependency updates, documentation maintenance, QA tasks, test coverage improvements, performance optimization, and accessibility reviews
 
 ## 📖 Documentation
 
-For complete documentation, examples, and guides, see the [Documentation](docs/index.md).
+For complete documentation, examples, and guides, see the [Documentation](docs/src/content/docs/index.mdx).
 
 ## 🤝 Contributing
 
