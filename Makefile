@@ -152,6 +152,10 @@ install: build
 .PHONY: recompile
 recompile: build
 	./$(BINARY_NAME) compile --validate --instructions
+	@if [ -d "pkg/cli/workflows" ]; then \
+		echo "Compiling test workflows from pkg/cli/workflows..."; \
+		./$(BINARY_NAME) compile --workflow-dir pkg/cli/workflows --validate; \
+	fi
 
 # Run development server
 .PHONY: dev

@@ -861,6 +861,36 @@
                 "type": "object",
                 "additionalProperties": true
               }
+            },
+            "error_patterns": {
+              "type": "array",
+              "description": "Custom error patterns for validating agent logs",
+              "items": {
+                "type": "object",
+                "description": "Error pattern definition",
+                "properties": {
+                  "pattern": {
+                    "type": "string",
+                    "description": "Ecma script regular expression pattern to match log lines"
+                  },
+                  "level_group": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
+                  },
+                  "message_group": {
+                    "type": "integer", 
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Human-readable description of what this pattern matches"
+                  }
+                },
+                "required": ["pattern"],
+                "additionalProperties": false
+              }
             }
           },
           "required": [
@@ -1364,7 +1394,7 @@
             }
           ]
         },
-        "create-repository-security-advisory": {
+        "create-code-scanning-alert": {
           "oneOf": [
             {
               "type": "object",
@@ -1384,7 +1414,7 @@
             },
             {
               "type": "null",
-              "description": "Enable repository security advisory creation with default configuration (unlimited findings)"
+              "description": "Enable code scanning alert creation with default configuration (unlimited findings)"
             }
           ]
         },
@@ -1500,6 +1530,10 @@
               "description": "Enable missing tool reporting with default configuration"
             }
           ]
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"
         }
       },
       "additionalProperties": false

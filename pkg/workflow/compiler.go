@@ -123,7 +123,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name               string
-	FrontmatterName    string // name field from frontmatter (for repository security advisory driver default)
+	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
@@ -153,17 +153,18 @@ type WorkflowData struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
-	CreateIssues                       *CreateIssuesConfig                       `yaml:"create-issue,omitempty"`
-	CreateDiscussions                  *CreateDiscussionsConfig                  `yaml:"create-discussion,omitempty"`
-	AddIssueComments                   *AddIssueCommentsConfig                   `yaml:"add-issue-comment,omitempty"`
-	CreatePullRequests                 *CreatePullRequestsConfig                 `yaml:"create-pull-request,omitempty"`
-	CreatePullRequestReviewComments    *CreatePullRequestReviewCommentsConfig    `yaml:"create-pull-request-review-comment,omitempty"`
-	CreateRepositorySecurityAdvisories *CreateRepositorySecurityAdvisoriesConfig `yaml:"create-repository-security-advisory,omitempty"`
-	AddIssueLabels                     *AddIssueLabelsConfig                     `yaml:"add-issue-label,omitempty"`
-	UpdateIssues                       *UpdateIssuesConfig                       `yaml:"update-issue,omitempty"`
-	PushToPullRequestBranch            *PushToPullRequestBranchConfig            `yaml:"push-to-pr-branch,omitempty"`
-	MissingTool                        *MissingToolConfig                        `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
-	AllowedDomains                     []string                                  `yaml:"allowed-domains,omitempty"`
+	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
+	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
+	AddIssueComments                *AddIssueCommentsConfig                `yaml:"add-issue-comment,omitempty"`
+	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
+	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
+	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alert,omitempty"`
+	AddIssueLabels                  *AddIssueLabelsConfig                  `yaml:"add-issue-label,omitempty"`
+	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
+	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
+	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
+	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
+	Staged                          *bool                                  `yaml:"staged,omitempty"` // If true, emit step summary messages instead of making GitHub API calls
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -206,8 +207,8 @@ type CreatePullRequestReviewCommentsConfig struct {
 	Side string `yaml:"side,omitempty"` // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
 }
 
-// CreateRepositorySecurityAdvisoriesConfig holds configuration for creating repository security advisories (SARIF format) from agent output
-type CreateRepositorySecurityAdvisoriesConfig struct {
+// CreateCodeScanningAlertsConfig holds configuration for creating repository security advisories (SARIF format) from agent output
+type CreateCodeScanningAlertsConfig struct {
 	Max    int    `yaml:"max,omitempty"`    // Maximum number of security findings to include (default: unlimited)
 	Driver string `yaml:"driver,omitempty"` // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
 }
@@ -1880,16 +1881,16 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
-		// Build create_repository_security_advisory job if output.create-repository-security-advisory is configured
-		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
+		// Build create_code_scanning_alert job if output.create-code-scanning-alert is configured
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			// Extract the workflow filename without extension for rule ID prefix
 			workflowFilename := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-			createRepositorySecurityAdvisoryJob, err := c.buildCreateOutputRepositorySecurityAdvisoryJob(data, jobName, workflowFilename)
+			createCodeScanningAlertJob, err := c.buildCreateOutputCodeScanningAlertJob(data, jobName, workflowFilename)
 			if err != nil {
-				return fmt.Errorf("failed to build create_repository_security_advisory job: %w", err)
+				return fmt.Errorf("failed to build create_code_scanning_alert job: %w", err)
 			}
-			if err := c.jobManager.AddJob(createRepositorySecurityAdvisoryJob); err != nil {
-				return fmt.Errorf("failed to add create_repository_security_advisory job: %w", err)
+			if err := c.jobManager.AddJob(createCodeScanningAlertJob); err != nil {
+				return fmt.Errorf("failed to add create_code_scanning_alert job: %w", err)
 			}
 		}
 
@@ -2368,8 +2369,8 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
-	// Only run in pull request context
-	baseCondition := "github.event.pull_request.number"
+	// We only run in pull request context, Note that in pull request comments only github.event.issue.pull_request is set.
+	baseCondition := "(github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request"
 
 	// If this is a command workflow, combine the command trigger condition with the base condition
 	var jobCondition string
@@ -2399,15 +2400,15 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	return job, nil
 }
 
-// buildCreateOutputRepositorySecurityAdvisoryJob creates the create_repository_security_advisory job
-func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateRepositorySecurityAdvisories == nil {
-		return nil, fmt.Errorf("safe-outputs.create-repository-security-advisory configuration is required")
+// buildCreateOutputCodeScanningAlertJob creates the create_code_scanning_alert job
+func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.CreateCodeScanningAlerts == nil {
+		return nil, fmt.Errorf("safe-outputs.create-code-scanning-alert configuration is required")
 	}
 
 	var steps []string
-	steps = append(steps, "      - name: Create Repository Security Advisory\n")
-	steps = append(steps, "        id: create_repository_security_advisory\n")
+	steps = append(steps, "      - name: Create Code Scanning Alert\n")
+	steps = append(steps, "        id: create_code_scanning_alert\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
 
 	// Add environment variables
@@ -2415,11 +2416,11 @@ func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *Workflow
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	// Pass the max configuration
-	if data.SafeOutputs.CreateRepositorySecurityAdvisories.Max > 0 {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateRepositorySecurityAdvisories.Max))
+	if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateCodeScanningAlerts.Max))
 	}
 	// Pass the driver configuration, defaulting to frontmatter name
-	driverName := data.SafeOutputs.CreateRepositorySecurityAdvisories.Driver
+	driverName := data.SafeOutputs.CreateCodeScanningAlerts.Driver
 	if driverName == "" {
 		if data.FrontmatterName != "" {
 			driverName = data.FrontmatterName
@@ -2435,30 +2436,30 @@ func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *Workflow
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createRepositorySecurityAdvisoryScript)
+	formattedScript := FormatJavaScriptForYAML(createCodeScanningAlertScript)
 	steps = append(steps, formattedScript...)
 
 	// Add step to upload SARIF artifact
 	steps = append(steps, "      - name: Upload SARIF artifact\n")
-	steps = append(steps, "        if: steps.create_repository_security_advisory.outputs.sarif_file\n")
+	steps = append(steps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
 	steps = append(steps, "        uses: actions/upload-artifact@v4\n")
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: repository-security-advisory.sarif\n")
-	steps = append(steps, "          path: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}\n")
+	steps = append(steps, "          name: code-scanning-alert.sarif\n")
+	steps = append(steps, "          path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
 
 	// Add step to upload SARIF to GitHub Code Scanning
 	steps = append(steps, "      - name: Upload SARIF to GitHub Security\n")
-	steps = append(steps, "        if: steps.create_repository_security_advisory.outputs.sarif_file\n")
+	steps = append(steps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
 	steps = append(steps, "        uses: github/codeql-action/upload-sarif@v3\n")
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          sarif_file: ${{ steps.create_repository_security_advisory.outputs.sarif_file }}\n")
+	steps = append(steps, "          sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"sarif_file":        "${{ steps.create_repository_security_advisory.outputs.sarif_file }}",
-		"findings_count":    "${{ steps.create_repository_security_advisory.outputs.findings_count }}",
-		"artifact_uploaded": "${{ steps.create_repository_security_advisory.outputs.artifact_uploaded }}",
-		"codeql_uploaded":   "${{ steps.create_repository_security_advisory.outputs.codeql_uploaded }}",
+		"sarif_file":        "${{ steps.create_code_scanning_alert.outputs.sarif_file }}",
+		"findings_count":    "${{ steps.create_code_scanning_alert.outputs.findings_count }}",
+		"artifact_uploaded": "${{ steps.create_code_scanning_alert.outputs.artifact_uploaded }}",
+		"codeql_uploaded":   "${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}",
 	}
 
 	// Build job condition - repository security advisories can run in any context unlike PR review comments
@@ -2474,7 +2475,7 @@ func (c *Compiler) buildCreateOutputRepositorySecurityAdvisoryJob(data *Workflow
 	}
 
 	job := &Job{
-		Name:           "create_repository_security_advisory",
+		Name:           "create_code_scanning_alert",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      security-events: write\n      actions: read", // Need security-events:write for SARIF upload
@@ -2951,6 +2952,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
+	// Add error validation for AI execution logs
+	c.generateErrorValidation(yaml, engine, logFileFull, data)
+
 	// Add git patch generation step only if safe-outputs create-pull-request feature is used
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
 		c.generateGitPatchStep(yaml, data)
@@ -2987,12 +2991,60 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v7\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          AGENT_LOG_FILE: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
 	// Inline the JavaScript code with proper indentation
 	steps := FormatJavaScriptForYAML(logParserScript)
+	for _, step := range steps {
+		yaml.WriteString(step)
+	}
+}
+
+func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string, data *WorkflowData) {
+	// Concatenate engine error patterns and configured error patterns
+	var errorPatterns []ErrorPattern
+
+	// Add engine-defined patterns
+	enginePatterns := engine.GetErrorPatterns()
+	errorPatterns = append(errorPatterns, enginePatterns...)
+
+	// Add user-configured patterns from engine config
+	if data.EngineConfig != nil && len(data.EngineConfig.ErrorPatterns) > 0 {
+		errorPatterns = append(errorPatterns, data.EngineConfig.ErrorPatterns...)
+	}
+
+	// Skip if no error patterns are available
+	if len(errorPatterns) == 0 {
+		return
+	}
+
+	errorValidationScript := validateErrorsScript
+	if errorValidationScript == "" {
+		// Skip if validation script not found
+		return
+	}
+
+	yaml.WriteString("      - name: Validate agent logs for errors\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
+
+	// Add error patterns as a single JSON array
+	patternsJSON, err := json.Marshal(errorPatterns)
+	if err != nil {
+		// Skip if patterns can't be marshaled
+		return
+	}
+	fmt.Fprintf(yaml, "          GITHUB_AW_ERROR_PATTERNS: %q\n", string(patternsJSON))
+
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Inline the JavaScript code with proper indentation
+	steps := FormatJavaScriptForYAML(errorValidationScript)
 	for _, step := range steps {
 		yaml.WriteString(step)
 	}
@@ -3135,7 +3187,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			written = true
 		}
 
-		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			if written {
 				yaml.WriteString(", ")
 			}
@@ -3271,13 +3323,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          \n")
 		}
 
-		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			yaml.WriteString("          **Creating Repository Security Advisories**\n")
 			yaml.WriteString("          \n")
 			yaml.WriteString("          To create repository security advisories (SARIF format for GitHub Code Scanning):\n")
 			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
 			yaml.WriteString("          ```json\n")
-			yaml.WriteString("          {\"type\": \"create-repository-security-advisory\", \"file\": \"path/to/file.js\", \"line\": 42, \"severity\": \"error\", \"message\": \"Security vulnerability description\", \"column\": 5, \"ruleIdSuffix\": \"custom-rule\"}\n")
+			yaml.WriteString("          {\"type\": \"create-code-scanning-alert\", \"file\": \"path/to/file.js\", \"line\": 42, \"severity\": \"error\", \"message\": \"Security vulnerability description\", \"column\": 5, \"ruleIdSuffix\": \"custom-rule\"}\n")
 			yaml.WriteString("          ```\n")
 			yaml.WriteString("          2. **Required fields**: `file` (string), `line` (number), `severity` (\"error\", \"warning\", \"info\", or \"note\"), `message` (string)\n")
 			yaml.WriteString("          3. **Optional fields**: `column` (number, defaults to 1), `ruleIdSuffix` (string with only alphanumeric, hyphens, underscores)\n")
@@ -3299,6 +3351,22 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          3. The `reason` field should explain why this tool/functionality is required to complete the task\n")
 			yaml.WriteString("          4. The `alternatives` field is optional but can suggest workarounds or alternative approaches\n")
 			yaml.WriteString("          5. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			yaml.WriteString("          **Creating a Pull Request Review Comment**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a review comment on a pull request:\n")
+			yaml.WriteString("          1. Write an entry to \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\":\n")
+			yaml.WriteString("          ```json\n")
+			yaml.WriteString("          {\"type\": \"create-pull-request-review-comment\", \"body\": \"Your comment content in markdown\", \"path\": \"file/path.ext\", \"start_line\": 10, \"line\": 10, \"side\": \"RIGHT\"}\n")
+			yaml.WriteString("          ```\n")
+			yaml.WriteString("          2. The `path` field specifies the file path in the pull request where the comment should be added\n")
+			yaml.WriteString("          3. The `line` field specifies the line number in the file for the comment\n")
+			yaml.WriteString("          4. The optional `start_line` field is optional and can be used to specify the start of a multi-line comment range\n")
+			yaml.WriteString("          5. The optional `side` field indicates whether the comment is on the \"RIGHT\" (new code) or \"LEFT\" (old code) side of the diff\n")
+			yaml.WriteString("          6. After you write to that file, read it as JSONL and check it is valid. If it isn't, make any necessary corrections to it to fix it up\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3327,8 +3395,17 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          {\"type\": \"push-to-pr-branch\", \"message\": \"Update documentation with latest changes\"}\n")
 			exampleCount++
 		}
-		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
-			yaml.WriteString("          {\"type\": \"create-repository-security-advisory\", \"file\": \"src/auth.js\", \"line\": 25, \"severity\": \"error\", \"message\": \"Potential SQL injection vulnerability\"}\n")
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+			yaml.WriteString("          {\"type\": \"create-code-scanning-alert\", \"file\": \"src/auth.js\", \"line\": 25, \"severity\": \"error\", \"message\": \"Potential SQL injection vulnerability\"}\n")
+			exampleCount++
+		}
+		if data.SafeOutputs.UpdateIssues != nil {
+			yaml.WriteString("          {\"type\": \"update-issue\", \"title\": \"Updated Issue Title\", \"body\": \"Expanded issue description.\", \"status\": \"open\"}\n")
+			exampleCount++
+		}
+
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			yaml.WriteString("          {\"type\": \"create-pull-request-review-comment\", \"body\": \"Consider renaming this variable for clarity.\", \"path\": \"src/main.py\", \"start_line\": 41, \"line\": 42, \"side\": \"RIGHT\"}\n")
 			exampleCount++
 		}
 
@@ -3433,10 +3510,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreatePullRequestReviewComments = prReviewCommentsConfig
 			}
 
-			// Handle create-repository-security-advisory
-			securityReportsConfig := c.parseRepositorySecurityAdvisoriesConfig(outputMap)
+			// Handle create-code-scanning-alert
+			securityReportsConfig := c.parseCodeScanningAlertsConfig(outputMap)
 			if securityReportsConfig != nil {
-				config.CreateRepositorySecurityAdvisories = securityReportsConfig
+				config.CreateCodeScanningAlerts = securityReportsConfig
 			}
 
 			// Parse allowed-domains configuration
@@ -3517,6 +3594,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {
 				config.MissingTool = missingToolConfig
+			}
+
+			// Handle staged flag
+			if staged, exists := outputMap["staged"]; exists {
+				if stagedBool, ok := staged.(bool); ok {
+					config.Staged = &stagedBool
+				}
 			}
 		}
 	}
@@ -3708,14 +3792,14 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 	return prReviewCommentsConfig
 }
 
-// parseRepositorySecurityAdvisoriesConfig handles create-repository-security-advisory configuration
-func (c *Compiler) parseRepositorySecurityAdvisoriesConfig(outputMap map[string]any) *CreateRepositorySecurityAdvisoriesConfig {
-	if _, exists := outputMap["create-repository-security-advisory"]; !exists {
+// parseCodeScanningAlertsConfig handles create-code-scanning-alert configuration
+func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *CreateCodeScanningAlertsConfig {
+	if _, exists := outputMap["create-code-scanning-alert"]; !exists {
 		return nil
 	}
 
-	configData := outputMap["create-repository-security-advisory"]
-	securityReportsConfig := &CreateRepositorySecurityAdvisoriesConfig{Max: 0} // Default max is 0 (unlimited)
+	configData := outputMap["create-code-scanning-alert"]
+	securityReportsConfig := &CreateCodeScanningAlertsConfig{Max: 0} // Default max is 0 (unlimited)
 
 	if configMap, ok := configData.(map[string]any); ok {
 		// Parse max
@@ -4102,15 +4186,15 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 			}
 			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
 		}
-		if data.SafeOutputs.CreateRepositorySecurityAdvisories != nil {
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			securityReportConfig := map[string]interface{}{
 				"enabled": true,
 			}
 			// Security reports typically have unlimited max, but check if configured
-			if data.SafeOutputs.CreateRepositorySecurityAdvisories.Max > 0 {
-				securityReportConfig["max"] = data.SafeOutputs.CreateRepositorySecurityAdvisories.Max
+			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
+				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
 			}
-			safeOutputsConfig["create-repository-security-advisory"] = securityReportConfig
+			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
 		}
 		if data.SafeOutputs.AddIssueLabels != nil {
 			safeOutputsConfig["add-issue-label"] = true

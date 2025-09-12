@@ -46,15 +46,46 @@ async function main() {
     `Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`
   );
 
+  // If in staged mode, emit step summary instead of creating review comments
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent =
+      "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
+    summaryContent +=
+      "The following review comments would be created if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < reviewCommentItems.length; i++) {
+      const item = reviewCommentItems[i];
+      summaryContent += `### Review Comment ${i + 1}\n`;
+      summaryContent += `**File:** ${item.path || "No path provided"}\n\n`;
+      summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
+      if (item.start_line) {
+        summaryContent += `**Start Line:** ${item.start_line}\n\n`;
+      }
+      summaryContent += `**Side:** ${item.side || "RIGHT"}\n\n`;
+      summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+      summaryContent += "---\n\n";
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log(
+      "📝 PR review comment creation preview written to step summary"
+    );
+    return;
+  }
+
   // Get the side configuration from environment variable
   const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
   console.log(`Default comment side configuration: ${defaultSide}`);
 
-  // Check if we're in a pull request context
+  // Check if we're in a pull request context, or an issue comment context on a PR
   const isPRContext =
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
-    context.eventName === "pull_request_review_comment";
+    context.eventName === "pull_request_review_comment" ||
+    (context.eventName === "issue_comment" &&
+      context.payload.issue &&
+      context.payload.issue.pull_request);
 
   if (!isPRContext) {
     console.log(
@@ -62,26 +93,47 @@ async function main() {
     );
     return;
   }
+  let pullRequest = context.payload.pull_request;
 
-  if (!context.payload.pull_request) {
-    console.log(
-      "Pull request context detected but no pull request found in payload"
-    );
-    return;
+  if (!pullRequest) {
+    //No, github.event.issue.pull_request does not contain the full pull request data like head.sha. It only includes a minimal object with a url pointing to the pull request API resource.
+    //To get full PR details (like head.sha, base.ref, etc.), you need to make an API call using that URL.
+
+    if (context.payload.issue.pull_request) {
+      // Fetch full pull request details using the GitHub API
+      const prUrl = context.payload.issue.pull_request.url;
+      try {
+        const { data: fullPR } = await github.request(`GET ${prUrl}`, {
+          headers: {
+            Accept: "application/vnd.github+json",
+          },
+        });
+        pullRequest = fullPR;
+        console.log("Fetched full pull request details from API");
+      } catch (error) {
+        console.log(
+          "Failed to fetch full pull request details:",
+          error instanceof Error ? error.message : String(error)
+        );
+        return;
+      }
+    } else {
+      console.log(
+        "Pull request data not found in payload - cannot create review comments"
+      );
+      return;
+    }
   }
 
   // Check if we have the commit SHA needed for creating review comments
-  if (
-    !context.payload.pull_request.head ||
-    !context.payload.pull_request.head.sha
-  ) {
+  if (!pullRequest.head || !pullRequest.head.sha) {
     console.log(
       "Pull request head commit SHA not found in payload - cannot create review comments"
     );
     return;
   }
 
-  const pullRequestNumber = context.payload.pull_request.number;
+  const pullRequestNumber = pullRequest.number;
   console.log(`Creating review comments on PR #${pullRequestNumber}`);
 
   const createdComments = [];
@@ -171,7 +223,7 @@ async function main() {
         pull_number: pullRequestNumber,
         body: body,
         path: commentItem.path,
-        commit_id: context.payload.pull_request.head.sha, // Required for creating review comments
+        commit_id: pullRequest.head.sha, // Required for creating review comments
         line: line,
         side: side,
       };

@@ -10,7 +10,8 @@
 				"golang.go",
 				"GitHub.copilot-chat",
 				"GitHub.copilot",
-				"github.vscode-github-actions"
+				"github.vscode-github-actions",
+				"astro-build.astro-vscode"
 			]
 		},
 		"codespaces": {
@@ -18,6 +19,11 @@
 				"githubnext/agentics": {
 					"permissions": {
 						"contents": "read"
+					}
+				},
+				"githubnext/gh-aw-test": {
+					"permissions": {
+						"contents": "write"
 					}
 				}
 			}

@@ -116,6 +116,11 @@ codex exec \
 	hasOutput := workflowData.SafeOutputs != nil
 	if hasOutput {
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+
+		// Add staged flag if specified
+		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
+			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		}
 	}
 
 	// Add custom environment variables from engine config
@@ -442,4 +447,28 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 // GetLogParserScript returns the JavaScript script name for parsing Codex logs
 func (e *CodexEngine) GetLogParserScript() string {
 	return "parse_codex_log"
+}
+
+// GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
+func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
+	return []ErrorPattern{
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+stream\s+(error):\s+(.+)`,
+			LevelGroup:   2, // "error" is in the second capture group
+			MessageGroup: 3, // error message is in the third capture group
+			Description:  "Codex stream errors with timestamp",
+		},
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)`,
+			LevelGroup:   2, // "ERROR" is in the second capture group
+			MessageGroup: 3, // error message is in the third capture group
+			Description:  "Codex ERROR messages with timestamp",
+		},
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(WARN|WARNING):\s+(.+)`,
+			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
+			MessageGroup: 3, // warning message is in the third capture group
+			Description:  "Codex warning messages with timestamp",
+		},
+	}
 }

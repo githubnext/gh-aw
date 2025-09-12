@@ -108,6 +108,34 @@ async function main() {
 
   console.log("Found push-to-pr-branch item");
 
+  // If in staged mode, emit step summary instead of pushing changes
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
+    summaryContent +=
+      "The following changes would be pushed if staged mode was disabled:\n\n";
+
+    summaryContent += `**Target:** ${target}\n\n`;
+
+    if (pushItem.commit_message) {
+      summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
+    }
+
+    if (fs.existsSync("/tmp/aw.patch")) {
+      const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+      if (patchStats.trim()) {
+        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+      } else {
+        summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+      }
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    console.log("📝 Push to PR branch preview written to step summary");
+    return;
+  }
+
   // Validate target configuration for pull request context
   if (target !== "*" && target !== "triggering") {
     // If target is a specific number, validate it's a valid pull request number
@@ -120,19 +148,20 @@ async function main() {
     }
   }
 
-  // Check if we're in a pull request context when required
-  if (target === "triggering" && !context.payload.pull_request) {
-    core.setFailed(
-      'push-to-pr-branch with target "triggering" requires pull request context'
-    );
-    return;
-  }
-
   // Compute the target branch name based on target configuration
   let pullNumber;
   if (target === "triggering") {
     // Use the number of the triggering pull request
-    pullNumber = context.payload.pull_request.number;
+    pullNumber =
+      context.payload?.pull_request?.number || context.payload?.issue?.number;
+
+    // Check if we're in a pull request context when required
+    if (!pullNumber) {
+      core.setFailed(
+        'push-to-pr-branch with target "triggering" requires pull request context'
+      );
+      return;
+    }
   } else if (target === "*") {
     if (pushItem.pull_number) {
       pullNumber = parseInt(pushItem.pull_number, 10);

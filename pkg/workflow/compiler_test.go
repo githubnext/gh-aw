@@ -3030,7 +3030,7 @@ Test command workflow with reaction and comment editing.
 	}
 
 	// Verify the script contains alias-aware comment editing logic
-	if !strings.Contains(yamlContent, "shouldEditComment = alias") {
+	if !strings.Contains(yamlContent, "shouldEditComment = command") {
 		t.Error("Generated YAML should contain alias-aware comment editing logic")
 	}
 }

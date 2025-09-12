@@ -71,7 +71,7 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Verify conditional execution for pull request context
-	if !strings.Contains(lockContentStr, "if: github.event.pull_request.number") {
+	if !strings.Contains(lockContentStr, "if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request") {
 		t.Errorf("Generated workflow should have pull request context condition")
 	}
 }
@@ -281,7 +281,7 @@ This workflow has minimal push-to-pr-branch configuration.
 	}
 
 	// Verify default conditional execution for pull request context
-	if !strings.Contains(lockContentStr, "if: github.event.pull_request.number") {
+	if !strings.Contains(lockContentStr, "if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request") {
 		t.Errorf("Generated workflow should have default pull request context condition")
 	}
 }
