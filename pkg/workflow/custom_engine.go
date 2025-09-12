@@ -190,11 +190,9 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration using shared logic
 // Always uses Docker-based containerized setup in GitHub Actions
 func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
-	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
+	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
 	yaml.WriteString("              \"playwright\": {\n")
-
-	// Always use Docker-based Playwright MCP server for consistent containerized execution
 	yaml.WriteString("                \"command\": \"docker\",\n")
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"run\",\n")
@@ -202,23 +200,17 @@ func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"--shm-size=2gb\",\n")
 	yaml.WriteString("                  \"--cap-add=SYS_ADMIN\",\n")
-
-	// Get domain values for environment variables
-	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
-
-	// Add environment variable declarations in args (like github MCP server pattern)
 	yaml.WriteString("                  \"-e\",\n")
 	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\",\n")
-	if len(allowedDomains) == 0 {
+	if len(args.AllowedDomains) == 0 {
 		yaml.WriteString("                  \"-e\",\n")
 		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\",\n")
 	}
-
-	yaml.WriteString("                  \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")
+	yaml.WriteString("                  \"mcr.microsoft.com/playwright:" + args.ImageVersion + "\"\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\": \"" + strings.Join(allowedDomains, ",") + "\"")
-	if len(allowedDomains) == 0 {
+	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\": \"" + strings.Join(args.AllowedDomains, ",") + "\"")
+	if len(args.AllowedDomains) == 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\": \"true\"")
 	}

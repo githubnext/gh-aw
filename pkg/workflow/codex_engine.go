@@ -420,11 +420,10 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
 // Always uses Docker-based containerized setup in GitHub Actions
 func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
-	playwrightDockerImageVersion := getPlaywrightDockerImageVersion(playwrightTool)
+	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
-
-	// Always use Docker-based Playwright MCP server for consistent containerized execution
 	yaml.WriteString("          command = \"docker\"\n")
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"run\",\n")
@@ -432,25 +431,18 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"--shm-size=2gb\",\n")
 	yaml.WriteString("            \"--cap-add=SYS_ADMIN\",\n")
-
-	// Get domain values for environment variables
-	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
-
-	// Add environment variable declarations in command args
 	yaml.WriteString("            \"-e\",\n")
 	yaml.WriteString("            \"PLAYWRIGHT_ALLOWED_DOMAINS\",\n")
-	if len(allowedDomains) == 0 {
+	if len(args.AllowedDomains) == 0 {
 		yaml.WriteString("            \"-e\",\n")
 		yaml.WriteString("            \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\",\n")
 	}
-
-	yaml.WriteString("            \"mcr.microsoft.com/playwright:" + playwrightDockerImageVersion + "\"\n")
+	yaml.WriteString("            \"mcr.microsoft.com/playwright:" + args.ImageVersion + "\"\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env.PLAYWRIGHT_ALLOWED_DOMAINS = \"" + strings.Join(allowedDomains, ",") + "\"\n")
-	if len(allowedDomains) == 0 {
+	yaml.WriteString("          env.PLAYWRIGHT_ALLOWED_DOMAINS = \"" + strings.Join(args.AllowedDomains, ",") + "\"\n")
+	if len(args.AllowedDomains) == 0 {
 		yaml.WriteString("          env.PLAYWRIGHT_BLOCK_ALL_DOMAINS = \"true\"\n")
 	}
-	yaml.WriteString("          env = {}\n")
 }
 
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml

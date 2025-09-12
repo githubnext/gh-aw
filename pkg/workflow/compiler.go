@@ -2896,23 +2896,18 @@ func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *Ne
 	return allowedDomains
 }
 
-// generatePlaywrightDomainArgs generates Playwright CLI arguments for domain restrictions
-// Uses environment variables to configure domain restrictions in the Playwright container
-// Supports the same domain bundle resolution as top-level network configuration, defaulting to localhost only
-// DEPRECATED: Use generatePlaywrightAllowedDomains with env field pattern instead
-func generatePlaywrightDomainArgs(playwrightTool any, networkPermissions *NetworkPermissions) []string {
-	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
+// PlaywrightDockerArgs represents the common Docker arguments for Playwright container
+type PlaywrightDockerArgs struct {
+	ImageVersion   string
+	AllowedDomains []string
+}
 
-	var args []string
-	// The Playwright MCP server can read these to configure restrictions
-	args = append(args, "-e", "PLAYWRIGHT_ALLOWED_DOMAINS="+strings.Join(allowedDomains, ","))
-
-	// If no domains are allowed, set a flag to block all network access
-	if len(allowedDomains) == 0 {
-		args = append(args, "-e", "PLAYWRIGHT_BLOCK_ALL_DOMAINS=true")
+// generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
+func generatePlaywrightDockerArgs(playwrightTool any, networkPermissions *NetworkPermissions) PlaywrightDockerArgs {
+	return PlaywrightDockerArgs{
+		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),
+		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool, networkPermissions),
 	}
-
-	return args
 }
 
 // generateMainJobSteps generates the steps section for the main job
