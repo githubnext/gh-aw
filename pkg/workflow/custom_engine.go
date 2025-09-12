@@ -145,7 +145,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	if hasSafeOutputs {
 		yaml.WriteString("              \"safe_outputs\": {\n")
 		yaml.WriteString("                \"command\": \"node\",\n")
-		yaml.WriteString("                \"args\": [\"/tmp/safe-outputs-mcp-server.cjs\"]\n")
+		yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"]\n")
 		serverCount++
 		if serverCount < totalServers {
 			yaml.WriteString("              },\n")

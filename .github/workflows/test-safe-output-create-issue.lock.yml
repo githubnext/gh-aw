@@ -141,12 +141,10 @@ jobs:
               core.setOutput("output_file", outputFile);
             }
             main();
-      - name: Setup MCPs
+      - name: Setup Safe Outputs MCP
         run: |
-          mkdir -p /tmp/mcp-config
-          
-          # Write safe-outputs MCP server
-          cat > /tmp/safe-outputs-mcp-server.cjs << 'EOF'
+          mkdir -p /tmp/safe-outputs
+          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             /* Safe-Outputs MCP Tools-only server over stdio
                - No external deps (zero dependencies)
                - JSON-RPC 2.0 + Content-Length framing (LSP-style)
@@ -808,14 +806,17 @@ jobs:
               `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
             );
           EOF
-          chmod +x /tmp/safe-outputs-mcp-server.cjs
+          chmod +x /tmp/safe-outputs/mcp-server.cjs
           
+      - name: Setup MCPs
+        run: |
+          mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
               "safe_outputs": {
                 "command": "node",
-                "args": ["/tmp/safe-outputs-mcp-server.cjs"]
+                "args": ["/tmp/safe-outputs/mcp-server.cjs"]
               },
               "github": {
                 "command": "docker",

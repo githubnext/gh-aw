@@ -50,7 +50,7 @@ Test safe outputs workflow with MCP server integration.
 	yamlStr := string(yamlContent)
 
 	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs-mcp-server.cjs") {
+	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
 
@@ -61,7 +61,7 @@ Test safe outputs workflow with MCP server integration.
 
 	// Check that the MCP server is configured with correct command
 	if !strings.Contains(yamlStr, `"command": "node"`) ||
-		!strings.Contains(yamlStr, `"/tmp/safe-outputs-mcp-server.cjs"`) {
+		!strings.Contains(yamlStr, `"/tmp/safe-outputs/mcp-server.cjs"`) {
 		t.Error("Expected safe_outputs MCP server to be configured with node command")
 	}
 
@@ -112,7 +112,7 @@ Test workflow without safe outputs.
 	yamlStr := string(yamlContent)
 
 	// Check that safe-outputs MCP server file is NOT written
-	if strings.Contains(yamlStr, "cat > /tmp/safe-outputs-mcp-server.cjs") {
+	if strings.Contains(yamlStr, "cat > /tmp/safe-outputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to NOT be written when safe-outputs are disabled")
 	}
 
@@ -166,7 +166,7 @@ Test safe outputs workflow with Codex engine.
 	yamlStr := string(yamlContent)
 
 	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs-mcp-server.cjs") {
+	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
 
