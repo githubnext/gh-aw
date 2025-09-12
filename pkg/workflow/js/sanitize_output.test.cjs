@@ -90,7 +90,8 @@ describe("sanitize_output.cjs", () => {
     });
 
     it("should handle self-closing XML tags without whitespace", () => {
-      const input = 'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
+      const input =
+        'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
       const result = sanitizeContentFunction(input);
       expect(result).toContain("(br/)");
       expect(result).toContain('(img src="test.jpg"/)');
@@ -98,7 +99,8 @@ describe("sanitize_output.cjs", () => {
     });
 
     it("should handle self-closing XML tags with whitespace", () => {
-      const input = 'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
+      const input =
+        'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
       const result = sanitizeContentFunction(input);
       expect(result).toContain("(br /)");
       expect(result).toContain('(img src="test.jpg" /)');
@@ -106,7 +108,8 @@ describe("sanitize_output.cjs", () => {
     });
 
     it("should handle XML tags with various whitespace patterns", () => {
-      const input = 'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
+      const input =
+        'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
       const result = sanitizeContentFunction(input);
       expect(result).toContain('(div\tclass="test")content(/div)');
       expect(result).toContain('(span\n  id="test")text(/span)');
@@ -374,9 +377,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const result = sanitizeContentFunction(input);
 
       expect(result).toContain("https://github.com/user/repo-name_with.dots");
-      expect(result).toContain(
-        "https://github.com/search?q=test&type=code"
-      ); // & not escaped
+      expect(result).toContain("https://github.com/search?q=test&type=code"); // & not escaped
       expect(result).toContain("https://github.com/user/repo#readme");
       expect(result).toContain("https://github.dev:443/workspace");
       expect(result).toContain("https://github.com/repo");
@@ -443,12 +444,8 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       `;
       const result = sanitizeContentFunction(input);
 
-      expect(result).toContain(
-        "(xml attr=\"value & 'quotes'\")"
-      );
-      expect(result).toContain(
-        "(![CDATA[(script)alert(\"xss\")(/script)]])"
-      );
+      expect(result).toContain("(xml attr=\"value & 'quotes'\")");
+      expect(result).toContain('(![CDATA[(script)alert("xss")(/script)]])');
       expect(result).toContain(
         "(!-- comment with \"quotes\" & 'apostrophes' --)"
       );

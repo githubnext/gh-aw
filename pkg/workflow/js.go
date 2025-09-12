@@ -51,9 +51,6 @@ var addReactionAndEditCommentScript string
 //go:embed js/check_permissions.cjs
 var checkPermissionsScript string
 
-//go:embed js/check_team_member.cjs
-var checkTeamMemberScript string
-
 //go:embed js/parse_claude_log.cjs
 var parseClaudeLogScript string
 

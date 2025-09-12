@@ -122,33 +122,34 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
-	Name               string
-	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
-	On                 string
-	Permissions        string
-	Network            string // top-level network permissions configuration
-	Concurrency        string
-	RunName            string
-	Env                string
-	If                 string
-	TimeoutMinutes     string
-	CustomSteps        string
-	PostSteps          string // steps to run after AI execution
-	RunsOn             string
-	Tools              map[string]any
-	MarkdownContent    string
-	AI                 string        // "claude" or "codex" (for backwards compatibility)
-	EngineConfig       *EngineConfig // Extended engine configuration
-	StopTime           string
-	Command            string              // for /command trigger support
-	CommandOtherEvents map[string]any      // for merging command with other events
-	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
-	Jobs               map[string]any      // custom job configurations with dependencies
-	Cache              string              // cache configuration
-	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
-	NetworkPermissions *NetworkPermissions // parsed network permissions
-	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
-	Roles              []string            // permission levels required to trigger workflow
+	Name                   string
+	FrontmatterName        string // name field from frontmatter (for code scanning alert driver default)
+	On                     string
+	Permissions            string
+	Network                string // top-level network permissions configuration
+	Concurrency            string
+	RunName                string
+	Env                    string
+	If                     string
+	TimeoutMinutes         string
+	CustomSteps            string
+	PostSteps              string // steps to run after AI execution
+	RunsOn                 string
+	Tools                  map[string]any
+	MarkdownContent        string
+	AI                     string        // "claude" or "codex" (for backwards compatibility)
+	EngineConfig           *EngineConfig // Extended engine configuration
+	StopTime               string
+	Command                string              // for /command trigger support
+	CommandOtherEvents     map[string]any      // for merging command with other events
+	AIReaction             string              // AI reaction type like "eyes", "heart", etc.
+	Jobs                   map[string]any      // custom job configurations with dependencies
+	Cache                  string              // cache configuration
+	NeedsTextOutput        bool                // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions     *NetworkPermissions // parsed network permissions
+	SafeOutputs            *SafeOutputsConfig  // output configuration for automatic output routes
+	Roles                  []string            // permission levels required to trigger workflow
+	HasExplicitGitHubTools bool                // whether GitHub tools were explicitly configured (vs default)
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -1287,6 +1288,23 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	if data.RunsOn == "" {
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
+
+	// Store whether tools were explicitly configured before applying defaults
+	hasExplicitTools := len(data.Tools) > 0
+	if hasExplicitTools {
+		// Check if github tools are explicitly configured with non-empty allowed list
+		if githubTools, hasGithub := data.Tools["github"]; hasGithub {
+			if githubMap, ok := githubTools.(map[string]any); ok {
+				if allowed, hasAllowed := githubMap["allowed"]; hasAllowed {
+					if allowedList, ok := allowed.([]any); ok && len(allowedList) > 0 {
+						// Mark that explicit GitHub tools are configured
+						data.HasExplicitGitHubTools = true
+					}
+				}
+			}
+		}
+	}
+
 	// Apply default tools
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
 }
@@ -1755,11 +1773,8 @@ func (c *Compiler) needsPermissionChecks(data *WorkflowData) bool {
 		return false
 	}
 
-	// Permission checks are needed by default unless workflow uses only safe events
-	// Safe events: workflow_dispatch, workflow_run, schedule
-	// For now, we'll implement a simple heuristic since we don't have frontmatter here
-	// We'll implement the full logic later when we have access to frontmatter
-	return true
+	// Only need permission checks if GitHub tools are explicitly configured
+	return data.HasExplicitGitHubTools
 }
 
 // needsPermissionChecksWithFrontmatter determines if the workflow needs permission checks with full context
@@ -1769,12 +1784,16 @@ func (c *Compiler) needsPermissionChecksWithFrontmatter(data *WorkflowData, fron
 		return false
 	}
 
+	// Only need permission checks if GitHub tools are explicitly configured
+	if !data.HasExplicitGitHubTools {
+		return false
+	}
+
 	// Check if the workflow uses only safe events (only if frontmatter is available)
 	if frontmatter != nil && c.hasSafeEventsOnly(data, frontmatter) {
 		return false
 	}
 
-	// Permission checks are needed by default for non-safe events
 	return true
 }
 

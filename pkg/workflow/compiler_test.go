@@ -4202,13 +4202,17 @@ This workflow should get default permissions applied automatically.
 	lockContentStr := string(lockContent)
 
 	// Verify that default permissions are present in the generated workflow
+	// This test workflow has explicit GitHub tools (tools.github.allowed), so it should
+	// get specific permissions including actions: write for self-cancellation,
+	// NOT the default "read-all" permissions
 	expectedDefaultPermissions := []string{
-		"read-all",
+		"actions: write", // Required for self-cancellation
+		"contents: read", // Basic read access
 	}
 
 	for _, expectedPerm := range expectedDefaultPermissions {
 		if !strings.Contains(lockContentStr, expectedPerm) {
-			t.Errorf("Expected default permission '%s' not found in generated workflow.\nGenerated content:\n%s", expectedPerm, lockContentStr)
+			t.Errorf("Expected permission '%s' not found in generated workflow.\nGenerated content:\n%s", expectedPerm, lockContentStr)
 		}
 	}
 
@@ -4255,13 +4259,25 @@ This workflow should get default permissions applied automatically.
 		t.Fatal("Permissions section not found in main job")
 	}
 
-	// Verify permissions is a map
-	permissionsValue, ok := permissions.(string)
-	if !ok {
-		t.Fatal("Permissions section is not a string")
-	}
-	if permissionsValue != "read-all" {
-		t.Fatal("Default permissions not read-all")
+	// Verify permissions is either a string or a map
+	if permissionsStr, ok := permissions.(string); ok {
+		// Handle string permissions (like "read-all")
+		if !strings.Contains(permissionsStr, "actions: write") {
+			t.Fatalf("Expected permissions to include 'actions: write' for workflows with explicit GitHub tools, got: %s", permissionsStr)
+		}
+		if !strings.Contains(permissionsStr, "contents: read") {
+			t.Fatalf("Expected permissions to include 'contents: read' for workflows with explicit GitHub tools, got: %s", permissionsStr)
+		}
+	} else if permissionsMap, ok := permissions.(map[string]interface{}); ok {
+		// Handle map permissions (YAML object)
+		if actionsVal, hasActions := permissionsMap["actions"]; !hasActions || actionsVal != "write" {
+			t.Fatalf("Expected permissions to include 'actions: write' for workflows with explicit GitHub tools, got: %v", permissionsMap)
+		}
+		if contentsVal, hasContents := permissionsMap["contents"]; !hasContents || contentsVal != "read" {
+			t.Fatalf("Expected permissions to include 'contents: read' for workflows with explicit GitHub tools, got: %v", permissionsMap)
+		}
+	} else {
+		t.Fatalf("Permissions section is neither a string nor a map, got type: %T, value: %v", permissions, permissions)
 	}
 }
 

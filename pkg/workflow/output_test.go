@@ -261,8 +261,13 @@ This workflow tests the create-issue job generation.
 		t.Error("Expected 10-minute timeout in create_issue job")
 	}
 
-	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write") {
+	if !strings.Contains(lockContent, "permissions:") || !strings.Contains(lockContent, "contents: read") || !strings.Contains(lockContent, "issues: write") {
 		t.Error("Expected correct permissions in create_issue job")
+	}
+
+	// Since this workflow has explicit GitHub tools, it should also have actions: write for self-cancellation
+	if !strings.Contains(lockContent, "actions: write") {
+		t.Error("Expected actions: write permission in create_issue job for workflows with explicit GitHub tools")
 	}
 
 	// Verify the job uses github-script

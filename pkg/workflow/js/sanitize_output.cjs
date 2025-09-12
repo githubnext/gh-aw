@@ -37,8 +37,6 @@ function sanitizeContent(content) {
   // XML tag neutralization - convert XML tags to parentheses format
   sanitized = convertXmlTagsToParentheses(sanitized);
 
-
-
   // URI filtering - replace non-https protocols with "(redacted)"
   // Step 1: Temporarily mark HTTPS URLs to protect them
   sanitized = sanitizeUrlProtocols(sanitized);

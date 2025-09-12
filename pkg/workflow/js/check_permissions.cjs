@@ -1,19 +1,22 @@
-// Custom setCancelled function that uses self-cancellation
+/**
+ * Custom setCancelled function that uses self-cancellation
+ * @param {string} message - The cancellation message
+ */
 async function setCancelled(message) {
   try {
     // Cancel the current workflow run using GitHub Actions API
     await github.rest.actions.cancelWorkflowRun({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      run_id: context.runId
+      run_id: context.runId,
     });
 
     core.info(`Cancellation requested for this workflow run: ${message}`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.warning(`Failed to cancel workflow run: ${errorMessage}`);
-    // Fallback to core.setCancelled if API call fails
-    core.setCancelled(message);
+    // Fallback to core.setFailed if API call fails (since core.setCancelled doesn't exist in types)
+    core.setFailed(message);
   }
 }
 

@@ -9,6 +9,7 @@ const mockCore = {
   error: vi.fn(),
   info: vi.fn(),
   setCancelled: vi.fn(),
+  setFailed: vi.fn(),
 };
 
 const mockGithub = {
@@ -189,7 +190,9 @@ describe("check_team_member.cjs", () => {
       expect.stringContaining("Cancellation requested for this workflow run")
     );
     expect(mockCore.warning).toHaveBeenCalledWith(
-      expect.stringContaining("Access denied: User 'testuser' is not authorized")
+      expect.stringContaining(
+        "Access denied: User 'testuser' is not authorized"
+      )
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
@@ -229,7 +232,9 @@ describe("check_team_member.cjs", () => {
       "Failed to cancel workflow run: API Error: Forbidden"
     );
     expect(mockCore.setCancelled).toHaveBeenCalledWith(
-      expect.stringContaining("Access denied: User 'testuser' is not authorized")
+      expect.stringContaining(
+        "Access denied: User 'testuser' is not authorized"
+      )
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
