@@ -51,7 +51,10 @@ jobs:
                 core.error(
                   "❌ Configuration error: Required permissions not specified. Contact repository administrator."
                 );
-                process.exit(1);
+                core.setCancelled(
+                  "Configuration error: Required permissions not specified"
+                );
+                return;
               }
               // Check if the actor has the required repository permissions
               try {
@@ -84,13 +87,16 @@ jobs:
                 const errorMessage =
                   repoError instanceof Error ? repoError.message : String(repoError);
                 core.error(`Repository permission check failed: ${errorMessage}`);
-                process.exit(1);
+                core.setCancelled(`Repository permission check failed: ${errorMessage}`);
+                return;
               }
-              // Fail the job when permission check fails
+              // Cancel the job when permission check fails
               core.warning(
                 `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
               );
-              process.exit(78);
+              core.setCancelled(
+                `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+              );
             }
             await main();
       - name: Checkout repository
