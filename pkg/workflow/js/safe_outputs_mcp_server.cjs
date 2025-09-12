@@ -68,8 +68,7 @@ function replyError(id, code, message, data) {
   writeMessage(res);
 }
 
-function isToolEnabled(toolType) {
-  const name = toolType.replace(/_/g, "-")
+function isToolEnabled(name) {
   return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
 }
 
@@ -100,7 +99,7 @@ const defaultHandler = (type) => async (args) => {
   };
 }
 const TOOLS = Object.fromEntries([{
-  name: "create_issue",
+  name: "create-issue",
   description: "Create a new GitHub issue",
   inputSchema: {
     type: "object",
@@ -117,7 +116,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   }
 }, {
-  name: "create_discussion",
+  name: "create-discussion",
   description: "Create a new GitHub discussion",
   inputSchema: {
     type: "object",
@@ -130,7 +129,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "add_issue_comment",
+  name: "add-issue-comment",
   description: "Add a comment to a GitHub issue or pull request",
   inputSchema: {
     type: "object",
@@ -145,7 +144,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "create_pull_request",
+  name: "create-pull-request",
   description: "Create a new GitHub pull request",
   inputSchema: {
     type: "object",
@@ -167,7 +166,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "create_pull_request_review_comment",
+  name: "create-pull-request-review-comment",
   description: "Create a review comment on a GitHub pull request",
   inputSchema: {
     type: "object",
@@ -192,7 +191,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "create_code_scanning_alert",
+  name: "create-code-scanning-alert",
   description: "Create a code scanning alert",
   inputSchema: {
     type: "object",
@@ -227,7 +226,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "add_issue_label",
+  name: "add-issue-label",
   description: "Add labels to a GitHub issue or pull request",
   inputSchema: {
     type: "object",
@@ -246,7 +245,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "update_issue",
+  name: "update-issue",
   description: "Update a GitHub issue",
   inputSchema: {
     type: "object",
@@ -266,7 +265,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "push_to_pr_branch",
+  name: "push-to-pr-branch",
   description: "Push changes to a pull request branch",
   inputSchema: {
     type: "object",
@@ -280,7 +279,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }, {
-  name: "missing_tool",
+  name: "missing-tool",
   description:
     "Report a missing tool or functionality needed to complete tasks",
   inputSchema: {
@@ -316,16 +315,13 @@ function handleMessage(req) {
       replyResult(id, result);
     }
     else if (method === "tools/list") {
-      const list = [];
+      const list = []
       Object.values(TOOLS).forEach(tool => {
-        const toolType = tool.name.replace(/_/g, "-"); // Convert to kebab-case
-        if (isToolEnabled(toolType)) {
-          list.push({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-          });
-        }
+        list.push({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        });
       });
       replyResult(id, { tools: list });
     }
@@ -336,10 +332,9 @@ function handleMessage(req) {
         replyError(id, -32602, "Invalid params: 'name' must be a string");
         return;
       }
-      const toolName = name.replace(/-/g, "_"); // Convert to snake_case  
-      const tool = TOOLS[toolName];
+      const tool = TOOLS[name];
       if (!tool) {
-        replyError(id, -32601, `Tool not found: ${toolName}`);
+        replyError(id, -32601, `Tool not found: ${name}`);
         return;
       }
       const handler = tool.handler || defaultHandler(tool.name);
@@ -366,6 +361,6 @@ process.stderr.write(
   `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
 );
 process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`)
-process.stderr.write(`[${SERVER_INFO.name}]  config: ${safeOutputsConfig}\n`)
+process.stderr.write(`[${SERVER_INFO.name}]  config: ${JSON.stringify(safeOutputsConfig)}\n`)
 process.stderr.write(`[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`)
 if (!TOOLS.length) throw new Error("No tools enabled in configuration");
