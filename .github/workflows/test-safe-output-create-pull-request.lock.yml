@@ -18,11 +18,8 @@ concurrency:
 run-name: "Test Safe Output - Create Pull Request"
 
 jobs:
-  test-safe-output-create-pull-request:
+  task:
     runs-on: ubuntu-latest
-    permissions: read-all
-    outputs:
-      output: ${{ steps.collect_output.outputs.output }}
     steps:
       - name: Check team membership for workflow
         id: check-team-member
@@ -111,6 +108,14 @@ jobs:
               );
             }
             await main();
+
+  test-safe-output-create-pull-request:
+    needs: task
+    runs-on: ubuntu-latest
+    permissions: read-all
+    outputs:
+      output: ${{ steps.collect_output.outputs.output }}
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Configure Git credentials

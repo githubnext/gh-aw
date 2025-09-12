@@ -19,11 +19,8 @@ concurrency:
 run-name: "Test Safe Output - Create Pull Request Review Comment"
 
 jobs:
-  test-safe-output-create-pull-request-review-comment:
+  task:
     runs-on: ubuntu-latest
-    permissions: read-all
-    outputs:
-      output: ${{ steps.collect_output.outputs.output }}
     steps:
       - name: Check team membership for workflow
         id: check-team-member
@@ -112,6 +109,14 @@ jobs:
               );
             }
             await main();
+
+  test-safe-output-create-pull-request-review-comment:
+    needs: task
+    runs-on: ubuntu-latest
+    permissions: read-all
+    outputs:
+      output: ${{ steps.collect_output.outputs.output }}
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Setup agent output

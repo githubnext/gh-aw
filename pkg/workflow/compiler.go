@@ -1803,9 +1803,17 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Generate job name from workflow name
 	jobName := c.generateJobName(data.Name)
 
-	// Build task job only if actually needed (preamble job that handles runtime conditions)
+	// Build task job if actually needed (preamble job that handles runtime conditions)
+	// or if permission checks are needed (consolidated team member checking)
 	var taskJobCreated bool
-	if c.isTaskJobNeeded(data) {
+	var needsPermissionCheck bool
+	if frontmatter != nil {
+		needsPermissionCheck = c.needsPermissionChecksWithFrontmatter(data, frontmatter)
+	} else {
+		needsPermissionCheck = c.needsPermissionChecks(data)
+	}
+
+	if c.isTaskJobNeeded(data) || needsPermissionCheck {
 		taskJob, err := c.buildTaskJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build task job: %w", err)
@@ -2059,30 +2067,6 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 
 	var steps []string
 
-	// Add permission checks if no task job was created but permission checks are needed
-	if !taskJobCreated && c.needsPermissionChecks(data) {
-		// Add team member check step
-		steps = append(steps, "      - name: Check team membership for workflow\n")
-		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, "        uses: actions/github-script@v7\n")
-
-		// Add environment variables for permission check
-		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
-
-		steps = append(steps, "        with:\n")
-		steps = append(steps, "          script: |\n")
-
-		// Generate the JavaScript code for the permission check
-		scriptContent := c.generatePermissionCheckScript(data.Roles)
-		scriptLines := strings.Split(scriptContent, "\n")
-		for _, line := range scriptLines {
-			if strings.TrimSpace(line) != "" {
-				steps = append(steps, fmt.Sprintf("            %s\n", line))
-			}
-		}
-	}
-
 	steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
 	steps = append(steps, "        id: react\n")
 	steps = append(steps, "        uses: actions/github-script@v7\n")
@@ -2110,17 +2094,8 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 		depends = []string{"task"} // Depend on the task job only if it exists
 	}
 
-	// Set base permissions
+	// Set permissions
 	permissions := "permissions:\n      issues: write\n      pull-requests: write"
-
-	// Add actions: write permission if team member checks are present for command workflows
-	_, hasExplicitRoles := frontmatter["roles"]
-	requiresWorkflowCancellation := data.Command != "" ||
-		(!taskJobCreated && c.needsPermissionChecks(data) && hasExplicitRoles)
-
-	if requiresWorkflowCancellation {
-		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      issues: write\n      pull-requests: write\n      contents: read"
-	}
 
 	job := &Job{
 		Name:        "add_reaction",
@@ -2142,30 +2117,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	}
 
 	var steps []string
-
-	// Add permission checks if no task job was created but permission checks are needed
-	if !taskJobCreated && c.needsPermissionChecks(data) {
-		// Add team member check step
-		steps = append(steps, "      - name: Check team membership for workflow\n")
-		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, "        uses: actions/github-script@v7\n")
-
-		// Add environment variables for permission check
-		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
-
-		steps = append(steps, "        with:\n")
-		steps = append(steps, "          script: |\n")
-
-		// Generate the JavaScript code for the permission check
-		scriptContent := c.generatePermissionCheckScript(data.Roles)
-		scriptLines := strings.Split(scriptContent, "\n")
-		for _, line := range scriptLines {
-			if strings.TrimSpace(line) != "" {
-				steps = append(steps, fmt.Sprintf("            %s\n", line))
-			}
-		}
-	}
 
 	steps = append(steps, "      - name: Create Output Issue\n")
 	steps = append(steps, "        id: create_issue\n")
@@ -2212,17 +2163,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		jobCondition = "" // No conditional execution
 	}
 
-	// Set base permissions
+	// Set permissions
 	permissions := "permissions:\n      contents: read\n      issues: write"
-
-	// Add actions: write permission if team member checks are present for command workflows
-	_, hasExplicitRoles := frontmatter["roles"]
-	requiresWorkflowCancellation := data.Command != "" ||
-		(!taskJobCreated && c.needsPermissionChecks(data) && hasExplicitRoles)
-
-	if requiresWorkflowCancellation {
-		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read\n      issues: write"
-	}
 
 	job := &Job{
 		Name:           "create_issue",
@@ -2632,40 +2574,6 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 // buildMainJob creates the main workflow job
 func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
-
-	// Add permission checks if no task job was created but permission checks are needed
-	if !taskJobCreated {
-		var needsPermissionCheck bool
-		// Check if permission checks are needed using frontmatter if available
-		if frontmatter != nil {
-			needsPermissionCheck = c.needsPermissionChecksWithFrontmatter(data, frontmatter)
-		} else {
-			needsPermissionCheck = c.needsPermissionChecks(data)
-		}
-
-		if needsPermissionCheck {
-			// Add team member check step
-			steps = append(steps, "      - name: Check team membership for workflow\n")
-			steps = append(steps, "        id: check-team-member\n")
-			steps = append(steps, "        uses: actions/github-script@v7\n")
-
-			// Add environment variables for permission check
-			steps = append(steps, "        env:\n")
-			steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
-
-			steps = append(steps, "        with:\n")
-			steps = append(steps, "          script: |\n")
-
-			// Generate the JavaScript code for the permission check
-			scriptContent := c.generatePermissionCheckScript(data.Roles)
-			scriptLines := strings.Split(scriptContent, "\n")
-			for _, line := range scriptLines {
-				if strings.TrimSpace(line) != "" {
-					steps = append(steps, fmt.Sprintf("            %s\n", line))
-				}
-			}
-		}
-	}
 
 	// Build step content using the generateMainJobSteps helper method
 	// but capture it into a string instead of writing directly

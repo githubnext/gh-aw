@@ -23,11 +23,8 @@ concurrency:
 run-name: "Test Safe Output - Add Issue Label"
 
 jobs:
-  test-safe-output-add-issue-label:
+  task:
     runs-on: ubuntu-latest
-    permissions: read-all
-    outputs:
-      output: ${{ steps.collect_output.outputs.output }}
     steps:
       - name: Check team membership for workflow
         id: check-team-member
@@ -116,6 +113,14 @@ jobs:
               );
             }
             await main();
+
+  test-safe-output-add-issue-label:
+    needs: task
+    runs-on: ubuntu-latest
+    permissions: read-all
+    outputs:
+      output: ${{ steps.collect_output.outputs.output }}
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Setup agent output
