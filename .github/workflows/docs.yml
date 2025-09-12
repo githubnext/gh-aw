@@ -48,7 +48,7 @@ jobs:
           path: ./docs/dist
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release' || github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
