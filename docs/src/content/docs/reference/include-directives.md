@@ -34,7 +34,7 @@ Includes only a specific section from a markdown file using the section header.
 ## Include Examples
 
 ### Directory Structure
-```
+```text
 .github/workflows/
 ├── shared/
 │   ├── common-tools.md

@@ -41,9 +41,10 @@ tools:
 # Your workflow content here
 ```
 
-> [!TIP]
-> You can inspect test your MCP configuration by running <br/>
-> `gh aw mcp-inspect <workflow-file>`
+::: tip[MCP Configuration Testing]
+You can inspect test your MCP configuration by running  
+`gh aw mcp-inspect <workflow-file>`
+:::
 
 
 ### Engine Compatibility
@@ -168,9 +169,10 @@ tools:
 
 When using an agentic engine that allows tool whitelisting (e.g. Claude), this generates tool names: `mcp__servername__tool1`, `mcp__servername__tool2`, etc.
 
-> [!TIP]
-> You can inspect the tools available for an Agentic Workflow by running <br/>
-> `gh aw mcp-inspect <workflow-file>`
+::: tip[Tool Inspection]
+You can inspect the tools available for an Agentic Workflow by running  
+`gh aw mcp-inspect <workflow-file>`
+:::
 
 ### Wildcard Access
 

@@ -12,7 +12,7 @@ This guide explains how agentic workflows are organized and structured within yo
 Agentic workflows are stored in the `.github/workflows` folder as Markdown files (`*.md`)
 and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
 
-```
+```text
 .github/
 └── workflows/
   ├── weekly-research.md # Agentic Workflow
@@ -102,9 +102,10 @@ Analyze the issue #${{ github.event.issue.number }} on GitHub.
    - Links to relevant documentation
 ```
 
-> [!TIP]
-> Run this command to add a Copilot custom "intructions" file for Agentic Workflows to your project. It will teach Copilot how to write Agentic Workflows.<br/>
-> `gh aw compile --instructions`
+::: tip[Copilot Instructions]
+Run this command to add a Copilot custom "intructions" file for Agentic Workflows to your project. It will teach Copilot how to write Agentic Workflows.  
+`gh aw compile --instructions`
+:::
 
 ## Generated Files
 

@@ -11,6 +11,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 
 - **[Quick Start](quick-start.md)** - Get your first workflow running in minutes 🚀
 - **[Concepts](concepts.md)** - Learn concepts and dive deeper into agentic workflows
+- **[Sample Workflows](samples.md)** - Demonstrator workflows you can use as starting points
 
 ## Workflows Reference
 
@@ -18,7 +19,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 - **[Frontmatter Options](frontmatter.md)** - All configuration options for workflows
 - **[Safe Output Processing](safe-outputs.md)** - Automatic issue, comment, and PR creation from agentic workflow output
 - **[Include Directives](include-directives.md)** - Modularizing workflows with includes
-- **[Alias Triggers](alias-triggers.md)** - Special @mention triggers and context text
+- **[Command Triggers](command-triggers.md)** - Special @mention triggers and context text
 - **[Tools Configuration](tools.md)** - GitHub and other tools setup
 - **[MCPs](mcps.md)** - Model Context Protocol setup and configuration
 
