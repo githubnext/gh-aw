@@ -85,8 +85,8 @@ describe("sanitize_output.cjs", () => {
       const result = sanitizeContentFunction(input);
       expect(result).toContain("(script)");
       expect(result).toContain("(/script)");
-      expect(result).toContain("&quot;test&quot;");
-      expect(result).toContain("&amp; more");
+      expect(result).toContain('"test"');
+      expect(result).toContain("& more");
     });
 
     it("should preserve non-XML uses of < and > characters", () => {
@@ -224,9 +224,9 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       // Check XML tag conversion
       expect(result).toContain("(script)");
-      expect(result).toContain("&quot;quotes&quot;");
-      expect(result).toContain("&apos;apostrophes&apos;");
-      expect(result).toContain("&amp;");
+      expect(result).toContain('"quotes"');
+      expect(result).toContain("'apostrophes'");
+      expect(result).toContain("&");
 
       // Check control character removal
       expect(result).not.toContain("\x00");
@@ -352,8 +352,8 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       expect(result).toContain("https://github.com/user/repo-name_with.dots");
       expect(result).toContain(
-        "https://github.com/search?q=test&amp;type=code"
-      ); // & escaped
+        "https://github.com/search?q=test&type=code"
+      ); // & not escaped
       expect(result).toContain("https://github.com/user/repo#readme");
       expect(result).toContain("https://github.dev:443/workspace");
       expect(result).toContain("https://github.com/repo");
@@ -421,13 +421,13 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const result = sanitizeContentFunction(input);
 
       expect(result).toContain(
-        "(xml attr=&quot;value &amp; &apos;quotes&apos;&quot;)"
+        "(xml attr=\"value & 'quotes'\")"
       );
       expect(result).toContain(
-        "(![CDATA[(script)alert(&quot;xss&quot;)(/script)]])"
+        "(![CDATA[(script)alert(\"xss\")(/script)]])"
       );
       expect(result).toContain(
-        "(!-- comment with &quot;quotes&quot; &amp; &apos;apostrophes&apos; --)"
+        "(!-- comment with \"quotes\" & 'apostrophes' --)"
       );
       expect(result).toContain("(/xml)");
     });

@@ -95,8 +95,8 @@ describe("compute_text.cjs", () => {
       const input = 'Test <tag>content</tag> & "quotes"';
       const result = sanitizeContentFunction(input);
       expect(result).toContain("(tag)content(/tag)");
-      expect(result).toContain("&amp;");
-      expect(result).toContain("&quot;quotes&quot;");
+      expect(result).toContain("&");
+      expect(result).toContain('"quotes"');
     });
 
     it("should redact non-https protocols", () => {

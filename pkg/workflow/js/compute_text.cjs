@@ -37,11 +37,7 @@ function sanitizeContent(content) {
   // XML tag neutralization - convert XML tags to parentheses format
   sanitized = convertXmlTagsToParentheses(sanitized);
 
-  // XML character escaping for remaining characters
-  sanitized = sanitized
-    .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+
 
   // URI filtering - replace non-https protocols with "(redacted)"
   // Step 1: Temporarily mark HTTPS URLs to protect them
