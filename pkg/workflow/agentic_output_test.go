@@ -99,6 +99,15 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected engine output artifact to be named 'agent_outputs'")
 	}
 
+	// Verify Print Agent output step has file existence check
+	if !strings.Contains(lockContent, "if [ -f ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ]; then") {
+		t.Error("Expected Print Agent output step to check if output file exists before reading it")
+	}
+
+	if !strings.Contains(lockContent, "No agent output file found") {
+		t.Error("Expected Print Agent output step to provide message when no output file found")
+	}
+
 	// Verify that both artifacts are uploaded
 	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", OutputArtifactName)) {
 		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS artifact name to be '%s'", OutputArtifactName)
