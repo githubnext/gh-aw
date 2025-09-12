@@ -1812,7 +1812,14 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		needsPermissionCheck = c.needsPermissionChecks(data)
 	}
 
-	if c.isTaskJobNeeded(data) || needsPermissionCheck {
+	// Task job is needed if any of these conditions are true:
+	// 1. Command is configured (for team member checking)
+	// 2. Text output is needed (for compute-text action)
+	// 3. If condition is specified (to handle runtime conditions)
+	// 4. Permission checks are needed (with proper frontmatter consideration)
+	taskJobNeeded := data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck
+
+	if taskJobNeeded {
 		taskJob, err := c.buildTaskJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build task job: %w", err)

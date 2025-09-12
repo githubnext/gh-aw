@@ -124,9 +124,35 @@ func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{}
 }
 
-// RenderMCPConfigFromConfigurations provides a default implementation (engines should override)
+// RenderMCPConfigFromConfigurations provides a default implementation using Claude format
 func (e *BaseEngine) RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData) {
-	// Default implementation does nothing - engines should override this method
+	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
+	yaml.WriteString("          {\n")
+	yaml.WriteString("            \"mcpServers\": {\n")
+
+	// Generate configuration for each MCP server
+	for i, config := range configurations {
+		isLast := i == len(configurations)-1
+
+		// Render the configuration for this server
+		configStr, err := config.renderForClaude()
+		if err != nil {
+			fmt.Printf("Error generating MCP configuration for %s: %v\n", config.Name, err)
+			continue
+		}
+
+		yaml.WriteString(configStr)
+
+		if !isLast {
+			yaml.WriteString(",\n")
+		} else {
+			yaml.WriteString("\n")
+		}
+	}
+
+	yaml.WriteString("            }\n")
+	yaml.WriteString("          }\n")
+	yaml.WriteString("          EOF\n")
 }
 
 // EngineRegistry manages available agentic engines

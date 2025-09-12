@@ -565,36 +565,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          EOF\n")
 }
 
-// RenderMCPConfigFromConfigurations renders MCP configuration using pre-computed configurations
-func (e *ClaudeEngine) RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
 
-	// Generate configuration for each MCP server
-	for i, config := range configurations {
-		isLast := i == len(configurations)-1
-
-		// Render the configuration for this server
-		configStr, err := config.renderForClaude()
-		if err != nil {
-			fmt.Printf("Error generating MCP configuration for %s: %v\n", config.Name, err)
-			continue
-		}
-
-		yaml.WriteString(configStr)
-
-		if !isLast {
-			yaml.WriteString(",\n")
-		} else {
-			yaml.WriteString("\n")
-		}
-	}
-
-	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
-}
 
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration
 // Always uses Docker MCP as the default
