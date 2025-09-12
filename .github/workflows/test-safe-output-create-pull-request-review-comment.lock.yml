@@ -253,7 +253,7 @@ jobs:
                 } catch (e) {
                   // Log error to stderr (not part of protocol)
                   process.stderr.write(
-                    `[safe-outputs-mcp] Error parsing config: ${e.message}\n`
+                    `[safe-outputs-mcp] Error parsing config: ${e instanceof Error ? e.message : String(e)}\n`
                   );
                   safeOutputsConfig = {};
                 }
@@ -285,7 +285,9 @@ jobs:
               try {
                 fs.appendFileSync(outputFile, jsonLine);
               } catch (error) {
-                throw new Error(`Failed to write to output file: ${error.message}`);
+                throw new Error(
+                  `Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`
+                );
               }
             }
             // ---------- Tool registry ----------
@@ -789,7 +791,7 @@ jobs:
                       replyResult(id, { content: result.content });
                     } catch (e) {
                       replyError(id, -32000, `Tool '${name}' failed`, {
-                        message: String(e?.message ?? e),
+                        message: e instanceof Error ? e.message : String(e),
                       });
                     }
                   })();
@@ -799,7 +801,7 @@ jobs:
                 replyError(id, -32601, `Method not found: ${method}`);
               } catch (e) {
                 replyError(id, -32603, "Internal error", {
-                  message: String(e?.message ?? e),
+                  message: e instanceof Error ? e.message : String(e),
                 });
               }
             }
