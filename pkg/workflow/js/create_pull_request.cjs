@@ -31,6 +31,20 @@ async function main() {
     const message =
       "No patch file found - cannot create pull request without changes";
 
+    // If in staged mode, still show preview
+    if (isStaged) {
+      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+      summaryContent +=
+        "The following pull request would be created if staged mode was disabled:\n\n";
+      summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+      summaryContent += `**Message:** ${message}\n\n`;
+      
+      // Write to step summary
+      await core.summary.addRaw(summaryContent).write();
+      console.log("📝 Pull request creation preview written to step summary (no patch file)");
+      return;
+    }
+
     switch (ifNoChanges) {
       case "error":
         throw new Error(message);
@@ -51,6 +65,20 @@ async function main() {
     const message =
       "Patch file contains error message - cannot create pull request without changes";
 
+    // If in staged mode, still show preview
+    if (isStaged) {
+      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+      summaryContent +=
+        "The following pull request would be created if staged mode was disabled:\n\n";
+      summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+      summaryContent += `**Message:** ${message}\n\n`;
+      
+      // Write to step summary
+      await core.summary.addRaw(summaryContent).write();
+      console.log("📝 Pull request creation preview written to step summary (patch error)");
+      return;
+    }
+
     switch (ifNoChanges) {
       case "error":
         throw new Error(message);
@@ -66,7 +94,7 @@ async function main() {
 
   // Empty patch is valid - behavior depends on if-no-changes configuration
   const isEmpty = !patchContent || !patchContent.trim();
-  if (isEmpty) {
+  if (isEmpty && !isStaged) {
     const message =
       "Patch file is empty - no changes to apply (noop operation)";
 
