@@ -69,7 +69,9 @@ function replyError(id, code, message, data) {
 }
 
 function isToolEnabled(name) {
-  return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
+  const res = safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
+  process.stderr.write(`[${SERVER_INFO.name}] tool '${name}' enabled: ${res}\n`);
+  return res;
 }
 
 function appendSafeOutput(entry) {
@@ -297,6 +299,14 @@ const TOOLS = Object.fromEntries([{
   },
 }].filter(({ name }) => isToolEnabled(name)).map(tool => [tool.name, tool]));
 
+process.stderr.write(
+  `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
+);
+process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`)
+process.stderr.write(`[${SERVER_INFO.name}]  config: ${JSON.stringify(safeOutputsConfig)}\n`)
+process.stderr.write(`[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`)
+if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
+
 function handleMessage(req) {
   const { id, method, params } = req;
 
@@ -357,10 +367,3 @@ function handleMessage(req) {
     });
   }
 }
-process.stderr.write(
-  `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
-);
-process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`)
-process.stderr.write(`[${SERVER_INFO.name}]  config: ${JSON.stringify(safeOutputsConfig)}\n`)
-process.stderr.write(`[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`)
-if (!TOOLS.length) throw new Error("No tools enabled in configuration");
