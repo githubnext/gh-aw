@@ -1125,6 +1125,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-safe-output-create-discussion.outputs.output }}
           GITHUB_AW_DISCUSSION_TITLE_PREFIX: "[Test] "
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             async function main() {

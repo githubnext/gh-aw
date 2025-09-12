@@ -2227,6 +2227,11 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY_ID: %q\n", data.SafeOutputs.CreateDiscussions.CategoryId))
 	}
 
+	// Pass the staged flag if it's set to true
+	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
+		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
