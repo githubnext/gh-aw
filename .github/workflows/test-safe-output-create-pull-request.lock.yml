@@ -36,7 +36,7 @@ jobs:
               // skip check for safe events
               const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
               if (safeEvents.includes(eventName)) {
-                console.log(`✅ Event ${eventName} does not require validation`);
+                core.info(`✅ Event ${eventName} does not require validation`);
                 return;
               }
               const actor = context.actor;
@@ -54,10 +54,10 @@ jobs:
               }
               // Check if the actor has the required repository permissions
               try {
-                console.log(
+                core.debug(
                   `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
                 );
-                console.log(`Required permissions: ${requiredPermissions.join(", ")}`);
+                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
                 const repoPermission =
                   await github.rest.repos.getCollaboratorPermissionLevel({
                     owner: owner,
@@ -65,18 +65,18 @@ jobs:
                     username: actor,
                   });
                 const permission = repoPermission.data.permission;
-                console.log(`Repository permission level: ${permission}`);
+                core.debug(`Repository permission level: ${permission}`);
                 // Check if user has one of the required permission levels
                 for (const requiredPerm of requiredPermissions) {
                   if (
                     permission === requiredPerm ||
                     (requiredPerm === "maintainer" && permission === "maintain")
                   ) {
-                    console.log(`✅ User has ${permission} access to repository`);
+                    core.info(`✅ User has ${permission} access to repository`);
                     return;
                   }
                 }
-                console.log(
+                core.warning(
                   `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
                 );
               } catch (repoError) {
@@ -597,7 +597,7 @@ jobs:
                     return JSON.parse(repairedJson);
                   } catch (repairError) {
                     // If repair also fails, throw the error
-                    console.log(`invalid input json: ${jsonStr}`);
+                    core.info(`invalid input json: ${jsonStr}`);
                     const originalMsg =
                       originalError instanceof Error
                         ? originalError.message
@@ -615,32 +615,34 @@ jobs:
               const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
               const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
               if (!outputFile) {
-                console.log("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+                core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
                 return;
               }
               if (!fs.existsSync(outputFile)) {
-                console.log("Output file does not exist:", outputFile);
+                core.info(`Output file does not exist: ${outputFile}`);
                 core.setOutput("output", "");
                 return;
               }
               const outputContent = fs.readFileSync(outputFile, "utf8");
               if (outputContent.trim() === "") {
-                console.log("Output file is empty");
+                core.info("Output file is empty");
                 core.setOutput("output", "");
                 return;
               }
-              console.log("Raw output content length:", outputContent.length);
+              core.info(`Raw output content length: ${outputContent.length}`);
               // Parse the safe-outputs configuration
               /** @type {any} */
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
                   expectedOutputTypes = JSON.parse(safeOutputsConfig);
-                  console.log("Expected output types:", Object.keys(expectedOutputTypes));
+                  core.info(
+                    `Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
+                  );
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
-                  console.log("Warning: Could not parse safe-outputs config:", errorMsg);
+                  core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
                 }
               }
               // Parse JSONL content
@@ -1074,7 +1076,7 @@ jobs:
                       errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
                       continue;
                   }
-                  console.log(`Line ${i + 1}: Valid ${itemType} item`);
+                  core.info(`Line ${i + 1}: Valid ${itemType} item`);
                   parsedItems.push(item);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -1092,7 +1094,7 @@ jobs:
                 // For now, we'll continue with valid items but log the errors
                 // In the future, we might want to fail the workflow for invalid items
               }
-              console.log(`Successfully parsed ${parsedItems.length} valid output items`);
+              core.info(`Successfully parsed ${parsedItems.length} valid output items`);
               // Set the parsed and validated items as output
               const validatedOutput = {
                 items: parsedItems,
@@ -1105,7 +1107,7 @@ jobs:
                 // Ensure the /tmp directory exists
                 fs.mkdirSync("/tmp", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
-                console.log(`Stored validated output to: ${agentOutputFile}`);
+                core.info(`Stored validated output to: ${agentOutputFile}`);
                 // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
                 core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
@@ -1408,7 +1410,7 @@ jobs:
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.error(
+                core.setFailed(
                   `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
                 );
                 return;
@@ -1425,7 +1427,9 @@ jobs:
                 core.warning("No create-pull-request item found in agent output");
                 return;
               }
-              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              core.debug(
+                `Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`
+              );
               // If in staged mode, emit step summary instead of creating PR
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
@@ -1570,7 +1574,7 @@ jobs:
                   issue_number: pullRequest.number,
                   labels: labels,
                 });
-                console.log("Added labels to pull request:", labels);
+                core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
               }
               // Set output for other jobs to use
               core.setOutput("pull_request_number", pullRequest.number);
