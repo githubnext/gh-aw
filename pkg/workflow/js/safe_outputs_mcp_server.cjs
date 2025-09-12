@@ -69,9 +69,7 @@ function replyError(id, code, message, data) {
 }
 
 function isToolEnabled(name) {
-  const res = safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
-  process.stderr.write(`[${SERVER_INFO.name}] tool '${name}' enabled: ${res}\n`);
-  return res;
+  return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
 }
 
 function appendSafeOutput(entry) {
