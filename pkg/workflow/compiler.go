@@ -2884,7 +2884,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
 
 	// Write safe-outputs MCP server if enabled
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && c.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("          \n")
 		yaml.WriteString("          # Write safe-outputs MCP server\n")
@@ -4424,9 +4424,4 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 	// For now, we rely on JSON schema validation for format checking
 
 	return nil
-}
-
-// hasSafeOutputsEnabled checks if any safe-outputs are enabled
-func (c *Compiler) hasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
-	return HasSafeOutputsEnabled(safeOutputs)
 }

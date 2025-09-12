@@ -14,7 +14,14 @@ concurrency:
 run-name: "Test Claude Add Issue Labels"
 
 jobs:
+  task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task job condition barrier
+        run: echo "Task job executed - conditions satisfied"
+
   test-claude-add-issue-labels:
+    needs: task
     runs-on: ubuntu-latest
     permissions:
       issues: write

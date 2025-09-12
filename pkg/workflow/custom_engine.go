@@ -133,7 +133,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("            \"mcpServers\": {\n")
 
 	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	totalServers := len(mcpTools)
 	if hasSafeOutputs {
 		totalServers++
@@ -330,9 +330,4 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 // GetLogParserScript returns the JavaScript script name for parsing custom engine logs
 func (e *CustomEngine) GetLogParserScript() string {
 	return "parse_custom_log"
-}
-
-// hasSafeOutputsEnabled checks if any safe-outputs are enabled
-func (e *CustomEngine) hasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
-	return HasSafeOutputsEnabled(safeOutputs)
 }

@@ -532,18 +532,13 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 	return comment.String()
 }
 
-// hasSafeOutputsEnabled checks if any safe-outputs are enabled
-func (e *ClaudeEngine) hasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
-	return HasSafeOutputsEnabled(safeOutputs)
-}
-
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
 	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && e.hasSafeOutputsEnabled(workflowData.SafeOutputs)
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	totalServers := len(mcpTools)
 	if hasSafeOutputs {
 		totalServers++
