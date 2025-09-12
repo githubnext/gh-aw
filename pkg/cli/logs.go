@@ -86,6 +86,21 @@ type DownloadResult struct {
 	LogsPath       string
 }
 
+// AwInfo represents the structure of aw_info.json files
+type AwInfo struct {
+	EngineID     string `json:"engine_id"`
+	EngineName   string `json:"engine_name"`
+	Model        string `json:"model"`
+	Version      string `json:"version"`
+	WorkflowName string `json:"workflow_name"`
+	Staged       bool   `json:"staged"`
+	CreatedAt    string `json:"created_at"`
+	// Additional fields that might be present
+	RunID      interface{} `json:"run_id,omitempty"`
+	RunNumber  interface{} `json:"run_number,omitempty"`
+	Repository string      `json:"repository,omitempty"`
+}
+
 // Constants for the iterative algorithm
 const (
 	// MaxIterations limits how many batches we fetch to prevent infinite loops
@@ -167,6 +182,7 @@ Examples:
 			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
+			noStaged, _ := cmd.Flags().GetBool("no-staged")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -206,7 +222,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph, noStaged); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -224,12 +240,13 @@ Examples:
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
+	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool, noStaged bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -339,6 +356,24 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 							}
 						}
 						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+					}
+					continue
+				}
+			}
+
+			// Apply staged filtering if --no-staged flag is specified
+			if noStaged {
+				// Check if the run is staged
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+				info, err := parseAwInfo(awInfoPath, verbose)
+				var isStaged bool
+				if err == nil && info != nil {
+					isStaged = info.Staged
+				}
+
+				if isStaged {
+					if verbose {
+						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
 					}
 					continue
 				}
@@ -774,9 +809,9 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	return metrics, err
 }
 
-// extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+// parseAwInfo reads and parses aw_info.json file, returning the parsed data
 // Handles cases where aw_info.json is a file or a directory containing the actual file
-func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingAgentEngine {
+func parseAwInfo(infoFilePath string, verbose bool) (*AwInfo, error) {
 	var data []byte
 	var err error
 
@@ -786,7 +821,7 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to stat aw_info.json: %v", statErr)))
 		}
-		return nil
+		return nil, statErr
 	}
 
 	if stat.IsDir() {
@@ -805,19 +840,29 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read aw_info.json: %v", err)))
 		}
-		return nil
+		return nil, err
 	}
 
-	var info map[string]interface{}
+	var info AwInfo
 	if err := json.Unmarshal(data, &info); err != nil {
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse aw_info.json: %v", err)))
 		}
+		return nil, err
+	}
+
+	return &info, nil
+}
+
+// extractEngineFromAwInfo reads aw_info.json and returns the appropriate engine
+// Handles cases where aw_info.json is a file or a directory containing the actual file
+func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingAgentEngine {
+	info, err := parseAwInfo(infoFilePath, verbose)
+	if err != nil {
 		return nil
 	}
 
-	engineID, ok := info["engine_id"].(string)
-	if !ok || engineID == "" {
+	if info.EngineID == "" {
 		if verbose {
 			fmt.Println(console.FormatWarningMessage("No engine_id found in aw_info.json"))
 		}
@@ -825,10 +870,10 @@ func extractEngineFromAwInfo(infoFilePath string, verbose bool) workflow.CodingA
 	}
 
 	registry := workflow.GetGlobalEngineRegistry()
-	engine, err := registry.GetEngine(engineID)
+	engine, err := registry.GetEngine(info.EngineID)
 	if err != nil {
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", engineID)))
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Unknown engine in aw_info.json: %s", info.EngineID)))
 		}
 		return nil
 	}
