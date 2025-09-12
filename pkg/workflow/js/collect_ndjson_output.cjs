@@ -4,9 +4,10 @@ async function main() {
   /**
    * Sanitizes content for safe output in GitHub Actions
    * @param {string} content - The content to sanitize
+   * @param {boolean} forIssueContent - Whether this is for GitHub issue/comment/PR content (skips XML escaping)
    * @returns {string} The sanitized content
    */
-  function sanitizeContent(content) {
+  function sanitizeContent(content, forIssueContent = false) {
     if (!content || typeof content !== "string") {
       return "";
     }
@@ -37,13 +38,15 @@ async function main() {
     // Remove control characters (except newlines and tabs)
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
-    // XML character escaping
-    sanitized = sanitized
-      .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&apos;");
+    // XML character escaping - skip for GitHub issue content which uses Markdown
+    if (!forIssueContent) {
+      sanitized = sanitized
+        .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
 
     // URI filtering - replace non-https protocols with "(redacted)"
     sanitized = sanitizeUrlProtocols(sanitized);
@@ -393,13 +396,13 @@ async function main() {
             );
             continue;
           }
-          // Sanitize text content
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
+          // Sanitize text content for issue creation
+          item.title = sanitizeContent(item.title, true);
+          item.body = sanitizeContent(item.body, true);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(label =>
-              typeof label === "string" ? sanitizeContent(label) : label
+              typeof label === "string" ? sanitizeContent(label, true) : label
             );
           }
           break;
@@ -411,8 +414,8 @@ async function main() {
             );
             continue;
           }
-          // Sanitize text content
-          item.body = sanitizeContent(item.body);
+          // Sanitize text content for issue comment
+          item.body = sanitizeContent(item.body, true);
           break;
 
         case "create-pull-request":
@@ -428,17 +431,17 @@ async function main() {
             );
             continue;
           }
-          // Sanitize text content
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
+          // Sanitize text content for pull request creation
+          item.title = sanitizeContent(item.title, true);
+          item.body = sanitizeContent(item.body, true);
           // Sanitize branch name if present
           if (item.branch && typeof item.branch === "string") {
-            item.branch = sanitizeContent(item.branch);
+            item.branch = sanitizeContent(item.branch, true);
           }
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(label =>
-              typeof label === "string" ? sanitizeContent(label) : label
+              typeof label === "string" ? sanitizeContent(label, true) : label
             );
           }
           break;
@@ -456,8 +459,8 @@ async function main() {
             );
             continue;
           }
-          // Sanitize label strings
-          item.labels = item.labels.map(label => sanitizeContent(label));
+          // Sanitize label strings for issues
+          item.labels = item.labels.map(label => sanitizeContent(label, true));
           break;
 
         case "update-issue":
@@ -492,7 +495,7 @@ async function main() {
               );
               continue;
             }
-            item.title = sanitizeContent(item.title);
+            item.title = sanitizeContent(item.title, true);
           }
           // Validate body if provided
           if (item.body !== undefined) {
@@ -502,7 +505,7 @@ async function main() {
               );
               continue;
             }
-            item.body = sanitizeContent(item.body);
+            item.body = sanitizeContent(item.body, true);
           }
           // Validate issue_number if provided (for target "*")
           if (item.issue_number !== undefined) {
@@ -580,8 +583,8 @@ async function main() {
             );
             continue;
           }
-          // Sanitize required text content
-          item.body = sanitizeContent(item.body);
+          // Sanitize required text content for PR review comment
+          item.body = sanitizeContent(item.body, true);
           // Validate optional start_line field
           if (item.start_line !== undefined) {
             if (
@@ -640,9 +643,9 @@ async function main() {
             );
             continue;
           }
-          // Sanitize text content
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
+          // Sanitize text content for discussion creation
+          item.title = sanitizeContent(item.title, true);
+          item.body = sanitizeContent(item.body, true);
           break;
 
         case "missing-tool":
@@ -660,7 +663,7 @@ async function main() {
             );
             continue;
           }
-          // Sanitize text content
+          // Sanitize text content for missing tool reporting
           item.tool = sanitizeContent(item.tool);
           item.reason = sanitizeContent(item.reason);
           // Validate optional alternatives field
