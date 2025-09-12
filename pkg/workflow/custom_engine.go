@@ -126,40 +126,6 @@ func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 }
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine
-func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	// Custom engine uses the same MCP configuration generation as Claude
-	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
-
-	// Generate configuration for each MCP tool using shared logic
-	for i, toolName := range mcpTools {
-		isLast := i == len(mcpTools)-1
-
-		switch toolName {
-		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubMCPConfig(yaml, githubTool, isLast)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
-		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderCustomMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
-		}
-	}
-
-	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
-}
-
 // renderGitHubMCPConfig generates the GitHub MCP server configuration using shared logic
 func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)

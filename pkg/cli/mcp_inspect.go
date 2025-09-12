@@ -15,15 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// extractNameFromFrontmatter extracts the name field from frontmatter, or returns empty string if not found
-func extractNameFromFrontmatter(frontmatter map[string]any) string {
-	if name, exists := frontmatter["name"]; exists {
-		if nameStr, ok := name.(string); ok {
-			return nameStr
-		}
-	}
-	return ""
-}
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
 func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool) error {
@@ -97,14 +88,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	}
 
 	// Extract MCP configurations using the new configuration provider
-	configProvider := workflow.NewMCPServerConfigProvider()
-
-	// Create minimal WorkflowData for user-agent computation
-	minimalWorkflowData := &workflow.WorkflowData{
-		Name: extractNameFromFrontmatter(workflowData.Frontmatter),
-	}
-
-	err = configProvider.ComputeMCPServerConfigurations(workflowData.Frontmatter, nil, minimalWorkflowData)
+	configProvider, err := workflow.ComputeMCPServerConfigurationsFromFrontmatter(workflowData.Frontmatter, nil)
 	if err != nil {
 		return fmt.Errorf("failed to compute MCP configurations: %w", err)
 	}
@@ -194,14 +178,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 		}
 
 		// Use the new configuration provider to check for MCP configurations
-		configProvider := workflow.NewMCPServerConfigProvider()
-
-		// Create minimal WorkflowData for user-agent computation
-		minimalWorkflowData := &workflow.WorkflowData{
-			Name: extractNameFromFrontmatter(workflowData.Frontmatter),
-		}
-
-		err = configProvider.ComputeMCPServerConfigurations(workflowData.Frontmatter, nil, minimalWorkflowData)
+		configProvider, err := workflow.ComputeMCPServerConfigurationsFromFrontmatter(workflowData.Frontmatter, nil)
 		if err != nil {
 			if verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
@@ -338,14 +315,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 		}
 
 		// Use the new configuration provider
-		configProvider := workflow.NewMCPServerConfigProvider()
-
-		// Create minimal WorkflowData for user-agent computation
-		minimalWorkflowData := &workflow.WorkflowData{
-			Name: extractNameFromFrontmatter(workflowData.Frontmatter),
-		}
-
-		err = configProvider.ComputeMCPServerConfigurations(workflowData.Frontmatter, nil, minimalWorkflowData)
+		configProvider, err := workflow.ComputeMCPServerConfigurationsFromFrontmatter(workflowData.Frontmatter, nil)
 		if err != nil {
 			return err
 		}

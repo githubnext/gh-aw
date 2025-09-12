@@ -169,37 +169,6 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 	return ConvertStepToYAML(stepMap)
 }
 
-func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
-
-	// Add history configuration to disable persistence
-	yaml.WriteString("          [history]\n")
-	yaml.WriteString("          persistence = \"none\"\n")
-
-	// Generate [mcp_servers] section
-	for _, toolName := range mcpTools {
-		switch toolName {
-		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
-		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderCodexMCPConfig(yaml, toolName, toolConfig); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
-		}
-	}
-
-	yaml.WriteString("          EOF\n")
-}
-
 // RenderMCPConfigFromConfigurations renders MCP configuration using pre-computed configurations
 func (e *CodexEngine) RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")

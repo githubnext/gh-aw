@@ -532,39 +532,6 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 	return comment.String()
 }
 
-func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
-
-	// Generate configuration for each MCP tool
-	for i, toolName := range mcpTools {
-		isLast := i == len(mcpTools)-1
-
-		switch toolName {
-		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast, workflowData)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
-		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderClaudeMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
-		}
-	}
-
-	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
-}
-
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration
 // Always uses Docker MCP as the default
 func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {

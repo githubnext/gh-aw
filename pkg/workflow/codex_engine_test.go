@@ -261,21 +261,21 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		tools    map[string]any
-		mcpTools []string
+		frontmatter map[string]any
 		expected []string
 	}{
 		{
 			name: "github tool with user_agent",
-			tools: map[string]any{
-				"github": map[string]any{},
+			frontmatter: map[string]any{
+				"name": "test-workflow",
+				"tools": map[string]any{
+					"github": map[string]any{},
+				},
 			},
-			mcpTools: []string{"github"},
 			expected: []string{
 				"cat > /tmp/mcp-config/config.toml << EOF",
 				"[history]",
 				"persistence = \"none\"",
-				"",
 				"[mcp_servers.github]",
 				"user_agent = \"test-workflow\"",
 				"command = \"docker\"",
@@ -285,7 +285,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"--rm\",",
 				"\"-e\",",
 				"\"GITHUB_PERSONAL_ACCESS_TOKEN\",",
-				"\"ghcr.io/github/github-mcp-server:sha-09deac4\"",
+				"\"ghcr.io/github/github-mcp-server:sha-09deac4\",",
 				"]",
 				"env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }",
 				"EOF",
@@ -296,8 +296,14 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			workflowData := &WorkflowData{Name: "test-workflow"}
-			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
+			
+			// Use the new configuration provider approach
+			configurations, err := NewMCPServerConfigurationsFromFrontmatter(tt.frontmatter, nil, &WorkflowData{Name: "test-workflow"})
+			if err != nil {
+				t.Fatalf("Failed to compute MCP configurations: %v", err)
+			}
+			
+			engine.RenderMCPConfigFromConfigurations(&yaml, configurations, &WorkflowData{Name: "test-workflow"})
 
 			result := yaml.String()
 			lines := strings.Split(strings.TrimSpace(result), "\n")
@@ -367,10 +373,20 @@ func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
 			var yaml strings.Builder
 			workflowData := &WorkflowData{Name: tt.workflowName}
 
-			tools := map[string]any{"github": map[string]any{}}
-			mcpTools := []string{"github"}
+			frontmatter := map[string]any{
+				"name": tt.workflowName,
+				"tools": map[string]any{
+					"github": map[string]any{},
+				},
+			}
 
-			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+			// Use the new configuration provider approach
+			configurations, err := NewMCPServerConfigurationsFromFrontmatter(frontmatter, nil, workflowData)
+			if err != nil {
+				t.Fatalf("Failed to compute MCP configurations: %v", err)
+			}
+
+			engine.RenderMCPConfigFromConfigurations(&yaml, configurations, workflowData)
 
 			result := yaml.String()
 			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
@@ -438,10 +454,20 @@ func TestCodexEngineRenderMCPConfigUserAgentFromConfig(t *testing.T) {
 				EngineConfig: engineConfig,
 			}
 
-			tools := map[string]any{"github": map[string]any{}}
-			mcpTools := []string{"github"}
+			frontmatter := map[string]any{
+				"name": tt.workflowName,
+				"tools": map[string]any{
+					"github": map[string]any{},
+				},
+			}
 
-			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+			// Use the new configuration provider approach
+			configurations, err := NewMCPServerConfigurationsFromFrontmatter(frontmatter, nil, workflowData)
+			if err != nil {
+				t.Fatalf("Failed to compute MCP configurations: %v", err)
+			}
+
+			engine.RenderMCPConfigFromConfigurations(&yaml, configurations, workflowData)
 
 			result := yaml.String()
 			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
@@ -555,10 +581,20 @@ func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
 				EngineConfig: tt.engineConfigFunc(),
 			}
 
-			tools := map[string]any{"github": map[string]any{}}
-			mcpTools := []string{"github"}
+			frontmatter := map[string]any{
+				"name": "test-workflow",
+				"tools": map[string]any{
+					"github": map[string]any{},
+				},
+			}
 
-			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+			// Use the new configuration provider approach
+			configurations, err := NewMCPServerConfigurationsFromFrontmatter(frontmatter, nil, workflowData)
+			if err != nil {
+				t.Fatalf("Failed to compute MCP configurations: %v", err)
+			}
+
+			engine.RenderMCPConfigFromConfigurations(&yaml, configurations, workflowData)
 
 			result := yaml.String()
 			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""

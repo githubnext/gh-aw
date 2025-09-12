@@ -191,7 +191,16 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	var yaml strings.Builder
 
 	// This should generate MCP configuration structure like Claude
-	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, nil)
+	frontmatter := map[string]any{
+		"tools": map[string]any{},
+	}
+	
+	configurations, err := NewMCPServerConfigurationsFromFrontmatter(frontmatter, nil, &WorkflowData{})
+	if err != nil {
+		t.Fatalf("Failed to compute MCP configurations: %v", err)
+	}
+	
+	engine.RenderMCPConfigFromConfigurations(&yaml, configurations, &WorkflowData{})
 
 	output := yaml.String()
 	expectedPrefix := "          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'"
@@ -217,16 +226,21 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		NetworkPermissions: networkPerms,
 	}
 
-	tools := map[string]any{
-		"playwright": map[string]any{
-			"docker_image_version": "v1.40.0",
-			"allowed_domains":      []string{"example.com", "*.github.com"},
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"playwright": map[string]any{
+				"docker_image_version": "v1.40.0",
+				"allowed_domains":      []string{"example.com", "*.github.com"},
+			},
 		},
 	}
 
-	mcpTools := []string{"playwright"}
+	configurations, err := NewMCPServerConfigurationsFromFrontmatter(frontmatter, networkPerms, workflowData)
+	if err != nil {
+		t.Fatalf("Failed to compute MCP configurations: %v", err)
+	}
 
-	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+	engine.RenderMCPConfigFromConfigurations(&yaml, configurations, workflowData)
 	output := yaml.String()
 
 	// Check that the output contains Playwright configuration
@@ -263,16 +277,21 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		NetworkPermissions: networkPerms,
 	}
 
-	tools := map[string]any{
-		"playwright": map[string]any{
-			"docker_image_version": "v1.40.0",
-			// No allowed_domains specified - should default to localhost
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"playwright": map[string]any{
+				"docker_image_version": "v1.40.0",
+				// No allowed_domains specified - should default to localhost
+			},
 		},
 	}
 
-	mcpTools := []string{"playwright"}
+	configurations, err := NewMCPServerConfigurationsFromFrontmatter(frontmatter, networkPerms, workflowData)
+	if err != nil {
+		t.Fatalf("Failed to compute MCP configurations: %v", err)
+	}
 
-	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+	engine.RenderMCPConfigFromConfigurations(&yaml, configurations, workflowData)
 	output := yaml.String()
 
 	// Check that the output contains Playwright configuration

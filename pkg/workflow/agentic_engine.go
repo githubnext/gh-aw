@@ -45,9 +45,6 @@ type CodingAgentEngine interface {
 	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
 	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
 
-	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
-	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData)
-
 	// RenderMCPConfigFromConfigurations renders MCP configuration using pre-computed configurations
 	RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData)
 

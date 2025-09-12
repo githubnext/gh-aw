@@ -58,6 +58,32 @@ func NewMCPServerConfigurationsFromFrontmatter(frontmatter map[string]any, netwo
 	return provider.GetConfigurations(), nil
 }
 
+// ComputeMCPServerConfigurationsFromFrontmatter computes MCP server configurations from frontmatter and returns a provider
+// This function handles the workflow name extraction internally to reduce code duplication
+func ComputeMCPServerConfigurationsFromFrontmatter(frontmatter map[string]any, networkPermissions *NetworkPermissions) (*MCPServerConfigProvider, error) {
+	provider := NewMCPServerConfigProvider()
+	
+	// Extract workflow name from frontmatter
+	workflowName := ""
+	if name, exists := frontmatter["name"]; exists {
+		if nameStr, ok := name.(string); ok {
+			workflowName = nameStr
+		}
+	}
+	
+	// Create minimal WorkflowData for user-agent computation
+	minimalWorkflowData := &WorkflowData{
+		Name: workflowName,
+	}
+	
+	err := provider.ComputeMCPServerConfigurations(frontmatter, networkPermissions, minimalWorkflowData)
+	if err != nil {
+		return nil, err
+	}
+	
+	return provider, nil
+}
+
 // ComputeMCPServerConfigurations extracts and computes MCP server configurations from workflow frontmatter
 func (p *MCPServerConfigProvider) ComputeMCPServerConfigurations(frontmatter map[string]any, networkPermissions *NetworkPermissions, workflowData *WorkflowData) error {
 	// Clear previous configurations
