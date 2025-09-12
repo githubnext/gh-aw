@@ -1,7 +1,7 @@
 const { spawn } = require("child_process");
 const path = require("path");
 const serverPath = path.join("/tmp/safe-outputs/mcp-server.cjs");
-const { GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS } = env;
+const { GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS } = process.env;
 function parseJsonl(input) {
     if (!input) return [];
     return input
@@ -13,7 +13,7 @@ function parseJsonl(input) {
 const toolCalls = parseJsonl(GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS)
 const child = spawn(process.execPath, [serverPath], {
     stdio: ["pipe", "pipe", "pipe"],
-    env,
+    env: process.env,
 });
 let stdoutBuffer = Buffer.alloc(0);
 const pending = new Map();
@@ -128,7 +128,7 @@ child.on("exit", (code, sig) => {
                 const res = await sendRequest("tools/call", { name, arguments: args });
                 console.log("tools/call ->", res);
             } catch (err) {
-                console.error("tools/call error for", name, err && err.message ? err.message : err);
+                console.error("tools/call error for", name, err);
             }
         }
 
@@ -140,7 +140,7 @@ child.on("exit", (code, sig) => {
             process.exit(0);
         }, 200);
     } catch (e) {
-        console.error("Error in MCP client:", e && e.stack ? e.stack : String(e));
+        console.error("Error in MCP client:", e);
         try {
             child.kill();
         } catch (e) { }
