@@ -108,61 +108,29 @@ describe("check_permissions.cjs", () => {
   it("should fail job when no permissions specified", async () => {
     delete process.env.GITHUB_AW_REQUIRED_ROLES;
 
-    // Mock process.exit to prevent the test from actually exiting
-    const processExitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(code => {
-        // Throw an error to stop script execution, simulating process.exit behavior
-        throw new Error(`Process exit called with code ${code}`);
-      });
-
-    try {
-      // Execute the script - this should throw due to process.exit
-      await eval(`(async () => { ${checkPermissionsScript} })()`);
-    } catch (error) {
-      // Expected to throw due to process.exit mock
-      expect(error.message).toBe("Process exit called with code 1");
-    }
+    // Execute the script
+    await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(mockCore.error).toHaveBeenCalledWith(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    expect(processExitSpy).toHaveBeenCalledWith(1);
     expect(
       mockGithub.rest.repos.getCollaboratorPermissionLevel
     ).not.toHaveBeenCalled();
-
-    processExitSpy.mockRestore();
   });
 
   it("should fail job when permissions are empty", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "";
 
-    // Mock process.exit to prevent the test from actually exiting
-    const processExitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(code => {
-        // Throw an error to stop script execution, simulating process.exit behavior
-        throw new Error(`Process exit called with code ${code}`);
-      });
-
-    try {
-      // Execute the script - this should throw due to process.exit
-      await eval(`(async () => { ${checkPermissionsScript} })()`);
-    } catch (error) {
-      // Expected to throw due to process.exit mock
-      expect(error.message).toBe("Process exit called with code 1");
-    }
+    // Execute the script
+    await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(mockCore.error).toHaveBeenCalledWith(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    expect(processExitSpy).toHaveBeenCalledWith(1);
     expect(
       mockGithub.rest.repos.getCollaboratorPermissionLevel
     ).not.toHaveBeenCalled();
-
-    processExitSpy.mockRestore();
   });
 
   it("should skip validation for safe events", async () => {
@@ -199,13 +167,13 @@ describe("check_permissions.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.debug).toHaveBeenCalledWith(
       "Checking if user 'testuser' has required permissions for testowner/testrepo"
     );
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.debug).toHaveBeenCalledWith(
       "Required permissions: admin, maintainer, write"
     );
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.debug).toHaveBeenCalledWith(
       "Repository permission level: admin"
     );
     expect(mockCore.info).toHaveBeenCalledWith(
@@ -262,34 +230,18 @@ describe("check_permissions.cjs", () => {
       data: { permission: "write" },
     });
 
-    // Mock process.exit to prevent the test from actually exiting
-    const processExitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(code => {
-        // Throw an error to stop script execution, simulating process.exit behavior
-        throw new Error(`Process exit called with code ${code}`);
-      });
+    // Execute the script
+    await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    try {
-      // Execute the script - this should throw due to process.exit
-      await eval(`(async () => { ${checkPermissionsScript} })()`);
-    } catch (error) {
-      // Expected to throw due to process.exit mock
-      expect(error.message).toBe("Process exit called with code 78");
-    }
-
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.debug).toHaveBeenCalledWith(
       "Repository permission level: write"
     );
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.warning).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
     expect(mockCore.warning).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintainer"
     );
-    expect(processExitSpy).toHaveBeenCalledWith(78);
-
-    processExitSpy.mockRestore();
   });
 
   it("should fail the job for read permission", async () => {
@@ -299,34 +251,18 @@ describe("check_permissions.cjs", () => {
       data: { permission: "read" },
     });
 
-    // Mock process.exit to prevent the test from actually exiting
-    const processExitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(code => {
-        // Throw an error to stop script execution, simulating process.exit behavior
-        throw new Error(`Process exit called with code ${code}`);
-      });
+    // Execute the script
+    await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    try {
-      // Execute the script - this should throw due to process.exit
-      await eval(`(async () => { ${checkPermissionsScript} })()`);
-    } catch (error) {
-      // Expected to throw due to process.exit mock
-      expect(error.message).toBe("Process exit called with code 78");
-    }
-
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.debug).toHaveBeenCalledWith(
       "Repository permission level: read"
     );
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.warning).toHaveBeenCalledWith(
       "User permission 'read' does not meet requirements: admin, write"
     );
     expect(mockCore.warning).toHaveBeenCalledWith(
       "❌ Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"
     );
-    expect(processExitSpy).toHaveBeenCalledWith(78);
-
-    processExitSpy.mockRestore();
   });
 
   it("should fail the job on API errors", async () => {
@@ -337,28 +273,12 @@ describe("check_permissions.cjs", () => {
       apiError
     );
 
-    // Mock process.exit to prevent the test from actually exiting
-    const processExitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(code => {
-        // Throw an error to stop script execution, simulating process.exit behavior
-        throw new Error(`Process exit called with code ${code}`);
-      });
-
-    try {
-      // Execute the script - this should throw due to process.exit
-      await eval(`(async () => { ${checkPermissionsScript} })()`);
-    } catch (error) {
-      // Expected to throw due to process.exit mock
-      expect(error.message).toBe("Process exit called with code 1");
-    }
+    // Execute the script
+    await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(mockCore.error).toHaveBeenCalledWith(
       "Repository permission check failed: API Error: Not Found"
     );
-    expect(processExitSpy).toHaveBeenCalledWith(1);
-
-    processExitSpy.mockRestore();
   });
 
   it("should handle different actor names correctly", async () => {
@@ -380,7 +300,7 @@ describe("check_permissions.cjs", () => {
       username: "different-user",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.debug).toHaveBeenCalledWith(
       "Checking if user 'different-user' has required permissions for testowner/testrepo"
     );
 
@@ -418,7 +338,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("Required permissions: write");
+    expect(mockCore.debug).toHaveBeenCalledWith("Required permissions: write");
     expect(mockCore.info).toHaveBeenCalledWith(
       "✅ User has write access to repository"
     );

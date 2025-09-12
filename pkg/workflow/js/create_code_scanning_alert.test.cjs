@@ -117,7 +117,7 @@ describe("create_code_scanning_alert.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
         expect.stringMatching(/Error parsing agent output JSON:/)
       );
     });

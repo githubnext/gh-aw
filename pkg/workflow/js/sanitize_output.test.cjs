@@ -624,15 +624,15 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      const logCalls = consoleSpy.mock.calls;
+      const logCalls = mockCore.info.mock.calls;
       const outputLogCall = logCalls.find(
         call =>
           call[0] && call[0].includes("Collected agentic output (sanitized):")
       );
 
       expect(outputLogCall).toBeDefined();
-      expect(outputLogCall[1]).toContain("...");
-      expect(outputLogCall[1].length).toBeLessThan(longContent.length);
+      expect(outputLogCall[0]).toContain("...");
+      expect(outputLogCall[0].length).toBeLessThan(longContent.length);
 
       fs.unlinkSync(testFile);
     });
@@ -745,7 +745,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      const logCalls = consoleSpy.mock.calls;
+      const logCalls = mockCore.info.mock.calls;
       const outputLogCall = logCalls.find(
         call =>
           call[0] && call[0].includes("Collected agentic output (sanitized):")
@@ -753,8 +753,8 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       expect(outputLogCall).toBeDefined();
       // Should not have ... for short content
-      expect(outputLogCall[1]).not.toContain("...");
-      expect(outputLogCall[1]).toContain("`@user`");
+      expect(outputLogCall[0]).not.toContain("...");
+      expect(outputLogCall[0]).toContain("`@user`");
 
       fs.unlinkSync(testFile);
     });

@@ -196,7 +196,7 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(mockCore.info).not.toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -303,10 +303,9 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
         expect.stringMatching(/Error parsing agent output JSON:/)
       );
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it("should handle agent output without valid items array", async () => {

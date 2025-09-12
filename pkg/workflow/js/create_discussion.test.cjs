@@ -117,10 +117,10 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Check that it logs the content length first, then the error
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.debug).toHaveBeenCalledWith(
       "Agent output content length: 12"
     );
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
       expect.stringMatching(
         /Error parsing agent output JSON:.*Unexpected token/
       )
@@ -135,7 +135,7 @@ describe("create_discussion.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
+    expect(mockCore.warning).toHaveBeenCalledWith(
       "No create-discussion items found in agent output"
     );
   });
