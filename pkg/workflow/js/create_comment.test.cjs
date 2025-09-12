@@ -101,32 +101,26 @@ describe("create_comment.cjs", () => {
     // Remove the output content environment variable
     delete process.env.GITHUB_AW_AGENT_OUTPUT;
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "No GITHUB_AW_AGENT_OUTPUT environment variable found"
     );
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should skip when agent output is empty", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Agent output content is empty");
+    expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should skip when not in issue or PR context", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -139,18 +133,15 @@ describe("create_comment.cjs", () => {
     });
     global.context.eventName = "push"; // Not an issue or PR event
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
     );
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should create comment on issue successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -173,8 +164,6 @@ describe("create_comment.cjs", () => {
       data: mockComment,
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
@@ -193,8 +182,7 @@ describe("create_comment.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should create comment on pull request successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -219,8 +207,6 @@ describe("create_comment.cjs", () => {
       data: mockComment,
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
@@ -231,8 +217,7 @@ describe("create_comment.cjs", () => {
       body: expect.stringContaining("Test PR comment content"),
     });
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should include run information in comment body", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -256,8 +241,6 @@ describe("create_comment.cjs", () => {
       data: mockComment,
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
@@ -271,6 +254,5 @@ describe("create_comment.cjs", () => {
       "https://github.com/testowner/testrepo/actions/runs/12345"
     );
 
-    consoleSpy.mockRestore();
-  });
+    });
 });

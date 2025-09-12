@@ -99,7 +99,7 @@ describe("collect_ndjson_output.cjs", () => {
     await eval(`(async () => { ${collectScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-    expect(console.log).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "GITHUB_AW_SAFE_OUTPUTS not set, no output to collect"
     );
   });
@@ -110,9 +110,8 @@ describe("collect_ndjson_output.cjs", () => {
     await eval(`(async () => { ${collectScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-    expect(console.log).toHaveBeenCalledWith(
-      "Output file does not exist:",
-      "/tmp/nonexistent-file.txt"
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "Output file does not exist: /tmp/nonexistent-file.txt"
     );
   });
 
@@ -124,7 +123,7 @@ describe("collect_ndjson_output.cjs", () => {
     await eval(`(async () => { ${collectScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-    expect(console.log).toHaveBeenCalledWith("Output file is empty");
+    expect(mockCore.info).toHaveBeenCalledWith("Output file is empty");
   });
 
   it("should validate and parse valid JSONL content", async () => {

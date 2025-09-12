@@ -95,59 +95,45 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should handle missing GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "No GITHUB_AW_AGENT_OUTPUT environment variable found"
     );
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle empty agent output", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "   "; // Use spaces instead of empty string
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Agent output content is empty");
-    consoleSpy.mockRestore();
-  });
+    expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
+    });
 
   it("should handle invalid JSON in agent output", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Check that it logs the content length first, then the error
-    expect(consoleSpy).toHaveBeenCalledWith("Agent output content length:", 12);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Error parsing agent output JSON:",
-      expect.stringContaining("Unexpected token")
+    expect(mockCore.info).toHaveBeenCalledWith("Agent output content length: 12");
+    expect(mockCore.info).toHaveBeenCalledWith(`Error parsing agent output JSON: ${expect.stringContaining("Unexpected token"}`)
     );
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle missing create-discussion items", async () => {
     const validOutput = {
       items: [{ type: "create-issue", title: "Test Issue", body: "Test body" }],
     };
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "No create-discussion items found in agent output"
     );
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should create discussions successfully with basic configuration", async () => {
     // Mock the GraphQL API responses
@@ -183,8 +169,6 @@ describe("create_discussion.cjs", () => {
       ],
     };
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -227,8 +211,7 @@ describe("create_discussion.cjs", () => {
     );
     expect(mockCore.summary.write).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should apply title prefix when configured", async () => {
     // Mock the GraphQL API responses
@@ -264,8 +247,6 @@ describe("create_discussion.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
     process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX = "[ai] ";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
@@ -279,8 +260,7 @@ describe("create_discussion.cjs", () => {
       })
     );
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should use specified category ID when configured", async () => {
     // Mock the GraphQL API responses
@@ -319,8 +299,6 @@ describe("create_discussion.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
     process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID = "DIC_custom789";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
@@ -334,8 +312,7 @@ describe("create_discussion.cjs", () => {
       })
     );
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle repositories without discussions enabled gracefully", async () => {
     // Mock the GraphQL API to return error for discussion categories (simulating discussions not enabled)
@@ -353,22 +330,19 @@ describe("create_discussion.cjs", () => {
     };
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script - should exit gracefully without throwing
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Should log appropriate warning message
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "⚠ Cannot create discussions: Discussions are not enabled for this repository"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Consider enabling discussions in repository settings if you want to create discussions automatically"
     );
 
     // Should only attempt the GraphQL query once and not attempt to create discussions
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
 
-    consoleSpy.mockRestore();
-  });
+    });
 });

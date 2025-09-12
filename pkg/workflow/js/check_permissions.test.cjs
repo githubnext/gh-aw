@@ -169,12 +169,10 @@ describe("check_permissions.cjs", () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
     global.context.eventName = "workflow_dispatch";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ Event workflow_dispatch does not require validation"
     );
     expect(
@@ -183,16 +181,13 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
   it("should pass validation for admin permission", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer,write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "admin" },
     });
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
@@ -205,16 +200,16 @@ describe("check_permissions.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' has required permissions for testowner/testrepo"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Required permissions: admin, maintainer, write"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: admin"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ User has admin access to repository"
     );
 
@@ -222,8 +217,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should pass validation for maintain permission when maintainer is required", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
@@ -232,12 +226,10 @@ describe("check_permissions.cjs", () => {
       data: { permission: "maintain" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ User has maintain access to repository"
     );
 
@@ -245,8 +237,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should pass validation for write permission when write is required", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
@@ -255,12 +246,10 @@ describe("check_permissions.cjs", () => {
       data: { permission: "write" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ User has write access to repository"
     );
 
@@ -268,8 +257,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should fail the job for insufficient permission", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
@@ -277,8 +265,6 @@ describe("check_permissions.cjs", () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
     });
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Mock process.exit to prevent the test from actually exiting
     const processExitSpy = vi
@@ -296,10 +282,10 @@ describe("check_permissions.cjs", () => {
       expect(error.message).toBe("Process exit called with code 78");
     }
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: write"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
     expect(mockCore.warning).toHaveBeenCalledWith(
@@ -307,7 +293,6 @@ describe("check_permissions.cjs", () => {
     );
     expect(processExitSpy).toHaveBeenCalledWith(78);
 
-    consoleSpy.mockRestore();
     processExitSpy.mockRestore();
   });
 
@@ -318,8 +303,6 @@ describe("check_permissions.cjs", () => {
       data: { permission: "read" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Mock process.exit to prevent the test from actually exiting
     const processExitSpy = vi
       .spyOn(process, "exit")
@@ -336,10 +319,10 @@ describe("check_permissions.cjs", () => {
       expect(error.message).toBe("Process exit called with code 78");
     }
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: read"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "User permission 'read' does not meet requirements: admin, write"
     );
     expect(mockCore.warning).toHaveBeenCalledWith(
@@ -347,7 +330,6 @@ describe("check_permissions.cjs", () => {
     );
     expect(processExitSpy).toHaveBeenCalledWith(78);
 
-    consoleSpy.mockRestore();
     processExitSpy.mockRestore();
   });
 
@@ -358,8 +340,6 @@ describe("check_permissions.cjs", () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(
       apiError
     );
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Mock process.exit to prevent the test from actually exiting
     const processExitSpy = vi
@@ -382,7 +362,6 @@ describe("check_permissions.cjs", () => {
     );
     expect(processExitSpy).toHaveBeenCalledWith(1);
 
-    consoleSpy.mockRestore();
     processExitSpy.mockRestore();
   });
 
@@ -393,8 +372,6 @@ describe("check_permissions.cjs", () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "admin" },
     });
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
@@ -407,7 +384,7 @@ describe("check_permissions.cjs", () => {
       username: "different-user",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'different-user' has required permissions for testowner/testrepo"
     );
 
@@ -415,8 +392,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle triage permission correctly", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
@@ -425,12 +401,10 @@ describe("check_permissions.cjs", () => {
       data: { permission: "triage" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ User has triage access to repository"
     );
 
@@ -438,8 +412,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle single permission requirement", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "write";
@@ -448,13 +421,11 @@ describe("check_permissions.cjs", () => {
       data: { permission: "write" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Required permissions: write");
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith("Required permissions: write");
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ User has write access to repository"
     );
 
@@ -462,44 +433,37 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should skip validation for workflow_run events", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
     global.context.eventName = "workflow_run";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ Event workflow_run does not require validation"
     );
     expect(
       mockGithub.rest.repos.getCollaboratorPermissionLevel
     ).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should skip validation for schedule events", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
     global.context.eventName = "schedule";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "✅ Event schedule does not require validation"
     );
     expect(
       mockGithub.rest.repos.getCollaboratorPermissionLevel
     ).not.toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 });

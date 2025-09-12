@@ -156,8 +156,6 @@ describe("update_issue.cjs", () => {
 
     mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
@@ -176,8 +174,7 @@ describe("update_issue.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should update issue status successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -198,8 +195,6 @@ describe("update_issue.cjs", () => {
 
     mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
@@ -210,8 +205,7 @@ describe("update_issue.cjs", () => {
       state: "closed",
     });
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should update multiple fields successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -236,8 +230,6 @@ describe("update_issue.cjs", () => {
 
     mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
@@ -250,8 +242,7 @@ describe("update_issue.cjs", () => {
       state: "open",
     });
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it('should handle explicit issue number with target "*"', async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -274,8 +265,6 @@ describe("update_issue.cjs", () => {
 
     mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
@@ -286,8 +275,7 @@ describe("update_issue.cjs", () => {
       title: "Updated title",
     });
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should skip when no valid updates are provided", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({

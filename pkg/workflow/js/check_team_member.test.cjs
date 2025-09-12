@@ -93,8 +93,6 @@ describe("check_team_member.cjs", () => {
       data: { permission: "admin" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
@@ -106,27 +104,24 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: admin"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "User has admin access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should set is_team_member to true for maintain permission", async () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "maintain" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
@@ -138,27 +133,24 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: maintain"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "User has maintain access to repository"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should set is_team_member to false for write permission", async () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
@@ -170,24 +162,21 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: write"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should set is_team_member to false for read permission", async () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "read" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
@@ -199,24 +188,21 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: read"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should set is_team_member to false for none permission", async () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "none" },
     });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
@@ -228,16 +214,15 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Repository permission level: none"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle API errors and set is_team_member to false", async () => {
     const apiError = new Error("API Error: Not Found");
@@ -245,8 +230,6 @@ describe("check_team_member.cjs", () => {
       apiError
     );
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
 
@@ -258,7 +241,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
     );
     expect(mockCore.warning).toHaveBeenCalledWith(
@@ -266,8 +249,7 @@ describe("check_team_member.cjs", () => {
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle different actor names correctly", async () => {
     global.context.actor = "different-user";
@@ -275,8 +257,6 @@ describe("check_team_member.cjs", () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "admin" },
     });
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
@@ -289,13 +269,12 @@ describe("check_team_member.cjs", () => {
       username: "different-user",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'different-user' is admin or maintainer of testowner/testrepo"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle different repository contexts correctly", async () => {
     global.context.repo = {
@@ -306,8 +285,6 @@ describe("check_team_member.cjs", () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "maintain" },
     });
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
@@ -320,13 +297,12 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Checking if user 'testuser' is admin or maintainer of different-owner/different-repo"
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle authentication errors gracefully", async () => {
     const authError = new Error("Bad credentials");
@@ -334,8 +310,6 @@ describe("check_team_member.cjs", () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(
       authError
     );
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
@@ -345,8 +319,7 @@ describe("check_team_member.cjs", () => {
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
-    consoleSpy.mockRestore();
-  });
+    });
 
   it("should handle rate limiting errors gracefully", async () => {
     const rateLimitError = new Error("API rate limit exceeded");
@@ -354,8 +327,6 @@ describe("check_team_member.cjs", () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(
       rateLimitError
     );
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Execute the script
     await eval(`(async () => { ${checkTeamMemberScript} })()`);
@@ -365,6 +336,5 @@ describe("check_team_member.cjs", () => {
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 
-    consoleSpy.mockRestore();
-  });
+    });
 });

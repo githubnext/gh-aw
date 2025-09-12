@@ -85,8 +85,6 @@ describe("setup_agent_output.cjs", () => {
 
   describe("main function", () => {
     it("should create output file and set environment variables", async () => {
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script
       await eval(`(async () => { ${setupScript} })()`);
 
@@ -110,12 +108,9 @@ describe("setup_agent_output.cjs", () => {
       // const content = fs.readFileSync(outputFile, "utf8");
       // expect(content).toBe("");
 
-      consoleSpy.mockRestore();
-    });
+      });
 
     it("should create unique output file names on multiple runs", async () => {
-      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
       // Execute the script multiple times
       await eval(`(async () => { ${setupScript} })()`);
       const firstFile = mockCore.exportVariable.mock.calls[0][1];
@@ -134,7 +129,6 @@ describe("setup_agent_output.cjs", () => {
       // expect(fs.existsSync(firstFile)).toBe(true);
       // expect(fs.existsSync(secondFile)).toBe(true);
 
-      consoleSpy.mockRestore();
-    });
+      });
   });
 });
