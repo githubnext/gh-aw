@@ -3,8 +3,6 @@ title: Sample Workflows
 description: Collection of demonstrator agentic workflows for research, planning, coding, and development tasks that you can use as starting points for your own automation.
 ---
 
-# Sample Workflows
-
 **Demonstrator Research & Planning Workflows**
 - [📚 Weekly Research](https://github.com/githubnext/agentics/blob/main/docs/weekly-research.md) - Collect research updates and industry trends
 - [👥 Daily Team Status](https://github.com/githubnext/agentics/blob/main/docs/daily-team-status.md) - Assess repository activity and create status reports
