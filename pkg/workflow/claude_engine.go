@@ -312,8 +312,6 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 
 	if playwrightTool, hasPlaywright := tools["playwright"]; hasPlaywright {
 		// Playwright provides its own containerized browser automation
-		// Do not enable Claude's built-in Browser and ScreenshotTool to avoid conflicts
-		// The Playwright MCP server handles all browser automation capabilities
 		_ = playwrightTool
 	}
 
