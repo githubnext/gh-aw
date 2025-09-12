@@ -149,6 +149,8 @@ jobs:
             }
             main();
       - name: Setup Safe Outputs MCP
+        env:
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pr-branch\":{\"enabled\":true,\"target\":\"*\"}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -156,6 +158,11 @@ jobs:
             const path = require("path");
             const encoder = new TextEncoder();
             const decoder = new TextDecoder();
+            const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+            if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
+            const safeOutputsConfig = JSON.parse(configEnv);
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
+            if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set");
             function writeMessage(obj) {
               const json = JSON.stringify(obj);
               const bytes = encoder.encode(json);
@@ -209,27 +216,6 @@ jobs:
                 error: { code, message, data },
               };
               writeMessage(res);
-            }
-            let safeOutputsConfig = {};
-            let outputFile = null;
-            function initializeSafeOutputsConfig() {
-              const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
-              if (configEnv) {
-                try {
-                  safeOutputsConfig = JSON.parse(configEnv);
-                } catch (e) {
-                  process.stderr.write(
-                    `[safe-outputs] Error parsing config: ${e instanceof Error ? e.message : String(e)}\n`
-                  );
-                  safeOutputsConfig = {};
-                }
-              }
-              outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-              if (!outputFile) {
-                process.stderr.write(
-                  `[safe-outputs-mcp] Warning: GITHUB_AW_SAFE_OUTPUTS not set\n`
-                );
-              }
             }
             // Check if a safe-output type is enabled
             function isToolEnabled(toolType) {
@@ -469,8 +455,8 @@ jobs:
               const { id, method, params } = req;
               try {
                 if (method === "initialize") {
-                  initializeSafeOutputsConfig();
                   const clientInfo = params?.clientInfo ?? {};
+                  console.error(`client initialized:`, clientInfo);
                   const protocolVersion = params?.protocolVersion ?? undefined;
                   const result = {
                     serverInfo: SERVER_INFO,

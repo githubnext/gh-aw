@@ -2883,6 +2883,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("      - name: Setup Safe Outputs MCP\n")
+		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
+		yaml.WriteString("        env:\n")
+		fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
@@ -4018,6 +4021,85 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 	WriteJavaScriptToYAML(yaml, setupAgentOutputScript)
 }
 
+func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
+	// Pass the safe-outputs configuration for validation
+	if data.SafeOutputs == nil {
+		return ""
+	}
+	// Create a simplified config object for validation
+	safeOutputsConfig := make(map[string]interface{})
+	if data.SafeOutputs.CreateIssues != nil {
+		safeOutputsConfig["create-issue"] = true
+	}
+	if data.SafeOutputs.AddIssueComments != nil {
+		// Pass the full comment configuration including target
+		commentConfig := map[string]interface{}{
+			"enabled": true,
+		}
+		if data.SafeOutputs.AddIssueComments.Target != "" {
+			commentConfig["target"] = data.SafeOutputs.AddIssueComments.Target
+		}
+		safeOutputsConfig["add-issue-comment"] = commentConfig
+	}
+	if data.SafeOutputs.CreateDiscussions != nil {
+		discussionConfig := map[string]interface{}{
+			"enabled": true,
+		}
+		if data.SafeOutputs.CreateDiscussions.Max > 0 {
+			discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
+		}
+		safeOutputsConfig["create-discussion"] = discussionConfig
+	}
+	if data.SafeOutputs.CreatePullRequests != nil {
+		safeOutputsConfig["create-pull-request"] = true
+	}
+	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+		prReviewCommentConfig := map[string]interface{}{
+			"enabled": true,
+		}
+		if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
+			prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
+		}
+		safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
+	}
+	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+		securityReportConfig := map[string]interface{}{
+			"enabled": true,
+		}
+		// Security reports typically have unlimited max, but check if configured
+		if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
+			securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
+		}
+		safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
+	}
+	if data.SafeOutputs.AddIssueLabels != nil {
+		safeOutputsConfig["add-issue-label"] = true
+	}
+	if data.SafeOutputs.UpdateIssues != nil {
+		safeOutputsConfig["update-issue"] = true
+	}
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		pushToBranchConfig := map[string]interface{}{
+			"enabled": true,
+		}
+		if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
+			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
+		}
+		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
+	}
+	if data.SafeOutputs.MissingTool != nil {
+		missingToolConfig := map[string]interface{}{
+			"enabled": true,
+		}
+		if data.SafeOutputs.MissingTool.Max > 0 {
+			missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+		}
+		safeOutputsConfig["missing-tool"] = missingToolConfig
+	}
+	configJSON, _ := json.Marshal(safeOutputsConfig)
+	return string(configJSON)
+}
+
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Print Agent output\n")
@@ -4052,81 +4134,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 
 	// Pass the safe-outputs configuration for validation
-	if data.SafeOutputs != nil {
-		// Create a simplified config object for validation
-		safeOutputsConfig := make(map[string]interface{})
-		if data.SafeOutputs.CreateIssues != nil {
-			safeOutputsConfig["create-issue"] = true
-		}
-		if data.SafeOutputs.AddIssueComments != nil {
-			// Pass the full comment configuration including target
-			commentConfig := map[string]interface{}{
-				"enabled": true,
-			}
-			if data.SafeOutputs.AddIssueComments.Target != "" {
-				commentConfig["target"] = data.SafeOutputs.AddIssueComments.Target
-			}
-			safeOutputsConfig["add-issue-comment"] = commentConfig
-		}
-		if data.SafeOutputs.CreateDiscussions != nil {
-			discussionConfig := map[string]interface{}{
-				"enabled": true,
-			}
-			if data.SafeOutputs.CreateDiscussions.Max > 0 {
-				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
-			}
-			safeOutputsConfig["create-discussion"] = discussionConfig
-		}
-		if data.SafeOutputs.CreatePullRequests != nil {
-			safeOutputsConfig["create-pull-request"] = true
-		}
-		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-			prReviewCommentConfig := map[string]interface{}{
-				"enabled": true,
-			}
-			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
-				prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
-			}
-			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
-		}
-		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-			securityReportConfig := map[string]interface{}{
-				"enabled": true,
-			}
-			// Security reports typically have unlimited max, but check if configured
-			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
-			}
-			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
-		}
-		if data.SafeOutputs.AddIssueLabels != nil {
-			safeOutputsConfig["add-issue-label"] = true
-		}
-		if data.SafeOutputs.UpdateIssues != nil {
-			safeOutputsConfig["update-issue"] = true
-		}
-		if data.SafeOutputs.PushToPullRequestBranch != nil {
-			pushToBranchConfig := map[string]interface{}{
-				"enabled": true,
-			}
-			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
-				pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
-			}
-			safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
-		}
-		if data.SafeOutputs.MissingTool != nil {
-			missingToolConfig := map[string]interface{}{
-				"enabled": true,
-			}
-			if data.SafeOutputs.MissingTool.Max > 0 {
-				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
-			}
-			safeOutputsConfig["missing-tool"] = missingToolConfig
-		}
-
-		// Convert to JSON string for environment variable
-		configJSON, _ := json.Marshal(safeOutputsConfig)
-		fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", string(configJSON))
+	safeOutputConfig := c.generateSafeOutputsConfig(data)
+	if safeOutputConfig != "" {
+		fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
 	}
 
 	// Add allowed domains configuration for sanitization
