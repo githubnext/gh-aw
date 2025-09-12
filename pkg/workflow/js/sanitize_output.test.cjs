@@ -80,12 +80,53 @@ describe("sanitize_output.cjs", () => {
       expect(result).toContain("\t");
     });
 
-    it("should escape XML characters", () => {
+    it("should convert XML tags to parentheses format", () => {
       const input = '<script>alert("test")</script> & more';
       const result = sanitizeContentFunction(input);
-      expect(result).toContain("&lt;script&gt;");
-      expect(result).toContain("&quot;test&quot;");
-      expect(result).toContain("&amp; more");
+      expect(result).toContain("(script)");
+      expect(result).toContain("(/script)");
+      expect(result).toContain('"test"');
+      expect(result).toContain("& more");
+    });
+
+    it("should handle self-closing XML tags without whitespace", () => {
+      const input = 'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("(br/)");
+      expect(result).toContain('(img src="test.jpg"/)');
+      expect(result).toContain('(meta charset="utf-8"/)');
+    });
+
+    it("should handle self-closing XML tags with whitespace", () => {
+      const input = 'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("(br /)");
+      expect(result).toContain('(img src="test.jpg" /)');
+      expect(result).toContain('(meta charset="utf-8" /)');
+    });
+
+    it("should handle XML tags with various whitespace patterns", () => {
+      const input = 'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain('(div\tclass="test")content(/div)');
+      expect(result).toContain('(span\n  id="test")text(/span)');
+    });
+
+    it("should preserve non-XML uses of < and > characters", () => {
+      const input = "Math: x < y, array[5] > 3, and <div>content</div>";
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("x < y");
+      expect(result).toContain("5] > 3");
+      expect(result).toContain("(div)content(/div)");
+    });
+
+    it("should handle mixed XML tags and comparison operators", () => {
+      const input =
+        "Compare: a < b and then <script>alert(1)</script> plus c > d";
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("a < b");
+      expect(result).toContain("(script)alert(1)(/script)");
+      expect(result).toContain("c > d");
     });
 
     it("should block HTTP URLs while preserving HTTPS URLs", () => {
@@ -204,11 +245,11 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).not.toContain("http://bad.com");
       expect(result).not.toContain("javascript:alert");
 
-      // Check XML escaping
-      expect(result).toContain("&lt;script&gt;");
-      expect(result).toContain("&quot;quotes&quot;");
-      expect(result).toContain("&apos;apostrophes&apos;");
-      expect(result).toContain("&amp;");
+      // Check XML tag conversion
+      expect(result).toContain("(script)");
+      expect(result).toContain('"quotes"');
+      expect(result).toContain("'apostrophes'");
+      expect(result).toContain("&");
 
       // Check control character removal
       expect(result).not.toContain("\x00");
@@ -334,8 +375,8 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       expect(result).toContain("https://github.com/user/repo-name_with.dots");
       expect(result).toContain(
-        "https://github.com/search?q=test&amp;type=code"
-      ); // & escaped
+        "https://github.com/search?q=test&type=code"
+      ); // & not escaped
       expect(result).toContain("https://github.com/user/repo#readme");
       expect(result).toContain("https://github.dev:443/workspace");
       expect(result).toContain("https://github.com/repo");
@@ -393,7 +434,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).toContain("TrueColor");
     });
 
-    it("should handle XML escaping in complex nested content", () => {
+    it("should handle XML tag conversion in complex nested content", () => {
       const input = `
         <xml attr="value & 'quotes'">
           <![CDATA[<script>alert("xss")</script>]]>
@@ -403,15 +444,15 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const result = sanitizeContentFunction(input);
 
       expect(result).toContain(
-        "&lt;xml attr=&quot;value &amp; &apos;quotes&apos;&quot;&gt;"
+        "(xml attr=\"value & 'quotes'\")"
       );
       expect(result).toContain(
-        "&lt;![CDATA[&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;]]&gt;"
+        "(![CDATA[(script)alert(\"xss\")(/script)]])"
       );
       expect(result).toContain(
-        "&lt;!-- comment with &quot;quotes&quot; &amp; &apos;apostrophes&apos; --&gt;"
+        "(!-- comment with \"quotes\" & 'apostrophes' --)"
       );
-      expect(result).toContain("&lt;/xml&gt;");
+      expect(result).toContain("(/xml)");
     });
 
     it("should handle non-string inputs robustly", () => {
@@ -688,7 +729,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // But should still sanitize what it processes
       expect(result).toContain("`@user`");
       expect(result).toContain("(redacted)"); // evil.com
-      expect(result).toContain("&lt;script&gt;"); // XML escaping
+      expect(result).toContain("(script)"); // XML tag conversion
 
       consoleSpy.mockRestore();
       fs.unlinkSync(testFile);
