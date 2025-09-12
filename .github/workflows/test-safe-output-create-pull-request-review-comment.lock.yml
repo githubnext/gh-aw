@@ -21,6 +21,8 @@ run-name: "Test Safe Output - Create Pull Request Review Comment"
 jobs:
   task:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
     steps:
       - name: Check team membership for workflow
         id: check-team-member
