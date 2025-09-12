@@ -4,14 +4,45 @@ import path from "path";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
-  setFailed: vi.fn(),
-  setOutput: vi.fn(),
-  summary: {
-    addRaw: vi.fn().mockReturnThis(),
-    write: vi.fn(),
-  },
+  // Core logging functions
+  debug: vi.fn(),
+  info: vi.fn(),
+  notice: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
+
+  // Core workflow functions
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+  exportVariable: vi.fn(),
+  setSecret: vi.fn(),
+
+  // Input/state functions (less commonly used but included for completeness)
+  getInput: vi.fn(),
+  getBooleanInput: vi.fn(),
+  getMultilineInput: vi.fn(),
+  getState: vi.fn(),
+  saveState: vi.fn(),
+
+  // Group functions
+  startGroup: vi.fn(),
+  endGroup: vi.fn(),
+  group: vi.fn(),
+
+  // Other utility functions
+  addPath: vi.fn(),
+  setCommandEcho: vi.fn(),
+  isDebug: vi.fn().mockReturnValue(false),
+  getIDToken: vi.fn(),
+  toPlatformPath: vi.fn(),
+  toPosixPath: vi.fn(),
+  toWin32Path: vi.fn(),
+
+  // Summary object with chainable methods
+  summary: {
+    addRaw: vi.fn().mockReturnThis(),
+    write: vi.fn().mockResolvedValue(),
+  },
 };
 
 const mockGithub = {
@@ -65,31 +96,23 @@ describe("update_issue.cjs", () => {
   });
 
   it("should skip when no agent output is provided", async () => {
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "No GITHUB_AW_AGENT_OUTPUT environment variable found"
     );
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it("should skip when agent output is empty", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith("Agent output content is empty");
+    expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it("should skip when not in issue context for triggering target", async () => {
@@ -104,17 +127,13 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_UPDATE_TITLE = "true";
     global.context.eventName = "push"; // Not an issue event
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       'Target is "triggering" but not running in issue context, skipping issue update'
     );
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it("should update issue title successfully", async () => {
@@ -285,17 +304,13 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_UPDATE_BODY = "false";
     global.context.eventName = "issues";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "No valid updates to apply for this item"
     );
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 
   it("should validate status values", async () => {
@@ -310,16 +325,12 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_UPDATE_STATUS = "true";
     global.context.eventName = "issues";
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockCore.info).toHaveBeenCalledWith(
       "Invalid status value: invalid. Must be 'open' or 'closed'"
     );
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
   });
 });
