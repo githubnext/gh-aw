@@ -10,12 +10,16 @@ const mockCore = {
   setFailed: vi.fn(),
   setCancelled: vi.fn(),
   setError: vi.fn(),
+  info: vi.fn(),
 };
 
 const mockGithub = {
   rest: {
     repos: {
       getCollaboratorPermissionLevel: vi.fn(),
+    },
+    actions: {
+      cancelWorkflowRun: vi.fn(),
     },
   },
 };
@@ -27,6 +31,7 @@ const mockContext = {
     owner: "testowner",
     repo: "testrepo",
   },
+  runId: 12345,
 };
 
 // Set up global variables

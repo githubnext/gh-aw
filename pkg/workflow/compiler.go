@@ -2018,11 +2018,18 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 		steps = append(steps, "        run: echo \"Task job executed - conditions satisfied\"\n")
 	}
 
+	// Determine permissions needed for task job
+	var permissions string
+	if needsPermissionCheck || data.Command != "" {
+		// Add actions: write permission for self-cancellation when team member checks are present
+		permissions = "permissions:\n      actions: write"
+	}
+
 	job := &Job{
 		Name:        "task",
 		If:          data.If, // Use the existing condition (which may include alias checks)
 		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "", // No permissions needed - task job does not require content access
+		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
 	}
@@ -2039,7 +2046,7 @@ core.setOutput("is_team_member", "true");
 console.log("Permission check skipped - 'roles: all' specified");`
 	}
 
-	// Use the embedded check_permissions.cjs script
+	// Use the embedded check_permissions.cjs script for flexible permission checking
 	// The GITHUB_AW_REQUIRED_ROLES environment variable is set via the env field
 	return checkPermissionsScript
 }
@@ -2101,11 +2108,17 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 		depends = []string{"task"} // Depend on the task job only if it exists
 	}
 
+	// Determine permissions - add actions: write if permission checks are added
+	permissions := "permissions:\n      issues: write\n      pull-requests: write"
+	if !taskJobCreated && c.needsPermissionChecks(data) {
+		permissions = "permissions:\n      actions: write\n      issues: write\n      pull-requests: write"
+	}
+
 	job := &Job{
 		Name:        "add_reaction",
 		If:          reactionCondition.Render(),
 		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "permissions:\n      issues: write\n      pull-requests: write",
+		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
 		Needs:       depends,
@@ -2186,11 +2199,17 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		jobCondition = "" // No conditional execution
 	}
 
+	// Determine permissions - add actions: write if permission checks are added
+	permissions := "permissions:\n      contents: read\n      issues: write"
+	if !taskJobCreated && c.needsPermissionChecks(data) {
+		permissions = "permissions:\n      actions: write\n      contents: read\n      issues: write"
+	}
+
 	job := &Job{
 		Name:           "create_issue",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    "permissions:\n      contents: read\n      issues: write",
+		Permissions:    permissions,
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
@@ -2660,11 +2679,45 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		jobCondition = data.If // Use the original If condition from the workflow data
 	}
 
+	// Determine permissions - modify permissions to include actions: write if permission checks are added
+	permissions := data.Permissions
+	if !taskJobCreated {
+		var needsPermissionCheck bool
+		// Check if permission checks are needed using frontmatter if available
+		if frontmatter != nil {
+			needsPermissionCheck = c.needsPermissionChecksWithFrontmatter(data, frontmatter)
+		} else {
+			needsPermissionCheck = c.needsPermissionChecks(data)
+		}
+
+		if needsPermissionCheck {
+			// Add actions: write permission for self-cancellation
+			if permissions == "" || permissions == "permissions: read-all" {
+				permissions = "permissions:\n  actions: write\n  contents: read\n  issues: read\n  pull-requests: read"
+			} else {
+				// Parse existing permissions and add actions: write if not present
+				if !strings.Contains(permissions, "actions:") {
+					// Insert actions: write at the beginning of the permissions block
+					lines := strings.Split(permissions, "\n")
+					if len(lines) > 0 && strings.Contains(lines[0], "permissions:") {
+						// Insert after the permissions: line
+						newLines := []string{lines[0], "  actions: write"}
+						newLines = append(newLines, lines[1:]...)
+						permissions = strings.Join(newLines, "\n")
+					} else {
+						// Fallback: prepend to existing permissions
+						permissions = "permissions:\n  actions: write\n" + strings.TrimPrefix(permissions, "permissions:\n")
+					}
+				}
+			}
+		}
+	}
+
 	job := &Job{
 		Name:        jobName,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
-		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Permissions: c.indentYAMLLines(permissions, "    "),
 		Steps:       steps,
 		Needs:       depends,
 		Outputs:     outputs,

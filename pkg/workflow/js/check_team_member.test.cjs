@@ -7,12 +7,17 @@ const mockCore = {
   setOutput: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
+  info: vi.fn(),
+  setCancelled: vi.fn(),
 };
 
 const mockGithub = {
   rest: {
     repos: {
       getCollaboratorPermissionLevel: vi.fn(),
+    },
+    actions: {
+      cancelWorkflowRun: vi.fn(),
     },
   },
 };
@@ -23,6 +28,7 @@ const mockContext = {
     owner: "testowner",
     repo: "testrepo",
   },
+  runId: 12345,
 };
 
 // Set up global variables
@@ -145,10 +151,12 @@ describe("check_team_member.cjs", () => {
     consoleSpy.mockRestore();
   });
 
-  it("should set is_team_member to false for read permission", async () => {
+  it("should use self-cancellation when team membership fails", async () => {
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "read" },
     });
+
+    mockGithub.rest.actions.cancelWorkflowRun.mockResolvedValue({});
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -168,6 +176,60 @@ describe("check_team_member.cjs", () => {
     );
     expect(consoleSpy).toHaveBeenCalledWith(
       "Repository permission level: read"
+    );
+
+    // Check that self-cancellation was attempted
+    expect(mockGithub.rest.actions.cancelWorkflowRun).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      run_id: 12345,
+    });
+
+    expect(mockCore.info).toHaveBeenCalledWith(
+      expect.stringContaining("Cancellation requested for this workflow run")
+    );
+    expect(mockCore.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Access denied: User 'testuser' is not authorized")
+    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+
+    consoleSpy.mockRestore();
+  });
+
+  it("should fallback to core.setCancelled when API call fails", async () => {
+    mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+      data: { permission: "read" },
+    });
+
+    const apiError = new Error("API Error: Forbidden");
+    mockGithub.rest.actions.cancelWorkflowRun.mockRejectedValue(apiError);
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // Execute the script
+    await eval(`(async () => { ${checkTeamMemberScript} })()`);
+
+    expect(
+      mockGithub.rest.repos.getCollaboratorPermissionLevel
+    ).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      username: "testuser",
+    });
+
+    // Check that self-cancellation was attempted but failed
+    expect(mockGithub.rest.actions.cancelWorkflowRun).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      run_id: 12345,
+    });
+
+    // Check that fallback occurred
+    expect(mockCore.warning).toHaveBeenCalledWith(
+      "Failed to cancel workflow run: API Error: Forbidden"
+    );
+    expect(mockCore.setCancelled).toHaveBeenCalledWith(
+      expect.stringContaining("Access denied: User 'testuser' is not authorized")
     );
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
 

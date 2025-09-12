@@ -1,3 +1,22 @@
+// Custom setCancelled function that uses self-cancellation
+async function setCancelled(message) {
+  try {
+    // Cancel the current workflow run using GitHub Actions API
+    await github.rest.actions.cancelWorkflowRun({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      run_id: context.runId
+    });
+
+    core.info(`Cancellation requested for this workflow run: ${message}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.warning(`Failed to cancel workflow run: ${errorMessage}`);
+    // Fallback to core.setCancelled if API call fails
+    core.setCancelled(message);
+  }
+}
+
 async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;
@@ -29,6 +48,16 @@ async function main() {
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
+  // Team membership check failed - use self-cancellation
+  const failureMessage = `Access denied: User '${actor}' is not authorized to trigger this workflow. Only admin or maintainer users can run this workflow.`;
+  core.warning(`❌ ${failureMessage}`);
+  
+  await setCancelled(failureMessage);
+  
+  // Set output for any dependent steps that might check before cancellation takes effect
   core.setOutput("is_team_member", "false");
+  
+  // Return to finish the script
+  return;
 }
 await main();

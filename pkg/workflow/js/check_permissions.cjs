@@ -1,3 +1,22 @@
+// Custom setCancelled function that uses self-cancellation
+async function setCancelled(message) {
+  try {
+    // Cancel the current workflow run using GitHub Actions API
+    await github.rest.actions.cancelWorkflowRun({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      run_id: context.runId
+    });
+
+    core.info(`Cancellation requested for this workflow run: ${message}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.warning(`Failed to cancel workflow run: ${errorMessage}`);
+    // Fallback to core.setCancelled if API call fails
+    core.setCancelled(message);
+  }
+}
+
 async function main() {
   const { eventName } = context;
 
@@ -19,7 +38,7 @@ async function main() {
     core.error(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    core.setCancelled(
+    await setCancelled(
       "Configuration error: Required permissions not specified"
     );
     return;
@@ -60,7 +79,7 @@ async function main() {
     const errorMessage =
       repoError instanceof Error ? repoError.message : String(repoError);
     core.error(`Repository permission check failed: ${errorMessage}`);
-    core.setCancelled(`Repository permission check failed: ${errorMessage}`);
+    await setCancelled(`Repository permission check failed: ${errorMessage}`);
     return;
   }
 
@@ -68,8 +87,9 @@ async function main() {
   core.warning(
     `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
-  core.setCancelled(
+  await setCancelled(
     `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
+  return;
 }
 await main();
