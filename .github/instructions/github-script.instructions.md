@@ -19,6 +19,14 @@ This JavaScript file will be run using the GitHub Action `actions/github-script@
 - use `core.getInput` to get action inputs, with `required: true` for mandatory inputs
 - use `core.setFailed` to mark the action as failed with an error message
 
+## Step summary
+
+Use `core.summary.*` function to write output the step summary file.
+
+- use `core.summary.addRaw()` to add raw Markdown content (GitHub Flavored Markdown supported)
+- make sure to call `core.summary.write()` to flush pending writes
+- summary function calls can be chained, e.g. `core.summary.addRaw(...).addRaw(...).write()`
+
 ## Common errors
 
 - avoid `any` type as much as possible, use specific types or `unknown` instead
