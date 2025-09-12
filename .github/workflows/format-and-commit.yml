@@ -105,7 +105,3 @@ jobs:
           This PR was automatically created by the format-and-commit workflow." \
             --head "$BRANCH_NAME" \
             --base main
-
-      - name: No changes to commit
-        if: steps.check-changes.outputs.changes == 'false'
-        run: echo "No changes were made during formatting, linting, and building."
