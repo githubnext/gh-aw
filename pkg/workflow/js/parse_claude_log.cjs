@@ -20,11 +20,16 @@ function main() {
     // Append to GitHub step summary
     core.summary.addRaw(markdown).write();
   } catch (error) {
-    core.error(`Error parsing Claude log: ${error.message}`);
-    core.setFailed(error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.setFailed(errorMessage);
   }
 }
 
+/**
+ * Parses Claude log content and converts it to markdown format
+ * @param {string} logContent - The raw log content as a string
+ * @returns {string} Formatted markdown content
+ */
 function parseClaudeLog(logContent) {
   try {
     const logEntries = JSON.parse(logContent);
@@ -180,10 +185,17 @@ function parseClaudeLog(logContent) {
 
     return markdown;
   } catch (error) {
-    return `## Agent Log Summary\n\nError parsing Claude log: ${error.message}\n`;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`;
   }
 }
 
+/**
+ * Formats a tool use entry with its result into markdown
+ * @param {any} toolUse - The tool use object containing name, input, etc.
+ * @param {any} toolResult - The corresponding tool result object
+ * @returns {string} Formatted markdown string
+ */
 function formatToolUse(toolUse, toolResult) {
   const toolName = toolUse.name;
   const input = toolUse.input || {};
@@ -285,6 +297,11 @@ function formatToolUse(toolUse, toolResult) {
   return markdown;
 }
 
+/**
+ * Formats MCP tool name from internal format to display format
+ * @param {string} toolName - The raw tool name (e.g., mcp__github__search_issues)
+ * @returns {string} Formatted tool name (e.g., github::search_issues)
+ */
 function formatMcpName(toolName) {
   // Convert mcp__github__search_issues to github::search_issues
   if (toolName.startsWith("mcp__")) {
@@ -298,6 +315,11 @@ function formatMcpName(toolName) {
   return toolName;
 }
 
+/**
+ * Formats MCP parameters into a human-readable string
+ * @param {Record<string, any>} input - The input object containing parameters
+ * @returns {string} Formatted parameters string
+ */
 function formatMcpParameters(input) {
   const keys = Object.keys(input);
   if (keys.length === 0) return "";
@@ -316,6 +338,11 @@ function formatMcpParameters(input) {
   return paramStrs.join(", ");
 }
 
+/**
+ * Formats a bash command by normalizing whitespace and escaping
+ * @param {string} command - The raw bash command string
+ * @returns {string} Formatted and escaped command string
+ */
 function formatBashCommand(command) {
   if (!command) return "";
 
@@ -340,6 +367,12 @@ function formatBashCommand(command) {
   return formatted;
 }
 
+/**
+ * Truncates a string to a maximum length with ellipsis
+ * @param {string} str - The string to truncate
+ * @param {number} maxLength - Maximum allowed length
+ * @returns {string} Truncated string with ellipsis if needed
+ */
 function truncateString(str, maxLength) {
   if (!str) return "";
   if (str.length <= maxLength) return str;

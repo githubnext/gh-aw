@@ -23,10 +23,15 @@ function main() {
       core.error("Failed to parse Codex log");
     }
   } catch (error) {
-    core.setFailed(error.message);
+    core.setFailed(error instanceof Error ? error : String(error));
   }
 }
 
+/**
+ * Parse codex log content and format as markdown
+ * @param {string} logContent - The raw log content to parse
+ * @returns {string} Formatted markdown content
+ */
 function parseCodexLog(logContent) {
   try {
     const lines = logContent.split("\n");
@@ -118,8 +123,11 @@ function parseCodexLog(logContent) {
     const tokenMatches = logContent.match(/tokens used: (\d+)/g);
     if (tokenMatches) {
       for (const match of tokenMatches) {
-        const tokens = parseInt(match.match(/(\d+)/)[1]);
-        totalTokens += tokens;
+        const numberMatch = match.match(/(\d+)/);
+        if (numberMatch) {
+          const tokens = parseInt(numberMatch[1]);
+          totalTokens += tokens;
+        }
       }
     }
 
@@ -252,6 +260,11 @@ function parseCodexLog(logContent) {
   }
 }
 
+/**
+ * Format bash command for display
+ * @param {string} command - The command to format
+ * @returns {string} Formatted command string
+ */
 function formatBashCommand(command) {
   if (!command) return "";
 
@@ -276,6 +289,12 @@ function formatBashCommand(command) {
   return formatted;
 }
 
+/**
+ * Truncate string to maximum length
+ * @param {string} str - The string to truncate
+ * @param {number} maxLength - Maximum length allowed
+ * @returns {string} Truncated string
+ */
 function truncateString(str, maxLength) {
   if (!str) return "";
   if (str.length <= maxLength) return str;
