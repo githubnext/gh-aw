@@ -14,7 +14,14 @@ concurrency:
 run-name: "Test Codex Command"
 
 jobs:
+  task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task job condition barrier
+        run: echo "Task job executed - conditions satisfied"
+
   test-codex-command:
+    needs: task
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,9 +40,7 @@ jobs:
           cat > /tmp/mcp-config/config.toml << EOF
           [history]
           persistence = "none"
-          
           [mcp_servers.github]
-          user_agent = "test-codex-command"
           command = "docker"
           args = [
             "run",
@@ -43,7 +48,7 @@ jobs:
             "--rm",
             "-e",
             "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "ghcr.io/github/github-mcp-server:sha-09deac4"
+            "ghcr.io/github/github-mcp-server:sha-09deac4",
           ]
           env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
           EOF

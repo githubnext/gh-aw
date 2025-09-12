@@ -14,7 +14,14 @@ concurrency:
 run-name: "Test Claude MCP"
 
 jobs:
+  task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task job condition barrier
+        run: echo "Task job executed - conditions satisfied"
+
   test-claude-mcp:
+    needs: task
     runs-on: ubuntu-latest
     permissions:
       contents: read

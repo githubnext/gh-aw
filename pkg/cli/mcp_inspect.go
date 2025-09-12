@@ -86,10 +86,25 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		}
 	}
 
-	// Extract MCP configurations
-	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, serverFilter)
+	// Extract MCP configurations using the new configuration provider
+	configProvider := workflow.NewMCPServerConfigProvider()
+	err = configProvider.ComputeMCPServerConfigurations(workflowData.Frontmatter, nil)
 	if err != nil {
-		return fmt.Errorf("failed to extract MCP configurations: %w", err)
+		return fmt.Errorf("failed to compute MCP configurations: %w", err)
+	}
+
+	// Convert to parser.MCPServerConfig for compatibility with existing inspection code
+	mcpConfigs := configProvider.ToParserMCPServerConfigs()
+
+	// Filter by server name if specified
+	if serverFilter != "" {
+		var filteredConfigs []parser.MCPServerConfig
+		for _, config := range mcpConfigs {
+			if strings.Contains(strings.ToLower(config.Name), strings.ToLower(serverFilter)) {
+				filteredConfigs = append(filteredConfigs, config)
+			}
+		}
+		mcpConfigs = filteredConfigs
 	}
 
 	if len(mcpConfigs) == 0 {
@@ -162,7 +177,9 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 			continue
 		}
 
-		mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
+		// Use the new configuration provider to check for MCP configurations
+		configProvider := workflow.NewMCPServerConfigProvider()
+		err = configProvider.ComputeMCPServerConfigurations(workflowData.Frontmatter, nil)
 		if err != nil {
 			if verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
@@ -170,7 +187,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 			continue
 		}
 
-		if len(mcpConfigs) > 0 {
+		if configProvider.HasMCPTools() {
 			workflowsWithMCP = append(workflowsWithMCP, filepath.Base(file))
 		}
 	}
@@ -287,7 +304,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 			return fmt.Errorf("workflow file not found: %s", workflowPath)
 		}
 
-		// Parse the workflow file to extract MCP configurations
+		// Parse the workflow file to extract MCP configurations using the new provider
 		content, err := os.ReadFile(workflowPath)
 		if err != nil {
 			return err
@@ -298,10 +315,25 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 			return err
 		}
 
-		// Extract MCP configurations
-		mcpConfigs, err = parser.ExtractMCPConfigurations(workflowData.Frontmatter, serverFilter)
+		// Use the new configuration provider
+		configProvider := workflow.NewMCPServerConfigProvider()
+		err = configProvider.ComputeMCPServerConfigurations(workflowData.Frontmatter, nil)
 		if err != nil {
 			return err
+		}
+
+		// Convert to parser.MCPServerConfig for compatibility
+		mcpConfigs = configProvider.ToParserMCPServerConfigs()
+
+		// Filter by server name if specified
+		if serverFilter != "" {
+			var filteredConfigs []parser.MCPServerConfig
+			for _, config := range mcpConfigs {
+				if strings.Contains(strings.ToLower(config.Name), strings.ToLower(serverFilter)) {
+					filteredConfigs = append(filteredConfigs, config)
+				}
+			}
+			mcpConfigs = filteredConfigs
 		}
 
 		if len(mcpConfigs) > 0 {

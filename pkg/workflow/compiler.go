@@ -2794,30 +2794,32 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
-	// Collect tools that need MCP server configuration
-	var mcpTools []string
+	// Use the new MCP configuration provider approach
+	configProvider := NewMCPServerConfigProvider()
+	err := configProvider.ComputeMCPServerConfigurations(map[string]any{"tools": tools}, workflowData.NetworkPermissions)
+	if err != nil {
+		fmt.Printf("Error computing MCP configurations: %v\n", err)
+		return
+	}
+
+	// Get computed configurations
+	configurations := configProvider.GetConfigurations()
+	mcpTools := configProvider.GetMCPTools()
+
+	// If no MCP tools, no configuration needed
+	if !configProvider.HasMCPTools() {
+		return
+	}
+
+	// Collect tools that need proxy setup for network restrictions
 	var proxyTools []string
-	workflowTools := workflowData.Tools
-
-	for toolName, toolValue := range workflowTools {
-		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" {
-			mcpTools = append(mcpTools, toolName)
-		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
-			// Check if it's explicitly marked as MCP type in the new format
-			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-				mcpTools = append(mcpTools, toolName)
-
-				// Check if this tool needs proxy
-				if needsProxySetup, _ := needsProxy(mcpConfig); needsProxySetup {
-					proxyTools = append(proxyTools, toolName)
-				}
-			}
+	for _, config := range configurations {
+		if config.UsesProxy {
+			proxyTools = append(proxyTools, config.Name)
 		}
 	}
 
 	// Sort tools to ensure stable code generation
-	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)
 
 	// Generate proxy configuration files inline for proxy-enabled tools
@@ -2883,8 +2885,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
 
-	// Use the engine's RenderMCPConfig method
-	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	// Use the engine's new RenderMCPConfigFromConfigurations method
+	engine.RenderMCPConfigFromConfigurations(yaml, configurations, workflowData)
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

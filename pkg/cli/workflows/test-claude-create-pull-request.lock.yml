@@ -14,7 +14,14 @@ concurrency:
 run-name: "Test Claude Create Pull Request"
 
 jobs:
+  task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task job condition barrier
+        run: echo "Task job executed - conditions satisfied"
+
   test-claude-create-pull-request:
+    needs: task
     runs-on: ubuntu-latest
     permissions:
       contents: write

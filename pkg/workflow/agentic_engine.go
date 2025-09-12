@@ -48,6 +48,9 @@ type CodingAgentEngine interface {
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData)
 
+	// RenderMCPConfigFromConfigurations renders MCP configuration using pre-computed configurations
+	RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData)
+
 	// ParseLogMetrics extracts metrics from engine-specific log content
 	ParseLogMetrics(logContent string, verbose bool) LogMetrics
 
@@ -119,6 +122,11 @@ func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 // GetErrorPatterns returns an empty list by default (engines can override)
 func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{}
+}
+
+// RenderMCPConfigFromConfigurations provides a default implementation (engines should override)
+func (e *BaseEngine) RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData) {
+	// Default implementation does nothing - engines should override this method
 }
 
 // EngineRegistry manages available agentic engines

@@ -14,7 +14,14 @@ concurrency:
 run-name: "Test AI Inference GitHub Models"
 
 jobs:
+  task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task job condition barrier
+        run: echo "Task job executed - conditions satisfied"
+
   test-ai-inference-github-models:
+    needs: task
     runs-on: ubuntu-latest
     permissions:
       contents: read

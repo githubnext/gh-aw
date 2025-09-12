@@ -200,6 +200,29 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          EOF\n")
 }
 
+// RenderMCPConfigFromConfigurations renders MCP configuration using pre-computed configurations
+func (e *CodexEngine) RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData) {
+	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
+
+	// Add history configuration to disable persistence
+	yaml.WriteString("          [history]\n")
+	yaml.WriteString("          persistence = \"none\"\n")
+
+	// Generate [mcp_servers] section for each configuration
+	for _, config := range configurations {
+		// Render the configuration for this server
+		configStr, err := config.renderForCodex()
+		if err != nil {
+			fmt.Printf("Error generating MCP configuration for %s: %v\n", config.Name, err)
+			continue
+		}
+
+		yaml.WriteString(configStr)
+	}
+
+	yaml.WriteString("          EOF\n")
+}
+
 // ParseLogMetrics implements engine-specific log parsing for Codex
 func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
 	var metrics LogMetrics

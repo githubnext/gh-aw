@@ -160,6 +160,38 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          EOF\n")
 }
 
+// RenderMCPConfigFromConfigurations renders MCP configuration using pre-computed configurations
+func (e *CustomEngine) RenderMCPConfigFromConfigurations(yaml *strings.Builder, configurations []MCPServerConfiguration, workflowData *WorkflowData) {
+	// Custom engine uses the same MCP configuration generation as Claude
+	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
+	yaml.WriteString("          {\n")
+	yaml.WriteString("            \"mcpServers\": {\n")
+
+	// Generate configuration for each MCP server
+	for i, config := range configurations {
+		isLast := i == len(configurations)-1
+
+		// Render the configuration for this server
+		configStr, err := config.renderForClaude()
+		if err != nil {
+			fmt.Printf("Error generating MCP configuration for %s: %v\n", config.Name, err)
+			continue
+		}
+
+		yaml.WriteString(configStr)
+
+		if !isLast {
+			yaml.WriteString(",\n")
+		} else {
+			yaml.WriteString("\n")
+		}
+	}
+
+	yaml.WriteString("            }\n")
+	yaml.WriteString("          }\n")
+	yaml.WriteString("          EOF\n")
+}
+
 // renderGitHubMCPConfig generates the GitHub MCP server configuration using shared logic
 func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
