@@ -617,7 +617,7 @@ jobs:
               /**
                * Gets the maximum allowed count for a given output type
                * @param {string} itemType - The output item type
-               * @param {Object} config - The safe-outputs configuration
+               * @param {any} config - The safe-outputs configuration
                * @returns {number} The maximum allowed count
                */
               function getMaxAllowedForType(itemType, config) {
@@ -667,6 +667,7 @@ jobs:
                 // U+0014 (DC4) — represented here as "\u0014"
                 // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
                 // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+                /** @type {Record<number, string>} */
                 const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
                 repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
                   const c = ch.charCodeAt(0);
@@ -741,9 +742,17 @@ jobs:
                     return JSON.parse(repairedJson);
                   } catch (repairError) {
                     // If repair also fails, throw the error
-                    console.log(`invalid input json: ${jsonStr}`);
+                    core.info(`invalid input json: ${jsonStr}`);
+                    const originalMsg =
+                      originalError instanceof Error
+                        ? originalError.message
+                        : String(originalError);
+                    const repairMsg =
+                      repairError instanceof Error
+                        ? repairError.message
+                        : String(repairError);
                     throw new Error(
-                      `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
+                      `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
                     );
                   }
                 }
@@ -751,33 +760,34 @@ jobs:
               const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
               const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
               if (!outputFile) {
-                console.log("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+                core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
                 return;
               }
               if (!fs.existsSync(outputFile)) {
-                console.log("Output file does not exist:", outputFile);
+                core.info(`Output file does not exist: ${outputFile}`);
                 core.setOutput("output", "");
                 return;
               }
               const outputContent = fs.readFileSync(outputFile, "utf8");
               if (outputContent.trim() === "") {
-                console.log("Output file is empty");
+                core.info("Output file is empty");
                 core.setOutput("output", "");
                 return;
               }
-              console.log("Raw output content length:", outputContent.length);
+              core.info(`Raw output content length: ${outputContent.length}`);
               // Parse the safe-outputs configuration
+              /** @type {any} */
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
                   expectedOutputTypes = JSON.parse(safeOutputsConfig);
-                  console.log("Expected output types:", Object.keys(expectedOutputTypes));
-                } catch (error) {
-                  console.log(
-                    "Warning: Could not parse safe-outputs config:",
-                    error.message
+                  core.info(
+                    `Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
                   );
+                } catch (error) {
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
                 }
               }
               // Parse JSONL content
@@ -788,6 +798,7 @@ jobs:
                 const line = lines[i].trim();
                 if (line === "") continue; // Skip empty lines
                 try {
+                  /** @type {any} */
                   const item = parseJsonWithRepair(line);
                   // If item is undefined (failed to parse), add error and process next line
                   if (item === undefined) {
@@ -838,8 +849,9 @@ jobs:
                       item.body = sanitizeContent(item.body);
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label =>
-                          typeof label === "string" ? sanitizeContent(label) : label
+                        item.labels = item.labels.map(
+                          /** @param {any} label */ label =>
+                            typeof label === "string" ? sanitizeContent(label) : label
                         );
                       }
                       break;
@@ -875,8 +887,9 @@ jobs:
                       }
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label =>
-                          typeof label === "string" ? sanitizeContent(label) : label
+                        item.labels = item.labels.map(
+                          /** @param {any} label */ label =>
+                            typeof label === "string" ? sanitizeContent(label) : label
                         );
                       }
                       break;
@@ -887,14 +900,20 @@ jobs:
                         );
                         continue;
                       }
-                      if (item.labels.some(label => typeof label !== "string")) {
+                      if (
+                        item.labels.some(
+                          /** @param {any} label */ label => typeof label !== "string"
+                        )
+                      ) {
                         errors.push(
                           `Line ${i + 1}: add-issue-label labels array must contain only strings`
                         );
                         continue;
                       }
                       // Sanitize label strings
-                      item.labels = item.labels.map(label => sanitizeContent(label));
+                      item.labels = item.labels.map(
+                        /** @param {any} label */ label => sanitizeContent(label)
+                      );
                       break;
                     case "update-issue":
                       // Check that at least one updateable field is provided
@@ -1202,10 +1221,11 @@ jobs:
                       errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
                       continue;
                   }
-                  console.log(`Line ${i + 1}: Valid ${itemType} item`);
+                  core.info(`Line ${i + 1}: Valid ${itemType} item`);
                   parsedItems.push(item);
                 } catch (error) {
-                  errors.push(`Line ${i + 1}: Invalid JSON - ${error.message}`);
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
                 }
               }
               // Report validation results
@@ -1219,7 +1239,7 @@ jobs:
                 // For now, we'll continue with valid items but log the errors
                 // In the future, we might want to fail the workflow for invalid items
               }
-              console.log(`Successfully parsed ${parsedItems.length} valid output items`);
+              core.info(`Successfully parsed ${parsedItems.length} valid output items`);
               // Set the parsed and validated items as output
               const validatedOutput = {
                 items: parsedItems,
@@ -1232,11 +1252,12 @@ jobs:
                 // Ensure the /tmp directory exists
                 fs.mkdirSync("/tmp", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
-                console.log(`Stored validated output to: ${agentOutputFile}`);
+                core.info(`Stored validated output to: ${agentOutputFile}`);
                 // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
                 core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
-                core.error(`Failed to write agent output file: ${error.message}`);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to write agent output file: ${errorMsg}`);
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
@@ -1280,11 +1301,11 @@ jobs:
                 // Get the log file path from environment
                 const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logFile) {
-                  console.log("No agent log file specified");
+                  core.info("No agent log file specified");
                   return;
                 }
                 if (!fs.existsSync(logFile)) {
-                  console.log(`Log file not found: ${logFile}`);
+                  core.info(`Log file not found: ${logFile}`);
                   return;
                 }
                 const logContent = fs.readFileSync(logFile, "utf8");
@@ -1292,10 +1313,15 @@ jobs:
                 // Append to GitHub step summary
                 core.summary.addRaw(markdown).write();
               } catch (error) {
-                core.error(`Error parsing Claude log: ${error.message}`);
-                core.setFailed(error.message);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.setFailed(errorMessage);
               }
             }
+            /**
+             * Parses Claude log content and converts it to markdown format
+             * @param {string} logContent - The raw log content as a string
+             * @returns {string} Formatted markdown content
+             */
             function parseClaudeLog(logContent) {
               try {
                 const logEntries = JSON.parse(logContent);
@@ -1435,9 +1461,16 @@ jobs:
                 }
                 return markdown;
               } catch (error) {
-                return `## Agent Log Summary\n\nError parsing Claude log: ${error.message}\n`;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`;
               }
             }
+            /**
+             * Formats a tool use entry with its result into markdown
+             * @param {any} toolUse - The tool use object containing name, input, etc.
+             * @param {any} toolResult - The corresponding tool result object
+             * @returns {string} Formatted markdown string
+             */
             function formatToolUse(toolUse, toolResult) {
               const toolName = toolUse.name;
               const input = toolUse.input || {};
@@ -1524,6 +1557,11 @@ jobs:
               }
               return markdown;
             }
+            /**
+             * Formats MCP tool name from internal format to display format
+             * @param {string} toolName - The raw tool name (e.g., mcp__github__search_issues)
+             * @returns {string} Formatted tool name (e.g., github::search_issues)
+             */
             function formatMcpName(toolName) {
               // Convert mcp__github__search_issues to github::search_issues
               if (toolName.startsWith("mcp__")) {
@@ -1536,6 +1574,11 @@ jobs:
               }
               return toolName;
             }
+            /**
+             * Formats MCP parameters into a human-readable string
+             * @param {Record<string, any>} input - The input object containing parameters
+             * @returns {string} Formatted parameters string
+             */
             function formatMcpParameters(input) {
               const keys = Object.keys(input);
               if (keys.length === 0) return "";
@@ -1550,6 +1593,11 @@ jobs:
               }
               return paramStrs.join(", ");
             }
+            /**
+             * Formats a bash command by normalizing whitespace and escaping
+             * @param {string} command - The raw bash command string
+             * @returns {string} Formatted and escaped command string
+             */
             function formatBashCommand(command) {
               if (!command) return "";
               // Convert multi-line commands to single line by replacing newlines with spaces
@@ -1569,6 +1617,12 @@ jobs:
               }
               return formatted;
             }
+            /**
+             * Truncates a string to a maximum length with ellipsis
+             * @param {string} str - The string to truncate
+             * @param {number} maxLength - Maximum allowed length
+             * @returns {string} Truncated string with ellipsis if needed
+             */
             function truncateString(str, maxLength) {
               if (!str) return "";
               if (str.length <= maxLength) return str;
@@ -1617,27 +1671,26 @@ jobs:
               // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
-                console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               if (outputContent.trim() === "") {
-                console.log("Agent output content is empty");
+                core.info("Agent output content is empty");
                 return;
               }
-              console.log("Agent output content length:", outputContent.length);
+              core.info(`Agent output content length: ${outputContent.length}`);
               // Parse the validated output JSON
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                console.log(
-                  "Error parsing agent output JSON:",
-                  error instanceof Error ? error.message : String(error)
+                core.setFailed(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
                 );
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                console.log("No valid items found in agent output");
+                core.info("No valid items found in agent output");
                 return;
               }
               // Find all create-issue items
@@ -1645,10 +1698,10 @@ jobs:
                 /** @param {any} item */ item => item.type === "create-issue"
               );
               if (createIssueItems.length === 0) {
-                console.log("No create-issue items found in agent output");
+                core.info("No create-issue items found in agent output");
                 return;
               }
-              console.log(`Found ${createIssueItems.length} create-issue item(s)`);
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
               // If in staged mode, emit step summary instead of creating issues
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
@@ -1668,7 +1721,7 @@ jobs:
                 }
                 // Write to step summary
                 await core.summary.addRaw(summaryContent).write();
-                console.log("📝 Issue creation preview written to step summary");
+                core.info("📝 Issue creation preview written to step summary");
                 return;
               }
               // Check if we're in an issue context (triggered by an issue event)
@@ -1685,9 +1738,8 @@ jobs:
               // Process each create-issue item
               for (let i = 0; i < createIssueItems.length; i++) {
                 const createIssueItem = createIssueItems[i];
-                console.log(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}:`,
-                  { title: createIssueItem.title, bodyLength: createIssueItem.body.length }
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
                 );
                 // Merge environment labels with item-specific labels
                 let labels = [...envLabels];
@@ -1707,7 +1759,7 @@ jobs:
                   title = titlePrefix + title;
                 }
                 if (parentIssueNumber) {
-                  console.log("Detected issue context, parent issue #" + parentIssueNumber);
+                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
                   // Add reference to parent issue in the child issue body
                   bodyLines.push(`Related to #${parentIssueNumber}`);
                 }
@@ -1725,9 +1777,9 @@ jobs:
                 );
                 // Prepare the body content
                 const body = bodyLines.join("\n").trim();
-                console.log("Creating issue with title:", title);
-                console.log("Labels:", labels);
-                console.log("Body length:", body.length);
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
                 try {
                   // Create the issue using GitHub API
                   const { data: issue } = await github.rest.issues.create({
@@ -1737,7 +1789,7 @@ jobs:
                     body: body,
                     labels: labels,
                   });
-                  console.log("Created issue #" + issue.number + ": " + issue.html_url);
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
                   createdIssues.push(issue);
                   // If we have a parent issue, add a comment to it referencing the new child issue
                   if (parentIssueNumber) {
@@ -1748,11 +1800,10 @@ jobs:
                         issue_number: parentIssueNumber,
                         body: `Created related issue: #${issue.number}`,
                       });
-                      console.log("Added comment to parent issue #" + parentIssueNumber);
+                      core.info("Added comment to parent issue #" + parentIssueNumber);
                     } catch (error) {
-                      console.log(
-                        "Warning: Could not add comment to parent issue:",
-                        error instanceof Error ? error.message : String(error)
+                      core.info(
+                        `Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`
                       );
                     }
                   }
@@ -1768,10 +1819,10 @@ jobs:
                   if (
                     errorMessage.includes("Issues has been disabled in this repository")
                   ) {
-                    console.log(
+                    core.info(
                       `⚠ Cannot create issue "${title}": Issues are disabled for this repository`
                     );
-                    console.log(
+                    core.info(
                       "Consider enabling issues in repository settings if you want to create issues automatically"
                     );
                     continue; // Skip this issue but continue processing others
@@ -1788,7 +1839,7 @@ jobs:
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              console.log(`Successfully created ${createdIssues.length} issue(s)`);
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
             await main();
 
@@ -1818,27 +1869,26 @@ jobs:
               // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
-                console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               if (outputContent.trim() === "") {
-                console.log("Agent output content is empty");
+                core.info("Agent output content is empty");
                 return;
               }
-              console.log("Agent output content length:", outputContent.length);
+              core.info(`Agent output content length: ${outputContent.length}`);
               // Parse the validated output JSON
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                console.log(
-                  "Error parsing agent output JSON:",
-                  error instanceof Error ? error.message : String(error)
+                core.setFailed(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
                 );
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                console.log("No valid items found in agent output");
+                core.info("No valid items found in agent output");
                 return;
               }
               // Find all add-issue-comment items
@@ -1846,10 +1896,10 @@ jobs:
                 /** @param {any} item */ item => item.type === "add-issue-comment"
               );
               if (commentItems.length === 0) {
-                console.log("No add-issue-comment items found in agent output");
+                core.info("No add-issue-comment items found in agent output");
                 return;
               }
-              console.log(`Found ${commentItems.length} add-issue-comment item(s)`);
+              core.info(`Found ${commentItems.length} add-issue-comment item(s)`);
               // If in staged mode, emit step summary instead of creating comments
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -1868,12 +1918,12 @@ jobs:
                 }
                 // Write to step summary
                 await core.summary.addRaw(summaryContent).write();
-                console.log("📝 Comment creation preview written to step summary");
+                core.info("📝 Comment creation preview written to step summary");
                 return;
               }
               // Get the target configuration from environment variable
               const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-              console.log(`Comment target configuration: ${commentTarget}`);
+              core.info(`Comment target configuration: ${commentTarget}`);
               // Check if we're in an issue or pull request context
               const isIssueContext =
                 context.eventName === "issues" || context.eventName === "issue_comment";
@@ -1883,7 +1933,7 @@ jobs:
                 context.eventName === "pull_request_review_comment";
               // Validate context based on target configuration
               if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-                console.log(
+                core.info(
                   'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
                 );
                 return;
@@ -1892,9 +1942,8 @@ jobs:
               // Process each comment item
               for (let i = 0; i < commentItems.length; i++) {
                 const commentItem = commentItems[i];
-                console.log(
-                  `Processing add-issue-comment item ${i + 1}/${commentItems.length}:`,
-                  { bodyLength: commentItem.body.length }
+                core.info(
+                  `Processing add-issue-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
                 );
                 // Determine the issue/PR number and comment endpoint for this comment
                 let issueNumber;
@@ -1904,14 +1953,14 @@ jobs:
                   if (commentItem.issue_number) {
                     issueNumber = parseInt(commentItem.issue_number, 10);
                     if (isNaN(issueNumber) || issueNumber <= 0) {
-                      console.log(
+                      core.info(
                         `Invalid issue number specified: ${commentItem.issue_number}`
                       );
                       continue;
                     }
                     commentEndpoint = "issues";
                   } else {
-                    console.log(
+                    core.info(
                       'Target is "*" but no issue_number specified in comment item'
                     );
                     continue;
@@ -1920,7 +1969,7 @@ jobs:
                   // Explicit issue number specified in target
                   issueNumber = parseInt(commentTarget, 10);
                   if (isNaN(issueNumber) || issueNumber <= 0) {
-                    console.log(
+                    core.info(
                       `Invalid issue number in target configuration: ${commentTarget}`
                     );
                     continue;
@@ -1933,7 +1982,7 @@ jobs:
                       issueNumber = context.payload.issue.number;
                       commentEndpoint = "issues";
                     } else {
-                      console.log("Issue context detected but no issue found in payload");
+                      core.info("Issue context detected but no issue found in payload");
                       continue;
                     }
                   } else if (isPRContext) {
@@ -1941,7 +1990,7 @@ jobs:
                       issueNumber = context.payload.pull_request.number;
                       commentEndpoint = "issues"; // PR comments use the issues API endpoint
                     } else {
-                      console.log(
+                      core.info(
                         "Pull request context detected but no pull request found in payload"
                       );
                       continue;
@@ -1949,7 +1998,7 @@ jobs:
                   }
                 }
                 if (!issueNumber) {
-                  console.log("Could not determine issue or pull request number");
+                  core.info("Could not determine issue or pull request number");
                   continue;
                 }
                 // Extract body from the JSON item
@@ -1960,8 +2009,8 @@ jobs:
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `https://github.com/actions/runs/${runId}`;
                 body += `\n\n> Generated by Agentic Workflow [Run](${runUrl})\n`;
-                console.log(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-                console.log("Comment content length:", body.length);
+                core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+                core.info(`Comment content length: ${body.length}`);
                 try {
                   // Create the comment using GitHub API
                   const { data: comment } = await github.rest.issues.createComment({
@@ -1970,7 +2019,7 @@ jobs:
                     issue_number: issueNumber,
                     body: body,
                   });
-                  console.log("Created comment #" + comment.id + ": " + comment.html_url);
+                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
                   createdComments.push(comment);
                   // Set output for the last created comment (for backward compatibility)
                   if (i === commentItems.length - 1) {
@@ -1992,7 +2041,7 @@ jobs:
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              console.log(`Successfully created ${createdComments.length} comment(s)`);
+              core.info(`Successfully created ${createdComments.length} comment(s)`);
               return createdComments;
             }
             await main();

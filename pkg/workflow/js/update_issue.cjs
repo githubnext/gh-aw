@@ -5,31 +5,30 @@ async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    console.log("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
   if (outputContent.trim() === "") {
-    console.log("Agent output content is empty");
+    core.info("Agent output content is empty");
     return;
   }
 
-  console.log("Agent output content length:", outputContent.length);
+  core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    console.log(
-      "Error parsing agent output JSON:",
-      error instanceof Error ? error.message : String(error)
+    core.setFailed(
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    console.log("No valid items found in agent output");
+    core.info("No valid items found in agent output");
     return;
   }
 
@@ -38,11 +37,11 @@ async function main() {
     /** @param {any} item */ item => item.type === "update-issue"
   );
   if (updateItems.length === 0) {
-    console.log("No update-issue items found in agent output");
+    core.info("No update-issue items found in agent output");
     return;
   }
 
-  console.log(`Found ${updateItems.length} update-issue item(s)`);
+  core.info(`Found ${updateItems.length} update-issue item(s)`);
 
   // If in staged mode, emit step summary instead of updating issues
   if (isStaged) {
@@ -73,7 +72,7 @@ async function main() {
 
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
-    console.log("📝 Issue update preview written to step summary");
+    core.info("📝 Issue update preview written to step summary");
     return;
   }
 
@@ -83,8 +82,8 @@ async function main() {
   const canUpdateTitle = process.env.GITHUB_AW_UPDATE_TITLE === "true";
   const canUpdateBody = process.env.GITHUB_AW_UPDATE_BODY === "true";
 
-  console.log(`Update target configuration: ${updateTarget}`);
-  console.log(
+  core.info(`Update target configuration: ${updateTarget}`);
+  core.info(
     `Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`
   );
 
@@ -94,7 +93,7 @@ async function main() {
 
   // Validate context based on target configuration
   if (updateTarget === "triggering" && !isIssueContext) {
-    console.log(
+    core.info(
       'Target is "triggering" but not running in issue context, skipping issue update'
     );
     return;
@@ -105,7 +104,7 @@ async function main() {
   // Process each update item
   for (let i = 0; i < updateItems.length; i++) {
     const updateItem = updateItems[i];
-    console.log(`Processing update-issue item ${i + 1}/${updateItems.length}`);
+    core.info(`Processing update-issue item ${i + 1}/${updateItems.length}`);
 
     // Determine the issue number for this update
     let issueNumber;
@@ -115,22 +114,20 @@ async function main() {
       if (updateItem.issue_number) {
         issueNumber = parseInt(updateItem.issue_number, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          console.log(
+          core.info(
             `Invalid issue number specified: ${updateItem.issue_number}`
           );
           continue;
         }
       } else {
-        console.log(
-          'Target is "*" but no issue_number specified in update item'
-        );
+        core.info('Target is "*" but no issue_number specified in update item');
         continue;
       }
     } else if (updateTarget && updateTarget !== "triggering") {
       // Explicit issue number specified in target
       issueNumber = parseInt(updateTarget, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        console.log(
+        core.info(
           `Invalid issue number in target configuration: ${updateTarget}`
         );
         continue;
@@ -141,23 +138,24 @@ async function main() {
         if (context.payload.issue) {
           issueNumber = context.payload.issue.number;
         } else {
-          console.log("Issue context detected but no issue found in payload");
+          core.info("Issue context detected but no issue found in payload");
           continue;
         }
       } else {
-        console.log("Could not determine issue number");
+        core.info("Could not determine issue number");
         continue;
       }
     }
 
     if (!issueNumber) {
-      console.log("Could not determine issue number");
+      core.info("Could not determine issue number");
       continue;
     }
 
-    console.log(`Updating issue #${issueNumber}`);
+    core.info(`Updating issue #${issueNumber}`);
 
     // Build the update object based on allowed fields and provided values
+    /** @type {any} */
     const updateData = {};
     let hasUpdates = false;
 
@@ -166,9 +164,9 @@ async function main() {
       if (updateItem.status === "open" || updateItem.status === "closed") {
         updateData.state = updateItem.status;
         hasUpdates = true;
-        console.log(`Will update status to: ${updateItem.status}`);
+        core.info(`Will update status to: ${updateItem.status}`);
       } else {
-        console.log(
+        core.info(
           `Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`
         );
       }
@@ -181,9 +179,9 @@ async function main() {
       ) {
         updateData.title = updateItem.title.trim();
         hasUpdates = true;
-        console.log(`Will update title to: ${updateItem.title.trim()}`);
+        core.info(`Will update title to: ${updateItem.title.trim()}`);
       } else {
-        console.log("Invalid title value: must be a non-empty string");
+        core.info("Invalid title value: must be a non-empty string");
       }
     }
 
@@ -191,14 +189,14 @@ async function main() {
       if (typeof updateItem.body === "string") {
         updateData.body = updateItem.body;
         hasUpdates = true;
-        console.log(`Will update body (length: ${updateItem.body.length})`);
+        core.info(`Will update body (length: ${updateItem.body.length})`);
       } else {
-        console.log("Invalid body value: must be a string");
+        core.info("Invalid body value: must be a string");
       }
     }
 
     if (!hasUpdates) {
-      console.log("No valid updates to apply for this item");
+      core.info("No valid updates to apply for this item");
       continue;
     }
 
@@ -211,7 +209,7 @@ async function main() {
         ...updateData,
       });
 
-      console.log("Updated issue #" + issue.number + ": " + issue.html_url);
+      core.info("Updated issue #" + issue.number + ": " + issue.html_url);
       updatedIssues.push(issue);
 
       // Set output for the last updated issue (for backward compatibility)
@@ -236,7 +234,7 @@ async function main() {
     await core.summary.addRaw(summaryContent).write();
   }
 
-  console.log(`Successfully updated ${updatedIssues.length} issue(s)`);
+  core.info(`Successfully updated ${updatedIssues.length} issue(s)`);
   return updatedIssues;
 }
 await main();

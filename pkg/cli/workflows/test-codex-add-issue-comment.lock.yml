@@ -137,25 +137,30 @@ jobs:
               try {
                 const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logFile) {
-                  console.log("No agent log file specified");
+                  core.info("No agent log file specified");
                   return;
                 }
                 if (!fs.existsSync(logFile)) {
-                  console.log(`Log file not found: ${logFile}`);
+                  core.info(`Log file not found: ${logFile}`);
                   return;
                 }
                 const content = fs.readFileSync(logFile, "utf8");
                 const parsedLog = parseCodexLog(content);
                 if (parsedLog) {
                   core.summary.addRaw(parsedLog).write();
-                  console.log("Codex log parsed successfully");
+                  core.info("Codex log parsed successfully");
                 } else {
                   core.error("Failed to parse Codex log");
                 }
               } catch (error) {
-                core.setFailed(error.message);
+                core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            /**
+             * Parse codex log content and format as markdown
+             * @param {string} logContent - The raw log content to parse
+             * @returns {string} Formatted markdown content
+             */
             function parseCodexLog(logContent) {
               try {
                 const lines = logContent.split("\n");
@@ -237,8 +242,11 @@ jobs:
                 const tokenMatches = logContent.match(/tokens used: (\d+)/g);
                 if (tokenMatches) {
                   for (const match of tokenMatches) {
-                    const tokens = parseInt(match.match(/(\d+)/)[1]);
-                    totalTokens += tokens;
+                    const numberMatch = match.match(/(\d+)/);
+                    if (numberMatch) {
+                      const tokens = parseInt(numberMatch[1]);
+                      totalTokens += tokens;
+                    }
                   }
                 }
                 if (totalTokens > 0) {
@@ -353,6 +361,11 @@ jobs:
                 return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
+            /**
+             * Format bash command for display
+             * @param {string} command - The command to format
+             * @returns {string} Formatted command string
+             */
             function formatBashCommand(command) {
               if (!command) return "";
               // Convert multi-line commands to single line by replacing newlines with spaces
@@ -372,6 +385,12 @@ jobs:
               }
               return formatted;
             }
+            /**
+             * Truncate string to maximum length
+             * @param {string} str - The string to truncate
+             * @param {number} maxLength - Maximum length allowed
+             * @returns {string} Truncated string
+             */
             function truncateString(str, maxLength) {
               if (!str) return "";
               if (str.length <= maxLength) return str;
@@ -421,11 +440,13 @@ jobs:
                 if (hasErrors) {
                   core.setFailed("Errors detected in agent logs - failing workflow step");
                 } else {
-                  console.log("Error validation completed successfully");
+                  core.info("Error validation completed successfully");
                 }
               } catch (error) {
                 console.debug(error);
-                core.setFailed(`Error validating log: ${error.message}`);
+                core.setFailed(
+                  `Error validating log: ${error instanceof Error ? error.message : String(error)}`
+                );
               }
             }
             function getErrorPatternsFromEnv() {
@@ -443,10 +464,15 @@ jobs:
                 return patterns;
               } catch (e) {
                 throw new Error(
-                  `Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e.message}`
+                  `Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`
                 );
               }
             }
+            /**
+             * @param {string} logContent
+             * @param {any[]} patterns
+             * @returns {boolean}
+             */
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
               let hasErrors = false;
@@ -470,6 +496,11 @@ jobs:
               }
               return hasErrors;
             }
+            /**
+             * @param {any} match
+             * @param {any} pattern
+             * @returns {string}
+             */
             function extractLevel(match, pattern) {
               if (
                 pattern.level_group &&
@@ -487,6 +518,12 @@ jobs:
               }
               return "unknown";
             }
+            /**
+             * @param {any} match
+             * @param {any} pattern
+             * @param {any} fullLine
+             * @returns {string}
+             */
             function extractMessage(match, pattern, fullLine) {
               if (
                 pattern.message_group &&
@@ -498,6 +535,11 @@ jobs:
               // Fallback to the full match or line
               return match[0] || fullLine.trim();
             }
+            /**
+             * @param {any} str
+             * @param {any} maxLength
+             * @returns {string}
+             */
             function truncateString(str, maxLength) {
               if (!str) return "";
               if (str.length <= maxLength) return str;

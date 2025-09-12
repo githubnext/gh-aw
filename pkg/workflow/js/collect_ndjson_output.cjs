@@ -149,7 +149,7 @@ async function main() {
   /**
    * Gets the maximum allowed count for a given output type
    * @param {string} itemType - The output item type
-   * @param {Object} config - The safe-outputs configuration
+   * @param {any} config - The safe-outputs configuration
    * @returns {number} The maximum allowed count
    */
   function getMaxAllowedForType(itemType, config) {
@@ -202,6 +202,7 @@ async function main() {
     // U+0014 (DC4) — represented here as "\u0014"
     // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
     // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
+    /** @type {Record<number, string>} */
     const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
     repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
       const c = ch.charCodeAt(0);
@@ -288,9 +289,17 @@ async function main() {
         return JSON.parse(repairedJson);
       } catch (repairError) {
         // If repair also fails, throw the error
-        console.log(`invalid input json: ${jsonStr}`);
+        core.info(`invalid input json: ${jsonStr}`);
+        const originalMsg =
+          originalError instanceof Error
+            ? originalError.message
+            : String(originalError);
+        const repairMsg =
+          repairError instanceof Error
+            ? repairError.message
+            : String(repairError);
         throw new Error(
-          `JSON parsing failed. Original: ${originalError.message}. After attempted repair: ${repairError.message}`
+          `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
         );
       }
     }
@@ -300,37 +309,38 @@ async function main() {
   const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 
   if (!outputFile) {
-    console.log("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+    core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
     core.setOutput("output", "");
     return;
   }
 
   if (!fs.existsSync(outputFile)) {
-    console.log("Output file does not exist:", outputFile);
+    core.info(`Output file does not exist: ${outputFile}`);
     core.setOutput("output", "");
     return;
   }
 
   const outputContent = fs.readFileSync(outputFile, "utf8");
   if (outputContent.trim() === "") {
-    console.log("Output file is empty");
+    core.info("Output file is empty");
     core.setOutput("output", "");
     return;
   }
 
-  console.log("Raw output content length:", outputContent.length);
+  core.info(`Raw output content length: ${outputContent.length}`);
 
   // Parse the safe-outputs configuration
+  /** @type {any} */
   let expectedOutputTypes = {};
   if (safeOutputsConfig) {
     try {
       expectedOutputTypes = JSON.parse(safeOutputsConfig);
-      console.log("Expected output types:", Object.keys(expectedOutputTypes));
-    } catch (error) {
-      console.log(
-        "Warning: Could not parse safe-outputs config:",
-        error.message
+      core.info(
+        `Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
       );
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
     }
   }
 
@@ -343,6 +353,7 @@ async function main() {
     const line = lines[i].trim();
     if (line === "") continue; // Skip empty lines
     try {
+      /** @type {any} */
       const item = parseJsonWithRepair(line);
 
       // If item is undefined (failed to parse), add error and process next line
@@ -398,8 +409,9 @@ async function main() {
           item.body = sanitizeContent(item.body);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label =>
-              typeof label === "string" ? sanitizeContent(label) : label
+            item.labels = item.labels.map(
+              /** @param {any} label */ label =>
+                typeof label === "string" ? sanitizeContent(label) : label
             );
           }
           break;
@@ -437,8 +449,9 @@ async function main() {
           }
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label =>
-              typeof label === "string" ? sanitizeContent(label) : label
+            item.labels = item.labels.map(
+              /** @param {any} label */ label =>
+                typeof label === "string" ? sanitizeContent(label) : label
             );
           }
           break;
@@ -450,14 +463,20 @@ async function main() {
             );
             continue;
           }
-          if (item.labels.some(label => typeof label !== "string")) {
+          if (
+            item.labels.some(
+              /** @param {any} label */ label => typeof label !== "string"
+            )
+          ) {
             errors.push(
               `Line ${i + 1}: add-issue-label labels array must contain only strings`
             );
             continue;
           }
           // Sanitize label strings
-          item.labels = item.labels.map(label => sanitizeContent(label));
+          item.labels = item.labels.map(
+            /** @param {any} label */ label => sanitizeContent(label)
+          );
           break;
 
         case "update-issue":
@@ -775,10 +794,11 @@ async function main() {
           continue;
       }
 
-      console.log(`Line ${i + 1}: Valid ${itemType} item`);
+      core.info(`Line ${i + 1}: Valid ${itemType} item`);
       parsedItems.push(item);
     } catch (error) {
-      errors.push(`Line ${i + 1}: Invalid JSON - ${error.message}`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
     }
   }
 
@@ -796,7 +816,7 @@ async function main() {
     // In the future, we might want to fail the workflow for invalid items
   }
 
-  console.log(`Successfully parsed ${parsedItems.length} valid output items`);
+  core.info(`Successfully parsed ${parsedItems.length} valid output items`);
 
   // Set the parsed and validated items as output
   const validatedOutput = {
@@ -812,12 +832,13 @@ async function main() {
     // Ensure the /tmp directory exists
     fs.mkdirSync("/tmp", { recursive: true });
     fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
-    console.log(`Stored validated output to: ${agentOutputFile}`);
+    core.info(`Stored validated output to: ${agentOutputFile}`);
 
     // Set the environment variable GITHUB_AW_AGENT_OUTPUT to the file path
     core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
   } catch (error) {
-    core.error(`Failed to write agent output file: ${error.message}`);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to write agent output file: ${errorMsg}`);
   }
 
   core.setOutput("output", JSON.stringify(validatedOutput));
