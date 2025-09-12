@@ -91,10 +91,10 @@ describe("compute_text.cjs", () => {
       expect(result).toBe("Helloworld");
     });
 
-    it("should escape XML characters", () => {
+    it("should convert XML tags to parentheses format", () => {
       const input = 'Test <tag>content</tag> & "quotes"';
       const result = sanitizeContentFunction(input);
-      expect(result).toContain("&lt;tag&gt;");
+      expect(result).toContain("(tag)content(/tag)");
       expect(result).toContain("&amp;");
       expect(result).toContain("&quot;quotes&quot;");
     });

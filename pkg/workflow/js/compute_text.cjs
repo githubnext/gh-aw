@@ -34,11 +34,12 @@ function sanitizeContent(content) {
   // Remove control characters (except newlines and tabs)
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
-  // XML character escaping
+  // XML tag neutralization - convert XML tags to parentheses format
+  sanitized = convertXmlTagsToParentheses(sanitized);
+
+  // XML character escaping for remaining characters
   sanitized = sanitized
     .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 
@@ -74,6 +75,48 @@ function sanitizeContent(content) {
 
   // Trim excessive whitespace
   return sanitized.trim();
+
+  /**
+   * Convert XML tags to parentheses format while preserving non-XML uses of < and >
+   * @param {string} s - The string to process
+   * @returns {string} The string with XML tags converted to parentheses
+   */
+  function convertXmlTagsToParentheses(s) {
+    if (!s || typeof s !== "string") {
+      return s;
+    }
+
+    // XML tag patterns that should be converted to parentheses
+    return (
+      s
+        // Standard XML tags: <tag>, <tag attr="value">, <tag/>, </tag>
+        .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s+[^>]*)?>/g, match => {
+          // Extract the tag name and content without < >
+          const innerContent = match.slice(1, -1);
+          return `(${innerContent})`;
+        })
+        // XML comments: <!-- comment -->
+        .replace(/<!--[\s\S]*?-->/g, match => {
+          const innerContent = match.slice(4, -3); // Remove <!-- and -->
+          return `(!--${innerContent}--)`;
+        })
+        // CDATA sections: <![CDATA[content]]>
+        .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
+          const innerContent = match.slice(9, -3); // Remove <![CDATA[ and ]]>
+          return `(![CDATA[${innerContent}]])`;
+        })
+        // XML processing instructions: <?xml ... ?>
+        .replace(/<\?[\s\S]*?\?>/g, match => {
+          const innerContent = match.slice(2, -2); // Remove <? and ?>
+          return `(?${innerContent}?)`;
+        })
+        // DOCTYPE declarations: <!DOCTYPE ...>
+        .replace(/<!DOCTYPE[^>]*>/gi, match => {
+          const innerContent = match.slice(9, -1); // Remove <!DOCTYPE and >
+          return `(!DOCTYPE${innerContent})`;
+        })
+    );
+  }
 
   /**
    * Remove unknown domains
