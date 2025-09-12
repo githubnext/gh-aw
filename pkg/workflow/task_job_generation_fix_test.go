@@ -1,0 +1,172 @@
+package workflow
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// TestTaskJobGenerationFix tests that task job is only generated when required
+func TestTaskJobGenerationFix(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir, err := os.MkdirTemp("", "task-job-generation-test*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Run("no_task_job_for_safe_events_and_roles_all", func(t *testing.T) {
+		// This workflow should NOT generate a task job because:
+		// 1. Uses only safe events (workflow_dispatch)
+		// 2. Has roles: all (no permission checks needed)
+		// 3. No command, no if condition, no text output needed
+		workflowContent := `---
+on:
+  workflow_dispatch:
+roles: all
+---
+
+# Simple Workflow
+
+This is a simple workflow that should not need a task job.
+Do some simple work.`
+
+		workflowFile := filepath.Join(tmpDir, "safe-workflow.md")
+		err = os.WriteFile(workflowFile, []byte(workflowContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		// Compile the workflow
+		compiler := NewCompiler(false, "", "test")
+		err = compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Failed to compile workflow: %v", err)
+		}
+
+		// Read the generated lock file
+		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify that NO task job is generated
+		if strings.Contains(lockContentStr, "task:") {
+			t.Error("Expected NO task job for safe events with roles: all")
+		}
+
+		// Verify that the main job exists (should be named after the workflow)
+		if !strings.Contains(lockContentStr, "jobs:") {
+			t.Error("Expected jobs section to be present")
+		}
+
+		// Verify main job doesn't have "needs: task"
+		if strings.Contains(lockContentStr, "needs: task") {
+			t.Error("Main job should not depend on task job when task job is not generated")
+		}
+	})
+
+	t.Run("task_job_for_unsafe_events", func(t *testing.T) {
+		// This workflow SHOULD generate a task job because:
+		// 1. Uses unsafe events (push) which require permission checks
+		workflowContent := `---
+on:
+  push:
+    branches: [main]
+---
+
+# Unsafe Event Workflow
+
+This workflow uses push events and should generate a task job for permission checks.
+Do some work.`
+
+		workflowFile := filepath.Join(tmpDir, "unsafe-workflow.md")
+		err = os.WriteFile(workflowFile, []byte(workflowContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		// Compile the workflow
+		compiler := NewCompiler(false, "", "test")
+		err = compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Failed to compile workflow: %v", err)
+		}
+
+		// Read the generated lock file
+		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify that task job IS generated
+		if !strings.Contains(lockContentStr, "task:") {
+			t.Error("Expected task job for unsafe events (push)")
+		}
+
+		// Verify main job depends on task
+		if !strings.Contains(lockContentStr, "needs: task") {
+			t.Error("Main job should depend on task job when task job is generated")
+		}
+	})
+
+	t.Run("task_job_for_if_condition", func(t *testing.T) {
+		// This workflow SHOULD generate a task job because:
+		// 1. Has an if condition (even though events are safe and roles: all)
+		workflowContent := `---
+on:
+  workflow_dispatch:
+roles: all
+if: ${{ github.ref == 'refs/heads/main' }}
+---
+
+# Conditional Workflow
+
+This workflow has an if condition and should generate a task job.
+Do conditional work.`
+
+		workflowFile := filepath.Join(tmpDir, "conditional-workflow.md")
+		err = os.WriteFile(workflowFile, []byte(workflowContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write workflow file: %v", err)
+		}
+
+		// Compile the workflow
+		compiler := NewCompiler(false, "", "test")
+		err = compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Failed to compile workflow: %v", err)
+		}
+
+		// Read the generated lock file
+		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		lockContentStr := string(lockContent)
+
+		// Verify that task job IS generated due to if condition
+		if !strings.Contains(lockContentStr, "task:") {
+			t.Error("Expected task job for workflow with if condition")
+		}
+
+		// Verify task job has the if condition
+		if !strings.Contains(lockContentStr, "if: ${{ github.ref == 'refs/heads/main' }}") {
+			t.Error("Expected task job to have the if condition")
+		}
+
+		// Verify main job depends on task
+		if !strings.Contains(lockContentStr, "needs: task") {
+			t.Error("Main job should depend on task job when task job is generated")
+		}
+	})
+}
