@@ -80,10 +80,15 @@ The YAML frontmatter supports these fields:
           uses: actions/setup-node@v4
           with:
             node-version: "18"
-        - name: Run tests
-          run: npm test
+        - name: Install @actions/core
+          run: npm install @actions/core
+        - name: Run workflow processor
+          run: |
+            const core = require('@actions/core');
+            core.info('Processing agentic workflow...');
+            // Use core.setOutput(), core.setFailed(), etc.
     ```
-    The `custom` engine allows you to define your own GitHub Actions steps instead of using an AI processor. Each step in the `steps` array follows standard GitHub Actions step syntax with `name`, `uses`/`run`, `with`, `env`, etc. This is useful for deterministic workflows that don't require AI processing.
+    The `custom` engine allows you to define your own GitHub Actions steps instead of using an AI processor. Each step in the `steps` array follows standard GitHub Actions step syntax with `name`, `uses`/`run`, `with`, `env`, etc. This is useful for deterministic workflows that don't require AI processing. When using JavaScript/Node.js in custom steps, leverage the `@actions/core` library for proper GitHub Actions integration (see "Using @actions/core in Custom Steps" section below).
 
     **Environment Variables Available to Custom Engines:**
     
@@ -146,6 +151,237 @@ The YAML frontmatter supports these fields:
     - File changes for `create-pull-request` and `push-to-pr-branch` are made by committing to a branch
     - Output entries are processed only if the corresponding safe output type is configured in the workflow frontmatter
     - Invalid JSON entries are ignored with warnings in the workflow logs
+
+## Using @actions/core in Custom Steps
+
+When using custom engine steps with JavaScript/Node.js actions, you can leverage the `@actions/core` library for GitHub Actions integration. This library provides essential functions for interacting with the GitHub Actions runtime environment.
+
+### Installing @actions/core
+
+For custom JavaScript actions, install the core library:
+
+```bash
+npm install @actions/core
+```
+
+### Core Functions
+
+**Import the package:**
+```js
+// JavaScript
+const core = require('@actions/core');
+
+// TypeScript  
+import * as core from '@actions/core';
+```
+
+#### Input/Output Operations
+
+```js
+// Read workflow inputs
+const myInput = core.getInput('inputName', { required: true });
+const myBooleanInput = core.getBooleanInput('booleanInputName', { required: true });
+const myMultilineInput = core.getMultilineInput('multilineInputName', { required: true });
+
+// Set workflow outputs (available to other steps/jobs)
+core.setOutput('outputKey', 'outputVal');
+```
+
+#### Environment and State Management
+
+```js
+// Export variables for future steps
+core.exportVariable('envVar', 'Val');
+
+// Register secrets (masks in logs)
+core.setSecret('myPassword');
+
+// Add to PATH for remaining job steps
+core.addPath('/path/to/mytool');
+
+// Save/restore state between main and post actions
+core.saveState("pidToKill", 12345);
+const pid = core.getState("pidToKill");
+```
+
+#### Logging and Output
+
+**Always use `core.info()` instead of `console.log()` for proper GitHub Actions integration:**
+
+```js
+// Standard logging (replaces console.log)
+core.info('Processing started');
+
+// Debug logging (hidden by default, enabled via Step Debug Logs)
+core.debug('Debug information here');
+
+// Warnings and errors
+core.warning('Something went wrong, but continuing');
+core.error('Error occurred, action may still succeed');
+
+// Notices (creates annotations)
+core.notice('Important information for users');
+```
+
+#### Exit Codes and Failure Handling
+
+```js
+try {
+  // Your action logic here
+  core.info('Action completed successfully');
+} catch (err) {
+  // setFailed logs the message and sets failing exit code
+  core.setFailed(`Action failed with error ${err}`);
+}
+```
+
+#### Grouping Output
+
+```js
+// Manually group output sections
+core.startGroup('Building application');
+// ... build steps ...
+core.endGroup();
+
+// Wrap async operations
+const result = await core.group('Running tests', async () => {
+  const response = await runTests();
+  return response;
+});
+```
+
+#### Annotations with File/Line Context
+
+```js
+// Simple annotations
+core.error('This is a critical error');
+core.warning('This is a warning message');
+core.notice('This is general information');
+
+// Annotations with file/line context
+core.error('Syntax error found', {
+  title: 'JavaScript Syntax Error',
+  file: 'src/main.js',
+  startLine: 42,
+  endLine: 42,
+  startColumn: 10,
+  endColumn: 20
+});
+```
+
+#### OIDC Token for Cloud Authentication
+
+```js
+// Get ID token for third-party cloud providers
+const id_token1 = await core.getIDToken();           // Default audience
+const id_token2 = await core.getIDToken('custom-audience'); // Custom audience
+```
+
+### Example: Custom Engine with @actions/core
+
+```yaml
+engine:
+  id: custom
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "18"
+    
+    - name: Install dependencies
+      run: npm install @actions/core
+    
+    - name: Process workflow with core utilities
+      run: |
+        cat > process.js << 'EOF'
+        const core = require('@actions/core');
+        const fs = require('fs');
+        
+        async function main() {
+          try {
+            core.startGroup('Processing agentic workflow');
+            
+            // Read the workflow prompt content
+            const promptPath = process.env.GITHUB_AW_PROMPT;
+            core.info(`Reading prompt from: ${promptPath}`);
+            
+            const promptContent = fs.readFileSync(promptPath, 'utf8');
+            core.debug(`Prompt content length: ${promptContent.length} chars`);
+            
+            // Process the workflow instructions
+            core.info('Processing workflow instructions...');
+            
+            // Example: Write safe output for issue creation
+            const safeOutputs = process.env.GITHUB_AW_SAFE_OUTPUTS;
+            if (safeOutputs) {
+              const issueData = {
+                type: "create-issue",
+                title: "Workflow Processing Complete",
+                body: `Processed workflow with ${promptContent.split('\n').length} lines of instructions`,
+                labels: ["automation", "processed"]
+              };
+              
+              fs.appendFileSync(safeOutputs, JSON.stringify(issueData) + '\n');
+              core.info('Safe output written for issue creation');
+            }
+            
+            // Set outputs for other steps
+            core.setOutput('processed', 'true');
+            core.setOutput('lineCount', promptContent.split('\n').length);
+            
+            core.endGroup();
+            core.notice('Workflow processing completed successfully');
+            
+          } catch (error) {
+            core.setFailed(`Workflow processing failed: ${error.message}`);
+          }
+        }
+        
+        main();
+        EOF
+        
+        node process.js
+```
+
+### Best Practices for @actions/core
+
+1. **Use `core.info()` instead of `console.log()`** for proper GitHub Actions log integration
+2. **Always use `core.setFailed()`** for error handling instead of `process.exit(1)`
+3. **Group related operations** with `core.startGroup()`/`core.endGroup()` for better log readability
+4. **Use `core.setSecret()`** to mask sensitive data in logs
+5. **Leverage annotations** with file/line context for better debugging
+6. **Set meaningful outputs** with `core.setOutput()` for downstream jobs/steps
+7. **Use `core.debug()`** for detailed logging that can be enabled when needed
+
+### Integration with Agentic Workflow Environment Variables
+
+When using @actions/core in custom engine steps, you can access agentic workflow environment variables:
+
+```js
+const core = require('@actions/core');
+const fs = require('fs');
+
+// Read workflow prompt content
+const promptPath = process.env.GITHUB_AW_PROMPT;
+if (promptPath) {
+  const promptContent = fs.readFileSync(promptPath, 'utf8');
+  core.info(`Processing workflow: ${promptContent.substring(0, 100)}...`);
+}
+
+// Write to safe outputs file
+const safeOutputPath = process.env.GITHUB_AW_SAFE_OUTPUTS;
+if (safeOutputPath) {
+  const outputData = { type: "add-issue-comment", body: "Processing complete" };
+  fs.appendFileSync(safeOutputPath, JSON.stringify(outputData) + '\n');
+  core.info('Safe output entry added');
+}
+
+// Check max turns configuration
+const maxTurns = process.env.GITHUB_AW_MAX_TURNS;
+if (maxTurns) {
+  core.info(`Maximum turns configured: ${maxTurns}`);
+}
+```
 
 - **`network:`** - Network access control for Claude Code engine (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)  
@@ -879,6 +1115,7 @@ Agentic workflows compile to GitHub Actions YAML:
 9. **Use specific tool permissions** rather than broad access
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
+12. **Use `@actions/core` functions** in custom engine JavaScript steps instead of `console.log()` for proper GitHub Actions integration
 
 ## Validation
 
