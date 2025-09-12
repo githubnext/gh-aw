@@ -167,6 +167,7 @@ Examples:
 			engine, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
+			performanceAnalysis, _ := cmd.Flags().GetBool("performance-analysis")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -206,7 +207,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph, performanceAnalysis); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -224,12 +225,13 @@ Examples:
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
+	logsCmd.Flags().Bool("performance-analysis", false, "Run detailed performance analysis for CI Doctor workflows")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool, performanceAnalysis bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -416,6 +418,11 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	// Generate tool sequence graph if requested
 	if toolGraph {
 		generateToolGraph(processedRuns, verbose)
+	}
+
+	// Run detailed performance analysis for CI Doctor if requested
+	if performanceAnalysis && (workflowName == "" || strings.Contains(strings.ToLower(workflowName), "ci-doctor")) {
+		displayCIDoctorPerformanceAnalysis(processedRuns, verbose)
 	}
 
 	// Display logs location prominently
@@ -1501,4 +1508,124 @@ func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
 			}
 		}
 	}
+}
+
+// displayCIDoctorPerformanceAnalysis displays detailed performance analysis for CI Doctor workflows
+func displayCIDoctorPerformanceAnalysis(processedRuns []ProcessedRun, verbose bool) {
+	if len(processedRuns) == 0 {
+		return
+	}
+
+	fmt.Println(console.FormatListHeader("🔬 CI Doctor Performance Analysis"))
+	fmt.Println(console.FormatListHeader("=================================="))
+
+	// Run the performance analysis
+	report := AnalyzeCIDoctorPerformance(processedRuns, verbose)
+
+	// Display summary metrics
+	fmt.Printf("\n%s\n", console.FormatInfoMessage("Performance Summary"))
+	fmt.Printf("  • Total Runs Analyzed: %d\n", report.TotalRuns)
+	fmt.Printf("  • Average Duration: %.1f minutes\n", report.AverageMetrics.Duration.Minutes())
+	fmt.Printf("  • Average Token Usage: %s tokens\n", formatNumber(report.AverageMetrics.TokenUsage))
+	fmt.Printf("  • Average Cost: $%.4f\n", report.AverageMetrics.EstimatedCost)
+	fmt.Printf("  • Average Tool Calls: %d\n", report.AverageMetrics.ToolCallCount)
+	fmt.Printf("  • Average Efficiency Score: %.1f/100\n", report.AverageMetrics.EfficiencyScore)
+
+	// Display performance insights
+	if len(report.PerformanceInsights) > 0 {
+		fmt.Printf("\n%s\n", console.FormatInfoMessage("Performance Insights"))
+		for _, insight := range report.PerformanceInsights {
+			trend := ""
+			switch insight.Trend {
+			case "improving":
+				trend = " 📈"
+			case "degrading":
+				trend = " 📉"
+			case "stable":
+				trend = " ➡️"
+			}
+			fmt.Printf("  • %s: %s%s\n", insight.Title, insight.Value, trend)
+			if verbose {
+				fmt.Printf("    %s\n", insight.Description)
+			}
+		}
+	}
+
+	// Display optimization recommendations
+	if len(report.OptimizationRecommendations) > 0 {
+		fmt.Printf("\n%s\n", console.FormatWarningMessage("Optimization Recommendations"))
+		for i, opt := range report.OptimizationRecommendations {
+			if i >= 5 { // Limit to top 5 recommendations
+				break
+			}
+			priority := ""
+			switch opt.Priority {
+			case "high":
+				priority = "🔴"
+			case "medium":
+				priority = "🟡"
+			case "low":
+				priority = "🟢"
+			}
+			fmt.Printf("  %s %s (%.0f%% improvement)\n", priority, opt.Description, opt.ExpectedSaving)
+		}
+	}
+
+	// Display tool usage patterns in verbose mode
+	if verbose && len(report.ToolUsagePatterns) > 0 {
+		fmt.Printf("\n%s\n", console.FormatInfoMessage("Tool Usage Patterns"))
+
+		// Sort by total calls
+		patterns := report.ToolUsagePatterns
+		for i := 0; i < len(patterns)-1; i++ {
+			for j := 0; j < len(patterns)-i-1; j++ {
+				if patterns[j].TotalCalls < patterns[j+1].TotalCalls {
+					patterns[j], patterns[j+1] = patterns[j+1], patterns[j]
+				}
+			}
+		}
+
+		for i, pattern := range patterns {
+			if i >= 10 { // Top 10 tools
+				break
+			}
+
+			toolName := workflow.PrettifyToolName(pattern.ToolName)
+			fmt.Printf("  • %s: %d calls (avg latency: %v, success: %.1f%%)\n",
+				toolName, pattern.TotalCalls, pattern.AverageLatency, pattern.SuccessRate)
+
+			if len(pattern.Inefficiencies) > 0 {
+				for _, inefficiency := range pattern.Inefficiencies {
+					fmt.Printf("    ⚠️  %s\n", inefficiency)
+				}
+			}
+		}
+	}
+
+	// Display individual run performance in verbose mode
+	if verbose {
+		fmt.Printf("\n%s\n", console.FormatInfoMessage("Individual Run Performance"))
+		for _, metrics := range report.PerformanceMetrics {
+			fmt.Printf("  • Run %d: %.1f min, %d tokens, %d tools, efficiency %.1f/100\n",
+				metrics.RunID, metrics.Duration.Minutes(), metrics.TokenUsage,
+				metrics.ToolCallCount, metrics.EfficiencyScore)
+
+			if len(metrics.Bottlenecks) > 0 {
+				for _, bottleneck := range metrics.Bottlenecks {
+					impact := ""
+					switch bottleneck.Impact {
+					case "high":
+						impact = "🔴"
+					case "medium":
+						impact = "🟡"
+					case "low":
+						impact = "🟢"
+					}
+					fmt.Printf("    %s %s\n", impact, bottleneck.Description)
+				}
+			}
+		}
+	}
+
+	fmt.Printf("\n%s\n", console.FormatInfoMessage("💡 Use --verbose for detailed tool usage patterns and individual run analysis"))
 }
