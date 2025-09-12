@@ -180,8 +180,7 @@ describe("check_permissions.cjs", () => {
     ).not.toHaveBeenCalled();
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
-
-    });
+  });
   it("should pass validation for admin permission", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer,write";
 
@@ -216,8 +215,7 @@ describe("check_permissions.cjs", () => {
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should pass validation for maintain permission when maintainer is required", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
@@ -236,8 +234,7 @@ describe("check_permissions.cjs", () => {
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should pass validation for write permission when write is required", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
@@ -256,8 +253,7 @@ describe("check_permissions.cjs", () => {
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should fail the job for insufficient permission", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
@@ -391,8 +387,7 @@ describe("check_permissions.cjs", () => {
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should handle triage permission correctly", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
@@ -411,8 +406,7 @@ describe("check_permissions.cjs", () => {
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should handle single permission requirement", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "write";
@@ -432,8 +426,7 @@ describe("check_permissions.cjs", () => {
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should skip validation for workflow_run events", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
@@ -448,8 +441,7 @@ describe("check_permissions.cjs", () => {
     expect(
       mockGithub.rest.repos.getCollaboratorPermissionLevel
     ).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should skip validation for schedule events", async () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
@@ -464,6 +456,5 @@ describe("check_permissions.cjs", () => {
     expect(
       mockGithub.rest.repos.getCollaboratorPermissionLevel
     ).not.toHaveBeenCalled();
-
-    });
+  });
 });

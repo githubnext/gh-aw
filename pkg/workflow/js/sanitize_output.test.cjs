@@ -566,11 +566,11 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Output file does not exist: ${"/tmp/non-existent-file.txt"
-      }`);
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `Output file does not exist: ${"/tmp/non-existent-file.txt"}`
+      );
       expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-
-      });
+    });
 
     it("should handle empty output file", async () => {
       const testFile = "/tmp/test-empty-output.txt";
@@ -596,7 +596,8 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Collected agentic output (sanitized): ${expect.stringContaining("`@user`"}`)
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Collected agentic output \(sanitized\):.*@user/)
       );
 
       const outputCall = mockCore.setOutput.mock.calls.find(

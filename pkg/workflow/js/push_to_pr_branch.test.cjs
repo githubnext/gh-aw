@@ -135,10 +135,11 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Agent output content is empty"
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should skip when agent output is empty", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
@@ -146,10 +147,11 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Agent output content is empty"
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should handle missing patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -165,8 +167,7 @@ describe("push_to_pr_branch.cjs", () => {
         "No patch file found - cannot push without changes"
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should fail when patch file missing and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -197,8 +198,7 @@ describe("push_to_pr_branch.cjs", () => {
 
       expect(consoleSpy).not.toHaveBeenCalled();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should handle patch file with error content", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -217,8 +217,7 @@ describe("push_to_pr_branch.cjs", () => {
         "Patch file contains error message - cannot push without changes"
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should handle empty patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -237,11 +236,11 @@ describe("push_to_pr_branch.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(
         "Patch file is empty - no changes to apply (noop operation)"
       );
-      expect(mockCore.info).toHaveBeenCalledWith(`Agent output content length: ${expect.any(Number}`)
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Agent output content length: \d+/)
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should fail when empty patch and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -283,16 +282,17 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Agent output content length: ${JSON.stringify(validOutput}`).length
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Agent output content length: \d+/)
       );
       expect(mockCore.info).toHaveBeenCalledWith(
         "Patch content validation passed"
       );
-      expect(mockCore.info).toHaveBeenCalledWith(`Target configuration: ${"triggering"
-      }`);
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Target configuration: triggering"
+      );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should handle invalid JSON in agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json content";
@@ -303,11 +303,11 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Error parsing agent output JSON: ${expect.any(String}`)
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Error parsing agent output JSON:/)
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should handle agent output without valid items array", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -324,8 +324,7 @@ describe("push_to_pr_branch.cjs", () => {
         "No valid items found in agent output"
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-
-      });
+    });
 
     it("should use custom target configuration", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -342,10 +341,10 @@ describe("push_to_pr_branch.cjs", () => {
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Target configuration: ${"custom-target"
-      }`);
-
-      });
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `Target configuration: ${"custom-target"}`
+      );
+    });
   });
 
   describe("Script validation", () => {

@@ -108,8 +108,7 @@ describe("add_reaction.cjs", () => {
       await eval(`(async () => { ${addReactionScript} })()`);
 
       expect(mockCore.info).toHaveBeenCalledWith(`Reaction type: ${"eyes"}`);
-
-      });
+    });
 
     it("should fail with invalid reaction type", async () => {
       process.env.GITHUB_AW_REACTION = "invalid";
@@ -160,8 +159,9 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"
-      }`);
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`
+      );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/123/reactions",
         {
@@ -169,8 +169,7 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      });
+    });
 
     it("should handle issue_comment event", async () => {
       global.context.eventName = "issue_comment";
@@ -182,8 +181,9 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/comments/789/reactions"
-      }`);
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/comments/789/reactions"}`
+      );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/comments/789/reactions",
         {
@@ -191,8 +191,7 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      });
+    });
 
     it("should handle pull_request event", async () => {
       global.context.eventName = "pull_request";
@@ -204,8 +203,9 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/456/reactions"
-      }`);
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/456/reactions"}`
+      );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/issues/456/reactions",
         {
@@ -213,8 +213,7 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      });
+    });
 
     it("should handle pull_request_review_comment event", async () => {
       global.context.eventName = "pull_request_review_comment";
@@ -226,8 +225,9 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/pulls/comments/321/reactions"
-      }`);
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/pulls/comments/321/reactions"}`
+      );
       expect(mockGithub.request).toHaveBeenCalledWith(
         "POST /repos/testowner/testrepo/pulls/comments/321/reactions",
         {
@@ -235,8 +235,7 @@ describe("add_reaction.cjs", () => {
           headers: { Accept: "application/vnd.github+json" },
         }
       );
-
-      });
+    });
 
     it("should fail on unsupported event type", async () => {
       global.context.eventName = "unsupported";
@@ -285,8 +284,7 @@ describe("add_reaction.cjs", () => {
         "Successfully added reaction: heart (id: 123)"
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "123");
-
-      });
+    });
 
     it("should handle response without ID", async () => {
       process.env.GITHUB_AW_REACTION = "rocket";
@@ -301,8 +299,7 @@ describe("add_reaction.cjs", () => {
         "Successfully added reaction: rocket"
       );
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "");
-
-      });
+    });
   });
 
   describe("Error handling", () => {
@@ -322,8 +319,7 @@ describe("add_reaction.cjs", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add reaction: API Error"
       );
-
-      });
+    });
 
     it("should handle non-Error objects in catch block", async () => {
       // Mock the GitHub request to fail with string error
@@ -341,8 +337,7 @@ describe("add_reaction.cjs", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(
         "Failed to add reaction: String error"
       );
-
-      });
+    });
   });
 
   describe("Output and logging", () => {
@@ -356,8 +351,7 @@ describe("add_reaction.cjs", () => {
       await eval(`(async () => { ${addReactionScript} })()`);
 
       expect(mockCore.info).toHaveBeenCalledWith(`Reaction type: ${"rocket"}`);
-
-      });
+    });
 
     it("should log API endpoint", async () => {
       mockGithub.request.mockResolvedValue({
@@ -366,9 +360,9 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"
-      }`);
-
-      });
+      expect(mockCore.info).toHaveBeenCalledWith(
+        `API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`
+      );
+    });
   });
 });

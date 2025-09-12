@@ -102,25 +102,25 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(
         "No GITHUB_AW_AGENT_OUTPUT environment variable found"
       );
-
-      });
+    });
 
     it("should handle empty agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
-
-      });
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Agent output content is empty"
+      );
+    });
 
     it("should handle invalid JSON", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Error parsing agent output JSON: ${expect.any(String}`)
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Error parsing agent output JSON:/)
       );
-
-      });
+    });
 
     it("should handle missing items array", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -131,8 +131,7 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(
         "No valid items found in agent output"
       );
-
-      });
+    });
 
     it("should handle no code scanning alert items", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -143,8 +142,7 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(
         "No create-code-scanning-alert items found in agent output"
       );
-
-      });
+    });
 
     it("should create SARIF file for valid security findings", async () => {
       const securityFindings = {
@@ -210,8 +208,7 @@ describe("create_code_scanning_alert.cjs", () => {
       // Check summary was written
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
-
-      });
+    });
 
     it("should respect max findings limit", async () => {
       process.env.GITHUB_AW_SECURITY_REPORT_MAX = "1";
@@ -250,8 +247,7 @@ describe("create_code_scanning_alert.cjs", () => {
 
       // Check output reflects the limit
       expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", 1);
-
-      });
+    });
 
     it("should validate and filter invalid security findings", async () => {
       const mixedFindings = {
@@ -309,8 +305,7 @@ describe("create_code_scanning_alert.cjs", () => {
 
       // Check outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", 1);
-
-      });
+    });
 
     it("should use custom driver name when configured", async () => {
       process.env.GITHUB_AW_SECURITY_REPORT_DRIVER = "Custom Security Scanner";
@@ -343,8 +338,7 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[0].ruleId).toBe(
         "security-scan-security-finding-1"
       );
-
-      });
+    });
 
     it("should use default driver name when not configured", async () => {
       const securityFindings = {
@@ -374,8 +368,7 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[0].ruleId).toBe(
         "workflow-security-finding-1"
       );
-
-      });
+    });
 
     it("should support optional column specification", async () => {
       const securityFindings = {
@@ -416,8 +409,7 @@ describe("create_code_scanning_alert.cjs", () => {
         sarifContent.runs[0].results[1].locations[0].physicalLocation.region
           .startColumn
       ).toBe(1);
-
-      });
+    });
 
     it("should validate column numbers", async () => {
       const invalidFindings = {
@@ -471,8 +463,7 @@ describe("create_code_scanning_alert.cjs", () => {
         sarifContent.runs[0].results[0].locations[0].physicalLocation.region
           .startColumn
       ).toBe(5);
-
-      });
+    });
 
     it("should support optional ruleIdSuffix specification", async () => {
       process.env.GITHUB_AW_WORKFLOW_FILENAME = "security-scan";
@@ -526,8 +517,7 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[2].ruleId).toBe(
         "security-scan-security-finding-3"
       );
-
-      });
+    });
 
     it("should validate ruleIdSuffix values", async () => {
       const invalidFindings = {
@@ -588,7 +578,6 @@ describe("create_code_scanning_alert.cjs", () => {
       expect(sarifContent.runs[0].results[0].ruleId).toBe(
         "workflow-valid-rule-id_123"
       );
-
-      });
+    });
   });
 });

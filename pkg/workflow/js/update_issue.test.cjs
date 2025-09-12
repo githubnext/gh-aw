@@ -173,8 +173,7 @@ describe("update_issue.cjs", () => {
     );
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
-
-    });
+  });
 
   it("should update issue status successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -204,8 +203,7 @@ describe("update_issue.cjs", () => {
       issue_number: 123,
       state: "closed",
     });
-
-    });
+  });
 
   it("should update multiple fields successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -241,8 +239,7 @@ describe("update_issue.cjs", () => {
       body: "New body content",
       state: "open",
     });
-
-    });
+  });
 
   it('should handle explicit issue number with target "*"', async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -274,8 +271,7 @@ describe("update_issue.cjs", () => {
       issue_number: 456,
       title: "Updated title",
     });
-
-    });
+  });
 
   it("should skip when no valid updates are provided", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({

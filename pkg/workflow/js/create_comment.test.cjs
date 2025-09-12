@@ -108,8 +108,7 @@ describe("create_comment.cjs", () => {
       "No GITHUB_AW_AGENT_OUTPUT environment variable found"
     );
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should skip when agent output is empty", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
@@ -119,8 +118,7 @@ describe("create_comment.cjs", () => {
 
     expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should skip when not in issue or PR context", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -140,8 +138,7 @@ describe("create_comment.cjs", () => {
       'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
     );
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should create comment on issue successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -181,8 +178,7 @@ describe("create_comment.cjs", () => {
     );
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
-
-    });
+  });
 
   it("should create comment on pull request successfully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -216,8 +212,7 @@ describe("create_comment.cjs", () => {
       issue_number: 789,
       body: expect.stringContaining("Test PR comment content"),
     });
-
-    });
+  });
 
   it("should include run information in comment body", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -253,6 +248,5 @@ describe("create_comment.cjs", () => {
     expect(callArgs.body).toContain(
       "https://github.com/testowner/testrepo/actions/runs/12345"
     );
-
-    });
+  });
 });

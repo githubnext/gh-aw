@@ -107,8 +107,7 @@ describe("setup_agent_output.cjs", () => {
       // // Check that the file is empty (as expected)
       // const content = fs.readFileSync(outputFile, "utf8");
       // expect(content).toBe("");
-
-      });
+    });
 
     it("should create unique output file names on multiple runs", async () => {
       // Execute the script multiple times
@@ -128,7 +127,6 @@ describe("setup_agent_output.cjs", () => {
       // Both files should exist
       // expect(fs.existsSync(firstFile)).toBe(true);
       // expect(fs.existsSync(secondFile)).toBe(true);
-
-      });
+    });
   });
 });

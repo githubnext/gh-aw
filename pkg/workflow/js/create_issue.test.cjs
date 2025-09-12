@@ -105,8 +105,7 @@ describe("create_issue.cjs", () => {
       "No GITHUB_AW_AGENT_OUTPUT environment variable found"
     );
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should skip when agent output is empty", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
@@ -116,8 +115,7 @@ describe("create_issue.cjs", () => {
 
     expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
-
-    });
+  });
 
   it("should create issue with default title when only body content provided", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -152,8 +150,7 @@ describe("create_issue.cjs", () => {
       "issue_url",
       mockIssue.html_url
     );
-
-    });
+  });
 
   it("should extract title from markdown heading", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -180,8 +177,7 @@ describe("create_issue.cjs", () => {
     expect(callArgs.title).toBe("Bug Report");
     expect(callArgs.body).toContain("This is a detailed bug description");
     expect(callArgs.body).toContain("Steps to reproduce:");
-
-    });
+  });
 
   it("should handle labels from environment variable", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -207,8 +203,7 @@ describe("create_issue.cjs", () => {
 
     const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
     expect(callArgs.labels).toEqual(["bug", "enhancement", "high-priority"]);
-
-    });
+  });
 
   it("should apply title prefix when provided", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -234,8 +229,7 @@ describe("create_issue.cjs", () => {
 
     const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
     expect(callArgs.title).toBe("[AUTO] Simple issue title");
-
-    });
+  });
 
   it("should not duplicate title prefix when already present", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -261,8 +255,7 @@ describe("create_issue.cjs", () => {
 
     const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
     expect(callArgs.title).toBe("[AUTO] Issue title already prefixed"); // Should not be duplicated
-
-    });
+  });
 
   it("should handle parent issue context and create comment", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -298,8 +291,7 @@ describe("create_issue.cjs", () => {
       issue_number: 555,
       body: "Created related issue: #666",
     });
-
-    });
+  });
 
   it("should handle empty labels gracefully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -325,8 +317,7 @@ describe("create_issue.cjs", () => {
 
     const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
     expect(callArgs.labels).toEqual([]);
-
-    });
+  });
 
   it("should include run information in issue body", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -354,8 +345,7 @@ describe("create_issue.cjs", () => {
     expect(callArgs.body).toContain(
       "https://github.com/testowner/testrepo/actions/runs/12345"
     );
-
-    });
+  });
 
   it("should handle disabled issues repository gracefully", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
@@ -395,7 +385,9 @@ describe("create_issue.cjs", () => {
     );
 
     // Should still log successful completion with 0 issues
-    expect(mockCore.info).toHaveBeenCalledWith("Successfully created 0 issue(s)");
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "Successfully created 0 issue(s)"
+    );
 
     // Should not set outputs since no issues were created
     expect(mockCore.setOutput).not.toHaveBeenCalled();
@@ -446,7 +438,9 @@ describe("create_issue.cjs", () => {
     );
 
     // Should report 1 issue created successfully
-    expect(mockCore.info).toHaveBeenCalledWith("Successfully created 1 issue(s)");
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "Successfully created 1 issue(s)"
+    );
 
     // Should set outputs for the successful issue
     expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 505);
@@ -454,8 +448,7 @@ describe("create_issue.cjs", () => {
       "issue_url",
       mockIssue.html_url
     );
-
-    });
+  });
 
   it("should still throw error for other API errors", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({

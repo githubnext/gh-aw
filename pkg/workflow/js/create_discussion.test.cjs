@@ -101,7 +101,7 @@ describe("create_discussion.cjs", () => {
     expect(mockCore.info).toHaveBeenCalledWith(
       "No GITHUB_AW_AGENT_OUTPUT environment variable found"
     );
-    });
+  });
 
   it("should handle empty agent output", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "   "; // Use spaces instead of empty string
@@ -109,7 +109,7 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
-    });
+  });
 
   it("should handle invalid JSON in agent output", async () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
@@ -117,10 +117,15 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Check that it logs the content length first, then the error
-    expect(mockCore.info).toHaveBeenCalledWith("Agent output content length: 12");
-    expect(mockCore.info).toHaveBeenCalledWith(`Error parsing agent output JSON: ${expect.stringContaining("Unexpected token"}`)
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "Agent output content length: 12"
     );
-    });
+    expect(mockCore.info).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /Error parsing agent output JSON:.*Unexpected token/
+      )
+    );
+  });
 
   it("should handle missing create-discussion items", async () => {
     const validOutput = {
@@ -133,7 +138,7 @@ describe("create_discussion.cjs", () => {
     expect(mockCore.info).toHaveBeenCalledWith(
       "No create-discussion items found in agent output"
     );
-    });
+  });
 
   it("should create discussions successfully with basic configuration", async () => {
     // Mock the GraphQL API responses
@@ -210,8 +215,7 @@ describe("create_discussion.cjs", () => {
       expect.stringContaining("## GitHub Discussions")
     );
     expect(mockCore.summary.write).toHaveBeenCalled();
-
-    });
+  });
 
   it("should apply title prefix when configured", async () => {
     // Mock the GraphQL API responses
@@ -259,8 +263,7 @@ describe("create_discussion.cjs", () => {
         title: "[ai] Test Discussion",
       })
     );
-
-    });
+  });
 
   it("should use specified category ID when configured", async () => {
     // Mock the GraphQL API responses
@@ -311,8 +314,7 @@ describe("create_discussion.cjs", () => {
         categoryId: "DIC_custom789",
       })
     );
-
-    });
+  });
 
   it("should handle repositories without discussions enabled gracefully", async () => {
     // Mock the GraphQL API to return error for discussion categories (simulating discussions not enabled)
@@ -343,6 +345,5 @@ describe("create_discussion.cjs", () => {
 
     // Should only attempt the GraphQL query once and not attempt to create discussions
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
-
-    });
+  });
 });
