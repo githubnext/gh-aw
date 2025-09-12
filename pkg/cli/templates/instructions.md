@@ -80,13 +80,23 @@ The YAML frontmatter supports these fields:
           uses: actions/setup-node@v4
           with:
             node-version: "18"
-        - name: Install @actions/core
-          run: npm install @actions/core
-        - name: Run workflow processor
-          run: |
-            const core = require('@actions/core');
-            core.info('Processing agentic workflow...');
-            // Use core.setOutput(), core.setFailed(), etc.
+        - name: Process workflow with github-script
+          uses: actions/github-script@v7
+          with:
+            script: |
+              const { readFileSync } = require('fs');
+              
+              core.info('Processing agentic workflow...');
+              
+              // Read workflow prompt content
+              const promptPath = process.env.GITHUB_AW_PROMPT;
+              if (promptPath) {
+                const content = readFileSync(promptPath, 'utf8');
+                core.info(`Processing ${content.split('\n').length} lines`);
+              }
+              
+              // Use core.setOutput(), core.setFailed(), etc.
+              core.setOutput('processed', 'true');
     ```
     The `custom` engine allows you to define your own GitHub Actions steps instead of using an AI processor. Each step in the `steps` array follows standard GitHub Actions step syntax with `name`, `uses`/`run`, `with`, `env`, etc. This is useful for deterministic workflows that don't require AI processing. When using JavaScript/Node.js in custom steps, leverage the `@actions/core` library for proper GitHub Actions integration (see "Using @actions/core in Custom Steps" section below).
 
@@ -158,7 +168,23 @@ When using custom engine steps with JavaScript/Node.js actions, you can leverage
 
 ### Installing @actions/core
 
-For custom JavaScript actions, install the core library:
+**Option 1: Using actions/github-script (Recommended)**
+
+The `@actions/core` library is pre-installed when using `actions/github-script`:
+
+```yaml
+- name: Process with github-script
+  uses: actions/github-script@v7
+  with:
+    script: |
+      // @actions/core is automatically available as 'core'
+      core.info('Processing workflow...');
+      core.setOutput('result', 'success');
+```
+
+**Option 2: Custom JavaScript actions**
+
+For standalone Node.js scripts, install the core library:
 
 ```bash
 npm install @actions/core
@@ -279,25 +305,18 @@ const id_token2 = await core.getIDToken('custom-audience'); // Custom audience
 
 ### Example: Custom Engine with @actions/core
 
+**Using actions/github-script (Recommended):**
+
 ```yaml
 engine:
   id: custom
   steps:
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - name: Process workflow with github-script
+      uses: actions/github-script@v7
       with:
-        node-version: "18"
-    
-    - name: Install dependencies
-      run: npm install @actions/core
-    
-    - name: Process workflow with core utilities
-      run: |
-        cat > process.js << 'EOF'
-        const core = require('@actions/core');
-        const fs = require('fs');
-        
-        async function main() {
+        script: |
+          const fs = require('fs');
+          
           try {
             core.startGroup('Processing agentic workflow');
             
@@ -335,6 +354,52 @@ engine:
           } catch (error) {
             core.setFailed(`Workflow processing failed: ${error.message}`);
           }
+```
+
+**Alternative: Standalone Node.js script:**
+
+```yaml
+engine:
+  id: custom
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "18"
+    
+    - name: Install dependencies
+      run: npm install @actions/core
+    
+    - name: Process workflow with core utilities
+      run: |
+        cat > process.js << 'EOF'
+        const core = require('@actions/core');
+        const fs = require('fs');
+        
+        async function main() {
+          try {
+            core.startGroup('Processing agentic workflow');
+            
+            // Read the workflow prompt content
+            const promptPath = process.env.GITHUB_AW_PROMPT;
+            core.info(`Reading prompt from: ${promptPath}`);
+            
+            const promptContent = fs.readFileSync(promptPath, 'utf8');
+            core.debug(`Prompt content length: ${promptContent.length} chars`);
+            
+            // Process the workflow instructions
+            core.info('Processing workflow instructions...');
+            
+            // Set outputs for other steps
+            core.setOutput('processed', 'true');
+            core.setOutput('lineCount', promptContent.split('\n').length);
+            
+            core.endGroup();
+            core.notice('Workflow processing completed successfully');
+            
+          } catch (error) {
+            core.setFailed(`Workflow processing failed: ${error.message}`);
+          }
         }
         
         main();
@@ -342,13 +407,15 @@ engine:
         
         node process.js
 ```
+```
 
 ### Best Practices for @actions/core
 
-1. **Use `core.info()` instead of `console.log()`** for proper GitHub Actions log integration
-2. **Always use `core.setFailed()`** for error handling instead of `process.exit(1)`
-3. **Group related operations** with `core.startGroup()`/`core.endGroup()` for better log readability
-4. **Use `core.setSecret()`** to mask sensitive data in logs
+1. **Prefer `actions/github-script`** when possible, as `@actions/core` is pre-installed and readily available
+2. **Use `core.info()` instead of `console.log()`** for proper GitHub Actions log integration
+3. **Always use `core.setFailed()`** for error handling instead of `process.exit(1)`
+4. **Group related operations** with `core.startGroup()`/`core.endGroup()` for better log readability
+5. **Use `core.setSecret()`** to mask sensitive data in logs
 5. **Leverage annotations** with file/line context for better debugging
 6. **Set meaningful outputs** with `core.setOutput()` for downstream jobs/steps
 7. **Use `core.debug()`** for detailed logging that can be enabled when needed
