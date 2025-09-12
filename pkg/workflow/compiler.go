@@ -669,7 +669,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Apply defaults
-	c.applyDefaults(workflowData, markdownPath)
+	c.applyDefaults(workflowData, markdownPath, result.Frontmatter)
 
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
@@ -1171,7 +1171,7 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 }
 
 // applyDefaults applies default values for missing workflow sections
-func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
+func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string, frontmatter map[string]any) {
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
 	if data.On == "" {
@@ -2022,9 +2022,18 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 		Name:        "task",
 		If:          data.If, // Use the existing condition (which may include alias checks)
 		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "", // No permissions needed - task job does not require content access
+		Permissions: "", // Will be set below based on permission check needs
 		Steps:       steps,
 		Outputs:     outputs,
+	}
+
+	// Add actions: write permission if team member checks are present
+	_, hasExplicitRoles := frontmatter["roles"]
+	requiresWorkflowCancellation := data.Command != "" || 
+		(needsPermissionCheck && hasExplicitRoles)
+	
+	if requiresWorkflowCancellation {
+		job.Permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read"
 	}
 
 	return job, nil
@@ -2101,11 +2110,22 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 		depends = []string{"task"} // Depend on the task job only if it exists
 	}
 
+	// Set base permissions
+	permissions := "permissions:\n      issues: write\n      pull-requests: write"
+
+	// Add actions: write permission if team member checks are present for command workflows
+	requiresWorkflowCancellation := data.Command != "" || 
+		(!taskJobCreated && c.needsPermissionChecks(data) && len(data.Roles) > 0)
+		
+	if requiresWorkflowCancellation {
+		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      issues: write\n      pull-requests: write\n      contents: read"
+	}
+
 	job := &Job{
 		Name:        "add_reaction",
 		If:          reactionCondition.Render(),
 		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "permissions:\n      issues: write\n      pull-requests: write",
+		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
 		Needs:       depends,
@@ -2191,11 +2211,22 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		jobCondition = "" // No conditional execution
 	}
 
+	// Set base permissions
+	permissions := "permissions:\n      contents: read\n      issues: write"
+
+	// Add actions: write permission if team member checks are present for command workflows
+	requiresWorkflowCancellation := data.Command != "" || 
+		(!taskJobCreated && c.needsPermissionChecks(data) && len(data.Roles) > 0)
+		
+	if requiresWorkflowCancellation {
+		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read\n      issues: write"
+	}
+
 	job := &Job{
 		Name:           "create_issue",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    "permissions:\n      contents: read\n      issues: write",
+		Permissions:    permissions,
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
