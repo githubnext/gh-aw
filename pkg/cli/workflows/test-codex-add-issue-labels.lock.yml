@@ -14,14 +14,7 @@ concurrency:
 run-name: "Test Codex Add Issue Labels"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Task job condition barrier
-        run: echo "Task job executed - conditions satisfied"
-
   test-codex-add-issue-labels:
-    needs: task
     runs-on: ubuntu-latest
     permissions:
       issues: write
