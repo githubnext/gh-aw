@@ -1,4 +1,7 @@
-# 📖 GitHub Agentic Workflows Documentation
+---
+title: GitHub Agentic Workflows Documentation
+description: Write agentic workflows in natural language markdown and run them in GitHub Actions. Complete documentation for GitHub's research demonstrator from GitHub Next.
+---
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions. From [GitHub Next](https://githubnext.com/).
 

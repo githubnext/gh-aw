@@ -1,4 +1,7 @@
-# Sample Workflows
+---
+title: Sample Workflows
+description: Collection of demonstrator agentic workflows for research, planning, coding, and development tasks that you can use as starting points for your own automation.
+---
 
 **Demonstrator Research & Planning Workflows**
 - [📚 Weekly Research](https://github.com/githubnext/agentics/blob/main/docs/weekly-research.md) - Collect research updates and industry trends
