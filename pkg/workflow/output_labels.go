@@ -37,6 +37,11 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	// Pass the max limit
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
+	// Pass the staged flag if it's set to true
+	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
+		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
