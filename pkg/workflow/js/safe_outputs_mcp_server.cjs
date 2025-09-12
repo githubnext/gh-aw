@@ -69,7 +69,7 @@ function replyError(id, code, message, data) {
 }
 
 function normalizeToolName(name) {
-  return name.replace(/_/g, "-"); // Convert to kebab-case
+  return name.replace(/-/g, "_"); // Convert to kebab-case
 }
 
 function isToolEnabled(toolType) {
@@ -301,6 +301,7 @@ const TOOLS = Object.fromEntries([{
     additionalProperties: false,
   },
 }].filter(({ name }) => isToolEnabled(name)).map(tool => [tool.name, tool]));
+if (!TOOLS.length) throw new Error("No tools enabled in configuration");
 
 function handleMessage(req) {
   const { id, method, params } = req;
@@ -343,7 +344,7 @@ function handleMessage(req) {
       const toolName = normalizeToolName(name);
       const tool = TOOLS[toolName];
       if (!tool) {
-        replyError(id, -32601, `Tool not found: ${name}`);
+        replyError(id, -32601, `Tool not found: ${toolName}`);
         return;
       }
       const handler = tool.handler || defaultHandler(tool.name);
