@@ -194,12 +194,12 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	frontmatter := map[string]any{
 		"tools": map[string]any{},
 	}
-	
+
 	configurations, err := NewMCPServerConfigurationsFromFrontmatter(frontmatter, nil, &WorkflowData{})
 	if err != nil {
 		t.Fatalf("Failed to compute MCP configurations: %v", err)
 	}
-	
+
 	engine.RenderMCPConfigFromConfigurations(&yaml, configurations, &WorkflowData{})
 
 	output := yaml.String()

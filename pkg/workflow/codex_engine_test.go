@@ -260,9 +260,9 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	engine := NewCodexEngine()
 
 	tests := []struct {
-		name     string
+		name        string
 		frontmatter map[string]any
-		expected []string
+		expected    []string
 	}{
 		{
 			name: "github tool with user_agent",
@@ -296,13 +296,13 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			
+
 			// Use the new configuration provider approach
 			configurations, err := NewMCPServerConfigurationsFromFrontmatter(tt.frontmatter, nil, &WorkflowData{Name: "test-workflow"})
 			if err != nil {
 				t.Fatalf("Failed to compute MCP configurations: %v", err)
 			}
-			
+
 			engine.RenderMCPConfigFromConfigurations(&yaml, configurations, &WorkflowData{Name: "test-workflow"})
 
 			result := yaml.String()
