@@ -272,8 +272,11 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
         if (firstMatch) {
           const contentLength = parseInt(firstMatch[1]);
-          const startPos = responseData.indexOf('\r\n\r\n') + 4;
-          const jsonText = responseData.substring(startPos, startPos + contentLength);
+          const startPos = responseData.indexOf("\r\n\r\n") + 4;
+          const jsonText = responseData.substring(
+            startPos,
+            startPos + contentLength
+          );
           const response = JSON.parse(jsonText);
           expect(response.jsonrpc).toBe("2.0");
           expect(response.result).toBeDefined();

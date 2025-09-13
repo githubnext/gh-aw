@@ -43,10 +43,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
   describe("MCP Protocol", () => {
     it("should handle initialize request correctly", async () => {
-      const serverPath = path.join(
-        __dirname,
-        "safe_outputs_mcp_server.cjs"
-      );
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
       // Start server process
       const { spawn } = require("child_process");
@@ -83,11 +80,14 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Extract JSON response - handle multiple responses by taking first one
       const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
       expect(firstMatch).toBeTruthy();
-      
+
       const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf('\r\n\r\n') + 4;
-      const jsonText = responseData.substring(startPos, startPos + contentLength);
-      
+      const startPos = responseData.indexOf("\r\n\r\n") + 4;
+      const jsonText = responseData.substring(
+        startPos,
+        startPos + contentLength
+      );
+
       const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1);
@@ -98,10 +98,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     });
 
     it("should list enabled tools correctly", async () => {
-      const serverPath = path.join(
-        __dirname,
-        "safe_outputs_mcp_server.cjs"
-      );
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
       serverProcess = require("child_process").spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
@@ -148,11 +145,14 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Extract JSON response - handle multiple responses by taking first one
       const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
       expect(firstMatch).toBeTruthy();
-      
+
       const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf('\r\n\r\n') + 4;
-      const jsonText = responseData.substring(startPos, startPos + contentLength);
-      
+      const startPos = responseData.indexOf("\r\n\r\n") + 4;
+      const jsonText = responseData.substring(
+        startPos,
+        startPos + contentLength
+      );
+
       const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(2);
@@ -177,10 +177,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     let serverProcess;
 
     beforeEach(async () => {
-      const serverPath = path.join(
-        __dirname,
-        "safe_outputs_mcp_server.cjs"
-      );
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
       serverProcess = require("child_process").spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
@@ -204,11 +201,11 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
     it("should execute create-issue tool and append to output file", async () => {
       // Clear stdout listeners to start fresh
-      serverProcess.stdout.removeAllListeners('data');
-      
+      serverProcess.stdout.removeAllListeners("data");
+
       // Start capturing data from this point forward
       let responseData = "";
-      const dataHandler = (data) => {
+      const dataHandler = data => {
         responseData += data.toString();
       };
       serverProcess.stdout.on("data", dataHandler);
@@ -236,15 +233,18 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       // Check response
       expect(responseData).toContain("Content-Length:");
-      
+
       // Extract JSON response - handle multiple responses by taking first one
       const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
       expect(firstMatch).toBeTruthy();
-      
+
       const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf('\r\n\r\n') + 4;
-      const jsonText = responseData.substring(startPos, startPos + contentLength);
-      
+      const startPos = responseData.indexOf("\r\n\r\n") + 4;
+      const jsonText = responseData.substring(
+        startPos,
+        startPos + contentLength
+      );
+
       const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1); // Server is responding with ID 1
@@ -262,15 +262,15 @@ describe("safe_outputs_mcp_server.cjs", () => {
       expect(outputEntry.title).toBe("Test Issue");
       expect(outputEntry.body).toBe("This is a test issue");
       expect(outputEntry.labels).toEqual(["bug", "test"]);
-      
+
       // Clean up listener
       serverProcess.stdout.removeListener("data", dataHandler);
     });
 
     it("should execute missing-tool and append to output file", async () => {
       // Clear stdout listeners to start fresh
-      serverProcess.stdout.removeAllListeners('data');
-      
+      serverProcess.stdout.removeAllListeners("data");
+
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
@@ -318,8 +318,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
     it("should reject tool calls for disabled tools", async () => {
       // Clear stdout listeners to start fresh
-      serverProcess.stdout.removeAllListeners('data');
-      
+      serverProcess.stdout.removeAllListeners("data");
+
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
@@ -345,15 +345,18 @@ describe("safe_outputs_mcp_server.cjs", () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(responseData).toContain("Content-Length:");
-      
+
       // Extract JSON response - handle multiple responses by taking first one
       const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
       expect(firstMatch).toBeTruthy();
-      
+
       const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf('\r\n\r\n') + 4;
-      const jsonText = responseData.substring(startPos, startPos + contentLength);
-      
+      const startPos = responseData.indexOf("\r\n\r\n") + 4;
+      const jsonText = responseData.substring(
+        startPos,
+        startPos + contentLength
+      );
+
       const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1); // Server is responding with ID 1
@@ -369,10 +372,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Test with no config
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = "";
 
-      const serverPath = path.join(
-        __dirname,
-        "safe_outputs_mcp_server.cjs"
-      );
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       expect(() => {
         require(serverPath);
       }).not.toThrow();
@@ -381,10 +381,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     it("should handle invalid JSON configuration", () => {
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = "invalid json";
 
-      const serverPath = path.join(
-        __dirname,
-        "safe_outputs_mcp_server.cjs"
-      );
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       expect(() => {
         require(serverPath);
       }).not.toThrow();
@@ -393,10 +390,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     it("should handle missing output file path", () => {
       delete process.env.GITHUB_AW_SAFE_OUTPUTS;
 
-      const serverPath = path.join(
-        __dirname,
-        "safe_outputs_mcp_server.cjs"
-      );
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       expect(() => {
         require(serverPath);
       }).not.toThrow();
@@ -407,10 +401,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
     let serverProcess;
 
     beforeEach(async () => {
-      const serverPath = path.join(
-        __dirname,
-        "safe_outputs_mcp_server.cjs"
-      );
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
       serverProcess = require("child_process").spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
@@ -434,8 +425,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
     it("should validate required fields for create-issue", async () => {
       // Clear stdout listeners to start fresh
-      serverProcess.stdout.removeAllListeners('data');
-      
+      serverProcess.stdout.removeAllListeners("data");
+
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
@@ -468,8 +459,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
     it("should handle malformed JSON RPC requests", async () => {
       // Clear stdout listeners to start fresh
-      serverProcess.stdout.removeAllListeners('data');
-      
+      serverProcess.stdout.removeAllListeners("data");
+
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
@@ -483,15 +474,18 @@ describe("safe_outputs_mcp_server.cjs", () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(responseData).toContain("Content-Length:");
-      
+
       // Extract JSON response - handle multiple responses by taking first one
       const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
       expect(firstMatch).toBeTruthy();
-      
+
       const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf('\r\n\r\n') + 4;
-      const jsonText = responseData.substring(startPos, startPos + contentLength);
-      
+      const startPos = responseData.indexOf("\r\n\r\n") + 4;
+      const jsonText = responseData.substring(
+        startPos,
+        startPos + contentLength
+      );
+
       const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(null); // For malformed JSON, server should respond with null ID
