@@ -14,6 +14,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 
 - **[Workflow Structure](workflow-structure.md)** - Directory layout, file organization, and expression security
 - **[Frontmatter Options](frontmatter.md)** - All configuration options for workflows
+- **[Cache Memory](cache-memory.md)** - Persistent memory across workflow runs using GitHub Actions cache
 - **[Safe Output Processing](safe-outputs.md)** - Automatic issue, comment, and PR creation from agentic workflow output
 - **[Include Directives](include-directives.md)** - Modularizing workflows with includes
 - **[Alias Triggers](alias-triggers.md)** - Special @mention triggers and context text

@@ -149,6 +149,14 @@ type WorkflowData struct {
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
+	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
+}
+
+// CacheMemoryConfig holds configuration for cache-memory functionality
+type CacheMemoryConfig struct {
+	Enabled     bool   `yaml:"enabled,omitempty"`      // whether cache-memory is enabled
+	Key         string `yaml:"key,omitempty"`          // custom cache key
+	DockerImage string `yaml:"docker-image,omitempty"` // custom Docker image for memory MCP server
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -648,6 +656,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
+	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(result.Frontmatter)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
@@ -2816,6 +2825,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// Add memory MCP tool if cache-memory is enabled
+	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.Enabled {
+		mcpTools = append(mcpTools, "memory")
+	}
+
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)
@@ -2989,6 +3003,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)
+
+	// Add cache-memory steps if cache-memory configuration is present
+	generateCacheMemorySteps(yaml, data, c.verbose)
 
 	// Configure git credentials if git operations will be needed
 	if needsGitCommands(data.SafeOutputs) {
@@ -3710,6 +3727,59 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	}
 
 	return config
+}
+
+// extractCacheMemoryConfig extracts cache-memory configuration from frontmatter
+func (c *Compiler) extractCacheMemoryConfig(frontmatter map[string]any) *CacheMemoryConfig {
+	cacheMemoryValue, exists := frontmatter["cache-memory"]
+	if !exists {
+		return nil
+	}
+
+	config := &CacheMemoryConfig{}
+
+	// Handle boolean value (simple enable/disable)
+	if boolValue, ok := cacheMemoryValue.(bool); ok {
+		config.Enabled = boolValue
+		if config.Enabled {
+			// Set defaults
+			config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+			config.DockerImage = "mcp/memory"
+		}
+		return config
+	}
+
+	// Handle object configuration
+	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
+		config.Enabled = true
+
+		// Set defaults
+		config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+		config.DockerImage = "mcp/memory"
+
+		// Parse custom key
+		if key, exists := configMap["key"]; exists {
+			if keyStr, ok := key.(string); ok {
+				config.Key = keyStr
+				// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+				runIdSuffix := "-${{ github.run_id }}"
+				if !strings.HasSuffix(config.Key, runIdSuffix) {
+					config.Key = config.Key + runIdSuffix
+				}
+			}
+		}
+
+		// Parse custom docker image
+		if dockerImage, exists := configMap["docker-image"]; exists {
+			if dockerImageStr, ok := dockerImage.(string); ok {
+				config.DockerImage = dockerImageStr
+			}
+		}
+
+		return config
+	}
+
+	return nil
 }
 
 // parseIssuesConfig handles create-issue configuration

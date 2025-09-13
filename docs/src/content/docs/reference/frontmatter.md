@@ -25,6 +25,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
+- `cache-memory`: [Persistent memory configuration](cache-memory.md) using GitHub Actions cache and MCP memory servers
 - `safe-outputs`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
 
 ## Trigger Events (`on:`)
