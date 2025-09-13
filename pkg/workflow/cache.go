@@ -151,29 +151,21 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 	}
 
 	// Generate cache step for memory MCP data
-	// Use a key that ensures last cache wins by incorporating a resolution field
-	cacheKey := "memory-mcp-${{ github.run_id }}"
+	// Default key format: memory-{workflow-id}-{run-id}
+	cacheKey := "memory-${{ github.workflow }}-${{ github.run_id }}"
 	if keyOverride, hasKey := cacheMemorySettings["key"]; hasKey {
 		if keyStr, ok := keyOverride.(string); ok {
 			cacheKey = keyStr
 		}
 	}
 
-	// Use restore-keys to restore from previous runs but always save with unique key
-	restoreKeys := []string{
-		"memory-mcp-",
-	}
-	if restoreOverride, hasRestore := cacheMemorySettings["restore-keys"]; hasRestore {
-		if restoreArray, ok := restoreOverride.([]any); ok {
-			restoreKeys = nil
-			for _, key := range restoreArray {
-				if keyStr, ok := key.(string); ok {
-					restoreKeys = append(restoreKeys, keyStr)
-				}
-			}
-		} else if restoreStr, ok := restoreOverride.(string); ok {
-			restoreKeys = []string{restoreStr}
-		}
+	// Generate restore keys automatically by splitting the cache key on '-'
+	// This creates a progressive fallback hierarchy
+	var restoreKeys []string
+	keyParts := strings.Split(cacheKey, "-")
+	for i := len(keyParts) - 1; i > 0; i-- {
+		restoreKey := strings.Join(keyParts[:i], "-") + "-"
+		restoreKeys = append(restoreKeys, restoreKey)
 	}
 
 	builder.WriteString("      - name: Cache memory MCP data\n")
