@@ -176,6 +176,18 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          [history]\n")
 	yaml.WriteString("          persistence = \"none\"\n")
 
+	// Add safe-outputs MCP server if safe-outputs are configured
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	if hasSafeOutputs {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
+		yaml.WriteString("          command = \"node\"\n")
+		yaml.WriteString("          args = [\n")
+		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
+		yaml.WriteString("          ]\n")
+		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${GITHUB_AW_SAFE_OUTPUTS}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = \"${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\" }\n")
+	}
+
 	// Generate [mcp_servers] section
 	for _, toolName := range mcpTools {
 		switch toolName {

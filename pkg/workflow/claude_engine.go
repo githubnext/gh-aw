@@ -85,9 +85,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build claude_env based on hasOutput parameter and custom env vars
 	hasOutput := workflowData.SafeOutputs != nil
+	hasCustomEnv := workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0
 	claudeEnv := ""
 	if hasOutput {
 		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+		claudeEnv += "\n"
+		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}"
 
 		// Add staged flag if specified
 		if workflowData.SafeOutputs.Staged != nil {
@@ -101,7 +104,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+	if hasCustomEnv {
 		for key, value := range workflowData.EngineConfig.Env {
 			if claudeEnv != "" {
 				claudeEnv += "\n"
@@ -129,6 +132,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add model configuration if specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
 		inputs["model"] = workflowData.EngineConfig.Model
+	}
+
+	// Add MCP debug flag if outputs are enabled or custom env is specified
+	if hasOutput || hasCustomEnv {
+		inputs["mcp_debug"] = "true"
 	}
 
 	// Add settings parameter if network permissions are configured
@@ -537,9 +545,36 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
+	// Add safe-outputs MCP server if safe-outputs are configured
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	totalServers := len(mcpTools)
+	if hasSafeOutputs {
+		totalServers++
+	}
+
+	serverCount := 0
+
+	// Generate safe-outputs MCP server configuration first if enabled
+	if hasSafeOutputs {
+		yaml.WriteString("              \"safe_outputs\": {\n")
+		yaml.WriteString("                \"command\": \"node\",\n")
+		yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+		yaml.WriteString("                \"env\": {\n")
+		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${GITHUB_AW_SAFE_OUTPUTS}\",\n")
+		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\"\n")
+		yaml.WriteString("                }\n")
+		serverCount++
+		if serverCount < totalServers {
+			yaml.WriteString("              },\n")
+		} else {
+			yaml.WriteString("              }\n")
+		}
+	}
+
 	// Generate configuration for each MCP tool
-	for i, toolName := range mcpTools {
-		isLast := i == len(mcpTools)-1
+	for _, toolName := range mcpTools {
+		serverCount++
+		isLast := serverCount == totalServers
 
 		switch toolName {
 		case "github":

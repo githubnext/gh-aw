@@ -132,9 +132,36 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
+	// Add safe-outputs MCP server if safe-outputs are configured
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	totalServers := len(mcpTools)
+	if hasSafeOutputs {
+		totalServers++
+	}
+
+	serverCount := 0
+
+	// Generate safe-outputs MCP server configuration first if enabled
+	if hasSafeOutputs {
+		yaml.WriteString("              \"safe_outputs\": {\n")
+		yaml.WriteString("                \"command\": \"node\",\n")
+		yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+		yaml.WriteString("                \"env\": {\n")
+		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${GITHUB_AW_SAFE_OUTPUTS}\",\n")
+		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\"\n")
+		yaml.WriteString("                }\n")
+		serverCount++
+		if serverCount < totalServers {
+			yaml.WriteString("              },\n")
+		} else {
+			yaml.WriteString("              }\n")
+		}
+	}
+
 	// Generate configuration for each MCP tool using shared logic
-	for i, toolName := range mcpTools {
-		isLast := i == len(mcpTools)-1
+	for _, toolName := range mcpTools {
+		serverCount++
+		isLast := serverCount == totalServers
 
 		switch toolName {
 		case "github":

@@ -125,10 +125,16 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true, but no GH_TOKEN for security
+	// Should include GITHUB_AW_SAFE_OUTPUTS and MCP debugging when hasOutput=true
 	expectedClaudeEnv := "claude_env: |\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 	if !strings.Contains(stepContent, expectedClaudeEnv) {
 		t.Errorf("Expected claude_env input with output '%s' in step content:\n%s", expectedClaudeEnv, stepContent)
+	}
+
+	// Should also include MCP debug flag
+	expectedMCPDebug := "mcp_debug: true"
+	if !strings.Contains(stepContent, expectedMCPDebug) {
+		t.Errorf("Expected MCP debug flag '%s' in step content:\n%s", expectedMCPDebug, stepContent)
 	}
 }
 

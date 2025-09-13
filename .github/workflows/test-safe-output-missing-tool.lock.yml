@@ -4,12 +4,8 @@
 
 name: "Test Safe Output - Missing Tool"
 on:
+  push: {}
   workflow_dispatch: null
-  workflow_run:
-    types:
-    - completed
-    workflows:
-    - "*"
 
 permissions: {}
 
@@ -19,7 +15,101 @@ concurrency:
 run-name: "Test Safe Output - Missing Tool"
 
 jobs:
+  task:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
+    steps:
+      - name: Check team membership for workflow
+        id: check-team-member
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function setCancelled(message) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: context.runId,
+                });
+                core.info(`Cancellation requested for this workflow run: ${message}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to cancel workflow run: ${errorMessage}`);
+                core.setFailed(message); // Fallback if API call fails
+              }
+            }
+            async function main() {
+              const { eventName } = context;
+              // skip check for safe events
+              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                return;
+              }
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv
+                ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
+                : [];
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.error(
+                  "❌ Configuration error: Required permissions not specified. Contact repository administrator."
+                );
+                await setCancelled(
+                  "Configuration error: Required permissions not specified"
+                );
+                return;
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                core.debug(
+                  `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
+                );
+                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission =
+                  await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner: owner,
+                    repo: repo,
+                    username: actor,
+                  });
+                const permission = repoPermission.data.permission;
+                core.debug(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (
+                    permission === requiredPerm ||
+                    (requiredPerm === "maintainer" && permission === "maintain")
+                  ) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    return;
+                  }
+                }
+                core.warning(
+                  `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage =
+                  repoError instanceof Error ? repoError.message : String(repoError);
+                core.error(`Repository permission check failed: ${errorMessage}`);
+                await setCancelled(`Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+              // Cancel the workflow when permission check fails
+              core.warning(
+                `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+              );
+              await setCancelled(
+                `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+              );
+            }
+            await main();
+
   test-safe-output-missing-tool:
+    needs: task
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -27,6 +117,114 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Generate Claude Settings
+        run: |
+          mkdir -p /tmp/.claude
+          cat > /tmp/.claude/settings.json << 'EOF'
+          {
+            "hooks": {
+              "PreToolUse": [
+                {
+                  "matcher": "WebFetch|WebSearch",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": ".claude/hooks/network_permissions.py"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          EOF
+      - name: Generate Network Permissions Hook
+        run: |
+          mkdir -p .claude/hooks
+          cat > .claude/hooks/network_permissions.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Network permissions validator for Claude Code engine.
+          Generated by gh-aw from engine network permissions configuration.
+          """
+          
+          import json
+          import sys
+          import urllib.parse
+          import re
+          
+          # Domain allow-list (populated during generation)
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]
+          
+          def extract_domain(url_or_query):
+              """Extract domain from URL or search query."""
+              if not url_or_query:
+                  return None
+              
+              if url_or_query.startswith(('http://', 'https://')):
+                  return urllib.parse.urlparse(url_or_query).netloc.lower()
+              
+              # Check for domain patterns in search queries
+              match = re.search(r'site:([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', url_or_query)
+              if match:
+                  return match.group(1).lower()
+              
+              return None
+          
+          def is_domain_allowed(domain):
+              """Check if domain is allowed."""
+              if not domain:
+                  # If no domain detected, allow only if not under deny-all policy
+                  return bool(ALLOWED_DOMAINS)  # False if empty list (deny-all), True if has domains
+              
+              # Empty allowed domains means deny all
+              if not ALLOWED_DOMAINS:
+                  return False
+              
+              for pattern in ALLOWED_DOMAINS:
+                  regex = pattern.replace('.', r'\.').replace('*', '.*')
+                  if re.match(f'^{regex}$', domain):
+                      return True
+              return False
+          
+          # Main logic
+          try:
+              data = json.load(sys.stdin)
+              tool_name = data.get('tool_name', '')
+              tool_input = data.get('tool_input', {})
+              
+              if tool_name not in ['WebFetch', 'WebSearch']:
+                  sys.exit(0)  # Allow other tools
+              
+              target = tool_input.get('url') or tool_input.get('query', '')
+              domain = extract_domain(target)
+              
+              # For WebSearch, apply domain restrictions consistently
+              # If no domain detected in search query, check if restrictions are in place
+              if tool_name == 'WebSearch' and not domain:
+                  # Since this hook is only generated when network permissions are configured,
+                  # empty ALLOWED_DOMAINS means deny-all policy
+                  if not ALLOWED_DOMAINS:  # Empty list means deny all
+                      print(f"Network access blocked: deny-all policy in effect", file=sys.stderr)
+                      print(f"No domains are allowed for WebSearch", file=sys.stderr)
+                      sys.exit(2)  # Block under deny-all policy
+                  else:
+                      print(f"Network access blocked for web-search: no specific domain detected", file=sys.stderr)
+                      print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
+                      sys.exit(2)  # Block general searches when domain allowlist is configured
+              
+              if not is_domain_allowed(domain):
+                  print(f"Network access blocked for domain: {domain}", file=sys.stderr)
+                  print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
+                  sys.exit(2)  # Block with feedback to Claude
+              
+              sys.exit(0)  # Allow
+              
+          except Exception as e:
+              print(f"Network validation error: {e}", file=sys.stderr)
+              sys.exit(2)  # Block on errors
+          
+          EOF
+          chmod +x .claude/hooks/network_permissions.py
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
@@ -49,12 +247,427 @@ jobs:
               core.setOutput("output_file", outputFile);
             }
             main();
+      - name: Setup Safe Outputs
+        run: |
+          cat >> $GITHUB_ENV << 'EOF'
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG={"missing-tool":{"enabled":true}}
+          EOF
+          mkdir -p /tmp/safe-outputs
+          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+            const fs = require("fs");
+            const encoder = new TextEncoder();
+            const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+            if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
+            const safeOutputsConfig = JSON.parse(configEnv);
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
+            if (!outputFile)
+              throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
+            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            function writeMessage(obj) {
+              const json = JSON.stringify(obj);
+              const bytes = encoder.encode(json);
+              const header = `Content-Length: ${bytes.byteLength}\r\n\r\n`;
+              const headerBytes = encoder.encode(header);
+              fs.writeSync(1, headerBytes);
+              fs.writeSync(1, bytes);
+            }
+            let buffer = Buffer.alloc(0);
+            function onData(chunk) {
+              buffer = Buffer.concat([buffer, chunk]);
+              while (true) {
+                const sep = buffer.indexOf("\r\n\r\n");
+                if (sep === -1) break;
+                const headerPart = buffer.slice(0, sep).toString("utf8");
+                const match = headerPart.match(/Content-Length:\s*(\d+)/i);
+                if (!match) {
+                  buffer = buffer.slice(sep + 4);
+                  continue;
+                }
+                const length = parseInt(match[1], 10);
+                const total = sep + 4 + length;
+                if (buffer.length < total) break; // wait for full body
+                const body = buffer.slice(sep + 4, total);
+                buffer = buffer.slice(total);
+                try {
+                  const msg = JSON.parse(body.toString("utf8"));
+                  handleMessage(msg);
+                } catch (e) {
+                  const err = {
+                    jsonrpc: "2.0",
+                    id: null,
+                    error: { code: -32700, message: "Parse error", data: String(e) },
+                  };
+                  writeMessage(err);
+                }
+              }
+            }
+            process.stdin.on("data", onData);
+            process.stdin.on("error", () => {});
+            process.stdin.resume();
+            function replyResult(id, result) {
+              if (id === undefined || id === null) return; // notification
+              const res = { jsonrpc: "2.0", id, result };
+              writeMessage(res);
+            }
+            function replyError(id, code, message, data) {
+              const res = {
+                jsonrpc: "2.0",
+                id: id ?? null,
+                error: { code, message, data },
+              };
+              writeMessage(res);
+            }
+            function isToolEnabled(name) {
+              return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
+            }
+            function appendSafeOutput(entry) {
+              if (!outputFile) throw new Error("No output file configured");
+              const jsonLine = JSON.stringify(entry) + "\n";
+              try {
+                fs.appendFileSync(outputFile, jsonLine);
+              } catch (error) {
+                throw new Error(
+                  `Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`
+                );
+              }
+            }
+            const defaultHandler = type => async args => {
+              const entry = { ...(args || {}), type };
+              appendSafeOutput(entry);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: `success`,
+                  },
+                ],
+              };
+            };
+            const TOOLS = Object.fromEntries(
+              [
+                {
+                  name: "create-issue",
+                  description: "Create a new GitHub issue",
+                  inputSchema: {
+                    type: "object",
+                    required: ["title", "body"],
+                    properties: {
+                      title: { type: "string", description: "Issue title" },
+                      body: { type: "string", description: "Issue body/description" },
+                      labels: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Issue labels",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "create-discussion",
+                  description: "Create a new GitHub discussion",
+                  inputSchema: {
+                    type: "object",
+                    required: ["title", "body"],
+                    properties: {
+                      title: { type: "string", description: "Discussion title" },
+                      body: { type: "string", description: "Discussion body/content" },
+                      category: { type: "string", description: "Discussion category" },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "add-issue-comment",
+                  description: "Add a comment to a GitHub issue or pull request",
+                  inputSchema: {
+                    type: "object",
+                    required: ["body"],
+                    properties: {
+                      body: { type: "string", description: "Comment body/content" },
+                      issue_number: {
+                        type: "number",
+                        description: "Issue or PR number (optional for current context)",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "create-pull-request",
+                  description: "Create a new GitHub pull request",
+                  inputSchema: {
+                    type: "object",
+                    required: ["title", "body"],
+                    properties: {
+                      title: { type: "string", description: "Pull request title" },
+                      body: {
+                        type: "string",
+                        description: "Pull request body/description",
+                      },
+                      branch: {
+                        type: "string",
+                        description:
+                          "Optional branch name (will be auto-generated if not provided)",
+                      },
+                      labels: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Optional labels to add to the PR",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "create-pull-request-review-comment",
+                  description: "Create a review comment on a GitHub pull request",
+                  inputSchema: {
+                    type: "object",
+                    required: ["path", "line", "body"],
+                    properties: {
+                      path: {
+                        type: "string",
+                        description: "File path for the review comment",
+                      },
+                      line: {
+                        type: ["number", "string"],
+                        description: "Line number for the comment",
+                      },
+                      body: { type: "string", description: "Comment body content" },
+                      start_line: {
+                        type: ["number", "string"],
+                        description: "Optional start line for multi-line comments",
+                      },
+                      side: {
+                        type: "string",
+                        enum: ["LEFT", "RIGHT"],
+                        description: "Optional side of the diff: LEFT or RIGHT",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "create-code-scanning-alert",
+                  description: "Create a code scanning alert",
+                  inputSchema: {
+                    type: "object",
+                    required: ["file", "line", "severity", "message"],
+                    properties: {
+                      file: {
+                        type: "string",
+                        description: "File path where the issue was found",
+                      },
+                      line: {
+                        type: ["number", "string"],
+                        description: "Line number where the issue was found",
+                      },
+                      severity: {
+                        type: "string",
+                        enum: ["error", "warning", "info", "note"],
+                        description: "Severity level",
+                      },
+                      message: {
+                        type: "string",
+                        description: "Alert message describing the issue",
+                      },
+                      column: {
+                        type: ["number", "string"],
+                        description: "Optional column number",
+                      },
+                      ruleIdSuffix: {
+                        type: "string",
+                        description: "Optional rule ID suffix for uniqueness",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "add-issue-label",
+                  description: "Add labels to a GitHub issue or pull request",
+                  inputSchema: {
+                    type: "object",
+                    required: ["labels"],
+                    properties: {
+                      labels: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Labels to add",
+                      },
+                      issue_number: {
+                        type: "number",
+                        description: "Issue or PR number (optional for current context)",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "update-issue",
+                  description: "Update a GitHub issue",
+                  inputSchema: {
+                    type: "object",
+                    properties: {
+                      status: {
+                        type: "string",
+                        enum: ["open", "closed"],
+                        description: "Optional new issue status",
+                      },
+                      title: { type: "string", description: "Optional new issue title" },
+                      body: { type: "string", description: "Optional new issue body" },
+                      issue_number: {
+                        type: ["number", "string"],
+                        description: "Optional issue number for target '*'",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "push-to-pr-branch",
+                  description: "Push changes to a pull request branch",
+                  inputSchema: {
+                    type: "object",
+                    properties: {
+                      message: { type: "string", description: "Optional commit message" },
+                      pull_request_number: {
+                        type: ["number", "string"],
+                        description: "Optional pull request number for target '*'",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+                {
+                  name: "missing-tool",
+                  description:
+                    "Report a missing tool or functionality needed to complete tasks",
+                  inputSchema: {
+                    type: "object",
+                    required: ["tool", "reason"],
+                    properties: {
+                      tool: { type: "string", description: "Name of the missing tool" },
+                      reason: { type: "string", description: "Why this tool is needed" },
+                      alternatives: {
+                        type: "string",
+                        description: "Possible alternatives or workarounds",
+                      },
+                    },
+                    additionalProperties: false,
+                  },
+                },
+              ]
+                .filter(({ name }) => isToolEnabled(name))
+                .map(tool => [tool.name, tool])
+            );
+            process.stderr.write(
+              `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
+            );
+            process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`);
+            process.stderr.write(
+              `[${SERVER_INFO.name}]  config: ${JSON.stringify(safeOutputsConfig)}\n`
+            );
+            process.stderr.write(
+              `[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`
+            );
+            if (!Object.keys(TOOLS).length)
+              throw new Error("No tools enabled in configuration");
+            function handleMessage(req) {
+              const { id, method, params } = req;
+              try {
+                if (method === "initialize") {
+                  const clientInfo = params?.clientInfo ?? {};
+                  console.error(`client initialized:`, clientInfo);
+                  const protocolVersion = params?.protocolVersion ?? undefined;
+                  const result = {
+                    serverInfo: SERVER_INFO,
+                    ...(protocolVersion ? { protocolVersion } : {}),
+                    capabilities: {
+                      tools: {},
+                    },
+                  };
+                  replyResult(id, result);
+                } else if (method === "tools/list") {
+                  const list = [];
+                  Object.values(TOOLS).forEach(tool => {
+                    list.push({
+                      name: tool.name,
+                      description: tool.description,
+                      inputSchema: tool.inputSchema,
+                    });
+                  });
+                  replyResult(id, { tools: list });
+                } else if (method === "tools/call") {
+                  const name = params?.name;
+                  const args = params?.arguments ?? {};
+                  if (!name || typeof name !== "string") {
+                    replyError(id, -32602, "Invalid params: 'name' must be a string");
+                    return;
+                  }
+                  const tool = TOOLS[name];
+                  if (!tool) {
+                    replyError(id, -32601, `Tool not found: ${name}`);
+                    return;
+                  }
+                  const handler = tool.handler || defaultHandler(tool.name);
+                  // Basic input validation: ensure required fields are present when schema defines them
+                  const requiredFields =
+                    tool.inputSchema && Array.isArray(tool.inputSchema.required)
+                      ? tool.inputSchema.required
+                      : [];
+                  if (requiredFields.length) {
+                    const missing = requiredFields.filter(f => args[f] === undefined);
+                    if (missing.length) {
+                      replyError(
+                        id,
+                        -32602,
+                        `Invalid arguments: missing ${missing.map(m => `'${m}'`).join(", ")}`
+                      );
+                      return;
+                    }
+                  }
+                  (async () => {
+                    try {
+                      const result = await handler(args);
+                      // Handler is expected to return an object possibly containing 'content'.
+                      // If handler returns a primitive or undefined, send an empty content array
+                      const content = result && result.content ? result.content : [];
+                      replyResult(id, { content });
+                    } catch (e) {
+                      replyError(id, -32000, `Tool '${name}' failed`, {
+                        message: e instanceof Error ? e.message : String(e),
+                      });
+                    }
+                  })();
+                  return;
+                }
+                replyError(id, -32601, `Method not found: ${method}`);
+              } catch (e) {
+                replyError(id, -32603, "Internal error", {
+                  message: e instanceof Error ? e.message : String(e),
+                });
+              }
+            }
+            process.stderr.write(`[${SERVER_INFO.name}] listening...\n`);
+          EOF
+          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
+              "safe_outputs": {
+                "command": "node",
+                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "env": {
+                  "GITHUB_AW_SAFE_OUTPUTS": "${GITHUB_AW_SAFE_OUTPUTS}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
+                }
+              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -79,6 +692,178 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          Call the `missing-tool` tool and request the `draw pelican` tool, which does not exist, to trigger the `missing-tool` safe output.
+          
+          <!--
+          on:
+            workflow_dispatch:
+            workflow_run:
+              workflows: ["*"]
+              types: [completed]
+          
+          safe-outputs:
+            missing-tool:
+              max: 5
+            staged: true
+          
+          engine:
+            id: custom
+            steps:
+              - name: Generate Missing Tool Safe Output
+                uses: actions/github-script@v7
+                env:
+                    GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS: "{\"type\": \"missing-tool\", \"tool\": \"example-missing-tool\", \"reason\": \"This is a test of the missing-tool safe output functionality. No actual tool is missing.\", \"alternatives\": \"This is a simulated missing tool report generated by the custom engine test workflow.\", \"context\": \"test-safe-output-missing-tool workflow validation\"}"
+                with:
+                  script: |
+                      const { spawn } = require("child_process");
+                      const path = require("path");
+                      const serverPath = path.join("/tmp/safe-outputs/mcp-server.cjs");
+                      const { GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS } = process.env;
+                      function parseJsonl(input) {
+                          if (!input) return [];
+                          return input
+                              .split(/\r?\n/)
+                              .map((l) => l.trim())
+                              .filter(Boolean)
+                              .map((line) => JSON.parse(line));
+                      }
+                      const toolCalls = parseJsonl(GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS)
+                      const child = spawn(process.execPath, [serverPath], {
+                          stdio: ["pipe", "pipe", "pipe"],
+                          env: process.env,
+                      });
+                      let stdoutBuffer = Buffer.alloc(0);
+                      const pending = new Map();
+                      let nextId = 1;
+                      function writeMessage(obj) {
+                          const json = JSON.stringify(obj);
+                          const header = `Content-Length: ${Buffer.byteLength(json)}\r\n\r\n`;
+                          child.stdin.write(header + json);
+                      }
+                      function sendRequest(method, params) {
+                          const id = nextId++;
+                          const req = { jsonrpc: "2.0", id, method, params };
+                          return new Promise((resolve, reject) => {
+                              pending.set(id, { resolve, reject });
+                              writeMessage(req);
+                              // simple timeout
+                              const to = setTimeout(() => {
+                                  if (pending.has(id)) {
+                                      pending.delete(id);
+                                      reject(new Error(`Request timed out: ${method}`));
+                                  }
+                              }, 5000);
+                              // wrap resolve to clear timeout
+                              const origResolve = resolve;
+                              resolve = (value) => {
+                                  clearTimeout(to);
+                                  origResolve(value);
+                              };
+                          });
+                      }
+          
+                      function handleMessage(msg) {
+                          if (msg.method && !msg.id) {
+                              console.error("<- notification", msg.method, msg.params || "");
+                              return;
+                          }
+                          if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
+                              const waiter = pending.get(msg.id);
+                              if (waiter) {
+                                  pending.delete(msg.id);
+                                  if (msg.error) waiter.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+                                  else waiter.resolve(msg.result);
+                              } else {
+                                  console.error("<- response with unknown id", msg.id);
+                              }
+                              return;
+                          }
+                          console.error("<- unexpected message", msg);
+                      }
+          
+                      child.stdout.on("data", (chunk) => {
+                          stdoutBuffer = Buffer.concat([stdoutBuffer, chunk]);
+                          while (true) {
+                              const sep = stdoutBuffer.indexOf("\r\n\r\n");
+                              if (sep === -1) break;
+                              const header = stdoutBuffer.slice(0, sep).toString("utf8");
+                              const match = header.match(/Content-Length:\s*(\d+)/i);
+                              if (!match) {
+                                  // Remove header and continue
+                                  stdoutBuffer = stdoutBuffer.slice(sep + 4);
+                                  continue;
+                              }
+                              const length = parseInt(match[1], 10);
+                              const total = sep + 4 + length;
+                              if (stdoutBuffer.length < total) break; // wait for full message
+                              const body = stdoutBuffer.slice(sep + 4, total).toString("utf8");
+                              stdoutBuffer = stdoutBuffer.slice(total);
+          
+                              let parsed = null;
+                              try {
+                                  parsed = JSON.parse(body);
+                              } catch (e) {
+                                  console.error("Failed to parse server message", e);
+                                  continue;
+                              }
+                              handleMessage(parsed);
+                          }
+                      });
+                      child.stderr.on("data", (d) => {
+                          process.stderr.write("[server] " + d.toString());
+                      });
+                      child.on("exit", (code, sig) => {
+                          console.error("server exited", code, sig);
+                      });
+          
+                      (async () => {
+                          try {
+                              console.error("Starting MCP client -> spawning server at", serverPath);
+                              const init = await sendRequest("initialize", {
+                                  clientInfo: { name: "mcp-stdio-client", version: "0.1.0" },
+                                  protocolVersion: "2024-11-05",
+                              });
+                              console.error("initialize ->", init);
+                              const toolsList = await sendRequest("tools/list", {});
+                              console.error("tools/list ->", toolsList);
+                              for (const toolCall of toolCalls) {
+                                  const { type, ...args } = toolCall;
+                                  console.error("Calling tool:", type, args);
+                                  try {
+                                      const res = await sendRequest("tools/call", { name: type, arguments: args });
+                                      console.error("tools/call ->", res);
+                                  } catch (err) {
+                                      console.error("tools/call error for", type, err);
+                                  }
+                              }
+          
+                              // Clean up: give server a moment to flush, then exit
+                              setTimeout(() => {
+                                  try {
+                                      child.kill();
+                                  } catch (e) { }
+                                  process.exit(0);
+                              }, 200);
+                          } catch (e) {
+                              console.error("Error in MCP client:", e);
+                              try {
+                                  child.kill();
+                              } catch (e) { }
+                              process.exit(1);
+                          }
+                      })();
+              - name: Verify Safe Output File
+                run: |
+                  echo "Generated safe output entries:"
+                  if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+                    cat "$GITHUB_AW_SAFE_OUTPUTS"
+                  else
+                    echo "No safe outputs file found"
+                  fi
+          
+          permissions: read-all
+          ---
+          
           # Test Safe Output - Missing Tool
           
           This workflow tests the `missing-tool` safe output functionality using a custom engine that directly writes to the safe output file.
@@ -112,42 +897,14 @@ jobs:
           5. Verify the outputs were generated correctly
           
           This demonstrates how custom engines can leverage the safe output system for reporting missing tools or functionality that prevents task completion, helping users understand workflow limitations.
+          -->
           
           
           ---
           
           ## Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
-          
-          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.
-          
-          ### Available Output Types:
-          
-          **Reporting Missing Tools or Functionality**
-          
-          If you need to use a tool or functionality that is not available to complete your task:
-          1. Append an entry on a new line "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
-          ```json
-          {"type": "missing-tool", "tool": "tool-name", "reason": "Why this tool is needed", "alternatives": "Suggested alternatives or workarounds"}
-          ```
-          2. The `tool` field should specify the name or type of missing functionality
-          3. The `reason` field should explain why this tool/functionality is required to complete the task
-          4. The `alternatives` field is optional but can suggest workarounds or alternative approaches
-          5. After you write to that file, read it back and check it is valid, see below.
-          
-          **Example JSONL file content:**
-          ```
-          {"type": "missing-tool", "tool": "docker", "reason": "Need Docker to build container images", "alternatives": "Could use GitHub Actions build instead"}
-          ```
-          
-          **Important Notes:**
-          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions
-          - Each JSON object must be on its own line
-          - Only include output types that are configured for this workflow
-          - The content of this file will be automatically processed and executed
-          - After you write or append to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", read it back as JSONL and check it is valid. Make sure it actually puts multiple entries on different lines rather than trying to separate entries on one line with the text "\n" - we've seen you make this mistake before, be careful! Maybe run a bash script to check the validity of the JSONL line by line if you have access to bash. If there are any problems with the JSONL make any necessary corrections to it to fix it up
-          
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           EOF
       - name: Print prompt to step summary
         run: |
@@ -165,14 +922,14 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "custom",
-              engine_name: "Custom Steps",
+              engine_id: "claude",
+              engine_name: "Claude Code",
               model: "",
               version: "",
               workflow_name: "Test Safe Output - Missing Tool",
               experimental: false,
-              supports_tools_whitelist: false,
-              supports_http_transport: false,
+              supports_tools_whitelist: true,
+              supports_http_transport: true,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
@@ -197,31 +954,89 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
-      - name: Generate Missing Tool Safe Output
-        run: |
-          echo '{"type": "missing-tool", "tool": "example-missing-tool", "reason": "This is a test of the missing-tool safe output functionality. No actual tool is missing.", "alternatives": "This is a simulated missing tool report generated by the custom engine test workflow.", "context": "test-safe-output-missing-tool workflow validation"}' >> $GITHUB_AW_SAFE_OUTPUTS
-
-          # Generate a second missing tool report to test the max limit
-          echo '{"type": "missing-tool", "tool": "another-test-tool", "reason": "Testing multiple missing tool reports in a single workflow run.", "alternatives": "Mock alternatives for testing purposes.", "context": "Secondary test entry for validation"}' >> $GITHUB_AW_SAFE_OUTPUTS
+      - name: Execute Claude Code Action
+        id: agentic_execution
+        uses: anthropics/claude-code-base-action@v0.0.56
+        with:
+          # Allowed tools (sorted):
+          # - ExitPlanMode
+          # - Glob
+          # - Grep
+          # - LS
+          # - NotebookRead
+          # - Read
+          # - Task
+          # - TodoWrite
+          # - Write
+          # - mcp__github__download_workflow_run_artifact
+          # - mcp__github__get_code_scanning_alert
+          # - mcp__github__get_commit
+          # - mcp__github__get_dependabot_alert
+          # - mcp__github__get_discussion
+          # - mcp__github__get_discussion_comments
+          # - mcp__github__get_file_contents
+          # - mcp__github__get_issue
+          # - mcp__github__get_issue_comments
+          # - mcp__github__get_job_logs
+          # - mcp__github__get_me
+          # - mcp__github__get_notification_details
+          # - mcp__github__get_pull_request
+          # - mcp__github__get_pull_request_comments
+          # - mcp__github__get_pull_request_diff
+          # - mcp__github__get_pull_request_files
+          # - mcp__github__get_pull_request_reviews
+          # - mcp__github__get_pull_request_status
+          # - mcp__github__get_secret_scanning_alert
+          # - mcp__github__get_tag
+          # - mcp__github__get_workflow_run
+          # - mcp__github__get_workflow_run_logs
+          # - mcp__github__get_workflow_run_usage
+          # - mcp__github__list_branches
+          # - mcp__github__list_code_scanning_alerts
+          # - mcp__github__list_commits
+          # - mcp__github__list_dependabot_alerts
+          # - mcp__github__list_discussion_categories
+          # - mcp__github__list_discussions
+          # - mcp__github__list_issues
+          # - mcp__github__list_notifications
+          # - mcp__github__list_pull_requests
+          # - mcp__github__list_secret_scanning_alerts
+          # - mcp__github__list_tags
+          # - mcp__github__list_workflow_jobs
+          # - mcp__github__list_workflow_run_artifacts
+          # - mcp__github__list_workflow_runs
+          # - mcp__github__list_workflows
+          # - mcp__github__search_code
+          # - mcp__github__search_issues
+          # - mcp__github__search_orgs
+          # - mcp__github__search_pull_requests
+          # - mcp__github__search_repositories
+          # - mcp__github__search_users
+          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_env: |
+            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+            GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}
+            GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          mcp_config: /tmp/mcp-config/mcp-servers.json
+          mcp_debug: true
+          prompt_file: /tmp/aw-prompts/prompt.txt
+          settings: /tmp/.claude/settings.json
+          timeout_minutes: 5
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-      - name: Verify Safe Output File
+      - name: Capture Agentic Action logs
+        if: always()
         run: |
-          echo "Generated safe output entries:"
-          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
-            cat "$GITHUB_AW_SAFE_OUTPUTS"
+          # Copy the detailed execution file from Agentic Action if available
+          if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-safe-output-missing-tool.log
           else
-            echo "No safe outputs file found"
+            echo "No execution file output found from Agentic Action" >> /tmp/test-safe-output-missing-tool.log
           fi
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-      - name: Ensure log file exists
-        run: |
-          echo "Custom steps execution completed" >> /tmp/test-safe-output-missing-tool.log
+          
+          # Ensure log file exists
           touch /tmp/test-safe-output-missing-tool.log
       - name: Print Agent output
         env:
@@ -253,7 +1068,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true,\"max\":5}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true}}"
         with:
           script: |
             async function main() {
@@ -1047,6 +1862,366 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_outputs
+          path: |
+            output.txt
+          if-no-files-found: ignore
+      - name: Clean up engine output files
+        run: |
+          rm -f output.txt
+      - name: Parse agent logs for step summary
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-safe-output-missing-tool.log
+        with:
+          script: |
+            function main() {
+              const fs = require("fs");
+              try {
+                // Get the log file path from environment
+                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+                if (!logFile) {
+                  core.info("No agent log file specified");
+                  return;
+                }
+                if (!fs.existsSync(logFile)) {
+                  core.info(`Log file not found: ${logFile}`);
+                  return;
+                }
+                const logContent = fs.readFileSync(logFile, "utf8");
+                const markdown = parseClaudeLog(logContent);
+                // Append to GitHub step summary
+                core.summary.addRaw(markdown).write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.setFailed(errorMessage);
+              }
+            }
+            /**
+             * Parses Claude log content and converts it to markdown format
+             * @param {string} logContent - The raw log content as a string
+             * @returns {string} Formatted markdown content
+             */
+            function parseClaudeLog(logContent) {
+              try {
+                const logEntries = JSON.parse(logContent);
+                if (!Array.isArray(logEntries)) {
+                  return "## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n";
+                }
+                let markdown = "## 🤖 Commands and Tools\n\n";
+                const toolUsePairs = new Map(); // Map tool_use_id to tool_result
+                const commandSummary = []; // For the succinct summary
+                // First pass: collect tool results by tool_use_id
+                for (const entry of logEntries) {
+                  if (entry.type === "user" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "tool_result" && content.tool_use_id) {
+                        toolUsePairs.set(content.tool_use_id, content);
+                      }
+                    }
+                  }
+                }
+                // Collect all tool uses for summary
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "tool_use") {
+                        const toolName = content.name;
+                        const input = content.input || {};
+                        // Skip internal tools - only show external commands and API calls
+                        if (
+                          [
+                            "Read",
+                            "Write",
+                            "Edit",
+                            "MultiEdit",
+                            "LS",
+                            "Grep",
+                            "Glob",
+                            "TodoWrite",
+                          ].includes(toolName)
+                        ) {
+                          continue; // Skip internal file operations and searches
+                        }
+                        // Find the corresponding tool result to get status
+                        const toolResult = toolUsePairs.get(content.id);
+                        let statusIcon = "❓";
+                        if (toolResult) {
+                          statusIcon = toolResult.is_error === true ? "❌" : "✅";
+                        }
+                        // Add to command summary (only external tools)
+                        if (toolName === "Bash") {
+                          const formattedCommand = formatBashCommand(input.command || "");
+                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+                        } else if (toolName.startsWith("mcp__")) {
+                          const mcpName = formatMcpName(toolName);
+                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+                        } else {
+                          // Handle other external tools (if any)
+                          commandSummary.push(`* ${statusIcon} ${toolName}`);
+                        }
+                      }
+                    }
+                  }
+                }
+                // Add command summary
+                if (commandSummary.length > 0) {
+                  for (const cmd of commandSummary) {
+                    markdown += `${cmd}\n`;
+                  }
+                } else {
+                  markdown += "No commands or tools used.\n";
+                }
+                // Add Information section from the last entry with result metadata
+                markdown += "\n## 📊 Information\n\n";
+                // Find the last entry with metadata
+                const lastEntry = logEntries[logEntries.length - 1];
+                if (
+                  lastEntry &&
+                  (lastEntry.num_turns ||
+                    lastEntry.duration_ms ||
+                    lastEntry.total_cost_usd ||
+                    lastEntry.usage)
+                ) {
+                  if (lastEntry.num_turns) {
+                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
+                  }
+                  if (lastEntry.duration_ms) {
+                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
+                    const minutes = Math.floor(durationSec / 60);
+                    const seconds = durationSec % 60;
+                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
+                  }
+                  if (lastEntry.total_cost_usd) {
+                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
+                  }
+                  if (lastEntry.usage) {
+                    const usage = lastEntry.usage;
+                    if (usage.input_tokens || usage.output_tokens) {
+                      markdown += `**Token Usage:**\n`;
+                      if (usage.input_tokens)
+                        markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_creation_input_tokens)
+                        markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_read_input_tokens)
+                        markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                      if (usage.output_tokens)
+                        markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                      markdown += "\n";
+                    }
+                  }
+                  if (
+                    lastEntry.permission_denials &&
+                    lastEntry.permission_denials.length > 0
+                  ) {
+                    markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                  }
+                }
+                markdown += "\n## 🤖 Reasoning\n\n";
+                // Second pass: process assistant messages in sequence
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "text" && content.text) {
+                        // Add reasoning text directly (no header)
+                        const text = content.text.trim();
+                        if (text && text.length > 0) {
+                          markdown += text + "\n\n";
+                        }
+                      } else if (content.type === "tool_use") {
+                        // Process tool use with its result
+                        const toolResult = toolUsePairs.get(content.id);
+                        const toolMarkdown = formatToolUse(content, toolResult);
+                        if (toolMarkdown) {
+                          markdown += toolMarkdown;
+                        }
+                      }
+                    }
+                  }
+                }
+                return markdown;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`;
+              }
+            }
+            /**
+             * Formats a tool use entry with its result into markdown
+             * @param {any} toolUse - The tool use object containing name, input, etc.
+             * @param {any} toolResult - The corresponding tool result object
+             * @returns {string} Formatted markdown string
+             */
+            function formatToolUse(toolUse, toolResult) {
+              const toolName = toolUse.name;
+              const input = toolUse.input || {};
+              // Skip TodoWrite except the very last one (we'll handle this separately)
+              if (toolName === "TodoWrite") {
+                return ""; // Skip for now, would need global context to find the last one
+              }
+              // Helper function to determine status icon
+              function getStatusIcon() {
+                if (toolResult) {
+                  return toolResult.is_error === true ? "❌" : "✅";
+                }
+                return "❓"; // Unknown by default
+              }
+              let markdown = "";
+              const statusIcon = getStatusIcon();
+              switch (toolName) {
+                case "Bash":
+                  const command = input.command || "";
+                  const description = input.description || "";
+                  // Format the command to be single line
+                  const formattedCommand = formatBashCommand(command);
+                  if (description) {
+                    markdown += `${description}:\n\n`;
+                  }
+                  markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
+                  break;
+                case "Read":
+                  const filePath = input.file_path || input.path || "";
+                  const relativePath = filePath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  ); // Remove /home/runner/work/repo/repo/ prefix
+                  markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
+                  break;
+                case "Write":
+                case "Edit":
+                case "MultiEdit":
+                  const writeFilePath = input.file_path || input.path || "";
+                  const writeRelativePath = writeFilePath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  );
+                  markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
+                  break;
+                case "Grep":
+                case "Glob":
+                  const query = input.query || input.pattern || "";
+                  markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
+                  break;
+                case "LS":
+                  const lsPath = input.path || "";
+                  const lsRelativePath = lsPath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  );
+                  markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
+                  break;
+                default:
+                  // Handle MCP calls and other tools
+                  if (toolName.startsWith("mcp__")) {
+                    const mcpName = formatMcpName(toolName);
+                    const params = formatMcpParameters(input);
+                    markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
+                  } else {
+                    // Generic tool formatting - show the tool name and main parameters
+                    const keys = Object.keys(input);
+                    if (keys.length > 0) {
+                      // Try to find the most important parameter
+                      const mainParam =
+                        keys.find(k =>
+                          ["query", "command", "path", "file_path", "content"].includes(k)
+                        ) || keys[0];
+                      const value = String(input[mainParam] || "");
+                      if (value) {
+                        markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
+                      } else {
+                        markdown += `${statusIcon} ${toolName}\n\n`;
+                      }
+                    } else {
+                      markdown += `${statusIcon} ${toolName}\n\n`;
+                    }
+                  }
+              }
+              return markdown;
+            }
+            /**
+             * Formats MCP tool name from internal format to display format
+             * @param {string} toolName - The raw tool name (e.g., mcp__github__search_issues)
+             * @returns {string} Formatted tool name (e.g., github::search_issues)
+             */
+            function formatMcpName(toolName) {
+              // Convert mcp__github__search_issues to github::search_issues
+              if (toolName.startsWith("mcp__")) {
+                const parts = toolName.split("__");
+                if (parts.length >= 3) {
+                  const provider = parts[1]; // github, etc.
+                  const method = parts.slice(2).join("_"); // search_issues, etc.
+                  return `${provider}::${method}`;
+                }
+              }
+              return toolName;
+            }
+            /**
+             * Formats MCP parameters into a human-readable string
+             * @param {Record<string, any>} input - The input object containing parameters
+             * @returns {string} Formatted parameters string
+             */
+            function formatMcpParameters(input) {
+              const keys = Object.keys(input);
+              if (keys.length === 0) return "";
+              const paramStrs = [];
+              for (const key of keys.slice(0, 4)) {
+                // Show up to 4 parameters
+                const value = String(input[key] || "");
+                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
+              }
+              if (keys.length > 4) {
+                paramStrs.push("...");
+              }
+              return paramStrs.join(", ");
+            }
+            /**
+             * Formats a bash command by normalizing whitespace and escaping
+             * @param {string} command - The raw bash command string
+             * @returns {string} Formatted and escaped command string
+             */
+            function formatBashCommand(command) {
+              if (!command) return "";
+              // Convert multi-line commands to single line by replacing newlines with spaces
+              // and collapsing multiple spaces
+              let formatted = command
+                .replace(/\n/g, " ") // Replace newlines with spaces
+                .replace(/\r/g, " ") // Replace carriage returns with spaces
+                .replace(/\t/g, " ") // Replace tabs with spaces
+                .replace(/\s+/g, " ") // Collapse multiple spaces into one
+                .trim(); // Remove leading/trailing whitespace
+              // Escape backticks to prevent markdown issues
+              formatted = formatted.replace(/`/g, "\\`");
+              // Truncate if too long (keep reasonable length for summary)
+              const maxLength = 80;
+              if (formatted.length > maxLength) {
+                formatted = formatted.substring(0, maxLength) + "...";
+              }
+              return formatted;
+            }
+            /**
+             * Truncates a string to a maximum length with ellipsis
+             * @param {string} str - The string to truncate
+             * @param {number} maxLength - Maximum allowed length
+             * @returns {string} Truncated string with ellipsis if needed
+             */
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
+            }
+            // Export for testing
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                parseClaudeLog,
+                formatToolUse,
+                formatBashCommand,
+                truncateString,
+              };
+            }
+            main();
       - name: Upload agent logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -1071,7 +2246,6 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-safe-output-missing-tool.outputs.output }}
-          GITHUB_AW_MISSING_TOOL_MAX: 5
         with:
           script: |
             async function main() {

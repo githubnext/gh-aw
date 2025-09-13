@@ -196,13 +196,13 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 
 	// Create MCP client and connect
 	client := mcp.NewClient(&mcp.Implementation{Name: "gh-aw-inspector", Version: "1.0.0"}, nil)
-	transport := mcp.NewCommandTransport(cmd)
+	transport := &mcp.CommandTransport{Command: cmd}
 
 	// Create a timeout context for connection
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	session, err := client.Connect(connectCtx, transport)
+	session, err := client.Connect(connectCtx, transport, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to MCP server: %w", err)
 	}
@@ -286,13 +286,15 @@ func connectHTTPMCPServer(ctx context.Context, config parser.MCPServerConfig, ve
 	client := mcp.NewClient(&mcp.Implementation{Name: "gh-aw-inspector", Version: "1.0.0"}, nil)
 
 	// Create streamable client transport for HTTP
-	transport := mcp.NewStreamableClientTransport(config.URL, &mcp.StreamableClientTransportOptions{})
+	transport := &mcp.StreamableClientTransport{
+		Endpoint: config.URL,
+	}
 
 	// Create a timeout context for connection
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	session, err := client.Connect(connectCtx, transport)
+	session, err := client.Connect(connectCtx, transport, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to HTTP MCP server: %w", err)
 	}

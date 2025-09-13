@@ -49,6 +49,8 @@
     "pkg/workflow/js/parse_claude_log.cjs",
     "pkg/workflow/js/parse_codex_log.cjs",
     "pkg/workflow/js/push_to_pr_branch.cjs",
+    "pkg/workflow/js/safe_outputs_mcp_client.cjs",
+    "pkg/workflow/js/safe_outputs_mcp_server.cjs",
     "pkg/workflow/js/sanitize_output.cjs",
     "pkg/workflow/js/setup_agent_output.cjs",
     "pkg/workflow/js/update_issue.cjs",
