@@ -18,8 +18,6 @@ concurrency:
 
 run-name: "CI Failure Doctor"
 
-# Cache configuration from frontmatter was processed and added to the main job steps
-
 jobs:
   task:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
@@ -38,17 +36,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      # Cache configuration from frontmatter processed below
-      - name: Cache (investigation-memory-${{ github.repository }})
-        uses: actions/cache@v3
-        with:
-          key: investigation-memory-${{ github.repository }}
-          path: |
-            /tmp/memory
-            /tmp/investigation
-          restore-keys: |
-            investigation-memory-${{ github.repository }}
-            investigation-memory-
       # Cache memory MCP configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: mkdir -p /tmp/cache-memory
@@ -88,20 +75,6 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-                }
-              },
               "memory": {
                 "command": "docker",
                 "args": [
@@ -114,6 +87,20 @@ jobs:
                 ],
                 "env": {
                   "MEMORY_FILE_PATH": "/app/dist/memory.json"
+                }
+              },
+              "github": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
               }
             }

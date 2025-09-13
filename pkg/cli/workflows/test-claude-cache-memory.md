@@ -8,10 +8,9 @@ on:
         required: true
         default: 'Store this information for later'
 
-cache-memory:
-  docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
-
 tools:
+  cache-memory:
+    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
   github:
     allowed: [get_repository]
 

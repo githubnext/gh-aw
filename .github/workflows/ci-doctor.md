@@ -20,19 +20,7 @@ safe-outputs:
 tools:
   web-fetch:
   web-search:
-
-# Cache configuration for persistent storage between runs
-cache:
-  key: investigation-memory-${{ github.repository }}
-  path: 
-    - /tmp/memory
-    - /tmp/investigation
-  restore-keys:
-    - investigation-memory-${{ github.repository }}
-    - investigation-memory-
-
-# Memory MCP server for persistent storage across workflow runs
-cache-memory: true
+  cache-memory: true
 
 timeout_minutes: 10
 

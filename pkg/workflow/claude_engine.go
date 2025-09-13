@@ -548,8 +548,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
-		case "memory":
-			e.renderMemoryMCPConfig(yaml, isLast, workflowData)
+		case "cache-memory":
+			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -656,9 +656,9 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 	return nil
 }
 
-// renderMemoryMCPConfig generates the Memory MCP server configuration
+// renderCacheMemoryMCPConfig generates the Memory MCP server configuration
 // Uses Docker-based @modelcontextprotocol/server-memory setup
-func (e *ClaudeEngine) renderMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 	// Determine Docker image to use
 	dockerImage := "mcp/memory" // default from official documentation
 	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.DockerImage != "" {

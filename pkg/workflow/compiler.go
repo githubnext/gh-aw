@@ -656,7 +656,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
-	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(result.Frontmatter)
+	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
@@ -2810,7 +2810,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	for toolName, toolValue := range workflowTools {
 		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format
@@ -2823,11 +2823,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				}
 			}
 		}
-	}
-
-	// Add memory MCP tool if cache-memory is enabled
-	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.Enabled {
-		mcpTools = append(mcpTools, "memory")
 	}
 
 	// Sort tools to ensure stable code generation
@@ -3729,9 +3724,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	return config
 }
 
-// extractCacheMemoryConfig extracts cache-memory configuration from frontmatter
-func (c *Compiler) extractCacheMemoryConfig(frontmatter map[string]any) *CacheMemoryConfig {
-	cacheMemoryValue, exists := frontmatter["cache-memory"]
+// extractCacheMemoryConfig extracts cache-memory configuration from tools section
+func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryConfig {
+	cacheMemoryValue, exists := tools["cache-memory"]
 	if !exists {
 		return nil
 	}

@@ -36,8 +36,8 @@ Enable cache-memory with default settings:
 ```yaml
 ---
 engine: claude
-cache-memory: true
 tools:
+  cache-memory: true
   github:
     allowed: [get_repository]
 ---
@@ -55,10 +55,10 @@ Customize cache key and Docker image:
 ```yaml
 ---
 engine: claude
-cache-memory:
-  key: custom-memory-${{ github.workflow }}-${{ github.run_id }}
-  docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
 tools:
+  cache-memory:
+    key: custom-memory-${{ github.workflow }}-${{ github.run_id }}
+    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
   github:
     allowed: [get_repository]
 ---
@@ -71,8 +71,11 @@ Use specific versions or alternative memory server implementations:
 ```yaml
 ---
 engine: claude
-cache-memory:
-  docker-image: "ghcr.io/modelcontextprotocol/server-memory:sha-abcd123"
+tools:
+  cache-memory:
+    docker-image: "ghcr.io/modelcontextprotocol/server-memory:sha-abcd123"
+  github:
+    allowed: [get_repository]
 ---
 ```
 
@@ -216,8 +219,9 @@ The MCP memory server organizes information into categories:
 Use descriptive, hierarchical cache keys:
 
 ```yaml
-cache-memory:
-  key: project-${{ github.repository_owner }}-${{ github.workflow }}
+tools:
+  cache-memory:
+    key: project-${{ github.repository_owner }}-${{ github.workflow }}
 ```
 
 ### Memory Scope
@@ -270,7 +274,8 @@ Enable verbose logging to debug cache-memory issues:
 ```yaml
 ---
 engine: claude
-cache-memory: true
+tools:
+  cache-memory: true
 timeout_minutes: 10  # Allow time for debugging
 ---
 
@@ -312,9 +317,8 @@ on:
         description: 'Information to remember'
         required: true
 
-cache-memory: true
-
 tools:
+  cache-memory: true
   github:
     allowed: [get_repository]
 ---
@@ -336,11 +340,10 @@ Store and retrieve information across workflow runs.
 ```yaml
 ---
 engine: claude
-cache-memory:
-  key: project-docs-${{ github.repository }}-${{ github.workflow }}
-  docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
-
 tools:
+  cache-memory:
+    key: project-docs-${{ github.repository }}-${{ github.workflow }}
+    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
   github:
     allowed: [get_repository, list_files]
 ---
@@ -355,8 +358,9 @@ Use project-specific memory to maintain context about documentation updates.
 ```yaml
 ---
 engine: claude
-cache-memory:
-  key: shared-memory-${{ github.repository }}
+tools:
+  cache-memory:
+    key: shared-memory-${{ github.repository }}
 ---
 
 # Shared Memory Workflow
