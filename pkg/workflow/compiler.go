@@ -150,6 +150,14 @@ type WorkflowData struct {
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
+	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
+}
+
+// CacheMemoryConfig holds configuration for cache-memory functionality
+type CacheMemoryConfig struct {
+	Enabled     bool   `yaml:"enabled,omitempty"`      // whether cache-memory is enabled
+	Key         string `yaml:"key,omitempty"`          // custom cache key
+	DockerImage string `yaml:"docker-image,omitempty"` // custom Docker image for memory MCP server
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -649,6 +657,8 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
+	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(result.Frontmatter)
+	// Keep the old string field for backward compatibility with generateCacheMemorySteps
 	workflowData.CacheMemory = c.extractTopLevelYAMLSection(result.Frontmatter, "cache-memory")
 
 	// Process stop-after configuration from the on: section
@@ -3720,6 +3730,59 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	}
 
 	return config
+}
+
+// extractCacheMemoryConfig extracts cache-memory configuration from frontmatter
+func (c *Compiler) extractCacheMemoryConfig(frontmatter map[string]any) *CacheMemoryConfig {
+	cacheMemoryValue, exists := frontmatter["cache-memory"]
+	if !exists {
+		return nil
+	}
+
+	config := &CacheMemoryConfig{}
+
+	// Handle boolean value (simple enable/disable)
+	if boolValue, ok := cacheMemoryValue.(bool); ok {
+		config.Enabled = boolValue
+		if config.Enabled {
+			// Set defaults
+			config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+			config.DockerImage = "ghcr.io/modelcontextprotocol/server-memory:latest"
+		}
+		return config
+	}
+
+	// Handle object configuration
+	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
+		config.Enabled = true
+
+		// Set defaults
+		config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+		config.DockerImage = "ghcr.io/modelcontextprotocol/server-memory:latest"
+
+		// Parse custom key
+		if key, exists := configMap["key"]; exists {
+			if keyStr, ok := key.(string); ok {
+				config.Key = keyStr
+				// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+				runIdSuffix := "-${{ github.run_id }}"
+				if !strings.HasSuffix(config.Key, runIdSuffix) {
+					config.Key = config.Key + runIdSuffix
+				}
+			}
+		}
+
+		// Parse custom docker image
+		if dockerImage, exists := configMap["docker-image"]; exists {
+			if dockerImageStr, ok := dockerImage.(string); ok {
+				config.DockerImage = dockerImageStr
+			}
+		}
+
+		return config
+	}
+
+	return nil
 }
 
 // parseIssuesConfig handles create-issue configuration

@@ -253,6 +253,12 @@ func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName str
 // renderMemoryMCPConfig generates the Memory MCP server configuration using shared logic
 // Uses Docker-based @modelcontextprotocol/server-memory setup
 func (e *CustomEngine) renderMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+	// Determine Docker image to use
+	dockerImage := "ghcr.io/modelcontextprotocol/server-memory:latest" // default
+	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.DockerImage != "" {
+		dockerImage = workflowData.CacheMemoryConfig.DockerImage
+	}
+
 	yaml.WriteString("              \"memory\": {\n")
 	yaml.WriteString("                \"command\": \"docker\",\n")
 	yaml.WriteString("                \"args\": [\n")
@@ -261,7 +267,7 @@ func (e *CustomEngine) renderMemoryMCPConfig(yaml *strings.Builder, isLast bool,
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-v\",\n")
 	yaml.WriteString("                  \"/tmp/cache-memory:/data\",\n")
-	yaml.WriteString("                  \"ghcr.io/modelcontextprotocol/server-memory:latest\"\n")
+	fmt.Fprintf(yaml, "                  \"%s\"\n", dockerImage)
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"MCP_MEMORY_DATA_DIR\": \"/data\"\n")

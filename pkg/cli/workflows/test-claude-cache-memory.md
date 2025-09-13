@@ -8,7 +8,8 @@ on:
         required: true
         default: 'Store this information for later'
 
-cache-memory: true
+cache-memory:
+  docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
 
 tools:
   github:
@@ -17,9 +18,9 @@ tools:
 timeout_minutes: 5
 ---
 
-# Test Claude with Cache Memory
+# Test Claude with Cache Memory and Custom Docker Image
 
-You are a test agent that demonstrates the cache-memory functionality with Claude engine.
+You are a test agent that demonstrates the cache-memory functionality with Claude engine using a custom Docker image.
 
 ## Task
 
@@ -46,9 +47,10 @@ Your job is to:
 - **First run**: Should show empty memory, then store the new task
 - **Subsequent runs**: Should show previously stored tasks, then add the new one
 - **Memory persistence**: Tasks should persist across workflow runs thanks to cache-memory
+- **Custom Docker image**: Uses ghcr.io/modelcontextprotocol/server-memory:v1.0.0 instead of latest
 
 This workflow tests that the cache-memory configuration properly:
-- Mounts the memory MCP server
+- Mounts the memory MCP server with custom Docker image
 - Persists data between runs using GitHub Actions cache
 - Works with Claude engine and MCP tools
 - Integrates with other tools like GitHub
