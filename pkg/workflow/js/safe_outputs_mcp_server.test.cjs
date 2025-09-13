@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
 
 // Mock environment for isolated testing
 const originalEnv = process.env;
@@ -47,8 +43,19 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       // Start server process
       const { spawn } = require("child_process");
+      console.log(`node ${serverPath}`);
       serverProcess = spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+            "create-issue": { enabled: true, max: 5 },
+            "create-discussion": { enabled: true },
+            "add-issue-comment": { enabled: true, max: 3 },
+            "missing-tool": { enabled: true },
+          }),
+        }
       });
 
       let responseData = "";
@@ -387,110 +394,100 @@ describe("safe_outputs_mcp_server.cjs", () => {
       }).not.toThrow();
     });
 
-    it("should handle missing output file path", () => {
-      delete process.env.GITHUB_AW_SAFE_OUTPUTS;
+    describe("Input Validation", () => {
+      let serverProcess;
 
-      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
-      expect(() => {
-        require(serverPath);
-      }).not.toThrow();
-    });
-  });
+      beforeEach(async () => {
+        const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
-  describe("Input Validation", () => {
-    let serverProcess;
+        serverProcess = require("child_process").spawn("node", [serverPath], {
+          stdio: ["pipe", "pipe", "pipe"],
+        });
 
-    beforeEach(async () => {
-      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+        // Initialize server first to ensure state is clean for each test
+        const initRequest = {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {},
+        };
 
-      serverProcess = require("child_process").spawn("node", [serverPath], {
-        stdio: ["pipe", "pipe", "pipe"],
+        const message = JSON.stringify(initRequest);
+        const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
+        serverProcess.stdin.write(header + message);
+
+        // Wait for initialization to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
       });
 
-      // Initialize server first to ensure state is clean for each test
-      const initRequest = {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {},
-      };
+      it("should validate required fields for create-issue", async () => {
+        // Clear stdout listeners to start fresh
+        serverProcess.stdout.removeAllListeners("data");
 
-      const message = JSON.stringify(initRequest);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+        let responseData = "";
+        serverProcess.stdout.on("data", data => {
+          responseData += data.toString();
+        });
 
-      // Wait for initialization to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-    });
-
-    it("should validate required fields for create-issue", async () => {
-      // Clear stdout listeners to start fresh
-      serverProcess.stdout.removeAllListeners("data");
-
-      let responseData = "";
-      serverProcess.stdout.on("data", data => {
-        responseData += data.toString();
-      });
-
-      // Call create-issue without required fields
-      const toolCall = {
-        jsonrpc: "2.0",
-        id: 1, // Use ID 1 for this request
-        method: "tools/call",
-        params: {
-          name: "create-issue",
-          arguments: {
-            title: "Test Issue",
-            // Missing required 'body' field
+        // Call create-issue without required fields
+        const toolCall = {
+          jsonrpc: "2.0",
+          id: 1, // Use ID 1 for this request
+          method: "tools/call",
+          params: {
+            name: "create-issue",
+            arguments: {
+              title: "Test Issue",
+              // Missing required 'body' field
+            },
           },
-        },
-      };
+        };
 
-      const message = JSON.stringify(toolCall);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+        const message = JSON.stringify(toolCall);
+        const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
+        serverProcess.stdin.write(header + message);
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-      expect(responseData).toContain("Content-Length:");
-      // Should still work because we're not doing strict schema validation
-      // in the example server, but in a production server you might want to add validation
-    });
-
-    it("should handle malformed JSON RPC requests", async () => {
-      // Clear stdout listeners to start fresh
-      serverProcess.stdout.removeAllListeners("data");
-
-      let responseData = "";
-      serverProcess.stdout.on("data", data => {
-        responseData += data.toString();
+        expect(responseData).toContain("Content-Length:");
+        // Should still work because we're not doing strict schema validation
+        // in the example server, but in a production server you might want to add validation
       });
 
-      // Send malformed JSON
-      const malformedMessage = "{ invalid json }";
-      const header = `Content-Length: ${Buffer.byteLength(malformedMessage)}\r\n\r\n`;
-      serverProcess.stdin.write(header + malformedMessage);
+      it("should handle malformed JSON RPC requests", async () => {
+        // Clear stdout listeners to start fresh
+        serverProcess.stdout.removeAllListeners("data");
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+        let responseData = "";
+        serverProcess.stdout.on("data", data => {
+          responseData += data.toString();
+        });
 
-      expect(responseData).toContain("Content-Length:");
+        // Send malformed JSON
+        const malformedMessage = "{ invalid json }";
+        const header = `Content-Length: ${Buffer.byteLength(malformedMessage)}\r\n\r\n`;
+        serverProcess.stdin.write(header + malformedMessage);
 
-      // Extract JSON response - handle multiple responses by taking first one
-      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
-      expect(firstMatch).toBeTruthy();
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-      const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf("\r\n\r\n") + 4;
-      const jsonText = responseData.substring(
-        startPos,
-        startPos + contentLength
-      );
+        expect(responseData).toContain("Content-Length:");
 
-      const response = JSON.parse(jsonText);
-      expect(response.jsonrpc).toBe("2.0");
-      expect(response.id).toBe(null); // For malformed JSON, server should respond with null ID
-      expect(response.error).toBeTruthy();
-      expect(response.error.code).toBe(-32700); // Parse error
+        // Extract JSON response - handle multiple responses by taking first one
+        const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
+        expect(firstMatch).toBeTruthy();
+
+        const contentLength = parseInt(firstMatch[1]);
+        const startPos = responseData.indexOf("\r\n\r\n") + 4;
+        const jsonText = responseData.substring(
+          startPos,
+          startPos + contentLength
+        );
+
+        const response = JSON.parse(jsonText);
+        expect(response.jsonrpc).toBe("2.0");
+        expect(response.id).toBe(null); // For malformed JSON, server should respond with null ID
+        expect(response.error).toBeTruthy();
+        expect(response.error.code).toBe(-32700); // Parse error
+      });
     });
   });
-});

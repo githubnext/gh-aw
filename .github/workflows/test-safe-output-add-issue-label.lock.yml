@@ -156,10 +156,9 @@ jobs:
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const encoder = new TextEncoder();
-            const decoder = new TextDecoder();
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             if (!configEnv)
-              throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, using empty config");
+              throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
             const safeOutputsConfig = JSON.parse(configEnv);
             const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
             if (!outputFile)

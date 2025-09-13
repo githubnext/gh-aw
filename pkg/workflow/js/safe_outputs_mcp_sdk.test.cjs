@@ -64,6 +64,9 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       transport = new StdioClientTransport({
         command: "node",
         args: [serverPath],
+        env: {
+          ...process.env
+        }
       });
 
       expect(transport).toBeDefined();
