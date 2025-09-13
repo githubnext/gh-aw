@@ -112,6 +112,29 @@ tools:
 
 ## Security Considerations
 
+### Default Tools Security Policy
+
+The system automatically includes read-only GitHub tools by default, following the **principle of least privilege**:
+
+```yaml
+# Default tools are automatically included (read-only operations only)
+# - get_issue, get_pull_request, list_issues, search_repositories
+# - get_workflow_run, list_workflow_jobs, download_workflow_run_artifact
+# - get_code_scanning_alert, list_secret_scanning_alerts, etc.
+
+tools:
+  github:
+    # Write operations must be explicitly configured by users
+    allowed: [create_issue, add_issue_comment, update_issue]  # ✅ Explicit permissions
+```
+
+**Security Policy for Default Tools:**
+- ✅ **Included by default**: Read-only operations (`get_*`, `list_*`, `search_*`, `download_*`)
+- ❌ **Never included by default**: Write operations (`create_*`, `update_*`, `delete_*`, `add_*`, `remove_*`)
+- 🔒 **User control**: Write operations require explicit configuration in workflow's `allowed` list
+
+This ensures workflows have minimal permissions by default while allowing users to explicitly grant additional permissions as needed.
+
 ### Bash Command Restrictions
 ```yaml
 tools:

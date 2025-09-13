@@ -1480,11 +1480,19 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 	return mergedTools, nil
 }
 
-// applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
+// applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present.
+//
+// SECURITY POLICY: Default tools must be read-only operations only. Write operations
+// (create_, update_, delete_, add_, remove_) should NEVER be included in defaults and
+// must be explicitly configured by users in their workflow's allowed tools list.
+// This ensures workflows have minimal permissions by default and follow the principle
+// of least privilege.
 func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
-	// Define the default read-only GitHub MCP tools
+	// Define the default read-only GitHub MCP tools.
+	// All tools in this list MUST be read-only operations (get_, list_, search_, download_).
+	// Write operations require explicit user configuration.
 	defaultGitHubTools := []string{
 		// actions
 		"download_workflow_run_artifact",
@@ -1543,6 +1551,9 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		// users
 		"search_users",
 	}
+
+	// Validate that all default tools are read-only operations
+	validateDefaultToolsReadOnly(defaultGitHubTools)
 
 	if tools == nil {
 		tools = make(map[string]any)
@@ -1647,6 +1658,24 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	bashComplete:
 	}
 	return tools
+}
+
+// validateDefaultToolsReadOnly ensures all default GitHub tools are read-only operations.
+// This prevents accidental inclusion of write operations in the default tools list.
+func validateDefaultToolsReadOnly(tools []string) {
+	writeOperationPrefixes := []string{
+		"create_", "add_", "update_", "delete_", "remove_", "set_", "patch_",
+		"modify_", "edit_", "post_", "put_", "cancel_", "close_", "reopen_",
+	}
+
+	for _, tool := range tools {
+		for _, prefix := range writeOperationPrefixes {
+			if strings.HasPrefix(tool, prefix) {
+				// This is a programming error, not a user error, so we panic
+				panic(fmt.Sprintf("SECURITY VIOLATION: Default GitHub tool '%s' appears to be a write operation (prefix: %s). Default tools must be read-only only. Write operations must be explicitly configured by users.", tool, prefix))
+			}
+		}
+	}
 }
 
 // needsGitCommands checks if safe outputs configuration requires Git commands
