@@ -451,6 +451,16 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	}
 	displayLogsOverview(workflowRuns)
 
+	// Check for and prominently display MCP failures if any are detected
+	totalMCPFailures := 0
+	for _, pr := range processedRuns {
+		totalMCPFailures += len(pr.MCPFailures)
+	}
+	if totalMCPFailures > 0 {
+		fmt.Printf("\n%s\n", console.FormatErrorMessage(fmt.Sprintf("⚠️  ALERT: %d MCP server failure(s) detected across analyzed runs", totalMCPFailures)))
+		fmt.Printf("%s\n", console.FormatWarningMessage("MCP server failures can cause workflow execution issues. See detailed report below."))
+	}
+
 	// Display tool call report
 	displayToolCallReport(processedRuns, verbose)
 
