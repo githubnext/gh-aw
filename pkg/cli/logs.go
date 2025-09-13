@@ -451,27 +451,16 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	}
 	displayLogsOverview(workflowRuns)
 
-	// Check for and prominently display MCP failures if any are detected
-	totalMCPFailures := 0
-	for _, pr := range processedRuns {
-		totalMCPFailures += len(pr.MCPFailures)
-	}
-	if totalMCPFailures > 0 {
-		fmt.Printf("\n%s\n", console.FormatErrorMessage(fmt.Sprintf("⚠️  ALERT: %d MCP server failure(s) detected across analyzed runs", totalMCPFailures)))
-		fmt.Printf("%s\n", console.FormatWarningMessage("MCP server failures can cause workflow execution issues. See detailed report below."))
-	}
+	// Display MCP failures analysis
+	displayMCPFailuresAnalysis(processedRuns, verbose)
 
 	// Display tool call report
 	displayToolCallReport(processedRuns, verbose)
-
-	// Display access log analysis
-	displayAccessLogAnalysis(processedRuns, verbose)
-
 	// Display missing tools analysis
 	displayMissingToolsAnalysis(processedRuns, verbose)
 
-	// Display MCP failures analysis
-	displayMCPFailuresAnalysis(processedRuns, verbose)
+	// Display access log analysis
+	displayAccessLogAnalysis(processedRuns, verbose)
 
 	// Generate tool sequence graph if requested
 	if toolGraph {
@@ -1784,7 +1773,6 @@ func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
 
 	// Display summary header
 	fmt.Printf("\n%s\n", console.FormatListHeader("🔌 MCP Server Failures"))
-	fmt.Printf("%s\n\n", console.FormatListHeader("====================="))
 
 	// Convert map to slice for sorting
 	var summaries []*MCPFailureSummary
@@ -1830,13 +1818,6 @@ func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	}
 
 	fmt.Print(console.RenderTable(tableConfig))
-
-	// Display total summary
-	uniqueServers := len(failureSummary)
-	fmt.Printf("\n📊 %s: %d unique MCP servers failed %d times across workflows\n",
-		console.FormatCountMessage("Total"),
-		uniqueServers,
-		totalFailures)
 
 	// Verbose mode: Show detailed breakdown by workflow
 	if verbose && totalFailures > 0 {
