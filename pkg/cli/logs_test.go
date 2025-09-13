@@ -1065,7 +1065,7 @@ func TestBranchFilteringWithGitHubCLI(t *testing.T) {
 
 	// Simulate args construction for branch filtering
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
-	
+
 	branch := "feature-branch"
 	if branch != "" {
 		args = append(args, "--branch", branch)
