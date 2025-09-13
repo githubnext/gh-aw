@@ -31,6 +31,9 @@ cache:
     - investigation-memory-${{ github.repository }}
     - investigation-memory-
 
+# Memory MCP server for persistent storage across workflow runs
+cache-memory: true
+
 timeout_minutes: 10
 
 ---

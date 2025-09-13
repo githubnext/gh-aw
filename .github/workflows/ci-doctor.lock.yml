@@ -49,6 +49,17 @@ jobs:
           restore-keys: |
             investigation-memory-${{ github.repository }}
             investigation-memory-
+      # Cache memory MCP configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: mkdir -p /tmp/cache-memory
+      - name: Cache memory MCP data
+        uses: actions/cache@v3
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v7
@@ -89,6 +100,20 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                }
+              },
+              "memory": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-v",
+                  "/tmp/cache-memory:/data",
+                  "ghcr.io/modelcontextprotocol/server-memory:latest"
+                ],
+                "env": {
+                  "MCP_MEMORY_DATA_DIR": "/data"
                 }
               }
             }
