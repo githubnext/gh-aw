@@ -1642,47 +1642,88 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 
 	logContent := string(content)
 
-	// Try to parse as JSON lines (Claude logs are typically NDJSON format)
-	lines := strings.Split(logContent, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || !strings.HasPrefix(line, "{") {
-			continue
-		}
+	// First try to parse as JSON array
+	var logEntries []map[string]interface{}
+	if err := json.Unmarshal(content, &logEntries); err == nil {
+		// Successfully parsed as JSON array, process entries
+		for _, entry := range logEntries {
+			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
+				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
+					// Extract MCP server failures from this init entry
+					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
+						for _, serverInterface := range mcpServers {
+							if server, ok := serverInterface.(map[string]interface{}); ok {
+								serverName, hasName := server["name"].(string)
+								status, hasStatus := server["status"].(string)
 
-		// Try to parse each line as JSON
-		var entry map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			continue // Skip non-JSON lines
-		}
+								if hasName && hasStatus && status == "failed" {
+									failure := MCPFailureReport{
+										ServerName:   serverName,
+										Status:       status,
+										WorkflowName: run.WorkflowName,
+										RunID:        run.DatabaseID,
+									}
 
-		// Look for system init entries that contain MCP server information
-		if entryType, ok := entry["type"].(string); ok && entryType == "system" {
-			if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
-				// Extract MCP server failures from this init entry
-				if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
-					for _, serverInterface := range mcpServers {
-						if server, ok := serverInterface.(map[string]interface{}); ok {
-							serverName, hasName := server["name"].(string)
-							status, hasStatus := server["status"].(string)
+									// Try to extract timestamp if available
+									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
+										failure.Timestamp = timestamp
+									}
 
-							if hasName && hasStatus && status == "failed" {
-								failure := MCPFailureReport{
-									ServerName:   serverName,
-									Status:       status,
-									WorkflowName: run.WorkflowName,
-									RunID:        run.DatabaseID,
+									mcpFailures = append(mcpFailures, failure)
+
+									if verbose {
+										fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+									}
 								}
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
+		lines := strings.Split(logContent, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || !strings.HasPrefix(line, "{") {
+				continue
+			}
 
-								// Try to extract timestamp if available
-								if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
-									failure.Timestamp = timestamp
-								}
+			// Try to parse each line as JSON
+			var entry map[string]interface{}
+			if err := json.Unmarshal([]byte(line), &entry); err != nil {
+				continue // Skip non-JSON lines
+			}
 
-								mcpFailures = append(mcpFailures, failure)
+			// Look for system init entries that contain MCP server information
+			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
+				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
+					// Extract MCP server failures from this init entry
+					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
+						for _, serverInterface := range mcpServers {
+							if server, ok := serverInterface.(map[string]interface{}); ok {
+								serverName, hasName := server["name"].(string)
+								status, hasStatus := server["status"].(string)
 
-								if verbose {
-									fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+								if hasName && hasStatus && status == "failed" {
+									failure := MCPFailureReport{
+										ServerName:   serverName,
+										Status:       status,
+										WorkflowName: run.WorkflowName,
+										RunID:        run.DatabaseID,
+									}
+
+									// Try to extract timestamp if available
+									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
+										failure.Timestamp = timestamp
+									}
+
+									mcpFailures = append(mcpFailures, failure)
+
+									if verbose {
+										fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+									}
 								}
 							}
 						}
