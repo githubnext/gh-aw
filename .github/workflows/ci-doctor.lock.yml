@@ -486,7 +486,7 @@ jobs:
             "mcpServers": {
               "safe_outputs": {
                 "command": "node",
-                "args": ["/tmp/safe-outputs-mcp-server.cjs"]
+                "args": ["/tmp/safe-outputs/mcp-server.cjs"]
               },
               "github": {
                 "command": "docker",

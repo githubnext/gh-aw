@@ -183,7 +183,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
 		yaml.WriteString("          command = \"node\"\n")
 		yaml.WriteString("          args = [\n")
-		yaml.WriteString("            \"/tmp/safe-outputs-mcp-server.cjs\",\n")
+		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
 		yaml.WriteString("          ]\n")
 	}
 
