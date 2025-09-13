@@ -660,7 +660,7 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 // Uses Docker-based @modelcontextprotocol/server-memory setup
 func (e *ClaudeEngine) renderMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 	// Determine Docker image to use
-	dockerImage := "ghcr.io/modelcontextprotocol/server-memory:latest" // default
+	dockerImage := "mcp/memory" // default from official documentation
 	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.DockerImage != "" {
 		dockerImage = workflowData.CacheMemoryConfig.DockerImage
 	}
@@ -672,11 +672,11 @@ func (e *ClaudeEngine) renderMemoryMCPConfig(yaml *strings.Builder, isLast bool,
 	yaml.WriteString("                  \"-i\",\n")
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-v\",\n")
-	yaml.WriteString("                  \"/tmp/cache-memory:/data\",\n")
+	yaml.WriteString("                  \"/tmp/cache-memory:/app/dist\",\n")
 	fmt.Fprintf(yaml, "                  \"%s\"\n", dockerImage)
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"MCP_MEMORY_DATA_DIR\": \"/data\"\n")
+	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/app/dist/memory.json\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

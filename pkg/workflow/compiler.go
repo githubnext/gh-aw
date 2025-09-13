@@ -3263,6 +3263,39 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          " + line + "\n")
 	}
 
+	// Add memory system prompt if cache-memory is enabled
+	if data.CacheMemoryConfig != nil && data.CacheMemoryConfig.Enabled {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ---\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ## Memory System Instructions\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          Follow these steps for each interaction:\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          1. User Identification:\n")
+		yaml.WriteString("             - You should assume that you are interacting with default_user\n")
+		yaml.WriteString("             - If you have not identified default_user, proactively try to do so.\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          2. Memory Retrieval:\n")
+		yaml.WriteString("             - Always begin your chat by saying only \"Remembering...\" and retrieve all relevant information from your knowledge graph\n")
+		yaml.WriteString("             - Always refer to your knowledge graph as your \"memory\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          3. Memory\n")
+		yaml.WriteString("             - While conversing with the user, be attentive to any new information that falls into these categories:\n")
+		yaml.WriteString("               a) Basic Identity (age, gender, location, job title, education level, etc.)\n")
+		yaml.WriteString("               b) Behaviors (interests, habits, etc.)\n")
+		yaml.WriteString("               c) Preferences (communication style, preferred language, etc.)\n")
+		yaml.WriteString("               d) Goals (goals, targets, aspirations, etc.)\n")
+		yaml.WriteString("               e) Relationships (personal and professional relationships up to 3 degrees of separation)\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          4. Memory Update:\n")
+		yaml.WriteString("             - If any new information was gathered during the interaction, update your memory as follows:\n")
+		yaml.WriteString("               a) Create entities for recurring organizations, people, and significant events\n")
+		yaml.WriteString("               b) Connect them to the current entities using relations\n")
+		yaml.WriteString("               c) Store facts about them as observations\n")
+		yaml.WriteString("          \n")
+	}
+
 	if data.SafeOutputs != nil {
 		// Add output instructions for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
 		yaml.WriteString("          \n")
@@ -3747,7 +3780,7 @@ func (c *Compiler) extractCacheMemoryConfig(frontmatter map[string]any) *CacheMe
 		if config.Enabled {
 			// Set defaults
 			config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
-			config.DockerImage = "ghcr.io/modelcontextprotocol/server-memory:latest"
+			config.DockerImage = "mcp/memory"
 		}
 		return config
 	}
@@ -3758,7 +3791,7 @@ func (c *Compiler) extractCacheMemoryConfig(frontmatter map[string]any) *CacheMe
 
 		// Set defaults
 		config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
-		config.DockerImage = "ghcr.io/modelcontextprotocol/server-memory:latest"
+		config.DockerImage = "mcp/memory"
 
 		// Parse custom key
 		if key, exists := configMap["key"]; exists {
