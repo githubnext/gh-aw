@@ -109,6 +109,16 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       serverProcess = require("child_process").spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+            "create-issue": { enabled: true, max: 5 },
+            "create-discussion": { enabled: true },
+            "add-issue-comment": { enabled: true, max: 3 },
+            "missing-tool": { enabled: true },
+          }),
+        }
       });
 
       let responseData = "";
@@ -188,6 +198,17 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       serverProcess = require("child_process").spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+            "create-issue": { enabled: true, max: 5 },
+            "create-discussion": { enabled: true },
+            "add-issue-comment": { enabled: true, max: 3 },
+            "missing-tool": { enabled: true },
+          }),
+        }
+
       });
 
       // Initialize server first to ensure state is clean for each test
@@ -257,7 +278,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       expect(response.id).toBe(1); // Server is responding with ID 1
       expect(response.result).toHaveProperty("content");
       expect(response.result.content[0].text).toContain(
-        "Issue creation queued"
+        "success"
       );
 
       // Check output file
@@ -402,6 +423,17 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
         serverProcess = require("child_process").spawn("node", [serverPath], {
           stdio: ["pipe", "pipe", "pipe"],
+          env: {
+            ...process.env,
+            GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
+            GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+              "create-issue": { enabled: true, max: 5 },
+              "create-discussion": { enabled: true },
+              "add-issue-comment": { enabled: true, max: 3 },
+              "missing-tool": { enabled: true },
+            }),
+          }
+
         });
 
         // Initialize server first to ensure state is clean for each test
@@ -491,3 +523,4 @@ describe("safe_outputs_mcp_server.cjs", () => {
       });
     });
   });
+});

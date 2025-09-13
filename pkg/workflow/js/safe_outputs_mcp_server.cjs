@@ -388,3 +388,5 @@ function handleMessage(req) {
     });
   }
 }
+
+process.stderr.write(`[${SERVER_INFO.name}] listening...\n`);

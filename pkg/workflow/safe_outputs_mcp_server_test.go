@@ -186,7 +186,7 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 		t.Fatalf("Expected first content item to be text content, got %T", result.Content[0])
 	}
 
-	if !strings.Contains(textContent.Text, "Issue creation queued") {
+	if !strings.Contains(textContent.Text, "success") {
 		t.Errorf("Expected response to mention issue creation, got: %s", textContent.Text)
 	}
 

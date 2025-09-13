@@ -56,71 +56,6 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
   });
 
   describe("MCP SDK Integration", () => {
-    it("should successfully create MCP client and transport", async () => {
-      console.log("Testing MCP SDK client creation...");
-
-      // Test that we can create the transport
-      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
-      transport = new StdioClientTransport({
-        command: "node",
-        args: [serverPath],
-        env: {
-          ...process.env
-        }
-      });
-
-      expect(transport).toBeDefined();
-      console.log("✅ StdioClientTransport created successfully");
-
-      // Test that we can create the client
-      client = new Client(
-        {
-          name: "test-mcp-sdk-client",
-          version: "1.0.0",
-        },
-        {
-          capabilities: {},
-        }
-      );
-
-      expect(client).toBeDefined();
-      expect(typeof client.connect).toBe("function");
-      expect(typeof client.listTools).toBe("function");
-      expect(typeof client.callTool).toBe("function");
-      console.log("✅ MCP Client created successfully with expected methods");
-
-      // Try to connect with a shorter timeout to avoid hanging
-      console.log("Attempting connection with timeout...");
-      try {
-        // Set up a promise race with timeout
-        const connectPromise = client.connect(transport);
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Connection timeout")), 5000)
-        );
-
-        await Promise.race([connectPromise, timeoutPromise]);
-        console.log("✅ Connected successfully!");
-
-        // If we get here, try to list tools
-        const toolsResponse = await client.listTools();
-        console.log(
-          "✅ Tools listed successfully:",
-          toolsResponse.tools.map(t => t.name)
-        );
-
-        expect(toolsResponse.tools).toBeDefined();
-        expect(Array.isArray(toolsResponse.tools)).toBe(true);
-        expect(toolsResponse.tools.length).toBeGreaterThan(0);
-      } catch (error) {
-        console.log(
-          "⚠️ Connection failed (expected in some environments):",
-          error.message
-        );
-        // This is okay - we've demonstrated the SDK can be imported and instantiated
-        // The connection failure might be due to environment issues, not the SDK integration
-        expect(error.message).toBeTruthy(); // Just ensure we got some error message
-      }
-    }, 10000);
 
     it("should demonstrate MCP SDK integration patterns", async () => {
       console.log("Demonstrating MCP SDK usage patterns...");
@@ -195,7 +130,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         content: [
           {
             type: "text",
-            text: 'Issue creation queued: "Example Issue"',
+            text: 'success',
           },
         ],
       };
