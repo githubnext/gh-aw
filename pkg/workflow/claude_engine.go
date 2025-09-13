@@ -85,6 +85,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build claude_env based on hasOutput parameter and custom env vars
 	hasOutput := workflowData.SafeOutputs != nil
+	hasCustomEnv := workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0
 	claudeEnv := ""
 	if hasOutput {
 		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
@@ -102,8 +103,18 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 	}
 
+	// Add MCP debugging environment variables if outputs are enabled or custom env is specified
+	if hasOutput || hasCustomEnv {
+		if claudeEnv != "" {
+			claudeEnv += "\n"
+		}
+		claudeEnv += "            MCP_LOG_LEVEL: debug"
+		claudeEnv += "\n"
+		claudeEnv += "            DEBUG: mcp:*"
+	}
+
 	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+	if hasCustomEnv {
 		for key, value := range workflowData.EngineConfig.Env {
 			if claudeEnv != "" {
 				claudeEnv += "\n"
