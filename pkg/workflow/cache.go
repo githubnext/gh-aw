@@ -156,6 +156,11 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 	if keyOverride, hasKey := cacheMemorySettings["key"]; hasKey {
 		if keyStr, ok := keyOverride.(string); ok {
 			cacheKey = keyStr
+			// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+			runIdSuffix := "-${{ github.run_id }}"
+			if !strings.HasSuffix(cacheKey, runIdSuffix) {
+				cacheKey = cacheKey + runIdSuffix
+			}
 		}
 	}
 
