@@ -84,18 +84,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       expect(responseData).toContain("Content-Length:");
 
-      // Extract JSON response - handle multiple responses by taking first one
-      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
-      expect(firstMatch).toBeTruthy();
-
-      const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf("\r\n\r\n") + 4;
-      const jsonText = responseData.substring(
-        startPos,
-        startPos + contentLength
-      );
-
-      const response = JSON.parse(jsonText);
+      // Extract JSON response - handle multiple responses by finding the one for our request id
+      const response = findResponseById(responseData, 1);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1);
       expect(response.result).toHaveProperty("serverInfo");
@@ -159,18 +149,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       expect(responseData).toContain("Content-Length:");
 
-      // Extract JSON response - handle multiple responses by taking first one
-      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
-      expect(firstMatch).toBeTruthy();
-
-      const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf("\r\n\r\n") + 4;
-      const jsonText = responseData.substring(
-        startPos,
-        startPos + contentLength
-      );
-
-      const response = JSON.parse(jsonText);
+      // Extract JSON response - handle multiple responses by finding the one for our request id
+      const response = findResponseById(responseData, 2);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(2);
       expect(response.result).toHaveProperty("tools");
@@ -214,7 +194,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Initialize server first to ensure state is clean for each test
       const initRequest = {
         jsonrpc: "2.0",
-        id: 1,
+        id: 0, // Use a reserved id for setup initialization to avoid colliding with test request ids
         method: "initialize",
         params: {},
       };
@@ -262,18 +242,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Check response
       expect(responseData).toContain("Content-Length:");
 
-      // Extract JSON response - handle multiple responses by taking first one
-      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
-      expect(firstMatch).toBeTruthy();
-
-      const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf("\r\n\r\n") + 4;
-      const jsonText = responseData.substring(
-        startPos,
-        startPos + contentLength
-      );
-
-      const response = JSON.parse(jsonText);
+      // Extract JSON response - handle multiple responses by finding the one for our request id
+      const response = findResponseById(responseData, 1);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1); // Server is responding with ID 1
       expect(response.result).toHaveProperty("content");
@@ -374,18 +344,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       expect(responseData).toContain("Content-Length:");
 
-      // Extract JSON response - handle multiple responses by taking first one
-      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
-      expect(firstMatch).toBeTruthy();
-
-      const contentLength = parseInt(firstMatch[1]);
-      const startPos = responseData.indexOf("\r\n\r\n") + 4;
-      const jsonText = responseData.substring(
-        startPos,
-        startPos + contentLength
-      );
-
-      const response = JSON.parse(jsonText);
+      // Extract JSON response - handle multiple responses by finding the one for our request id
+      const response = findResponseById(responseData, 1);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1); // Server is responding with ID 1
       expect(response.error).toBeTruthy();
@@ -439,7 +399,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
         // Initialize server first to ensure state is clean for each test
         const initRequest = {
           jsonrpc: "2.0",
-          id: 1,
+          id: 0, // Use a reserved id for setup initialization to avoid colliding with test request ids
           method: "initialize",
           params: {},
         };
@@ -504,23 +464,219 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
         expect(responseData).toContain("Content-Length:");
 
-        // Extract JSON response - handle multiple responses by taking first one
-        const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
-        expect(firstMatch).toBeTruthy();
-
-        const contentLength = parseInt(firstMatch[1]);
-        const startPos = responseData.indexOf("\r\n\r\n") + 4;
-        const jsonText = responseData.substring(
-          startPos,
-          startPos + contentLength
-        );
-
-        const response = JSON.parse(jsonText);
+        // Extract JSON response - handle multiple responses by finding the one for our request id
+        const response = findResponseById(responseData, null);
         expect(response.jsonrpc).toBe("2.0");
         expect(response.id).toBe(null); // For malformed JSON, server should respond with null ID
         expect(response.error).toBeTruthy();
         expect(response.error.code).toBe(-32700); // Parse error
       });
+    });
+  });
+
+  // Helper to parse multiple Content-Length-delimited JSON-RPC messages from a buffer
+  function parseRpcResponses(bufferStr) {
+    const responses = [];
+    let cursor = 0;
+    while (true) {
+      const headerMatch = bufferStr.slice(cursor).match(/Content-Length: (\d+)\r\n\r\n/);
+      if (!headerMatch) break;
+      const headerIndex = bufferStr.indexOf(headerMatch[0], cursor);
+      if (headerIndex === -1) break;
+      const length = parseInt(headerMatch[1], 10);
+      const jsonStart = headerIndex + headerMatch[0].length;
+      const jsonText = bufferStr.slice(jsonStart, jsonStart + length);
+      try {
+        const parsed = JSON.parse(jsonText);
+        responses.push(parsed);
+      } catch (e) {
+        // ignore parse errors for individual segments
+      }
+      cursor = jsonStart + length;
+    }
+    return responses;
+  }
+
+  // Helper to find a response matching an id (or fallback to the first response)
+  function findResponseById(bufferStr, id) {
+    const resp = parseRpcResponses(bufferStr).find(r => Object.prototype.hasOwnProperty.call(r, 'id') && r.id === id);
+    if (resp) return resp;
+    const all = parseRpcResponses(bufferStr);
+    return all.length ? all[0] : null;
+  }
+
+  // Utility to find an error response by error code
+  function findErrorByCode(bufferStr, code) {
+    return parseRpcResponses(bufferStr).find(r => r && r.error && r.error.code === code) || null;
+  }
+
+  // Replace fragile first-match parsing with helpers
+  describe("Robustness of Response Handling", () => {
+    let serverProcess;
+
+    beforeEach(async () => {
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+      serverProcess = require("child_process").spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+            "create-issue": { enabled: true, max: 5 },
+            "create-discussion": { enabled: true },
+            "add-issue-comment": { enabled: true, max: 3 },
+            "missing-tool": { enabled: true },
+          }),
+        }
+
+      });
+
+      // Initialize server first to ensure state is clean for each test
+      const initRequest = {
+        jsonrpc: "2.0",
+        id: 0, // Use a reserved id for setup initialization to avoid colliding with test request ids
+        method: "initialize",
+        params: {},
+      };
+
+      const message = JSON.stringify(initRequest);
+      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
+      serverProcess.stdin.write(header + message);
+
+      // Wait for initialization to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+    });
+
+    it("should handle multiple sequential responses", async () => {
+      // Clear stdout listeners to start fresh
+      serverProcess.stdout.removeAllListeners("data");
+
+      let responseData = "";
+      serverProcess.stdout.on("data", data => {
+        responseData += data.toString();
+      });
+
+      // Call create-issue tool
+      const toolCall1 = {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "create-issue",
+          arguments: {
+            title: "Test Issue 1",
+            body: "This is a test issue",
+            labels: ["bug", "test"],
+          },
+        },
+      };
+
+      const message1 = JSON.stringify(toolCall1);
+      const header1 = `Content-Length: ${Buffer.byteLength(message1)}\r\n\r\n`;
+      serverProcess.stdin.write(header1 + message1);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Call create-issue tool again
+      const toolCall2 = {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "create-issue",
+          arguments: {
+            title: "Test Issue 2",
+            body: "This is another test issue",
+            labels: ["enhancement"],
+          },
+        },
+      };
+
+      const message2 = JSON.stringify(toolCall2);
+      const header2 = `Content-Length: ${Buffer.byteLength(message2)}\r\n\r\n`;
+      serverProcess.stdin.write(header2 + message2);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Check response for first call
+      expect(responseData).toContain("Content-Length:");
+
+      let response = findResponseById(responseData, 1);
+      expect(response).toBeTruthy();
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBe(1);
+      expect(response.result).toHaveProperty("content");
+      expect(response.result.content[0].text).toContain("success");
+
+      // Check output file for first call
+      expect(fs.existsSync(tempOutputFile)).toBe(true);
+      let outputContent = fs.readFileSync(tempOutputFile, "utf8");
+      let outputEntry = JSON.parse(outputContent.trim());
+
+      expect(outputEntry.type).toBe("create-issue");
+      expect(outputEntry.title).toBe("Test Issue 1");
+      expect(outputEntry.body).toBe("This is a test issue");
+      expect(outputEntry.labels).toEqual(["bug", "test"]);
+
+      // Check response for second call
+      response = findResponseById(responseData, 2);
+      expect(response).toBeTruthy();
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBe(2);
+      expect(response.result).toHaveProperty("content");
+      expect(response.result.content[0].text).toContain("success");
+
+      // Check output file for second call
+      outputContent = fs.readFileSync(tempOutputFile, "utf8");
+      outputEntry = JSON.parse(outputContent.trim());
+
+      expect(outputEntry.type).toBe("create-issue");
+      expect(outputEntry.title).toBe("Test Issue 2");
+      expect(outputEntry.body).toBe("This is another test issue");
+      expect(outputEntry.labels).toEqual(["enhancement"]);
+    });
+
+    it("should handle error responses gracefully", async () => {
+      // Clear stdout listeners to start fresh
+      serverProcess.stdout.removeAllListeners("data");
+
+      let responseData = "";
+      serverProcess.stdout.on("data", data => {
+        responseData += data.toString();
+      });
+
+      // Call missing-tool with invalid arguments to trigger error
+      const toolCall = {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "missing-tool",
+          arguments: {
+            // Missing 'tool' argument
+            reason: "Need to analyze complex data structures",
+            alternatives:
+              "Could use basic analysis tools with manual processing",
+          },
+        },
+      };
+
+      const message = JSON.stringify(toolCall);
+      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
+      serverProcess.stdin.write(header + message);
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Check response
+      expect(responseData).toContain("Content-Length:");
+
+      // Extract JSON response - handle multiple responses by finding the one for our request id
+      const response = findResponseById(responseData, 1);
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBe(1); // Server is responding with ID 1
+      expect(response.error).toBeTruthy();
+      expect(response.error.message).toContain("Invalid arguments");
     });
   });
 });

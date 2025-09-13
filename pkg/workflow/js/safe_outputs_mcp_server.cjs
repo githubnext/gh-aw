@@ -52,7 +52,7 @@ function onData(chunk) {
 }
 
 process.stdin.on("data", onData);
-process.stdin.on("error", () => { });
+process.stdin.on("error", () => {});
 process.stdin.resume();
 
 function replyResult(id, result) {
@@ -369,10 +369,23 @@ function handleMessage(req) {
         return;
       }
       const handler = tool.handler || defaultHandler(tool.name);
+
+      // Basic input validation: ensure required fields are present when schema defines them
+      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+      if (requiredFields.length) {
+        const missing = requiredFields.filter(f => args[f] === undefined);
+        if (missing.length) {
+          replyError(id, -32602, `Invalid arguments: missing ${missing.map(m => `'${m}'`).join(', ')}`);
+          return;
+        }
+      }
       (async () => {
         try {
           const result = await handler(args);
-          replyResult(id, { content: result.content });
+          // Handler is expected to return an object possibly containing 'content'.
+          // If handler returns a primitive or undefined, send an empty content array
+          const content = result && result.content ? result.content : [];
+          replyResult(id, { content });
         } catch (e) {
           replyError(id, -32000, `Tool '${name}' failed`, {
             message: e instanceof Error ? e.message : String(e),
