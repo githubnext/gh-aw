@@ -11,13 +11,11 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/cli/go-gh/v2"
 	"github.com/fsnotify/fsnotify"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -1988,434 +1986,18 @@ func copyIncludeDependenciesWithForce(dependencies []IncludeDependency, githubWo
 	return nil
 }
 
-// InstallPackage installs agentic workflows from a GitHub repository
-func InstallPackage(repoSpec string, local bool, verbose bool) error {
-	if verbose {
-		fmt.Printf("Installing package: %s\n", repoSpec)
-	}
 
-	// Parse repository specification (org/repo[@version])
-	repo, version, err := parseRepoSpec(repoSpec)
-	if err != nil {
-		return fmt.Errorf("invalid repository specification: %w", err)
-	}
 
-	if verbose {
-		fmt.Printf("Repository: %s\n", repo)
-		if version != "" {
-			fmt.Printf("Version: %s\n", version)
-		} else {
-			fmt.Printf("Version: main (default)\n")
-		}
-	}
 
-	// Get packages directory based on local flag
-	packagesDir, err := getPackagesDir(local)
-	if err != nil {
-		return fmt.Errorf("failed to determine packages directory: %w", err)
-	}
 
-	if verbose {
-		if local {
-			fmt.Printf("Installing to local packages directory: %s\n", packagesDir)
-		} else {
-			fmt.Printf("Installing to global packages directory: %s\n", packagesDir)
-		}
-	}
 
-	// Create packages directory
-	if err := os.MkdirAll(packagesDir, 0755); err != nil {
-		return fmt.Errorf("failed to create packages directory: %w", err)
-	}
 
-	// Create target directory for this repository
-	targetDir := filepath.Join(packagesDir, repo)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return fmt.Errorf("failed to create package directory: %w", err)
-	}
 
-	// Check if package already exists
-	if _, err := os.Stat(targetDir); err == nil {
-		entries, err := os.ReadDir(targetDir)
-		if err == nil && len(entries) > 0 {
-			fmt.Printf("Package %s already exists. Updating...\n", repo)
-			// Remove existing content
-			if err := os.RemoveAll(targetDir); err != nil {
-				return fmt.Errorf("failed to remove existing package: %w", err)
-			}
-			if err := os.MkdirAll(targetDir, 0755); err != nil {
-				return fmt.Errorf("failed to recreate package directory: %w", err)
-			}
-		}
-	}
 
-	// Download workflows from the repository
-	if err := downloadWorkflows(repo, version, targetDir, verbose); err != nil {
-		return fmt.Errorf("failed to download workflows: %w", err)
-	}
-
-	fmt.Printf("Successfully installed package: %s\n", repo)
-	return nil
-}
-
-// UninstallPackage removes an installed package
-func UninstallPackage(repoSpec string, local bool, verbose bool) error {
-	if verbose {
-		fmt.Printf("Uninstalling package: %s\n", repoSpec)
-	}
-
-	// Parse repository specification (only org/repo part, ignore version)
-	repo, _, err := parseRepoSpec(repoSpec)
-	if err != nil {
-		return fmt.Errorf("invalid repository specification: %w", err)
-	}
-
-	// Get packages directory based on local flag
-	packagesDir, err := getPackagesDir(local)
-	if err != nil {
-		return fmt.Errorf("failed to determine packages directory: %w", err)
-	}
-
-	if verbose {
-		if local {
-			fmt.Printf("Uninstalling from local packages directory: %s\n", packagesDir)
-		} else {
-			fmt.Printf("Uninstalling from global packages directory: %s\n", packagesDir)
-		}
-	}
-
-	// Check if package exists
-	targetDir := filepath.Join(packagesDir, repo)
-
-	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		fmt.Printf("Package %s is not installed.\n", repo)
-		return nil
-	}
-
-	// Remove the package directory
-	if err := os.RemoveAll(targetDir); err != nil {
-		return fmt.Errorf("failed to remove package directory: %w", err)
-	}
-
-	fmt.Printf("Successfully uninstalled package: %s\n", repo)
-	return nil
-}
-
-// ListPackages lists all installed packages
-func ListPackages(local bool, verbose bool) error {
-	if verbose {
-		fmt.Printf("Listing installed packages...\n")
-	}
-
-	packagesDir, err := getPackagesDir(local)
-	if err != nil {
-		return fmt.Errorf("failed to determine packages directory: %w", err)
-	}
-
-	if verbose {
-		if local {
-			fmt.Printf("Looking in local packages directory: %s\n", packagesDir)
-		} else {
-			fmt.Printf("Looking in global packages directory: %s\n", packagesDir)
-		}
-	}
-
-	if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
-		if local {
-			fmt.Println("No local packages directory found.")
-		} else {
-			fmt.Println("No global packages directory found.")
-		}
-		fmt.Println("Use '" + constants.CLIExtensionPrefix + " install <org/repo>' to install packages.")
-		return nil
-	}
-
-	// Find all installed packages
-	packages, err := findInstalledPackages(packagesDir)
-	if err != nil {
-		return fmt.Errorf("failed to scan packages: %w", err)
-	}
-
-	if len(packages) == 0 {
-		fmt.Println("No packages installed.")
-		fmt.Println("Use '" + constants.CLIExtensionPrefix + " install <org/repo>' to install packages.")
-		return nil
-	}
-
-	for _, pkg := range packages {
-		count := len(pkg.Workflows)
-		if pkg.CommitSHA != "" {
-			// Truncate commit SHA to first 8 characters for display
-			shortSHA := pkg.CommitSHA
-			if len(shortSHA) > 8 {
-				shortSHA = shortSHA[:8]
-			}
-			if count == 1 {
-				fmt.Printf("%s@%s (%d agentic workflow)\n", pkg.Name, shortSHA, count)
-			} else {
-				fmt.Printf("%s@%s (%d agentic workflows)\n", pkg.Name, shortSHA, count)
-			}
-		} else {
-			if count == 1 {
-				fmt.Printf("%s (%d agentic workflow)\n", pkg.Name, count)
-			} else {
-				fmt.Printf("%s (%d agentic workflows)\n", pkg.Name, count)
-			}
-		}
-
-		if verbose {
-			fmt.Printf("  Location: %s\n", pkg.Path)
-			fmt.Printf("  Workflows:\n")
-			for _, workflow := range pkg.Workflows {
-				fmt.Printf("    - %s\n", workflow)
-			}
-			fmt.Println()
-		}
-	}
-
-	return nil
-}
-
-// Package represents an installed package
-type Package struct {
-	Name      string
-	Path      string
-	Workflows []string
-	CommitSHA string
-}
-
-// parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
-func parseRepoSpec(repoSpec string) (repo, version string, err error) {
-	parts := strings.SplitN(repoSpec, "@", 2)
-	repo = parts[0]
-
-	// Validate repository format (org/repo)
-	repoParts := strings.Split(repo, "/")
-	if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
-		return "", "", fmt.Errorf("repository must be in format 'org/repo'")
-	}
-
-	if len(parts) == 2 {
-		version = parts[1]
-	}
-
-	return repo, version, nil
-}
 
 // downloadWorkflows downloads all .md files from the workflows directory of a GitHub repository
-func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
-	if verbose {
-		fmt.Printf("Downloading workflows from %s/workflows...\n", repo)
-	}
 
-	// Create a temporary directory for cloning
-	tempDir, err := os.MkdirTemp("", "gh-aw-clone-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
 
-	// Prepare clone arguments
-	cloneArgs := []string{"repo", "clone", repo, tempDir}
-	if version != "" && version != "main" {
-		cloneArgs = append(cloneArgs, "--", "--branch", version)
-	}
-
-	if verbose {
-		fmt.Printf("Cloning repository: gh %s\n", strings.Join(cloneArgs, " "))
-	}
-
-	// Clone the repository
-	_, stdErr, err := gh.Exec(cloneArgs...)
-	if err != nil {
-		return fmt.Errorf("failed to clone repository: %w (stderr: %s)", err, stdErr.String())
-	}
-
-	// Get the current commit SHA from the cloned repository
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = tempDir
-	commitBytes, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to get commit SHA: %w", err)
-	}
-	commitSHA := strings.TrimSpace(string(commitBytes))
-
-	if verbose {
-		fmt.Printf("Repository commit SHA: %s\n", commitSHA)
-	}
-
-	// Check if workflows directory exists
-	workflowsDir := filepath.Join(tempDir, "workflows")
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("workflows directory not found in repository %s", repo)
-	}
-
-	// Copy all .md files from workflows directory to target
-	if err := copyMarkdownFiles(workflowsDir, targetDir, verbose); err != nil {
-		return err
-	}
-
-	// Store the commit SHA in a metadata file
-	metadataFile := filepath.Join(targetDir, ".aw-metadata")
-	metadataContent := fmt.Sprintf("commit_sha=%s\n", commitSHA)
-	if err := os.WriteFile(metadataFile, []byte(metadataContent), 0644); err != nil {
-		return fmt.Errorf("failed to write metadata file: %w", err)
-	}
-
-	if verbose {
-		fmt.Printf("Stored commit SHA in metadata file: %s\n", metadataFile)
-	}
-
-	return nil
-}
-
-// copyMarkdownFiles recursively copies markdown files from source to target directory
-func copyMarkdownFiles(sourceDir, targetDir string, verbose bool) error {
-	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip if not a markdown file
-		if info.IsDir() || !strings.HasSuffix(info.Name(), ".md") {
-			return nil
-		}
-
-		// Get relative path from source directory
-		relPath, err := filepath.Rel(sourceDir, path)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path: %w", err)
-		}
-
-		// Create target file path
-		targetFile := filepath.Join(targetDir, relPath)
-
-		// Create target directory if needed
-		targetFileDir := filepath.Dir(targetFile)
-		if err := os.MkdirAll(targetFileDir, 0755); err != nil {
-			return fmt.Errorf("failed to create target directory %s: %w", targetFileDir, err)
-		}
-
-		// Copy file
-		if verbose {
-			fmt.Printf("Copying: %s -> %s\n", relPath, targetFile)
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read source file %s: %w", path, err)
-		}
-
-		if err := os.WriteFile(targetFile, content, 0644); err != nil {
-			return fmt.Errorf("failed to write target file %s: %w", targetFile, err)
-		}
-
-		return nil
-	})
-}
-
-// findInstalledPackages finds all installed packages
-func findInstalledPackages(packagesDir string) ([]Package, error) {
-	var packages []Package
-
-	// Walk through the packages directory
-	err := filepath.Walk(packagesDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the root packages directory
-		if path == packagesDir {
-			return nil
-		}
-
-		// Look for org/repo directory structure
-		relPath, err := filepath.Rel(packagesDir, path)
-		if err != nil {
-			return err
-		}
-
-		parts := strings.Split(relPath, string(filepath.Separator))
-		if len(parts) == 2 && info.IsDir() {
-			// This is an org/repo directory
-			packageName := filepath.Join(parts[0], parts[1])
-
-			// Find workflows in this package
-			workflows, err := findWorkflowsInPackage(path)
-			if err != nil {
-				return err
-			}
-
-			// Read commit SHA from metadata file
-			commitSHA := readCommitSHAFromMetadata(path)
-
-			// Only add packages that have workflows or at least a commit SHA (indicating they were properly installed)
-			if len(workflows) > 0 || commitSHA != "" {
-				packages = append(packages, Package{
-					Name:      packageName,
-					Path:      path,
-					Workflows: workflows,
-					CommitSHA: commitSHA,
-				})
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Sort packages by name
-	sort.Slice(packages, func(i, j int) bool {
-		return packages[i].Name < packages[j].Name
-	})
-
-	return packages, nil
-}
-
-// findWorkflowsInPackage finds all workflow files in a package directory
-// Only includes files at the top level, excluding files in subdirectories (components)
-func findWorkflowsInPackage(packageDir string) ([]string, error) {
-	var workflows []string
-
-	err := filepath.Walk(packageDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, err := filepath.Rel(packageDir, path)
-			if err != nil {
-				return err
-			}
-
-			// Only include files at the top level (no subdirectories)
-			if !strings.Contains(relPath, string(filepath.Separator)) {
-				workflows = append(workflows, strings.TrimSuffix(relPath, ".md"))
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	sort.Strings(workflows)
-	return workflows, nil
-}
-
-// WorkflowSourceInfo contains information about where a workflow was found
-type WorkflowSourceInfo struct {
-	IsPackage          bool
-	PackagePath        string
-	QualifiedName      string
-	NeedsQualifiedName bool
-	SourcePath         string
-}
 
 // findAndReadWorkflow finds and reads a workflow from multiple sources
 func findAndReadWorkflow(workflowPath, workflowsDir string, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
@@ -2444,274 +2026,6 @@ func findAndReadWorkflow(workflowPath, workflowsDir string, verbose bool) ([]byt
 	return findWorkflowInPackages(workflowPath, verbose)
 }
 
-// findWorkflowInPackages searches for a workflow in installed packages
-func findWorkflowInPackages(workflowPath string, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
-	// Try both local and global packages
-	locations := []bool{true, false} // local first, then global
-
-	// Remove .md extension if present for searching
-	workflowName := strings.TrimSuffix(workflowPath, ".md")
-
-	for _, local := range locations {
-		packagesDir, err := getPackagesDir(local)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Failed to get packages directory (local=%v): %v\n", local, err)
-			}
-			continue
-		}
-
-		locationName := "global"
-		if local {
-			locationName = "local"
-		}
-
-		if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
-			if verbose {
-				fmt.Printf("No %s packages directory found at %s\n", locationName, packagesDir)
-			}
-			continue
-		}
-
-		if verbose {
-			fmt.Printf("Searching %s packages in %s for workflow: %s\n", locationName, packagesDir, workflowName)
-		}
-
-		// Check if workflow name contains org/repo prefix
-		if strings.Contains(workflowName, "/") {
-			// Fully qualified name: org/repo/workflow_name
-			content, sourceInfo, err := findQualifiedWorkflowInPackages(workflowName, packagesDir, verbose)
-			if err == nil {
-				return content, sourceInfo, nil
-			}
-			if verbose {
-				fmt.Printf("Qualified workflow not found in %s packages: %v\n", locationName, err)
-			}
-		} else {
-			// Simple name: workflow_name - search all packages
-			content, sourceInfo, err := findUnqualifiedWorkflowInPackages(workflowName, packagesDir, verbose)
-			if err == nil {
-				return content, sourceInfo, nil
-			}
-			if verbose {
-				fmt.Printf("Unqualified workflow not found in %s packages: %v\n", locationName, err)
-			}
-		}
-	}
-
-	return nil, nil, fmt.Errorf("workflow not found in components and no packages installed")
-}
-
-// checkPackageForUpdates checks if a package has updates available
-func checkPackageForUpdates(pkg Package, verbose bool) (bool, error) {
-	if pkg.CommitSHA == "" {
-		// No commit SHA stored, assume it needs update
-		return true, nil
-	}
-
-	// Get latest commit SHA from remote
-	latestSHA, err := getLatestCommitSHA(pkg.Name)
-	if err != nil {
-		return false, fmt.Errorf("failed to get latest commit for %s: %w", pkg.Name, err)
-	}
-
-	hasUpdate := latestSHA != pkg.CommitSHA
-	if verbose && hasUpdate {
-		shortCurrent := pkg.CommitSHA
-		if len(shortCurrent) > 8 {
-			shortCurrent = shortCurrent[:8]
-		}
-		shortLatest := latestSHA
-		if len(shortLatest) > 8 {
-			shortLatest = shortLatest[:8]
-		}
-		fmt.Printf("Package %s has updates: %s -> %s\n", pkg.Name, shortCurrent, shortLatest)
-	} else if verbose {
-		shortCurrent := pkg.CommitSHA
-		if len(shortCurrent) > 8 {
-			shortCurrent = shortCurrent[:8]
-		}
-		fmt.Printf("Package %s is up to date: %s\n", pkg.Name, shortCurrent)
-	}
-
-	return hasUpdate, nil
-}
-
-// getLatestCommitSHA gets the latest commit SHA for a repository
-func getLatestCommitSHA(repo string) (string, error) {
-	// Use GitHub CLI to get the latest commit
-	cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/commits/HEAD", repo), "--jq", ".sha")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get latest commit: %w", err)
-	}
-
-	return strings.TrimSpace(string(output)), nil
-}
-
-// filterPackagesByWorkflow filters packages to only those containing the specified workflow
-func filterPackagesByWorkflow(packages []Package, workflowName string) []Package {
-	var filtered []Package
-	for _, pkg := range packages {
-		for _, workflow := range pkg.Workflows {
-			if workflow == workflowName {
-				filtered = append(filtered, pkg)
-				break
-			}
-		}
-	}
-	return filtered
-}
-
-// isLocalPackage determines if a package is installed locally based on its path
-func isLocalPackage(packagePath string) bool {
-	return strings.Contains(packagePath, ".aw/packages") && !strings.Contains(packagePath, filepath.Join(os.Getenv("HOME"), ".aw/packages"))
-}
-
-// findInstalledWorkflowsFromPackage finds workflow files in the workflows directory that came from this package
-func findInstalledWorkflowsFromPackage(pkg Package, workflowsDir string, workflowFilter string) ([]string, error) {
-	var installedWorkflows []string
-
-	// Look for markdown files in the workflows directory that match package workflows
-	for _, workflowName := range pkg.Workflows {
-		// Skip if workflow filter is specified and doesn't match
-		if workflowFilter != "" && workflowName != workflowFilter {
-			continue
-		}
-
-		workflowFile := filepath.Join(workflowsDir, workflowName+".md")
-		if _, err := os.Stat(workflowFile); err == nil {
-			installedWorkflows = append(installedWorkflows, workflowFile)
-		}
-	}
-
-	return installedWorkflows, nil
-}
-
-// findQualifiedWorkflowInPackages finds a workflow using fully qualified name
-func findQualifiedWorkflowInPackages(qualifiedName, packagesDir string, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
-	parts := strings.Split(qualifiedName, "/")
-	if len(parts) < 3 {
-		return nil, nil, fmt.Errorf("qualified workflow name must be in format 'org/repo/workflow_name'")
-	}
-
-	org := parts[0]
-	repo := parts[1]
-	workflowName := strings.Join(parts[2:], "/") // Support nested workflows
-
-	packagePath := filepath.Join(packagesDir, org, repo)
-	workflowFile := filepath.Join(packagePath, workflowName+".md")
-
-	if verbose {
-		fmt.Printf("Looking for qualified workflow: %s\n", workflowFile)
-	}
-
-	content, err := os.ReadFile(workflowFile)
-	if err != nil {
-		return nil, nil, fmt.Errorf("workflow '%s' not found in package '%s/%s'", workflowName, org, repo)
-	}
-
-	// Check if there would be a conflict with existing workflows in .github/workflows
-	simpleFilename := workflowName
-	if strings.Contains(workflowName, "/") {
-		// For nested workflows, use just the last part as the simple name
-		parts := strings.Split(workflowName, "/")
-		simpleFilename = parts[len(parts)-1]
-	}
-
-	return content, &WorkflowSourceInfo{
-		IsPackage:          true,
-		PackagePath:        packagePath,
-		QualifiedName:      simpleFilename,
-		NeedsQualifiedName: false,
-		SourcePath:         workflowFile,
-	}, nil
-}
-
-// findUnqualifiedWorkflowInPackages finds a workflow by name across all packages
-func findUnqualifiedWorkflowInPackages(workflowName, packagesDir string, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
-	var matches []WorkflowMatch
-
-	// Search all packages for workflows with this name
-	err := filepath.Walk(packagesDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			// Check if this is the workflow we're looking for
-			baseName := strings.TrimSuffix(info.Name(), ".md")
-			if baseName == workflowName {
-				// Get package info from path
-				relPath, err := filepath.Rel(packagesDir, path)
-				if err != nil {
-					return err
-				}
-
-				pathParts := strings.Split(filepath.Dir(relPath), string(filepath.Separator))
-				if len(pathParts) >= 2 {
-					org := pathParts[0]
-					repo := pathParts[1]
-					matches = append(matches, WorkflowMatch{
-						Path:        path,
-						PackageName: fmt.Sprintf("%s/%s", org, repo),
-						Org:         org,
-						Repo:        repo,
-					})
-				}
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, nil, fmt.Errorf("error searching packages: %w", err)
-	}
-
-	if len(matches) == 0 {
-		return nil, nil, fmt.Errorf("workflow '%s' not found in any package", workflowName)
-	}
-
-	if len(matches) == 1 {
-		// Single match, use it
-		match := matches[0]
-		content, err := os.ReadFile(match.Path)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to read workflow file: %w", err)
-		}
-
-		if verbose {
-			fmt.Printf("Found workflow '%s' in package '%s'\n", workflowName, match.PackageName)
-		}
-
-		return content, &WorkflowSourceInfo{
-			IsPackage:          true,
-			PackagePath:        filepath.Dir(match.Path),
-			QualifiedName:      workflowName,
-			NeedsQualifiedName: false,
-			SourcePath:         match.Path,
-		}, nil
-	}
-
-	// Multiple matches - require disambiguation
-	fmt.Printf("Multiple workflows named '%s' found:\n", workflowName)
-	for _, match := range matches {
-		fmt.Printf("  - %s/%s\n", match.PackageName, workflowName)
-	}
-	fmt.Printf("\nPlease specify the full path: "+constants.CLIExtensionPrefix+" add <org/repo/%s>\n", workflowName)
-	fmt.Printf("Or use a different name: "+constants.CLIExtensionPrefix+" add %s -n <custom-name>\n", workflowName)
-
-	return nil, nil, fmt.Errorf("ambiguous workflow name - specify full path or use -n flag for custom name")
-}
-
-// WorkflowMatch represents a workflow match in package search
-type WorkflowMatch struct {
-	Path        string
-	PackageName string
-	Org         string
-	Repo        string
-}
-
 // collectIncludeDependenciesFromSource collects include dependencies based on source type
 func collectIncludeDependenciesFromSource(content string, sourceInfo *WorkflowSourceInfo, verbose bool) ([]IncludeDependency, error) {
 	if sourceInfo.IsPackage {
@@ -2724,91 +2038,6 @@ func collectIncludeDependenciesFromSource(content string, sourceInfo *WorkflowSo
 	return collectIncludeDependencies(content, sourceInfo.SourcePath, workflowsDir)
 }
 
-// collectPackageIncludeDependencies collects dependencies for package-based workflows
-func collectPackageIncludeDependencies(content, packagePath string, verbose bool) ([]IncludeDependency, error) {
-	var dependencies []IncludeDependency
-	seen := make(map[string]bool)
-
-	if verbose {
-		fmt.Printf("Collecting package dependencies from: %s\n", packagePath)
-	}
-
-	err := collectPackageIncludesRecursive(content, packagePath, &dependencies, seen, verbose)
-	return dependencies, err
-}
-
-// collectPackageIncludesRecursive recursively processes @include directives in package content
-func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]IncludeDependency, seen map[string]bool, verbose bool) error {
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
-
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
-
-			// Handle section references (file.md#Section)
-			var filePath string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-			} else {
-				filePath = includePath
-			}
-
-			// Resolve the full source path relative to base directory
-			fullSourcePath := filepath.Join(baseDir, filePath)
-
-			// Skip if we've already processed this file
-			if seen[fullSourcePath] {
-				continue
-			}
-			seen[fullSourcePath] = true
-
-			// Add dependency
-			dep := IncludeDependency{
-				SourcePath: fullSourcePath,
-				TargetPath: filePath, // Keep relative path for target
-				IsOptional: isOptional,
-			}
-			*dependencies = append(*dependencies, dep)
-
-			if verbose {
-				fmt.Printf("Found include dependency: %s -> %s\n", fullSourcePath, filePath)
-			}
-
-			// Read the included file and process its includes recursively
-			includedContent, err := os.ReadFile(fullSourcePath)
-			if err != nil {
-				if verbose {
-					fmt.Printf("Warning: Could not read include file %s: %v\n", fullSourcePath, err)
-				}
-				continue
-			}
-
-			// Extract markdown content from the included file
-			markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
-			if err != nil {
-				if verbose {
-					fmt.Printf("Warning: Could not extract markdown from %s: %v\n", fullSourcePath, err)
-				}
-				continue
-			}
-
-			// Recursively process includes in the included file
-			includedDir := filepath.Dir(fullSourcePath)
-			if err := collectPackageIncludesRecursive(markdownContent, includedDir, dependencies, seen, verbose); err != nil {
-				if verbose {
-					fmt.Printf("Warning: Error processing includes in %s: %v\n", fullSourcePath, err)
-				}
-			}
-		}
-	}
-
-	return scanner.Err()
-}
-
 // copyIncludeDependenciesFromSourceWithForce copies dependencies based on source type with force option
 func copyIncludeDependenciesFromSourceWithForce(dependencies []IncludeDependency, githubWorkflowsDir string, sourceInfo *WorkflowSourceInfo, verbose bool, force bool, tracker *FileTracker) error {
 	if sourceInfo.IsPackage {
@@ -2816,619 +2045,6 @@ func copyIncludeDependenciesFromSourceWithForce(dependencies []IncludeDependency
 		return copyIncludeDependenciesFromPackageWithForce(dependencies, githubWorkflowsDir, verbose, force, tracker)
 	}
 	return copyIncludeDependenciesWithForce(dependencies, githubWorkflowsDir, force)
-}
-
-// copyIncludeDependenciesFromPackageWithForce copies include dependencies from package filesystem with force option
-func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependency, githubWorkflowsDir string, verbose bool, force bool, tracker *FileTracker) error {
-	for _, dep := range dependencies {
-		// Create the target path in .github/workflows
-		targetPath := filepath.Join(githubWorkflowsDir, dep.TargetPath)
-
-		// Create target directory if it doesn't exist
-		targetDir := filepath.Dir(targetPath)
-		if err := os.MkdirAll(targetDir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", targetDir, err)
-		}
-
-		// Read source content from package
-		sourceContent, err := os.ReadFile(dep.SourcePath)
-		if err != nil {
-			if dep.IsOptional {
-				// For optional includes, just show an informational message and skip
-				if verbose {
-					fmt.Printf("Optional include file not found: %s (you can create this file to configure the workflow)\n", dep.TargetPath)
-				}
-				continue
-			}
-			fmt.Printf("Warning: Failed to read include file %s: %v\n", dep.SourcePath, err)
-			continue
-		}
-
-		// Check if target file already exists
-		fileExists := false
-		if existingContent, err := os.ReadFile(targetPath); err == nil {
-			fileExists = true
-			// File exists, compare contents
-			if string(existingContent) == string(sourceContent) {
-				// Contents are the same, skip
-				if verbose {
-					fmt.Printf("Include file %s already exists with same content, skipping\n", dep.TargetPath)
-				}
-				continue
-			}
-
-			// Contents are different
-			if !force {
-				fmt.Printf("Include file %s already exists with different content, skipping (use --force to overwrite)\n", dep.TargetPath)
-				continue
-			}
-
-			// Force is enabled, overwrite
-			fmt.Printf("Overwriting existing include file: %s\n", dep.TargetPath)
-		}
-
-		// Track the file based on whether it existed before (if tracker is available)
-		if tracker != nil {
-			if fileExists {
-				tracker.TrackModified(targetPath)
-			} else {
-				tracker.TrackCreated(targetPath)
-			}
-		}
-
-		// Write to target
-		if err := os.WriteFile(targetPath, sourceContent, 0644); err != nil {
-			return fmt.Errorf("failed to write include file %s: %w", targetPath, err)
-		}
-
-		if verbose {
-			fmt.Printf("Copied include file: %s -> %s\n", dep.SourcePath, targetPath)
-		}
-	}
-
-	return nil
-}
-
-// cleanupOrphanedIncludes removes include files that are no longer used by any workflow
-func cleanupOrphanedIncludes(verbose bool) error {
-	// Get all remaining markdown files
-	mdFiles, err := getMarkdownWorkflowFiles()
-	if err != nil {
-		// No markdown files means we can clean up all includes
-		if verbose {
-			fmt.Printf("No markdown files found, cleaning up all includes\n")
-		}
-		return cleanupAllIncludes(verbose)
-	}
-
-	// Collect all include dependencies from remaining workflows
-	usedIncludes := make(map[string]bool)
-
-	for _, mdFile := range mdFiles {
-		content, err := os.ReadFile(mdFile)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Could not read %s for include analysis: %v\n", mdFile, err)
-			}
-			continue
-		}
-
-		// Find includes used by this workflow
-		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Could not analyze includes in %s: %v\n", mdFile, err)
-			}
-			continue
-		}
-
-		for _, include := range includes {
-			usedIncludes[include] = true
-		}
-	}
-
-	// Find all include files in .github/workflows
-	// Only consider files in subdirectories (like shared/) as potential include files
-	// Root-level .md files are workflow files, not include files
-	workflowsDir := ".github/workflows"
-	var allIncludes []string
-
-	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, err := filepath.Rel(workflowsDir, path)
-			if err != nil {
-				return err
-			}
-
-			// Only consider files in subdirectories as potential include files
-			// Root-level .md files are workflow files, not include files
-			if strings.Contains(relPath, string(filepath.Separator)) {
-				allIncludes = append(allIncludes, relPath)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to scan include files: %w", err)
-	}
-
-	// Remove unused includes
-	for _, include := range allIncludes {
-		if !usedIncludes[include] {
-			includePath := filepath.Join(workflowsDir, include)
-			if err := os.Remove(includePath); err != nil {
-				if verbose {
-					fmt.Printf("Warning: Failed to remove orphaned include %s: %v\n", include, err)
-				}
-			} else {
-				fmt.Printf("Removed orphaned include: %s\n", include)
-			}
-		}
-	}
-
-	return nil
-}
-
-// previewOrphanedIncludes returns a list of include files that would become orphaned if the specified files were removed
-func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, error) {
-	// Get all current markdown files
-	allMdFiles, err := getMarkdownWorkflowFiles()
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a map of files to remove for quick lookup
-	removeMap := make(map[string]bool)
-	for _, file := range filesToRemove {
-		removeMap[file] = true
-	}
-
-	// Get the files that would remain after removal
-	var remainingFiles []string
-	for _, file := range allMdFiles {
-		if !removeMap[file] {
-			remainingFiles = append(remainingFiles, file)
-		}
-	}
-
-	// If no files remain, all include files would be orphaned
-	if len(remainingFiles) == 0 {
-		return getAllIncludeFiles()
-	}
-
-	// Collect all include dependencies from remaining workflows
-	usedIncludes := make(map[string]bool)
-
-	for _, mdFile := range remainingFiles {
-		content, err := os.ReadFile(mdFile)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Could not read %s for include analysis: %v\n", mdFile, err)
-			}
-			continue
-		}
-
-		// Find includes used by this workflow
-		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Could not analyze includes in %s: %v\n", mdFile, err)
-			}
-			continue
-		}
-
-		for _, include := range includes {
-			usedIncludes[include] = true
-		}
-	}
-
-	// Find all include files and check which ones would be orphaned
-	allIncludes, err := getAllIncludeFiles()
-	if err != nil {
-		return nil, err
-	}
-
-	var orphanedIncludes []string
-	for _, include := range allIncludes {
-		if !usedIncludes[include] {
-			orphanedIncludes = append(orphanedIncludes, include)
-		}
-	}
-
-	return orphanedIncludes, nil
-}
-
-// getAllIncludeFiles returns all include files in .github/workflows subdirectories
-func getAllIncludeFiles() ([]string, error) {
-	workflowsDir := ".github/workflows"
-	var allIncludes []string
-
-	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, err := filepath.Rel(workflowsDir, path)
-			if err != nil {
-				return err
-			}
-
-			// Only consider files in subdirectories as potential include files
-			// Root-level .md files are workflow files, not include files
-			if strings.Contains(relPath, string(filepath.Separator)) {
-				allIncludes = append(allIncludes, relPath)
-			}
-		}
-
-		return nil
-	})
-
-	return allIncludes, err
-}
-
-// cleanupAllIncludes removes all include files when no workflows remain
-func cleanupAllIncludes(verbose bool) error {
-	workflowsDir := ".github/workflows"
-
-	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, _ := filepath.Rel(workflowsDir, path)
-
-			// Only remove files in subdirectories (like shared/) as these are include files
-			// Root-level .md files are workflow files, not include files
-			if strings.Contains(relPath, string(filepath.Separator)) {
-				if err := os.Remove(path); err != nil {
-					if verbose {
-						fmt.Printf("Warning: Failed to remove include %s: %v\n", relPath, err)
-					}
-				} else {
-					fmt.Printf("Removed include: %s\n", relPath)
-				}
-			}
-		}
-
-		return nil
-	})
-
-	return err
-}
-
-// findIncludesInContent finds all @include references in content
-func findIncludesInContent(content, baseDir string, verbose bool) ([]string, error) {
-	_ = baseDir // unused parameter for now, keeping for potential future use
-	_ = verbose // unused parameter for now, keeping for potential future use
-	var includes []string
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
-
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
-			includePath := strings.TrimSpace(matches[2])
-
-			// Handle section references (file.md#Section)
-			var filePath string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-			} else {
-				filePath = includePath
-			}
-
-			includes = append(includes, filePath)
-		}
-	}
-
-	return includes, scanner.Err()
-}
-
-// listPackageWorkflows lists workflows from installed packages
-func listPackageWorkflows(verbose bool) error {
-	// Check both local and global packages
-	locations := []bool{true, false} // local first, then global
-	var allPackages []Package
-
-	for _, local := range locations {
-		packagesDir, err := getPackagesDir(local)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Failed to get packages directory (local=%v): %v\n", local, err)
-			}
-			continue
-		}
-
-		locationName := "global"
-		if local {
-			locationName = "local"
-		}
-
-		if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
-			if verbose {
-				fmt.Printf("No %s packages directory found at %s\n", locationName, packagesDir)
-			}
-			continue
-		}
-
-		if verbose {
-			fmt.Printf("Searching for workflows in %s packages...\n", locationName)
-		}
-
-		// Find all installed packages
-		packages, err := findInstalledPackages(packagesDir)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Failed to scan %s packages: %v\n", locationName, err)
-			}
-			continue
-		}
-
-		// Mark packages with their location
-		for i := range packages {
-			if local {
-				packages[i].Name = packages[i].Name + ", local"
-			} else {
-				packages[i].Name = packages[i].Name + ", global"
-			}
-		}
-
-		allPackages = append(allPackages, packages...)
-	}
-
-	if len(allPackages) == 0 {
-		fmt.Println("No workflows or packages found.")
-		fmt.Println("Use '" + constants.CLIExtensionPrefix + " install <org/repo>' to install packages.")
-		return nil
-	}
-
-	fmt.Println("Available workflows from packages:")
-	fmt.Println("==================================")
-
-	for _, pkg := range allPackages {
-		if verbose {
-			fmt.Printf("Package: %s\n", pkg.Name)
-		}
-
-		for _, workflow := range pkg.Workflows {
-			// Read the workflow file to get its title
-			workflowFile := filepath.Join(pkg.Path, workflow+".md")
-			workflowName, err := extractWorkflowNameFromFile(workflowFile)
-			if err != nil || workflowName == "" {
-				fmt.Printf("  %-30s (from %s)\n", workflow, pkg.Name)
-			} else {
-				fmt.Printf("  %-30s - %s (from %s)\n", workflow, workflowName, pkg.Name)
-			}
-		}
-	}
-
-	fmt.Println()
-	fmt.Println("Usage:")
-	fmt.Println("  " + constants.CLIExtensionPrefix + " add <workflow>      - Add workflow from any package")
-	fmt.Println("  " + constants.CLIExtensionPrefix + " add <workflow> -n <name> - Add workflow with specific name")
-	fmt.Println("  " + constants.CLIExtensionPrefix + " list --packages     - List installed packages")
-
-	return nil
-}
-
-// readCommitSHAFromMetadata reads the commit SHA from the package metadata file
-func readCommitSHAFromMetadata(packagePath string) string {
-	metadataFile := filepath.Join(packagePath, ".aw-metadata")
-	content, err := os.ReadFile(metadataFile)
-	if err != nil {
-		return "" // No metadata file or error reading it
-	}
-
-	// Parse the metadata file for commit_sha=<value>
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if commitSHA, found := strings.CutPrefix(line, "commit_sha="); found {
-			return commitSHA
-		}
-	}
-
-	return "" // commit_sha not found in metadata
-}
-
-// UpdateWorkflows updates workflows from installed packages
-func UpdateWorkflows(workflowName string, staged bool, verbose bool, workflowDir string) error {
-	if verbose {
-		if workflowName != "" {
-			fmt.Printf("Updating workflow: %s\n", workflowName)
-		} else {
-			fmt.Printf("Updating all workflows from packages\n")
-		}
-		if staged {
-			fmt.Printf("Running in staged mode - showing what would be updated without applying changes\n")
-		}
-	}
-
-	// Validate and set default for workflow directory
-	if workflowDir == "" {
-		workflowDir = ".github/workflows"
-	} else {
-		// Ensure the path is relative
-		if filepath.IsAbs(workflowDir) {
-			return fmt.Errorf("workflow-dir must be a relative path, got: %s", workflowDir)
-		}
-		// Clean the path to avoid issues with ".." or other problematic elements
-		workflowDir = filepath.Clean(workflowDir)
-	}
-
-	// Find git root for consistent behavior
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return fmt.Errorf("update command requires being in a git repository: %w", err)
-	}
-
-	workflowsDir := filepath.Join(gitRoot, workflowDir)
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
-	}
-
-	// Check both local and global packages
-	locations := []bool{true, false} // local first, then global
-	var allPackages []Package
-	var updatedPackages []Package
-
-	for _, local := range locations {
-		packagesDir, err := getPackagesDir(local)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Failed to get packages directory (local=%v): %v\n", local, err)
-			}
-			continue
-		}
-
-		locationName := "global"
-		if local {
-			locationName = "local"
-		}
-
-		if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
-			if verbose {
-				fmt.Printf("No %s packages directory found at %s\n", locationName, packagesDir)
-			}
-			continue
-		}
-
-		if verbose {
-			fmt.Printf("Checking %s packages for updates...\n", locationName)
-		}
-
-		// Find all installed packages
-		packages, err := findInstalledPackages(packagesDir)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Failed to scan %s packages: %v\n", locationName, err)
-			}
-			continue
-		}
-
-		allPackages = append(allPackages, packages...)
-
-		// Check each package for updates
-		for _, pkg := range packages {
-			hasUpdate, err := checkPackageForUpdates(pkg, verbose)
-			if err != nil {
-				if verbose {
-					fmt.Printf("Warning: Failed to check updates for package %s: %v\n", pkg.Name, err)
-				}
-				continue
-			}
-			if hasUpdate {
-				updatedPackages = append(updatedPackages, pkg)
-			}
-		}
-	}
-
-	if len(allPackages) == 0 {
-		fmt.Println("No packages installed. Use '" + constants.CLIExtensionPrefix + " install <org/repo>' to install packages.")
-		return nil
-	}
-
-	if len(updatedPackages) == 0 {
-		fmt.Println("All packages are up to date.")
-		return nil
-	}
-
-	// Filter packages by workflow if specified
-	if workflowName != "" {
-		filteredPackages := filterPackagesByWorkflow(updatedPackages, workflowName)
-		if len(filteredPackages) == 0 {
-			fmt.Printf("No packages contain workflow '%s' or no updates available for that workflow.\n", workflowName)
-			return nil
-		}
-		updatedPackages = filteredPackages
-	}
-
-	if staged {
-		// Show what would be updated
-		fmt.Printf("The following packages would be updated:\n")
-		for _, pkg := range updatedPackages {
-			fmt.Printf("  - %s\n", pkg.Name)
-			if verbose {
-				shortCurrent := pkg.CommitSHA
-				if len(shortCurrent) > 8 {
-					shortCurrent = shortCurrent[:8]
-				} else if shortCurrent == "" {
-					shortCurrent = "unknown"
-				}
-				fmt.Printf("    Current: %s\n", shortCurrent)
-				if latestSHA, err := getLatestCommitSHA(pkg.Name); err == nil {
-					shortLatest := latestSHA
-					if len(shortLatest) > 8 {
-						shortLatest = shortLatest[:8]
-					}
-					fmt.Printf("    Latest:  %s\n", shortLatest)
-				}
-			}
-		}
-		fmt.Printf("\nRun without --staged to apply these updates.\n")
-		return nil
-	}
-
-	// Perform the updates
-	fmt.Printf("Updating %d package(s)...\n", len(updatedPackages))
-
-	var recompiledWorkflows []string
-
-	for i, pkg := range updatedPackages {
-		fmt.Printf("Updating package %d/%d: %s\n", i+1, len(updatedPackages), pkg.Name)
-
-		// Re-install the package to get latest version
-		if err := InstallPackage(pkg.Name, isLocalPackage(pkg.Path), verbose); err != nil {
-			fmt.Printf("Warning: Failed to update package %s: %v\n", pkg.Name, err)
-			continue
-		}
-
-		// Find workflows from this package that are installed in the workflow directory
-		installedWorkflows, err := findInstalledWorkflowsFromPackage(pkg, workflowsDir, workflowName)
-		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Failed to find installed workflows from package %s: %v\n", pkg.Name, err)
-			}
-			continue
-		}
-
-		// Track which workflows we need to recompile
-		recompiledWorkflows = append(recompiledWorkflows, installedWorkflows...)
-
-		fmt.Printf("Updated package: %s\n", pkg.Name)
-	}
-
-	// Recompile affected workflows
-	if len(recompiledWorkflows) > 0 {
-		fmt.Printf("\nRecompiling %d affected workflow(s)...\n", len(recompiledWorkflows))
-
-		// Create compiler
-		compiler := workflow.NewCompiler(verbose, "", GetVersion())
-		compiler.SetSkipValidation(false) // Enable validation for updates
-
-		for _, workflowFile := range recompiledWorkflows {
-			if verbose {
-				fmt.Printf("Recompiling: %s\n", workflowFile)
-			}
-			if err := CompileWorkflowWithValidation(compiler, workflowFile, verbose); err != nil {
-				fmt.Printf("Warning: Failed to recompile workflow %s: %v\n", workflowFile, err)
-			}
-		}
-
-		fmt.Printf("Successfully recompiled %d workflow(s)\n", len(recompiledWorkflows))
-	}
-
-	fmt.Printf("Update completed successfully!\n")
-	return nil
 }
 
 // resolveWorkflowFile resolves a file or workflow name to an actual file path
@@ -4153,4 +2769,243 @@ Be clear and specific about what the AI should accomplish.
 - Run ` + "`" + constants.CLIExtensionPrefix + " compile`" + ` to generate the GitHub Actions workflow
 - See https://github.com/githubnext/gh-aw/blob/main/docs/index.md for complete configuration options and tools documentation
 `
+}
+
+// previewOrphanedIncludes shows what include files would be orphaned if specific files are removed
+func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, error) {
+	// Get all current markdown files
+	allMdFiles, err := getMarkdownWorkflowFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a map of files to remove for quick lookup
+	removeMap := make(map[string]bool)
+	for _, file := range filesToRemove {
+		removeMap[file] = true
+	}
+
+	// Get the files that would remain after removal
+	var remainingFiles []string
+	for _, file := range allMdFiles {
+		if !removeMap[file] {
+			remainingFiles = append(remainingFiles, file)
+		}
+	}
+
+	// If no files remain, all include files would be orphaned
+	if len(remainingFiles) == 0 {
+		return getAllIncludeFiles()
+	}
+
+	// Collect all include dependencies from remaining workflows
+	usedIncludes := make(map[string]bool)
+
+	for _, mdFile := range remainingFiles {
+		content, err := os.ReadFile(mdFile)
+		if err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not read %s for include analysis: %v\n", mdFile, err)
+			}
+			continue
+		}
+
+		// Find includes used by this workflow
+		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
+		if err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not analyze includes in %s: %v\n", mdFile, err)
+			}
+			continue
+		}
+
+		for _, include := range includes {
+			usedIncludes[include] = true
+		}
+	}
+
+	// Find all include files and check which ones would be orphaned
+	allIncludes, err := getAllIncludeFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	var orphanedIncludes []string
+	for _, include := range allIncludes {
+		if !usedIncludes[include] {
+			orphanedIncludes = append(orphanedIncludes, include)
+		}
+	}
+
+	return orphanedIncludes, nil
+}
+
+// cleanupOrphanedIncludes removes include files that are no longer used by any workflow
+func cleanupOrphanedIncludes(verbose bool) error {
+	// Get all remaining markdown files
+	mdFiles, err := getMarkdownWorkflowFiles()
+	if err != nil {
+		// No markdown files means we can clean up all includes
+		if verbose {
+			fmt.Printf("No markdown files found, cleaning up all includes\n")
+		}
+		return cleanupAllIncludes(verbose)
+	}
+
+	// Collect all include dependencies from remaining workflows
+	usedIncludes := make(map[string]bool)
+
+	for _, mdFile := range mdFiles {
+		content, err := os.ReadFile(mdFile)
+		if err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not read %s for include analysis: %v\n", mdFile, err)
+			}
+			continue
+		}
+
+		// Find includes used by this workflow
+		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
+		if err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not analyze includes in %s: %v\n", mdFile, err)
+			}
+			continue
+		}
+
+		for _, include := range includes {
+			usedIncludes[include] = true
+		}
+	}
+
+	// Find all include files in .github/workflows
+	// Only consider files in subdirectories (like shared/) as potential include files
+	// Root-level .md files are workflow files, not include files
+	workflowsDir := ".github/workflows"
+	var allIncludes []string
+
+	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
+			relPath, err := filepath.Rel(workflowsDir, path)
+			if err != nil {
+				return err
+			}
+
+			// Only consider files in subdirectories as potential include files
+			// Root-level .md files are workflow files, not include files
+			if strings.Contains(relPath, string(filepath.Separator)) {
+				allIncludes = append(allIncludes, relPath)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to scan include files: %w", err)
+	}
+
+	// Remove unused includes
+	for _, include := range allIncludes {
+		if !usedIncludes[include] {
+			includePath := filepath.Join(workflowsDir, include)
+			if err := os.Remove(includePath); err != nil {
+				if verbose {
+					fmt.Printf("Warning: Failed to remove orphaned include %s: %v\n", include, err)
+				}
+			} else {
+				fmt.Printf("Removed orphaned include: %s\n", include)
+			}
+		}
+	}
+
+	return nil
+}
+
+// getAllIncludeFiles gets all include files from .github/workflows subdirectories
+func getAllIncludeFiles() ([]string, error) {
+	workflowsDir := ".github/workflows"
+	var includeFiles []string
+
+	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
+			relPath, err := filepath.Rel(workflowsDir, path)
+			if err != nil {
+				return err
+			}
+
+			// Only consider files in subdirectories as potential include files
+			if strings.Contains(relPath, string(filepath.Separator)) {
+				includeFiles = append(includeFiles, relPath)
+			}
+		}
+
+		return nil
+	})
+
+	return includeFiles, err
+}
+
+// cleanupAllIncludes removes all include files
+func cleanupAllIncludes(verbose bool) error {
+	allIncludes, err := getAllIncludeFiles()
+	if err != nil {
+		return err
+	}
+
+	workflowsDir := ".github/workflows"
+	for _, include := range allIncludes {
+		includePath := filepath.Join(workflowsDir, include)
+		if err := os.Remove(includePath); err != nil {
+			if verbose {
+				fmt.Printf("Warning: Failed to remove include %s: %v\n", include, err)
+			}
+		} else {
+			fmt.Printf("Removed include: %s\n", include)
+		}
+	}
+
+	return nil
+}
+
+// findIncludesInContent extracts include dependencies from workflow content
+func findIncludesInContent(content, baseDir string, verbose bool) ([]string, error) {
+	var includes []string
+	
+	workflowsDir := ".github/workflows"
+	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
+	
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+			includePath := strings.TrimSpace(matches[2])
+			
+			// Handle section references (file.md#Section)
+			var filePath string
+			if strings.Contains(includePath, "#") {
+				parts := strings.SplitN(includePath, "#", 2)
+				filePath = parts[0]
+			} else {
+				filePath = includePath
+			}
+			
+			// Convert to relative path from .github/workflows
+			fullPath := filepath.Join(baseDir, filePath)
+			relPath, err := filepath.Rel(workflowsDir, fullPath)
+			if err == nil {
+				includes = append(includes, relPath)
+			}
+		}
+	}
+	
+	return includes, scanner.Err()
 }
