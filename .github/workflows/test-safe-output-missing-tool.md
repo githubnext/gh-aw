@@ -1,9 +1,6 @@
 ---
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["*"]
-    types: [completed]
 
 safe-outputs:
   missing-tool:
