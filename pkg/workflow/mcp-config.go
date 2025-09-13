@@ -8,6 +8,14 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
+// MCPConfigData contains configuration data for MCP server generation
+type MCPConfigData struct {
+	SafeOutputsConfig  map[string]any            `json:"safeOutputsConfig,omitempty"`
+	GitHubConfig       map[string]any            `json:"githubConfig,omitempty"`
+	PlaywrightConfig   map[string]any            `json:"playwrightConfig,omitempty"`
+	CustomToolsConfig  map[string]map[string]any `json:"customToolsConfig,omitempty"`
+}
+
 // MCPConfigRenderer contains configuration options for rendering MCP config
 type MCPConfigRenderer struct {
 	// IndentLevel controls the indentation level for properties (e.g., "                " for JSON, "          " for TOML)

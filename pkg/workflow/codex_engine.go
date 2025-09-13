@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -170,46 +171,144 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
+	// Prepare configuration data for JavaScript script
+	mcpConfigData := e.prepareMCPConfigData(tools, mcpTools, workflowData)
+	
+	// Set environment variables for the JavaScript script
+	yaml.WriteString("          export MCP_CONFIG_FORMAT=toml\n")
+	
+	// Add safe-outputs configuration if enabled
+	if mcpConfigData.SafeOutputsConfig != nil {
+		configJSON, _ := json.Marshal(mcpConfigData.SafeOutputsConfig)
+		yaml.WriteString(fmt.Sprintf("          export MCP_SAFE_OUTPUTS_CONFIG='%s'\n", string(configJSON)))
+	}
+	
+	// Add GitHub configuration if present
+	if mcpConfigData.GitHubConfig != nil {
+		configJSON, _ := json.Marshal(mcpConfigData.GitHubConfig)
+		yaml.WriteString(fmt.Sprintf("          export MCP_GITHUB_CONFIG='%s'\n", string(configJSON)))
+	}
+	
+	// Add Playwright configuration if present
+	if mcpConfigData.PlaywrightConfig != nil {
+		configJSON, _ := json.Marshal(mcpConfigData.PlaywrightConfig)
+		yaml.WriteString(fmt.Sprintf("          export MCP_PLAYWRIGHT_CONFIG='%s'\n", string(configJSON)))
+	}
+	
+	// Add custom tools configuration if present
+	if len(mcpConfigData.CustomToolsConfig) > 0 {
+		configJSON, _ := json.Marshal(mcpConfigData.CustomToolsConfig)
+		yaml.WriteString(fmt.Sprintf("          export MCP_CUSTOM_TOOLS_CONFIG='%s'\n", string(configJSON)))
+	}
+	
+	// Create temporary file with the JavaScript script
+	yaml.WriteString("          cat > /tmp/generate-mcp-config.cjs << 'EOF'\n")
+	
+	// Write the JavaScript script
+	scriptLines := strings.Split(GetGenerateMCPConfigScript(), "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) != "" {
+			yaml.WriteString(fmt.Sprintf("          %s\n", line))
+		}
+	}
+	yaml.WriteString("          EOF\n")
+	
+	// Execute the JavaScript script
+	yaml.WriteString("          node /tmp/generate-mcp-config.cjs\n")
+}
 
-	// Add history configuration to disable persistence
-	yaml.WriteString("          [history]\n")
-	yaml.WriteString("          persistence = \"none\"\n")
-
-	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
-	if hasSafeOutputs {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
-		yaml.WriteString("          command = \"node\"\n")
-		yaml.WriteString("          args = [\n")
-		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
-		yaml.WriteString("          ]\n")
-		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}\" }\n")
+// prepareMCPConfigData prepares configuration data for the JavaScript MCP config generator
+func (e *CodexEngine) prepareMCPConfigData(tools map[string]any, mcpTools []string, workflowData *WorkflowData) MCPConfigData {
+	data := MCPConfigData{
+		CustomToolsConfig: make(map[string]map[string]any),
 	}
 
-	// Generate [mcp_servers] section
+	// Add safe-outputs configuration if enabled
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	if hasSafeOutputs {
+		data.SafeOutputsConfig = map[string]any{"enabled": true}
+	}
+
+	// Process each MCP tool
 	for _, toolName := range mcpTools {
 		switch toolName {
 		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
+			if githubTool, ok := tools["github"]; ok {
+				data.GitHubConfig = e.prepareGitHubConfig(githubTool)
+			}
 		case "playwright":
-			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
+			if playwrightTool, ok := tools["playwright"]; ok {
+				data.PlaywrightConfig = e.preparePlaywrightConfig(playwrightTool, workflowData.NetworkPermissions)
+			}
 		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
+			// Handle custom MCP tools
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
 				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderCodexMCPConfig(yaml, toolName, toolConfig); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
+					data.CustomToolsConfig[toolName] = e.prepareCustomToolConfig(toolConfig)
 				}
 			}
 		}
 	}
 
-	yaml.WriteString("          EOF\n")
+	return data
+}
+
+// prepareGitHubConfig prepares GitHub MCP configuration data
+func (e *CodexEngine) prepareGitHubConfig(githubTool any) map[string]any {
+	dockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	return map[string]any{
+		"dockerImageVersion": dockerImageVersion,
+	}
+}
+
+// preparePlaywrightConfig prepares Playwright MCP configuration data
+func (e *CodexEngine) preparePlaywrightConfig(playwrightTool any, networkPermissions *NetworkPermissions) map[string]any {
+	config := map[string]any{}
+	
+	// Get docker image version
+	if toolMap, ok := playwrightTool.(map[string]any); ok {
+		if version, exists := toolMap["docker_image_version"]; exists {
+			if versionStr, ok := version.(string); ok {
+				config["dockerImageVersion"] = versionStr
+			}
+		}
+	}
+
+	// Add allowed domains from network permissions
+	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
+		config["allowedDomains"] = networkPermissions.Allowed
+	}
+
+	return config
+}
+
+// prepareCustomToolConfig prepares custom MCP tool configuration data
+func (e *CodexEngine) prepareCustomToolConfig(toolConfig map[string]any) map[string]any {
+	mcpConfig, err := getMCPConfig(toolConfig, "")
+	if err != nil {
+		return map[string]any{}
+	}
+
+	config := map[string]any{}
+	
+	// Copy relevant MCP properties
+	if command, exists := mcpConfig["command"]; exists {
+		config["command"] = command
+	}
+	if args, exists := mcpConfig["args"]; exists {
+		config["args"] = args
+	}
+	if env, exists := mcpConfig["env"]; exists {
+		config["env"] = env
+	}
+	if url, exists := mcpConfig["url"]; exists {
+		config["url"] = url
+	}
+	if headers, exists := mcpConfig["headers"]; exists {
+		config["headers"] = headers
+	}
+
+	return config
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Codex
