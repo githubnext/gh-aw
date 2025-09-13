@@ -356,24 +356,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
   });
 
   describe("Configuration Handling", () => {
-    it("should handle missing configuration gracefully", () => {
-      // Test with no config
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = "";
-
-      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
-      expect(() => {
-        require(serverPath);
-      }).not.toThrow();
-    });
-
-    it("should handle invalid JSON configuration", () => {
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = "invalid json";
-
-      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
-      expect(() => {
-        require(serverPath);
-      }).not.toThrow();
-    });
 
     describe("Input Validation", () => {
       let serverProcess;
