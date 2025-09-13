@@ -173,48 +173,52 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	// Prepare configuration data for JavaScript script
 	mcpConfigData := e.prepareMCPConfigData(tools, mcpTools, workflowData)
-	
-	// Set environment variables for the JavaScript script
-	yaml.WriteString("          export MCP_CONFIG_FORMAT=toml\n")
-	
+
+	// Use actions/github-script to generate MCP configuration
+	yaml.WriteString("      - name: Generate MCP Configuration\n")
+	yaml.WriteString("        uses: actions/github-script@v7\n")
+
+	// Add environment variables
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          MCP_CONFIG_FORMAT: toml\n")
+
 	// Add safe-outputs configuration if enabled
 	if mcpConfigData.SafeOutputsConfig != nil {
 		configJSON, _ := json.Marshal(mcpConfigData.SafeOutputsConfig)
-		yaml.WriteString(fmt.Sprintf("          export MCP_SAFE_OUTPUTS_CONFIG='%s'\n", string(configJSON)))
+		yaml.WriteString(fmt.Sprintf("          MCP_SAFE_OUTPUTS_CONFIG: '%s'\n", string(configJSON)))
 	}
-	
+
 	// Add GitHub configuration if present
 	if mcpConfigData.GitHubConfig != nil {
 		configJSON, _ := json.Marshal(mcpConfigData.GitHubConfig)
-		yaml.WriteString(fmt.Sprintf("          export MCP_GITHUB_CONFIG='%s'\n", string(configJSON)))
+		yaml.WriteString(fmt.Sprintf("          MCP_GITHUB_CONFIG: '%s'\n", string(configJSON)))
 	}
-	
+
 	// Add Playwright configuration if present
 	if mcpConfigData.PlaywrightConfig != nil {
 		configJSON, _ := json.Marshal(mcpConfigData.PlaywrightConfig)
-		yaml.WriteString(fmt.Sprintf("          export MCP_PLAYWRIGHT_CONFIG='%s'\n", string(configJSON)))
+		yaml.WriteString(fmt.Sprintf("          MCP_PLAYWRIGHT_CONFIG: '%s'\n", string(configJSON)))
 	}
-	
+
 	// Add custom tools configuration if present
 	if len(mcpConfigData.CustomToolsConfig) > 0 {
 		configJSON, _ := json.Marshal(mcpConfigData.CustomToolsConfig)
-		yaml.WriteString(fmt.Sprintf("          export MCP_CUSTOM_TOOLS_CONFIG='%s'\n", string(configJSON)))
+		yaml.WriteString(fmt.Sprintf("          MCP_CUSTOM_TOOLS_CONFIG: '%s'\n", string(configJSON)))
 	}
-	
-	// Create temporary file with the JavaScript script
-	yaml.WriteString("          cat > /tmp/generate-mcp-config.cjs << 'EOF'\n")
-	
-	// Write the JavaScript script
+
+	// Add the JavaScript script inline
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |-\n")
+
+	// Write the JavaScript script with proper indentation
 	scriptLines := strings.Split(GetGenerateMCPConfigScript(), "\n")
 	for _, line := range scriptLines {
 		if strings.TrimSpace(line) != "" {
-			yaml.WriteString(fmt.Sprintf("          %s\n", line))
+			yaml.WriteString(fmt.Sprintf("            %s\n", line))
+		} else {
+			yaml.WriteString("            \n")
 		}
 	}
-	yaml.WriteString("          EOF\n")
-	
-	// Execute the JavaScript script
-	yaml.WriteString("          node /tmp/generate-mcp-config.cjs\n")
 }
 
 // prepareMCPConfigData prepares configuration data for the JavaScript MCP config generator
@@ -234,7 +238,7 @@ func (e *CodexEngine) prepareMCPConfigData(tools map[string]any, mcpTools []stri
 		switch toolName {
 		case "github":
 			if githubTool, ok := tools["github"]; ok {
-				data.GitHubConfig = e.prepareGitHubConfig(githubTool)
+				data.GitHubConfig = e.prepareGitHubConfig(githubTool, workflowData)
 			}
 		case "playwright":
 			if playwrightTool, ok := tools["playwright"]; ok {
@@ -254,29 +258,43 @@ func (e *CodexEngine) prepareMCPConfigData(tools map[string]any, mcpTools []stri
 }
 
 // prepareGitHubConfig prepares GitHub MCP configuration data
-func (e *CodexEngine) prepareGitHubConfig(githubTool any) map[string]any {
+func (e *CodexEngine) prepareGitHubConfig(githubTool any, workflowData *WorkflowData) map[string]any {
 	dockerImageVersion := getGitHubDockerImageVersion(githubTool)
+
+	// Add user_agent field defaulting to workflow identifier
+	userAgent := "github-agentic-workflow"
+	if workflowData != nil {
+		// Check if user_agent is configured in engine config first
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			// Fall back to converting workflow name to identifier
+			userAgent = ConvertToIdentifier(workflowData.Name)
+		}
+	}
+
 	return map[string]any{
 		"dockerImageVersion": dockerImageVersion,
+		"userAgent":          userAgent,
 	}
 }
 
 // preparePlaywrightConfig prepares Playwright MCP configuration data
 func (e *CodexEngine) preparePlaywrightConfig(playwrightTool any, networkPermissions *NetworkPermissions) map[string]any {
 	config := map[string]any{}
-	
-	// Get docker image version
+
+	// Get docker image version and allowed domains from Playwright tool config
 	if toolMap, ok := playwrightTool.(map[string]any); ok {
 		if version, exists := toolMap["docker_image_version"]; exists {
 			if versionStr, ok := version.(string); ok {
 				config["dockerImageVersion"] = versionStr
 			}
 		}
-	}
 
-	// Add allowed domains from network permissions
-	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
-		config["allowedDomains"] = networkPermissions.Allowed
+		// Use Playwright-specific allowed_domains if configured
+		if allowedDomains, exists := toolMap["allowed_domains"]; exists {
+			config["allowedDomains"] = allowedDomains
+		}
 	}
 
 	return config
@@ -290,7 +308,7 @@ func (e *CodexEngine) prepareCustomToolConfig(toolConfig map[string]any) map[str
 	}
 
 	config := map[string]any{}
-	
+
 	// Copy relevant MCP properties
 	if command, exists := mcpConfig["command"]; exists {
 		config["command"] = command

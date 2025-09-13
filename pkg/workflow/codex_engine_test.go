@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -263,7 +264,6 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 		name     string
 		tools    map[string]any
 		mcpTools []string
-		expected []string
 	}{
 		{
 			name: "github tool with user_agent",
@@ -271,25 +271,6 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"github": map[string]any{},
 			},
 			mcpTools: []string{"github"},
-			expected: []string{
-				"cat > /tmp/mcp-config/config.toml << EOF",
-				"[history]",
-				"persistence = \"none\"",
-				"",
-				"[mcp_servers.github]",
-				"user_agent = \"test-workflow\"",
-				"command = \"docker\"",
-				"args = [",
-				"\"run\",",
-				"\"-i\",",
-				"\"--rm\",",
-				"\"-e\",",
-				"\"GITHUB_PERSONAL_ACCESS_TOKEN\",",
-				"\"ghcr.io/github/github-mcp-server:sha-09deac4\"",
-				"]",
-				"env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }",
-				"EOF",
-			},
 		},
 	}
 
@@ -300,32 +281,35 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 			engine.RenderMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData)
 
 			result := yaml.String()
-			lines := strings.Split(strings.TrimSpace(result), "\n")
 
-			// Remove indentation from both expected and actual lines for comparison
-			var normalizedResult []string
-			for _, line := range lines {
-				normalizedResult = append(normalizedResult, strings.TrimSpace(line))
+			// Check for key elements of the new actions/github-script format
+			expectedElements := []string{
+				"name: Generate MCP Configuration",
+				"uses: actions/github-script@v7",
+				"env:",
+				"MCP_CONFIG_FORMAT: toml",
+				"MCP_GITHUB_CONFIG:",
+				"with:",
+				"script: |-",
+				"Generate MCP configuration file using actions/github-script",
+				"generateTOMLConfig",
 			}
 
-			var normalizedExpected []string
-			for _, line := range tt.expected {
-				normalizedExpected = append(normalizedExpected, strings.TrimSpace(line))
+			for _, expected := range expectedElements {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected output to contain '%s', but it was missing", expected)
+				}
 			}
 
-			if len(normalizedResult) != len(normalizedExpected) {
-				t.Errorf("Expected %d lines, got %d", len(normalizedExpected), len(normalizedResult))
-				t.Errorf("Expected:\n%s", strings.Join(normalizedExpected, "\n"))
-				t.Errorf("Got:\n%s", strings.Join(normalizedResult, "\n"))
-				return
+			// Ensure it doesn't contain old bash heredoc format
+			oldFormatElements := []string{
+				"cat > /tmp/mcp-config/config.toml << EOF",
+				"EOF",
 			}
 
-			for i, expectedLine := range normalizedExpected {
-				if i < len(normalizedResult) {
-					actualLine := normalizedResult[i]
-					if actualLine != expectedLine {
-						t.Errorf("Line %d mismatch:\nExpected: %s\nActual:   %s", i+1, expectedLine, actualLine)
-					}
+			for _, oldElement := range oldFormatElements {
+				if strings.Contains(result, oldElement) {
+					t.Errorf("Output should not contain old format element '%s'", oldElement)
 				}
 			}
 		})
@@ -373,10 +357,10 @@ func TestCodexEngineUserAgentIdentifierConversion(t *testing.T) {
 			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
 
 			result := yaml.String()
-			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+			expectedUserAgentJSON := fmt.Sprintf(`"userAgent":"%s"`, tt.expectedUA)
 
-			if !strings.Contains(result, expectedUserAgentLine) {
-				t.Errorf("Expected MCP config to contain %q, got:\n%s", expectedUserAgentLine, result)
+			if !strings.Contains(result, expectedUserAgentJSON) {
+				t.Errorf("Expected MCP config to contain %q, got:\n%s", expectedUserAgentJSON, result)
 			}
 		})
 	}
@@ -444,10 +428,10 @@ func TestCodexEngineRenderMCPConfigUserAgentFromConfig(t *testing.T) {
 			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
 
 			result := yaml.String()
-			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+			expectedUserAgentJSON := fmt.Sprintf(`"userAgent":"%s"`, tt.expectedUA)
 
-			if !strings.Contains(result, expectedUserAgentLine) {
-				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentLine, result)
+			if !strings.Contains(result, expectedUserAgentJSON) {
+				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentJSON, result)
 			}
 		})
 	}
@@ -561,10 +545,10 @@ func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
 			engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
 
 			result := yaml.String()
-			expectedUserAgentLine := "user_agent = \"" + tt.expectedUA + "\""
+			expectedUserAgentJSON := fmt.Sprintf(`"userAgent":"%s"`, tt.expectedUA)
 
-			if !strings.Contains(result, expectedUserAgentLine) {
-				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentLine, result)
+			if !strings.Contains(result, expectedUserAgentJSON) {
+				t.Errorf("Test case: %s\nExpected MCP config to contain %q, got:\n%s", tt.description, expectedUserAgentJSON, result)
 			}
 		})
 	}

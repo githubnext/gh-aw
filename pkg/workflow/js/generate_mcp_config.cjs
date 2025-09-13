@@ -145,8 +145,10 @@ function generateGitHubJSONConfig(githubConfig) {
  */
 function generateGitHubTOMLConfig(githubConfig) {
   const dockerImageVersion = githubConfig.dockerImageVersion || 'latest';
+  const userAgent = githubConfig.userAgent || 'github-agentic-workflow';
   
   let tomlContent = '[mcp_servers.github]\n';
+  tomlContent += `user_agent = "${userAgent}"\n`;
   tomlContent += 'command = "docker"\n';
   tomlContent += 'args = [\n';
   tomlContent += '  "run",\n';

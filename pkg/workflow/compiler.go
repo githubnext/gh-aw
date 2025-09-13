@@ -2899,10 +2899,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Use the engine's RenderMCPConfig method
-	yaml.WriteString("      - name: Setup MCPs\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
+	// Create directory for MCP config
+	yaml.WriteString("      - name: Setup MCP Directory\n")
+	yaml.WriteString("        run: mkdir -p /tmp/mcp-config\n")
+
+	// Use the engine's RenderMCPConfig method to generate the configuration
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
