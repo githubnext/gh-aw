@@ -314,35 +314,6 @@ jobs:
           
           ---
           
-          ## Memory System Instructions
-          
-          Follow these steps for each interaction:
-          
-          1. User Identification:
-             - You should assume that you are interacting with default_user
-             - If you have not identified default_user, proactively try to do so.
-          
-          2. Memory Retrieval:
-             - Always begin your chat by saying only "Remembering..." and retrieve all relevant information from your knowledge graph
-             - Always refer to your knowledge graph as your "memory"
-          
-          3. Memory
-             - While conversing with the user, be attentive to any new information that falls into these categories:
-               a) Basic Identity (age, gender, location, job title, education level, etc.)
-               b) Behaviors (interests, habits, etc.)
-               c) Preferences (communication style, preferred language, etc.)
-               d) Goals (goals, targets, aspirations, etc.)
-               e) Relationships (personal and professional relationships up to 3 degrees of separation)
-          
-          4. Memory Update:
-             - If any new information was gathered during the interaction, update your memory as follows:
-               a) Create entities for recurring organizations, people, and significant events
-               b) Connect them to the current entities using relations
-               c) Store facts about them as observations
-          
-          
-          ---
-          
           ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.

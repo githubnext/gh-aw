@@ -106,7 +106,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 
 // generateCacheMemorySteps generates cache steps for the cache-memory configuration
 func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verbose bool) {
-	if data.CacheMemory == "" {
+	if data.CacheMemoryConfig == nil || !data.CacheMemoryConfig.Enabled {
 		return
 	}
 
@@ -117,51 +117,16 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 	builder.WriteString("      - name: Create cache-memory directory\n")
 	builder.WriteString("        run: mkdir -p /tmp/cache-memory\n")
 
-	// Parse cache-memory configuration to determine settings
-	var topLevel map[string]any
-	if err := yaml.Unmarshal([]byte(data.CacheMemory), &topLevel); err != nil {
-		if verbose {
-			fmt.Printf("Warning: Failed to parse cache-memory configuration: %v\n", err)
-		}
-		return
+	// Use the parsed configuration
+	cacheKey := data.CacheMemoryConfig.Key
+	if cacheKey == "" {
+		cacheKey = "memory-${{ github.workflow }}-${{ github.run_id }}"
 	}
 
-	// Extract the cache-memory section from the top-level map
-	cacheMemoryConfig, exists := topLevel["cache-memory"]
-	if !exists {
-		if verbose {
-			fmt.Printf("Warning: No cache-memory key found in parsed configuration\n")
-		}
-		return
-	}
-
-	// Check if cache-memory is enabled (boolean true or object with configuration)
-	var isEnabled bool
-	cacheMemorySettings := make(map[string]any)
-
-	if boolValue, ok := cacheMemoryConfig.(bool); ok {
-		isEnabled = boolValue
-	} else if configMap, ok := cacheMemoryConfig.(map[string]any); ok {
-		isEnabled = true
-		cacheMemorySettings = configMap
-	}
-
-	if !isEnabled {
-		return
-	}
-
-	// Generate cache step for memory MCP data
-	// Default key format: memory-{workflow-id}-{run-id}
-	cacheKey := "memory-${{ github.workflow }}-${{ github.run_id }}"
-	if keyOverride, hasKey := cacheMemorySettings["key"]; hasKey {
-		if keyStr, ok := keyOverride.(string); ok {
-			cacheKey = keyStr
-			// Automatically append -${{ github.run_id }} if the key doesn't already end with it
-			runIdSuffix := "-${{ github.run_id }}"
-			if !strings.HasSuffix(cacheKey, runIdSuffix) {
-				cacheKey = cacheKey + runIdSuffix
-			}
-		}
+	// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+	runIdSuffix := "-${{ github.run_id }}"
+	if !strings.HasSuffix(cacheKey, runIdSuffix) {
+		cacheKey = cacheKey + runIdSuffix
 	}
 
 	// Generate restore keys automatically by splitting the cache key on '-'
