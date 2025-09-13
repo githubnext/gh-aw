@@ -15,10 +15,16 @@ function main() {
     }
 
     const logContent = fs.readFileSync(logFile, "utf8");
-    const markdown = parseClaudeLog(logContent);
+    const result = parseClaudeLog(logContent);
 
     // Append to GitHub step summary
-    core.summary.addRaw(markdown).write();
+    core.summary.addRaw(result.markdown).write();
+
+    // Check for MCP server failures and fail the job if any occurred
+    if (result.mcpFailures && result.mcpFailures.length > 0) {
+      const failedServers = result.mcpFailures.join(", ");
+      core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.setFailed(errorMessage);
@@ -28,16 +34,21 @@ function main() {
 /**
  * Parses Claude log content and converts it to markdown format
  * @param {string} logContent - The raw log content as a string
- * @returns {string} Formatted markdown content
+ * @returns {{markdown: string, mcpFailures: string[]}} Result with formatted markdown content and MCP failure list
  */
 function parseClaudeLog(logContent) {
   try {
     const logEntries = JSON.parse(logContent);
     if (!Array.isArray(logEntries)) {
-      return "## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n";
+      return {
+        markdown:
+          "## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n",
+        mcpFailures: [],
+      };
     }
 
     let markdown = "";
+    const mcpFailures = [];
 
     // Check for initialization data first
     const initEntry = logEntries.find(
@@ -46,7 +57,9 @@ function parseClaudeLog(logContent) {
 
     if (initEntry) {
       markdown += "## 🚀 Initialization\n\n";
-      markdown += formatInitializationSummary(initEntry);
+      const initResult = formatInitializationSummary(initEntry);
+      markdown += initResult.markdown;
+      mcpFailures.push(...initResult.mcpFailures);
       markdown += "\n";
     }
 
@@ -196,20 +209,24 @@ function parseClaudeLog(logContent) {
       }
     }
 
-    return markdown;
+    return { markdown, mcpFailures };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`;
+    return {
+      markdown: `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`,
+      mcpFailures: [],
+    };
   }
 }
 
 /**
  * Formats initialization information from system init entry
  * @param {any} initEntry - The system init entry containing tools, mcp_servers, etc.
- * @returns {string} Formatted markdown string with initialization summary
+ * @returns {{markdown: string, mcpFailures: string[]}} Result with formatted markdown string and MCP failure list
  */
 function formatInitializationSummary(initEntry) {
   let markdown = "";
+  const mcpFailures = [];
 
   // Display model and session info
   if (initEntry.model) {
@@ -240,6 +257,11 @@ function formatInitializationSummary(initEntry) {
             ? "❌"
             : "❓";
       markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
+
+      // Track failed MCP servers
+      if (server.status === "failed") {
+        mcpFailures.push(server.name);
+      }
     }
     markdown += "\n";
   }
@@ -320,7 +342,7 @@ function formatInitializationSummary(initEntry) {
     markdown += "\n";
   }
 
-  return markdown;
+  return { markdown, mcpFailures };
 }
 
 /**
