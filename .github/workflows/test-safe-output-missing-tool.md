@@ -9,8 +9,6 @@ safe-outputs:
 
 engine:
   id: claude
-  env:
-    DEBUG: claude:mcp:*
 permissions: read-all
 ---
 
