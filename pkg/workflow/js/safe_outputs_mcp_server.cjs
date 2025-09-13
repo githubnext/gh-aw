@@ -1,8 +1,7 @@
 const fs = require("fs");
 const encoder = new TextEncoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
-if (!configEnv)
-  throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
+if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
 const safeOutputsConfig = JSON.parse(configEnv);
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile)
@@ -371,11 +370,18 @@ function handleMessage(req) {
       const handler = tool.handler || defaultHandler(tool.name);
 
       // Basic input validation: ensure required fields are present when schema defines them
-      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+      const requiredFields =
+        tool.inputSchema && Array.isArray(tool.inputSchema.required)
+          ? tool.inputSchema.required
+          : [];
       if (requiredFields.length) {
         const missing = requiredFields.filter(f => args[f] === undefined);
         if (missing.length) {
-          replyError(id, -32602, `Invalid arguments: missing ${missing.map(m => `'${m}'`).join(', ')}`);
+          replyError(
+            id,
+            -32602,
+            `Invalid arguments: missing ${missing.map(m => `'${m}'`).join(", ")}`
+          );
           return;
         }
       }

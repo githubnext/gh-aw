@@ -55,7 +55,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
             "add-issue-comment": { enabled: true, max: 3 },
             "missing-tool": { enabled: true },
           }),
-        }
+        },
       });
 
       let responseData = "";
@@ -108,7 +108,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
             "add-issue-comment": { enabled: true, max: 3 },
             "missing-tool": { enabled: true },
           }),
-        }
+        },
       });
 
       let responseData = "";
@@ -187,8 +187,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
             "add-issue-comment": { enabled: true, max: 3 },
             "missing-tool": { enabled: true },
           }),
-        }
-
+        },
       });
 
       // Initialize server first to ensure state is clean for each test
@@ -247,9 +246,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1); // Server is responding with ID 1
       expect(response.result).toHaveProperty("content");
-      expect(response.result.content[0].text).toContain(
-        "success"
-      );
+      expect(response.result.content[0].text).toContain("success");
 
       // Check output file
       expect(fs.existsSync(tempOutputFile)).toBe(true);
@@ -356,7 +353,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
   });
 
   describe("Configuration Handling", () => {
-
     describe("Input Validation", () => {
       let serverProcess;
 
@@ -374,8 +370,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
               "add-issue-comment": { enabled: true, max: 3 },
               "missing-tool": { enabled: true },
             }),
-          }
-
+          },
         });
 
         // Initialize server first to ensure state is clean for each test
@@ -461,7 +456,9 @@ describe("safe_outputs_mcp_server.cjs", () => {
     const responses = [];
     let cursor = 0;
     while (true) {
-      const headerMatch = bufferStr.slice(cursor).match(/Content-Length: (\d+)\r\n\r\n/);
+      const headerMatch = bufferStr
+        .slice(cursor)
+        .match(/Content-Length: (\d+)\r\n\r\n/);
       if (!headerMatch) break;
       const headerIndex = bufferStr.indexOf(headerMatch[0], cursor);
       if (headerIndex === -1) break;
@@ -481,7 +478,9 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
   // Helper to find a response matching an id (or fallback to the first response)
   function findResponseById(bufferStr, id) {
-    const resp = parseRpcResponses(bufferStr).find(r => Object.prototype.hasOwnProperty.call(r, 'id') && r.id === id);
+    const resp = parseRpcResponses(bufferStr).find(
+      r => Object.prototype.hasOwnProperty.call(r, "id") && r.id === id
+    );
     if (resp) return resp;
     const all = parseRpcResponses(bufferStr);
     return all.length ? all[0] : null;
@@ -489,7 +488,11 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
   // Utility to find an error response by error code
   function findErrorByCode(bufferStr, code) {
-    return parseRpcResponses(bufferStr).find(r => r && r.error && r.error.code === code) || null;
+    return (
+      parseRpcResponses(bufferStr).find(
+        r => r && r.error && r.error.code === code
+      ) || null
+    );
   }
 
   // Replace fragile first-match parsing with helpers
@@ -510,8 +513,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
             "add-issue-comment": { enabled: true, max: 3 },
             "missing-tool": { enabled: true },
           }),
-        }
-
+        },
       });
 
       // Initialize server first to ensure state is clean for each test
@@ -674,7 +676,10 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
   // Helper to parse NDJSON files and return the last non-empty JSON object
   function parseNdjsonLast(content) {
-    const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const lines = content
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(Boolean);
     if (lines.length === 0) {
       throw new Error("No NDJSON entries found in output file");
     }
