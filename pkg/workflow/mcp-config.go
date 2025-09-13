@@ -3,42 +3,10 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 )
-
-// MCPConfigData contains configuration data for MCP server generation
-type MCPConfigData struct {
-	SafeOutputsConfig map[string]any            `json:"safeOutputsConfig,omitempty"`
-	GitHubConfig      map[string]any            `json:"githubConfig,omitempty"`
-	PlaywrightConfig  map[string]any            `json:"playwrightConfig,omitempty"`
-	CustomToolsConfig map[string]map[string]any `json:"customToolsConfig,omitempty"`
-}
-
-// ConvertToIdentifier converts a workflow name to a valid identifier format
-// by converting to lowercase and replacing spaces with hyphens
-func ConvertToIdentifier(name string) string {
-	// Convert to lowercase
-	identifier := strings.ToLower(name)
-	// Replace spaces and other common separators with hyphens
-	identifier = strings.ReplaceAll(identifier, " ", "-")
-	identifier = strings.ReplaceAll(identifier, "_", "-")
-	// Remove any characters that aren't alphanumeric or hyphens
-	identifier = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(identifier, "")
-	// Remove any double hyphens that might have been created
-	identifier = regexp.MustCompile(`-+`).ReplaceAllString(identifier, "-")
-	// Remove leading/trailing hyphens
-	identifier = strings.Trim(identifier, "-")
-
-	// If the result is empty, return a default identifier
-	if identifier == "" {
-		identifier = "github-agentic-workflow"
-	}
-
-	return identifier
-}
 
 // MCPConfigRenderer contains configuration options for rendering MCP config
 type MCPConfigRenderer struct {

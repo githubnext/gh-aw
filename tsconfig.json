@@ -45,7 +45,6 @@
     "pkg/workflow/js/create_issue.cjs",
     "pkg/workflow/js/create_pr_review_comment.cjs",
     "pkg/workflow/js/create_pull_request.cjs",
-    "pkg/workflow/js/generate_mcp_config.cjs",
     "pkg/workflow/js/missing_tool.cjs",
     "pkg/workflow/js/parse_claude_log.cjs",
     "pkg/workflow/js/parse_codex_log.cjs",

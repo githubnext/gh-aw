@@ -5,11 +5,6 @@
 name: "Test Safe Output - Missing Tool"
 on:
   workflow_dispatch: null
-  workflow_run:
-    types:
-    - completed
-    workflows:
-    - "*"
 
 permissions: {}
 

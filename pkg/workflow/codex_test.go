@@ -351,24 +351,26 @@ This is a test workflow for MCP configuration with different AI engines.
 
 			// Test config.toml generation
 			if tt.expectConfigToml {
-				// Check for the new actions/github-script approach
-				if !strings.Contains(lockContent, "uses: actions/github-script@v7") {
-					t.Errorf("Expected actions/github-script@v7 for MCP config generation but didn't find it in:\n%s", lockContent)
+				if !strings.Contains(lockContent, "cat > /tmp/mcp-config/config.toml") {
+					t.Errorf("Expected config.toml generation but didn't find it in:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "MCP_CONFIG_FORMAT: toml") {
-					t.Errorf("Expected MCP_CONFIG_FORMAT: toml environment variable but didn't find it in:\n%s", lockContent)
-				}
-				if !strings.Contains(lockContent, "generateTOMLConfig") {
-					t.Errorf("Expected generateTOMLConfig function but didn't find it in:\n%s", lockContent)
-				}
-				if !strings.Contains(lockContent, "Generate MCP Configuration") {
-					t.Errorf("Expected 'Generate MCP Configuration' step name but didn't find it in:\n%s", lockContent)
+				if !strings.Contains(lockContent, "[mcp_servers.github]") {
+					t.Errorf("Expected [mcp_servers.github] section but didn't find it in:\n%s", lockContent)
 				}
 
+				if !strings.Contains(lockContent, "command = \"docker\"") {
+					t.Errorf("Expected docker command in config.toml but didn't find it in:\n%s", lockContent)
+				}
 				// Check for custom MCP server if test includes it
 				if strings.Contains(tt.name, "custom MCP") {
-					if !strings.Contains(lockContent, "MCP_CUSTOM_TOOLS_CONFIG") {
-						t.Errorf("Expected MCP_CUSTOM_TOOLS_CONFIG environment variable but didn't find it in:\n%s", lockContent)
+					if !strings.Contains(lockContent, "[mcp_servers.custom-server]") {
+						t.Errorf("Expected [mcp_servers.custom-server] section but didn't find it in:\n%s", lockContent)
+					}
+					if !strings.Contains(lockContent, "command = \"python\"") {
+						t.Errorf("Expected python command for custom server but didn't find it in:\n%s", lockContent)
+					}
+					if !strings.Contains(lockContent, "\"API_KEY\" = \"${{ secrets.API_KEY }}\"") {
+						t.Errorf("Expected API_KEY env var for custom server but didn't find it in:\n%s", lockContent)
 					}
 				}
 				// Should NOT have services section (services mode removed)
@@ -376,33 +378,33 @@ This is a test workflow for MCP configuration with different AI engines.
 					t.Errorf("Expected NO services section in workflow but found it in:\n%s", lockContent)
 				}
 			} else {
-				if strings.Contains(lockContent, "MCP_CONFIG_FORMAT: toml") {
-					t.Errorf("Expected NO toml config but found it in:\n%s", lockContent)
+				if strings.Contains(lockContent, "config.toml") {
+					t.Errorf("Expected NO config.toml but found it in:\n%s", lockContent)
 				}
 			}
 
 			// Test mcp-servers.json generation
 			if tt.expectMcpServersJson {
-				// Check for the new actions/github-script approach
-				if !strings.Contains(lockContent, "uses: actions/github-script@v7") {
-					t.Errorf("Expected actions/github-script@v7 for MCP config generation but didn't find it in:\n%s", lockContent)
+				if !strings.Contains(lockContent, "cat > /tmp/mcp-config/mcp-servers.json") {
+					t.Errorf("Expected mcp-servers.json generation but didn't find it in:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "MCP_CONFIG_FORMAT: json") {
-					t.Errorf("Expected MCP_CONFIG_FORMAT: json environment variable but didn't find it in:\n%s", lockContent)
+				if !strings.Contains(lockContent, "\"mcpServers\":") {
+					t.Errorf("Expected mcpServers section but didn't find it in:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "generateJSONConfig") {
-					t.Errorf("Expected generateJSONConfig function but didn't find it in:\n%s", lockContent)
+				if !strings.Contains(lockContent, "\"github\":") {
+					t.Errorf("Expected github section in JSON but didn't find it in:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "Generate MCP Configuration") {
-					t.Errorf("Expected 'Generate MCP Configuration' step name but didn't find it in:\n%s", lockContent)
+
+				if !strings.Contains(lockContent, "\"command\": \"docker\"") {
+					t.Errorf("Expected docker command in mcp-servers.json but didn't find it in:\n%s", lockContent)
 				}
 				// Should NOT have services section (services mode removed)
 				if strings.Contains(lockContent, "services:") {
 					t.Errorf("Expected NO services section in workflow but found it in:\n%s", lockContent)
 				}
 			} else {
-				if strings.Contains(lockContent, "MCP_CONFIG_FORMAT: json") {
-					t.Errorf("Expected NO json config but found it in:\n%s", lockContent)
+				if strings.Contains(lockContent, "mcp-servers.json") {
+					t.Errorf("Expected NO mcp-servers.json but found it in:\n%s", lockContent)
 				}
 			}
 

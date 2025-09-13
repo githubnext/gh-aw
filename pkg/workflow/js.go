@@ -66,9 +66,6 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
-//go:embed js/generate_mcp_config.cjs
-var generateMCPConfigScript string
-
 // FormatJavaScriptForYAML formats a JavaScript script with proper indentation for embedding in YAML
 func FormatJavaScriptForYAML(script string) []string {
 	var formattedLines []string
@@ -105,9 +102,4 @@ func GetLogParserScript(name string) string {
 	default:
 		return ""
 	}
-}
-
-// GetGenerateMCPConfigScript returns the JavaScript content for generating MCP configuration
-func GetGenerateMCPConfigScript() string {
-	return generateMCPConfigScript
 }

@@ -194,36 +194,13 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, nil)
 
 	output := yaml.String()
-
-	// Check for key elements of the new actions/github-script format
-	expectedElements := []string{
-		"name: Generate MCP Configuration",
-		"uses: actions/github-script@v7",
-		"env:",
-		"MCP_CONFIG_FORMAT: json",
-		"with:",
-		"script: |-",
-		"Generate MCP configuration file using actions/github-script",
-		"generateJSONConfig",
-		"mcpServers",
+	expectedPrefix := "          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'"
+	if !strings.Contains(output, expectedPrefix) {
+		t.Errorf("Expected MCP config to contain setup prefix, got '%s'", output)
 	}
 
-	for _, expected := range expectedElements {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it was missing", expected)
-		}
-	}
-
-	// Ensure it doesn't contain old bash heredoc format
-	oldFormatElements := []string{
-		"cat > /tmp/mcp-config/mcp-servers.json << 'EOF'",
-		"EOF",
-	}
-
-	for _, oldElement := range oldFormatElements {
-		if strings.Contains(output, oldElement) {
-			t.Errorf("Output should not contain old format element '%s'", oldElement)
-		}
+	if !strings.Contains(output, "\"mcpServers\"") {
+		t.Errorf("Expected MCP config to contain mcpServers section, got '%s'", output)
 	}
 }
 
@@ -252,22 +229,22 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Check that the output contains the new actions/github-script format
-	if !strings.Contains(output, "uses: actions/github-script@v7") {
-		t.Errorf("Expected actions/github-script in output")
+	// Check that the output contains Playwright configuration
+	if !strings.Contains(output, `"playwright": {`) {
+		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright configuration in environment variables
-	if !strings.Contains(output, "MCP_PLAYWRIGHT_CONFIG") {
-		t.Errorf("Expected MCP_PLAYWRIGHT_CONFIG environment variable in output")
+	// Check that it contains Playwright domain environment variables
+	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
 	}
 
-	// Check that it contains the Playwright-specific domains in the config JSON
-	if !strings.Contains(output, "example.com") && !strings.Contains(output, "github.com") {
+	// Check that it contains the Playwright-specific domains, not network domains
+	if !strings.Contains(output, "example.com,*.github.com") {
 		t.Errorf("Expected Playwright allowed domains to be included in environment variable")
 	}
 
-	// Check that it does NOT contain the network permission domains in the final config
+	// Check that it does NOT contain the network permission domains
 	if strings.Contains(output, "external.example.com") {
 		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
 	}
@@ -298,23 +275,22 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Check that the output contains the new actions/github-script format
-	if !strings.Contains(output, "uses: actions/github-script@v7") {
-		t.Errorf("Expected actions/github-script in output")
+	// Check that the output contains Playwright configuration
+	if !strings.Contains(output, `"playwright": {`) {
+		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright configuration in environment variables
-	if !strings.Contains(output, "MCP_PLAYWRIGHT_CONFIG") {
-		t.Errorf("Expected MCP_PLAYWRIGHT_CONFIG environment variable in output")
+	// Check that it contains Playwright domain environment variables
+	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
 	}
 
-	// For default configuration, we might not have specific domains, so just check the config exists
-	// The actual domain configuration is handled in the JavaScript generation
-	if !strings.Contains(output, "generateJSONConfig") {
-		t.Errorf("Expected generateJSONConfig function in script")
+	// Check that it defaults to localhost domains
+	if !strings.Contains(output, "localhost,127.0.0.1") {
+		t.Errorf("Expected Playwright to default to localhost domains when not configured")
 	}
 
-	// Check that it does NOT contain the network permission domains in the final config
+	// Check that it does NOT contain the network permission domains
 	if strings.Contains(output, "external.example.com") {
 		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
 	}

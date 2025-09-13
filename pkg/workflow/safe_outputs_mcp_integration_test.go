@@ -54,19 +54,14 @@ Test safe outputs workflow with MCP server integration.
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
 
-	// Check that the new actions/github-script format is used
-	if !strings.Contains(yamlStr, "uses: actions/github-script@v7") {
-		t.Error("Expected actions/github-script to be used for MCP configuration")
+	// Check that safe_outputs is included in MCP configuration
+	if !strings.Contains(yamlStr, `"safe_outputs": {`) {
+		t.Error("Expected safe_outputs in MCP server configuration")
 	}
 
-	// Check that safe_outputs environment variable is configured
-	if !strings.Contains(yamlStr, "MCP_SAFE_OUTPUTS_CONFIG") {
-		t.Error("Expected MCP_SAFE_OUTPUTS_CONFIG environment variable")
-	}
-
-	// Check that the MCP generation script is included
-	if !strings.Contains(yamlStr, "generateJSONConfig") ||
-		!strings.Contains(yamlStr, "safe_outputs") {
+	// Check that the MCP server is configured with correct command
+	if !strings.Contains(yamlStr, `"command": "node"`) ||
+		!strings.Contains(yamlStr, `"/tmp/safe-outputs/mcp-server.cjs"`) {
 		t.Error("Expected safe_outputs MCP server to be configured with node command")
 	}
 
@@ -175,19 +170,14 @@ Test safe outputs workflow with Codex engine.
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
 
-	// Check that the new actions/github-script format is used
-	if !strings.Contains(yamlStr, "uses: actions/github-script@v7") {
-		t.Error("Expected actions/github-script to be used for MCP configuration")
+	// Check that safe_outputs is included in TOML configuration for Codex
+	if !strings.Contains(yamlStr, "[mcp_servers.safe_outputs]") {
+		t.Error("Expected safe_outputs in Codex MCP server TOML configuration")
 	}
 
-	// Check that TOML format is configured for Codex
-	if !strings.Contains(yamlStr, "MCP_CONFIG_FORMAT: toml") {
-		t.Error("Expected TOML format for Codex MCP configuration")
-	}
-
-	// Check that the MCP generation script is included
-	if !strings.Contains(yamlStr, "generateTOMLConfig") {
-		t.Error("Expected generateTOMLConfig function in script for Codex")
+	// Check that the MCP server is configured with correct command in TOML format
+	if !strings.Contains(yamlStr, `command = "node"`) {
+		t.Error("Expected safe_outputs MCP server to be configured with node command in TOML")
 	}
 
 	t.Log("Safe outputs MCP server Codex integration test passed")
