@@ -360,10 +360,6 @@ func init() {
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
 
-	// Add flags to update command
-	updateCmd.Flags().Bool("staged", false, "Show what would be updated without applying changes")
-	updateCmd.Flags().String("workflow-dir", "", "Relative directory containing workflows (default: .github/workflows)")
-
 	// Add all commands to root
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(addCmd)

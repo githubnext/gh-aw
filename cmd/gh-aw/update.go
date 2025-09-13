@@ -36,3 +36,9 @@ Examples:
 		}
 	},
 }
+
+func init() {
+	// Add flags to update command
+	updateCmd.Flags().Bool("staged", false, "Show what would be updated without applying changes")
+	updateCmd.Flags().String("workflow-dir", "", "Relative directory containing workflows (default: .github/workflows)")
+}

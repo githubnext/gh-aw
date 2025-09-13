@@ -1986,18 +1986,7 @@ func copyIncludeDependenciesWithForce(dependencies []IncludeDependency, githubWo
 	return nil
 }
 
-
-
-
-
-
-
-
-
-
 // downloadWorkflows downloads all .md files from the workflows directory of a GitHub repository
-
-
 
 // findAndReadWorkflow finds and reads a workflow from multiple sources
 func findAndReadWorkflow(workflowPath, workflowsDir string, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
@@ -2979,16 +2968,16 @@ func cleanupAllIncludes(verbose bool) error {
 // findIncludesInContent extracts include dependencies from workflow content
 func findIncludesInContent(content, baseDir string, verbose bool) ([]string, error) {
 	var includes []string
-	
+
 	workflowsDir := ".github/workflows"
 	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
 			includePath := strings.TrimSpace(matches[2])
-			
+
 			// Handle section references (file.md#Section)
 			var filePath string
 			if strings.Contains(includePath, "#") {
@@ -2997,7 +2986,7 @@ func findIncludesInContent(content, baseDir string, verbose bool) ([]string, err
 			} else {
 				filePath = includePath
 			}
-			
+
 			// Convert to relative path from .github/workflows
 			fullPath := filepath.Join(baseDir, filePath)
 			relPath, err := filepath.Rel(workflowsDir, fullPath)
@@ -3006,6 +2995,6 @@ func findIncludesInContent(content, baseDir string, verbose bool) ([]string, err
 			}
 		}
 	}
-	
+
 	return includes, scanner.Err()
 }
