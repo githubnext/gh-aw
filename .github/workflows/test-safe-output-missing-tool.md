@@ -1,13 +1,16 @@
 ---
 on:
   workflow_dispatch:
+  push: {}
 
 safe-outputs:
-  missing-tool:
+  missing-tool: {}
   staged: true
 
 engine:
   id: claude
+  env:
+    DEBUG: claude:mcp:*
 permissions: read-all
 ---
 
