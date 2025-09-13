@@ -254,7 +254,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Check output file
       expect(fs.existsSync(tempOutputFile)).toBe(true);
       const outputContent = fs.readFileSync(tempOutputFile, "utf8");
-      const outputEntry = JSON.parse(outputContent.trim());
+      const outputEntry = parseNdjsonLast(outputContent);
 
       expect(outputEntry.type).toBe("create-issue");
       expect(outputEntry.title).toBe("Test Issue");
@@ -302,7 +302,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Check output file
       expect(fs.existsSync(tempOutputFile)).toBe(true);
       const outputContent = fs.readFileSync(tempOutputFile, "utf8");
-      const outputEntry = JSON.parse(outputContent.trim());
+      const outputEntry = parseNdjsonLast(outputContent);
 
       expect(outputEntry.type).toBe("missing-tool");
       expect(outputEntry.tool).toBe("advanced-analyzer");
@@ -594,12 +594,17 @@ describe("safe_outputs_mcp_server.cjs", () => {
       // Check output file for first call
       expect(fs.existsSync(tempOutputFile)).toBe(true);
       let outputContent = fs.readFileSync(tempOutputFile, "utf8");
-      let outputEntry = JSON.parse(outputContent.trim());
-
-      expect(outputEntry.type).toBe("create-issue");
-      expect(outputEntry.title).toBe("Test Issue 1");
-      expect(outputEntry.body).toBe("This is a test issue");
-      expect(outputEntry.labels).toEqual(["bug", "test"]);
+      const entries = outputContent
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(Boolean)
+        .map(JSON.parse);
+      const entry1 = entries.find(e => e.title === "Test Issue 1");
+      expect(entry1).toBeTruthy();
+      expect(entry1.type).toBe("create-issue");
+      expect(entry1.title).toBe("Test Issue 1");
+      expect(entry1.body).toBe("This is a test issue");
+      expect(entry1.labels).toEqual(["bug", "test"]);
 
       // Check response for second call
       response = findResponseById(responseData, 2);
@@ -611,12 +616,17 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       // Check output file for second call
       outputContent = fs.readFileSync(tempOutputFile, "utf8");
-      outputEntry = JSON.parse(outputContent.trim());
-
-      expect(outputEntry.type).toBe("create-issue");
-      expect(outputEntry.title).toBe("Test Issue 2");
-      expect(outputEntry.body).toBe("This is another test issue");
-      expect(outputEntry.labels).toEqual(["enhancement"]);
+      const entriesAfter = outputContent
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(Boolean)
+        .map(JSON.parse);
+      const entry2 = entriesAfter.find(e => e.title === "Test Issue 2");
+      expect(entry2).toBeTruthy();
+      expect(entry2.type).toBe("create-issue");
+      expect(entry2.title).toBe("Test Issue 2");
+      expect(entry2.body).toBe("This is another test issue");
+      expect(entry2.labels).toEqual(["enhancement"]);
     });
 
     it("should handle error responses gracefully", async () => {
@@ -661,4 +671,18 @@ describe("safe_outputs_mcp_server.cjs", () => {
       expect(response.error.message).toContain("Invalid arguments");
     });
   });
+
+  // Helper to parse NDJSON files and return the last non-empty JSON object
+  function parseNdjsonLast(content) {
+    const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      throw new Error("No NDJSON entries found in output file");
+    }
+    try {
+      return JSON.parse(lines[lines.length - 1]);
+    } catch (e) {
+      // Preserve fast-fail behavior expected by tests and provide logging
+      throw new Error(`Failed to parse last NDJSON entry: ${e.message}`);
+    }
+  }
 });
