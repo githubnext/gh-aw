@@ -131,15 +131,10 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 		t.Errorf("Expected claude_env input with output '%s' in step content:\n%s", expectedClaudeEnv, stepContent)
 	}
 
-	// Should also include MCP debugging environment variables
-	expectedMCPDebug := "MCP_LOG_LEVEL: debug"
+	// Should also include MCP debug flag
+	expectedMCPDebug := "mcp_debug: true"
 	if !strings.Contains(stepContent, expectedMCPDebug) {
-		t.Errorf("Expected MCP debugging environment variable '%s' in step content:\n%s", expectedMCPDebug, stepContent)
-	}
-
-	expectedDebugVar := "DEBUG: mcp:*"
-	if !strings.Contains(stepContent, expectedDebugVar) {
-		t.Errorf("Expected DEBUG environment variable '%s' in step content:\n%s", expectedDebugVar, stepContent)
+		t.Errorf("Expected MCP debug flag '%s' in step content:\n%s", expectedMCPDebug, stepContent)
 	}
 }
 

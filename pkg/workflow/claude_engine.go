@@ -103,16 +103,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 	}
 
-	// Add MCP debugging environment variables if outputs are enabled or custom env is specified
-	if hasOutput || hasCustomEnv {
-		if claudeEnv != "" {
-			claudeEnv += "\n"
-		}
-		claudeEnv += "            MCP_LOG_LEVEL: debug"
-		claudeEnv += "\n"
-		claudeEnv += "            DEBUG: mcp:*"
-	}
-
 	// Add custom environment variables from engine config
 	if hasCustomEnv {
 		for key, value := range workflowData.EngineConfig.Env {
@@ -142,6 +132,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add model configuration if specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
 		inputs["model"] = workflowData.EngineConfig.Model
+	}
+
+	// Add MCP debug flag if outputs are enabled or custom env is specified
+	if hasOutput || hasCustomEnv {
+		inputs["mcp_debug"] = "true"
 	}
 
 	// Add settings parameter if network permissions are configured
