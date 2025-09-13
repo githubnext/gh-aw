@@ -1520,6 +1520,7 @@ jobs:
               if (initEntry.tools && Array.isArray(initEntry.tools)) {
                 markdown += "**Available Tools:**\n";
                 // Categorize tools
+                /** @type {{ [key: string]: string[] }} */
                 const categories = {
                   Core: [],
                   "File Operations": [],

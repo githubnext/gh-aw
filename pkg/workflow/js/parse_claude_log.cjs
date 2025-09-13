@@ -249,6 +249,7 @@ function formatInitializationSummary(initEntry) {
     markdown += "**Available Tools:**\n";
 
     // Categorize tools
+    /** @type {{ [key: string]: string[] }} */
     const categories = {
       Core: [],
       "File Operations": [],
