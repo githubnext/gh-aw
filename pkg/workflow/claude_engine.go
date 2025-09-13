@@ -548,6 +548,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
+		case "memory":
+			e.renderMemoryMCPConfig(yaml, isLast, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -652,6 +654,30 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 	}
 
 	return nil
+}
+
+// renderMemoryMCPConfig generates the Memory MCP server configuration
+// Uses Docker-based @modelcontextprotocol/server-memory setup
+func (e *ClaudeEngine) renderMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+	yaml.WriteString("              \"memory\": {\n")
+	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"run\",\n")
+	yaml.WriteString("                  \"-i\",\n")
+	yaml.WriteString("                  \"--rm\",\n")
+	yaml.WriteString("                  \"-v\",\n")
+	yaml.WriteString("                  \"/tmp/cache-memory:/data\",\n")
+	yaml.WriteString("                  \"ghcr.io/modelcontextprotocol/server-memory:latest\"\n")
+	yaml.WriteString("                ],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"MCP_MEMORY_DATA_DIR\": \"/data\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Claude

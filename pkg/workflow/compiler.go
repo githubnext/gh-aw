@@ -145,6 +145,7 @@ type WorkflowData struct {
 	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
 	Jobs               map[string]any      // custom job configurations with dependencies
 	Cache              string              // cache configuration
+	CacheMemory        string              // cache-memory configuration for memory MCP
 	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
@@ -648,6 +649,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
+	workflowData.CacheMemory = c.extractTopLevelYAMLSection(result.Frontmatter, "cache-memory")
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
@@ -2816,6 +2818,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// Add memory MCP tool if cache-memory is enabled
+	if workflowData.CacheMemory != "" {
+		mcpTools = append(mcpTools, "memory")
+	}
+
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)
@@ -2989,6 +2996,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)
+
+	// Add cache-memory steps if cache-memory configuration is present
+	generateCacheMemorySteps(yaml, data, c.verbose)
 
 	// Configure git credentials if git operations will be needed
 	if needsGitCommands(data.SafeOutputs) {

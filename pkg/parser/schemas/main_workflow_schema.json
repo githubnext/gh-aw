@@ -1269,6 +1269,41 @@
         }
       ]
     },
+    "cache-memory": {
+      "description": "Cache memory MCP configuration for persistent memory storage",
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "Enable cache-memory with default settings"
+        },
+        {
+          "type": "object",
+          "description": "Cache-memory configuration object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "description": "Custom cache key for memory MCP data"
+            },
+            "restore-keys": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "A single restore key"
+                },
+                {
+                  "type": "array",
+                  "description": "Multiple restore keys",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "safe-outputs": {
       "type": "object",
       "description": "Output configuration for automatic safe outputs",

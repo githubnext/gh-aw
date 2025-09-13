@@ -103,3 +103,86 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 	}
 }
+
+// generateCacheMemorySteps generates cache steps for the cache-memory configuration
+func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verbose bool) {
+	if data.CacheMemory == "" {
+		return
+	}
+
+	// Add comment indicating cache-memory configuration was processed
+	builder.WriteString("      # Cache memory MCP configuration from frontmatter processed below\n")
+
+	// Add step to create cache-memory directory
+	builder.WriteString("      - name: Create cache-memory directory\n")
+	builder.WriteString("        run: mkdir -p /tmp/cache-memory\n")
+
+	// Parse cache-memory configuration to determine settings
+	var topLevel map[string]any
+	if err := yaml.Unmarshal([]byte(data.CacheMemory), &topLevel); err != nil {
+		if verbose {
+			fmt.Printf("Warning: Failed to parse cache-memory configuration: %v\n", err)
+		}
+		return
+	}
+
+	// Extract the cache-memory section from the top-level map
+	cacheMemoryConfig, exists := topLevel["cache-memory"]
+	if !exists {
+		if verbose {
+			fmt.Printf("Warning: No cache-memory key found in parsed configuration\n")
+		}
+		return
+	}
+
+	// Check if cache-memory is enabled (boolean true or object with configuration)
+	var isEnabled bool
+	cacheMemorySettings := make(map[string]any)
+
+	if boolValue, ok := cacheMemoryConfig.(bool); ok {
+		isEnabled = boolValue
+	} else if configMap, ok := cacheMemoryConfig.(map[string]any); ok {
+		isEnabled = true
+		cacheMemorySettings = configMap
+	}
+
+	if !isEnabled {
+		return
+	}
+
+	// Generate cache step for memory MCP data
+	// Use a key that ensures last cache wins by incorporating a resolution field
+	cacheKey := "memory-mcp-${{ github.run_id }}"
+	if keyOverride, hasKey := cacheMemorySettings["key"]; hasKey {
+		if keyStr, ok := keyOverride.(string); ok {
+			cacheKey = keyStr
+		}
+	}
+
+	// Use restore-keys to restore from previous runs but always save with unique key
+	restoreKeys := []string{
+		"memory-mcp-",
+	}
+	if restoreOverride, hasRestore := cacheMemorySettings["restore-keys"]; hasRestore {
+		if restoreArray, ok := restoreOverride.([]any); ok {
+			restoreKeys = nil
+			for _, key := range restoreArray {
+				if keyStr, ok := key.(string); ok {
+					restoreKeys = append(restoreKeys, keyStr)
+				}
+			}
+		} else if restoreStr, ok := restoreOverride.(string); ok {
+			restoreKeys = []string{restoreStr}
+		}
+	}
+
+	builder.WriteString("      - name: Cache memory MCP data\n")
+	builder.WriteString("        uses: actions/cache@v3\n")
+	builder.WriteString("        with:\n")
+	fmt.Fprintf(builder, "          key: %s\n", cacheKey)
+	builder.WriteString("          path: /tmp/cache-memory\n")
+	builder.WriteString("          restore-keys: |\n")
+	for _, key := range restoreKeys {
+		fmt.Fprintf(builder, "            %s\n", key)
+	}
+}

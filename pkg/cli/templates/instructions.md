@@ -216,6 +216,7 @@ The YAML frontmatter supports these fields:
   
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
+- **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
 
 ### Cache Configuration
 
@@ -255,6 +256,36 @@ cache:
 - `lookup-only:` - Only check cache existence (boolean)
 
 Cache steps are automatically added to the workflow job and the cache configuration is removed from the final `.lock.yml` file.
+
+### Cache Memory Configuration
+
+The `cache-memory:` field enables persistent memory storage for agentic workflows using the @modelcontextprotocol/server-memory MCP server:
+
+**Simple Enable:**
+```yaml
+cache-memory: true
+```
+
+**Advanced Configuration:**
+```yaml
+cache-memory:
+  key: custom-memory-${{ github.run_id }}
+  restore-keys: 
+    - custom-memory-
+    - memory-fallback-
+```
+
+**How It Works:**
+- Mounts a memory MCP server at `/tmp/cache-memory/` that persists across workflow runs
+- Uses `actions/cache` with resolution field so the last cache wins
+- Automatically adds the memory MCP server to available tools
+- Cache steps are automatically added to the workflow job
+
+**Supported Parameters:**
+- `key:` - Custom cache key (defaults to `memory-mcp-${{ github.run_id }}`)
+- `restore-keys:` - Fallback keys for cache restoration (string or array)
+
+The memory MCP server is automatically configured when `cache-memory` is enabled and works with both Claude and Custom engines.
 
 ## Output Processing and Issue Creation
 
