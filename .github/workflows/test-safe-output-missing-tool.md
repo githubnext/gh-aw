@@ -7,6 +7,24 @@ on:
 
 safe-outputs:
   missing-tool:
+  staged: true
+
+engine:
+  id: claude
+permissions: read-all
+---
+
+Call the `missing-tool` tool and request the `draw pelican` tool, which does not exist, to trigger the `missing-tool` safe output.
+
+<!--
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+
+safe-outputs:
+  missing-tool:
     max: 5
   staged: true
 
@@ -201,3 +219,4 @@ The workflow uses a custom engine with GitHub Actions steps to:
 5. Verify the outputs were generated correctly
 
 This demonstrates how custom engines can leverage the safe output system for reporting missing tools or functionality that prevents task completion, helping users understand workflow limitations.
+-->
