@@ -131,15 +131,20 @@ make recompile
 # 5. Test add command help and syntax
 ./gh-aw add --help
 
-# 6. Test with sample workflow repository (requires internet access)
+# 6. Test update command functionality
+./gh-aw update --help
+./gh-aw update --staged
+# Expected: Shows what packages would be updated (may show "No packages installed")
+
+# 7. Test with sample workflow repository (requires internet access)
 ./gh-aw list --packages
 # Note: May show "No workflows or packages found" if no packages installed
 
-# 7. Validate build artifacts are clean
+# 8. Validate build artifacts are clean
 make clean
 make build
 
-# 8. MANDATORY: Run agent-finish before finishing session
+# 9. MANDATORY: Run agent-finish before finishing session
 make agent-finish  # Runs build, test, recompile, fmt, and lint
 ```
 

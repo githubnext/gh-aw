@@ -3382,10 +3382,10 @@ func UpdateWorkflows(workflowName string, staged bool, verbose bool, workflowDir
 	fmt.Printf("Updating %d package(s)...\n", len(updatedPackages))
 
 	var recompiledWorkflows []string
-	
+
 	for i, pkg := range updatedPackages {
 		fmt.Printf("Updating package %d/%d: %s\n", i+1, len(updatedPackages), pkg.Name)
-		
+
 		// Re-install the package to get latest version
 		if err := InstallPackage(pkg.Name, isLocalPackage(pkg.Path), verbose); err != nil {
 			fmt.Printf("Warning: Failed to update package %s: %v\n", pkg.Name, err)
@@ -3410,7 +3410,7 @@ func UpdateWorkflows(workflowName string, staged bool, verbose bool, workflowDir
 	// Recompile affected workflows
 	if len(recompiledWorkflows) > 0 {
 		fmt.Printf("\nRecompiling %d affected workflow(s)...\n", len(recompiledWorkflows))
-		
+
 		// Create compiler
 		compiler := workflow.NewCompiler(verbose, "", GetVersion())
 		compiler.SetSkipValidation(false) // Enable validation for updates

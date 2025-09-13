@@ -9,20 +9,20 @@ import (
 
 func TestUpdateWorkflows(t *testing.T) {
 	tests := []struct {
-		name        string
+		name         string
 		workflowName string
-		staged      bool
-		verbose     bool
-		workflowDir string
-		wantErr     bool
+		staged       bool
+		verbose      bool
+		workflowDir  string
+		wantErr      bool
 	}{
 		{
-			name:        "invalid absolute workflow dir",
+			name:         "invalid absolute workflow dir",
 			workflowName: "",
-			staged:      false,
-			verbose:     false,
-			workflowDir: "/absolute/path",
-			wantErr:     true,
+			staged:       false,
+			verbose:      false,
+			workflowDir:  "/absolute/path",
+			wantErr:      true,
 		},
 	}
 
@@ -31,12 +31,12 @@ func TestUpdateWorkflows(t *testing.T) {
 			// This test specifically checks the workflow-dir validation
 			// which happens before git checks, so we can test it without git setup
 			err := UpdateWorkflows(tt.workflowName, tt.staged, tt.verbose, tt.workflowDir)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateWorkflows() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if tt.wantErr && err != nil {
 				expectedMsg := "workflow-dir must be a relative path"
 				if !strings.Contains(err.Error(), expectedMsg) {
@@ -49,11 +49,11 @@ func TestUpdateWorkflows(t *testing.T) {
 
 func TestCheckPackageForUpdates(t *testing.T) {
 	tests := []struct {
-		name     string
-		pkg      Package
-		verbose  bool
+		name          string
+		pkg           Package
+		verbose       bool
 		wantHasUpdate bool
-		wantErr  bool
+		wantErr       bool
 	}{
 		{
 			name: "package with no commit SHA",
@@ -61,9 +61,9 @@ func TestCheckPackageForUpdates(t *testing.T) {
 				Name:      "test/package",
 				CommitSHA: "",
 			},
-			verbose:  false,
+			verbose:       false,
 			wantHasUpdate: true,
-			wantErr:  false,
+			wantErr:       false,
 		},
 		{
 			name: "package with empty commit SHA",
@@ -71,21 +71,21 @@ func TestCheckPackageForUpdates(t *testing.T) {
 				Name:      "test/package",
 				CommitSHA: "",
 			},
-			verbose:  true,
+			verbose:       true,
 			wantHasUpdate: true,
-			wantErr:  false,
+			wantErr:       false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hasUpdate, err := checkPackageForUpdates(tt.pkg, tt.verbose)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checkPackageForUpdates() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if hasUpdate != tt.wantHasUpdate {
 				t.Errorf("checkPackageForUpdates() hasUpdate = %v, want %v", hasUpdate, tt.wantHasUpdate)
 			}
@@ -100,7 +100,7 @@ func TestFilterPackagesByWorkflow(t *testing.T) {
 			Workflows: []string{"workflow1", "workflow2"},
 		},
 		{
-			Name:      "test/package2", 
+			Name:      "test/package2",
 			Workflows: []string{"workflow3"},
 		},
 		{
@@ -138,7 +138,7 @@ func TestFilterPackagesByWorkflow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			filtered := filterPackagesByWorkflow(tt.packages, tt.workflowName)
-			
+
 			if len(filtered) != tt.wantCount {
 				t.Errorf("filterPackagesByWorkflow() returned %d packages, want %d", len(filtered), tt.wantCount)
 			}
@@ -148,7 +148,7 @@ func TestFilterPackagesByWorkflow(t *testing.T) {
 
 func TestIsLocalPackage(t *testing.T) {
 	homeDir, _ := os.UserHomeDir()
-	
+
 	tests := []struct {
 		name        string
 		packagePath string

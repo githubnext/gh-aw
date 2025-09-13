@@ -22,6 +22,11 @@ gh aw run weekly-research                                    # Execute workflow
 gh aw run weekly-research daily-plan                        # Execute multiple workflows
 gh aw run weekly-research --repeat 3600                     # Execute workflow every hour
 gh aw logs weekly-research                                   # View execution logs
+
+# Package management and updates
+gh aw install githubnext/agentics                           # Install workflow package
+gh aw update --staged                                       # Preview available updates
+gh aw update                                                # Update all workflows from packages
 ```
 
 ## 📝 Workflow Creation and Management  
@@ -298,6 +303,21 @@ gh aw install org/repo@v1.0.0
 gh aw install org/repo@main --local
 gh aw install org/repo@commit-sha
 
+# Update all workflows from installed packages
+gh aw update
+
+# Show what would be updated without applying changes (dry run)
+gh aw update --staged
+
+# Update only a specific workflow
+gh aw update weekly-research
+
+# Update from a custom workflow directory
+gh aw update --workflow-dir custom/workflows
+
+# Update with verbose output showing detailed changes
+gh aw update --verbose
+
 # Uninstall a workflow package globally
 gh aw uninstall org/repo
 
@@ -324,9 +344,40 @@ gh aw version
 
 - **Install from GitHub**: Download workflow packages from any GitHub repository's `workflows/` directory
 - **Version Control**: Specify exact versions, branches, or commits using `@version` syntax
+- **Update Workflows**: Keep installed workflow packages up-to-date with latest changes from source repositories
+- **Staged Updates**: Preview what would be updated before applying changes with `--staged` flag
+- **Selective Updates**: Update only specific workflows by name instead of all installed packages
+- **Custom Directories**: Support for non-standard workflow directories using `--workflow-dir` flag
+- **Auto-Recompilation**: Automatically recompiles .lock.yml files after updates to ensure consistency
 - **Global Storage**: Global packages are stored in `~/.aw/packages/org/repo/` directory structure
 - **Local Storage**: Local packages are stored in `.aw/packages/org/repo/` directory structure
 - **Flexible Installation**: Choose between global (shared across projects) or local (project-specific) installations
+
+**Update Command Features:**
+
+The `update` command provides intelligent workflow synchronization with upstream package repositories:
+
+- **Smart Detection**: Compares local commit SHAs with remote repository HEAD to detect available updates
+- **Impact Preview**: Use `--staged` flag to see exactly which packages and workflows would be updated
+- **Workflow Filtering**: Update only specific workflows by name to minimize disruption
+- **Directory Flexibility**: Support custom workflow directories beyond the default `.github/workflows`
+- **Automatic Recompilation**: Updates followed by automatic recompilation of affected .lock.yml files
+- **Status Reporting**: Clear feedback on what was updated, including commit SHA changes
+
+**Update Examples:**
+```bash
+# Update all workflows and see detailed progress
+gh aw update --verbose
+
+# Preview updates without applying them
+gh aw update --staged --verbose
+
+# Update only the weekly-research workflow
+gh aw update weekly-research
+
+# Update workflows in a custom directory
+gh aw update --workflow-dir .github/custom-workflows
+```
 
 **Package Installation Requirements:**
 
