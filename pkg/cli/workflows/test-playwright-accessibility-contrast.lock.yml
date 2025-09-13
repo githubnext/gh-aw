@@ -1258,7 +1258,17 @@ jobs:
                 if (!Array.isArray(logEntries)) {
                   return "## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n";
                 }
-                let markdown = "## 🤖 Commands and Tools\n\n";
+                let markdown = "";
+                // Check for initialization data first
+                const initEntry = logEntries.find(
+                  entry => entry.type === "system" && entry.subtype === "init"
+                );
+                if (initEntry) {
+                  markdown += "## 🚀 Initialization\n\n";
+                  markdown += formatInitializationSummary(initEntry);
+                  markdown += "\n";
+                }
+                markdown += "## 🤖 Commands and Tools\n\n";
                 const toolUsePairs = new Map(); // Map tool_use_id to tool_result
                 const commandSummary = []; // For the succinct summary
                 // First pass: collect tool results by tool_use_id
@@ -1394,6 +1404,114 @@ jobs:
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 return `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`;
               }
+            }
+            /**
+             * Formats initialization information from system init entry
+             * @param {any} initEntry - The system init entry containing tools, mcp_servers, etc.
+             * @returns {string} Formatted markdown string with initialization summary
+             */
+            function formatInitializationSummary(initEntry) {
+              let markdown = "";
+              // Display model and session info
+              if (initEntry.model) {
+                markdown += `**Model:** ${initEntry.model}\n\n`;
+              }
+              if (initEntry.session_id) {
+                markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
+              }
+              if (initEntry.cwd) {
+                // Show a cleaner path by removing common prefixes
+                const cleanCwd = initEntry.cwd.replace(
+                  /^\/home\/runner\/work\/[^\/]+\/[^\/]+/,
+                  "."
+                );
+                markdown += `**Working Directory:** ${cleanCwd}\n\n`;
+              }
+              // Display MCP servers status
+              if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
+                markdown += "**MCP Servers:**\n";
+                for (const server of initEntry.mcp_servers) {
+                  const statusIcon =
+                    server.status === "connected"
+                      ? "✅"
+                      : server.status === "failed"
+                        ? "❌"
+                        : "❓";
+                  markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
+                }
+                markdown += "\n";
+              }
+              // Display tools by category
+              if (initEntry.tools && Array.isArray(initEntry.tools)) {
+                markdown += "**Available Tools:**\n";
+                // Categorize tools
+                const categories = {
+                  Core: [],
+                  "File Operations": [],
+                  "Git/GitHub": [],
+                  MCP: [],
+                  Other: [],
+                };
+                for (const tool of initEntry.tools) {
+                  if (
+                    ["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(
+                      tool
+                    )
+                  ) {
+                    categories["Core"].push(tool);
+                  } else if (
+                    [
+                      "Read",
+                      "Edit",
+                      "MultiEdit",
+                      "Write",
+                      "LS",
+                      "Grep",
+                      "Glob",
+                      "NotebookEdit",
+                    ].includes(tool)
+                  ) {
+                    categories["File Operations"].push(tool);
+                  } else if (tool.startsWith("mcp__github__")) {
+                    categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (
+                    tool.startsWith("mcp__") ||
+                    ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)
+                  ) {
+                    categories["MCP"].push(
+                      tool.startsWith("mcp__") ? formatMcpName(tool) : tool
+                    );
+                  } else {
+                    categories["Other"].push(tool);
+                  }
+                }
+                // Display categories with tools
+                for (const [category, tools] of Object.entries(categories)) {
+                  if (tools.length > 0) {
+                    markdown += `- **${category}:** ${tools.length} tools\n`;
+                    if (tools.length <= 5) {
+                      // Show all tools if 5 or fewer
+                      markdown += `  - ${tools.join(", ")}\n`;
+                    } else {
+                      // Show first few and count
+                      markdown += `  - ${tools.slice(0, 3).join(", ")}, and ${tools.length - 3} more\n`;
+                    }
+                  }
+                }
+                markdown += "\n";
+              }
+              // Display slash commands if available
+              if (initEntry.slash_commands && Array.isArray(initEntry.slash_commands)) {
+                const commandCount = initEntry.slash_commands.length;
+                markdown += `**Slash Commands:** ${commandCount} available\n`;
+                if (commandCount <= 10) {
+                  markdown += `- ${initEntry.slash_commands.join(", ")}\n`;
+                } else {
+                  markdown += `- ${initEntry.slash_commands.slice(0, 5).join(", ")}, and ${commandCount - 5} more\n`;
+                }
+                markdown += "\n";
+              }
+              return markdown;
             }
             /**
              * Formats a tool use entry with its result into markdown
@@ -1563,6 +1681,7 @@ jobs:
               module.exports = {
                 parseClaudeLog,
                 formatToolUse,
+                formatInitializationSummary,
                 formatBashCommand,
                 truncateString,
               };
