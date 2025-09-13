@@ -269,11 +269,12 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         console.log("✅ Server responded to initialization");
 
         // Extract response
-        const contentMatch = responseData.match(
-          /Content-Length: (\d+)\r\n\r\n(.+)/
-        );
-        if (contentMatch) {
-          const response = JSON.parse(contentMatch[2]);
+        const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
+        if (firstMatch) {
+          const contentLength = parseInt(firstMatch[1]);
+          const startPos = responseData.indexOf('\r\n\r\n') + 4;
+          const jsonText = responseData.substring(startPos, startPos + contentLength);
+          const response = JSON.parse(jsonText);
           expect(response.jsonrpc).toBe("2.0");
           expect(response.result).toBeDefined();
           expect(response.result.serverInfo).toBeDefined();

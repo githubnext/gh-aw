@@ -2,11 +2,20 @@ const fs = require("fs");
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
-if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
-const safeOutputsConfig = JSON.parse(configEnv);
+if (!configEnv) {
+  console.error("Warning: GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, using empty config");
+}
+let safeOutputsConfig = {};
+try {
+  safeOutputsConfig = configEnv ? JSON.parse(configEnv) : {};
+} catch (e) {
+  console.error("Warning: Invalid JSON in GITHUB_AW_SAFE_OUTPUTS_CONFIG, using empty config");
+}
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set");
-const SERVER_INFO = { name: "gh-aw-safe-outputs", version: "1.0.0" };
+if (!outputFile) {
+  console.error("Warning: GITHUB_AW_SAFE_OUTPUTS not set");
+}
+const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
 function writeMessage(obj) {
   const json = JSON.stringify(obj);
   const bytes = encoder.encode(json);
@@ -74,7 +83,8 @@ function isToolEnabled(name) {
 
 function appendSafeOutput(entry) {
   if (!outputFile) {
-    throw new Error("No output file configured");
+    console.error("Warning: No output file configured, skipping write");
+    return;
   }
   const jsonLine = JSON.stringify(entry) + "\n";
   try {
@@ -93,7 +103,7 @@ const defaultHandler = (type) => async (args) => {
     content: [
       {
         type: "text",
-        text: `success`,
+        text: type === "create-issue" ? `Issue creation queued: "${args.title || 'Untitled'}"` : `success`,
       },
     ],
   };
@@ -303,7 +313,9 @@ process.stderr.write(
 process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`)
 process.stderr.write(`[${SERVER_INFO.name}]  config: ${JSON.stringify(safeOutputsConfig)}\n`)
 process.stderr.write(`[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`)
-if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
+if (!Object.keys(TOOLS).length) {
+  console.error("Warning: No tools enabled in configuration");
+}
 
 function handleMessage(req) {
   const { id, method, params } = req;

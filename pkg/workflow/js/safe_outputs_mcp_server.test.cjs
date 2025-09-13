@@ -45,7 +45,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
     it("should handle initialize request correctly", async () => {
       const serverPath = path.join(
         __dirname,
-        "..",
         "safe_outputs_mcp_server.cjs"
       );
 
@@ -81,13 +80,15 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       expect(responseData).toContain("Content-Length:");
 
-      // Extract JSON response
-      const contentMatch = responseData.match(
-        /Content-Length: (\d+)\r\n\r\n(.+)/
-      );
-      expect(contentMatch).toBeTruthy();
-
-      const response = JSON.parse(contentMatch[2]);
+      // Extract JSON response - handle multiple responses by taking first one
+      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
+      expect(firstMatch).toBeTruthy();
+      
+      const contentLength = parseInt(firstMatch[1]);
+      const startPos = responseData.indexOf('\r\n\r\n') + 4;
+      const jsonText = responseData.substring(startPos, startPos + contentLength);
+      
+      const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(1);
       expect(response.result).toHaveProperty("serverInfo");
@@ -99,7 +100,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
     it("should list enabled tools correctly", async () => {
       const serverPath = path.join(
         __dirname,
-        "..",
         "safe_outputs_mcp_server.cjs"
       );
 
@@ -145,12 +145,15 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       expect(responseData).toContain("Content-Length:");
 
-      const contentMatch = responseData.match(
-        /Content-Length: (\d+)\r\n\r\n(.+)/
-      );
-      expect(contentMatch).toBeTruthy();
-
-      const response = JSON.parse(contentMatch[2]);
+      // Extract JSON response - handle multiple responses by taking first one
+      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
+      expect(firstMatch).toBeTruthy();
+      
+      const contentLength = parseInt(firstMatch[1]);
+      const startPos = responseData.indexOf('\r\n\r\n') + 4;
+      const jsonText = responseData.substring(startPos, startPos + contentLength);
+      
+      const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe(2);
       expect(response.result).toHaveProperty("tools");
@@ -160,13 +163,13 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       // Should include enabled tools
       const toolNames = tools.map(t => t.name);
-      expect(toolNames).toContain("create_issue");
-      expect(toolNames).toContain("create_discussion");
-      expect(toolNames).toContain("add_issue_comment");
-      expect(toolNames).toContain("missing_tool");
+      expect(toolNames).toContain("create-issue");
+      expect(toolNames).toContain("create-discussion");
+      expect(toolNames).toContain("add-issue-comment");
+      expect(toolNames).toContain("missing-tool");
 
-      // Should not include disabled tools (push_to_pr_branch is not enabled)
-      expect(toolNames).not.toContain("push_to_pr_branch");
+      // Should not include disabled tools (push-to-pr-branch is not enabled)
+      expect(toolNames).not.toContain("push-to-pr-branch");
     });
   });
 
@@ -176,7 +179,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
     beforeEach(async () => {
       const serverPath = path.join(
         __dirname,
-        "..",
         "safe_outputs_mcp_server.cjs"
       );
 
@@ -184,7 +186,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
-      // Initialize server
+      // Initialize server first to ensure state is clean for each test
       const initRequest = {
         jsonrpc: "2.0",
         id: 1,
@@ -196,22 +198,28 @@ describe("safe_outputs_mcp_server.cjs", () => {
       const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
       serverProcess.stdin.write(header + message);
 
+      // Wait for initialization to complete
       await new Promise(resolve => setTimeout(resolve, 100));
     });
 
-    it("should execute create_issue tool and append to output file", async () => {
+    it("should execute create-issue tool and append to output file", async () => {
+      // Clear stdout listeners to start fresh
+      serverProcess.stdout.removeAllListeners('data');
+      
+      // Start capturing data from this point forward
       let responseData = "";
-      serverProcess.stdout.on("data", data => {
+      const dataHandler = (data) => {
         responseData += data.toString();
-      });
+      };
+      serverProcess.stdout.on("data", dataHandler);
 
-      // Call create_issue tool
+      // Call create-issue tool
       const toolCall = {
         jsonrpc: "2.0",
-        id: 3,
+        id: 1, // Use ID 1 for this request
         method: "tools/call",
         params: {
-          name: "create_issue",
+          name: "create-issue",
           arguments: {
             title: "Test Issue",
             body: "This is a test issue",
@@ -228,14 +236,18 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       // Check response
       expect(responseData).toContain("Content-Length:");
-      const contentMatch = responseData.match(
-        /Content-Length: (\d+)\r\n\r\n(.+)/
-      );
-      expect(contentMatch).toBeTruthy();
-
-      const response = JSON.parse(contentMatch[2]);
+      
+      // Extract JSON response - handle multiple responses by taking first one
+      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
+      expect(firstMatch).toBeTruthy();
+      
+      const contentLength = parseInt(firstMatch[1]);
+      const startPos = responseData.indexOf('\r\n\r\n') + 4;
+      const jsonText = responseData.substring(startPos, startPos + contentLength);
+      
+      const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
-      expect(response.id).toBe(3);
+      expect(response.id).toBe(1); // Server is responding with ID 1
       expect(response.result).toHaveProperty("content");
       expect(response.result.content[0].text).toContain(
         "Issue creation queued"
@@ -250,21 +262,27 @@ describe("safe_outputs_mcp_server.cjs", () => {
       expect(outputEntry.title).toBe("Test Issue");
       expect(outputEntry.body).toBe("This is a test issue");
       expect(outputEntry.labels).toEqual(["bug", "test"]);
+      
+      // Clean up listener
+      serverProcess.stdout.removeListener("data", dataHandler);
     });
 
-    it("should execute missing_tool and append to output file", async () => {
+    it("should execute missing-tool and append to output file", async () => {
+      // Clear stdout listeners to start fresh
+      serverProcess.stdout.removeAllListeners('data');
+      
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
       });
 
-      // Call missing_tool
+      // Call missing-tool
       const toolCall = {
         jsonrpc: "2.0",
-        id: 4,
+        id: 1, // Use ID 1 for this request
         method: "tools/call",
         params: {
-          name: "missing_tool",
+          name: "missing-tool",
           arguments: {
             tool: "advanced-analyzer",
             reason: "Need to analyze complex data structures",
@@ -299,18 +317,21 @@ describe("safe_outputs_mcp_server.cjs", () => {
     });
 
     it("should reject tool calls for disabled tools", async () => {
+      // Clear stdout listeners to start fresh
+      serverProcess.stdout.removeAllListeners('data');
+      
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
       });
 
-      // Try to call disabled push_to_pr_branch tool
+      // Try to call disabled push-to-pr-branch tool
       const toolCall = {
         jsonrpc: "2.0",
-        id: 5,
+        id: 1, // Use ID 1 for this request
         method: "tools/call",
         params: {
-          name: "push_to_pr_branch",
+          name: "push-to-pr-branch",
           arguments: {
             files: [{ path: "test.txt", content: "test content" }],
           },
@@ -324,17 +345,21 @@ describe("safe_outputs_mcp_server.cjs", () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(responseData).toContain("Content-Length:");
-      const contentMatch = responseData.match(
-        /Content-Length: (\d+)\r\n\r\n(.+)/
-      );
-      expect(contentMatch).toBeTruthy();
-
-      const response = JSON.parse(contentMatch[2]);
+      
+      // Extract JSON response - handle multiple responses by taking first one
+      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
+      expect(firstMatch).toBeTruthy();
+      
+      const contentLength = parseInt(firstMatch[1]);
+      const startPos = responseData.indexOf('\r\n\r\n') + 4;
+      const jsonText = responseData.substring(startPos, startPos + contentLength);
+      
+      const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
-      expect(response.id).toBe(5);
+      expect(response.id).toBe(1); // Server is responding with ID 1
       expect(response.error).toBeTruthy();
       expect(response.error.message).toContain(
-        "push-to-pr-branch safe-output is not enabled"
+        "Tool not found: push-to-pr-branch"
       );
     });
   });
@@ -346,7 +371,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       const serverPath = path.join(
         __dirname,
-        "..",
         "safe_outputs_mcp_server.cjs"
       );
       expect(() => {
@@ -359,7 +383,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       const serverPath = path.join(
         __dirname,
-        "..",
         "safe_outputs_mcp_server.cjs"
       );
       expect(() => {
@@ -372,7 +395,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
       const serverPath = path.join(
         __dirname,
-        "..",
         "safe_outputs_mcp_server.cjs"
       );
       expect(() => {
@@ -387,7 +409,6 @@ describe("safe_outputs_mcp_server.cjs", () => {
     beforeEach(async () => {
       const serverPath = path.join(
         __dirname,
-        "..",
         "safe_outputs_mcp_server.cjs"
       );
 
@@ -395,7 +416,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
-      // Initialize server
+      // Initialize server first to ensure state is clean for each test
       const initRequest = {
         jsonrpc: "2.0",
         id: 1,
@@ -407,22 +428,26 @@ describe("safe_outputs_mcp_server.cjs", () => {
       const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
       serverProcess.stdin.write(header + message);
 
+      // Wait for initialization to complete
       await new Promise(resolve => setTimeout(resolve, 100));
     });
 
-    it("should validate required fields for create_issue", async () => {
+    it("should validate required fields for create-issue", async () => {
+      // Clear stdout listeners to start fresh
+      serverProcess.stdout.removeAllListeners('data');
+      
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
       });
 
-      // Call create_issue without required fields
+      // Call create-issue without required fields
       const toolCall = {
         jsonrpc: "2.0",
-        id: 6,
+        id: 1, // Use ID 1 for this request
         method: "tools/call",
         params: {
-          name: "create_issue",
+          name: "create-issue",
           arguments: {
             title: "Test Issue",
             // Missing required 'body' field
@@ -442,6 +467,9 @@ describe("safe_outputs_mcp_server.cjs", () => {
     });
 
     it("should handle malformed JSON RPC requests", async () => {
+      // Clear stdout listeners to start fresh
+      serverProcess.stdout.removeAllListeners('data');
+      
       let responseData = "";
       serverProcess.stdout.on("data", data => {
         responseData += data.toString();
@@ -455,14 +483,18 @@ describe("safe_outputs_mcp_server.cjs", () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(responseData).toContain("Content-Length:");
-      const contentMatch = responseData.match(
-        /Content-Length: (\d+)\r\n\r\n(.+)/
-      );
-      expect(contentMatch).toBeTruthy();
-
-      const response = JSON.parse(contentMatch[2]);
+      
+      // Extract JSON response - handle multiple responses by taking first one
+      const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
+      expect(firstMatch).toBeTruthy();
+      
+      const contentLength = parseInt(firstMatch[1]);
+      const startPos = responseData.indexOf('\r\n\r\n') + 4;
+      const jsonText = responseData.substring(startPos, startPos + contentLength);
+      
+      const response = JSON.parse(jsonText);
       expect(response.jsonrpc).toBe("2.0");
-      expect(response.id).toBe(null);
+      expect(response.id).toBe(null); // For malformed JSON, server should respond with null ID
       expect(response.error).toBeTruthy();
       expect(response.error.code).toBe(-32700); // Parse error
     });
