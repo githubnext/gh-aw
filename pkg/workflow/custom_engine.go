@@ -170,6 +170,8 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
+		case "cache-memory":
+			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -273,6 +275,36 @@ func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName str
 	}
 
 	return nil
+}
+
+// renderCacheMemoryMCPConfig generates the Memory MCP server configuration using shared logic
+// Uses Docker-based @modelcontextprotocol/server-memory setup
+func (e *CustomEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+	// Determine Docker image to use
+	dockerImage := "mcp/memory" // default from official documentation
+	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.DockerImage != "" {
+		dockerImage = workflowData.CacheMemoryConfig.DockerImage
+	}
+
+	yaml.WriteString("              \"memory\": {\n")
+	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"run\",\n")
+	yaml.WriteString("                  \"-i\",\n")
+	yaml.WriteString("                  \"--rm\",\n")
+	yaml.WriteString("                  \"-v\",\n")
+	yaml.WriteString("                  \"/tmp/cache-memory:/app/dist\",\n")
+	fmt.Fprintf(yaml, "                  \"%s\"\n", dockerImage)
+	yaml.WriteString("                ],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/app/dist/memory.json\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // ParseLogMetrics implements basic log parsing for custom engine

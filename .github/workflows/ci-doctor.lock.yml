@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v5
       # Cache configuration from frontmatter processed below
       - name: Cache (investigation-memory-${{ github.repository }})
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: investigation-memory-${{ github.repository }}
           path: |

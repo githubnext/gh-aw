@@ -149,6 +149,15 @@ type WorkflowData struct {
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
+	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
+}
+
+// CacheMemoryConfig holds configuration for cache-memory functionality
+type CacheMemoryConfig struct {
+	Enabled       bool   `yaml:"enabled,omitempty"`        // whether cache-memory is enabled
+	Key           string `yaml:"key,omitempty"`            // custom cache key
+	DockerImage   string `yaml:"docker-image,omitempty"`   // deprecated: no longer used (npx is used instead)
+	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -648,6 +657,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
+	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
@@ -2801,7 +2811,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	for toolName, toolValue := range workflowTools {
 		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format
@@ -3008,6 +3018,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)
+
+	// Add cache-memory steps if cache-memory configuration is present
+	generateCacheMemorySteps(yaml, data, c.verbose)
 
 	// Configure git credentials if git operations will be needed
 	if needsGitCommands(data.SafeOutputs) {
@@ -3505,6 +3518,71 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	}
 
 	return config
+}
+
+// extractCacheMemoryConfig extracts cache-memory configuration from tools section
+func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryConfig {
+	cacheMemoryValue, exists := tools["cache-memory"]
+	if !exists {
+		return nil
+	}
+
+	config := &CacheMemoryConfig{}
+
+	// Handle boolean value (simple enable/disable)
+	if boolValue, ok := cacheMemoryValue.(bool); ok {
+		config.Enabled = boolValue
+		if config.Enabled {
+			// Set defaults
+			config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+		}
+		return config
+	}
+
+	// Handle object configuration
+	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
+		config.Enabled = true
+
+		// Set defaults
+		config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+
+		// Parse custom key
+		if key, exists := configMap["key"]; exists {
+			if keyStr, ok := key.(string); ok {
+				config.Key = keyStr
+				// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+				runIdSuffix := "-${{ github.run_id }}"
+				if !strings.HasSuffix(config.Key, runIdSuffix) {
+					config.Key = config.Key + runIdSuffix
+				}
+			}
+		}
+
+		// Parse custom docker image (deprecated)
+		if dockerImage, exists := configMap["docker-image"]; exists {
+			if dockerImageStr, ok := dockerImage.(string); ok {
+				config.DockerImage = dockerImageStr
+				// Note: docker-image is deprecated and ignored when using npx
+			}
+		}
+
+		// Parse retention days
+		if retentionDays, exists := configMap["retention-days"]; exists {
+			if retentionDaysInt, ok := retentionDays.(int); ok {
+				config.RetentionDays = &retentionDaysInt
+			} else if retentionDaysFloat, ok := retentionDays.(float64); ok {
+				retentionDaysIntValue := int(retentionDaysFloat)
+				config.RetentionDays = &retentionDaysIntValue
+			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
+				retentionDaysIntValue := int(retentionDaysUint64)
+				config.RetentionDays = &retentionDaysIntValue
+			}
+		}
+
+		return config
+	}
+
+	return nil
 }
 
 // parseIssuesConfig handles create-issue configuration

@@ -2,117 +2,24 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Dev"
+name: "Test Claude with Missing Tool Safe Output and Cache Memory"
 on:
-  push:
-    branches:
-    - copilot/*
-    - pelikhan/*
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      missing_tool:
+        default: example-missing-tool
+        description: Tool to report as missing
+        required: true
 
 permissions: {}
 
 concurrency:
-  group: gh-aw-${{ github.workflow }}-${{ github.ref }}
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Dev"
+run-name: "Test Claude with Missing Tool Safe Output and Cache Memory"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
-    steps:
-      - name: Check team membership for workflow
-        id: check-team-member
-        uses: actions/github-script@v7
-        env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
-        with:
-          script: |
-            async function setCancelled(message) {
-              try {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  run_id: context.runId,
-                });
-                core.info(`Cancellation requested for this workflow run: ${message}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to cancel workflow run: ${errorMessage}`);
-                core.setFailed(message); // Fallback if API call fails
-              }
-            }
-            async function main() {
-              const { eventName } = context;
-              // skip check for safe events
-              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                return;
-              }
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv
-                ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
-                : [];
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.error(
-                  "❌ Configuration error: Required permissions not specified. Contact repository administrator."
-                );
-                await setCancelled(
-                  "Configuration error: Required permissions not specified"
-                );
-                return;
-              }
-              // Check if the actor has the required repository permissions
-              try {
-                core.debug(
-                  `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
-                );
-                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission =
-                  await github.rest.repos.getCollaboratorPermissionLevel({
-                    owner: owner,
-                    repo: repo,
-                    username: actor,
-                  });
-                const permission = repoPermission.data.permission;
-                core.debug(`Repository permission level: ${permission}`);
-                // Check if user has one of the required permission levels
-                for (const requiredPerm of requiredPermissions) {
-                  if (
-                    permission === requiredPerm ||
-                    (requiredPerm === "maintainer" && permission === "maintain")
-                  ) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    return;
-                  }
-                }
-                core.warning(
-                  `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage =
-                  repoError instanceof Error ? repoError.message : String(repoError);
-                core.error(`Repository permission check failed: ${errorMessage}`);
-                await setCancelled(`Repository permission check failed: ${errorMessage}`);
-                return;
-              }
-              // Cancel the workflow when permission check fails
-              core.warning(
-                `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-              );
-              await setCancelled(
-                `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-              );
-            }
-            await main();
-
-  dev:
-    needs: task
+  test-claude-with-missing-tool-safe-output-and-cache-memory:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -261,413 +168,6 @@ jobs:
               core.setOutput("output_file", outputFile);
             }
             main();
-      - name: Setup Safe Outputs
-        run: |
-          cat >> $GITHUB_ENV << 'EOF'
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG={"missing-tool":{"enabled":true}}
-          EOF
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
-            const fs = require("fs");
-            const encoder = new TextEncoder();
-            const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
-            if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
-            const safeOutputsConfig = JSON.parse(configEnv);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-            if (!outputFile)
-              throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
-            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
-            function writeMessage(obj) {
-              const json = JSON.stringify(obj);
-              const bytes = encoder.encode(json);
-              const header = `Content-Length: ${bytes.byteLength}\r\n\r\n`;
-              const headerBytes = encoder.encode(header);
-              fs.writeSync(1, headerBytes);
-              fs.writeSync(1, bytes);
-            }
-            let buffer = Buffer.alloc(0);
-            function onData(chunk) {
-              buffer = Buffer.concat([buffer, chunk]);
-              while (true) {
-                const sep = buffer.indexOf("\r\n\r\n");
-                if (sep === -1) break;
-                const headerPart = buffer.slice(0, sep).toString("utf8");
-                const match = headerPart.match(/Content-Length:\s*(\d+)/i);
-                if (!match) {
-                  buffer = buffer.slice(sep + 4);
-                  continue;
-                }
-                const length = parseInt(match[1], 10);
-                const total = sep + 4 + length;
-                if (buffer.length < total) break; // wait for full body
-                const body = buffer.slice(sep + 4, total);
-                buffer = buffer.slice(total);
-                try {
-                  const msg = JSON.parse(body.toString("utf8"));
-                  handleMessage(msg);
-                } catch (e) {
-                  const err = {
-                    jsonrpc: "2.0",
-                    id: null,
-                    error: { code: -32700, message: "Parse error", data: String(e) },
-                  };
-                  writeMessage(err);
-                }
-              }
-            }
-            process.stdin.on("data", onData);
-            process.stdin.on("error", () => {});
-            process.stdin.resume();
-            function replyResult(id, result) {
-              if (id === undefined || id === null) return; // notification
-              const res = { jsonrpc: "2.0", id, result };
-              writeMessage(res);
-            }
-            function replyError(id, code, message, data) {
-              const res = {
-                jsonrpc: "2.0",
-                id: id ?? null,
-                error: { code, message, data },
-              };
-              writeMessage(res);
-            }
-            function isToolEnabled(name) {
-              return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
-            }
-            function appendSafeOutput(entry) {
-              if (!outputFile) throw new Error("No output file configured");
-              const jsonLine = JSON.stringify(entry) + "\n";
-              try {
-                fs.appendFileSync(outputFile, jsonLine);
-              } catch (error) {
-                throw new Error(
-                  `Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`
-                );
-              }
-            }
-            const defaultHandler = type => async args => {
-              const entry = { ...(args || {}), type };
-              appendSafeOutput(entry);
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `success`,
-                  },
-                ],
-              };
-            };
-            const TOOLS = Object.fromEntries(
-              [
-                {
-                  name: "create-issue",
-                  description: "Create a new GitHub issue",
-                  inputSchema: {
-                    type: "object",
-                    required: ["title", "body"],
-                    properties: {
-                      title: { type: "string", description: "Issue title" },
-                      body: { type: "string", description: "Issue body/description" },
-                      labels: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Issue labels",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "create-discussion",
-                  description: "Create a new GitHub discussion",
-                  inputSchema: {
-                    type: "object",
-                    required: ["title", "body"],
-                    properties: {
-                      title: { type: "string", description: "Discussion title" },
-                      body: { type: "string", description: "Discussion body/content" },
-                      category: { type: "string", description: "Discussion category" },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "add-issue-comment",
-                  description: "Add a comment to a GitHub issue or pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["body"],
-                    properties: {
-                      body: { type: "string", description: "Comment body/content" },
-                      issue_number: {
-                        type: "number",
-                        description: "Issue or PR number (optional for current context)",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "create-pull-request",
-                  description: "Create a new GitHub pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["title", "body"],
-                    properties: {
-                      title: { type: "string", description: "Pull request title" },
-                      body: {
-                        type: "string",
-                        description: "Pull request body/description",
-                      },
-                      branch: {
-                        type: "string",
-                        description:
-                          "Optional branch name (will be auto-generated if not provided)",
-                      },
-                      labels: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Optional labels to add to the PR",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "create-pull-request-review-comment",
-                  description: "Create a review comment on a GitHub pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["path", "line", "body"],
-                    properties: {
-                      path: {
-                        type: "string",
-                        description: "File path for the review comment",
-                      },
-                      line: {
-                        type: ["number", "string"],
-                        description: "Line number for the comment",
-                      },
-                      body: { type: "string", description: "Comment body content" },
-                      start_line: {
-                        type: ["number", "string"],
-                        description: "Optional start line for multi-line comments",
-                      },
-                      side: {
-                        type: "string",
-                        enum: ["LEFT", "RIGHT"],
-                        description: "Optional side of the diff: LEFT or RIGHT",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "create-code-scanning-alert",
-                  description: "Create a code scanning alert",
-                  inputSchema: {
-                    type: "object",
-                    required: ["file", "line", "severity", "message"],
-                    properties: {
-                      file: {
-                        type: "string",
-                        description: "File path where the issue was found",
-                      },
-                      line: {
-                        type: ["number", "string"],
-                        description: "Line number where the issue was found",
-                      },
-                      severity: {
-                        type: "string",
-                        enum: ["error", "warning", "info", "note"],
-                        description: "Severity level",
-                      },
-                      message: {
-                        type: "string",
-                        description: "Alert message describing the issue",
-                      },
-                      column: {
-                        type: ["number", "string"],
-                        description: "Optional column number",
-                      },
-                      ruleIdSuffix: {
-                        type: "string",
-                        description: "Optional rule ID suffix for uniqueness",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "add-issue-label",
-                  description: "Add labels to a GitHub issue or pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["labels"],
-                    properties: {
-                      labels: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Labels to add",
-                      },
-                      issue_number: {
-                        type: "number",
-                        description: "Issue or PR number (optional for current context)",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "update-issue",
-                  description: "Update a GitHub issue",
-                  inputSchema: {
-                    type: "object",
-                    properties: {
-                      status: {
-                        type: "string",
-                        enum: ["open", "closed"],
-                        description: "Optional new issue status",
-                      },
-                      title: { type: "string", description: "Optional new issue title" },
-                      body: { type: "string", description: "Optional new issue body" },
-                      issue_number: {
-                        type: ["number", "string"],
-                        description: "Optional issue number for target '*'",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "push-to-pr-branch",
-                  description: "Push changes to a pull request branch",
-                  inputSchema: {
-                    type: "object",
-                    properties: {
-                      message: { type: "string", description: "Optional commit message" },
-                      pull_request_number: {
-                        type: ["number", "string"],
-                        description: "Optional pull request number for target '*'",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "missing-tool",
-                  description:
-                    "Report a missing tool or functionality needed to complete tasks",
-                  inputSchema: {
-                    type: "object",
-                    required: ["tool", "reason"],
-                    properties: {
-                      tool: { type: "string", description: "Name of the missing tool" },
-                      reason: { type: "string", description: "Why this tool is needed" },
-                      alternatives: {
-                        type: "string",
-                        description: "Possible alternatives or workarounds",
-                      },
-                    },
-                    additionalProperties: false,
-                  },
-                },
-              ]
-                .filter(({ name }) => isToolEnabled(name))
-                .map(tool => [tool.name, tool])
-            );
-            process.stderr.write(
-              `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
-            );
-            process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`);
-            process.stderr.write(
-              `[${SERVER_INFO.name}]  config: ${JSON.stringify(safeOutputsConfig)}\n`
-            );
-            process.stderr.write(
-              `[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`
-            );
-            if (!Object.keys(TOOLS).length)
-              throw new Error("No tools enabled in configuration");
-            function handleMessage(req) {
-              const { id, method, params } = req;
-              try {
-                if (method === "initialize") {
-                  const clientInfo = params?.clientInfo ?? {};
-                  console.error(`client initialized:`, clientInfo);
-                  const protocolVersion = params?.protocolVersion ?? undefined;
-                  const result = {
-                    serverInfo: SERVER_INFO,
-                    ...(protocolVersion ? { protocolVersion } : {}),
-                    capabilities: {
-                      tools: {},
-                    },
-                  };
-                  replyResult(id, result);
-                } else if (method === "tools/list") {
-                  const list = [];
-                  Object.values(TOOLS).forEach(tool => {
-                    list.push({
-                      name: tool.name,
-                      description: tool.description,
-                      inputSchema: tool.inputSchema,
-                    });
-                  });
-                  replyResult(id, { tools: list });
-                } else if (method === "tools/call") {
-                  const name = params?.name;
-                  const args = params?.arguments ?? {};
-                  if (!name || typeof name !== "string") {
-                    replyError(id, -32602, "Invalid params: 'name' must be a string");
-                    return;
-                  }
-                  const tool = TOOLS[name];
-                  if (!tool) {
-                    replyError(id, -32601, `Tool not found: ${name}`);
-                    return;
-                  }
-                  const handler = tool.handler || defaultHandler(tool.name);
-                  // Basic input validation: ensure required fields are present when schema defines them
-                  const requiredFields =
-                    tool.inputSchema && Array.isArray(tool.inputSchema.required)
-                      ? tool.inputSchema.required
-                      : [];
-                  if (requiredFields.length) {
-                    const missing = requiredFields.filter(f => args[f] === undefined);
-                    if (missing.length) {
-                      replyError(
-                        id,
-                        -32602,
-                        `Invalid arguments: missing ${missing.map(m => `'${m}'`).join(", ")}`
-                      );
-                      return;
-                    }
-                  }
-                  (async () => {
-                    try {
-                      const result = await handler(args);
-                      // Handler is expected to return an object possibly containing 'content'.
-                      // If handler returns a primitive or undefined, send an empty content array
-                      const content = result && result.content ? result.content : [];
-                      replyResult(id, { content });
-                    } catch (e) {
-                      replyError(id, -32000, `Tool '${name}' failed`, {
-                        message: e instanceof Error ? e.message : String(e),
-                      });
-                    }
-                  })();
-                  return;
-                }
-                replyError(id, -32601, `Method not found: ${method}`);
-              } catch (e) {
-                replyError(id, -32603, "Internal error", {
-                  message: e instanceof Error ? e.message : String(e),
-                });
-              }
-            }
-            process.stderr.write(`[${SERVER_INFO.name}] listening...\n`);
-          EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
-          
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config
@@ -707,26 +207,80 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Before starting, read the entire memory graph and print it to the output as "My past poems..."
+          # Test Claude with Missing Tool Safe Output and Cache Memory
           
-          Then:
+          You are a test agent that demonstrates the missing-tool safe output functionality with Claude engine, enhanced with persistent memory.
           
-          Write a short poem.
-          - check if this poem is already in memory
-          - if already in memory, generate a new poem
+          ## Task
           
-          Before returning the poem:
-          - store generated poem in memory
+          Your job is to:
           
-          <!-- This workflow tests the integration with the Claude AI engine. 
-            Meant as a scratchpad in pull requests. -->
+          1. **Check your memory** for any previous missing tool reports
+          2. **Report a missing tool** using the safe output functionality
+          3. **Store the report in memory** for future reference
+          4. **Use GitHub tools** to get basic repository information
+          
+          ## Instructions
+          
+          1. First, check your memory to see if you've reported any missing tools before
+          2. Report that the tool specified in the input (${{ github.event.inputs.missing_tool }}) is missing
+          3. Use the safe output functionality to properly report the missing tool with:
+             - Tool name: ${{ github.event.inputs.missing_tool }}
+             - Reason: "This tool is not available in the current workflow environment"
+             - Alternatives: "Consider using alternative tools or requesting tool addition"
+             - Context: "Testing missing-tool safe output with Claude engine"
+          4. Store this report in your memory for future reference
+          5. Get basic information about this repository using the GitHub tool
+          6. Provide a summary of your actions
+          
+          ## Expected Behavior
+          
+          - **Memory persistence**: Should remember previous missing tool reports across runs
+          - **Safe output**: Should generate proper missing-tool JSON output
+          - **Tool integration**: Should work with GitHub tools despite the "missing" tool
+          - **Staged mode**: Should prevent actual GitHub interactions when staged: true
+          
+          This workflow tests that:
+          - Claude can properly report missing tools using safe outputs
+          - Cache-memory preserves missing tool reports across runs
+          - Integration works with existing tools like GitHub
+          - Safe output system handles missing tool scenarios correctly
           
           
           ---
           
           ## Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, do NOT attempt to use MCP tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo. Instead write JSON objects to the file "${{ env.GITHUB_AW_SAFE_OUTPUTS }}". Each line should contain a single JSON object (JSONL format). You can write them one by one as you do them.
+          
+          **Format**: Write one JSON object per line. Each object must have a `type` field specifying the action type.
+          
+          ### Available Output Types:
+          
+          **Reporting Missing Tools or Functionality**
+          
+          If you need to use a tool or functionality that is not available to complete your task:
+          1. Append an entry on a new line "${{ env.GITHUB_AW_SAFE_OUTPUTS }}":
+          ```json
+          {"type": "missing-tool", "tool": "tool-name", "reason": "Why this tool is needed", "alternatives": "Suggested alternatives or workarounds"}
+          ```
+          2. The `tool` field should specify the name or type of missing functionality
+          3. The `reason` field should explain why this tool/functionality is required to complete the task
+          4. The `alternatives` field is optional but can suggest workarounds or alternative approaches
+          5. After you write to that file, read it back and check it is valid, see below.
+          
+          **Example JSONL file content:**
+          ```
+          {"type": "missing-tool", "tool": "docker", "reason": "Need Docker to build container images", "alternatives": "Could use GitHub Actions build instead"}
+          ```
+          
+          **Important Notes:**
+          - Do NOT attempt to use MCP tools, `gh`, or the GitHub API for these actions
+          - Each JSON object must be on its own line
+          - Only include output types that are configured for this workflow
+          - The content of this file will be automatically processed and executed
+          - After you write or append to "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", read it back as JSONL and check it is valid. Make sure it actually puts multiple entries on different lines rather than trying to separate entries on one line with the text "\n" - we've seen you make this mistake before, be careful! Maybe run a bash script to check the validity of the JSONL line by line if you have access to bash. If there are any problems with the JSONL make any necessary corrections to it to fix it up
+          
           EOF
       - name: Print prompt to step summary
         run: |
@@ -748,7 +302,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Dev",
+              workflow_name: "Test Claude with Missing Tool Safe Output and Cache Memory",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -808,6 +362,7 @@ jobs:
           # - mcp__github__get_pull_request_files
           # - mcp__github__get_pull_request_reviews
           # - mcp__github__get_pull_request_status
+          # - mcp__github__get_repository
           # - mcp__github__get_secret_scanning_alert
           # - mcp__github__get_tag
           # - mcp__github__get_workflow_run
@@ -835,34 +390,30 @@ jobs:
           # - mcp__github__search_repositories
           # - mcp__github__search_users
           # - mcp__memory
-          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory"
+          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-            GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}
             GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-          max_turns: 5
           mcp_config: /tmp/mcp-config/mcp-servers.json
-          mcp_debug: true
           prompt_file: /tmp/aw-prompts/prompt.txt
           settings: /tmp/.claude/settings.json
           timeout_minutes: 5
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_MAX_TURNS: 5
       - name: Capture Agentic Action logs
         if: always()
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/dev.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/dev.log
+            echo "No execution file output found from Agentic Action" >> /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
           fi
           
           # Ensure log file exists
-          touch /tmp/dev.log
+          touch /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -893,7 +444,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true,\"max\":5}}"
         with:
           script: |
             async function main() {
@@ -1701,7 +1252,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/dev.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
         with:
           script: |
             function main() {
@@ -2191,12 +1742,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dev.log
-          path: /tmp/dev.log
+          name: test-claude-with-missing-tool-safe-output-and-cache-memory.log
+          path: /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
           if-no-files-found: warn
 
   missing_tool:
-    needs: dev
+    needs: test-claude-with-missing-tool-safe-output-and-cache-memory
     if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
@@ -2210,7 +1761,8 @@ jobs:
         id: missing_tool
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-with-missing-tool-safe-output-and-cache-memory.outputs.output }}
+          GITHUB_AW_MISSING_TOOL_MAX: 5
         with:
           script: |
             async function main() {
