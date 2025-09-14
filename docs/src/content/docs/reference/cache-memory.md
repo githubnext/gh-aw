@@ -13,7 +13,7 @@ Cache Memory provides:
 
 - **Persistent Memory**: AI agents can remember information across multiple workflow runs
 - **GitHub Actions Integration**: Built on top of GitHub Actions cache infrastructure 
-- **MCP Memory Server**: Uses the official Model Context Protocol memory server in a Docker container
+- **MCP Memory Server**: Uses the official Model Context Protocol memory server via npx
 - **Automatic Configuration**: Seamlessly integrates with Claude and Custom engines
 - **Smart Caching**: Intelligent cache key generation and restoration strategies
 
@@ -21,9 +21,9 @@ Cache Memory provides:
 
 When `cache-memory` is enabled, the workflow compiler automatically:
 
-1. **Mounts Memory MCP Server**: Configures an official MCP memory server in a Docker container
+1. **Mounts Memory MCP Server**: Configures an official MCP memory server via npx
 2. **Creates Cache Steps**: Adds GitHub Actions cache steps to restore and save memory data
-3. **Persistent Storage**: Maps `/tmp/cache-memory` to the MCP server's data directory
+3. **Persistent Storage**: Maps `/tmp/cache-memory` to store memory data files
 4. **Cache Key Management**: Generates intelligent cache keys with progressive fallback
 5. **Tool Integration**: Adds "memory" tool to the MCP configuration for AI engines
 
@@ -45,12 +45,12 @@ tools:
 
 This uses:
 - **Default cache key**: `memory-${{ github.workflow }}-${{ github.run_id }}`
-- **Default Docker image**: `mcp/memory` (official MCP memory server)
-- **Default storage path**: `/tmp/cache-memory` mounted to `/app/dist` in container
+- **Default setup**: Uses `npx @modelcontextprotocol/server-memory` 
+- **Default storage path**: `/tmp/cache-memory` for memory data files
 
 ### Advanced Configuration
 
-Customize cache key, Docker image, and artifact retention:
+Customize cache key and artifact retention:
 
 ```yaml
 ---
@@ -58,23 +58,25 @@ engine: claude
 tools:
   cache-memory:
     key: custom-memory-${{ github.workflow }}-${{ github.run_id }}
-    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
     retention-days: 30
   github:
     allowed: [get_repository]
 ---
 ```
 
-### Custom Docker Images
+### Legacy Docker Configuration (Deprecated)
 
-Use specific versions or alternative memory server implementations:
+**Note**: Docker image configuration is deprecated. The cache-memory tool now uses npx for improved compatibility and simplified setup.
+
+For legacy configurations, the docker-image field is ignored:
 
 ```yaml
 ---
 engine: claude
 tools:
   cache-memory:
-    docker-image: "ghcr.io/modelcontextprotocol/server-memory:sha-abcd123"
+    # docker-image field is deprecated and ignored
+    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
     retention-days: 7
   github:
     allowed: [get_repository]
@@ -178,7 +180,7 @@ When cache-memory is enabled, these steps are automatically added to your workfl
   run: mkdir -p /tmp/cache-memory
 
 - name: Cache memory MCP data
-  uses: actions/cache@v5
+  uses: actions/cache@v4
   with:
     key: memory-${{ github.workflow }}-${{ github.run_id }}
     path: /tmp/cache-memory
@@ -195,7 +197,7 @@ When cache-memory is enabled, these steps are automatically added to your workfl
   run: mkdir -p /tmp/cache-memory
 
 - name: Cache memory MCP data
-  uses: actions/cache@v5
+  uses: actions/cache@v4
   with:
     key: memory-${{ github.workflow }}-${{ github.run_id }}
     path: /tmp/cache-memory
@@ -213,31 +215,32 @@ When cache-memory is enabled, these steps are automatically added to your workfl
 
 ## MCP Server Configuration
 
-The memory server is configured following official MCP documentation:
+The memory server is configured using npx following official MCP documentation:
 
 ```json
 "memory": {
-  "command": "docker",
+  "command": "npx",
   "args": [
-    "run", "-i", "--rm", "-v",
-    "/tmp/cache-memory:/app/dist",
-    "mcp/memory"
+    "@modelcontextprotocol/server-memory"
   ],
   "env": {
-    "MEMORY_FILE_PATH": "/app/dist/memory.json"
+    "MEMORY_FILE_PATH": "/tmp/cache-memory/memory.json"
   }
 }
 ```
 
-### Docker Image Options
+### Benefits of npx Setup
 
-#### Official Images
-- `mcp/memory`: Official MCP memory server (default)
-- `ghcr.io/modelcontextprotocol/server-memory:latest`: Alternative official image
+#### Simplified Installation
+- **No Docker Required**: Runs directly using npx package manager
+- **Automatic Updates**: Gets latest package versions automatically
+- **Faster Startup**: No container overhead or image pulling
+- **Universal Compatibility**: Works on any runner with Node.js/npm
 
-#### Version Pinning
-- `ghcr.io/modelcontextprotocol/server-memory:v1.0.0`: Specific version
-- `ghcr.io/modelcontextprotocol/server-memory:sha-abcd123`: Specific commit SHA
+#### Package Management
+- **Official Package**: Uses `@modelcontextprotocol/server-memory` from npm
+- **Version Control**: Inherits npm's version resolution and dependency management
+- **Security**: Leverages npm's security scanning and vulnerability detection
 
 ## Memory Operations
 
@@ -295,13 +298,13 @@ Be mindful of cache usage:
 - **Cache Limits**: Respect GitHub's 10GB repository cache limit
 - **Cleanup Strategy**: Consider periodic cache clearing for long-running projects
 
-### Docker Image Selection
+### Node.js and npm Requirements
 
-Choose appropriate Docker images:
+Ensure runner compatibility:
 
-- **Production**: Pin to specific versions for stability
-- **Development**: Use latest for newest features
-- **Security**: Prefer official images or verify third-party images
+- **Node.js**: GitHub runners include Node.js by default
+- **npm/npx**: Available in all GitHub-hosted runners
+- **Package Access**: Ensure access to npm registry for package installation
 
 ## Troubleshooting
 
@@ -312,10 +315,10 @@ Choose appropriate Docker images:
 - **Verify Paths**: Confirm `/tmp/cache-memory` directory exists
 - **Review Logs**: Check workflow logs for cache restore/save messages
 
-#### Docker Image Issues
-- **Image Availability**: Verify Docker image exists and is accessible
-- **Version Compatibility**: Ensure MCP server version supports required features
-- **Network Access**: Confirm runner can pull Docker images
+#### Package Installation Issues
+- **npm Registry Access**: Verify runner can access npm registry
+- **Package Availability**: Confirm `@modelcontextprotocol/server-memory` package exists
+- **Network Access**: Ensure runner has internet connectivity for package installation
 
 #### Cache Size Issues
 - **Monitor Usage**: Track cache size growth over time
@@ -352,11 +355,11 @@ Please debug the cache-memory functionality by:
 - **Access Control**: Memory data follows repository access permissions
 - **Audit Trail**: Cache access is logged in workflow execution logs
 
-### Docker Security
+### Package Security
 
-- **Image Verification**: Use official or verified Docker images
-- **Container Isolation**: Memory server runs in isolated container
-- **Network Security**: Container has no network access by default
+- **Official Package**: Use only the official `@modelcontextprotocol/server-memory` package
+- **Dependency Scanning**: npm automatically scans for vulnerabilities
+- **Audit Trail**: Package installation is logged in workflow execution logs
 
 ## Examples
 
@@ -398,7 +401,6 @@ engine: claude
 tools:
   cache-memory:
     key: project-docs-${{ github.repository }}-${{ github.workflow }}
-    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
   github:
     allowed: [get_repository, list_files]
 ---

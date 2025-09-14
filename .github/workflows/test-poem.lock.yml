@@ -266,17 +266,12 @@ jobs:
           {
             "mcpServers": {
               "memory": {
-                "command": "docker",
+                "command": "npx",
                 "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-v",
-                  "/tmp/cache-memory:/app/dist",
-                  "mcp/memory"
+                  "@modelcontextprotocol/server-memory"
                 ],
                 "env": {
-                  "MEMORY_FILE_PATH": "/app/dist/memory.json"
+                  "MEMORY_FILE_PATH": "/tmp/cache-memory/memory.json"
                 }
               },
               "github": {

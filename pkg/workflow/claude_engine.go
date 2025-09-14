@@ -657,26 +657,15 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 }
 
 // renderCacheMemoryMCPConfig generates the Memory MCP server configuration
-// Uses Docker-based @modelcontextprotocol/server-memory setup
+// Uses npx-based @modelcontextprotocol/server-memory setup
 func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	// Determine Docker image to use
-	dockerImage := "mcp/memory" // default from official documentation
-	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.DockerImage != "" {
-		dockerImage = workflowData.CacheMemoryConfig.DockerImage
-	}
-
 	yaml.WriteString("              \"memory\": {\n")
-	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"command\": \"npx\",\n")
 	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"run\",\n")
-	yaml.WriteString("                  \"-i\",\n")
-	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"-v\",\n")
-	yaml.WriteString("                  \"/tmp/cache-memory:/app/dist\",\n")
-	fmt.Fprintf(yaml, "                  \"%s\"\n", dockerImage)
+	yaml.WriteString("                  \"@modelcontextprotocol/server-memory\"\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/app/dist/memory.json\"\n")
+	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/tmp/cache-memory/memory.json\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {
