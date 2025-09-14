@@ -167,7 +167,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Execute Claude Code Action") {
 					t.Errorf("Expected lock file to contain 'Execute Claude Code Action' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)) {
+				if !strings.Contains(lockContent, fmt.Sprintf("anthropics/claude-code-action@%s", DefaultClaudeActionVersion)) {
 					t.Errorf("Expected lock file to contain Claude Code action but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
@@ -424,11 +424,11 @@ This is a test workflow for MCP configuration with different AI engines.
 				if !strings.Contains(lockContent, "codex exec") {
 					t.Errorf("Expected codex exec command but didn't find it in:\n%s", lockContent)
 				}
-				if strings.Contains(lockContent, "claude-code-base-action") {
+				if strings.Contains(lockContent, "claude-code-action") {
 					t.Errorf("Expected NO claude action but found it in:\n%s", lockContent)
 				}
 			} else {
-				if !strings.Contains(lockContent, "claude-code-base-action") {
+				if !strings.Contains(lockContent, "claude-code-action") {
 					t.Errorf("Expected claude action but didn't find it in:\n%s", lockContent)
 				}
 				if strings.Contains(lockContent, "codex exec") {

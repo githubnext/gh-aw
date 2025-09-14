@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	// DefaultClaudeActionVersion is the default version of the Claude Code base action
-	DefaultClaudeActionVersion = "v0.0.56"
+	// DefaultClaudeActionVersion is the default version of the Claude Code action
+	DefaultClaudeActionVersion = "v1"
 )
 
 // ClaudeEngine represents the Claude Code agentic engine
@@ -83,66 +83,56 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		actionVersion = workflowData.EngineConfig.Version
 	}
 
-	// Build claude_env based on hasOutput parameter and custom env vars
-	hasOutput := workflowData.SafeOutputs != nil
-	claudeEnv := ""
-	if hasOutput {
-		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-
-		// Add staged flag if specified
-		if workflowData.SafeOutputs.Staged != nil {
-			if *workflowData.SafeOutputs.Staged {
-				if claudeEnv != "" {
-					claudeEnv += "\n"
-				}
-				claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\""
-			}
-		}
-	}
-
-	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			if claudeEnv != "" {
-				claudeEnv += "\n"
-			}
-			claudeEnv += "            " + key + ": " + value
-		}
-	}
-
+	// v1.0 uses simple inputs: prompt, anthropic_api_key, and claude_args
 	inputs := map[string]string{
-		"prompt_file":       "/tmp/aw-prompts/prompt.txt",
+		"prompt":            "$(cat /tmp/aw-prompts/prompt.txt)",
 		"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
-		"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
-		"allowed_tools":     "", // Will be filled in during generation
-		"timeout_minutes":   "", // Will be filled in during generation
+		"claude_args":       "", // Will be built below
 	}
 
-	// Only add max_turns if it's actually specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		inputs["max_turns"] = workflowData.EngineConfig.MaxTurns
-	}
-	if claudeEnv != "" {
-		inputs["claude_env"] = "|\n" + claudeEnv
-	}
+	// Build claude_args based on configuration
+	var claudeArgs []string
 
-	// Add model configuration if specified
+	// Add model if specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		inputs["model"] = workflowData.EngineConfig.Model
+		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
-	// Add settings parameter if network permissions are configured
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		inputs["settings"] = "/tmp/.claude/settings.json"
+	// Add max_turns if specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Apply default Claude tools
+	// Add MCP configuration
+	claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+
+	// Add allowed tools configuration
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
+	if allowedTools != "" {
+		claudeArgs = append(claudeArgs, "--allowedTools", allowedTools)
+	}
+
+	// Add network settings if configured
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
+	}
+
+	// Convert claudeArgs slice to multi-line string for YAML
+	if len(claudeArgs) > 0 {
+		inputs["claude_args"] = "|"
+		for i := 0; i < len(claudeArgs); i += 2 {
+			if i+1 < len(claudeArgs) {
+				inputs["claude_args"] += "\n            " + claudeArgs[i] + " " + claudeArgs[i+1]
+			} else {
+				inputs["claude_args"] += "\n            " + claudeArgs[i]
+			}
+		}
+	}
 
 	var stepLines []string
 
 	stepName := "Execute Claude Code Action"
-	action := fmt.Sprintf("anthropics/claude-code-base-action@%s", actionVersion)
+	action := fmt.Sprintf("anthropics/claude-code-action@%s", actionVersion)
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 	stepLines = append(stepLines, "        id: agentic_execution")
@@ -158,37 +148,20 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	for _, key := range keys {
 		value := inputs[key]
-		if key == "allowed_tools" {
-			if allowedTools != "" {
-				// Add comment listing all allowed tools for readability
-				comment := e.generateAllowedToolsComment(allowedTools, "          ")
-				commentLines := strings.Split(comment, "\n")
-				// Filter out empty lines to avoid breaking test logic
-				for _, line := range commentLines {
-					if line != "" {
-						stepLines = append(stepLines, line)
-					}
-				}
-				stepLines = append(stepLines, fmt.Sprintf("          %s: \"%s\"", key, allowedTools))
-			}
-		} else if key == "timeout_minutes" {
-			// Always include timeout_minutes field
-			if workflowData.TimeoutMinutes != "" {
-				// TimeoutMinutes contains the full YAML line (e.g. "timeout_minutes: 5")
-				stepLines = append(stepLines, "          "+workflowData.TimeoutMinutes)
-			} else {
-				stepLines = append(stepLines, "          timeout_minutes: 5") // Default timeout
-			}
-		} else if key == "max_turns" {
-			// max_turns is only in the map when it should be included
-			stepLines = append(stepLines, fmt.Sprintf("          max_turns: %s", value))
-		} else if value != "" {
+		if value != "" {
 			if strings.HasPrefix(value, "|") {
 				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
 			} else {
 				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
 			}
 		}
+	}
+
+	// Add timeout at job level (GitHub Actions standard, not action input)
+	if workflowData.TimeoutMinutes != "" {
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")))
+	} else {
+		stepLines = append(stepLines, "        timeout-minutes: 5") // Default timeout
 	}
 
 	// Add environment section - always include environment section for GITHUB_AW_PROMPT
@@ -199,6 +172,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	if workflowData.SafeOutputs != nil {
 		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
+
+		// Add staged flag if specified
+		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
+			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+		}
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {

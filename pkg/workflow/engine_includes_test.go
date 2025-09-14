@@ -245,7 +245,7 @@ This should use the default engine.
 	lockStr := string(lockContent)
 
 	// Should contain references to claude action (default engine)
-	if !strings.Contains(lockStr, "anthropics/claude-code-base-action") {
+	if !strings.Contains(lockStr, "anthropics/claude-code-action") {
 		t.Error("Expected lock file to contain claude action reference")
 	}
 }
@@ -289,7 +289,7 @@ This workflow specifies claude engine directly without any includes.
 	lockStr := string(lockContent)
 
 	// Should contain references to claude action
-	if !strings.Contains(lockStr, "anthropics/claude-code-base-action") {
+	if !strings.Contains(lockStr, "anthropics/claude-code-action") {
 		t.Error("Expected lock file to contain claude action reference")
 	}
 }

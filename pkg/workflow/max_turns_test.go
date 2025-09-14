@@ -32,7 +32,7 @@ tools:
 # Test Max Turns
 
 This workflow tests the max-turns feature.`,
-			expectedMaxTurns: "max_turns: 3",
+			expectedMaxTurns: "--max-turns 3",
 			shouldInclude:    true,
 		},
 		{
@@ -73,7 +73,7 @@ tools:
 # Test Max Turns and Timeout
 
 This workflow tests max-turns with timeout.`,
-			expectedMaxTurns: "max_turns: 10",
+			expectedMaxTurns: "--max-turns 10",
 			shouldInclude:    true,
 		},
 	}
@@ -115,28 +115,28 @@ This workflow tests max-turns with timeout.`,
 				}
 
 				// Verify GITHUB_AW_MAX_TURNS environment variable is set
-				expectedEnvVar := "GITHUB_AW_MAX_TURNS: " + strings.TrimPrefix(tt.expectedMaxTurns, "max_turns: ")
+				expectedEnvVar := "GITHUB_AW_MAX_TURNS: " + strings.TrimPrefix(tt.expectedMaxTurns, "--max-turns ")
 				if !strings.Contains(lockContentStr, expectedEnvVar) {
 					t.Errorf("Expected GITHUB_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
 				}
 
 				// Verify it's in the correct context (under the Claude action inputs)
-				if !strings.Contains(lockContentStr, "anthropics/claude-code-base-action") {
+				if !strings.Contains(lockContentStr, "anthropics/claude-code-action") {
 					t.Error("Expected to find Claude action in generated workflow")
 				}
 
-				// Look for max_turns in the inputs section
+				// Look for max_turns in the claude_args section (v1.0 format)
 				lines := strings.Split(lockContentStr, "\n")
 				foundAction := false
 				foundMaxTurns := false
 				for i, line := range lines {
-					if strings.Contains(line, "anthropics/claude-code-base-action") {
+					if strings.Contains(line, "anthropics/claude-code-action") {
 						foundAction = true
 					}
-					if foundAction && strings.Contains(line, "with:") {
-						// Look for max_turns in the subsequent lines
-						for j := i + 1; j < len(lines) && strings.HasPrefix(lines[j], "          "); j++ {
-							if strings.Contains(lines[j], "max_turns:") {
+					if foundAction && strings.Contains(line, "claude_args:") {
+						// Look for --max-turns in the subsequent lines
+						for j := i + 1; j < len(lines) && (strings.HasPrefix(lines[j], "          ") || strings.HasPrefix(lines[j], "            ")); j++ {
+							if strings.Contains(lines[j], "--max-turns") {
 								foundMaxTurns = true
 								break
 							}

@@ -1113,18 +1113,18 @@ This is a simple test workflow with Bash tools.
 		}
 	}
 
-	// Verify that 'ls' appears only once in the allowed_tools line (no duplicates in functionality)
-	// We need to check specifically in the allowed_tools line, not in comments
-	allowedToolsLinePattern := `allowed_tools: "([^"]+)"`
+	// Verify that 'ls' appears only once in the allowedTools line (no duplicates in functionality)
+	// We need to check specifically in the --allowedTools line in claude_args, not in comments
+	allowedToolsLinePattern := `--allowedTools ([^\n]+)`
 	re := regexp.MustCompile(allowedToolsLinePattern)
 	matches := re.FindStringSubmatch(lockContent)
 	if len(matches) < 2 {
-		t.Errorf("Could not find allowed_tools line in lock file")
+		t.Errorf("Could not find --allowedTools line in lock file")
 	} else {
 		allowedToolsValue := matches[1]
 		bashLsCount := strings.Count(allowedToolsValue, "Bash(ls)")
 		if bashLsCount != 1 {
-			t.Errorf("Expected 'Bash(ls)' to appear exactly once in allowed_tools value, but found %d occurrences in: %s", bashLsCount, allowedToolsValue)
+			t.Errorf("Expected 'Bash(ls)' to appear exactly once in allowedTools value, but found %d occurrences in: %s", bashLsCount, allowedToolsValue)
 		}
 	}
 }
@@ -1618,18 +1618,18 @@ This should succeed and merge the allowed arrays.
 		}
 	}
 
-	// Verify that get_data appears only once in the allowed_tools line (no duplicates)
-	// We need to check specifically in the allowed_tools line, not in comments
-	allowedToolsLinePattern := `allowed_tools: "([^"]+)"`
+	// Verify that get_data appears only once in the allowedTools line (no duplicates)
+	// We need to check specifically in the --allowedTools line in claude_args, not in comments
+	allowedToolsLinePattern := `--allowedTools ([^\n]+)`
 	re := regexp.MustCompile(allowedToolsLinePattern)
 	matches := re.FindStringSubmatch(lockContent)
 	if len(matches) < 2 {
-		t.Errorf("Could not find allowed_tools line in lock file")
+		t.Errorf("Could not find --allowedTools line in lock file")
 	} else {
 		allowedToolsValue := matches[1]
 		allowedToolsMatch := strings.Count(allowedToolsValue, "mcp__apiServer__get_data")
 		if allowedToolsMatch != 1 {
-			t.Errorf("Expected 'mcp__apiServer__get_data' to appear exactly once in allowed_tools value, but found %d occurrences", allowedToolsMatch)
+			t.Errorf("Expected 'mcp__apiServer__get_data' to appear exactly once in allowedTools value, but found %d occurrences", allowedToolsMatch)
 		}
 	}
 

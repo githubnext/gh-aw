@@ -82,12 +82,12 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify settings parameter is not present
-		if strings.Contains(stepYAML, "settings:") {
+		if strings.Contains(stepYAML, "--settings") {
 			t.Error("Settings parameter should not be present without network permissions")
 		}
 
-		// Verify model parameter is present
-		if !strings.Contains(stepYAML, "model: claude-3-5-sonnet-20241022") {
+		// Verify model parameter is present in claude_args
+		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
 			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
 		}
 	})
@@ -113,12 +113,12 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify settings parameter is present
-		if !strings.Contains(stepYAML, "settings: /tmp/.claude/settings.json") {
+		if !strings.Contains(stepYAML, "--settings /tmp/.claude/settings.json") {
 			t.Error("Settings parameter should be present with network permissions")
 		}
 
-		// Verify model parameter is present
-		if !strings.Contains(stepYAML, "model: claude-3-5-sonnet-20241022") {
+		// Verify model parameter is present in claude_args
+		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
 			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
 		}
 	})
@@ -142,7 +142,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify settings parameter is present even with deny-all policy
-		if !strings.Contains(stepYAML, "settings: /tmp/.claude/settings.json") {
+		if !strings.Contains(stepYAML, "--settings /tmp/.claude/settings.json") {
 			t.Error("Settings parameter should be present with deny-all network permissions")
 		}
 	})
@@ -209,7 +209,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		stepYAML := strings.Join(execSteps[0], "\n")
 
 		// Verify settings is configured
-		if !strings.Contains(stepYAML, "settings: /tmp/.claude/settings.json") {
+		if !strings.Contains(stepYAML, "--settings /tmp/.claude/settings.json") {
 			t.Error("Settings parameter should be present")
 		}
 
