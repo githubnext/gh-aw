@@ -75,7 +75,7 @@ tools:
 			description:      "Regular workflows should use static concurrency without cancellation",
 		},
 		{
-			name: "push workflow should use static concurrency without cancel",
+			name: "push workflow should use dynamic concurrency with ref",
 			frontmatter: `---
 on:
   push:
@@ -86,9 +86,9 @@ tools:
 ---`,
 			filename: "push-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "gh-aw-${{ github.workflow }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"`,
 			shouldHaveCancel: false,
-			description:      "Push workflows should use static concurrency without cancellation",
+			description:      "Push workflows should use dynamic concurrency with github.ref",
 		},
 		{
 			name: "issue workflow should have dynamic concurrency with issue number",
@@ -146,10 +146,11 @@ This is a test workflow for concurrency behavior.
 				t.Errorf("Did not expect cancel-in-progress: true for %s workflow, but found in: %s", tt.name, workflowData.Concurrency)
 			}
 
-			// For PR workflows, check for PR number inclusion; for alias workflows, check for issue/PR numbers; for issue workflows, check for issue number
+			// For PR workflows, check for PR number inclusion; for alias workflows, check for issue/PR numbers; for issue workflows, check for issue number; for push workflows, check for github.ref
 			isPRWorkflow := strings.Contains(tt.name, "PR workflow")
 			isAliasWorkflow := strings.Contains(tt.name, "alias workflow")
 			isIssueWorkflow := strings.Contains(tt.name, "issue workflow")
+			isPushWorkflow := strings.Contains(tt.name, "push workflow")
 
 			if isPRWorkflow {
 				if !strings.Contains(workflowData.Concurrency, "github.event.pull_request.number") {
@@ -163,8 +164,13 @@ This is a test workflow for concurrency behavior.
 				if !strings.Contains(workflowData.Concurrency, "github.event.issue.number") {
 					t.Errorf("Expected concurrency to include github.event.issue.number for %s workflow, got: %s", tt.name, workflowData.Concurrency)
 				}
+			} else if isPushWorkflow {
+				if !strings.Contains(workflowData.Concurrency, "github.ref") {
+					t.Errorf("Expected concurrency to include github.ref for %s workflow, got: %s", tt.name, workflowData.Concurrency)
+				}
 			} else {
-				if strings.Contains(workflowData.Concurrency, "github.ref") {
+				// For regular workflows (like schedule), don't expect github.ref unless it's also a push workflow
+				if strings.Contains(workflowData.Concurrency, "github.ref") && !isPushWorkflow {
 					t.Errorf("Did not expect concurrency to include github.ref for %s workflow, got: %s", tt.name, workflowData.Concurrency)
 				}
 			}
@@ -206,6 +212,19 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			expected: `concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"`,
 			description: "Alias workflows should use dynamic concurrency with ref but without cancellation",
+		},
+		{
+			name: "Push workflow should have dynamic concurrency with ref",
+			workflowData: &WorkflowData{
+				On: `on:
+  push:
+    branches: [main]`,
+				Concurrency: "", // Empty, should be generated
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"`,
+			description: "Push workflows should use github.ref without cancellation",
 		},
 		{
 			name: "Regular workflow should use static concurrency without cancel",
@@ -436,6 +455,54 @@ func TestIsIssueWorkflow(t *testing.T) {
 	}
 }
 
+func TestIsPushWorkflow(t *testing.T) {
+	tests := []struct {
+		name     string
+		on       string
+		expected bool
+	}{
+		{
+			name: "Push workflow should be identified",
+			on: `on:
+  push:
+    branches: [main]`,
+			expected: true,
+		},
+		{
+			name: "Pull request workflow should not be identified as push workflow",
+			on: `on:
+  pull_request:
+    types: [opened, synchronize]`,
+			expected: false,
+		},
+		{
+			name: "Schedule workflow should not be identified as push workflow",
+			on: `on:
+  schedule:
+    - cron: "0 9 * * 1"`,
+			expected: false,
+		},
+		{
+			name: "Mixed workflow with push should be identified",
+			on: `on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isPushWorkflow(tt.on)
+			if result != tt.expected {
+				t.Errorf("isPushWorkflow() for %s = %v, expected %v", tt.name, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIsDiscussionWorkflow(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -561,6 +628,30 @@ func TestBuildConcurrencyGroupKeys(t *testing.T) {
 			isAliasTrigger: false,
 			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.issue.number || github.event.discussion.number }}"},
 			description:    "Mixed issue and discussion workflows should use issue/discussion number",
+		},
+		{
+			name: "Push workflow should include github.ref",
+			workflowData: &WorkflowData{
+				On: `on:
+  push:
+    branches: [main]`,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.ref }}"},
+			description:    "Push workflows should use github.ref",
+		},
+		{
+			name: "Mixed push and PR workflow should use PR logic (PR takes priority)",
+			workflowData: &WorkflowData{
+				On: `on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]`,
+			},
+			isAliasTrigger: false,
+			expected:       []string{"gh-aw", "${{ github.workflow }}", "${{ github.event.pull_request.number || github.ref }}"},
+			description:    "Mixed push+PR workflows should use PR logic since PR is checked first",
 		},
 		{
 			name: "Other workflow should not include additional keys",
