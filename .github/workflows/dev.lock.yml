@@ -301,6 +301,11 @@ jobs:
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
           Write a short poem.
+          - check if this poem is already in memory
+          - if already in memory, generate a new poem
+          
+          Before returning the poem:
+          - store generated poem in memory
           
           <!-- This workflow tests the integration with the Claude AI engine. 
             Meant as a scratchpad in pull requests. -->
