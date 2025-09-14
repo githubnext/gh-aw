@@ -4,22 +4,14 @@
 
 name: "Test Poem Workflow"
 on:
-  issues:
-    types:
-    - opened
-    - edited
-  pull_request:
-    types:
-    - opened
-    - edited
-    - synchronize
-  workflow_dispatch: null
+  push:
+    branches:
+    - copilot/*
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}"
 
 run-name: "Test Poem Workflow"
 
@@ -313,27 +305,31 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Test Poem Workflow
           
-          This workflow generates a poem about the current changes or issues in the repository and demonstrates the `missing-tool` safe output functionality using Claude AI.
+          This workflow generates a poem about the current changes or issues in the repository and demonstrates the `missing-tool` safe output functionality using Claude AI with a maximum of 5 turns.
           
           ## Purpose
           
           This workflow validates the missing-tool safe output type by:
-          - Triggering on workflow dispatch, issue events, and pull request events
+          - Triggering on pushes to copilot/* branches
           - Using Claude AI to generate contextual poems about repository state
           - Demonstrating Claude's creative capabilities with repository context
           - Using staged mode to prevent actual GitHub interactions
           - Demonstrating memory persistence with cache-memory integration
+          - Limiting conversation to 5 turns for focused interaction
           
           ## Trigger Events
           
-          - **workflow_dispatch**: Manual execution for testing
-          - **issues.opened/edited**: Responds to issue creation and updates
-          - **pull_request.opened/edited/synchronize**: Responds to PR events
+          - **push.copilot/***: Triggers on pushes to any branch starting with "copilot/"
           
           ## Safe Output Configuration
           
           - **staged: true**: Prevents real GitHub interactions
           - **max: 5**: Allows up to 5 missing tool reports per workflow run
+          
+          ## Engine Configuration
+          
+          - **engine: claude**: Uses Claude AI for natural language processing
+          - **max-turns: 5**: Limits the conversation to 5 turns for focused interaction
           
           ## Tools
           
@@ -342,21 +338,22 @@ jobs:
           ## Claude Engine Implementation
           
           The workflow uses Claude AI to:
-          1. Analyze the current repository context (issues, PRs, or general state)
+          1. Analyze the current repository context from copilot branch changes
           2. Generate creative, contextual poetry about the changes
           3. Utilize memory from previous runs to improve continuity
           4. Provide sophisticated natural language understanding of code changes
           5. Create meaningful verse that reflects the actual repository activity
+          6. Complete the task within 5 conversation turns for efficiency
           
-          This demonstrates how Claude can be used for creative applications while leveraging memory for enhanced context awareness across multiple workflow executions.
+          This demonstrates how Claude can be used for creative applications while leveraging memory for enhanced context awareness across multiple workflow executions with controlled conversation length.
           
           ## Example Use Cases
           
-          - **Issue Opened**: Creates a poem analyzing the new issue and its implications
-          - **Pull Request**: Generates verse about the proposed changes and their impact
-          - **Manual Dispatch**: Creates contextual poetry about the current repository state
+          - **Copilot Branch Push**: Creates a poem analyzing the new changes pushed to copilot branches
+          - **Feature Development**: Generates verse about ongoing development work in copilot branches
+          - **Code Review Preparation**: Creates contextual poetry about changes ready for review
           
-          The workflow showcases Claude's ability to understand technical context and transform it into creative output while maintaining memory across executions for improved continuity.
+          The workflow showcases Claude's ability to understand technical context and transform it into creative output while maintaining memory across executions for improved continuity, all within a focused 5-turn conversation.
           
           
           ---
@@ -505,6 +502,7 @@ jobs:
           claude_env: |
             GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
             GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          max_turns: 5
           mcp_config: /tmp/mcp-config/mcp-servers.json
           prompt_file: /tmp/aw-prompts/prompt.txt
           settings: /tmp/.claude/settings.json
@@ -512,6 +510,7 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_MAX_TURNS: 5
       - name: Capture Agentic Action logs
         if: always()
         run: |
