@@ -2,19 +2,20 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude"
+name: "Dev"
 on:
   push:
-    branches-ignore:
-    - main
+    branches:
+    - copilot/*
+    - pelikhan/*
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: gh-aw-${{ github.workflow }}-${{ github.ref }}
 
-run-name: "Test Claude"
+run-name: "Dev"
 
 jobs:
   task:
@@ -110,7 +111,7 @@ jobs:
             }
             await main();
 
-  test-claude:
+  dev:
     needs: task
     runs-on: ubuntu-latest
     permissions: read-all
@@ -340,7 +341,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude",
+              workflow_name: "Dev",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -445,13 +446,13 @@ jobs:
         run: |
           # Copy the detailed execution file from Agentic Action if available
           if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-claude.log
+            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/dev.log
           else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-claude.log
+            echo "No execution file output found from Agentic Action" >> /tmp/dev.log
           fi
           
           # Ensure log file exists
-          touch /tmp/test-claude.log
+          touch /tmp/dev.log
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1290,7 +1291,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-claude.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/dev.log
         with:
           script: |
             function main() {
@@ -1780,12 +1781,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude.log
-          path: /tmp/test-claude.log
+          name: dev.log
+          path: /tmp/dev.log
           if-no-files-found: warn
 
   missing_tool:
-    needs: test-claude
+    needs: dev
     if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
@@ -1799,7 +1800,7 @@ jobs:
         id: missing_tool
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
         with:
           script: |
             async function main() {

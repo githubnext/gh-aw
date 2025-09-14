@@ -2,8 +2,9 @@
 on:
   workflow_dispatch: # do not remove this trigger
   push:
-    branches-ignore:
-      - main
+    branches:
+      - copilot/*
+      - pelikhan/*
 safe-outputs:
   missing-tool:
   staged: true
@@ -11,6 +12,8 @@ engine:
   id: claude
   max-turns: 5
 permissions: read-all
+concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 ---
 
 Write a short poem.
