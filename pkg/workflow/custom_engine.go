@@ -189,35 +189,19 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	}
 }
 
-// renderPlaywrightMCPConfig generates the Playwright MCP server configuration using shared logic
-// Always uses Docker-based containerized setup in GitHub Actions
+// renderPlaywrightMCPConfig generates the Playwright MCP server configuration using simplified format
+// Uses the new Docker MCP format
 func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
-
 	yaml.WriteString("              \"playwright\": {\n")
 	yaml.WriteString("                \"command\": \"docker\",\n")
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"run\",\n")
 	yaml.WriteString("                  \"-i\",\n")
 	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"--shm-size=2gb\",\n")
-	yaml.WriteString("                  \"--cap-add=SYS_ADMIN\",\n")
-	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\",\n")
-	if len(args.AllowedDomains) == 0 {
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\",\n")
-	}
-	yaml.WriteString("                  \"mcr.microsoft.com/playwright:" + args.ImageVersion + "\"\n")
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\": \"" + strings.Join(args.AllowedDomains, ",") + "\"")
-	if len(args.AllowedDomains) == 0 {
-		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\": \"true\"")
-	}
-	yaml.WriteString("\n")
-	yaml.WriteString("                }\n")
+	yaml.WriteString("                  \"--init\",\n")
+	yaml.WriteString("                  \"--pull=always\",\n")
+	yaml.WriteString("                  \"mcr.microsoft.com/playwright/mcp\"\n")
+	yaml.WriteString("                ]\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")

@@ -234,19 +234,22 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright domain environment variables
-	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
-		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
+	// Check that it contains Playwright MCP Docker configuration
+	if !strings.Contains(output, "mcr.microsoft.com/playwright/mcp") {
+		t.Errorf("Expected Playwright MCP Docker image in output")
 	}
 
-	// Check that it contains the Playwright-specific domains, not network domains
-	if !strings.Contains(output, "example.com,*.github.com") {
-		t.Errorf("Expected Playwright allowed domains to be included in environment variable")
+	// Check that it contains --init and --pull=always flags
+	if !strings.Contains(output, "--init") {
+		t.Errorf("Expected --init flag in Docker args")
+	}
+	if !strings.Contains(output, "--pull=always") {
+		t.Errorf("Expected --pull=always flag in Docker args")
 	}
 
-	// Check that it does NOT contain the network permission domains
-	if strings.Contains(output, "external.example.com") {
-		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
+	// Check that it does NOT contain the old format environment variables
+	if strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected new simplified format without environment variables")
 	}
 }
 
@@ -280,19 +283,22 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright domain environment variables
-	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
-		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
+	// Check that it contains Playwright MCP Docker configuration
+	if !strings.Contains(output, "mcr.microsoft.com/playwright/mcp") {
+		t.Errorf("Expected Playwright MCP Docker image in output")
 	}
 
-	// Check that it defaults to localhost domains
-	if !strings.Contains(output, "localhost,127.0.0.1") {
-		t.Errorf("Expected Playwright to default to localhost domains when not configured")
+	// Check that it contains --init and --pull=always flags
+	if !strings.Contains(output, "--init") {
+		t.Errorf("Expected --init flag in Docker args")
+	}
+	if !strings.Contains(output, "--pull=always") {
+		t.Errorf("Expected --pull=always flag in Docker args")
 	}
 
-	// Check that it does NOT contain the network permission domains
-	if strings.Contains(output, "external.example.com") {
-		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
+	// Check that it does NOT contain the old format environment variables
+	if strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected new simplified format without environment variables")
 	}
 }
 

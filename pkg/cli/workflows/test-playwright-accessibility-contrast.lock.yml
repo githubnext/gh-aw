@@ -179,15 +179,10 @@ jobs:
                   "run",
                   "-i",
                   "--rm",
-                  "--shm-size=2gb",
-                  "--cap-add=SYS_ADMIN",
-                  "-e",
-                  "PLAYWRIGHT_ALLOWED_DOMAINS",
-                  "mcr.microsoft.com/playwright:latest"
-                ],
-                "env": {
-                  "PLAYWRIGHT_ALLOWED_DOMAINS": "github.com,*.github.com"
-                }
+                  "--init",
+                  "--pull=always",
+                  "mcr.microsoft.com/playwright/mcp"
+                ]
               }
             }
           }
