@@ -100,6 +100,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add debug flag
 	claudeArgs = append(claudeArgs, "--debug")
 
+	// Add permission mode for non-interactive execution (bypass permissions)
+	claudeArgs = append(claudeArgs, "--permission-mode", "bypassPermissions")
+
+	// Add output format for structured output
+	claudeArgs = append(claudeArgs, "--output-format", "json")
+
 	// Add network settings if configured
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")

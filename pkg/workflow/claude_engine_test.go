@@ -78,6 +78,14 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected --print flag in step: %s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, "--permission-mode bypassPermissions") {
+		t.Errorf("Expected --permission-mode bypassPermissions in CLI args: %s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "--output-format json") {
+		t.Errorf("Expected --output-format json in CLI args: %s", stepContent)
+	}
+
 	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
 	}
@@ -156,7 +164,7 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 			}
 
 			// Verify all required CLI elements are present
-			requiredElements := []string{"--print", "ANTHROPIC_API_KEY", "--mcp-config"}
+			requiredElements := []string{"--print", "ANTHROPIC_API_KEY", "--mcp-config", "--permission-mode", "--output-format"}
 			for _, element := range requiredElements {
 				if !strings.Contains(stepContent, element) {
 					t.Errorf("Expected element '%s' to be present in step content", element)
