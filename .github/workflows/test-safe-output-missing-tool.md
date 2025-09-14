@@ -10,6 +10,9 @@ safe-outputs:
     max: 5
   staged: true
 
+tools:
+  cache-memory: true
+
 engine:
   id: custom
   steps:
