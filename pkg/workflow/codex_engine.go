@@ -169,6 +169,37 @@ func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) 
 	return ConvertStepToYAML(stepMap)
 }
 
+// expandNeutralToolsToCodexTools converts neutral tools to Codex-specific tools format
+// This ensures that playwright tools get the same allowlist as the copilot agent
+func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	// Copy all existing tools
+	for key, value := range tools {
+		result[key] = value
+	}
+
+	// Handle playwright tool by converting it to an MCP tool configuration with copilot agent tools
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		// Create playwright as an MCP tool with the same tools available as copilot agent
+		playwrightMCP := map[string]any{
+			"allowed": GetCopilotAgentPlaywrightTools(),
+		}
+		// If the original playwright tool has additional configuration (like docker_image_version),
+		// preserve it while adding the allowed tools
+		if playwrightConfig, ok := tools["playwright"].(map[string]any); ok {
+			for key, value := range playwrightConfig {
+				playwrightMCP[key] = value
+			}
+		}
+		// Always set the allowed tools to match copilot agent
+		playwrightMCP["allowed"] = GetCopilotAgentPlaywrightTools()
+		result["playwright"] = playwrightMCP
+	}
+
+	return result
+}
+
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
 
@@ -176,18 +207,21 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          [history]\n")
 	yaml.WriteString("          persistence = \"none\"\n")
 
+	// Expand neutral tools (like playwright: null) to include the copilot agent tools
+	expandedTools := e.expandNeutralToolsToCodexTools(tools)
+
 	// Generate [mcp_servers] section
 	for _, toolName := range mcpTools {
 		switch toolName {
 		case "github":
-			githubTool := tools["github"]
+			githubTool := expandedTools["github"]
 			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
 		case "playwright":
-			playwrightTool := tools["playwright"]
+			playwrightTool := expandedTools["playwright"]
 			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
+			if toolConfig, ok := expandedTools[toolName].(map[string]any); ok {
 				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
 					if err := e.renderCodexMCPConfig(yaml, toolName, toolConfig); err != nil {
 						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
