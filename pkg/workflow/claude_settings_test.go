@@ -7,8 +7,115 @@ import (
 )
 
 func TestClaudeSettingsStructures(t *testing.T) {
-	t.Run("ClaudeSettings JSON marshaling", func(t *testing.T) {
+	t.Run("Default permissions match TVS specification", func(t *testing.T) {
+		generator := &ClaudeSettingsGenerator{}
+		jsonStr := generator.GenerateSettingsJSON()
+
+		var settings map[string]interface{}
+		err := json.Unmarshal([]byte(jsonStr), &settings)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal settings: %v", err)
+		}
+
+		permissions, exists := settings["permissions"]
+		if !exists {
+			t.Fatal("Settings should contain permissions section")
+		}
+
+		permissionsMap, ok := permissions.(map[string]interface{})
+		if !ok {
+			t.Fatal("Permissions should be an object")
+		}
+
+		// Verify allow permissions exactly match specification
+		allow, exists := permissionsMap["allow"]
+		if !exists {
+			t.Fatal("Permissions should contain allow section")
+		}
+
+		allowArray, ok := allow.([]interface{})
+		if !ok {
+			t.Fatal("Allow should be an array")
+		}
+
+		expectedAllowPermissions := []string{
+			"Bash(npm run lint)",
+			"Bash(npm run test:*)",
+			"Read(~/.zshrc)",
+		}
+
+		if len(allowArray) != len(expectedAllowPermissions) {
+			t.Errorf("Expected %d allow permissions, got %d", len(expectedAllowPermissions), len(allowArray))
+		}
+
+		for i, expected := range expectedAllowPermissions {
+			if i >= len(allowArray) {
+				t.Errorf("Missing expected allow permission: %s", expected)
+				continue
+			}
+			actual, ok := allowArray[i].(string)
+			if !ok {
+				t.Errorf("Allow permission at index %d should be string, got %T", i, allowArray[i])
+				continue
+			}
+			if actual != expected {
+				t.Errorf("Allow permission at index %d: expected '%s', got '%s'", i, expected, actual)
+			}
+		}
+
+		// Verify deny permissions exactly match specification
+		deny, exists := permissionsMap["deny"]
+		if !exists {
+			t.Fatal("Permissions should contain deny section")
+		}
+
+		denyArray, ok := deny.([]interface{})
+		if !ok {
+			t.Fatal("Deny should be an array")
+		}
+
+		expectedDenyPermissions := []string{
+			"Bash(curl:*)",
+			"Read(./.env)",
+			"Read(./.env.*)",
+			"Read(./secrets/**)",
+		}
+
+		if len(denyArray) != len(expectedDenyPermissions) {
+			t.Errorf("Expected %d deny permissions, got %d", len(expectedDenyPermissions), len(denyArray))
+		}
+
+		for i, expected := range expectedDenyPermissions {
+			if i >= len(denyArray) {
+				t.Errorf("Missing expected deny permission: %s", expected)
+				continue
+			}
+			actual, ok := denyArray[i].(string)
+			if !ok {
+				t.Errorf("Deny permission at index %d should be string, got %T", i, denyArray[i])
+				continue
+			}
+			if actual != expected {
+				t.Errorf("Deny permission at index %d: expected '%s', got '%s'", i, expected, actual)
+			}
+		}
+	})
+
+	t.Run("ClaudeSettings JSON marshaling with permissions", func(t *testing.T) {
 		settings := ClaudeSettings{
+			Permissions: &PermissionsConfiguration{
+				Allow: []string{
+					"Bash(npm run lint)",
+					"Bash(npm run test:*)",
+					"Read(~/.zshrc)",
+				},
+				Deny: []string{
+					"Bash(curl:*)",
+					"Read(./.env)",
+					"Read(./.env.*)",
+					"Read(./secrets/**)",
+				},
+			},
 			Hooks: &HookConfiguration{
 				PreToolUse: []PreToolUseHook{
 					{
@@ -30,6 +137,25 @@ func TestClaudeSettingsStructures(t *testing.T) {
 		}
 
 		jsonStr := string(jsonData)
+
+		// Test permissions section
+		if !strings.Contains(jsonStr, `"permissions"`) {
+			t.Error("JSON should contain permissions field")
+		}
+		if !strings.Contains(jsonStr, `"allow"`) {
+			t.Error("JSON should contain allow field")
+		}
+		if !strings.Contains(jsonStr, `"deny"`) {
+			t.Error("JSON should contain deny field")
+		}
+		if !strings.Contains(jsonStr, `"Bash(npm run lint)"`) {
+			t.Error("JSON should contain npm lint permission")
+		}
+		if !strings.Contains(jsonStr, `"Read(./.env)"`) {
+			t.Error("JSON should contain env file denial")
+		}
+
+		// Test existing hooks section
 		if !strings.Contains(jsonStr, `"hooks"`) {
 			t.Error("JSON should contain hooks field")
 		}
@@ -55,8 +181,66 @@ func TestClaudeSettingsStructures(t *testing.T) {
 		}
 
 		jsonStr := string(jsonData)
+		if strings.Contains(jsonStr, `"permissions"`) {
+			t.Error("Empty settings should not contain permissions field due to omitempty")
+		}
 		if strings.Contains(jsonStr, `"hooks"`) {
 			t.Error("Empty settings should not contain hooks field due to omitempty")
+		}
+	})
+
+	t.Run("Default permissions structure validation", func(t *testing.T) {
+		generator := &ClaudeSettingsGenerator{}
+		jsonStr := generator.GenerateSettingsJSON()
+
+		var settings ClaudeSettings
+		err := json.Unmarshal([]byte(jsonStr), &settings)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal generated settings: %v", err)
+		}
+
+		// Verify permissions structure is present
+		if settings.Permissions == nil {
+			t.Error("Generated settings should have permissions")
+		}
+
+		// Verify allow permissions contain expected values
+		expectedAllowItems := []string{
+			"Bash(npm run lint)",
+			"Bash(npm run test:*)",
+			"Read(~/.zshrc)",
+		}
+		for _, expected := range expectedAllowItems {
+			found := false
+			for _, item := range settings.Permissions.Allow {
+				if item == expected {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected allow permission '%s' not found", expected)
+			}
+		}
+
+		// Verify deny permissions contain expected values
+		expectedDenyItems := []string{
+			"Bash(curl:*)",
+			"Read(./.env)",
+			"Read(./.env.*)",
+			"Read(./secrets/**)",
+		}
+		for _, expected := range expectedDenyItems {
+			found := false
+			for _, item := range settings.Permissions.Deny {
+				if item == expected {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected deny permission '%s' not found", expected)
+			}
 		}
 	})
 
@@ -70,7 +254,18 @@ func TestClaudeSettingsStructures(t *testing.T) {
 			t.Fatalf("Failed to unmarshal settings: %v", err)
 		}
 
-		// Verify structure is preserved
+		// Verify permissions structure is preserved
+		if settings.Permissions == nil {
+			t.Error("Unmarshaled settings should have permissions")
+		}
+		if len(settings.Permissions.Allow) != 3 {
+			t.Errorf("Expected 3 allow permissions, got %d", len(settings.Permissions.Allow))
+		}
+		if len(settings.Permissions.Deny) != 4 {
+			t.Errorf("Expected 4 deny permissions, got %d", len(settings.Permissions.Deny))
+		}
+
+		// Verify hooks structure is preserved
 		if settings.Hooks == nil {
 			t.Error("Unmarshaled settings should have hooks")
 		}
@@ -156,7 +351,10 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 			}
 		}
 
-		// Verify the JSON content is embedded
+		// Verify the JSON content is embedded and contains permissions
+		if !strings.Contains(stepStr, `"permissions"`) {
+			t.Error("Step should contain embedded permissions in JSON settings")
+		}
 		if !strings.Contains(stepStr, `"hooks"`) {
 			t.Error("Step should contain embedded JSON settings")
 		}
@@ -171,7 +369,46 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 			t.Fatalf("Generated JSON should be valid: %v", err)
 		}
 
-		// Check structure
+		// Check permissions structure
+		permissions, exists := settings["permissions"]
+		if !exists {
+			t.Error("Settings should contain permissions section")
+		}
+
+		permissionsMap, ok := permissions.(map[string]interface{})
+		if !ok {
+			t.Error("Permissions should be an object")
+		}
+
+		allow, exists := permissionsMap["allow"]
+		if !exists {
+			t.Error("Permissions should contain allow section")
+		}
+
+		allowArray, ok := allow.([]interface{})
+		if !ok {
+			t.Error("Allow should be an array")
+		}
+
+		if len(allowArray) != 3 {
+			t.Errorf("Allow should contain 3 permissions, got %d", len(allowArray))
+		}
+
+		deny, exists := permissionsMap["deny"]
+		if !exists {
+			t.Error("Permissions should contain deny section")
+		}
+
+		denyArray, ok := deny.([]interface{})
+		if !ok {
+			t.Error("Deny should be an array")
+		}
+
+		if len(denyArray) != 4 {
+			t.Errorf("Deny should contain 4 permissions, got %d", len(denyArray))
+		}
+
+		// Check hooks structure
 		hooks, exists := settings["hooks"]
 		if !exists {
 			t.Error("Settings should contain hooks section")

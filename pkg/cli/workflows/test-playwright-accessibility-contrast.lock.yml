@@ -28,6 +28,19 @@ jobs:
           mkdir -p /tmp/.claude
           cat > /tmp/.claude/settings.json << 'EOF'
           {
+            "permissions": {
+              "allow": [
+                "Bash(npm run lint)",
+                "Bash(npm run test:*)",
+                "Read(~/.zshrc)"
+              ],
+              "deny": [
+                "Bash(curl:*)",
+                "Read(./.env)",
+                "Read(./.env.*)",
+                "Read(./secrets/**)"
+              ]
+            },
             "hooks": {
               "PreToolUse": [
                 {

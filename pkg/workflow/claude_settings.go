@@ -9,9 +9,16 @@ import (
 // ClaudeSettingsGenerator generates Claude Code settings configurations
 type ClaudeSettingsGenerator struct{}
 
+// PermissionsConfiguration represents the permissions section of Claude settings
+type PermissionsConfiguration struct {
+	Allow []string `json:"allow,omitempty"`
+	Deny  []string `json:"deny,omitempty"`
+}
+
 // ClaudeSettings represents the structure of Claude Code settings.json
 type ClaudeSettings struct {
-	Hooks *HookConfiguration `json:"hooks,omitempty"`
+	Permissions *PermissionsConfiguration `json:"permissions,omitempty"`
+	Hooks       *HookConfiguration        `json:"hooks,omitempty"`
 }
 
 // HookConfiguration represents the hooks section of settings
@@ -34,6 +41,19 @@ type HookEntry struct {
 // GenerateSettingsJSON generates Claude Code settings JSON for network permissions
 func (g *ClaudeSettingsGenerator) GenerateSettingsJSON() string {
 	settings := ClaudeSettings{
+		Permissions: &PermissionsConfiguration{
+			Allow: []string{
+				"Bash(npm run lint)",
+				"Bash(npm run test:*)",
+				"Read(~/.zshrc)",
+			},
+			Deny: []string{
+				"Bash(curl:*)",
+				"Read(./.env)",
+				"Read(./.env.*)",
+				"Read(./secrets/**)",
+			},
+		},
 		Hooks: &HookConfiguration{
 			PreToolUse: []PreToolUseHook{
 				{
