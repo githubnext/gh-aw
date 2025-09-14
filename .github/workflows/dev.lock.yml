@@ -289,6 +289,22 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
+              },
+              "playwright": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "--shm-size=2gb",
+                  "--cap-add=SYS_ADMIN",
+                  "-e",
+                  "PLAYWRIGHT_ALLOWED_DOMAINS",
+                  "mcr.microsoft.com/playwright:latest"
+                ],
+                "env": {
+                  "PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,127.0.0.1"
+                }
               }
             }
           }
@@ -457,7 +473,28 @@ jobs:
           # - mcp__github__search_repositories
           # - mcp__github__search_users
           # - mcp__memory
-          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory"
+          # - mcp__playwright__browser_click
+          # - mcp__playwright__browser_close
+          # - mcp__playwright__browser_console_messages
+          # - mcp__playwright__browser_drag
+          # - mcp__playwright__browser_evaluate
+          # - mcp__playwright__browser_file_upload
+          # - mcp__playwright__browser_fill_form
+          # - mcp__playwright__browser_handle_dialog
+          # - mcp__playwright__browser_hover
+          # - mcp__playwright__browser_install
+          # - mcp__playwright__browser_navigate
+          # - mcp__playwright__browser_navigate_back
+          # - mcp__playwright__browser_network_requests
+          # - mcp__playwright__browser_press_key
+          # - mcp__playwright__browser_resize
+          # - mcp__playwright__browser_select_option
+          # - mcp__playwright__browser_snapshot
+          # - mcp__playwright__browser_tabs
+          # - mcp__playwright__browser_take_screenshot
+          # - mcp__playwright__browser_type
+          # - mcp__playwright__browser_wait_for
+          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_env: |
             GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}

@@ -13,6 +13,7 @@ engine:
   max-turns: 5
 tools:
   cache-memory: true
+  playwright: null
 permissions: read-all
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
