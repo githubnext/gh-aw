@@ -289,6 +289,22 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
+              },
+              "playwright": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "--shm-size=2gb",
+                  "--cap-add=SYS_ADMIN",
+                  "-e",
+                  "PLAYWRIGHT_ALLOWED_DOMAINS",
+                  "mcr.microsoft.com/playwright:latest"
+                ],
+                "env": {
+                  "PLAYWRIGHT_ALLOWED_DOMAINS": "github.com,*.github.com"
+                }
               }
             }
           }

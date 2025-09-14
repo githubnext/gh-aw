@@ -13,6 +13,8 @@ engine:
   max-turns: 5
 tools:
   cache-memory: true
+  playwright:
+    allowed_domains: ["github.com", "*.github.com"]
 permissions: read-all
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
