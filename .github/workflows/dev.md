@@ -18,6 +18,10 @@ concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 ---
 
+Before starting, read the entire memory graph and print it to the output as "My past poems..."
+
+Then:
+
 Write a short poem.
 - check if this poem is already in memory
 - if already in memory, generate a new poem

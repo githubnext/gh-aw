@@ -300,6 +300,10 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          Before starting, read the entire memory graph and print it to the output as "My past poems..."
+          
+          Then:
+          
           Write a short poem.
           - check if this poem is already in memory
           - if already in memory, generate a new poem
