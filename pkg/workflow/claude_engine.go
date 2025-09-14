@@ -452,6 +452,14 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// Skip the claude section as we've already processed it
 			continue
 		} else {
+			// Handle cache-memory as a special case first (can be boolean or map)
+			if toolName == "cache-memory" {
+				// For cache-memory, it's configured as MCP server "memory" and has no allowed restrictions
+				// Default to wildcard access since cache-memory doesn't specify allowed tools
+				allowedTools = append(allowedTools, "mcp__memory")
+				continue
+			}
+
 			// Check if this is an MCP tool (has MCP-compatible type) or standard MCP tool (github)
 			if mcpConfig, ok := toolValue.(map[string]any); ok {
 				// Check if it's explicitly marked as MCP type
@@ -548,6 +556,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
+		case "cache-memory":
+			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -652,6 +662,25 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 	}
 
 	return nil
+}
+
+// renderCacheMemoryMCPConfig generates the Memory MCP server configuration
+// Uses npx-based @modelcontextprotocol/server-memory setup
+func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+	yaml.WriteString("              \"memory\": {\n")
+	yaml.WriteString("                \"command\": \"npx\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"@modelcontextprotocol/server-memory\"\n")
+	yaml.WriteString("                ],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/tmp/cache-memory/memory.json\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Claude
