@@ -11,6 +11,8 @@ safe-outputs:
 engine: 
   id: claude
   max-turns: 5
+tools:
+  cache-memory: true
 permissions: read-all
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"

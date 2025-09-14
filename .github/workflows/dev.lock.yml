@@ -120,6 +120,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      # Cache memory MCP configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: mkdir -p /tmp/cache-memory
+      - name: Cache memory MCP data
+        uses: actions/cache@v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -256,6 +267,15 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
+              "memory": {
+                "command": "npx",
+                "args": [
+                  "@modelcontextprotocol/server-memory"
+                ],
+                "env": {
+                  "MEMORY_FILE_PATH": "/tmp/cache-memory/memory.json"
+                }
+              },
               "github": {
                 "command": "docker",
                 "args": [
