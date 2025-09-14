@@ -174,14 +174,11 @@ jobs:
                 }
               },
               "playwright": {
-                "command": "docker",
+                "command": "npx",
                 "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "--init",
-                  "--pull=always",
-                  "mcr.microsoft.com/playwright/mcp"
+                  "@playwright/mcp@latest",
+                  "--allowed-origins",
+                  "github.com,*.github.com"
                 ]
               }
             }

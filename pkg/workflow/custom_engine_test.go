@@ -234,17 +234,19 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright MCP Docker configuration
-	if !strings.Contains(output, "mcr.microsoft.com/playwright/mcp") {
-		t.Errorf("Expected Playwright MCP Docker image in output")
+	// Check that it contains Playwright MCP npx configuration
+	if !strings.Contains(output, "@playwright/mcp@latest") {
+		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
-	// Check that it contains --init and --pull=always flags
-	if !strings.Contains(output, "--init") {
-		t.Errorf("Expected --init flag in Docker args")
+	// Check that it contains --allowed-origins flag when domains are configured
+	if !strings.Contains(output, "--allowed-origins") {
+		t.Errorf("Expected --allowed-origins flag in npx args")
 	}
-	if !strings.Contains(output, "--pull=always") {
-		t.Errorf("Expected --pull=always flag in Docker args")
+
+	// Check that it contains the specified domains
+	if !strings.Contains(output, "example.com,*.github.com") {
+		t.Errorf("Expected configured domains in --allowed-origins value")
 	}
 
 	// Check that it does NOT contain the old format environment variables
@@ -283,17 +285,19 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright MCP Docker configuration
-	if !strings.Contains(output, "mcr.microsoft.com/playwright/mcp") {
-		t.Errorf("Expected Playwright MCP Docker image in output")
+	// Check that it contains Playwright MCP npx configuration
+	if !strings.Contains(output, "@playwright/mcp@latest") {
+		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
-	// Check that it contains --init and --pull=always flags
-	if !strings.Contains(output, "--init") {
-		t.Errorf("Expected --init flag in Docker args")
+	// Check that it contains --allowed-origins flag for default domains
+	if !strings.Contains(output, "--allowed-origins") {
+		t.Errorf("Expected --allowed-origins flag in npx args")
 	}
-	if !strings.Contains(output, "--pull=always") {
-		t.Errorf("Expected --pull=always flag in Docker args")
+
+	// Check that it contains default domains (localhost, 127.0.0.1)
+	if !strings.Contains(output, "localhost,127.0.0.1") {
+		t.Errorf("Expected default domains in --allowed-origins value")
 	}
 
 	// Check that it does NOT contain the old format environment variables
