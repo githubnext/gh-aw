@@ -452,6 +452,14 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// Skip the claude section as we've already processed it
 			continue
 		} else {
+			// Handle cache-memory as a special case first (can be boolean or map)
+			if toolName == "cache-memory" {
+				// For cache-memory, it's configured as MCP server "memory" and has no allowed restrictions
+				// Default to wildcard access since cache-memory doesn't specify allowed tools
+				allowedTools = append(allowedTools, "mcp__memory")
+				continue
+			}
+
 			// Check if this is an MCP tool (has MCP-compatible type) or standard MCP tool (github)
 			if mcpConfig, ok := toolValue.(map[string]any); ok {
 				// Check if it's explicitly marked as MCP type
