@@ -33,7 +33,7 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			event, _ := cmd.Flags().GetString("event")
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			
+
 			if err := TestWorkflowLocally(args[0], event, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",

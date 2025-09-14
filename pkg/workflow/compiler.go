@@ -3712,7 +3712,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					config.Staged = &stagedBool
 				}
 			}
-			
+
 			// Force staged to true if forceStaged is set and we have safe-outputs config
 			if c.forceStaged {
 				stageBool := true

@@ -289,8 +289,6 @@ var uninstallCmd = &cobra.Command{
 	},
 }
 
-
-
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
@@ -361,8 +359,6 @@ func init() {
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
-
-
 
 	// Add all commands to root
 	rootCmd.AddCommand(listCmd)

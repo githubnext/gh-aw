@@ -3874,5 +3874,3 @@ Be clear and specific about what the AI should accomplish.
 - See https://github.com/githubnext/gh-aw/blob/main/docs/index.md for complete configuration options and tools documentation
 `
 }
-
-
