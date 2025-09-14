@@ -29,7 +29,7 @@ jobs:
       - name: Create cache-memory directory
         run: mkdir -p /tmp/cache-memory
       - name: Cache memory MCP data
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/cache-memory

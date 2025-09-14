@@ -63,7 +63,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 
 		fmt.Fprintf(builder, "      - name: %s\n", stepName)
-		builder.WriteString("        uses: actions/cache@v5\n")
+		builder.WriteString("        uses: actions/cache@v4\n")
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
@@ -139,7 +139,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 	}
 
 	builder.WriteString("      - name: Cache memory MCP data\n")
-	builder.WriteString("        uses: actions/cache@v5\n")
+	builder.WriteString("        uses: actions/cache@v4\n")
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          key: %s\n", cacheKey)
 	builder.WriteString("          path: /tmp/cache-memory\n")
