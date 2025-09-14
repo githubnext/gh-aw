@@ -112,6 +112,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--allowedTools", allowedTools)
 	}
 
+	// Add MCP debug flag (standalone flag without value)
+	claudeArgs = append(claudeArgs, "--mcp-debug")
+
 	// Add network settings if configured
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
@@ -120,11 +123,37 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Convert claudeArgs slice to multi-line string for YAML
 	if len(claudeArgs) > 0 {
 		inputs["claude_args"] = "|"
-		for i := 0; i < len(claudeArgs); i += 2 {
-			if i+1 < len(claudeArgs) {
-				inputs["claude_args"] += "\n            " + claudeArgs[i] + " " + claudeArgs[i+1]
+
+		// Track standalone flags (flags without values)
+		standaloneFlags := []string{"--mcp-debug"}
+
+		i := 0
+		for i < len(claudeArgs) {
+			currentArg := claudeArgs[i]
+
+			// Check if this is a standalone flag
+			isStandalone := false
+			for _, flag := range standaloneFlags {
+				if currentArg == flag {
+					isStandalone = true
+					break
+				}
+			}
+
+			if isStandalone {
+				// Standalone flag - add without value
+				inputs["claude_args"] += "\n            " + currentArg
+				i++
 			} else {
-				inputs["claude_args"] += "\n            " + claudeArgs[i]
+				// Paired argument - add with value
+				if i+1 < len(claudeArgs) {
+					inputs["claude_args"] += "\n            " + currentArg + " " + claudeArgs[i+1]
+					i += 2
+				} else {
+					// Fallback for unpaired argument at end
+					inputs["claude_args"] += "\n            " + currentArg
+					i++
+				}
 			}
 		}
 	}
@@ -137,6 +166,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 	stepLines = append(stepLines, "        id: agentic_execution")
 	stepLines = append(stepLines, fmt.Sprintf("        uses: %s", action))
+
+	// Add allowed tools comment before the with section
+	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs), "        ")
+	if allowedToolsComment != "" {
+		// Split the comment into lines and add each line
+		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")
+		stepLines = append(stepLines, commentLines...)
+	}
+
 	stepLines = append(stepLines, "        with:")
 
 	// Add inputs in alphabetical order by key
