@@ -147,6 +147,11 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
   ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
   ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
+  ` + constants.CLIExtensionPrefix + ` logs --branch main             # Filter logs by branch name
+  ` + constants.CLIExtensionPrefix + ` logs --branch feature-xyz      # Filter logs by feature branch
+  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
+  ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
+  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
   ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
   ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -180,6 +185,9 @@ Examples:
 			endDate, _ := cmd.Flags().GetString("end-date")
 			outputDir, _ := cmd.Flags().GetString("output")
 			engine, _ := cmd.Flags().GetString("engine")
+			branch, _ := cmd.Flags().GetString("branch")
+			beforeRunID, _ := cmd.Flags().GetInt64("before-run-id")
+			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
@@ -222,7 +230,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph, noStaged); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -238,6 +246,9 @@ Examples:
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
+	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
+	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
+	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
@@ -246,7 +257,7 @@ Examples:
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool, noStaged bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -284,7 +295,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 		}
 
-		runs, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, verbose)
+		runs, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, verbose)
 		if err != nil {
 			return err
 		}
@@ -555,7 +566,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 }
 
 // listWorkflowRunsWithPagination fetches workflow runs from GitHub with pagination support
-func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate string, verbose bool) ([]WorkflowRun, error) {
+func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, error) {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -574,6 +585,10 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	// Add beforeDate filter for pagination
 	if beforeDate != "" {
 		args = append(args, "--created", "<"+beforeDate)
+	}
+	// Add branch filter
+	if branch != "" {
+		args = append(args, "--branch", branch)
 	}
 
 	if verbose {
@@ -639,6 +654,23 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	} else {
 		// Specific workflow requested, return all runs (they're already filtered by GitHub API)
 		agenticRuns = runs
+	}
+
+	// Apply run ID filtering if specified
+	if beforeRunID > 0 || afterRunID > 0 {
+		var filteredRuns []WorkflowRun
+		for _, run := range agenticRuns {
+			// Apply before-run-id filter (exclusive)
+			if beforeRunID > 0 && run.DatabaseID >= beforeRunID {
+				continue
+			}
+			// Apply after-run-id filter (exclusive)
+			if afterRunID > 0 && run.DatabaseID <= afterRunID {
+				continue
+			}
+			filteredRuns = append(filteredRuns, run)
+		}
+		agenticRuns = filteredRuns
 	}
 
 	return agenticRuns, nil
