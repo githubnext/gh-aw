@@ -1132,6 +1132,12 @@
                 "docker-image": {
                   "type": "string",
                   "description": "Docker image to use for the memory MCP server (default: mcp/memory)"
+                },
+                "retention-days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 90,
+                  "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
                 }
               },
               "additionalProperties": false

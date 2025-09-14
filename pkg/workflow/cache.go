@@ -147,4 +147,14 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 	for _, key := range restoreKeys {
 		fmt.Fprintf(builder, "            %s\n", key)
 	}
+
+	// Add upload-artifact step if retention-days is configured
+	if data.CacheMemoryConfig.RetentionDays != nil {
+		builder.WriteString("      - name: Upload memory MCP data as artifact\n")
+		builder.WriteString("        uses: actions/upload-artifact@v4\n")
+		builder.WriteString("        with:\n")
+		builder.WriteString("          name: cache-memory-data\n")
+		builder.WriteString("          path: /tmp/cache-memory\n")
+		fmt.Fprintf(builder, "          retention-days: %d\n", *data.CacheMemoryConfig.RetentionDays)
+	}
 }

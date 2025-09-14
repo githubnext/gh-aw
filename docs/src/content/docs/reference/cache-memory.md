@@ -50,7 +50,7 @@ This uses:
 
 ### Advanced Configuration
 
-Customize cache key and Docker image:
+Customize cache key, Docker image, and artifact retention:
 
 ```yaml
 ---
@@ -59,6 +59,7 @@ tools:
   cache-memory:
     key: custom-memory-${{ github.workflow }}-${{ github.run_id }}
     docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
+    retention-days: 30
   github:
     allowed: [get_repository]
 ---
@@ -74,10 +75,32 @@ engine: claude
 tools:
   cache-memory:
     docker-image: "ghcr.io/modelcontextprotocol/server-memory:sha-abcd123"
+    retention-days: 7
   github:
     allowed: [get_repository]
 ---
 ```
+
+### Artifact Retention
+
+Configure how long memory data artifacts are retained:
+
+```yaml
+---
+engine: claude
+tools:
+  cache-memory:
+    key: persistent-memory
+    retention-days: 90  # Keep artifacts for 90 days (1-90 range)
+  github:
+    allowed: [get_repository]
+---
+```
+
+The `retention-days` option controls the `actions/upload-artifact` retention period:
+- **Range**: 1-90 days
+- **Default**: Repository setting (if not specified)
+- **Purpose**: Provides alternative access to memory data beyond cache expiration
 
 ## Cache Behavior and GitHub Actions Integration
 
@@ -114,6 +137,12 @@ Cache Memory leverages GitHub Actions cache with these characteristics:
 - **Size Limit**: 10GB per repository (GitHub Actions standard)
 - **LRU Eviction**: Least recently used caches are evicted when limits are reached
 
+#### Artifact Upload (Optional)
+When `retention-days` is configured, memory data is also uploaded as artifacts:
+- **Retention Period**: 1-90 days (configurable via `retention-days`)
+- **Purpose**: Alternative access to memory data beyond cache expiration
+- **Use Case**: Long-term memory persistence for workflows that run infrequently
+
 #### Cache Scoping
 - **Branch Scoping**: Caches are accessible across branches in the same repository
 - **Workflow Scoping**: Each workflow maintains its own cache namespace by default
@@ -141,19 +170,45 @@ Cache Memory leverages GitHub Actions cache with these characteristics:
 
 When cache-memory is enabled, these steps are automatically added to your workflow:
 
+### Basic Configuration (Cache Only)
+
 ```yaml
 # Cache memory MCP configuration from frontmatter processed below
 - name: Create cache-memory directory
   run: mkdir -p /tmp/cache-memory
 
 - name: Cache memory MCP data
-  uses: actions/cache@v3
+  uses: actions/cache@v5
   with:
     key: memory-${{ github.workflow }}-${{ github.run_id }}
     path: /tmp/cache-memory
     restore-keys: |
       memory-${{ github.workflow }}-
       memory-
+```
+
+### With Artifact Upload (retention-days configured)
+
+```yaml
+# Cache memory MCP configuration from frontmatter processed below
+- name: Create cache-memory directory
+  run: mkdir -p /tmp/cache-memory
+
+- name: Cache memory MCP data
+  uses: actions/cache@v5
+  with:
+    key: memory-${{ github.workflow }}-${{ github.run_id }}
+    path: /tmp/cache-memory
+    restore-keys: |
+      memory-${{ github.workflow }}-
+      memory-
+
+- name: Upload memory MCP data as artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: cache-memory-data
+    path: /tmp/cache-memory
+    retention-days: 30
 ```
 
 ## MCP Server Configuration

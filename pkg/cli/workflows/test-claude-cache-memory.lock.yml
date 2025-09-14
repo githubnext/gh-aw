@@ -36,6 +36,12 @@ jobs:
           restore-keys: |
             memory-${{ github.workflow }}-
             memory-
+      - name: Upload memory MCP data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory-data
+          path: /tmp/cache-memory
+          retention-days: 14
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -217,10 +223,12 @@ jobs:
           - **Subsequent runs**: Should show previously stored tasks, then add the new one
           - **Memory persistence**: Tasks should persist across workflow runs thanks to cache-memory
           - **Custom Docker image**: Uses ghcr.io/modelcontextprotocol/server-memory:v1.0.0 instead of latest
+          - **Artifact upload**: Memory data is also uploaded as artifact with 14-day retention
           
           This workflow tests that the cache-memory configuration properly:
           - Mounts the memory MCP server with custom Docker image
           - Persists data between runs using GitHub Actions cache
+          - Uploads memory data as artifacts with configurable retention
           - Works with Claude engine and MCP tools
           - Integrates with other tools like GitHub
           

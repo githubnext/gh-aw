@@ -154,9 +154,10 @@ type WorkflowData struct {
 
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
-	Enabled     bool   `yaml:"enabled,omitempty"`      // whether cache-memory is enabled
-	Key         string `yaml:"key,omitempty"`          // custom cache key
-	DockerImage string `yaml:"docker-image,omitempty"` // custom Docker image for memory MCP server
+	Enabled       bool   `yaml:"enabled,omitempty"`        // whether cache-memory is enabled
+	Key           string `yaml:"key,omitempty"`            // custom cache key
+	DockerImage   string `yaml:"docker-image,omitempty"`   // custom Docker image for memory MCP server
+	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -3768,6 +3769,19 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 		if dockerImage, exists := configMap["docker-image"]; exists {
 			if dockerImageStr, ok := dockerImage.(string); ok {
 				config.DockerImage = dockerImageStr
+			}
+		}
+
+		// Parse retention days
+		if retentionDays, exists := configMap["retention-days"]; exists {
+			if retentionDaysInt, ok := retentionDays.(int); ok {
+				config.RetentionDays = &retentionDaysInt
+			} else if retentionDaysFloat, ok := retentionDays.(float64); ok {
+				retentionDaysIntValue := int(retentionDaysFloat)
+				config.RetentionDays = &retentionDaysIntValue
+			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
+				retentionDaysIntValue := int(retentionDaysUint64)
+				config.RetentionDays = &retentionDaysIntValue
 			}
 		}
 

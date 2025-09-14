@@ -11,6 +11,7 @@ on:
 tools:
   cache-memory:
     docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
+    retention-days: 14
   github:
     allowed: [get_repository]
 
@@ -47,9 +48,11 @@ Your job is to:
 - **Subsequent runs**: Should show previously stored tasks, then add the new one
 - **Memory persistence**: Tasks should persist across workflow runs thanks to cache-memory
 - **Custom Docker image**: Uses ghcr.io/modelcontextprotocol/server-memory:v1.0.0 instead of latest
+- **Artifact upload**: Memory data is also uploaded as artifact with 14-day retention
 
 This workflow tests that the cache-memory configuration properly:
 - Mounts the memory MCP server with custom Docker image
 - Persists data between runs using GitHub Actions cache
+- Uploads memory data as artifacts with configurable retention
 - Works with Claude engine and MCP tools
 - Integrates with other tools like GitHub
