@@ -7,9 +7,6 @@ safe-outputs:
     max: 5
   staged: true
 
-tools:
-  cache-memory: true
-
 engine:
   id: custom
   steps:
@@ -48,6 +45,7 @@ This workflow validates the missing-tool safe output type by:
 ## Trigger Events
 
 - **workflow_dispatch**: Manual execution for testing
+- **workflow_run**: Responds to any workflow completion (useful for detecting missing tools after other workflows)
 
 ## Safe Output Configuration
 
