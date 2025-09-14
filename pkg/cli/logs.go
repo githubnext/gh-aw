@@ -51,6 +51,7 @@ type ProcessedRun struct {
 	Run            WorkflowRun
 	AccessAnalysis *DomainAnalysis
 	MissingTools   []MissingToolReport
+	MCPFailures    []MCPFailureReport
 }
 
 // MissingToolReport represents a missing tool reported by an agentic workflow
@@ -61,6 +62,15 @@ type MissingToolReport struct {
 	Timestamp    string `json:"timestamp"`
 	WorkflowName string `json:"workflow_name,omitempty"` // Added for tracking which workflow reported this
 	RunID        int64  `json:"run_id,omitempty"`        // Added for tracking which run reported this
+}
+
+// MCPFailureReport represents an MCP server failure detected in a workflow run
+type MCPFailureReport struct {
+	ServerName   string `json:"server_name"`
+	Status       string `json:"status"`
+	Timestamp    string `json:"timestamp,omitempty"`
+	WorkflowName string `json:"workflow_name,omitempty"`
+	RunID        int64  `json:"run_id,omitempty"`
 }
 
 // MissingToolSummary aggregates missing tool reports across runs
@@ -81,6 +91,7 @@ type DownloadResult struct {
 	Metrics        LogMetrics
 	AccessAnalysis *DomainAnalysis
 	MissingTools   []MissingToolReport
+	MCPFailures    []MCPFailureReport
 	Error          error
 	Skipped        bool
 	LogsPath       string
@@ -147,6 +158,11 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
   ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
   ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
+  ` + constants.CLIExtensionPrefix + ` logs --branch main             # Filter logs by branch name
+  ` + constants.CLIExtensionPrefix + ` logs --branch feature-xyz      # Filter logs by feature branch
+  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
+  ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
+  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
   ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
   ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -180,6 +196,9 @@ Examples:
 			endDate, _ := cmd.Flags().GetString("end-date")
 			outputDir, _ := cmd.Flags().GetString("output")
 			engine, _ := cmd.Flags().GetString("engine")
+			branch, _ := cmd.Flags().GetString("branch")
+			beforeRunID, _ := cmd.Flags().GetInt64("before-run-id")
+			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
@@ -222,7 +241,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, verbose, toolGraph, noStaged); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -238,6 +257,9 @@ Examples:
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
+	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
+	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
+	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
@@ -246,7 +268,7 @@ Examples:
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine string, verbose bool, toolGraph bool, noStaged bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool) error {
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -284,7 +306,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 		}
 
-		runs, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, verbose)
+		runs, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, verbose)
 		if err != nil {
 			return err
 		}
@@ -398,6 +420,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				Run:            run,
 				AccessAnalysis: result.AccessAnalysis,
 				MissingTools:   result.MissingTools,
+				MCPFailures:    result.MCPFailures,
 			}
 			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
@@ -439,14 +462,16 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	}
 	displayLogsOverview(workflowRuns)
 
+	// Display MCP failures analysis
+	displayMCPFailuresAnalysis(processedRuns, verbose)
+
 	// Display tool call report
 	displayToolCallReport(processedRuns, verbose)
+	// Display missing tools analysis
+	displayMissingToolsAnalysis(processedRuns, verbose)
 
 	// Display access log analysis
 	displayAccessLogAnalysis(processedRuns, verbose)
-
-	// Display missing tools analysis
-	displayMissingToolsAnalysis(processedRuns, verbose)
 
 	// Generate tool sequence graph if requested
 	if toolGraph {
@@ -532,6 +557,15 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					}
 				}
 				result.MissingTools = missingTools
+
+				// Extract MCP failures if available
+				mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, run, verbose)
+				if mcpErr != nil {
+					if verbose {
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", run.DatabaseID, mcpErr)))
+					}
+				}
+				result.MCPFailures = mcpFailures
 			}
 
 			return result
@@ -555,7 +589,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 }
 
 // listWorkflowRunsWithPagination fetches workflow runs from GitHub with pagination support
-func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate string, verbose bool) ([]WorkflowRun, error) {
+func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, error) {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -574,6 +608,10 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	// Add beforeDate filter for pagination
 	if beforeDate != "" {
 		args = append(args, "--created", "<"+beforeDate)
+	}
+	// Add branch filter
+	if branch != "" {
+		args = append(args, "--branch", branch)
 	}
 
 	if verbose {
@@ -639,6 +677,23 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	} else {
 		// Specific workflow requested, return all runs (they're already filtered by GitHub API)
 		agenticRuns = runs
+	}
+
+	// Apply run ID filtering if specified
+	if beforeRunID > 0 || afterRunID > 0 {
+		var filteredRuns []WorkflowRun
+		for _, run := range agenticRuns {
+			// Apply before-run-id filter (exclusive)
+			if beforeRunID > 0 && run.DatabaseID >= beforeRunID {
+				continue
+			}
+			// Apply after-run-id filter (exclusive)
+			if afterRunID > 0 && run.DatabaseID <= afterRunID {
+				continue
+			}
+			filteredRuns = append(filteredRuns, run)
+		}
+		agenticRuns = filteredRuns
 	}
 
 	return agenticRuns, nil
@@ -1543,6 +1598,290 @@ func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
 				fmt.Printf("     %s %s\n",
 					console.FormatVerboseMessage("Reported at:"),
 					tool.Timestamp)
+			}
+		}
+	}
+}
+
+// extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
+func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+	var mcpFailures []MCPFailureReport
+
+	// Look for agent output logs that contain the system init entry with MCP server status
+	// This information is available in the raw log files, typically with names containing "log"
+	err := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Process log files - exclude output artifacts
+		fileName := strings.ToLower(info.Name())
+		if (strings.HasSuffix(fileName, ".log") ||
+			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
+			!strings.Contains(fileName, "aw_output") &&
+			!strings.Contains(fileName, "agent_output") &&
+			!strings.Contains(fileName, "access") {
+
+			// Parse this log file for MCP server failures
+			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose)
+			if parseErr != nil {
+				if verbose {
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse MCP failures from %s: %v", filepath.Base(path), parseErr)))
+				}
+				return nil // Continue processing other files
+			}
+			mcpFailures = append(mcpFailures, failures...)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return mcpFailures, fmt.Errorf("error walking run directory: %w", err)
+	}
+
+	if verbose && len(mcpFailures) > 0 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server failures for run %d", len(mcpFailures), run.DatabaseID)))
+	}
+
+	return mcpFailures, nil
+}
+
+// extractMCPFailuresFromLogFile parses a single log file for MCP server failures
+func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+	var mcpFailures []MCPFailureReport
+
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		return mcpFailures, fmt.Errorf("error reading log file: %w", err)
+	}
+
+	logContent := string(content)
+
+	// First try to parse as JSON array
+	var logEntries []map[string]interface{}
+	if err := json.Unmarshal(content, &logEntries); err == nil {
+		// Successfully parsed as JSON array, process entries
+		for _, entry := range logEntries {
+			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
+				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
+					// Extract MCP server failures from this init entry
+					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
+						for _, serverInterface := range mcpServers {
+							if server, ok := serverInterface.(map[string]interface{}); ok {
+								serverName, hasName := server["name"].(string)
+								status, hasStatus := server["status"].(string)
+
+								if hasName && hasStatus && status == "failed" {
+									failure := MCPFailureReport{
+										ServerName:   serverName,
+										Status:       status,
+										WorkflowName: run.WorkflowName,
+										RunID:        run.DatabaseID,
+									}
+
+									// Try to extract timestamp if available
+									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
+										failure.Timestamp = timestamp
+									}
+
+									mcpFailures = append(mcpFailures, failure)
+
+									if verbose {
+										fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
+		lines := strings.Split(logContent, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || !strings.HasPrefix(line, "{") {
+				continue
+			}
+
+			// Try to parse each line as JSON
+			var entry map[string]interface{}
+			if err := json.Unmarshal([]byte(line), &entry); err != nil {
+				continue // Skip non-JSON lines
+			}
+
+			// Look for system init entries that contain MCP server information
+			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
+				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
+					// Extract MCP server failures from this init entry
+					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
+						for _, serverInterface := range mcpServers {
+							if server, ok := serverInterface.(map[string]interface{}); ok {
+								serverName, hasName := server["name"].(string)
+								status, hasStatus := server["status"].(string)
+
+								if hasName && hasStatus && status == "failed" {
+									failure := MCPFailureReport{
+										ServerName:   serverName,
+										Status:       status,
+										WorkflowName: run.WorkflowName,
+										RunID:        run.DatabaseID,
+									}
+
+									// Try to extract timestamp if available
+									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
+										failure.Timestamp = timestamp
+									}
+
+									mcpFailures = append(mcpFailures, failure)
+
+									if verbose {
+										fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return mcpFailures, nil
+}
+
+// MCPFailureSummary aggregates MCP server failures across runs
+type MCPFailureSummary struct {
+	ServerName string
+	Count      int
+	Workflows  []string // List of workflow names that had this server fail
+	RunIDs     []int64  // List of run IDs where this server failed
+}
+
+// displayMCPFailuresAnalysis displays a summary of MCP server failures across all runs
+func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
+	// Aggregate MCP failures across all runs
+	failureSummary := make(map[string]*MCPFailureSummary)
+	var totalFailures int
+
+	for _, pr := range processedRuns {
+		for _, failure := range pr.MCPFailures {
+			totalFailures++
+			if summary, exists := failureSummary[failure.ServerName]; exists {
+				summary.Count++
+				// Add workflow if not already in the list
+				found := false
+				for _, wf := range summary.Workflows {
+					if wf == failure.WorkflowName {
+						found = true
+						break
+					}
+				}
+				if !found {
+					summary.Workflows = append(summary.Workflows, failure.WorkflowName)
+				}
+				summary.RunIDs = append(summary.RunIDs, failure.RunID)
+			} else {
+				failureSummary[failure.ServerName] = &MCPFailureSummary{
+					ServerName: failure.ServerName,
+					Count:      1,
+					Workflows:  []string{failure.WorkflowName},
+					RunIDs:     []int64{failure.RunID},
+				}
+			}
+		}
+	}
+
+	if totalFailures == 0 {
+		return // No MCP failures to display
+	}
+
+	// Display summary header
+	fmt.Printf("\n%s\n", console.FormatListHeader("🔌 MCP Server Failures"))
+
+	// Convert map to slice for sorting
+	var summaries []*MCPFailureSummary
+	for _, summary := range failureSummary {
+		summaries = append(summaries, summary)
+	}
+
+	// Sort by count (descending)
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Count > summaries[j].Count
+	})
+
+	// Display summary table
+	headers := []string{"MCP Server", "Failures", "Workflows", "Run IDs"}
+	var rows [][]string
+
+	for _, summary := range summaries {
+		workflowList := strings.Join(summary.Workflows, ", ")
+		if len(workflowList) > 30 {
+			workflowList = workflowList[:27] + "..."
+		}
+
+		runIDStrs := make([]string, len(summary.RunIDs))
+		for i, runID := range summary.RunIDs {
+			runIDStrs[i] = fmt.Sprintf("%d", runID)
+		}
+		runIDList := strings.Join(runIDStrs, ", ")
+		if len(runIDList) > 40 {
+			runIDList = runIDList[:37] + "..."
+		}
+
+		rows = append(rows, []string{
+			summary.ServerName,
+			fmt.Sprintf("%d", summary.Count),
+			workflowList,
+			runIDList,
+		})
+	}
+
+	tableConfig := console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}
+
+	fmt.Print(console.RenderTable(tableConfig))
+
+	// Verbose mode: Show detailed breakdown by workflow
+	if verbose && totalFailures > 0 {
+		displayDetailedMCPFailuresBreakdown(processedRuns)
+	}
+}
+
+// displayDetailedMCPFailuresBreakdown shows MCP failures organized by workflow (verbose mode)
+func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
+	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed MCP Failures Breakdown"))
+	fmt.Printf("%s\n", console.FormatListHeader("==================================="))
+
+	for _, pr := range processedRuns {
+		if len(pr.MCPFailures) == 0 {
+			continue
+		}
+
+		fmt.Printf("\n%s (Run %d) - %d failed MCP servers:\n",
+			console.FormatInfoMessage(pr.Run.WorkflowName),
+			pr.Run.DatabaseID,
+			len(pr.MCPFailures))
+
+		for i, failure := range pr.MCPFailures {
+			fmt.Printf("  %d. %s %s\n",
+				i+1,
+				console.FormatListItem(failure.ServerName),
+				console.FormatErrorMessage(fmt.Sprintf("- Status: %s", failure.Status)))
+
+			if failure.Timestamp != "" {
+				fmt.Printf("     %s %s\n",
+					console.FormatVerboseMessage("Failed at:"),
+					failure.Timestamp)
 			}
 		}
 	}

@@ -1,9 +1,6 @@
 ---
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["*"]
-    types: [completed]
 
 safe-outputs:
   missing-tool:
@@ -51,7 +48,6 @@ This workflow validates the missing-tool safe output type by:
 ## Trigger Events
 
 - **workflow_dispatch**: Manual execution for testing
-- **workflow_run**: Responds to any workflow completion (useful for detecting missing tools after other workflows)
 
 ## Safe Output Configuration
 
