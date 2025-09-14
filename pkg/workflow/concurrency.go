@@ -43,6 +43,11 @@ func isDiscussionWorkflow(on string) bool {
 	return strings.Contains(on, "discussion")
 }
 
+// isPushWorkflow checks if a workflow's "on" section contains push triggers
+func isPushWorkflow(on string) bool {
+	return strings.Contains(on, "push")
+}
+
 // buildConcurrencyGroupKeys builds an array of keys for the concurrency group
 func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool) []string {
 	keys := []string{"gh-aw", "${{ github.workflow }}"}
@@ -68,6 +73,9 @@ func buildConcurrencyGroupKeys(workflowData *WorkflowData, isCommandTrigger bool
 	} else if isDiscussionWorkflow(workflowData.On) {
 		// Discussion workflows: use discussion number
 		keys = append(keys, "${{ github.event.discussion.number }}")
+	} else if isPushWorkflow(workflowData.On) {
+		// Push workflows: use ref to differentiate between branches
+		keys = append(keys, "${{ github.ref }}")
 	}
 
 	return keys
