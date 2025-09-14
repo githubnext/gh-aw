@@ -1,3 +1,30 @@
+## 🚀 Initialization
+
+**Model:** claude-sonnet-4-20250514
+
+**Session ID:** a285c0aa-8f9c-4de2-b905-e3d8cf646c4c
+
+**Working Directory:** .
+
+**MCP Servers:**
+- ✅ github (connected)
+
+**Available Tools:**
+- **Core:** 5 tools
+  - Task, Bash, ExitPlanMode, BashOutput, KillBash
+- **File Operations:** 8 tools
+  - Glob, Grep, LS, and 5 more
+- **Git/GitHub:** 80 tools
+  - github::add_comment_to_pending_review, github::add_issue_comment, github::add_sub_issue, and 77 more
+- **MCP:** 2 tools
+  - ListMcpResourcesTool, ReadMcpResourceTool
+- **Other:** 3 tools
+  - WebFetch, TodoWrite, WebSearch
+
+**Slash Commands:** 34 available
+- add-dir, agents, clear, compact, config, and 29 more
+
+
 ## 🤖 Commands and Tools
 
 * ✅ `echo $GITHUB_STEP_SUMMARY`

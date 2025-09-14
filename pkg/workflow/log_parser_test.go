@@ -149,3 +149,71 @@ func TestParseClaudeLogSmoke(t *testing.T) {
 		t.Error("Expected error message for empty Claude log")
 	}
 }
+
+// Test parsing initialization information from Claude logs
+func TestParseClaudeLogInitialization(t *testing.T) {
+	script := GetLogParserScript("parse_claude_log")
+	if script == "" {
+		t.Skip("parse_claude_log script not available")
+	}
+
+	// Test with initialization log containing system init entry
+	initClaudeLog := `[
+  {
+    "type": "system",
+    "subtype": "init",
+    "cwd": "/home/runner/work/gh-aw/gh-aw",
+    "session_id": "test-session-123",
+    "tools": ["Task", "Bash", "Read", "mcp__github__search_issues", "mcp__github__create_issue"],
+    "mcp_servers": [
+      {"name": "github", "status": "connected"},
+      {"name": "safe_outputs", "status": "failed"}
+    ],
+    "model": "claude-sonnet-4-20250514",
+    "slash_commands": ["help", "status", "config"]
+  }
+]`
+
+	result, err := runJSLogParser(script, initClaudeLog)
+	if err != nil {
+		t.Fatalf("Failed to parse initialization Claude log: %v", err)
+	}
+
+	// Verify initialization section is present
+	if !strings.Contains(result, "🚀 Initialization") {
+		t.Error("Expected Claude log output to contain Initialization section")
+	}
+
+	// Verify model information
+	if !strings.Contains(result, "claude-sonnet-4-20250514") {
+		t.Error("Expected Claude log output to contain model information")
+	}
+
+	// Verify session ID
+	if !strings.Contains(result, "test-session-123") {
+		t.Error("Expected Claude log output to contain session ID")
+	}
+
+	// Verify MCP servers section
+	if !strings.Contains(result, "MCP Servers") {
+		t.Error("Expected Claude log output to contain MCP Servers section")
+	}
+
+	// Verify specific server statuses
+	if !strings.Contains(result, "✅ github (connected)") {
+		t.Error("Expected Claude log output to show github server as connected")
+	}
+	if !strings.Contains(result, "❌ safe_outputs (failed)") {
+		t.Error("Expected Claude log output to show safe_outputs server as failed")
+	}
+
+	// Verify tools section
+	if !strings.Contains(result, "Available Tools") {
+		t.Error("Expected Claude log output to contain Available Tools section")
+	}
+
+	// Verify slash commands section
+	if !strings.Contains(result, "Slash Commands") {
+		t.Error("Expected Claude log output to contain Slash Commands section")
+	}
+}
