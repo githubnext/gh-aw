@@ -120,33 +120,33 @@ This workflow tests max-turns with timeout.`,
 					t.Errorf("Expected GITHUB_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
 				}
 
-				// Verify it's in the correct context (under the Claude action inputs)
-				if !strings.Contains(lockContentStr, "anthropics/claude-code-action") {
-					t.Error("Expected to find Claude action in generated workflow")
+				// Verify it's in the correct context (under the Claude CLI execution)
+				if !strings.Contains(lockContentStr, "npx @anthropic-ai/claude-code") {
+					t.Error("Expected to find Claude CLI in generated workflow")
 				}
 
 				// Look for max_turns in the claude_args section (v1.0 format)
 				lines := strings.Split(lockContentStr, "\n")
 				foundAction := false
 				foundMaxTurns := false
-				for i, line := range lines {
-					if strings.Contains(line, "anthropics/claude-code-action") {
+				for _, line := range lines {
+					if strings.Contains(line, "npx @anthropic-ai/claude-code") {
 						foundAction = true
-					}
-					if foundAction && strings.Contains(line, "claude_args:") {
-						// Look for --max-turns in the subsequent lines
-						for j := i + 1; j < len(lines) && (strings.HasPrefix(lines[j], "          ") || strings.HasPrefix(lines[j], "            ")); j++ {
-							if strings.Contains(lines[j], "--max-turns") {
-								foundMaxTurns = true
-								break
-							}
+						// Check if --max-turns is in the same line or subsequent run lines
+						if strings.Contains(line, "--max-turns") {
+							foundMaxTurns = true
+							break
 						}
+					}
+					// Also check in run command lines that might span multiple lines
+					if foundAction && strings.Contains(line, "--max-turns") {
+						foundMaxTurns = true
 						break
 					}
 				}
 
 				if !foundMaxTurns {
-					t.Error("Expected to find max_turns in the action inputs section")
+					t.Error("Expected to find --max-turns in the CLI command")
 				}
 			} else {
 				// Verify max_turns is NOT included when not specified

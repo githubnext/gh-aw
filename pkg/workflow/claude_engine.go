@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-const (
-	// DefaultClaudeActionVersion is the default version of the Claude Code action
-	DefaultClaudeActionVersion = "v1"
-)
-
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
 	BaseEngine
@@ -77,28 +72,18 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 	}
 
-	// Determine the action version to use
-	actionVersion := DefaultClaudeActionVersion // Default version
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		actionVersion = workflowData.EngineConfig.Version
-	}
-
-	// v1.0 uses simple inputs: prompt, anthropic_api_key, and claude_args
-	inputs := map[string]string{
-		"prompt":            "$(cat /tmp/aw-prompts/prompt.txt)",
-		"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
-		"claude_args":       "", // Will be built below
-	}
-
-	// Build claude_args based on configuration
+	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
+
+	// Add print flag for non-interactive mode
+	claudeArgs = append(claudeArgs, "--print")
 
 	// Add model if specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
 		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
-	// Add max_turns if specified
+	// Add max_turns if specified (in CLI it's max-turns)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
@@ -109,65 +94,25 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add allowed tools configuration
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
 	if allowedTools != "" {
-		claudeArgs = append(claudeArgs, "--allowedTools", allowedTools)
+		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
 
-	// Add MCP debug flag (standalone flag without value)
-	claudeArgs = append(claudeArgs, "--mcp-debug")
+	// Add debug flag
+	claudeArgs = append(claudeArgs, "--debug")
 
 	// Add network settings if configured
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
 	}
 
-	// Convert claudeArgs slice to multi-line string for YAML
-	if len(claudeArgs) > 0 {
-		inputs["claude_args"] = "|"
-
-		// Track standalone flags (flags without values)
-		standaloneFlags := []string{"--mcp-debug"}
-
-		i := 0
-		for i < len(claudeArgs) {
-			currentArg := claudeArgs[i]
-
-			// Check if this is a standalone flag
-			isStandalone := false
-			for _, flag := range standaloneFlags {
-				if currentArg == flag {
-					isStandalone = true
-					break
-				}
-			}
-
-			if isStandalone {
-				// Standalone flag - add without value
-				inputs["claude_args"] += "\n            " + currentArg
-				i++
-			} else {
-				// Paired argument - add with value
-				if i+1 < len(claudeArgs) {
-					inputs["claude_args"] += "\n            " + currentArg + " " + claudeArgs[i+1]
-					i += 2
-				} else {
-					// Fallback for unpaired argument at end
-					inputs["claude_args"] += "\n            " + currentArg
-					i++
-				}
-			}
-		}
-	}
-
 	var stepLines []string
 
-	stepName := "Execute Claude Code Action"
-	action := fmt.Sprintf("anthropics/claude-code-action@%s", actionVersion)
+	stepName := "Execute Claude Code CLI"
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 	stepLines = append(stepLines, "        id: agentic_execution")
-	stepLines = append(stepLines, fmt.Sprintf("        uses: %s", action))
 
-	// Add allowed tools comment before the with section
+	// Add allowed tools comment before the run section
 	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs), "        ")
 	if allowedToolsComment != "" {
 		// Split the comment into lines and add each line
@@ -175,35 +120,44 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		stepLines = append(stepLines, commentLines...)
 	}
 
-	stepLines = append(stepLines, "        with:")
-
-	// Add inputs in alphabetical order by key
-	keys := make([]string, 0, len(inputs))
-	for key := range inputs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		value := inputs[key]
-		if value != "" {
-			if strings.HasPrefix(value, "|") {
-				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-			} else {
-				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-			}
-		}
-	}
-
-	// Add timeout at job level (GitHub Actions standard, not action input)
+	// Add timeout at step level (GitHub Actions standard)
 	if workflowData.TimeoutMinutes != "" {
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")))
 	} else {
 		stepLines = append(stepLines, "        timeout-minutes: 5") // Default timeout
 	}
 
+	// Build the run command
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
+
+	// Build the command string with proper argument formatting
+	commandParts := []string{"npx", "@anthropic-ai/claude-code@latest"}
+	commandParts = append(commandParts, claudeArgs...)
+	commandParts = append(commandParts, "$(cat /tmp/aw-prompts/prompt.txt)")
+
+	// Join command parts with proper escaping for complex arguments
+	command := ""
+	for i, part := range commandParts {
+		if i > 0 {
+			command += " "
+		}
+		// For complex arguments that contain spaces or special characters, quote them
+		if strings.Contains(part, " ") || strings.Contains(part, ",") {
+			command += "\"" + part + "\""
+		} else {
+			command += part
+		}
+	}
+
+	// Add the command with proper indentation and output redirection
+	stepLines = append(stepLines, fmt.Sprintf("          %s > %s 2>&1", command, logFile))
+
 	// Add environment section - always include environment section for GITHUB_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
+
+	// Add Anthropic API key
+	stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
 
 	// Always add GITHUB_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
@@ -229,20 +183,16 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
-	// Add the log capture step
+	// Add the log capture step (simplified since we're already writing to logFile)
 	logCaptureLines := []string{
-		"      - name: Capture Agentic Action logs",
+		"      - name: Ensure log file exists",
 		"        if: always()",
 		"        run: |",
-		"          # Copy the detailed execution file from Agentic Action if available",
-		"          if [ -n \"${{ steps.agentic_execution.outputs.execution_file }}\" ] && [ -f \"${{ steps.agentic_execution.outputs.execution_file }}\" ]; then",
-		"            cp ${{ steps.agentic_execution.outputs.execution_file }} " + logFile,
-		"          else",
-		"            echo \"No execution file output found from Agentic Action\" >> " + logFile,
-		"          fi",
-		"          ",
 		"          # Ensure log file exists",
 		"          touch " + logFile,
+		"          # Show last few lines for debugging",
+		"          echo \"=== Last 10 lines of Claude execution log ===\"",
+		"          tail -10 " + logFile + " || echo \"No log content available\"",
 	}
 	steps = append(steps, GitHubActionStep(logCaptureLines))
 
