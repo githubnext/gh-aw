@@ -5,11 +5,6 @@
 name: "Test Safe Output - Missing Tool"
 on:
   workflow_dispatch: null
-  workflow_run:
-    types:
-    - completed
-    workflows:
-    - "*"
 
 permissions: {}
 
@@ -95,7 +90,6 @@ jobs:
           ## Trigger Events
           
           - **workflow_dispatch**: Manual execution for testing
-          - **workflow_run**: Responds to any workflow completion (useful for detecting missing tools after other workflows)
           
           ## Safe Output Configuration
           
