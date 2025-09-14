@@ -89,11 +89,8 @@ function sanitizeContent(content) {
           const innerContent = match.slice(1, -1);
           return `(${innerContent})`;
         })
-        // XML comments: <!-- comment -->
-        .replace(/<!--[\s\S]*?-->/g, match => {
-          const innerContent = match.slice(4, -3); // Remove <!-- and -->
-          return `(!--${innerContent}--)`;
-        })
+        // XML comments: <!-- comment --> - remove entirely
+        .replace(/<!--[\s\S]*?-->/g, "")
         // CDATA sections: <![CDATA[content]]>
         .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
           const innerContent = match.slice(9, -3); // Remove <![CDATA[ and ]]>

@@ -159,6 +159,32 @@ describe("sanitize_output.cjs", () => {
       expect(result).toContain("(div)content(/div)");
     });
 
+    it("should completely remove XML comments from content", () => {
+      const input = "Start <!-- this is a comment --> End";
+      const result = sanitizeContentFunction(input);
+      expect(result).toBe("Start  End");
+      expect(result).not.toContain("<!--");
+      expect(result).not.toContain("-->");
+      expect(result).not.toContain("(!--");
+      expect(result).not.toContain("comment");
+    });
+
+    it("should remove multiline XML comments", () => {
+      const input = `Before
+<!-- 
+  Multiline comment
+  with multiple lines
+-->
+After`;
+      const result = sanitizeContentFunction(input);
+      expect(result).toContain("Before");
+      expect(result).toContain("After");
+      expect(result).not.toContain("<!--");
+      expect(result).not.toContain("-->");
+      expect(result).not.toContain("Multiline comment");
+      expect(result).not.toContain("(!--");
+    });
+
     it("should handle mixed XML tags and comparison operators", () => {
       const input =
         "Compare: a < b and then <script>alert(1)</script> plus c > d";
@@ -482,9 +508,9 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       expect(result).toContain("(xml attr=\"value & 'quotes'\")");
       expect(result).toContain('(![CDATA[(script)alert("xss")(/script)]])');
-      expect(result).toContain(
-        "(!-- comment with \"quotes\" & 'apostrophes' --)"
-      );
+      // XML comments should be completely removed
+      expect(result).not.toContain("(!--");
+      expect(result).not.toContain("comment with");
       expect(result).toContain("(/xml)");
     });
 
