@@ -103,3 +103,8 @@ func GetLogParserScript(name string) string {
 		return ""
 	}
 }
+
+// GetSafeOutputsMCPServerScript returns the JavaScript content for the safe-outputs MCP server
+func GetSafeOutputsMCPServerScript() string {
+	return safeOutputsMCPServerScript
+}
