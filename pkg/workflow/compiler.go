@@ -39,6 +39,7 @@ type Compiler struct {
 	version        string          // Version of the extension
 	skipValidation bool            // If true, skip schema validation
 	noEmit         bool            // If true, validate without generating lock files
+	forceStaged    bool            // If true, force safe-outputs to be staged for testing
 	jobManager     *JobManager     // Manages jobs and dependencies
 	engineRegistry *EngineRegistry // Registry of available agentic engines
 	fileTracker    FileTracker     // Optional file tracker for tracking created files
@@ -103,6 +104,11 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 // SetFileTracker sets the file tracker for tracking created files
 func (c *Compiler) SetFileTracker(tracker FileTracker) {
 	c.fileTracker = tracker
+}
+
+// SetForceStaged configures whether to force safe-outputs to be staged (for testing)
+func (c *Compiler) SetForceStaged(forceStaged bool) {
+	c.forceStaged = forceStaged
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -3705,6 +3711,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if stagedBool, ok := staged.(bool); ok {
 					config.Staged = &stagedBool
 				}
+			}
+			
+			// Force staged to true if forceStaged is set and we have safe-outputs config
+			if c.forceStaged {
+				stageBool := true
+				config.Staged = &stageBool
 			}
 		}
 	}

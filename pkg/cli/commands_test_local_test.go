@@ -34,65 +34,48 @@ func TestCheckActInstalled(t *testing.T) {
 	}
 }
 
-func TestTestWorkflowsLocallyValidation(t *testing.T) {
+func TestTestWorkflowLocallyValidation(t *testing.T) {
 	tests := []struct {
-		name          string
-		workflowNames []string
-		event         string
-		platform      string
-		dryRun        bool
-		verbose       bool
-		wantErr       bool
+		name         string
+		workflowName string
+		event        string
+		verbose      bool
+		wantErr      bool
 	}{
 		{
-			name:          "empty workflow list",
-			workflowNames: []string{},
-			event:         "workflow_dispatch",
-			platform:      "",
-			dryRun:        true,
-			verbose:       false,
-			wantErr:       true,
+			name:         "empty workflow name",
+			workflowName: "",
+			event:        "workflow_dispatch",
+			verbose:      false,
+			wantErr:      true,
 		},
 		{
-			name:          "single workflow dry run",
-			workflowNames: []string{"test-workflow"},
-			event:         "workflow_dispatch",
-			platform:      "",
-			dryRun:        true,
-			verbose:       false,
-			wantErr:       true, // Will error on missing workflow file
+			name:         "single workflow test",
+			workflowName: "test-workflow",
+			event:        "workflow_dispatch",
+			verbose:      false,
+			wantErr:      true, // Will error on missing workflow file
 		},
 		{
-			name:          "custom event type",
-			workflowNames: []string{"test-workflow"},
-			event:         "push",
-			platform:      "",
-			dryRun:        true,
-			verbose:       true,
-			wantErr:       true, // Will error on missing workflow file
-		},
-		{
-			name:          "custom platform",
-			workflowNames: []string{"test-workflow"},
-			event:         "workflow_dispatch",
-			platform:      "ubuntu-latest=catthehacker/ubuntu:act-latest",
-			dryRun:        true,
-			verbose:       false,
-			wantErr:       true, // Will error on missing workflow file
+			name:         "custom event type",
+			workflowName: "test-workflow",
+			event:        "push",
+			verbose:      true,
+			wantErr:      true, // Will error on missing workflow file
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := TestWorkflowsLocally(tt.workflowNames, tt.event, tt.platform, tt.dryRun, tt.verbose)
+			err := TestWorkflowLocally(tt.workflowName, tt.event, tt.verbose)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TestWorkflowsLocally() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("TestWorkflowLocally() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestTestSingleWorkflowLocallyDryRun(t *testing.T) {
+func TestTestSingleWorkflowLocally(t *testing.T) {
 	// Create a temporary test environment
 	tempDir := t.TempDir()
 
@@ -151,35 +134,27 @@ jobs:
 		name         string
 		workflowName string
 		event        string
-		platform     string
-		dryRun       bool
 		verbose      bool
 		wantErr      bool
 	}{
 		{
-			name:         "valid workflow dry run",
+			name:         "valid workflow test",
 			workflowName: "test-workflow",
 			event:        "workflow_dispatch",
-			platform:     "",
-			dryRun:       true,
 			verbose:      false,
-			wantErr:      false,
+			wantErr:      true, // Will still error due to missing act installation in test environment
 		},
 		{
-			name:         "valid workflow dry run verbose",
+			name:         "valid workflow test verbose",
 			workflowName: "test-workflow",
 			event:        "push",
-			platform:     "ubuntu-latest=test",
-			dryRun:       true,
 			verbose:      true,
-			wantErr:      false,
+			wantErr:      true, // Will still error due to missing act installation in test environment
 		},
 		{
 			name:         "non-existent workflow",
 			workflowName: "missing-workflow",
 			event:        "workflow_dispatch",
-			platform:     "",
-			dryRun:       true,
 			verbose:      false,
 			wantErr:      true,
 		},
@@ -187,7 +162,7 @@ jobs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := testSingleWorkflowLocally(tt.workflowName, tt.event, tt.platform, tt.dryRun, tt.verbose)
+			err := testSingleWorkflowLocally(tt.workflowName, tt.event, tt.verbose)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("testSingleWorkflowLocally() error = %v, wantErr %v", err, tt.wantErr)
 			}
