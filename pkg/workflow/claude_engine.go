@@ -135,6 +135,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build the run command
 	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, "          set -o pipefail")
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
 	// Build the command string with proper argument formatting
@@ -156,9 +157,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 	}
 
-	// Add the command with proper indentation and tee output (preserves exit code)
+	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
 	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
-	stepLines = append(stepLines, "          exit ${PIPESTATUS[0]}") // Preserve original command exit code
 
 	// Add environment section - always include environment section for GITHUB_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
