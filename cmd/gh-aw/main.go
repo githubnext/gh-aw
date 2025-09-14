@@ -289,6 +289,38 @@ var uninstallCmd = &cobra.Command{
 	},
 }
 
+var testCmd = &cobra.Command{
+	Use:   "test <workflow-id-or-name>...",
+	Short: "Test one or more agentic workflows locally using Docker and act",
+	Long: `Test one or more agentic workflows locally using Docker and the nektos/act tool.
+
+This command compiles workflows and runs them locally in Docker containers instead of GitHub Actions.
+It automatically detects and installs the 'act' tool if not available.
+
+The workflows must have been added as actions and compiled.
+This command works with workflows that have workflow_dispatch, push, pull_request, or other triggers.
+
+Examples:
+  gh aw test weekly-research
+  gh aw test weekly-research daily-plan
+  gh aw test weekly-research --event workflow_dispatch
+  gh aw test weekly-research --platform ubuntu-latest=catthehacker/ubuntu:act-latest`,
+	Args: cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		event, _ := cmd.Flags().GetString("event")
+		platform, _ := cmd.Flags().GetString("platform")
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+		if err := cli.TestWorkflowsLocally(args, event, platform, dryRun, verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+				Type:    "error",
+				Message: fmt.Sprintf("testing workflows locally: %v", err),
+			}))
+			os.Exit(1)
+		}
+	},
+}
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
@@ -360,6 +392,11 @@ func init() {
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
 
+	// Add flags to test command
+	testCmd.Flags().StringP("event", "e", "workflow_dispatch", "Event type to simulate (workflow_dispatch, push, pull_request, etc.)")
+	testCmd.Flags().StringP("platform", "p", "", "Platform mapping for act (e.g., ubuntu-latest=catthehacker/ubuntu:act-latest)")
+	testCmd.Flags().Bool("dry-run", false, "Dry run - show what would be executed without running")
+
 	// Add all commands to root
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(addCmd)
@@ -368,6 +405,7 @@ func init() {
 	rootCmd.AddCommand(uninstallCmd)
 	rootCmd.AddCommand(compileCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(testCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(enableCmd)
