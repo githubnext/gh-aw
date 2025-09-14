@@ -238,6 +238,41 @@ func (e *ClaudeEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 	return ConvertStepToYAML(stepMap)
 }
 
+// getCopilotAgentPlaywrightTools returns the list of playwright tools available in the copilot agent
+// This matches the tools available in the copilot agent MCP server configuration
+func (e *ClaudeEngine) getCopilotAgentPlaywrightTools() []any {
+	tools := []string{
+		"browser_click",
+		"browser_close",
+		"browser_console_messages",
+		"browser_drag",
+		"browser_evaluate",
+		"browser_file_upload",
+		"browser_fill_form",
+		"browser_handle_dialog",
+		"browser_hover",
+		"browser_install",
+		"browser_navigate",
+		"browser_navigate_back",
+		"browser_network_requests",
+		"browser_press_key",
+		"browser_resize",
+		"browser_select_option",
+		"browser_snapshot",
+		"browser_tabs",
+		"browser_take_screenshot",
+		"browser_type",
+		"browser_wait_for",
+	}
+
+	// Convert []string to []any for compatibility with the configuration system
+	result := make([]any, len(tools))
+	for i, tool := range tools {
+		result[i] = tool
+	}
+	return result
+}
+
 // expandNeutralToolsToClaudeTools converts neutral tools to Claude-specific tools format
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
 	result := make(map[string]any)
@@ -308,6 +343,15 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		// If edit tool has specific configuration, we could handle it here
 		// For now, treating it as enabling all edit capabilities
 		_ = editTool
+	}
+
+	// Handle playwright tool by converting it to an MCP tool configuration
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		// Create playwright as an MCP tool with the same tools available as copilot agent
+		playwrightMCP := map[string]any{
+			"allowed": e.getCopilotAgentPlaywrightTools(),
+		}
+		result["playwright"] = playwrightMCP
 	}
 
 	// Update claude section
@@ -468,8 +512,8 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 					isCustomMCP = true
 				}
 
-				// Handle standard MCP tools (github) or tools with MCP-compatible type
-				if toolName == "github" || isCustomMCP {
+				// Handle standard MCP tools (github, playwright) or tools with MCP-compatible type
+				if toolName == "github" || toolName == "playwright" || isCustomMCP {
 					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {
 						if allowedSlice, ok := allowed.([]any); ok {
 							// Check for wildcard access first
