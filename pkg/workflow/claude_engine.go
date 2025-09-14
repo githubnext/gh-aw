@@ -139,7 +139,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
 	// Build the command string with proper argument formatting
-	commandParts := []string{"npx", "@anthropic-ai/claude-code@latest"}
+	// Use version from engine config if provided, otherwise default to latest
+	version := "latest"
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	commandParts := []string{"npx", fmt.Sprintf("@anthropic-ai/claude-code@%s", version)}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, "$(cat /tmp/aw-prompts/prompt.txt)")
 

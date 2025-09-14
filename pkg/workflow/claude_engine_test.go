@@ -203,9 +203,9 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that npx uses the latest version and model is passed correctly
-	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@latest in step content:\n%s", stepContent)
+	// Check that npx uses the custom version specified in engine config
+	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@v1.2.3") {
+		t.Errorf("Expected npx @anthropic-ai/claude-code@v1.2.3 in step content:\n%s", stepContent)
 	}
 
 	// Check that model is set in CLI args
@@ -237,9 +237,33 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that npx CLI is used
+	// Check that npx uses the default latest version when no version specified
 	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@latest in step content:\n%s", stepContent)
+		t.Errorf("Expected npx @anthropic-ai/claude-code@latest when no version specified in step content:\n%s", stepContent)
+	}
+}
+
+func TestClaudeEngineWithNilConfig(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test with nil engine config (should use default latest)
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: nil,
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the main execution step
+	executionStep := steps[0]
+	stepContent := strings.Join([]string(executionStep), "\n")
+
+	// Check that npx uses the default latest version when no engine config
+	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
+		t.Errorf("Expected npx @anthropic-ai/claude-code@latest when no engine config in step content:\n%s", stepContent)
 	}
 }
 
