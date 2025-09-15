@@ -25,8 +25,8 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine  
 - `cache`: Cache configuration for workflow dependencies
-- `cache-memory`: [Persistent memory configuration](cache-memory.md) using GitHub Actions cache and MCP memory servers
-- `safe-outputs`: [Safe Output Processing](safe-outputs.md) for automatic issue creation and comment posting.
+- `cache-memory`: [Persistent memory configuration](../reference/cache-memory/) using GitHub Actions cache and MCP memory servers
+- `safe-outputs`: [Safe Output Processing](../reference/safe-outputs/) for automatic issue creation and comment posting.
 
 ## Trigger Events (`on:`)
 
@@ -115,7 +115,7 @@ on:
   workflow_dispatch:
 ```
 
-An additional kind of trigger called `command:` is supported, see [Command Triggers](command-triggers.md) for special `/mention` triggers and context text functionality.
+An additional kind of trigger called `command:` is supported, see [Command Triggers](../reference/command-triggers/) for special `/mention` triggers and context text functionality.
 
 ## Permissions (`permissions:`)
 
@@ -625,7 +625,7 @@ network:
 
 ## Safe Outputs Configuration (`safe-outputs:`)
 
-See [Safe Outputs Processing](safe-outputs.md) for automatic issue creation, comment posting and other safe outputs.
+See [Safe Outputs Processing](../reference/safe-outputs/) for automatic issue creation, comment posting and other safe outputs.
 
 ## Run Configuration (`run-name:`, `runs-on:`, `timeout_minutes:`)
 
@@ -729,10 +729,10 @@ cache:
 
 ## Related Documentation
 
-- [Commands](commands.md) - CLI commands for workflow management
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Alias Triggers](alias-triggers.md) - Special @mention triggers and context text
-- [MCPs](mcps.md) - Model Context Protocol setup and configuration
-- [Tools Configuration](tools.md) - GitHub and other tools setup
-- [Include Directives](include-directives.md) - Modularizing workflows with includes
-- [Secrets Management](secrets.md) - Managing secrets and environment variables
+- [Commands](../tools/cli/) - CLI commands for workflow management
+- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
+- [Alias Triggers](../reference/alias-triggers/) - Special @mention triggers and context text
+- [MCPs](../reference/mcps/) - Model Context Protocol setup and configuration
+- [Tools Configuration](../reference/tools/) - GitHub and other tools setup
+- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
+- [Secrets Management](../guides/secrets/) - Managing secrets and environment variables

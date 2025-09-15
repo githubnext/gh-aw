@@ -427,7 +427,7 @@ Share memory data across multiple workflows in the same repository.
 
 ## Related Documentation
 
-- [Frontmatter Options](frontmatter.md) - Complete frontmatter configuration guide
-- [MCP Tools](mcps.md) - Model Context Protocol integration
-- [Safe Outputs](safe-outputs.md) - Output processing and automation
+- [Frontmatter Options](../reference/frontmatter/) - Complete frontmatter configuration guide
+- [MCP Tools](../reference/mcps/) - Model Context Protocol integration
+- [Safe Outputs](../reference/safe-outputs/) - Output processing and automation
 - [GitHub Actions Cache Documentation](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows) - Official GitHub cache documentation

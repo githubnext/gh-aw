@@ -104,7 +104,7 @@ on:
 
 ## Related Documentation
 
-- **[Command Triggers](command-triggers.md)** - Detailed technical implementation
-- **[Frontmatter Options](frontmatter.md)** - Complete configuration reference
-- **[Visual Feedback](frontmatter.md#visual-feedback-reaction)** - Available reaction options
-- **[Security Notes](security-notes.md)** - Security best practices
+- **[Command Triggers](../reference/command-triggers/)** - Detailed technical implementation
+- **[Frontmatter Options](../reference/frontmatter/)** - Complete configuration reference
+- **[Visual Feedback](../reference/frontmatter/#visual-feedback-reaction)** - Available reaction options
+- **[Security Notes](../guides/security-notes/)** - Security best practices

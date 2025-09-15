@@ -18,7 +18,7 @@ gh --version
 
 - A repository you are a maintainer of, can push to (or a fork) and have permission to add Actions secrets.
 
-- A Claude or OpenAI API key. See [Secrets Management](secrets.md) for details.
+- A Claude or OpenAI API key. See [Secrets Management](../guides/secrets/) for details.
 
 ## Step 1 — Install the extension
 
@@ -124,7 +124,7 @@ Now that you have your first workflow running:
 
 - **Customize the workflow** — Edit the `.md` file to fit your needs, then recompile with `gh aw compile`
 - **Explore more samples** — Check out [The Agentics](https://github.com/githubnext/agentics) repository
-- **Learn the concepts** — Read [Concepts](concepts.md) to understand how agentic workflows work
-- **Read the docs** — See [Documentation](index.md)
+- **Learn the concepts** — Read [Concepts](../start-here/concepts/) to understand how agentic workflows work
+- **Read the docs** — See [Documentation](../)
 
 You're ready to start automating with agentic workflows! ✨
