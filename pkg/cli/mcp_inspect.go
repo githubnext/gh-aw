@@ -189,14 +189,14 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 	return nil
 }
 
-// NewMCPInspectCommand creates the mcp-inspect command
+// NewMCPInspectCommand creates the mcp inspect command (moved under mcp subcommand)
 func NewMCPInspectCommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
 
 	cmd := &cobra.Command{
-		Use:   "mcp-inspect [workflow-file]",
+		Use:   "inspect [workflow-file]",
 		Short: "Inspect MCP servers and list available tools, resources, and roots",
 		Long: `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
 
@@ -204,12 +204,12 @@ This command starts each MCP server configured in the workflow, queries its capa
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
 
 Examples:
-  gh aw mcp-inspect                    # List workflows with MCP servers
-  gh aw mcp-inspect weekly-research    # Inspect MCP servers in weekly-research.md  
-  gh aw mcp-inspect repomind --server repo-mind  # Inspect only the repo-mind server
-  gh aw mcp-inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
-  gh aw mcp-inspect weekly-research -v # Verbose output with detailed connection info
-  gh aw mcp-inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
+  gh aw mcp inspect                        # List workflows with MCP servers
+  gh aw mcp inspect weekly-research        # Inspect MCP servers in weekly-research.md  
+  gh aw mcp inspect repomind --server repo-mind  # Inspect only the repo-mind server
+  gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
+  gh aw mcp inspect weekly-research -v     # Verbose output with detailed connection info
+  gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -225,8 +225,8 @@ The command will:
 			}
 
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			if cmd.Parent() != nil {
-				parentVerbose, _ := cmd.Parent().PersistentFlags().GetBool("verbose")
+			if cmd.Parent() != nil && cmd.Parent().Parent() != nil {
+				parentVerbose, _ := cmd.Parent().Parent().PersistentFlags().GetBool("verbose")
 				verbose = verbose || parentVerbose
 			}
 
