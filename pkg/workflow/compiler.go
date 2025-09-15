@@ -173,8 +173,9 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
-	Staged                          *bool                                  `yaml:"staged,omitempty"` // If true, emit step summary messages instead of making GitHub API calls
-	Env                             map[string]string                      `yaml:"env,omitempty"`    // Environment variables to pass to safe output jobs
+	Staged                          *bool                                  `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls
+	Env                             map[string]string                      `yaml:"env,omitempty"`          // Environment variables to pass to safe output jobs
+	GitHubToken                     string                                 `yaml:"github-token,omitempty"` // GitHub token for safe output jobs
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -2209,6 +2210,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2289,6 +2292,8 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2349,6 +2354,8 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2429,6 +2436,8 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2508,6 +2517,8 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2631,6 +2642,8 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -3750,6 +3763,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 				}
 			}
+
+			// Handle github-token configuration
+			if githubToken, exists := outputMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					config.GitHubToken = githubTokenStr
+				}
+			}
 		}
 	}
 
@@ -3762,6 +3782,13 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 		for key, value := range data.SafeOutputs.Env {
 			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, value))
 		}
+	}
+}
+
+// addSafeOutputGitHubToken adds github-token to the with section of github-script actions
+func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData) {
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
+		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", data.SafeOutputs.GitHubToken))
 	}
 }
 

@@ -1611,6 +1611,10 @@
             }
           },
           "additionalProperties": false
+        },
+        "github-token": {
+          "type": "string",
+          "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}"
         }
       },
       "additionalProperties": false
