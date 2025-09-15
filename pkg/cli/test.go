@@ -55,11 +55,6 @@ func TestWorkflowLocally(workflowName, event string, verbose bool) error {
 		return fmt.Errorf("workflow name or ID is required")
 	}
 
-	// Check and install act if needed
-	if err := checkActInstalled(verbose); err != nil {
-		return fmt.Errorf("failed to ensure act is available: %w", err)
-	}
-
 	// Compile workflow first to ensure it's up to date (with safe-outputs staged if any)
 	fmt.Println(console.FormatProgressMessage("Compiling workflow before local testing..."))
 	if err := CompileWorkflowForTesting(workflowName, verbose); err != nil {
@@ -132,37 +127,6 @@ func testSingleWorkflowLocally(workflowName, event string, verbose bool) error {
 	}
 
 	return nil
-}
-
-// checkActInstalled checks if the act tool is available and provides installation instructions if not
-func checkActInstalled(verbose bool) error {
-	// Check if act is already installed
-	if _, err := exec.LookPath("act"); err == nil {
-		if verbose {
-			fmt.Println(console.FormatInfoMessage("act tool is already installed"))
-		}
-		return nil
-	}
-
-	// act is not installed, provide instructions to the user
-	fmt.Println(console.FormatErrorMessage("act tool is required but not installed"))
-	fmt.Println()
-	fmt.Println(console.FormatInfoMessage("To install act, please run one of the following commands:"))
-	fmt.Println()
-
-	// Check if GitHub CLI is available
-	if _, err := exec.LookPath("gh"); err == nil {
-		fmt.Println(console.FormatCommandMessage("gh extension install https://github.com/nektos/act"))
-		fmt.Println()
-		fmt.Println(console.FormatInfoMessage("Or install manually from: https://nektosact.com"))
-	} else {
-		fmt.Println(console.FormatInfoMessage("Install GitHub CLI first (https://cli.github.com/) then run:"))
-		fmt.Println(console.FormatCommandMessage("gh extension install https://github.com/nektos/act"))
-		fmt.Println()
-		fmt.Println(console.FormatInfoMessage("Or install act manually from: https://nektosact.com"))
-	}
-
-	return fmt.Errorf("act tool is not installed")
 }
 
 // CompileWorkflowForTesting compiles a single workflow with safe-outputs forced to staged mode

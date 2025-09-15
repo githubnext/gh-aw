@@ -71,7 +71,7 @@ deps:
 # Install act tool for local workflow testing
 .PHONY: install-act
 install-act:
-	gh extension install https://github.com/nektos/act
+	gh extension install https://github.com/nektos/gh-act
 
 # Install development tools (including linter)
 .PHONY: deps-dev
