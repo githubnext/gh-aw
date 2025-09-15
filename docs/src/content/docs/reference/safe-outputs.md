@@ -579,4 +579,4 @@ This is useful when:
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Command Triggers](../reference/command-triggers/) - Special /mention triggers and context text
-- [Commands](../development-experience/commands/) - CLI commands for workflow management
+- [Commands](../tools/cli/) - CLI commands for workflow management

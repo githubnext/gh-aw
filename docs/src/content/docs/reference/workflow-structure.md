@@ -231,7 +231,7 @@ Complex: ${{ toJson(github.workflow) }}
 
 ## Related Documentation
 
-- [Commands](../development-experience/commands/) - CLI commands for workflow management
+- [Commands](../tools/cli/) - CLI commands for workflow management
 - [Frontmatter Options](../reference/frontmatter/) - Configuration options for workflows
 - [MCPs](../reference/mcps/) - Model Context Protocol configuration
 - [Tools Configuration](../reference/tools/) - GitHub and other tools setup

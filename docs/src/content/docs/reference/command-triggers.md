@@ -98,4 +98,4 @@ See [Visual Feedback (`reaction:`)](../reference/frontmatter/#visual-feedback-re
 
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
-- [Commands](../development-experience/commands/) - CLI commands for workflow management
+- [Commands](../tools/cli/) - CLI commands for workflow management

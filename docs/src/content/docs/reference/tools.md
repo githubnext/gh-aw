@@ -129,7 +129,7 @@ tools:
 
 ## Related Documentation
 
-- [Commands](../development-experience/commands/) - CLI commands for workflow management
+- [Commands](../tools/cli/) - CLI commands for workflow management
 - [MCPs](../reference/mcps/) - Complete Model Context Protocol setup and usage
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options

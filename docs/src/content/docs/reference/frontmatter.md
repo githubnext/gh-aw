@@ -729,7 +729,7 @@ cache:
 
 ## Related Documentation
 
-- [Commands](../development-experience/commands/) - CLI commands for workflow management
+- [Commands](../tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Alias Triggers](../reference/alias-triggers/) - Special @mention triggers and context text
 - [MCPs](../reference/mcps/) - Model Context Protocol setup and configuration

@@ -106,7 +106,7 @@ env:
 
 ## Related Documentation
 
-- [Commands](../development-experience/commands/) - CLI commands for workflow management
+- [Commands](../tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options
 - [Tools Configuration](../reference/tools/) - GitHub and other tools setup
