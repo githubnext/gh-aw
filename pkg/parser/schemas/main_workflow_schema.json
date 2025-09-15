@@ -842,14 +842,6 @@
               "type": "integer",
               "description": "Maximum number of chat iterations per run"
             },
-            "max-runs": {
-              "type": "integer",
-              "description": "Maximum number of runs per workflow execution"
-            },
-            "verbose": {
-              "type": "boolean",
-              "description": "Enable verbose output from the Claude CLI"
-            },
 
             "user-agent": {
               "type": "string",

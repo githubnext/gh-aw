@@ -11,8 +11,6 @@ type EngineConfig struct {
 	Version       string
 	Model         string
 	MaxTurns      string
-	MaxRuns       string
-	Verbose       bool
 	UserAgent     string
 	Env           map[string]string
 	Steps         []map[string]any
@@ -72,24 +70,6 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
-				}
-			}
-
-			// Extract optional 'max-runs' field
-			if maxRuns, hasMaxRuns := engineObj["max-runs"]; hasMaxRuns {
-				if maxRunsInt, ok := maxRuns.(int); ok {
-					config.MaxRuns = fmt.Sprintf("%d", maxRunsInt)
-				} else if maxRunsUint64, ok := maxRuns.(uint64); ok {
-					config.MaxRuns = fmt.Sprintf("%d", maxRunsUint64)
-				} else if maxRunsStr, ok := maxRuns.(string); ok {
-					config.MaxRuns = maxRunsStr
-				}
-			}
-
-			// Extract optional 'verbose' field
-			if verbose, hasVerbose := engineObj["verbose"]; hasVerbose {
-				if verboseBool, ok := verbose.(bool); ok {
-					config.Verbose = verboseBool
 				}
 			}
 

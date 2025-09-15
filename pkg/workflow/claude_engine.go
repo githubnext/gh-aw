@@ -88,11 +88,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Add max_runs if specified (in CLI it's max-runs)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxRuns != "" {
-		claudeArgs = append(claudeArgs, "--max-runs", workflowData.EngineConfig.MaxRuns)
-	}
-
 	// Add MCP configuration
 	claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
 
@@ -105,10 +100,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add debug flag
 	claudeArgs = append(claudeArgs, "--debug")
 
-	// Add verbose flag if specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Verbose {
-		claudeArgs = append(claudeArgs, "--verbose")
-	}
+	// Always add verbose flag for enhanced debugging output
+	claudeArgs = append(claudeArgs, "--verbose")
 
 	// Add permission mode for non-interactive execution (bypass permissions)
 	claudeArgs = append(claudeArgs, "--permission-mode", "bypassPermissions")
