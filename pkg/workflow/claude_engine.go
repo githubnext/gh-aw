@@ -175,6 +175,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add Anthropic API key
 	stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
 
+	// Disable telemetry, error reporting, and bug command for privacy and security
+	stepLines = append(stepLines, "          DISABLE_TELEMETRY: \"1\"")
+	stepLines = append(stepLines, "          DISABLE_ERROR_REPORTING: \"1\"")
+	stepLines = append(stepLines, "          DISABLE_BUG_COMMAND: \"1\"")
+
 	// Always add GITHUB_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
 
