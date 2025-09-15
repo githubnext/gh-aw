@@ -38,11 +38,46 @@ function main() {
  */
 function parseClaudeLog(logContent) {
   try {
-    const logEntries = JSON.parse(logContent);
-    if (!Array.isArray(logEntries)) {
+    let logEntries;
+    
+    // First, try to parse as JSON array (old format)
+    try {
+      logEntries = JSON.parse(logContent);
+      if (!Array.isArray(logEntries)) {
+        throw new Error("Not a JSON array");
+      }
+    } catch (jsonArrayError) {
+      // If that fails, try to parse as mixed format (debug logs + JSONL)
+      logEntries = [];
+      const lines = logContent.split('\n');
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine === '') {
+          continue; // Skip empty lines
+        }
+        
+        // Skip debug log lines that don't start with { 
+        // (these are typically timestamped debug messages)
+        if (!trimmedLine.startsWith('{')) {
+          continue;
+        }
+        
+        // Try to parse each line as JSON
+        try {
+          const jsonEntry = JSON.parse(trimmedLine);
+          logEntries.push(jsonEntry);
+        } catch (jsonLineError) {
+          // Skip invalid JSON lines (could be partial debug output)
+          continue;
+        }
+      }
+    }
+    
+    if (!Array.isArray(logEntries) || logEntries.length === 0) {
       return {
         markdown:
-          "## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n",
+          "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
         mcpFailures: [],
       };
     }
@@ -213,7 +248,7 @@ function parseClaudeLog(logContent) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
-      markdown: `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`,
+      markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
       mcpFailures: [],
     };
   }

@@ -136,7 +136,7 @@ func TestParseClaudeLogSmoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to parse invalid Claude log: %v", err)
 	}
-	if !strings.Contains(result, "Error parsing Claude log") {
+	if !strings.Contains(result, "Log format not recognized") {
 		t.Error("Expected error message for invalid JSON in Claude log")
 	}
 
@@ -145,7 +145,7 @@ func TestParseClaudeLogSmoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to parse empty Claude log: %v", err)
 	}
-	if !strings.Contains(result, "Error parsing Claude log") {
+	if !strings.Contains(result, "Log format not recognized") {
 		t.Error("Expected error message for empty Claude log")
 	}
 }
@@ -215,5 +215,125 @@ func TestParseClaudeLogInitialization(t *testing.T) {
 	// Verify slash commands section
 	if !strings.Contains(result, "Slash Commands") {
 		t.Error("Expected Claude log output to contain Slash Commands section")
+	}
+}
+
+// Test parsing Claude logs in mixed format (debug logs + JSONL)
+func TestParseClaudeMixedFormatLog(t *testing.T) {
+	script := GetLogParserScript("parse_claude_log")
+	if script == "" {
+		t.Skip("parse_claude_log script not available")
+	}
+
+	// Test with mixed format log (debug logs + JSONL entries)
+	mixedFormatLog := `2025-09-15T23:22:45.123Z [DEBUG] Initializing Claude Code CLI
+2025-09-15T23:22:45.125Z [INFO] Session started
+{"type":"system","subtype":"init","session_id":"test-123","tools":["Bash","Read"],"model":"claude-sonnet-4-20250514"}
+2025-09-15T23:22:45.130Z [DEBUG] Processing user prompt
+{"type":"assistant","message":{"content":[{"type":"text","text":"I'll help you with this task."},{"type":"tool_use","id":"tool_123","name":"Bash","input":{"command":"echo 'Hello World'"}}]}}
+2025-09-15T23:22:45.135Z [DEBUG] Executing bash command
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_123","content":"Hello World"}]}}
+2025-09-15T23:22:45.140Z [INFO] Workflow completed successfully
+{"type":"result","total_cost_usd":0.0015,"usage":{"input_tokens":150,"output_tokens":50},"num_turns":1,"duration_ms":2000}
+2025-09-15T23:22:45.145Z [DEBUG] Cleanup completed`
+
+	result, err := runJSLogParser(script, mixedFormatLog)
+	if err != nil {
+		t.Fatalf("Failed to parse mixed format Claude log: %v", err)
+	}
+
+	// Verify essential sections are present
+	if !strings.Contains(result, "🚀 Initialization") {
+		t.Error("Expected mixed format Claude log output to contain Initialization section")
+	}
+	if !strings.Contains(result, "🤖 Commands and Tools") {
+		t.Error("Expected mixed format Claude log output to contain Commands and Tools section")
+	}
+	if !strings.Contains(result, "🤖 Reasoning") {
+		t.Error("Expected mixed format Claude log output to contain Reasoning section")
+	}
+	if !strings.Contains(result, "echo 'Hello World'") {
+		t.Error("Expected mixed format Claude log output to contain the bash command")
+	}
+	if !strings.Contains(result, "Total Cost") {
+		t.Error("Expected mixed format Claude log output to contain cost information")
+	}
+	if !strings.Contains(result, "test-123") {
+		t.Error("Expected mixed format Claude log output to contain session ID")
+	}
+
+	// Test backward compatibility with pure JSON array format
+	jsonArrayLog := `[
+		{"type":"system","subtype":"init","session_id":"test-456","tools":["Bash","Read"],"model":"claude-sonnet-4-20250514"},
+		{"type":"assistant","message":{"content":[{"type":"text","text":"Working on it."},{"type":"tool_use","id":"tool_456","name":"Bash","input":{"command":"ls -la"}}]}},
+		{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_456","content":"total 0"}]}},
+		{"type":"result","total_cost_usd":0.002,"usage":{"input_tokens":100,"output_tokens":40},"num_turns":1}
+	]`
+
+	result, err = runJSLogParser(script, jsonArrayLog)
+	if err != nil {
+		t.Fatalf("Failed to parse JSON array Claude log: %v", err)
+	}
+
+	// Verify backward compatibility works
+	if !strings.Contains(result, "🚀 Initialization") {
+		t.Error("Expected JSON array Claude log output to contain Initialization section")
+	}
+	if !strings.Contains(result, "ls -la") {
+		t.Error("Expected JSON array Claude log output to contain the bash command")
+	}
+	if !strings.Contains(result, "test-456") {
+		t.Error("Expected JSON array Claude log output to contain session ID")
+	}
+}
+
+// Test Go Claude engine mixed format parsing
+func TestClaudeEngineMixedFormatParsing(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test with mixed format log (debug logs + JSONL entries)
+	mixedFormatLog := `2025-09-15T23:22:45.123Z [DEBUG] Initializing Claude Code CLI
+2025-09-15T23:22:45.125Z [INFO] Session started
+{"type":"system","subtype":"init","session_id":"test-123","tools":["Bash","Read"],"model":"claude-sonnet-4-20250514"}
+2025-09-15T23:22:45.130Z [DEBUG] Processing user prompt
+{"type":"assistant","message":{"content":[{"type":"text","text":"I'll help you with this task."},{"type":"tool_use","id":"tool_123","name":"Bash","input":{"command":"echo 'Hello World'"}}]}}
+2025-09-15T23:22:45.135Z [DEBUG] Executing bash command
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_123","content":"Hello World"}]}}
+2025-09-15T23:22:45.140Z [INFO] Workflow completed successfully
+{"type":"result","total_cost_usd":0.0015,"usage":{"input_tokens":150,"output_tokens":50},"num_turns":1,"duration_ms":2000}
+2025-09-15T23:22:45.145Z [DEBUG] Cleanup completed`
+
+	metrics := engine.ParseLogMetrics(mixedFormatLog, true)
+
+	// Verify that metrics were extracted
+	if metrics.TokenUsage != 200 {
+		t.Errorf("Expected token usage 200 (150+50), got %d", metrics.TokenUsage)
+	}
+	if metrics.EstimatedCost != 0.0015 {
+		t.Errorf("Expected cost 0.0015, got %f", metrics.EstimatedCost)
+	}
+	if metrics.Turns != 1 {
+		t.Errorf("Expected 1 turn, got %d", metrics.Turns)
+	}
+
+	// Test backward compatibility with pure JSON array format
+	jsonArrayLog := `[
+		{"type":"system","subtype":"init","session_id":"test-456","tools":["Bash","Read"],"model":"claude-sonnet-4-20250514"},
+		{"type":"assistant","message":{"content":[{"type":"text","text":"Working on it."},{"type":"tool_use","id":"tool_456","name":"Bash","input":{"command":"ls -la"}}]}},
+		{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_456","content":"total 0"}]}},
+		{"type":"result","total_cost_usd":0.002,"usage":{"input_tokens":100,"output_tokens":40},"num_turns":1}
+	]`
+
+	metrics = engine.ParseLogMetrics(jsonArrayLog, true)
+
+	// Verify backward compatibility
+	if metrics.TokenUsage != 140 {
+		t.Errorf("Expected token usage 140 (100+40), got %d", metrics.TokenUsage)
+	}
+	if metrics.EstimatedCost != 0.002 {
+		t.Errorf("Expected cost 0.002, got %f", metrics.EstimatedCost)
+	}
+	if metrics.Turns != 1 {
+		t.Errorf("Expected 1 turn, got %d", metrics.Turns)
 	}
 }
