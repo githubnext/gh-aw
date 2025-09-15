@@ -2858,6 +2858,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// Check if safe-outputs is enabled and add to MCP tools
+	if workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		mcpTools = append(mcpTools, "safe-outputs")
+	}
+
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)

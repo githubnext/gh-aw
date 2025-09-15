@@ -570,14 +570,6 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
-              "safe_outputs": {
-                "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
-                "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${GITHUB_AW_SAFE_OUTPUTS}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
-                }
-              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -659,90 +651,83 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
-      - name: Execute Claude Code Action
+      - name: Execute Claude Code CLI
         id: agentic_execution
-        uses: anthropics/claude-code-base-action@v0.0.56
-        with:
-          # Allowed tools (sorted):
-          # - ExitPlanMode
-          # - Glob
-          # - Grep
-          # - LS
-          # - NotebookRead
-          # - Read
-          # - Task
-          # - TodoWrite
-          # - Write
-          # - mcp__github__download_workflow_run_artifact
-          # - mcp__github__get_code_scanning_alert
-          # - mcp__github__get_commit
-          # - mcp__github__get_dependabot_alert
-          # - mcp__github__get_discussion
-          # - mcp__github__get_discussion_comments
-          # - mcp__github__get_file_contents
-          # - mcp__github__get_issue
-          # - mcp__github__get_issue_comments
-          # - mcp__github__get_job_logs
-          # - mcp__github__get_me
-          # - mcp__github__get_notification_details
-          # - mcp__github__get_pull_request
-          # - mcp__github__get_pull_request_comments
-          # - mcp__github__get_pull_request_diff
-          # - mcp__github__get_pull_request_files
-          # - mcp__github__get_pull_request_reviews
-          # - mcp__github__get_pull_request_status
-          # - mcp__github__get_secret_scanning_alert
-          # - mcp__github__get_tag
-          # - mcp__github__get_workflow_run
-          # - mcp__github__get_workflow_run_logs
-          # - mcp__github__get_workflow_run_usage
-          # - mcp__github__list_branches
-          # - mcp__github__list_code_scanning_alerts
-          # - mcp__github__list_commits
-          # - mcp__github__list_dependabot_alerts
-          # - mcp__github__list_discussion_categories
-          # - mcp__github__list_discussions
-          # - mcp__github__list_issues
-          # - mcp__github__list_notifications
-          # - mcp__github__list_pull_requests
-          # - mcp__github__list_secret_scanning_alerts
-          # - mcp__github__list_tags
-          # - mcp__github__list_workflow_jobs
-          # - mcp__github__list_workflow_run_artifacts
-          # - mcp__github__list_workflow_runs
-          # - mcp__github__list_workflows
-          # - mcp__github__search_code
-          # - mcp__github__search_issues
-          # - mcp__github__search_orgs
-          # - mcp__github__search_pull_requests
-          # - mcp__github__search_repositories
-          # - mcp__github__search_users
-          allowed_tools: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users"
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_env: |
-            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-            GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}
-            GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-          mcp_config: /tmp/mcp-config/mcp-servers.json
-          mcp_debug: true
-          prompt_file: /tmp/aw-prompts/prompt.txt
-          settings: /tmp/.claude/settings.json
-          timeout_minutes: 5
+        # Allowed tools (sorted):
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - LS
+        # - NotebookRead
+        # - Read
+        # - Task
+        # - TodoWrite
+        # - Write
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_issue
+        # - mcp__github__get_issue_comments
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
+        # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issues
+        # - mcp__github__list_notifications
+        # - mcp__github__list_pull_requests
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
+        # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          # Execute Claude Code CLI with prompt from file
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-safe-output-missing-tool-claude.log
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DISABLE_TELEMETRY: "1"
+          DISABLE_ERROR_REPORTING: "1"
+          DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-      - name: Capture Agentic Action logs
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Ensure log file exists
         if: always()
         run: |
-          # Copy the detailed execution file from Agentic Action if available
-          if [ -n "${{ steps.agentic_execution.outputs.execution_file }}" ] && [ -f "${{ steps.agentic_execution.outputs.execution_file }}" ]; then
-            cp ${{ steps.agentic_execution.outputs.execution_file }} /tmp/test-safe-output-missing-tool-claude.log
-          else
-            echo "No execution file output found from Agentic Action" >> /tmp/test-safe-output-missing-tool-claude.log
-          fi
-          
           # Ensure log file exists
           touch /tmp/test-safe-output-missing-tool-claude.log
+          # Show last few lines for debugging
+          echo "=== Last 10 lines of Claude execution log ==="
+          tail -10 /tmp/test-safe-output-missing-tool-claude.log || echo "No log content available"
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
