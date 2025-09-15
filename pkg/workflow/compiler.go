@@ -2839,6 +2839,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 	var proxyTools []string
+
+	// Check if workflowData is valid before accessing its fields
+	if workflowData == nil {
+		return
+	}
+
 	workflowTools := workflowData.Tools
 
 	for toolName, toolValue := range workflowTools {
@@ -2859,7 +2865,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	// Check if safe-outputs is enabled and add to MCP tools
-	if workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+	if workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		mcpTools = append(mcpTools, "safe-outputs")
 	}
 

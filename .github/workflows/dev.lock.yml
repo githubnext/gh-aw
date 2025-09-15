@@ -704,7 +704,7 @@ jobs:
                   "--allowed-origins",
                   "github.com,*.github.com"
                 ]
-              }
+              },
             }
           }
           EOF
