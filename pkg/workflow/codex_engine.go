@@ -88,10 +88,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		}
 	}
 
-	// Use model from engineConfig if available, otherwise default to o4-mini
-	model := "o4-mini"
+	// Build model parameter only if specified in engineConfig
+	var modelParam string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		model = workflowData.EngineConfig.Model
+		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
 	}
 
 	command := fmt.Sprintf(`set -o pipefail
@@ -102,9 +102,7 @@ export CODEX_HOME=/tmp/mcp-config
 mkdir -p /tmp/aw-logs
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
-codex exec \
-  -c model=%s \
-  --full-auto "$INSTRUCTION" 2>&1 | tee %s`, model, logFile)
+codex exec %s--full-auto "$INSTRUCTION" 2>&1 | tee %s`, modelParam, logFile)
 
 	env := map[string]string{
 		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
