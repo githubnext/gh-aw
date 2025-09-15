@@ -160,6 +160,6 @@ if (typeof module !== "undefined" && module.exports) {
 }
 
 // Only run main if this script is executed directly, not when imported for testing
-if (require.main === module) {
+if (typeof module === "undefined" || require.main === module) {
   main();
 }

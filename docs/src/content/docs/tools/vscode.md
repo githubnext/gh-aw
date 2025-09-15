@@ -1,9 +1,9 @@
 ---
-title: Visual Studio Code Integration
-description: Learn about the gh aw CLI tools for improving your developer experience in Visual Studio Code and other IDEs, including Copilot instructions.
+title: VS Code Integration
+description: Learn about the gh aw CLI tools for improving your developer experience in VS Code and other IDEs, including Copilot instructions.
 ---
 
-The `gh aw` cli provides a few tools to improve your developer experience in Visual Studio Code (or other IDEs).
+The `gh aw` cli provides a few tools to improve your developer experience in VS Code (or other IDEs).
 
 ## Copilot instructions <a id="copilot-instructions"></a>
 
@@ -22,7 +22,7 @@ generating Agentic Workflows.
 
 ## Background Compilation using Tasks
 
-You can leverage tasks in Visual Studio Code to configure a background compilation of Agentic Workflows.
+You can leverage tasks in VS Code to configure a background compilation of Agentic Workflows.
 
 - open or create `.vscode/tasks.json`
 - add or merge the following JSON:

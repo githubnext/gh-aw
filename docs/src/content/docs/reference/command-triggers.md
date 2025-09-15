@@ -3,10 +3,6 @@ title: Command Triggers
 description: Learn about command triggers and context text functionality for agentic workflows, including special @mention triggers for interactive automation.
 ---
 
-This guide covers command triggers and context text functionality for agentic workflows.
-
-## Special `command:` Trigger
-
 GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/mentions` in issues and comments.
 
 ```yaml
@@ -92,10 +88,10 @@ When someone mentions `/my-bot` in a comment, the workflow will:
 
 This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution.
 
-See [Visual Feedback (`reaction:`)](frontmatter.md#visual-feedback-reaction) for the complete list of available reactions.
+See [Visual Feedback (`reaction:`)](../reference/frontmatter/#visual-feedback-reaction) for the complete list of available reactions.
 
 ## Related Documentation
 
-- [Frontmatter Options](frontmatter.md) - All configuration options for workflows
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Commands](commands.md) - CLI commands for workflow management
+- [Frontmatter Options](../reference/frontmatter/) - All configuration options for workflows
+- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
+- [Commands](../tools/cli/) - CLI commands for workflow management
