@@ -1581,7 +1581,7 @@
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable orphaned branch file upload with default configuration (max: 1)"
+              "description": "Enable orphaned branch file upload with default configuration (max: 1, branch: assets/[workflow-id])"
             },
             {
               "type": "object",
@@ -1592,6 +1592,11 @@
                   "description": "Maximum number of files to upload (default: 1)",
                   "minimum": 1,
                   "maximum": 100
+                },
+                "branch": {
+                  "type": "string",
+                  "description": "Branch name for storing uploaded files (default: assets/[workflow-id])",
+                  "minLength": 1
                 }
               },
               "additionalProperties": false

@@ -39,6 +39,13 @@ func (c *Compiler) buildCreateOutputPushToOrphanedBranchJob(data *WorkflowData, 
 	}
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ORPHANED_BRANCH_MAX_COUNT: %d\n", maxCount))
 
+	// Pass the branch configuration
+	branchName := fmt.Sprintf("assets/%s", data.Name)
+	if data.SafeOutputs.PushToOrphanedBranch.Branch != "" {
+		branchName = data.SafeOutputs.PushToOrphanedBranch.Branch
+	}
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ORPHANED_BRANCH_NAME: %s\n", branchName))
+
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")

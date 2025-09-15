@@ -343,6 +343,7 @@ const TOOLS = Object.fromEntries(
       handler: args => {
         const fs = require("fs");
         const path = require("path");
+        const crypto = require("crypto");
 
         const { filename } = args;
         if (!filename) {
@@ -358,23 +359,32 @@ const TOOLS = Object.fromEntries(
         const fileContent = fs.readFileSync(filename);
         const base64Content = fileContent.toString("base64");
 
-        // Create the output entry with base64 content
+        // Compute SHA256 hash of the file content
+        const hash = crypto.createHash("sha256");
+        hash.update(fileContent);
+        const fileSha = hash.digest("hex");
+
+        // Get file extension from original filename
+        const originalExtension = path.extname(filename);
+        const shaFilename = fileSha + originalExtension;
+
+        // Create the output entry with base64 content and SHA filename
         const entry = {
           type: "push-to-orphaned-branch",
-          filename: path.basename(filename),
+          filename: shaFilename,
+          original_filename: path.basename(filename),
+          sha: fileSha,
           content: base64Content,
         };
 
         appendSafeOutput(entry);
 
-        // Return a mock URL for now - the actual URL will be generated during the GitHub Actions job
-        const mockUrl = `https://raw.githubusercontent.com/org/repo/orphaned-branch/sha/${path.basename(filename)}`;
-
+        // Return response with SHA information
         return {
           content: [
             {
               type: "text",
-              text: `File uploaded successfully. URL: ${mockUrl}`,
+              text: `File uploaded successfully. SHA: ${fileSha}, Original filename: ${path.basename(filename)}`,
             },
           ],
         };

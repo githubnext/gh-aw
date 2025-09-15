@@ -248,7 +248,8 @@ type PushToPullRequestBranchConfig struct {
 
 // PushToOrphanedBranchConfig holds configuration for uploading files to an orphaned branch
 type PushToOrphanedBranchConfig struct {
-	Max int `yaml:"max,omitempty"` // Maximum number of files to upload (default: 1)
+	Max    int    `yaml:"max,omitempty"`    // Maximum number of files to upload (default: 1)
+	Branch string `yaml:"branch,omitempty"` // Branch name for storing uploaded files (default: assets/[workflow-id])
 }
 
 // MissingToolConfig holds configuration for reporting missing tools or functionality
@@ -4224,6 +4225,15 @@ func (c *Compiler) parsePushToOrphanedBranchConfig(outputMap map[string]any) *Pu
 					fmt.Printf("Warning: invalid max value for push-to-orphaned-branch, using default 1\n")
 				}
 			}
+
+			// Parse branch (optional, defaults to assets/[workflow-id])
+			if branch, exists := configMap["branch"]; exists {
+				if branchStr, ok := branch.(string); ok && branchStr != "" {
+					pushToOrphanedBranchConfig.Branch = branchStr
+				} else if c.verbose {
+					fmt.Printf("Warning: invalid branch value for push-to-orphaned-branch, using default\n")
+				}
+			}
 		}
 
 		return pushToOrphanedBranchConfig
@@ -4503,6 +4513,9 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.PushToOrphanedBranch.Max > 0 {
 			pushToOrphanedBranchConfig["max"] = data.SafeOutputs.PushToOrphanedBranch.Max
+		}
+		if data.SafeOutputs.PushToOrphanedBranch.Branch != "" {
+			pushToOrphanedBranchConfig["branch"] = data.SafeOutputs.PushToOrphanedBranch.Branch
 		}
 		safeOutputsConfig["push-to-orphaned-branch"] = pushToOrphanedBranchConfig
 	}

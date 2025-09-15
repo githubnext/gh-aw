@@ -204,7 +204,17 @@
         },
         "filename": {
           "type": "string",
-          "description": "Name of the file to upload. Screenshots and images can be uploaded using this safe output.",
+          "description": "SHA-based filename with original extension (e.g., sha256hash.png). Screenshots and images can be uploaded using this safe output.",
+          "minLength": 1
+        },
+        "original_filename": {
+          "type": "string",
+          "description": "Original filename as provided by the user",
+          "minLength": 1
+        },
+        "sha": {
+          "type": "string",
+          "description": "SHA256 hash of the file content",
           "minLength": 1
         },
         "content": {
@@ -212,7 +222,7 @@
           "description": "Base64 encoded file content"
         }
       },
-      "required": ["type", "filename", "content"],
+      "required": ["type", "filename", "original_filename", "sha", "content"],
       "additionalProperties": false
     },
     "CreatePullRequestReviewCommentOutput": {

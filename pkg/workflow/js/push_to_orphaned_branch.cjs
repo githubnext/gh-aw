@@ -6,6 +6,8 @@ const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "{}";
 const maxCount = parseInt(
   process.env.GITHUB_AW_ORPHANED_BRANCH_MAX_COUNT || "1"
 );
+const branchName =
+  process.env.GITHUB_AW_ORPHANED_BRANCH_NAME || "assets/workflow";
 const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
 const repo = context.repo;
@@ -14,6 +16,7 @@ const owner = context.repo.owner;
 core.info(`Processing agent output for orphaned branch upload`);
 core.info(`Repository: ${owner}/${repo.repo}`);
 core.info(`Max files allowed: ${maxCount}`);
+core.info(`Branch name: ${branchName}`);
 
 let parsedOutput;
 try {
@@ -57,21 +60,20 @@ if (isStaged) {
   );
 
   for (const item of orphanedBranchItems) {
+    const originalFilename = item.original_filename || item.filename;
+    const sha = item.sha || "unknown";
     core.summary.addRaw(
-      `- **${item.filename}** (${Math.round(item.content.length * 0.75)} bytes)\n`
+      `- **${item.filename}** (${Math.round(item.content.length * 0.75)} bytes) - SHA: ${sha} - Original: ${originalFilename}\n`
     );
     uploadedFiles.push(item.filename);
     fileUrls.push(
-      `https://raw.githubusercontent.com/${owner}/${repo.repo}/orphaned-uploads/staged/${item.filename}`
+      `https://raw.githubusercontent.com/${owner}/${repo.repo}/${branchName}/staged/${item.filename}`
     );
   }
 
   await core.summary.write();
 } else {
   // Actually upload files to orphaned branch
-  const branchName = "orphaned-uploads";
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-
   try {
     // Create or switch to orphaned branch
     try {
@@ -86,7 +88,7 @@ if (isStaged) {
 
     // Upload each file
     for (const item of orphanedBranchItems) {
-      const { filename, content } = item;
+      const { filename, content, original_filename, sha } = item;
 
       if (!filename || !content) {
         core.warning(`Skipping invalid item: ${JSON.stringify(item)}`);
@@ -95,22 +97,35 @@ if (isStaged) {
 
       // Decode base64 content and write file
       const fileBuffer = Buffer.from(content, "base64");
-      const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const timestampedFilename = `${timestamp}-${safeFilename}`;
 
-      fs.writeFileSync(timestampedFilename, fileBuffer);
+      // Use the SHA-based filename directly (it already includes the extension)
+      const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+      fs.writeFileSync(safeFilename, fileBuffer);
+      const originalName = original_filename || filename;
+      const fileSha = sha || "unknown";
       core.info(
-        `Created file: ${timestampedFilename} (${fileBuffer.length} bytes)`
+        `Created file: ${safeFilename} (${fileBuffer.length} bytes) - SHA: ${fileSha} - Original: ${originalName}`
       );
 
       // Add to git
-      execSync(`git add ${timestampedFilename}`, { stdio: "inherit" });
+      execSync(`git add ${safeFilename}`, { stdio: "inherit" });
 
-      uploadedFiles.push(timestampedFilename);
+      uploadedFiles.push(safeFilename);
     }
 
     // Commit files
-    const commitMessage = `Upload ${uploadedFiles.length} file(s) to orphaned branch\n\nFiles: ${uploadedFiles.join(", ")}`;
+    const fileList = uploadedFiles
+      .map(filename => {
+        const item = orphanedBranchItems.find(
+          i => i.filename.replace(/[^a-zA-Z0-9._-]/g, "_") === filename
+        );
+        const originalName = item?.original_filename || filename;
+        const sha = item?.sha || "unknown";
+        return `${filename} (${originalName}, SHA: ${sha.substring(0, 8)})`;
+      })
+      .join(", ");
+    const commitMessage = `Upload ${uploadedFiles.length} file(s) to orphaned branch\n\nFiles: ${fileList}`;
     execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
 
     // Push to remote
@@ -138,7 +153,15 @@ if (isStaged) {
     core.summary.addRaw("**Files:**\n");
 
     for (let i = 0; i < uploadedFiles.length; i++) {
-      core.summary.addRaw(`- [${uploadedFiles[i]}](${fileUrls[i]})\n`);
+      const filename = uploadedFiles[i];
+      const item = orphanedBranchItems.find(
+        item => item.filename.replace(/[^a-zA-Z0-9._-]/g, "_") === filename
+      );
+      const originalName = item?.original_filename || filename;
+      const sha = item?.sha || "unknown";
+      core.summary.addRaw(
+        `- [${filename}](${fileUrls[i]}) - Original: ${originalName} - SHA: ${sha.substring(0, 8)}\n`
+      );
     }
 
     await core.summary.write();

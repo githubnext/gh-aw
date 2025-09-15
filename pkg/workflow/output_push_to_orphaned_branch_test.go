@@ -10,6 +10,7 @@ func TestBuildCreateOutputPushToOrphanedBranchJob(t *testing.T) {
 
 	t.Run("basic_configuration", func(t *testing.T) {
 		workflowData := &WorkflowData{
+			Name: "test-workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				PushToOrphanedBranch: &PushToOrphanedBranchConfig{
 					Max: 3,
@@ -38,6 +39,12 @@ func TestBuildCreateOutputPushToOrphanedBranchJob(t *testing.T) {
 			t.Errorf("Expected timeout of 10 minutes, got: %d", job.TimeoutMinutes)
 		}
 
+		// Check for default branch name in environment variables
+		stepsStr := strings.Join(job.Steps, "")
+		if !strings.Contains(stepsStr, "GITHUB_AW_ORPHANED_BRANCH_NAME: assets/test-workflow") {
+			t.Errorf("Expected default branch name 'assets/test-workflow' in steps")
+		}
+
 		// Check that the main job is a dependency
 		found := false
 		for _, need := range job.Needs {
@@ -60,14 +67,14 @@ func TestBuildCreateOutputPushToOrphanedBranchJob(t *testing.T) {
 		}
 
 		// Check that steps contain expected elements
-		stepsStr := strings.Join(job.Steps, "")
-		if !strings.Contains(stepsStr, "Checkout repository") {
+		stepsString := strings.Join(job.Steps, "")
+		if !strings.Contains(stepsString, "Checkout repository") {
 			t.Errorf("Expected checkout step")
 		}
-		if !strings.Contains(stepsStr, "Push to Orphaned Branch") {
+		if !strings.Contains(stepsString, "Push to Orphaned Branch") {
 			t.Errorf("Expected push to orphaned branch step")
 		}
-		if !strings.Contains(stepsStr, "GITHUB_AW_ORPHANED_BRANCH_MAX_COUNT: 3") {
+		if !strings.Contains(stepsString, "GITHUB_AW_ORPHANED_BRANCH_MAX_COUNT: 3") {
 			t.Errorf("Expected max count environment variable to be set")
 		}
 	})
@@ -121,6 +128,38 @@ func TestBuildCreateOutputPushToOrphanedBranchJob(t *testing.T) {
 
 		if !strings.Contains(err.Error(), "safe-outputs.push-to-orphaned-branch configuration is required") {
 			t.Errorf("Expected specific error message, got: %v", err)
+		}
+	})
+}
+
+func TestBuildCreateOutputPushToOrphanedBranchJobWithCustomBranch(t *testing.T) {
+	compiler := NewCompiler(false, "", "1.0.0")
+
+	t.Run("custom_branch_configuration", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				PushToOrphanedBranch: &PushToOrphanedBranchConfig{
+					Max:    2,
+					Branch: "custom-uploads",
+				},
+			},
+		}
+
+		job, err := compiler.buildCreateOutputPushToOrphanedBranchJob(workflowData, "main_job")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+
+		// Check for custom branch name in environment variables
+		stepsStr := strings.Join(job.Steps, "")
+		if !strings.Contains(stepsStr, "GITHUB_AW_ORPHANED_BRANCH_NAME: custom-uploads") {
+			t.Errorf("Expected custom branch name 'custom-uploads' in steps, got: %s", stepsStr)
+		}
+
+		// Check that max count is correctly set
+		if !strings.Contains(stepsStr, "GITHUB_AW_ORPHANED_BRANCH_MAX_COUNT: 2") {
+			t.Errorf("Expected max count 2 in environment variables")
 		}
 	})
 }
