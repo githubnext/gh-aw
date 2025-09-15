@@ -90,13 +90,13 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected output instructions to be injected into prompt")
 	}
 
-	// Verify Claude engine declared outputs are uploaded separately
-	if !strings.Contains(lockContent, "- name: Upload engine output files") {
-		t.Error("Expected 'Upload engine output files' step for Claude engine")
+	// Verify Claude engine no longer has upload steps (Claude CLI no longer produces output.txt)
+	if strings.Contains(lockContent, "- name: Upload engine output files") {
+		t.Error("Claude workflow should NOT have 'Upload engine output files' step (Claude CLI no longer produces output.txt)")
 	}
 
-	if !strings.Contains(lockContent, "name: agent_outputs") {
-		t.Error("Expected engine output artifact to be named 'agent_outputs'")
+	if strings.Contains(lockContent, "name: agent_outputs") {
+		t.Error("Claude workflow should NOT reference 'agent_outputs' artifact (Claude CLI no longer produces output.txt)")
 	}
 
 	// Verify Print Agent output step has file existence check
@@ -218,16 +218,12 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 }
 
 func TestEngineOutputFileDeclarations(t *testing.T) {
-	// Test Claude engine declares output files
+	// Test Claude engine declares no output files (Claude CLI no longer produces output.txt)
 	claudeEngine := NewClaudeEngine()
 	claudeOutputFiles := claudeEngine.GetDeclaredOutputFiles()
 
-	if len(claudeOutputFiles) == 0 {
-		t.Error("Claude engine should declare at least one output file")
-	}
-
-	if !stringSliceContains(claudeOutputFiles, "output.txt") {
-		t.Errorf("Claude engine should declare 'output.txt' as an output file, got: %v", claudeOutputFiles)
+	if len(claudeOutputFiles) != 0 {
+		t.Errorf("Claude engine should declare no output files (Claude CLI no longer produces output.txt), got: %v", claudeOutputFiles)
 	}
 
 	// Test Codex engine declares no output files
@@ -240,14 +236,4 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 
 	t.Logf("Claude engine declares: %v", claudeOutputFiles)
 	t.Logf("Codex engine declares: %v", codexOutputFiles)
-}
-
-// Helper function to check if a string slice contains a specific string
-func stringSliceContains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
