@@ -1,9 +1,12 @@
-name: Deploy Documentation to GitHub Pages
+name: Doc Build - Deploy
 
 on:
   workflow_dispatch:
   release:
     types: [created]
+  pull_request:
+    paths:
+      - 'docs/**'
   push:
     branches:
       - main
@@ -50,6 +53,8 @@ jobs:
           path: ./docs/dist
 
   deploy:
+    # make this conditional on the branch being main
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

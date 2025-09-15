@@ -576,7 +576,7 @@ This is useful when:
 
 ## Related Documentation
 
-- [Frontmatter Options](frontmatter.md) - All configuration options for workflows
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Command Triggers](command-triggers.md) - Special /mention triggers and context text
-- [Commands](commands.md) - CLI commands for workflow management
+- [Frontmatter Options](../reference/frontmatter/) - All configuration options for workflows
+- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
+- [Command Triggers](../reference/command-triggers/) - Special /mention triggers and context text
+- [Commands](../tools/cli/) - CLI commands for workflow management
