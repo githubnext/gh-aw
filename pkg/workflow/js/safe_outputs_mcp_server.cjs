@@ -7,6 +7,7 @@ const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile)
   throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
 const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+const debug = (msg) => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
 function writeMessage(obj) {
   const json = JSON.stringify(obj);
   const bytes = encoder.encode(json);
@@ -20,6 +21,7 @@ let buffer = Buffer.alloc(0);
 function onData(chunk) {
   buffer = Buffer.concat([buffer, chunk]);
   while (true) {
+    debug(`on data buffer length: ${buffer.length} - ${buffer.toString("utf8")}`);
     const sep = buffer.indexOf("\r\n\r\n");
     if (sep === -1) break;
 
@@ -49,10 +51,6 @@ function onData(chunk) {
     }
   }
 }
-
-process.stdin.on("data", onData);
-process.stdin.on("error", () => {});
-process.stdin.resume();
 
 function replyResult(id, result) {
   if (id === undefined || id === null) return; // notification
@@ -316,15 +314,15 @@ const TOOLS = Object.fromEntries(
     .map(tool => [tool.name, tool])
 );
 
-process.stderr.write(
-  `[${SERVER_INFO.name}] v${SERVER_INFO.version} ready on stdio\n`
+debug(
+  `v${SERVER_INFO.version} ready on stdio`
 );
-process.stderr.write(`[${SERVER_INFO.name}]  output file: ${outputFile}\n`);
-process.stderr.write(
-  `[${SERVER_INFO.name}]  config: ${JSON.stringify(safeOutputsConfig)}\n`
+debug(`  output file: ${outputFile}`);
+debug(
+  `  config: ${JSON.stringify(safeOutputsConfig)}`
 );
-process.stderr.write(
-  `[${SERVER_INFO.name}]  tools: ${Object.keys(TOOLS).join(", ")}\n`
+debug(
+  `  tools: ${Object.keys(TOOLS).join(", ")}`
 );
 if (!Object.keys(TOOLS).length)
   throw new Error("No tools enabled in configuration");
@@ -408,4 +406,7 @@ function handleMessage(req) {
   }
 }
 
-process.stderr.write(`[${SERVER_INFO.name}] listening...\n`);
+process.stdin.on("data", onData);
+process.stdin.on("error", (err) => debug(`stdin error: ${err}`));
+process.stdin.resume();
+debug(`listening...`);
