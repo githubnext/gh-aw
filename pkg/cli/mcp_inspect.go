@@ -189,16 +189,13 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 	return nil
 }
 
-// NewMCPInspectCommand creates the mcp-inspect command
+// NewMCPInspectCommand creates the mcp-inspect command (legacy, kept for backwards compatibility)
 func NewMCPInspectCommand() *cobra.Command {
-	var serverFilter string
-	var toolFilter string
-	var spawnInspector bool
-
-	cmd := &cobra.Command{
-		Use:   "mcp-inspect [workflow-file]",
-		Short: "Inspect MCP servers and list available tools, resources, and roots",
-		Long: `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
+	cmd := NewMCPInspectSubCommand()
+	cmd.Use = "mcp-inspect [workflow-file]"
+	
+	// Update examples to show legacy command syntax
+	cmd.Long = `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
 
 This command starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results in a formatted table. It supports stdio, Docker, and HTTP MCP servers.
@@ -216,6 +213,45 @@ The command will:
 - Start each MCP server (stdio, docker, http)
 - Query available tools, resources, and roots
 - Validate required secrets are available  
+- Display results in formatted tables with error details
+
+NOTE: This command is deprecated. Use 'gh aw mcp inspect' instead.`
+	
+	return cmd
+}
+
+// NewMCPInspectSubCommand creates the mcp inspect subcommand
+func NewMCPInspectSubCommand() *cobra.Command {
+	var serverFilter string
+	var toolFilter string
+	var spawnInspector bool
+	var generateConfig bool
+	var launchServers bool
+
+	cmd := &cobra.Command{
+		Use:   "inspect [workflow-file]",
+		Short: "Inspect MCP servers and list available tools, resources, and roots",
+		Long: `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
+
+This command can generate MCP configurations using the Claude agentic engine, parse them,
+and launch all configured servers including github, playwright, and safe-outputs.
+
+Examples:
+  gh aw mcp inspect                    # List workflows with MCP servers
+  gh aw mcp inspect weekly-research    # Inspect MCP servers in weekly-research.md  
+  gh aw mcp inspect repomind --server repo-mind  # Inspect only the repo-mind server
+  gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
+  gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
+  gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
+  gh aw mcp inspect weekly-research --generate-config  # Generate MCP config using Claude engine
+  gh aw mcp inspect weekly-research --launch-servers   # Launch all configured servers
+
+The command will:
+- Parse the workflow file to extract MCP server configurations
+- Optionally generate MCP configuration using the Claude agentic engine
+- Start each MCP server (stdio, docker, http)
+- Query available tools, resources, and roots
+- Validate required secrets are available  
 - Display results in formatted tables with error details`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -225,14 +261,24 @@ The command will:
 			}
 
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			if cmd.Parent() != nil {
-				parentVerbose, _ := cmd.Parent().PersistentFlags().GetBool("verbose")
+			if cmd.Parent() != nil && cmd.Parent().Parent() != nil {
+				parentVerbose, _ := cmd.Parent().Parent().PersistentFlags().GetBool("verbose")
 				verbose = verbose || parentVerbose
 			}
 
 			// Validate that tool flag requires server flag
 			if toolFilter != "" && serverFilter == "" {
 				return fmt.Errorf("--tool flag requires --server flag to be specified")
+			}
+
+			// Handle generate config flag
+			if generateConfig {
+				return generateMCPConfig(workflowFile, verbose)
+			}
+
+			// Handle launch servers flag  
+			if launchServers {
+				return launchMCPServers(workflowFile, serverFilter, verbose)
 			}
 
 			// Handle spawn inspector flag
@@ -248,6 +294,8 @@ The command will:
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed connection information")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
+	cmd.Flags().BoolVar(&generateConfig, "generate-config", false, "Generate MCP server configuration using Claude agentic engine")
+	cmd.Flags().BoolVar(&launchServers, "launch-servers", false, "Launch all configured MCP servers (github, playwright, safe-outputs)")
 
 	return cmd
 }
@@ -451,4 +499,302 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 	cmd.Stdin = os.Stdin
 
 	return cmd.Run()
+}
+
+// generateMCPConfig uses the Claude agentic engine to generate MCP server configuration
+func generateMCPConfig(workflowFile string, verbose bool) error {
+	if workflowFile == "" {
+		return fmt.Errorf("workflow file is required for config generation")
+	}
+
+	workflowsDir := workflow.GetWorkflowDir()
+
+	// Normalize the workflow file path
+	if !strings.HasSuffix(workflowFile, ".md") {
+		workflowFile += ".md"
+	}
+
+	workflowPath := filepath.Join(workflowsDir, workflowFile)
+	if !filepath.IsAbs(workflowPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		workflowPath = filepath.Join(cwd, workflowPath)
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
+		return fmt.Errorf("workflow file not found: %s", workflowPath)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Generating MCP configuration for: %s", workflowPath)))
+	}
+
+	// Parse the workflow file
+	content, err := os.ReadFile(workflowPath)
+	if err != nil {
+		return fmt.Errorf("failed to read workflow file: %w", err)
+	}
+
+	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return fmt.Errorf("failed to parse workflow file: %w", err)
+	}
+
+	// Create Claude engine to generate MCP configuration
+	claudeEngine := workflow.NewClaudeEngine()
+	
+	// Extract tools from frontmatter
+	tools := make(map[string]any)
+	if toolsSection, hasTools := workflowData.Frontmatter["tools"]; hasTools {
+		if toolsMap, ok := toolsSection.(map[string]any); ok {
+			tools = toolsMap
+		}
+	}
+
+	// Extract MCP tool names from existing configurations
+	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
+	if err != nil {
+		return fmt.Errorf("failed to extract MCP configurations: %w", err)
+	}
+
+	// Build list of MCP servers to include in config
+	mcpTools := []string{}
+	
+	// Add existing MCP server configurations
+	for _, config := range mcpConfigs {
+		mcpTools = append(mcpTools, config.Name)
+	}
+
+	// Add standard servers if configured (avoid duplicates)
+	if _, hasGithub := tools["github"]; hasGithub {
+		found := false
+		for _, existing := range mcpTools {
+			if existing == "github" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			mcpTools = append(mcpTools, "github")
+		}
+	}
+	
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		found := false
+		for _, existing := range mcpTools {
+			if existing == "playwright" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			mcpTools = append(mcpTools, "playwright")
+		}
+	}
+	
+	if _, hasSafeOutputs := workflowData.Frontmatter["safe-outputs"]; hasSafeOutputs {
+		found := false
+		for _, existing := range mcpTools {
+			if existing == "safe-outputs" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			mcpTools = append(mcpTools, "safe-outputs")
+		}
+	}
+
+	if len(mcpTools) == 0 {
+		fmt.Println(console.FormatWarningMessage("No MCP tools found in workflow"))
+		return nil
+	}
+
+	// Create a minimal WorkflowData for MCP config generation
+	workflowDataForMCP := &workflow.WorkflowData{
+		Tools:              tools,
+		NetworkPermissions: nil, // Will be populated if needed
+	}
+
+	// Generate the MCP configuration
+	var mcpConfigBuilder strings.Builder
+	claudeEngine.RenderMCPConfig(&mcpConfigBuilder, tools, mcpTools, workflowDataForMCP)
+	
+	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated MCP configuration for %d server(s)", len(mcpTools))))
+	fmt.Println(console.FormatInfoMessage("MCP Configuration:"))
+	fmt.Println()
+	fmt.Println(mcpConfigBuilder.String())
+
+	return nil
+}
+
+// launchMCPServers launches all MCP servers configured in the workflow
+func launchMCPServers(workflowFile string, serverFilter string, verbose bool) error {
+	if workflowFile == "" {
+		return fmt.Errorf("workflow file is required for launching servers")
+	}
+
+	workflowsDir := workflow.GetWorkflowDir()
+
+	// Normalize the workflow file path
+	if !strings.HasSuffix(workflowFile, ".md") {
+		workflowFile += ".md"
+	}
+
+	workflowPath := filepath.Join(workflowsDir, workflowFile)
+	if !filepath.IsAbs(workflowPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		workflowPath = filepath.Join(cwd, workflowPath)
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
+		return fmt.Errorf("workflow file not found: %s", workflowPath)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Launching MCP servers from: %s", workflowPath)))
+	}
+
+	// Parse the workflow file to extract MCP configurations
+	content, err := os.ReadFile(workflowPath)
+	if err != nil {
+		return err
+	}
+
+	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return err
+	}
+
+	// Extract MCP configurations
+	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, serverFilter)
+	if err != nil {
+		return err
+	}
+
+	if len(mcpConfigs) == 0 {
+		if serverFilter != "" {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No MCP servers matching filter '%s' found in workflow", serverFilter)))
+		} else {
+			fmt.Println(console.FormatWarningMessage("No MCP servers found in workflow"))
+		}
+		return nil
+	}
+
+	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) to launch:", len(mcpConfigs))))
+	for _, config := range mcpConfigs {
+		fmt.Printf("  • %s (%s)\n", config.Name, config.Type)
+	}
+	fmt.Println()
+
+	var serverProcesses []*exec.Cmd
+	var wg sync.WaitGroup
+
+	// Launch each MCP server
+	for _, config := range mcpConfigs {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Starting server: %s", config.Name)))
+		}
+
+		// Create the command for the MCP server
+		var cmd *exec.Cmd
+		if config.Container != "" {
+			// Docker container mode
+			args := append([]string{"run", "--rm", "-i"}, config.Args...)
+			cmd = exec.Command("docker", args...)
+		} else {
+			// Direct command mode
+			if config.Command == "" {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: no command specified", config.Name)))
+				continue
+			}
+			cmd = exec.Command(config.Command, config.Args...)
+		}
+
+		// Set environment variables
+		cmd.Env = os.Environ()
+		for key, value := range config.Env {
+			// Resolve environment variable references
+			resolvedValue := os.ExpandEnv(value)
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, resolvedValue))
+		}
+
+		// Start the server process
+		if err := cmd.Start(); err != nil {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to start server %s: %v", config.Name, err)))
+			continue
+		}
+
+		serverProcesses = append(serverProcesses, cmd)
+
+		// Monitor the process in the background
+		wg.Add(1)
+		go func(serverCmd *exec.Cmd, serverName string) {
+			defer wg.Done()
+			if err := serverCmd.Wait(); err != nil && verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", serverName, err)))
+			}
+		}(cmd, config.Name)
+
+		if verbose {
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Started server: %s (PID: %d)", config.Name, cmd.Process.Pid)))
+		}
+	}
+
+	if len(serverProcesses) == 0 {
+		return fmt.Errorf("no MCP servers were successfully started")
+	}
+
+	// Give servers a moment to start up
+	time.Sleep(2 * time.Second)
+	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully launched %d MCP server(s)", len(serverProcesses))))
+
+	// Set up cleanup function for servers
+	defer func() {
+		if len(serverProcesses) > 0 {
+			fmt.Println(console.FormatInfoMessage("Cleaning up MCP servers..."))
+			for i, cmd := range serverProcesses {
+				if cmd.Process != nil {
+					if err := cmd.Process.Kill(); err != nil && verbose {
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process %d: %v", cmd.Process.Pid, err)))
+					}
+				}
+				// Give each process a chance to clean up
+				if i < len(serverProcesses)-1 {
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+			// Wait for all background goroutines to finish (with timeout)
+			done := make(chan struct{})
+			go func() {
+				wg.Wait()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				// All finished
+			case <-time.After(5 * time.Second):
+				// Timeout waiting for cleanup
+				if verbose {
+					fmt.Println(console.FormatWarningMessage("Timeout waiting for server cleanup"))
+				}
+			}
+		}
+	}()
+
+	fmt.Println(console.FormatInfoMessage("MCP servers are running. Press Ctrl+C to stop all servers."))
+	
+	// Wait for interrupt signal
+	fmt.Println(console.FormatInfoMessage("Use 'gh aw mcp inspect --inspector' to launch the MCP inspector tool"))
+	
+	// Keep the process alive until interrupted
+	select {}
 }
