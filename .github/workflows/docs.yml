@@ -1,4 +1,4 @@
-name: Deploy Documentation to GitHub Pages
+name: Doc Build - Deploy
 
 on:
   workflow_dispatch:
