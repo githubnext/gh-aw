@@ -56,13 +56,6 @@ When you run `gh aw compile`, the system:
 
 Each workflow consists of:
 
-1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](../reference/frontmatter/) for details.
-2. **Markdown Content**: Natural language instructions for the AI
-
-## Markdown Content
-
-Each workflow consists of two main parts:
-
 1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](./frontmatter/) for details.
 2. **Markdown Content**: Natural language instructions for the AI. See [Markdown Content](./markdown/).
 
