@@ -120,6 +120,17 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for pushing to an orphaned branch
+ */
+interface PushToOrphanedBranchItem extends BaseSafeOutputItem {
+  type: "push-to-orphaned-branch";
+  /** Name of the file to upload. Screenshots and images can be uploaded using this safe output. */
+  filename: string;
+  /** Base64 encoded file content */
+  content: string;
+}
+
+/**
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
@@ -156,6 +167,7 @@ type SafeOutputItem =
   | AddIssueLabelItem
   | UpdateIssueItem
   | PushToPrBranchItem
+  | PushToOrphanedBranchItem
   | MissingToolItem;
 
 
@@ -173,6 +185,7 @@ export {
   AddIssueLabelItem,
   UpdateIssueItem,
   PushToPrBranchItem,
+  PushToOrphanedBranchItem,
   MissingToolItem,
   SafeOutputItem,
 };

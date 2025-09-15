@@ -1577,6 +1577,27 @@
             }
           ]
         },
+        "push-to-orphaned-branch": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable orphaned branch file upload with default configuration (max: 1)"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for uploading files to an orphaned branch from agentic workflow output. Screenshots and images can be uploaded using this safe output.",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of files to upload (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "missing-tool": {
           "oneOf": [
             {

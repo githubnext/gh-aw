@@ -11,5 +11,6 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddIssueLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
+		safeOutputs.PushToOrphanedBranch != nil ||
 		safeOutputs.MissingTool != nil
 }

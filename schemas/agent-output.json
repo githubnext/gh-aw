@@ -33,6 +33,7 @@
         {"$ref": "#/$defs/AddIssueLabelOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
+        {"$ref": "#/$defs/PushToOrphanedBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
@@ -191,6 +192,27 @@
         }
       },
       "required": ["type"],
+      "additionalProperties": false
+    },
+    "PushToOrphanedBranchOutput": {
+      "title": "Push to Orphaned Branch Output",
+      "description": "Output for uploading a file to an orphaned branch and getting a GitHub raw URL",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "push-to-orphaned-branch"
+        },
+        "filename": {
+          "type": "string",
+          "description": "Name of the file to upload. Screenshots and images can be uploaded using this safe output.",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "description": "Base64 encoded file content"
+        }
+      },
+      "required": ["type", "filename", "content"],
       "additionalProperties": false
     },
     "CreatePullRequestReviewCommentOutput": {

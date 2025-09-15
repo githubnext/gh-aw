@@ -171,6 +171,7 @@ type SafeOutputsConfig struct {
 	AddIssueLabels                  *AddIssueLabelsConfig                  `yaml:"add-issue-label,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
+	PushToOrphanedBranch            *PushToOrphanedBranchConfig            `yaml:"push-to-orphaned-branch,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls
@@ -243,6 +244,11 @@ type UpdateIssuesConfig struct {
 type PushToPullRequestBranchConfig struct {
 	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-issue-comment but for pull requests
 	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+}
+
+// PushToOrphanedBranchConfig holds configuration for uploading files to an orphaned branch
+type PushToOrphanedBranchConfig struct {
+	Max int `yaml:"max,omitempty"` // Maximum number of files to upload (default: 1)
 }
 
 // MissingToolConfig holds configuration for reporting missing tools or functionality
@@ -1957,6 +1963,17 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
+		// Build push_to_orphaned_branch job if output.push-to-orphaned-branch is configured
+		if data.SafeOutputs.PushToOrphanedBranch != nil {
+			pushToOrphanedBranchJob, err := c.buildCreateOutputPushToOrphanedBranchJob(data, jobName)
+			if err != nil {
+				return fmt.Errorf("failed to build push_to_orphaned_branch job: %w", err)
+			}
+			if err := c.jobManager.AddJob(pushToOrphanedBranchJob); err != nil {
+				return fmt.Errorf("failed to add push_to_orphaned_branch job: %w", err)
+			}
+		}
+
 		// Build missing_tool job (always enabled when SafeOutputs exists)
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolJob, err := c.buildCreateOutputMissingToolJob(data, jobName)
@@ -3542,6 +3559,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			written = true
 		}
 
+		if data.SafeOutputs.PushToOrphanedBranch != nil {
+			if written {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("Uploading Files to Orphaned Branch")
+			written = true
+		}
+
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			if written {
 				yaml.WriteString(", ")
@@ -4419,6 +4444,15 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 		}
 		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
+	}
+	if data.SafeOutputs.PushToOrphanedBranch != nil {
+		pushToOrphanedBranchConfig := map[string]interface{}{
+			"enabled": true,
+		}
+		if data.SafeOutputs.PushToOrphanedBranch.Max > 0 {
+			pushToOrphanedBranchConfig["max"] = data.SafeOutputs.PushToOrphanedBranch.Max
+		}
+		safeOutputsConfig["push-to-orphaned-branch"] = pushToOrphanedBranchConfig
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		missingToolConfig := map[string]interface{}{
