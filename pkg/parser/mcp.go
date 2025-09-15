@@ -35,10 +35,55 @@ type MCPServerInfo struct {
 func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) ([]MCPServerConfig, error) {
 	var configs []MCPServerConfig
 
+	// Check for safe-outputs configuration first (built-in MCP)
+	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
+		// Apply server filter if specified
+		if serverFilter == "" || strings.Contains("safe-outputs", strings.ToLower(serverFilter)) {
+			config := MCPServerConfig{
+				Name: "safe-outputs",
+				Type: "stdio",
+				// Command and args will be set up dynamically when the server is started
+				Command: "node",
+				Env:     make(map[string]string),
+			}
+
+			// Parse safe-outputs configuration to determine enabled tools
+			if safeOutputsMap, ok := safeOutputsSection.(map[string]any); ok {
+				for toolType := range safeOutputsMap {
+					// Convert tool types to the actual MCP tool names
+					switch toolType {
+					case "create-issue":
+						config.Allowed = append(config.Allowed, "create-issue")
+					case "create-discussion":
+						config.Allowed = append(config.Allowed, "create-discussion")
+					case "add-issue-comment":
+						config.Allowed = append(config.Allowed, "add-issue-comment")
+					case "create-pull-request":
+						config.Allowed = append(config.Allowed, "create-pull-request")
+					case "create-pull-request-review-comment":
+						config.Allowed = append(config.Allowed, "create-pull-request-review-comment")
+					case "create-code-scanning-alert":
+						config.Allowed = append(config.Allowed, "create-code-scanning-alert")
+					case "add-issue-label":
+						config.Allowed = append(config.Allowed, "add-issue-label")
+					case "update-issue":
+						config.Allowed = append(config.Allowed, "update-issue")
+					case "push-to-pr-branch":
+						config.Allowed = append(config.Allowed, "push-to-pr-branch")
+					case "missing-tool":
+						config.Allowed = append(config.Allowed, "missing-tool")
+					}
+				}
+			}
+
+			configs = append(configs, config)
+		}
+	}
+
 	// Get tools section from frontmatter
 	toolsSection, hasTools := frontmatter["tools"]
 	if !hasTools {
-		return configs, nil // No tools configured
+		return configs, nil // No tools configured, but we might have safe-outputs
 	}
 
 	tools, ok := toolsSection.(map[string]any)

@@ -157,30 +157,14 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 		t.Error("Expected 'Reporting Missing Tools or Functionality' in prompt header")
 	}
 
-	// Check that missing-tool instructions are present
-	if !strings.Contains(output, "**Reporting Missing Tools or Functionality**") {
-		t.Error("Expected missing-tool instructions section")
+	// Check that GITHUB_AW_SAFE_OUTPUTS environment variable is included when SafeOutputs is configured
+	if !strings.Contains(output, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
+		t.Error("Expected 'GITHUB_AW_SAFE_OUTPUTS' environment variable when SafeOutputs is configured")
 	}
 
-	// Check for JSON format example
-	if !strings.Contains(output, `"type": "missing-tool"`) {
-		t.Error("Expected missing-tool JSON example")
-	}
-
-	// Check for required fields documentation
-	if !strings.Contains(output, `"tool":`) {
-		t.Error("Expected tool field documentation")
-	}
-	if !strings.Contains(output, `"reason":`) {
-		t.Error("Expected reason field documentation")
-	}
-	if !strings.Contains(output, `"alternatives":`) {
-		t.Error("Expected alternatives field documentation")
-	}
-
-	// Check that the example is included in JSONL examples
-	if !strings.Contains(output, `{"type": "missing-tool", "tool": "docker"`) {
-		t.Error("Expected missing-tool example in JSONL section")
+	// Check that the important note about safe-outputs tools is included
+	if !strings.Contains(output, "**IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools") {
+		t.Error("Expected important note about safe-outputs tools")
 	}
 }
 
