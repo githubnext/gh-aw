@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-const (
-	// DefaultClaudeActionVersion is the default version of the Claude Code base action
-	DefaultClaudeActionVersion = "v0.0.56"
-)
-
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
 	BaseEngine
@@ -77,128 +72,124 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 	}
 
-	// Determine the action version to use
-	actionVersion := DefaultClaudeActionVersion // Default version
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		actionVersion = workflowData.EngineConfig.Version
-	}
+	// Build claude CLI arguments based on configuration
+	var claudeArgs []string
 
-	// Build claude_env based on hasOutput parameter and custom env vars
-	hasOutput := workflowData.SafeOutputs != nil
-	claudeEnv := ""
-	if hasOutput {
-		claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+	// Add print flag for non-interactive mode
+	claudeArgs = append(claudeArgs, "--print")
 
-		// Add staged flag if specified
-		if workflowData.SafeOutputs.Staged != nil {
-			if *workflowData.SafeOutputs.Staged {
-				if claudeEnv != "" {
-					claudeEnv += "\n"
-				}
-				claudeEnv += "            GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\""
-			}
-		}
-	}
-
-	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			if claudeEnv != "" {
-				claudeEnv += "\n"
-			}
-			claudeEnv += "            " + key + ": " + value
-		}
-	}
-
-	inputs := map[string]string{
-		"prompt_file":       "/tmp/aw-prompts/prompt.txt",
-		"anthropic_api_key": "${{ secrets.ANTHROPIC_API_KEY }}",
-		"mcp_config":        "/tmp/mcp-config/mcp-servers.json",
-		"allowed_tools":     "", // Will be filled in during generation
-		"timeout_minutes":   "", // Will be filled in during generation
-	}
-
-	// Only add max_turns if it's actually specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		inputs["max_turns"] = workflowData.EngineConfig.MaxTurns
-	}
-	if claudeEnv != "" {
-		inputs["claude_env"] = "|\n" + claudeEnv
-	}
-
-	// Add model configuration if specified
+	// Add model if specified
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		inputs["model"] = workflowData.EngineConfig.Model
+		claudeArgs = append(claudeArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
-	// Add settings parameter if network permissions are configured
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		inputs["settings"] = "/tmp/.claude/settings.json"
+	// Add max_turns if specified (in CLI it's max-turns)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Apply default Claude tools
+	// Add MCP configuration
+	claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+
+	// Add allowed tools configuration
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
+	if allowedTools != "" {
+		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
+	}
+
+	// Add debug flag
+	claudeArgs = append(claudeArgs, "--debug")
+
+	// Always add verbose flag for enhanced debugging output
+	claudeArgs = append(claudeArgs, "--verbose")
+
+	// Add permission mode for non-interactive execution (bypass permissions)
+	claudeArgs = append(claudeArgs, "--permission-mode", "bypassPermissions")
+
+	// Add output format for structured output
+	claudeArgs = append(claudeArgs, "--output-format", "json")
+
+	// Add network settings if configured
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
+	}
 
 	var stepLines []string
 
-	stepName := "Execute Claude Code Action"
-	action := fmt.Sprintf("anthropics/claude-code-base-action@%s", actionVersion)
+	stepName := "Execute Claude Code CLI"
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 	stepLines = append(stepLines, "        id: agentic_execution")
-	stepLines = append(stepLines, fmt.Sprintf("        uses: %s", action))
-	stepLines = append(stepLines, "        with:")
 
-	// Add inputs in alphabetical order by key
-	keys := make([]string, 0, len(inputs))
-	for key := range inputs {
-		keys = append(keys, key)
+	// Add allowed tools comment before the run section
+	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs), "        ")
+	if allowedToolsComment != "" {
+		// Split the comment into lines and add each line
+		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")
+		stepLines = append(stepLines, commentLines...)
 	}
-	sort.Strings(keys)
 
-	for _, key := range keys {
-		value := inputs[key]
-		if key == "allowed_tools" {
-			if allowedTools != "" {
-				// Add comment listing all allowed tools for readability
-				comment := e.generateAllowedToolsComment(allowedTools, "          ")
-				commentLines := strings.Split(comment, "\n")
-				// Filter out empty lines to avoid breaking test logic
-				for _, line := range commentLines {
-					if line != "" {
-						stepLines = append(stepLines, line)
-					}
-				}
-				stepLines = append(stepLines, fmt.Sprintf("          %s: \"%s\"", key, allowedTools))
-			}
-		} else if key == "timeout_minutes" {
-			// Always include timeout_minutes field
-			if workflowData.TimeoutMinutes != "" {
-				// TimeoutMinutes contains the full YAML line (e.g. "timeout_minutes: 5")
-				stepLines = append(stepLines, "          "+workflowData.TimeoutMinutes)
-			} else {
-				stepLines = append(stepLines, "          timeout_minutes: 5") // Default timeout
-			}
-		} else if key == "max_turns" {
-			// max_turns is only in the map when it should be included
-			stepLines = append(stepLines, fmt.Sprintf("          max_turns: %s", value))
-		} else if value != "" {
-			if strings.HasPrefix(value, "|") {
-				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-			} else {
-				stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-			}
+	// Add timeout at step level (GitHub Actions standard)
+	if workflowData.TimeoutMinutes != "" {
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")))
+	} else {
+		stepLines = append(stepLines, "        timeout-minutes: 5") // Default timeout
+	}
+
+	// Build the run command
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, "          set -o pipefail")
+	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
+
+	// Build the command string with proper argument formatting
+	// Use version from engine config if provided, otherwise default to latest
+	version := "latest"
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	commandParts := []string{"npx", fmt.Sprintf("@anthropic-ai/claude-code@%s", version)}
+	commandParts = append(commandParts, claudeArgs...)
+	commandParts = append(commandParts, "$(cat /tmp/aw-prompts/prompt.txt)")
+
+	// Join command parts with proper escaping for complex arguments
+	command := ""
+	for i, part := range commandParts {
+		if i > 0 {
+			command += " "
+		}
+		// For complex arguments that contain spaces or special characters, quote them
+		if strings.Contains(part, " ") || strings.Contains(part, ",") {
+			command += "\"" + part + "\""
+		} else {
+			command += part
 		}
 	}
 
+	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
+	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
+
 	// Add environment section - always include environment section for GITHUB_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
+
+	// Add Anthropic API key
+	stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
+
+	// Disable telemetry, error reporting, and bug command for privacy and security
+	stepLines = append(stepLines, "          DISABLE_TELEMETRY: \"1\"")
+	stepLines = append(stepLines, "          DISABLE_ERROR_REPORTING: \"1\"")
+	stepLines = append(stepLines, "          DISABLE_BUG_COMMAND: \"1\"")
 
 	// Always add GITHUB_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
 
 	if workflowData.SafeOutputs != nil {
 		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
+
+		// Add staged flag if specified
+		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
+			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+		}
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
@@ -213,20 +204,16 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
-	// Add the log capture step
+	// Add the log capture step (simplified since we're already writing to logFile)
 	logCaptureLines := []string{
-		"      - name: Capture Agentic Action logs",
+		"      - name: Ensure log file exists",
 		"        if: always()",
 		"        run: |",
-		"          # Copy the detailed execution file from Agentic Action if available",
-		"          if [ -n \"${{ steps.agentic_execution.outputs.execution_file }}\" ] && [ -f \"${{ steps.agentic_execution.outputs.execution_file }}\" ]; then",
-		"            cp ${{ steps.agentic_execution.outputs.execution_file }} " + logFile,
-		"          else",
-		"            echo \"No execution file output found from Agentic Action\" >> " + logFile,
-		"          fi",
-		"          ",
 		"          # Ensure log file exists",
 		"          touch " + logFile,
+		"          # Show last few lines for debugging",
+		"          echo \"=== Last 10 lines of Claude execution log ===\"",
+		"          tail -10 " + logFile + " || echo \"No log content available\"",
 	}
 	steps = append(steps, GitHubActionStep(logCaptureLines))
 
@@ -308,6 +295,15 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		// If edit tool has specific configuration, we could handle it here
 		// For now, treating it as enabling all edit capabilities
 		_ = editTool
+	}
+
+	// Handle playwright tool by converting it to an MCP tool configuration
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		// Create playwright as an MCP tool with the same tools available as copilot agent
+		playwrightMCP := map[string]any{
+			"allowed": GetCopilotAgentPlaywrightTools(),
+		}
+		result["playwright"] = playwrightMCP
 	}
 
 	// Update claude section
@@ -468,8 +464,8 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 					isCustomMCP = true
 				}
 
-				// Handle standard MCP tools (github) or tools with MCP-compatible type
-				if toolName == "github" || isCustomMCP {
+				// Handle standard MCP tools (github, playwright) or tools with MCP-compatible type
+				if toolName == "github" || toolName == "playwright" || isCustomMCP {
 					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {
 						if allowedSlice, ok := allowed.([]any); ok {
 							// Check for wildcard access first
@@ -604,34 +600,19 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 }
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
-// Always uses Docker-based containerized setup in GitHub Actions
+// Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
 	yaml.WriteString("              \"playwright\": {\n")
-	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"command\": \"npx\",\n")
 	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"run\",\n")
-	yaml.WriteString("                  \"-i\",\n")
-	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"--shm-size=2gb\",\n")
-	yaml.WriteString("                  \"--cap-add=SYS_ADMIN\",\n")
-	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\",\n")
-	if len(args.AllowedDomains) == 0 {
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\",\n")
+	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
+	if len(args.AllowedDomains) > 0 {
+		yaml.WriteString("                  \"--allowed-origins\",\n")
+		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ",") + "\"\n")
 	}
-	yaml.WriteString("                  \"mcr.microsoft.com/playwright:" + args.ImageVersion + "\"\n")
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"PLAYWRIGHT_ALLOWED_DOMAINS\": \"" + strings.Join(args.AllowedDomains, ",") + "\"")
-	if len(args.AllowedDomains) == 0 {
-		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"PLAYWRIGHT_BLOCK_ALL_DOMAINS\": \"true\"")
-	}
-	yaml.WriteString("\n")
-	yaml.WriteString("                }\n")
+	yaml.WriteString("                ]\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")

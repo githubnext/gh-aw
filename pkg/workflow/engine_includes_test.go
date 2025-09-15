@@ -244,9 +244,9 @@ This should use the default engine.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to claude action (default engine)
-	if !strings.Contains(lockStr, "anthropics/claude-code-base-action") {
-		t.Error("Expected lock file to contain claude action reference")
+	// Should contain references to claude CLI (default engine)
+	if !strings.Contains(lockStr, "npx @anthropic-ai/claude-code") {
+		t.Error("Expected lock file to contain claude CLI reference")
 	}
 }
 
@@ -288,9 +288,9 @@ This workflow specifies claude engine directly without any includes.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to claude action
-	if !strings.Contains(lockStr, "anthropics/claude-code-base-action") {
-		t.Error("Expected lock file to contain claude action reference")
+	// Should contain references to claude CLI
+	if !strings.Contains(lockStr, "npx @anthropic-ai/claude-code") {
+		t.Error("Expected lock file to contain claude CLI reference")
 	}
 }
 

@@ -48,7 +48,8 @@ This is a test workflow.`
 	result := string(lockContent)
 
 	expected := []string{
-		"cp ${{ steps.agentic_execution.outputs.execution_file }}",
+		"touch /tmp/test-workflow.log",
+		"tail -10 /tmp/test-workflow.log",
 	}
 
 	for _, expected := range expected {
