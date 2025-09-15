@@ -71,7 +71,7 @@ jobs:
               core.setOutput("output_file", outputFile);
             }
             main();
-      - name: Setup Safe Outputs
+      - name: Setup Safe Outputs Collector MCP
         run: |
           cat >> $GITHUB_ENV << 'EOF'
           GITHUB_AW_SAFE_OUTPUTS_CONFIG={"add-issue-comment":{"enabled":true},"create-issue":true}

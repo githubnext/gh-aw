@@ -2935,11 +2935,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Write safe-outputs MCP server if enabled
 	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
-		yaml.WriteString("      - name: Setup Safe Outputs\n")
+		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
+		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
+		if safeOutputConfig != "" {
+			// Add environment variables for JSONL validation
+			yaml.WriteString("        env:\n")
+			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+		}
 		yaml.WriteString("        run: |\n")
-		safeOutputsConfig := c.generateSafeOutputsConfig(workflowData)
 		fmt.Fprintf(yaml, "          cat >> $GITHUB_ENV << 'EOF'\n")
-		fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG=%s\n", safeOutputsConfig)
 		fmt.Fprintf(yaml, "          EOF\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
@@ -2954,6 +2958,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
+	if hasSafeOutputs {
+		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
+		if safeOutputConfig != "" {
+			// Add environment variables for JSONL validation
+			yaml.WriteString("        env:\n")
+			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+		}
+	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
