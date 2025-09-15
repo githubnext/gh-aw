@@ -2,7 +2,7 @@
 title: Tools Configuration
 description: Configure GitHub API tools and AI capabilities available to your agentic workflows, including GitHub tools and Claude-specific integrations.
 sidebar:
-  order: 4
+  order: 5
 ---
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools and Claude-specific tools.
@@ -131,7 +131,7 @@ tools:
 
 ## Related Documentation
 
-- [Commands](../tools/cli/) - CLI commands for workflow management
+- [CLI Commands](../tools/cli/) - CLI commands for workflow management
 - [MCPs](../guides/mcps/) - Complete Model Context Protocol setup and usage
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options

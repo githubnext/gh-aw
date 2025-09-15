@@ -2,7 +2,7 @@
 title: Include Directives
 description: Learn how to modularize and reuse workflow components across multiple workflows using include directives for better organization and maintainability.
 sidebar:
-  order: 3
+  order: 4
 ---
 
 Include directives allow you to modularize and reuse workflow components across multiple workflows.
@@ -133,7 +133,7 @@ tools:
 
 ## Related Documentation
 
-- [Commands](../tools/cli/) - CLI commands for workflow management
+- [CLI Commands](../tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options
 - [Tools Configuration](../reference/tools/) - GitHub and other tools setup
