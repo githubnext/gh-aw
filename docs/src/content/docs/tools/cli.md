@@ -99,21 +99,6 @@ gh aw compile --watch --verbose
 gh aw compile --purge --verbose
 ```
 
-**Compilation Process:**
-- Parses markdown frontmatter for workflow configuration
-- Converts natural language instructions to GitHub Actions steps
-- Validates YAML syntax and GitHub Actions schema (with `--validate`)
-- Generates `.lock.yml` files ready for GitHub Actions execution
-- Integrates with AI engines (Claude, Codex) for instruction processing
-- Optionally removes orphaned `.lock.yml` files with `--purge` flag
-
-**Creation Features:**
-- **Template Generation**: `new` creates comprehensive markdown with all configuration options
-- **Sample Integration**: `add` pulls proven workflows from community repositories  
-- **Pull Request Workflow**: Automatic PR creation for team review processes
-- **Flexible Output**: Control where workflows are created in your repository
-- **Include Management**: Smart handling of shared workflow components
-
 ### Orphaned File Cleanup
 
 When markdown workflow files (`.md`) are deleted, their corresponding compiled workflow files (`.lock.yml`) remain behind. The `--purge` flag automatically removes these orphaned files:
@@ -124,28 +109,6 @@ gh aw compile --purge
 
 # With verbose output to see which files are removed
 gh aw compile --purge --verbose
-```
-
-**Key Features:**
-- **Safety First**: Only works when compiling all markdown files (no specific files specified)
-- **Smart Detection**: Identifies truly orphaned files by comparing existing `.lock.yml` files against expected files from `.md` sources
-- **Clear Feedback**: Reports which files were removed with styled console messages
-- **Error Prevention**: Validates usage to prevent accidental file deletion
-
-**Example Output:**
-```bash
-$ gh aw compile --purge
-✓ Compiled: weekly-research.md → weekly-research.lock.yml
-✓ Compiled: daily-plan.md → daily-plan.lock.yml
-✓ Removed orphaned lock file: old-workflow.lock.yml
-✓ Removed orphaned lock file: deleted-workflow.lock.yml
-```
-
-**Safety Validation:**
-```bash
-# This will error to prevent accidental deletion
-$ gh aw compile specific-workflow.md --purge
-Error: --purge flag can only be used when compiling all markdown files
 ```
 
 ## ⚙️ Workflow Operations on GitHub Actions
@@ -191,13 +154,6 @@ gh aw disable WorkflowPrefix
 gh aw disable path/to/workflow.lock.yml
 ```
 
-**Operational Features:**
-- **Immediate Execution**: `run` triggers workflows outside their normal schedule
-- **Bulk Operations**: Enable/disable multiple workflows with pattern matching
-- **Status Monitoring**: View which workflows are active, disabled, or have errors
-- **Pattern Matching**: Use prefixes or file paths to target specific workflows
-- **GitHub Actions Integration**: Direct integration with GitHub's workflow execution engine
-
 ## 📊 Log Analysis and Monitoring
 
 The `logs` command provides comprehensive analysis of workflow execution history, including performance metrics, cost tracking, and error analysis.
@@ -225,14 +181,6 @@ gh aw logs weekly-research -c 5 --verbose
 # Export logs for external analysis tools
 gh aw logs --format json -o ./exports/
 ```
-
-**Log Analysis Features:**
-- **Automated Download**: Retrieves logs and artifacts from GitHub Actions API
-- **Performance Metrics**: Extracts execution duration, token usage, and timing data
-- **Cost Analysis**: Calculates AI model usage costs when available in logs
-- **Error Pattern Detection**: Identifies common failure modes and error patterns
-- **Aggregated Reporting**: Provides summary statistics across multiple workflow runs
-- **Flexible Export**: Multiple output formats for integration with analysis tools
 
 **Metrics Included:**
 - Execution duration from GitHub API timestamps (CreatedAt, StartedAt, UpdatedAt)  
