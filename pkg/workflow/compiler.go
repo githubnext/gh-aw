@@ -3267,6 +3267,98 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
+// removeXMLComments removes XML comments (<!-- -->) from markdown content
+// while preserving comments that appear within code blocks
+func removeXMLComments(content string) string {
+	// Track if we're inside a code block to avoid removing comments in code
+	lines := strings.Split(content, "\n")
+	var result []string
+	inCodeBlock := false
+	inXMLComment := false
+
+	for _, line := range lines {
+		// Check for code block markers (``` or ~~~)
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "```") || strings.HasPrefix(trimmedLine, "~~~") {
+			inCodeBlock = !inCodeBlock
+			result = append(result, line)
+			continue
+		}
+
+		// If we're in a code block, preserve the line as-is
+		if inCodeBlock {
+			result = append(result, line)
+			continue
+		}
+
+		// Process the line for XML comments
+		processedLine, wasInComment, isInComment := removeXMLCommentsFromLine(line, inXMLComment)
+		inXMLComment = isInComment
+
+		if !wasInComment && !isInComment {
+			// Line had no comment involvement, keep as-is
+			result = append(result, processedLine)
+		} else if !wasInComment && isInComment {
+			// Line started a multiline comment, keep the processed part and add empty line
+			if strings.TrimSpace(processedLine) != "" {
+				result = append(result, processedLine)
+			}
+			result = append(result, "")
+		} else if wasInComment && !isInComment {
+			// Line ended a multiline comment, keep the processed part
+			if strings.TrimSpace(processedLine) != "" {
+				result = append(result, processedLine)
+			}
+		}
+		// If wasInComment && isInComment, we're in the middle of a comment, skip the line
+	}
+
+	return strings.Join(result, "\n")
+}
+
+// removeXMLCommentsFromLine removes XML comments from a single line
+// Returns: processed line, was initially in comment, is now in comment
+func removeXMLCommentsFromLine(line string, inXMLComment bool) (string, bool, bool) {
+	result := line
+	wasInComment := inXMLComment
+
+	for {
+		if inXMLComment {
+			// We're in a multiline comment, look for closing tag
+			if closeIndex := strings.Index(result, "-->"); closeIndex != -1 {
+				// Found closing tag, remove everything up to and including it
+				result = result[closeIndex+3:]
+				inXMLComment = false
+				// Continue processing in case there are more comments on this line
+			} else {
+				// No closing tag found, entire line is part of the comment
+				return "", wasInComment, inXMLComment
+			}
+		} else {
+			// Not in a comment, look for opening tag
+			if openIndex := strings.Index(result, "<!--"); openIndex != -1 {
+				// Found opening tag
+				if closeIndex := strings.Index(result[openIndex:], "-->"); closeIndex != -1 {
+					// Complete comment on same line
+					actualCloseIndex := openIndex + closeIndex + 3
+					result = result[:openIndex] + result[actualCloseIndex:]
+					// Continue processing in case there are more comments on this line
+				} else {
+					// Start of multiline comment
+					result = result[:openIndex]
+					inXMLComment = true
+					break
+				}
+			} else {
+				// No opening tag found, done processing this line
+				break
+			}
+		}
+	}
+
+	return result, wasInComment, inXMLComment
+}
+
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Create prompt\n")
 
@@ -3283,8 +3375,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
 	yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
 
-	// Add markdown content with proper indentation
-	for _, line := range strings.Split(data.MarkdownContent, "\n") {
+	// Add markdown content with proper indentation (removing XML comments)
+	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
+	for _, line := range strings.Split(cleanedMarkdownContent, "\n") {
 		yaml.WriteString("          " + line + "\n")
 	}
 
