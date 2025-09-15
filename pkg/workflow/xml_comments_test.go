@@ -145,6 +145,59 @@ More text`,
 			input:    "Before <!--   --> after",
 			expected: "Before  after",
 		},
+		{
+			name: "Mixed code block markers should not interfere",
+			input: `Regular text
+` + "````python" + `
+some code
+` + "~~~" + `
+this is still in the same python block, not a new tilde block
+` + "````" + `
+<!-- this comment should be removed because we're outside code blocks -->
+More text`,
+			expected: `Regular text
+` + "````python" + `
+some code
+` + "~~~" + `
+this is still in the same python block, not a new tilde block
+` + "````" + `
+
+More text`,
+		},
+		{
+			name: "Different marker types should not close each other",
+			input: `Text before
+` + "~~~bash" + `
+code in tilde block
+` + "```" + `
+this is still in the tilde block, backticks don't close it
+` + "~~~" + `
+<!-- this comment should be removed -->
+Final text`,
+			expected: `Text before
+` + "~~~bash" + `
+code in tilde block
+` + "```" + `
+this is still in the tilde block, backticks don't close it
+` + "~~~" + `
+
+Final text`,
+		},
+		{
+			name: "Nested same-type markers with proper count matching",
+			input: `Content
+` + "```" + `
+code block
+` + "```" + `
+<!-- this comment should be removed -->
+End`,
+			expected: `Content
+` + "```" + `
+code block
+` + "```" + `
+
+End`,
+		},
 	}
 
 	for _, tt := range tests {
