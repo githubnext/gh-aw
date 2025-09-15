@@ -80,10 +80,14 @@ function replyResult(id, result) {
   writeMessage(res);
 }
 function replyError(id, code, message, data) {
+  const error = { code, message };
+  if (data !== undefined) {
+    error.data = data;
+  }
   const res = {
     jsonrpc: "2.0",
     id: id ?? null,
-    error: { code, message, data },
+    error,
   };
   writeMessage(res);
 }
