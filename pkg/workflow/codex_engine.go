@@ -220,17 +220,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			playwrightTool := expandedTools["playwright"]
 			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
 		case "safe-outputs":
-			// Add safe-outputs MCP server if safe-outputs are configured
-			hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
-			if hasSafeOutputs {
-				yaml.WriteString("          \n")
-				yaml.WriteString("          [mcp_servers.safe_outputs]\n")
-				yaml.WriteString("          command = \"node\"\n")
-				yaml.WriteString("          args = [\n")
-				yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
-				yaml.WriteString("          ]\n")
-				yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
-			}
+			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := expandedTools[toolName].(map[string]any); ok {
@@ -499,6 +489,21 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 	}
 
 	return nil
+}
+
+// renderSafeOutputsCodexMCPConfig generates the Safe Outputs MCP server configuration for codex config.toml
+func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, workflowData *WorkflowData) {
+	// Add safe-outputs MCP server if safe-outputs are configured
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	if hasSafeOutputs {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
+		yaml.WriteString("          command = \"node\"\n")
+		yaml.WriteString("          args = [\n")
+		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
+		yaml.WriteString("          ]\n")
+		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
+	}
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs
