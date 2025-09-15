@@ -316,7 +316,9 @@ jobs:
                 } catch (error) {
                   // For parse errors, we can't know the request id, so we shouldn't send a response
                   // according to JSON-RPC spec. Just log the error.
-                  debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+                  debug(
+                    `Parse error: ${error instanceof Error ? error.message : String(error)}`
+                  );
                 }
               }
             }
@@ -595,7 +597,7 @@ jobs:
               throw new Error("No tools enabled in configuration");
             function handleMessage(req) {
               // Validate basic JSON-RPC structure
-              if (!req || typeof req !== 'object') {
+              if (!req || typeof req !== "object") {
                 debug(`Invalid message: not an object`);
                 return;
               }
@@ -605,7 +607,7 @@ jobs:
               }
               const { id, method, params } = req;
               // Validate method field
-              if (!method || typeof method !== 'string') {
+              if (!method || typeof method !== "string") {
                 replyError(id, -32600, "Invalid Request: method must be a string");
                 return;
               }
@@ -663,11 +665,9 @@ jobs:
                   const result = handler(args);
                   const content = result && result.content ? result.content : [];
                   replyResult(id, { content });
-                }
-                else if (/^notifications\//.test(method)) {
+                } else if (/^notifications\//.test(method)) {
                   debug(`ignore ${method}`);
-                }
-                else {
+                } else {
                   replyError(id, -32601, `Method not found: ${method}`);
                 }
               } catch (e) {
@@ -2290,7 +2290,9 @@ jobs:
                 // Create structured summary for GitHub Actions step summary
                 core.summary
                   .addHeading("Missing Tools Report", 2)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? 's' : ''} in this workflow execution.\n\n`);
+                  .addRaw(
+                    `Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`
+                  );
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);

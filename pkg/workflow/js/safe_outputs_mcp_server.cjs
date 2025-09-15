@@ -67,7 +67,9 @@ function processReadBuffer() {
     } catch (error) {
       // For parse errors, we can't know the request id, so we shouldn't send a response
       // according to JSON-RPC spec. Just log the error.
-      debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+      debug(
+        `Parse error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }
@@ -83,7 +85,7 @@ function replyError(id, code, message, data) {
     debug(`Error for notification: ${message}`);
     return;
   }
-  
+
   const error = { code, message };
   if (data !== undefined) {
     error.data = data;
@@ -354,20 +356,20 @@ if (!Object.keys(TOOLS).length)
 
 function handleMessage(req) {
   // Validate basic JSON-RPC structure
-  if (!req || typeof req !== 'object') {
+  if (!req || typeof req !== "object") {
     debug(`Invalid message: not an object`);
     return;
   }
-  
+
   if (req.jsonrpc !== "2.0") {
     debug(`Invalid message: missing or invalid jsonrpc field`);
     return;
   }
-  
+
   const { id, method, params } = req;
-  
+
   // Validate method field
-  if (!method || typeof method !== 'string') {
+  if (!method || typeof method !== "string") {
     replyError(id, -32600, "Invalid Request: method must be a string");
     return;
   }
@@ -426,11 +428,9 @@ function handleMessage(req) {
       const result = handler(args);
       const content = result && result.content ? result.content : [];
       replyResult(id, { content });
-    }
-    else if (/^notifications\//.test(method)) {
+    } else if (/^notifications\//.test(method)) {
       debug(`ignore ${method}`);
-    }
-    else {
+    } else {
       replyError(id, -32601, `Method not found: ${method}`);
     }
   } catch (e) {

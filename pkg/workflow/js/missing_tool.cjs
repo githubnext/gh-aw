@@ -90,12 +90,14 @@ async function main() {
   // Log details for debugging and create step summary
   if (missingTools.length > 0) {
     core.info("Missing tools summary:");
-    
+
     // Create structured summary for GitHub Actions step summary
     core.summary
       .addHeading("Missing Tools Report", 2)
-      .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? 's' : ''} in this workflow execution.\n\n`);
-    
+      .addRaw(
+        `Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`
+      );
+
     missingTools.forEach((tool, index) => {
       core.info(`${index + 1}. Tool: ${tool.tool}`);
       core.info(`   Reason: ${tool.reason}`);
@@ -104,19 +106,19 @@ async function main() {
       }
       core.info(`   Reported at: ${tool.timestamp}`);
       core.info("");
-      
+
       // Add to summary with structured formatting
       core.summary
         .addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`)
         .addRaw(`**Reason:** ${tool.reason}\n\n`);
-      
+
       if (tool.alternatives) {
         core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
       }
-      
+
       core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
     });
-    
+
     core.summary.write();
   } else {
     core.info("No missing tools reported in this workflow execution.");

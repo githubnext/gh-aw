@@ -266,9 +266,9 @@ func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
 		t.Fatalf("Expected error for disabled tool, got success")
 	}
 
-	if !strings.Contains(err.Error(), "create-issue safe-output is not enabled") && 
-	   !strings.Contains(err.Error(), "Tool 'create-issue' failed") && 
-	   !strings.Contains(err.Error(), "Tool not found: create-issue") {
+	if !strings.Contains(err.Error(), "create-issue safe-output is not enabled") &&
+		!strings.Contains(err.Error(), "Tool 'create-issue' failed") &&
+		!strings.Contains(err.Error(), "Tool not found: create-issue") {
 		t.Errorf("Expected error about disabled tool, got: %s", err.Error())
 	}
 
