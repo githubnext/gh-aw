@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,12 +162,12 @@ This is a test workflow.
 					t.Errorf("Expected lock file to NOT contain 'Execute Claude Code Action' step when using codex.\nContent:\n%s", lockContent)
 				}
 			} else {
-				// Check that Claude Code is present
-				if !strings.Contains(lockContent, "Execute Claude Code Action") {
-					t.Errorf("Expected lock file to contain 'Execute Claude Code Action' step but it didn't.\nContent:\n%s", lockContent)
+				// Check that Claude Code CLI is present
+				if !strings.Contains(lockContent, "Execute Claude Code CLI") {
+					t.Errorf("Expected lock file to contain 'Execute Claude Code CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)) {
-					t.Errorf("Expected lock file to contain Claude Code action but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code@latest") {
+					t.Errorf("Expected lock file to contain Claude Code npx command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
@@ -424,12 +423,12 @@ This is a test workflow for MCP configuration with different AI engines.
 				if !strings.Contains(lockContent, "codex exec") {
 					t.Errorf("Expected codex exec command but didn't find it in:\n%s", lockContent)
 				}
-				if strings.Contains(lockContent, "claude-code-base-action") {
-					t.Errorf("Expected NO claude action but found it in:\n%s", lockContent)
+				if strings.Contains(lockContent, "npx @anthropic-ai/claude-code") {
+					t.Errorf("Expected NO claude CLI but found it in:\n%s", lockContent)
 				}
 			} else {
-				if !strings.Contains(lockContent, "claude-code-base-action") {
-					t.Errorf("Expected claude action but didn't find it in:\n%s", lockContent)
+				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code") {
+					t.Errorf("Expected claude CLI but didn't find it in:\n%s", lockContent)
 				}
 				if strings.Contains(lockContent, "codex exec") {
 					t.Errorf("Expected NO codex exec but found it in:\n%s", lockContent)

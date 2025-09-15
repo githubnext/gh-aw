@@ -212,7 +212,17 @@ The YAML frontmatter supports these fields:
         body: true                      # Optional: allow updating issue body
         max: 3                          # Optional: maximum number of issues to update (default: 1)
     ```
-    When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions. 
+    When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
+
+  **Global Safe Output Configuration:**
+  - `github-token:` - Custom GitHub token for all safe output jobs
+    ```yaml
+    safe-outputs:
+      create-issue:
+      add-issue-comment:
+      github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+    ```
+    Useful when you need additional permissions or want to perform actions across repositories.
   
 - **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)

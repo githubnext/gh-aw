@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -52,59 +51,56 @@ func TestClaudeEngine(t *testing.T) {
 	// Check step name
 	found := false
 	for _, line := range stepLines {
-		if strings.Contains(line, "name: Execute Claude Code Action") {
+		if strings.Contains(line, "name: Execute Claude Code CLI") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected step name 'Execute Claude Code Action' in step lines: %v", stepLines)
+		t.Errorf("Expected step name 'Execute Claude Code CLI' in step lines: %v", stepLines)
 	}
 
-	// Check action usage
+	// Check npx usage instead of GitHub Action
 	found = false
-	expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
 	for _, line := range stepLines {
-		if strings.Contains(line, "uses: "+expectedAction) {
+		if strings.Contains(line, "npx @anthropic-ai/claude-code@latest") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected action '%s' in step lines: %v", expectedAction, stepLines)
+		t.Errorf("Expected npx @anthropic-ai/claude-code@latest in step lines: %v", stepLines)
 	}
 
-	// Check that required inputs are present
+	// Check that required CLI arguments are present
 	stepContent := strings.Join(stepLines, "\n")
-	if !strings.Contains(stepContent, "prompt_file: /tmp/aw-prompts/prompt.txt") {
-		t.Errorf("Expected prompt_file input in step: %s", stepContent)
+	if !strings.Contains(stepContent, "--print") {
+		t.Errorf("Expected --print flag in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}") {
-		t.Errorf("Expected anthropic_api_key input in step: %s", stepContent)
+	if !strings.Contains(stepContent, "--permission-mode bypassPermissions") {
+		t.Errorf("Expected --permission-mode bypassPermissions in CLI args: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "mcp_config: /tmp/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected mcp_config input in step: %s", stepContent)
+	if !strings.Contains(stepContent, "--output-format json") {
+		t.Errorf("Expected --output-format json in CLI args: %s", stepContent)
 	}
 
-	// claude_env should not be present when hasOutput=false (security improvement)
-	if strings.Contains(stepContent, "claude_env:") {
-		t.Errorf("Expected no claude_env input for security reasons, but got it in step: %s", stepContent)
+	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
+		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
 	}
 
-	// Check that special fields are present but empty (will be filled during generation)
-	if !strings.Contains(stepContent, "allowed_tools:") {
-		t.Error("Expected allowed_tools input to be present in step")
+	if !strings.Contains(stepContent, "--mcp-config /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected MCP config in CLI args: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "timeout_minutes:") {
-		t.Error("Expected timeout_minutes input to be present in step")
+	if !strings.Contains(stepContent, "--allowed-tools") {
+		t.Errorf("Expected allowed-tools in CLI args: %s", stepContent)
 	}
 
-	// max_turns should NOT be present when not specified in engine config
-	if strings.Contains(stepContent, "max_turns:") {
-		t.Error("Expected max_turns input to NOT be present when not specified in engine config")
+	// timeout should now be at step level, not input level
+	if !strings.Contains(stepContent, "timeout-minutes:") {
+		t.Errorf("Expected timeout-minutes at step level: %s", stepContent)
 	}
 }
 
@@ -125,16 +121,9 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Should include GITHUB_AW_SAFE_OUTPUTS and MCP debugging when hasOutput=true
-	expectedClaudeEnv := "claude_env: |\n            GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-	if !strings.Contains(stepContent, expectedClaudeEnv) {
-		t.Errorf("Expected claude_env input with output '%s' in step content:\n%s", expectedClaudeEnv, stepContent)
-	}
-
-	// Should also include MCP debug flag
-	expectedMCPDebug := "mcp_debug: true"
-	if !strings.Contains(stepContent, expectedMCPDebug) {
-		t.Errorf("Expected MCP debug flag '%s' in step content:\n%s", expectedMCPDebug, stepContent)
+	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true in environment section
+	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
+		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS in env section when hasOutput=true in step content:\n%s", stepContent)
 	}
 }
 
@@ -166,27 +155,25 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 			stepContent := strings.Join([]string(executionStep), "\n")
 
 			// Verify the step contains expected content regardless of input
-			if !strings.Contains(stepContent, "name: Execute Claude Code Action") {
-				t.Errorf("Expected step name 'Execute Claude Code Action' in step content")
+			if !strings.Contains(stepContent, "name: Execute Claude Code CLI") {
+				t.Errorf("Expected step name 'Execute Claude Code CLI' in step content")
 			}
 
-			expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
-			if !strings.Contains(stepContent, "uses: "+expectedAction) {
-				t.Errorf("Expected action '%s' in step content", expectedAction)
+			if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
+				t.Errorf("Expected npx @anthropic-ai/claude-code@latest in step content")
 			}
 
-			// Verify all required inputs are present (except claude_env when hasOutput=false for security)
-			// max_turns is only present when specified in engine config
-			requiredInputs := []string{"prompt_file", "anthropic_api_key", "mcp_config", "allowed_tools", "timeout_minutes"}
-			for _, input := range requiredInputs {
-				if !strings.Contains(stepContent, input+":") {
-					t.Errorf("Expected input '%s' to be present in step content", input)
+			// Verify all required CLI elements are present
+			requiredElements := []string{"--print", "ANTHROPIC_API_KEY", "--mcp-config", "--permission-mode", "--output-format"}
+			for _, element := range requiredElements {
+				if !strings.Contains(stepContent, element) {
+					t.Errorf("Expected element '%s' to be present in step content", element)
 				}
 			}
 
-			// claude_env should not be present when hasOutput=false (security improvement)
-			if strings.Contains(stepContent, "claude_env:") {
-				t.Errorf("Expected no claude_env input for security reasons when hasOutput=false")
+			// timeout should be at step level, not input level
+			if !strings.Contains(stepContent, "timeout-minutes:") {
+				t.Errorf("Expected timeout-minutes at step level")
 			}
 		})
 	}
@@ -216,15 +203,14 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that the version is correctly used in the action
-	expectedAction := "anthropics/claude-code-base-action@v1.2.3"
-	if !strings.Contains(stepContent, "uses: "+expectedAction) {
-		t.Errorf("Expected action '%s' in step content:\n%s", expectedAction, stepContent)
+	// Check that npx uses the custom version specified in engine config
+	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@v1.2.3") {
+		t.Errorf("Expected npx @anthropic-ai/claude-code@v1.2.3 in step content:\n%s", stepContent)
 	}
 
-	// Check that model is set
-	if !strings.Contains(stepContent, "model: claude-3-5-sonnet-20241022") {
-		t.Errorf("Expected model 'claude-3-5-sonnet-20241022' in step content:\n%s", stepContent)
+	// Check that model is set in CLI args
+	if !strings.Contains(stepContent, "--model claude-3-5-sonnet-20241022") {
+		t.Errorf("Expected model 'claude-3-5-sonnet-20241022' in CLI args:\n%s", stepContent)
 	}
 }
 
@@ -251,10 +237,33 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that default version is used
-	expectedAction := fmt.Sprintf("anthropics/claude-code-base-action@%s", DefaultClaudeActionVersion)
-	if !strings.Contains(stepContent, "uses: "+expectedAction) {
-		t.Errorf("Expected action '%s' in step content:\n%s", expectedAction, stepContent)
+	// Check that npx uses the default latest version when no version specified
+	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
+		t.Errorf("Expected npx @anthropic-ai/claude-code@latest when no version specified in step content:\n%s", stepContent)
+	}
+}
+
+func TestClaudeEngineWithNilConfig(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test with nil engine config (should use default latest)
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: nil,
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the main execution step
+	executionStep := steps[0]
+	stepContent := strings.Join([]string(executionStep), "\n")
+
+	// Check that npx uses the default latest version when no engine config
+	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
+		t.Errorf("Expected npx @anthropic-ai/claude-code@latest when no engine config in step content:\n%s", stepContent)
 	}
 }
 
