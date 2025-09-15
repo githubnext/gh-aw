@@ -37,6 +37,22 @@ export default defineConfig({
 			],
 			sidebar: [
 				{
+					label: 'Start Here',
+					autogenerate: { directory: 'start-here' },
+				},
+				{
+					label: 'Guides',
+					autogenerate: { directory: 'guides' },
+				},
+				{
+					label: 'Tools',
+					autogenerate: { directory: 'tools' },
+				},
+				{
+					label: 'Sample Workflows',
+					autogenerate: { directory: 'samples' },
+				},
+				{
 					label: 'Reference',
 					autogenerate: { directory: 'reference' },
 				},
