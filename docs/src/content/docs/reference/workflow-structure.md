@@ -236,4 +236,3 @@ Complex: ${{ toJson(github.workflow) }}
 - [MCPs](../guides/mcps/) - Model Context Protocol configuration
 - [Tools Configuration](../reference/tools/) - GitHub and other tools setup
 - [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
-- [Secrets Management](../guides/secrets/) - Managing secrets and environment variables

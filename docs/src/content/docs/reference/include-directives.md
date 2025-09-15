@@ -136,4 +136,3 @@ tools:
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options
 - [Tools Configuration](../reference/tools/) - GitHub and other tools setup
 - [MCPs](../guides/mcps/) - Model Context Protocol setup and configuration
-- [Secrets Management](../guides/secrets/) - Managing secrets and environment variables

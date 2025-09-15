@@ -134,4 +134,3 @@ tools:
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options
 - [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
-- [Secrets Management](../guides/secrets/) - Managing secrets and environment variables

@@ -286,7 +286,6 @@ Error: Tool 'my_tool' not found
 - [Tools Configuration](../reference/tools/) - Complete tools reference
 - [Commands](../tools/cli/) - CLI commands including `mcp-inspect`
 - [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
-- [Secrets Management](../guides/secrets/) - Managing secrets and environment variables
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options
 - [Workflow Structure](../reference/workflow-structure/) - Directory organization
 

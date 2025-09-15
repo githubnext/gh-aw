@@ -272,7 +272,7 @@ gh aw mcp-inspect workflow-name --inspector
 For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](../guides/mcps/#debugging-and-troubleshooting).
 
 ## 👀 Watch Mode for Development
-The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in Visual Studio Code](../tools/vscode/).
+The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in VS Code](../tools/vscode/).
 
 ```bash
 # Watch all workflow files in .github/workflows/ for changes
