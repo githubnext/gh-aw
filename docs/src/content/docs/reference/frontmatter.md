@@ -1,5 +1,5 @@
 ---
-title: Frontmatter Options for GitHub Agentic Workflows
+title: Frontmatter Options
 description: Complete guide to all available frontmatter configuration options for GitHub Agentic Workflows, including triggers, permissions, AI engines, and workflow settings.
 ---
 

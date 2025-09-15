@@ -1,9 +1,7 @@
 ---
-title: Cache Memory - Persistent Memory for Agentic Workflows
+title: Cache Memory
 description: Complete guide to using cache-memory for persistent memory across workflow runs using GitHub Actions cache and MCP memory servers.
 ---
-
-# Cache Memory - Persistent Memory for Agentic Workflows
 
 The `cache-memory` feature enables agentic workflows to maintain persistent memory across workflow runs by integrating the Model Context Protocol (MCP) memory server with GitHub Actions cache.
 
