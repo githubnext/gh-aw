@@ -733,7 +733,7 @@ cache:
 
 - [Commands](../tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
-- [Alias Triggers](../reference/alias-triggers/) - Special @mention triggers and context text
+- [Command Triggers](../reference/command-triggers/) - Special @mention triggers and context text
 - [MCPs](../guides/mcps/) - Model Context Protocol setup and configuration
 - [Tools Configuration](../reference/tools/) - GitHub and other tools setup
 - [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
