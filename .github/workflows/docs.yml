@@ -5,6 +5,8 @@ on:
   release:
     types: [created]
   push:
+    branches:
+      - main
     paths:
       - 'docs/**'
 
@@ -48,7 +50,6 @@ jobs:
           path: ./docs/dist
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
