@@ -1,5 +1,5 @@
 ---
-title: Research, Status & Planning Workflows
+title: Research, Status & Planning
 description: Automated workflows for research, team coordination, and project planning
 sidebar:
   order: 1
@@ -7,16 +7,7 @@ sidebar:
 
 Research and planning workflows help teams stay informed, coordinate activities, and maintain strategic direction through automated intelligence gathering and status reporting.
 
-## Why This Matters
-
-- **Strategic Awareness**: Stay current with industry trends and competitive landscape
-- **Team Coordination**: Automated status reports keep everyone aligned on progress and priorities
-- **Planning Efficiency**: Maintain up-to-date project plans without manual overhead
-- **Informed Decision Making**: Regular research updates provide context for strategic choices
-
-## Sample Workflows
-
-You can write your own research, status, and planning workflows customized for your team's specific needs. Here are some sample workflows from the Agentics collection to get you started:
+You can write your own workflows customized for your team's specific needs. Here are some sample workflows from the Agentics collection to get you started:
 
 ### 📚 Weekly Research
 Collect research updates and industry trends automatically every Monday.

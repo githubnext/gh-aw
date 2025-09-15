@@ -18,7 +18,7 @@ gh --version
 
 - A repository you are a maintainer of, can push to (or a fork) and have permission to add Actions secrets.
 
-- A Claude or OpenAI API key. See [Secrets Management](../guides/secrets/) for details.
+- A Claude or OpenAI API key. 
 
 ## Step 1 — Install the extension
 
