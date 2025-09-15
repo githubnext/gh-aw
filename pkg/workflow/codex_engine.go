@@ -229,7 +229,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				yaml.WriteString("          args = [\n")
 				yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
 				yaml.WriteString("          ]\n")
-				yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${GITHUB_AW_SAFE_OUTPUTS}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = \"${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\" }\n")
+				yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
 			}
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)

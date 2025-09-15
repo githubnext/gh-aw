@@ -14,4 +14,4 @@ engine:
 permissions: read-all
 ---
 
-Try to call a tool that draws a pelican.
+Try to call a tool, `draw_pelican` that draws a pelican.
