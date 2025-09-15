@@ -9,9 +9,7 @@ GitHub Agentic Workflows represent a new paradigm where AI agents can perform co
 
 GitHub Agentic Workflows are both revolutionary and yet familiar: they build on top of GitHub Actions, and use familiar AI engines such as Claude Code and Codex to interpret natural language instructions.
 
-## Core Concepts
-
-### What makes a workflow "agentic"?
+## What makes a workflow "agentic"?
 
 Traditional GitHub Actions follow pre-programmed steps. Agentic workflows use AI to:
 
@@ -24,7 +22,7 @@ Traditional GitHub Actions follow pre-programmed steps. Agentic workflows use AI
 
 One crucial difference from regular agentic prompting is that GitHub Agentic Workflows can contain **both** traditional GitHub Actions steps and agentic natural language instructions. This allows the best of both worlds: traditional steps for deterministic actions, and agentic steps for flexible, context-aware AI-driven actions.
 
-### The anatomy of an agentic workflow
+## The anatomy of an agentic workflow
 
 Every agentic workflow has two main parts:
 
@@ -56,7 +54,7 @@ Agentic workflows are powered by different agentic AI engines:
 
 The engine interprets your natural language instructions and executes them using the tools and permissions you've configured.
 
-### Continuous AI Patterns
+## Continuous AI Patterns
 
 GitHub Agentic Workflows enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — the systematic application of AI to software collaboration:
 
@@ -66,9 +64,7 @@ GitHub Agentic Workflows enable [Continuous AI](https://githubnext.com/projects/
 - **Continuous Research** — Stay current with industry developments
 - **Continuous Quality** — Automated code review and standards enforcement
 
-## Advanced Concepts
-
-### Lock Files and Compilation
+## Lock Files and Compilation
 
 When you modify a `.md` workflow file, you need to compile it:
 
@@ -80,7 +76,7 @@ This generates a `.lock.yml` file containing the actual GitHub Actions workflow.
 
 The `.lock.yml` file contains the full configuration of the workflow, including the frontmatter and the compiled agentic steps, added security hardening and job orchestration. The `.md` file is the source of truth for authoring and editing.
 
-### Security and Permissions
+## Security and Permissions
 
 Agentic workflows require careful security consideration:
 
@@ -91,7 +87,7 @@ Agentic workflows require careful security consideration:
 
 See [Security Guide](../guides/security/) for comprehensive guidelines.
 
-### Tools and MCPs
+## Tools and MCPs
 
 Workflows can use various tools through the Model Context Protocol (MCP):
 
@@ -102,9 +98,7 @@ Workflows can use various tools through the Model Context Protocol (MCP):
 
 Learn more in [Tools Configuration](../reference/tools/) and [MCPs](../guides/mcps/).
 
-## Building Effective Workflows
-
-### Best Practices
+## Best Practices
 
 1. **Start simple** — Begin with basic workflows and add complexity gradually
 2. **Be specific** — Clear, detailed instructions produce better results
@@ -113,7 +107,7 @@ Learn more in [Tools Configuration](../reference/tools/) and [MCPs](../guides/mc
 5. **Review outputs** — Always verify AI-generated content before merging
 6. **Use safe outputs** — Leverage [Safe Output Processing](../reference/safe-outputs/) to automatically create issues, comments, and PRs from agentic workflow output
 
-### Common Patterns
+## Common Patterns
 
 - **Event-driven** — Respond to issues, PRs, pushes, etc.
 - **Scheduled** — Regular maintenance and reporting tasks
