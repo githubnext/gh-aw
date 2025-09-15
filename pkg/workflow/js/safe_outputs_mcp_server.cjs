@@ -427,7 +427,7 @@ function handleMessage(req) {
       const content = result && result.content ? result.content : [];
       replyResult(id, { content });
     }
-    else if (/^notification\//.test(method)) {
+    else if (/^notifications\//.test(method)) {
       debug(`ignore ${method}`);
     }
     else {
