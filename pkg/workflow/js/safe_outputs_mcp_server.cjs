@@ -104,7 +104,7 @@ function appendSafeOutput(entry) {
   }
 }
 
-const defaultHandler = type => async args => {
+const defaultHandler = type => args => {
   const entry = { ...(args || {}), type };
   appendSafeOutput(entry);
   return {
@@ -116,6 +116,7 @@ const defaultHandler = type => async args => {
     ],
   };
 };
+
 const TOOLS = Object.fromEntries(
   [
     {
@@ -382,8 +383,6 @@ function handleMessage(req) {
         return;
       }
       const handler = tool.handler || defaultHandler(tool.name);
-
-      // Basic input validation: ensure required fields are present when schema defines them
       const requiredFields =
         tool.inputSchema && Array.isArray(tool.inputSchema.required)
           ? tool.inputSchema.required
@@ -399,22 +398,13 @@ function handleMessage(req) {
           return;
         }
       }
-      (async () => {
-        try {
-          const result = await handler(args);
-          // Handler is expected to return an object possibly containing 'content'.
-          // If handler returns a primitive or undefined, send an empty content array
-          const content = result && result.content ? result.content : [];
-          replyResult(id, { content });
-        } catch (e) {
-          replyError(id, -32000, `Tool '${name}' failed`, {
-            message: e instanceof Error ? e.message : String(e),
-          });
-        }
-      })();
-      return;
+      const result = handler(args);
+      const content = result && result.content ? result.content : [];
+      replyResult(id, { content });
     }
-    replyError(id, -32601, `Method not found: ${method}`);
+    else {
+      replyError(id, -32601, `Method not found: ${method}`);
+    }
   } catch (e) {
     replyError(id, -32603, "Internal error", {
       message: e instanceof Error ? e.message : String(e),
