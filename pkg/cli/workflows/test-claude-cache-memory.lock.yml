@@ -2,25 +2,46 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Claude MCP"
+name: "Test Claude with Cache Memory and Custom Docker Image"
 on:
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      task:
+        default: Store this information for later
+        description: Task to remember
+        required: true
 
 permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Claude MCP"
+run-name: "Test Claude with Cache Memory and Custom Docker Image"
 
 jobs:
-  test-claude-mcp:
+  test-claude-with-cache-memory-and-custom-docker-image:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    permissions: read-all
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      # Cache memory MCP configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: mkdir -p /tmp/cache-memory
+      - name: Cache memory MCP data
+        uses: actions/cache@v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload memory MCP data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory-data
+          path: /tmp/cache-memory
+          retention-days: 14
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -135,6 +156,15 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
+              "memory": {
+                "command": "npx",
+                "args": [
+                  "@modelcontextprotocol/server-memory"
+                ],
+                "env": {
+                  "MEMORY_FILE_PATH": "/tmp/cache-memory/memory.json"
+                }
+              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -158,14 +188,44 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Claude MCP
+          # Test Claude with Cache Memory and Custom Docker Image
           
-          This is a test workflow to verify Claude's MCP (Model Context Protocol) capabilities.
+          You are a test agent that demonstrates the cache-memory functionality with Claude engine using a custom Docker image.
           
-          Please use the MCP filesystem server to:
-          1. Create a test file at /tmp/test-mcp.txt
-          2. Write some sample content to it
-          3. Read the content back to verify it was written correctly
+          ## Task
+          
+          Your job is to:
+          
+          1. **Store a test task** in your memory using the memory MCP server
+          2. **Retrieve any previous tasks** that you've stored in memory
+          3. **Report on the memory contents** including both current and historical tasks
+          4. **Use GitHub tools** to get basic repository information
+          
+          ## Instructions
+          
+          1. First, use the memory tool to see what you already know from previous runs
+          2. Store a new test task: "Test task for run ${{ github.run_number }}" in your memory
+          3. List all tasks you now have in memory
+          4. Get basic information about this repository using the GitHub tool
+          5. Provide a summary of:
+             - What you remembered from before
+             - What you just stored
+             - Basic repository information
+          
+          ## Expected Behavior
+          
+          - **First run**: Should show empty memory, then store the new task
+          - **Subsequent runs**: Should show previously stored tasks, then add the new one
+          - **Memory persistence**: Tasks should persist across workflow runs thanks to cache-memory
+          - **Custom Docker image**: Uses ghcr.io/modelcontextprotocol/server-memory:v1.0.0 instead of latest
+          - **Artifact upload**: Memory data is also uploaded as artifact with 14-day retention
+          
+          This workflow tests that the cache-memory configuration properly:
+          - Mounts the memory MCP server with custom Docker image
+          - Persists data between runs using GitHub Actions cache
+          - Uploads memory data as artifacts with configurable retention
+          - Works with Claude engine and MCP tools
+          - Integrates with other tools like GitHub
           
           EOF
       - name: Print prompt to step summary
@@ -188,7 +248,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude MCP",
+              workflow_name: "Test Claude with Cache Memory and Custom Docker Image",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -245,6 +305,7 @@ jobs:
         # - mcp__github__get_pull_request_files
         # - mcp__github__get_pull_request_reviews
         # - mcp__github__get_pull_request_status
+        # - mcp__github__get_repository
         # - mcp__github__get_secret_scanning_alert
         # - mcp__github__get_tag
         # - mcp__github__get_workflow_run
@@ -271,11 +332,12 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
+        # - mcp__memory
         timeout-minutes: 5
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-claude-mcp.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-claude-with-cache-memory-and-custom-docker-image.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -286,10 +348,10 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/test-claude-mcp.log
+          touch /tmp/test-claude-with-cache-memory-and-custom-docker-image.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/test-claude-mcp.log || echo "No log content available"
+          tail -10 /tmp/test-claude-with-cache-memory-and-custom-docker-image.log || echo "No log content available"
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
         with:
@@ -304,7 +366,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-claude-mcp.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-claude-with-cache-memory-and-custom-docker-image.log
         with:
           script: |
             function main() {
@@ -794,7 +856,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-mcp.log
-          path: /tmp/test-claude-mcp.log
+          name: test-claude-with-cache-memory-and-custom-docker-image.log
+          path: /tmp/test-claude-with-cache-memory-and-custom-docker-image.log
           if-no-files-found: warn
 

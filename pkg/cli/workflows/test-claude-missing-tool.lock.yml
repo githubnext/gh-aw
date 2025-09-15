@@ -2,117 +2,24 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Dev"
+name: "Test Claude with Missing Tool Safe Output and Cache Memory"
 on:
-  push:
-    branches:
-    - copilot/*
-    - pelikhan/*
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      missing_tool:
+        default: example-missing-tool
+        description: Tool to report as missing
+        required: true
 
 permissions: {}
 
 concurrency:
-  group: gh-aw-${{ github.workflow }}-${{ github.ref }}
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Dev"
+run-name: "Test Claude with Missing Tool Safe Output and Cache Memory"
 
 jobs:
-  task:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
-    steps:
-      - name: Check team membership for workflow
-        id: check-team-member
-        uses: actions/github-script@v7
-        env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
-        with:
-          script: |
-            async function setCancelled(message) {
-              try {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  run_id: context.runId,
-                });
-                core.info(`Cancellation requested for this workflow run: ${message}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to cancel workflow run: ${errorMessage}`);
-                core.setFailed(message); // Fallback if API call fails
-              }
-            }
-            async function main() {
-              const { eventName } = context;
-              // skip check for safe events
-              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                return;
-              }
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv
-                ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
-                : [];
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.error(
-                  "❌ Configuration error: Required permissions not specified. Contact repository administrator."
-                );
-                await setCancelled(
-                  "Configuration error: Required permissions not specified"
-                );
-                return;
-              }
-              // Check if the actor has the required repository permissions
-              try {
-                core.debug(
-                  `Checking if user '${actor}' has required permissions for ${owner}/${repo}`
-                );
-                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission =
-                  await github.rest.repos.getCollaboratorPermissionLevel({
-                    owner: owner,
-                    repo: repo,
-                    username: actor,
-                  });
-                const permission = repoPermission.data.permission;
-                core.debug(`Repository permission level: ${permission}`);
-                // Check if user has one of the required permission levels
-                for (const requiredPerm of requiredPermissions) {
-                  if (
-                    permission === requiredPerm ||
-                    (requiredPerm === "maintainer" && permission === "maintain")
-                  ) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    return;
-                  }
-                }
-                core.warning(
-                  `User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage =
-                  repoError instanceof Error ? repoError.message : String(repoError);
-                core.error(`Repository permission check failed: ${errorMessage}`);
-                await setCancelled(`Repository permission check failed: ${errorMessage}`);
-                return;
-              }
-              // Cancel the workflow when permission check fails
-              core.warning(
-                `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-              );
-              await setCancelled(
-                `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-              );
-            }
-            await main();
-
-  dev:
-    needs: task
+  test-claude-with-missing-tool-safe-output-and-cache-memory:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -289,14 +196,6 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
-              },
-              "playwright": {
-                "command": "npx",
-                "args": [
-                  "@playwright/mcp@latest",
-                  "--allowed-origins",
-                  "github.com,*.github.com"
-                ]
               }
             }
           }
@@ -308,19 +207,44 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Before starting, read the entire memory graph and print it to the output as "My past poems..."
+          # Test Claude with Missing Tool Safe Output and Cache Memory
           
-          Then:
+          You are a test agent that demonstrates the missing-tool safe output functionality with Claude engine, enhanced with persistent memory.
           
-          Write a short poem.
-          - check if this poem is already in memory
-          - if already in memory, generate a new poem
+          ## Task
           
-          Before returning the poem:
-          - store generated poem in memory
+          Your job is to:
           
-          <!-- This workflow tests the integration with the Claude AI engine. 
-            Meant as a scratchpad in pull requests. -->
+          1. **Check your memory** for any previous missing tool reports
+          2. **Report a missing tool** using the safe output functionality
+          3. **Store the report in memory** for future reference
+          4. **Use GitHub tools** to get basic repository information
+          
+          ## Instructions
+          
+          1. First, check your memory to see if you've reported any missing tools before
+          2. Report that the tool specified in the input (${{ github.event.inputs.missing_tool }}) is missing
+          3. Use the safe output functionality to properly report the missing tool with:
+             - Tool name: ${{ github.event.inputs.missing_tool }}
+             - Reason: "This tool is not available in the current workflow environment"
+             - Alternatives: "Consider using alternative tools or requesting tool addition"
+             - Context: "Testing missing-tool safe output with Claude engine"
+          4. Store this report in your memory for future reference
+          5. Get basic information about this repository using the GitHub tool
+          6. Provide a summary of your actions
+          
+          ## Expected Behavior
+          
+          - **Memory persistence**: Should remember previous missing tool reports across runs
+          - **Safe output**: Should generate proper missing-tool JSON output
+          - **Tool integration**: Should work with GitHub tools despite the "missing" tool
+          - **Staged mode**: Should prevent actual GitHub interactions when staged: true
+          
+          This workflow tests that:
+          - Claude can properly report missing tools using safe outputs
+          - Cache-memory preserves missing tool reports across runs
+          - Integration works with existing tools like GitHub
+          - Safe output system handles missing tool scenarios correctly
           
           
           ---
@@ -378,7 +302,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Dev",
+              workflow_name: "Test Claude with Missing Tool Safe Output and Cache Memory",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -436,6 +360,7 @@ jobs:
         # - mcp__github__get_pull_request_files
         # - mcp__github__get_pull_request_reviews
         # - mcp__github__get_pull_request_status
+        # - mcp__github__get_repository
         # - mcp__github__get_secret_scanning_alert
         # - mcp__github__get_tag
         # - mcp__github__get_workflow_run
@@ -463,32 +388,11 @@ jobs:
         # - mcp__github__search_repositories
         # - mcp__github__search_users
         # - mcp__memory
-        # - mcp__playwright__browser_click
-        # - mcp__playwright__browser_close
-        # - mcp__playwright__browser_console_messages
-        # - mcp__playwright__browser_drag
-        # - mcp__playwright__browser_evaluate
-        # - mcp__playwright__browser_file_upload
-        # - mcp__playwright__browser_fill_form
-        # - mcp__playwright__browser_handle_dialog
-        # - mcp__playwright__browser_hover
-        # - mcp__playwright__browser_install
-        # - mcp__playwright__browser_navigate
-        # - mcp__playwright__browser_navigate_back
-        # - mcp__playwright__browser_network_requests
-        # - mcp__playwright__browser_press_key
-        # - mcp__playwright__browser_resize
-        # - mcp__playwright__browser_select_option
-        # - mcp__playwright__browser_snapshot
-        # - mcp__playwright__browser_tabs
-        # - mcp__playwright__browser_take_screenshot
-        # - mcp__playwright__browser_type
-        # - mcp__playwright__browser_wait_for
         timeout-minutes: 5
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --max-turns 5 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/dev.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -497,15 +401,14 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-          GITHUB_AW_MAX_TURNS: 5
       - name: Ensure log file exists
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/dev.log
+          touch /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/dev.log || echo "No log content available"
+          tail -10 /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log || echo "No log content available"
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -536,7 +439,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true,\"max\":5}}"
         with:
           script: |
             async function main() {
@@ -1344,7 +1247,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/dev.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
         with:
           script: |
             function main() {
@@ -1834,12 +1737,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dev.log
-          path: /tmp/dev.log
+          name: test-claude-with-missing-tool-safe-output-and-cache-memory.log
+          path: /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
           if-no-files-found: warn
 
   missing_tool:
-    needs: dev
+    needs: test-claude-with-missing-tool-safe-output-and-cache-memory
     if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
@@ -1853,7 +1756,8 @@ jobs:
         id: missing_tool
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-with-missing-tool-safe-output-and-cache-memory.outputs.output }}
+          GITHUB_AW_MISSING_TOOL_MAX: 5
         with:
           script: |
             async function main() {

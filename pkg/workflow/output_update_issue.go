@@ -30,7 +30,12 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
 	}
 
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation

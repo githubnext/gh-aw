@@ -234,19 +234,24 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright domain environment variables
-	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
-		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
+	// Check that it contains Playwright MCP npx configuration
+	if !strings.Contains(output, "@playwright/mcp@latest") {
+		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
-	// Check that it contains the Playwright-specific domains, not network domains
+	// Check that it contains --allowed-origins flag when domains are configured
+	if !strings.Contains(output, "--allowed-origins") {
+		t.Errorf("Expected --allowed-origins flag in npx args")
+	}
+
+	// Check that it contains the specified domains
 	if !strings.Contains(output, "example.com,*.github.com") {
-		t.Errorf("Expected Playwright allowed domains to be included in environment variable")
+		t.Errorf("Expected configured domains in --allowed-origins value")
 	}
 
-	// Check that it does NOT contain the network permission domains
-	if strings.Contains(output, "external.example.com") {
-		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
+	// Check that it does NOT contain the old format environment variables
+	if strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected new simplified format without environment variables")
 	}
 }
 
@@ -280,19 +285,24 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected Playwright configuration in output")
 	}
 
-	// Check that it contains Playwright domain environment variables
-	if !strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
-		t.Errorf("Expected PLAYWRIGHT_ALLOWED_DOMAINS environment variable in output")
+	// Check that it contains Playwright MCP npx configuration
+	if !strings.Contains(output, "@playwright/mcp@latest") {
+		t.Errorf("Expected Playwright MCP npx package in output")
 	}
 
-	// Check that it defaults to localhost domains
+	// Check that it contains --allowed-origins flag for default domains
+	if !strings.Contains(output, "--allowed-origins") {
+		t.Errorf("Expected --allowed-origins flag in npx args")
+	}
+
+	// Check that it contains default domains (localhost, 127.0.0.1)
 	if !strings.Contains(output, "localhost,127.0.0.1") {
-		t.Errorf("Expected Playwright to default to localhost domains when not configured")
+		t.Errorf("Expected default domains in --allowed-origins value")
 	}
 
-	// Check that it does NOT contain the network permission domains
-	if strings.Contains(output, "external.example.com") {
-		t.Errorf("Expected Playwright config to ignore network permissions, but found external.example.com")
+	// Check that it does NOT contain the old format environment variables
+	if strings.Contains(output, "PLAYWRIGHT_ALLOWED_DOMAINS") {
+		t.Errorf("Expected new simplified format without environment variables")
 	}
 }
 

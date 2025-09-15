@@ -63,7 +63,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 
 		fmt.Fprintf(builder, "      - name: %s\n", stepName)
-		builder.WriteString("        uses: actions/cache@v3\n")
+		builder.WriteString("        uses: actions/cache@v4\n")
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
@@ -101,5 +101,60 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		if lookupOnly, hasLookup := cache["lookup-only"]; hasLookup {
 			fmt.Fprintf(builder, "          lookup-only: %v\n", lookupOnly)
 		}
+	}
+}
+
+// generateCacheMemorySteps generates cache steps for the cache-memory configuration
+func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verbose bool) {
+	if data.CacheMemoryConfig == nil || !data.CacheMemoryConfig.Enabled {
+		return
+	}
+
+	// Add comment indicating cache-memory configuration was processed
+	builder.WriteString("      # Cache memory MCP configuration from frontmatter processed below\n")
+
+	// Add step to create cache-memory directory
+	builder.WriteString("      - name: Create cache-memory directory\n")
+	builder.WriteString("        run: mkdir -p /tmp/cache-memory\n")
+
+	// Use the parsed configuration
+	cacheKey := data.CacheMemoryConfig.Key
+	if cacheKey == "" {
+		cacheKey = "memory-${{ github.workflow }}-${{ github.run_id }}"
+	}
+
+	// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+	runIdSuffix := "-${{ github.run_id }}"
+	if !strings.HasSuffix(cacheKey, runIdSuffix) {
+		cacheKey = cacheKey + runIdSuffix
+	}
+
+	// Generate restore keys automatically by splitting the cache key on '-'
+	// This creates a progressive fallback hierarchy
+	var restoreKeys []string
+	keyParts := strings.Split(cacheKey, "-")
+	for i := len(keyParts) - 1; i > 0; i-- {
+		restoreKey := strings.Join(keyParts[:i], "-") + "-"
+		restoreKeys = append(restoreKeys, restoreKey)
+	}
+
+	builder.WriteString("      - name: Cache memory MCP data\n")
+	builder.WriteString("        uses: actions/cache@v4\n")
+	builder.WriteString("        with:\n")
+	fmt.Fprintf(builder, "          key: %s\n", cacheKey)
+	builder.WriteString("          path: /tmp/cache-memory\n")
+	builder.WriteString("          restore-keys: |\n")
+	for _, key := range restoreKeys {
+		fmt.Fprintf(builder, "            %s\n", key)
+	}
+
+	// Add upload-artifact step if retention-days is configured
+	if data.CacheMemoryConfig.RetentionDays != nil {
+		builder.WriteString("      - name: Upload memory MCP data as artifact\n")
+		builder.WriteString("        uses: actions/upload-artifact@v4\n")
+		builder.WriteString("        with:\n")
+		builder.WriteString("          name: cache-memory-data\n")
+		builder.WriteString("          path: /tmp/cache-memory\n")
+		fmt.Fprintf(builder, "          retention-days: %d\n", *data.CacheMemoryConfig.RetentionDays)
 	}
 }

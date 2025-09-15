@@ -551,7 +551,28 @@ safe-outputs:
     - github.com                      # Default GitHub domains are always included
     - api.github.com                  # Additional trusted domains can be specified
     - trusted-domain.com              # URIs from unlisted domains are replaced with "(redacted)"
+  github-token: ${{ secrets.CUSTOM_PAT }}  # Optional: custom GitHub token for safe output jobs
 ```
+
+## Global Configuration Options
+
+### Custom GitHub Token (`github-token:`)
+
+By default, safe output jobs use the standard `GITHUB_TOKEN` provided by GitHub Actions. You can specify a custom GitHub token for all safe output jobs:
+
+```yaml
+safe-outputs:
+  create-issue:
+  add-issue-comment:
+  github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+```
+
+This is useful when:
+- You need additional permissions beyond what `GITHUB_TOKEN` provides
+- You want to perform actions across multiple repositories
+- You need to bypass GitHub Actions token restrictions
+
+**Note:** The custom `github-token` is applied to all safe output jobs (create-issue, add-issue-comment, create-pull-request, etc.). Individual safe output types cannot have different tokens.
 
 ## Related Documentation
 

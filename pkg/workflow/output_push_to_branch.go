@@ -47,7 +47,12 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	// Pass the if-no-changes configuration
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
 
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
 	steps = append(steps, "        with:\n")
+	// Add github-token if specified
+	c.addSafeOutputGitHubToken(&steps, data)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation

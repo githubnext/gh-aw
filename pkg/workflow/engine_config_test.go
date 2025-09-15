@@ -457,7 +457,7 @@ func TestEngineConfigurationWithModel(t *testing.T) {
 			switch tt.engine.GetID() {
 			case "claude":
 				if tt.expectedModel != "" {
-					expectedModelLine := "model: " + tt.expectedModel
+					expectedModelLine := "--model " + tt.expectedModel
 					if !strings.Contains(stepContent, expectedModelLine) {
 						t.Errorf("Expected step to contain model %s, got step content:\n%s", tt.expectedModel, stepContent)
 					}

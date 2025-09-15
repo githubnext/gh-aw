@@ -160,7 +160,7 @@ Please do the following tasks:
 	agenticIndex := strings.Index(lockContent, "Execute Claude Code")
 	if agenticIndex == -1 {
 		// Try alternative agentic step names
-		agenticIndex = strings.Index(lockContent, "uses: anthropics/claude-code-base-action")
+		agenticIndex = strings.Index(lockContent, "npx @anthropic-ai/claude-code")
 		if agenticIndex == -1 {
 			agenticIndex = strings.Index(lockContent, "uses: githubnext/claude-action")
 		}

@@ -65,7 +65,7 @@ This workflow tests that .claude/settings.json is generated in /tmp directory.
 	}
 
 	// Test 3: Verify settings parameter points to /tmp/.claude/settings.json
-	if !strings.Contains(lockStr, "settings: /tmp/.claude/settings.json") {
+	if !strings.Contains(lockStr, "--settings /tmp/.claude/settings.json") {
 		t.Error("Expected settings parameter to be '/tmp/.claude/settings.json' in generated workflow")
 	}
 

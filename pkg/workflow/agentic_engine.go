@@ -207,6 +207,42 @@ func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
 	return engines
 }
 
+// GetCopilotAgentPlaywrightTools returns the list of playwright tools available in the copilot agent
+// This matches the tools available in the copilot agent MCP server configuration
+// This is a shared function used by all engines for consistent playwright tool configuration
+func GetCopilotAgentPlaywrightTools() []any {
+	tools := []string{
+		"browser_click",
+		"browser_close",
+		"browser_console_messages",
+		"browser_drag",
+		"browser_evaluate",
+		"browser_file_upload",
+		"browser_fill_form",
+		"browser_handle_dialog",
+		"browser_hover",
+		"browser_install",
+		"browser_navigate",
+		"browser_navigate_back",
+		"browser_network_requests",
+		"browser_press_key",
+		"browser_resize",
+		"browser_select_option",
+		"browser_snapshot",
+		"browser_tabs",
+		"browser_take_screenshot",
+		"browser_type",
+		"browser_wait_for",
+	}
+
+	// Convert []string to []any for compatibility with the configuration system
+	result := make([]any, len(tools))
+	for i, tool := range tools {
+		result[i] = tool
+	}
+	return result
+}
+
 // ConvertStepToYAML converts a step map to YAML string with proper indentation
 // This is a shared utility function used by all engines and the compiler
 func ConvertStepToYAML(stepMap map[string]any) (string, error) {
