@@ -402,6 +402,9 @@ function handleMessage(req) {
       const content = result && result.content ? result.content : [];
       replyResult(id, { content });
     }
+    else if (/^notification\//.test(method)) {
+      debug(`ignore ${method}`);
+    }
     else {
       replyError(id, -32601, `Method not found: ${method}`);
     }
