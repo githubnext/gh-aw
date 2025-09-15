@@ -279,6 +279,7 @@ jobs:
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function writeMessage(obj) {
               const json = JSON.stringify(obj);
+              debug(`send: ${json}`);
               const message = json + "\n";
               const bytes = encoder.encode(message);
               fs.writeSync(1, bytes);
@@ -324,12 +325,9 @@ jobs:
                   debug(`recv: ${JSON.stringify(message)}`);
                   handleMessage(message);
                 } catch (error) {
-                  const err = {
-                    jsonrpc: "2.0",
-                    id: null,
-                    error: { code: -32700, message: "Parse error", data: String(error) },
-                  };
-                  writeMessage(err);
+                  // For parse errors, we can't know the request id, so we shouldn't send a response
+                  // according to JSON-RPC spec. Just log the error.
+                  debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
             }
@@ -339,13 +337,18 @@ jobs:
               writeMessage(res);
             }
             function replyError(id, code, message, data) {
+              // Don't send error responses for notifications (id is null/undefined)
+              if (id === undefined || id === null) {
+                debug(`Error for notification: ${message}`);
+                return;
+              }
               const error = { code, message };
               if (data !== undefined) {
                 error.data = data;
               }
               const res = {
                 jsonrpc: "2.0",
-                id: id ?? null,
+                id,
                 error,
               };
               writeMessage(res);
@@ -602,7 +605,21 @@ jobs:
             if (!Object.keys(TOOLS).length)
               throw new Error("No tools enabled in configuration");
             function handleMessage(req) {
+              // Validate basic JSON-RPC structure
+              if (!req || typeof req !== 'object') {
+                debug(`Invalid message: not an object`);
+                return;
+              }
+              if (req.jsonrpc !== "2.0") {
+                debug(`Invalid message: missing or invalid jsonrpc field`);
+                return;
+              }
               const { id, method, params } = req;
+              // Validate method field
+              if (!method || typeof method !== 'string') {
+                replyError(id, -32600, "Invalid Request: method must be a string");
+                return;
+              }
               try {
                 if (method === "initialize") {
                   const clientInfo = params?.clientInfo ?? {};
