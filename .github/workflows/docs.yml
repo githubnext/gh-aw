@@ -8,6 +8,8 @@ on:
     paths:
       - 'docs/**'
   push:
+    branches:
+      - main
     paths:
       - 'docs/**'
 
