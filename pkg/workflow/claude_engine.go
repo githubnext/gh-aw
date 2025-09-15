@@ -828,22 +828,22 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		if verbose {
 			fmt.Printf("Failed to parse Claude log as JSON array, trying JSONL format: %v\n", err)
 		}
-		
+
 		logEntries = []map[string]interface{}{}
 		lines := strings.Split(logContent, "\n")
-		
+
 		for _, line := range lines {
 			trimmedLine := strings.TrimSpace(line)
 			if trimmedLine == "" {
 				continue // Skip empty lines
 			}
-			
+
 			// Skip debug log lines that don't start with {
 			// (these are typically timestamped debug messages)
 			if !strings.HasPrefix(trimmedLine, "{") {
 				continue
 			}
-			
+
 			// Try to parse each line as JSON
 			var jsonEntry map[string]interface{}
 			if err := json.Unmarshal([]byte(trimmedLine), &jsonEntry); err != nil {
@@ -853,17 +853,17 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				}
 				continue
 			}
-			
+
 			logEntries = append(logEntries, jsonEntry)
 		}
-		
+
 		if len(logEntries) == 0 {
 			if verbose {
 				fmt.Printf("No valid JSON entries found in Claude log\n")
 			}
 			return metrics
 		}
-		
+
 		if verbose {
 			fmt.Printf("Extracted %d JSON entries from mixed format Claude log\n", len(logEntries))
 		}

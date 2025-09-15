@@ -39,7 +39,7 @@ function main() {
 function parseClaudeLog(logContent) {
   try {
     let logEntries;
-    
+
     // First, try to parse as JSON array (old format)
     try {
       logEntries = JSON.parse(logContent);
@@ -49,20 +49,20 @@ function parseClaudeLog(logContent) {
     } catch (jsonArrayError) {
       // If that fails, try to parse as mixed format (debug logs + JSONL)
       logEntries = [];
-      const lines = logContent.split('\n');
-      
+      const lines = logContent.split("\n");
+
       for (const line of lines) {
         const trimmedLine = line.trim();
-        if (trimmedLine === '') {
+        if (trimmedLine === "") {
           continue; // Skip empty lines
         }
-        
-        // Skip debug log lines that don't start with { 
+
+        // Skip debug log lines that don't start with {
         // (these are typically timestamped debug messages)
-        if (!trimmedLine.startsWith('{')) {
+        if (!trimmedLine.startsWith("{")) {
           continue;
         }
-        
+
         // Try to parse each line as JSON
         try {
           const jsonEntry = JSON.parse(trimmedLine);
@@ -73,7 +73,7 @@ function parseClaudeLog(logContent) {
         }
       }
     }
-    
+
     if (!Array.isArray(logEntries) || logEntries.length === 0) {
       return {
         markdown:
