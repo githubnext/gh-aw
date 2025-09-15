@@ -3267,59 +3267,66 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
-// extractCodeBlockMarker extracts the marker type and count from a code block line
-// Returns marker character ('`' or '~'), count, and language specifier
-func extractCodeBlockMarker(trimmedLine string) (rune, int, string) {
+// extractCodeBlockMarker extracts the marker string and language from a code block line
+// Returns marker string (e.g., "```", "~~~~") and language specifier
+func extractCodeBlockMarker(trimmedLine string) (string, string) {
 	if len(trimmedLine) < 3 {
-		return 0, 0, ""
+		return "", ""
 	}
 
-	var marker rune
 	var count int
 
 	// Check for backticks
 	if strings.HasPrefix(trimmedLine, "```") {
-		marker = '`'
 		for i, r := range trimmedLine {
 			if r == '`' {
 				count++
 			} else {
 				// Found language specifier or other content
-				return marker, count, strings.TrimSpace(trimmedLine[i:])
+				return strings.Repeat("`", count), strings.TrimSpace(trimmedLine[i:])
 			}
 		}
 		// All characters are backticks
-		return marker, count, ""
+		return strings.Repeat("`", count), ""
 	}
 
 	// Check for tildes
 	if strings.HasPrefix(trimmedLine, "~~~") {
-		marker = '~'
 		for i, r := range trimmedLine {
 			if r == '~' {
 				count++
 			} else {
 				// Found language specifier or other content
-				return marker, count, strings.TrimSpace(trimmedLine[i:])
+				return strings.Repeat("~", count), strings.TrimSpace(trimmedLine[i:])
 			}
 		}
 		// All characters are tildes
-		return marker, count, ""
+		return strings.Repeat("~", count), ""
 	}
 
-	return 0, 0, ""
+	return "", ""
 }
 
 // isValidCodeBlockMarker checks if a trimmed line is a valid code block marker (3 or more ` or ~)
 func isValidCodeBlockMarker(trimmedLine string) bool {
-	marker, count, _ := extractCodeBlockMarker(trimmedLine)
-	return marker != 0 && count >= 3
+	marker, _ := extractCodeBlockMarker(trimmedLine)
+	return len(marker) >= 3
 }
 
 // isMatchingCodeBlockMarker checks if the trimmed line matches the opening marker
-func isMatchingCodeBlockMarker(trimmedLine string, openMarker rune, openCount int) bool {
-	marker, count, _ := extractCodeBlockMarker(trimmedLine)
-	return marker == openMarker && count >= openCount
+func isMatchingCodeBlockMarker(trimmedLine string, openMarker string) bool {
+	marker, _ := extractCodeBlockMarker(trimmedLine)
+	if len(marker) == 0 || len(openMarker) == 0 {
+		return false
+	}
+
+	// Markers must be the same type (both backticks or both tildes)
+	if marker[0] != openMarker[0] {
+		return false
+	}
+
+	// Closing marker must have at least as many characters as opening marker
+	return len(marker) >= len(openMarker)
 }
 
 // removeXMLComments removes XML comments (<!-- -->) from markdown content
@@ -3329,8 +3336,7 @@ func removeXMLComments(content string) string {
 	lines := strings.Split(content, "\n")
 	var result []string
 	inCodeBlock := false
-	var openMarker rune
-	var openCount int
+	var openMarker string
 	inXMLComment := false
 
 	for _, line := range lines {
@@ -3339,15 +3345,14 @@ func removeXMLComments(content string) string {
 
 		if !inCodeBlock && isValidCodeBlockMarker(trimmedLine) {
 			// Opening a code block
-			openMarker, openCount, _ = extractCodeBlockMarker(trimmedLine)
+			openMarker, _ = extractCodeBlockMarker(trimmedLine)
 			inCodeBlock = true
 			result = append(result, line)
 			continue
-		} else if inCodeBlock && isMatchingCodeBlockMarker(trimmedLine, openMarker, openCount) {
+		} else if inCodeBlock && isMatchingCodeBlockMarker(trimmedLine, openMarker) {
 			// Closing the code block with matching marker
 			inCodeBlock = false
-			openMarker = 0
-			openCount = 0
+			openMarker = ""
 			result = append(result, line)
 			continue
 		}
