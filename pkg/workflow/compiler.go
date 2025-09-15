@@ -165,6 +165,7 @@ type SafeOutputsConfig struct {
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"` // If true, emit step summary messages instead of making GitHub API calls
+	Env                             map[string]string                      `yaml:"env,omitempty"`    // Environment variables to pass to safe output jobs
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -2194,6 +2195,9 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
@@ -2271,6 +2275,9 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
@@ -2327,6 +2334,9 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 	if data.SafeOutputs.AddIssueComments.Target != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddIssueComments.Target))
 	}
+
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -2405,6 +2415,9 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
 	}
 
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
@@ -2480,6 +2493,9 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_DRIVER: %s\n", driverName))
 	// Pass the workflow filename for rule ID prefix
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
+
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -2600,6 +2616,9 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
+
+	// Add custom environment variables from safe-outputs.env
+	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -3706,10 +3725,31 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					config.Staged = &stagedBool
 				}
 			}
+
+			// Handle env configuration
+			if env, exists := outputMap["env"]; exists {
+				if envMap, ok := env.(map[string]any); ok {
+					config.Env = make(map[string]string)
+					for key, value := range envMap {
+						if valueStr, ok := value.(string); ok {
+							config.Env[key] = valueStr
+						}
+					}
+				}
+			}
 		}
 	}
 
 	return config
+}
+
+// addCustomSafeOutputEnvVars adds custom environment variables to safe output job steps
+func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowData) {
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
+		for key, value := range data.SafeOutputs.Env {
+			*steps = append(*steps, fmt.Sprintf("          %s: %s\n", key, value))
+		}
+	}
 }
 
 // parseIssuesConfig handles create-issue configuration
