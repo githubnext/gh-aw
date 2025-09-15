@@ -133,7 +133,7 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 		toolNames[i] = tool.Name
 	}
 
-	expectedTools := []string{"create_issue", "create_discussion", "missing_tool"}
+	expectedTools := []string{"create-issue", "create-discussion", "missing-tool"}
 	for _, expected := range expectedTools {
 		found := false
 		for _, actual := range toolNames {
@@ -164,15 +164,15 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
-	// Call create_issue tool
+	// Call create-issue tool
 	ctx := context.Background()
-	result, err := client.CallTool(ctx, "create_issue", map[string]any{
+	result, err := client.CallTool(ctx, "create-issue", map[string]any{
 		"title":  "Test Issue",
 		"body":   "This is a test issue created by MCP server",
 		"labels": []string{"bug", "test"},
 	})
 	if err != nil {
-		t.Fatalf("Failed to call create_issue: %v", err)
+		t.Fatalf("Failed to call create-issue: %v", err)
 	}
 
 	// Check response structure
@@ -199,7 +199,7 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
 
-	t.Log("create_issue tool executed successfully using Go MCP SDK")
+	t.Log("create-issue tool executed successfully using Go MCP SDK")
 }
 
 func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
@@ -215,15 +215,15 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
-	// Call missing_tool
+	// Call missing-tool
 	ctx := context.Background()
-	_, err := client.CallTool(ctx, "missing_tool", map[string]any{
+	_, err := client.CallTool(ctx, "missing-tool", map[string]any{
 		"tool":         "advanced-analyzer",
 		"reason":       "Need to analyze complex data structures",
 		"alternatives": "Could use basic analysis tools with manual processing",
 	})
 	if err != nil {
-		t.Fatalf("Failed to call missing_tool: %v", err)
+		t.Fatalf("Failed to call missing-tool: %v", err)
 	}
 
 	// Verify output file was written
@@ -235,7 +235,7 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
 
-	t.Log("missing_tool executed successfully using Go MCP SDK")
+	t.Log("missing-tool executed successfully using Go MCP SDK")
 }
 
 func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
@@ -246,6 +246,9 @@ func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
 		"create-issue": map[string]interface{}{
 			"enabled": false, // Explicitly disabled
 		},
+		"missing-tool": map[string]interface{}{
+			"enabled": true, // Keep one enabled so server can start
+		},
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -253,7 +256,7 @@ func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
 
 	// Try to call disabled tool - should return an error
 	ctx := context.Background()
-	_, err := client.CallTool(ctx, "create_issue", map[string]any{
+	_, err := client.CallTool(ctx, "create-issue", map[string]any{
 		"title": "This should fail",
 		"body":  "Tool is disabled",
 	})
@@ -263,7 +266,9 @@ func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
 		t.Fatalf("Expected error for disabled tool, got success")
 	}
 
-	if !strings.Contains(err.Error(), "create-issue safe-output is not enabled") && !strings.Contains(err.Error(), "Tool 'create_issue' failed") {
+	if !strings.Contains(err.Error(), "create-issue safe-output is not enabled") && 
+	   !strings.Contains(err.Error(), "Tool 'create-issue' failed") && 
+	   !strings.Contains(err.Error(), "Tool not found: create-issue") {
 		t.Errorf("Expected error about disabled tool, got: %s", err.Error())
 	}
 
@@ -316,7 +321,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 		expectedType string
 	}{
 		{
-			name: "create_issue",
+			name: "create-issue",
 			args: map[string]any{
 				"title": "First Issue",
 				"body":  "First test issue",
@@ -324,7 +329,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 			expectedType: "create-issue",
 		},
 		{
-			name: "add_issue_comment",
+			name: "add-issue-comment",
 			args: map[string]any{
 				"body": "This is a comment",
 			},
