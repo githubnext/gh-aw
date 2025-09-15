@@ -189,28 +189,34 @@ gh aw logs --format json -o ./exports/
 
 ## 🔍 MCP Server Inspection
 
-The `mcp-inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
+The `mcp inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
 
 > **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](../guides/mcps/).
 
 ```bash
 # List all workflows that contain MCP server configurations
-gh aw mcp-inspect
+gh aw mcp inspect
 
 # Inspect all MCP servers in a specific workflow
-gh aw mcp-inspect workflow-name
+gh aw mcp inspect workflow-name
 
 # Filter inspection to specific servers by name
-gh aw mcp-inspect workflow-name --server server-name
+gh aw mcp inspect workflow-name --server server-name
 
 # Show detailed information about a specific tool (requires --server)
-gh aw mcp-inspect workflow-name --server server-name --tool tool-name
+gh aw mcp inspect workflow-name --server server-name --tool tool-name
 
 # Enable verbose output with connection details
-gh aw mcp-inspect workflow-name --verbose
+gh aw mcp inspect workflow-name --verbose
 
 # Launch the official @modelcontextprotocol/inspector web interface
-gh aw mcp-inspect workflow-name --inspector
+gh aw mcp inspect workflow-name --inspector
+
+# Generate MCP server configuration using Claude engine
+gh aw mcp inspect workflow-name --generate-config
+
+# Launch all configured MCP servers
+gh aw mcp inspect workflow-name --launch-servers
 ```
 
 **Key Features:**

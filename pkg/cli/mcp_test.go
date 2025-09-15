@@ -67,20 +67,6 @@ func TestNewMCPCommand(t *testing.T) {
 				}
 			},
 		},
-		{
-			name: "legacy mcp-inspect command",
-			test: func(t *testing.T) {
-				cmd := NewMCPInspectCommand()
-
-				if cmd.Use != "mcp-inspect [workflow-file]" {
-					t.Errorf("Expected legacy command Use to be 'mcp-inspect [workflow-file]', got '%s'", cmd.Use)
-				}
-
-				if !strings.Contains(cmd.Long, "deprecated") {
-					t.Error("Expected legacy command Long description to mention it's deprecated")
-				}
-			},
-		},
 	}
 
 	for _, tt := range tests {

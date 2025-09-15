@@ -374,7 +374,6 @@ func init() {
 	rootCmd.AddCommand(disableCmd)
 	rootCmd.AddCommand(cli.NewLogsCommand())
 	rootCmd.AddCommand(cli.NewMCPCommand())
-	rootCmd.AddCommand(cli.NewMCPInspectCommand()) // Legacy backwards compatibility
 	rootCmd.AddCommand(versionCmd)
 }
 
