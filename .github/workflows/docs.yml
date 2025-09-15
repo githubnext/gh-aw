@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   release:
     types: [created]
+  pull_request:
+    paths:
+      - 'docs/**'
   push:
     paths:
       - 'docs/**'
