@@ -154,7 +154,6 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 ## ❓ Getting Help
 
-- Check the [Documentation](docs/index.md)
 - Read the [Development Guide](DEVGUIDE.md)
 - Ask questions in GitHub issues or Discord
 - Look at existing code and tests for examples
