@@ -58,11 +58,10 @@ function processReadBuffer() {
   while (true) {
     try {
       const message = readBuffer.readMessage();
-      if (message === null) {
+      if (!message) {
         break;
       }
-
-      debug(`received message: ${message.method || "notification"}`);
+      debug(`recv: ${JSON.stringify(message)}`);
       handleMessage(message);
     } catch (error) {
       const err = {
