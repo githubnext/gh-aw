@@ -53,7 +53,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 // GetDeclaredOutputFiles returns the output files that Claude may produce
 func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
-	return []string{"output.txt"}
+	return []string{}
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
