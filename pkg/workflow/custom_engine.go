@@ -132,9 +132,14 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
+	// Add safe-outputs MCP server if safe-outputs are configured
+	totalServers := len(mcpTools)
+	serverCount := 0
+
 	// Generate configuration for each MCP tool using shared logic
-	for i, toolName := range mcpTools {
-		isLast := i == len(mcpTools)-1
+	for _, toolName := range mcpTools {
+		serverCount++
+		isLast := serverCount == totalServers
 
 		switch toolName {
 		case "github":
@@ -145,6 +150,20 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
 		case "cache-memory":
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
+		case "safe-outputs":
+			yaml.WriteString("              \"safe_outputs\": {\n")
+			yaml.WriteString("                \"command\": \"node\",\n")
+			yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+			yaml.WriteString("                \"env\": {\n")
+			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
+			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+			yaml.WriteString("                }\n")
+			serverCount++
+			if serverCount < totalServers {
+				yaml.WriteString("              },\n")
+			} else {
+				yaml.WriteString("              }\n")
+			}
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
