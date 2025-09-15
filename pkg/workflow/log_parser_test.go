@@ -8,7 +8,7 @@ import (
 func TestLogParserScriptMethods(t *testing.T) {
 	t.Run("ClaudeEngine returns correct log parser script", func(t *testing.T) {
 		engine := NewClaudeEngine()
-		scriptName := engine.GetLogParserScript()
+		scriptName := engine.GetLogParserScriptId()
 		if scriptName != "parse_claude_log" {
 			t.Errorf("Expected 'parse_claude_log', got '%s'", scriptName)
 		}
@@ -16,7 +16,7 @@ func TestLogParserScriptMethods(t *testing.T) {
 
 	t.Run("CodexEngine returns correct log parser script", func(t *testing.T) {
 		engine := NewCodexEngine()
-		scriptName := engine.GetLogParserScript()
+		scriptName := engine.GetLogParserScriptId()
 		if scriptName != "parse_codex_log" {
 			t.Errorf("Expected 'parse_codex_log', got '%s'", scriptName)
 		}

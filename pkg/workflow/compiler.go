@@ -3124,7 +3124,7 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string
 }
 
 func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string) {
-	parserScriptName := engine.GetLogParserScript()
+	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
 		// Skip log parsing if engine doesn't provide a parser
 		return
