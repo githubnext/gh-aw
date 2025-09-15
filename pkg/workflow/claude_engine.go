@@ -297,6 +297,15 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 		_ = editTool
 	}
 
+	// Handle playwright tool by converting it to an MCP tool configuration
+	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
+		// Create playwright as an MCP tool with the same tools available as copilot agent
+		playwrightMCP := map[string]any{
+			"allowed": GetCopilotAgentPlaywrightTools(),
+		}
+		result["playwright"] = playwrightMCP
+	}
+
 	// Update claude section
 	claudeSection["allowed"] = claudeAllowed
 	result["claude"] = claudeSection
@@ -455,8 +464,8 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 					isCustomMCP = true
 				}
 
-				// Handle standard MCP tools (github) or tools with MCP-compatible type
-				if toolName == "github" || isCustomMCP {
+				// Handle standard MCP tools (github, playwright) or tools with MCP-compatible type
+				if toolName == "github" || toolName == "playwright" || isCustomMCP {
 					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {
 						if allowedSlice, ok := allowed.([]any); ok {
 							// Check for wildcard access first
