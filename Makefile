@@ -68,9 +68,14 @@ deps:
 	go install golang.org/x/tools/gopls@latest
 	go install github.com/rhysd/actionlint/cmd/actionlint@latest
 
+# Install act tool for local workflow testing
+.PHONY: install-act
+install-act:
+	gh extension install https://github.com/nektos/act
+
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: deps copy-copilot-to-claude download-github-actions-schema
+deps-dev: deps copy-copilot-to-claude download-github-actions-schema install-act
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	npm ci
 
@@ -245,6 +250,8 @@ help:
 	@echo "  test-coverage    - Run tests with coverage report"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
+	@echo "  deps-dev         - Install development dependencies (includes act)"
+	@echo "  install-act      - Install act tool for local workflow testing"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-cjs          - Format JavaScript (.cjs) files"
