@@ -9,13 +9,6 @@ This guide will get you from zero to a running agentic workflow in minutes. You'
 
 ## Prerequisites
 
-- GitHub CLI (`gh`) installed and authenticated. Check with:
-
-```bash
-gh auth status
-gh --version
-```
-
 - A repository you are a maintainer of, can push to (or a fork) and have permission to add Actions secrets.
 
 - A Claude or OpenAI API key. 
@@ -26,14 +19,7 @@ gh --version
 gh extension install githubnext/gh-aw
 ```
 
-Verify that `gh aw` is available:
-
-```bash
-gh aw --help
-gh aw version
-```
-
-## Step 2 — Add a sample workflow
+## Step 2 — Add a sample workflow, review and merge
 
 The easiest way to get started is to add a sample from [The Agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
@@ -83,13 +69,8 @@ on:
   schedule:
     - cron: "0 9 * * 1"  # Every Monday at 9 AM
 
-permissions:
-  contents: read
-  issues: write
-
-tools:
-  github:
-    allowed: [create_issue]
+safe-outputs:
+  create-issue:
 ---
 
 # Weekly Research Report
@@ -109,14 +90,6 @@ This workflow:
 - **Has permissions** to read repository content and write issues
 - **Uses tools** to create GitHub issues
 - **Runs AI instructions** in natural language to create research reports
-
-## Troubleshooting & diagnostics
-
-- `gh aw compile` — Recompile workflows
-- `gh aw compile --purge` — Recompile and remove orphaned `.lock.yml` files  
-- `gh aw status` — Check workflow installation status
-- `gh aw logs` — Download recent run logs and cost/usage analysis
-- If compilation fails, run `gh aw compile --verbose` for more details
 
 ## What's next?
 

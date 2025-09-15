@@ -3,7 +3,13 @@ title: CLI Commands
 description: Complete guide to all available CLI commands for managing agentic workflows with the GitHub CLI extension, including installation, compilation, and execution.
 ---
 
-This guide covers all available commands for managing agentic workflows with the GitHub CLI extension.
+This page lists available commands for managing agentic workflows with the GitHub CLI extension `gh aw`.
+
+## Installation
+
+```bash
+gh extension install githubnext/gh-aw
+```
 
 ## Quick Start
 

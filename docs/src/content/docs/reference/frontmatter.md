@@ -5,10 +5,6 @@ sidebar:
   order: 2
 ---
 
-This guide covers all available frontmatter configuration options for GitHub Agentic Workflows.
-
-## Overview
-
 The YAML frontmatter supports standard GitHub Actions properties plus additional agentic-specific options:
 
 **Standard GitHub Actions Properties:**

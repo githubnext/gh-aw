@@ -37,13 +37,6 @@ The AI agent reads your repository context, understands the issue content, and t
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
-## 📚 Samples
-
-Explore ready-to-use agentic workflows for research, development, and automation tasks. See [Samples](https://githubnext.github.io/gh-aw/samples/) for a complete list of demonstrator workflows including:
-
-- **Research & Planning**: Weekly research, team status reports, daily planning, and issue triage
-- **Coding & Development**: Dependency updates, documentation maintenance, QA tasks, test coverage improvements, performance optimization, and accessibility reviews
-
 ## 📖 Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).
