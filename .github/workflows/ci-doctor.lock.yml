@@ -72,10 +72,9 @@ jobs:
             }
             main();
       - name: Setup Safe Outputs Collector MCP
+        env:
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true},\"create-issue\":true}"
         run: |
-          cat >> $GITHUB_ENV << 'EOF'
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG={"add-issue-comment":{"enabled":true},"create-issue":true}
-          EOF
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -479,11 +478,22 @@ jobs:
           chmod +x /tmp/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true},\"create-issue\":true}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
+              "safe_outputs": {
+                "command": "node",
+                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "env": {
+                  "GITHUB_AW_SAFE_OUTPUTS": "${GITHUB_AW_SAFE_OUTPUTS}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
+                }
+              },
               "github": {
                 "command": "docker",
                 "args": [

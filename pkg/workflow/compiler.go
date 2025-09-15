@@ -2943,8 +2943,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
 		}
 		yaml.WriteString("        run: |\n")
-		fmt.Fprintf(yaml, "          cat >> $GITHUB_ENV << 'EOF'\n")
-		fmt.Fprintf(yaml, "          EOF\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
