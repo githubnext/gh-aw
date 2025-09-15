@@ -1,5 +1,5 @@
 ---
-title: Quality & Testing Workflows
+title: Quality & Testing
 description: Automated workflows for test coverage improvement and performance optimization
 sidebar:
   order: 4

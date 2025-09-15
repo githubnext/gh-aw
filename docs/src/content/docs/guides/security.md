@@ -1,5 +1,5 @@
 ---
-title: Security Notes
+title: Security Guide
 description: Important security considerations for GitHub Agentic Workflows, including sandboxing, permissions, and best practices for safe agentic automation.
 ---
 
@@ -288,7 +288,7 @@ Engine network permissions provide fine-grained control over network access for 
    network: {}  # Deny all network access
    ```
 
-## Engine Security Notes
+## Engine Security Guide
 
 Different agentic engines have distinct defaults and operational surfaces.
 

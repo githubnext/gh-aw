@@ -1,5 +1,5 @@
 ---
-title: Triage & Analysis Workflows
+title: Triage & Analysis
 description: Intelligent automation for issue management, accessibility reviews, and CI failure investigation
 sidebar:
   order: 2

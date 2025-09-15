@@ -89,7 +89,7 @@ Agentic workflows require careful security consideration:
 - **Input validation** — All inputs are automatically sanitized
 - **Human oversight** — Critical actions can require human approval
 
-See [Security Notes](../guides/security/) for comprehensive guidelines.
+See [Security Guide](../guides/security/) for comprehensive guidelines.
 
 ### Tools and MCPs
 
@@ -118,7 +118,7 @@ Learn more in [Tools Configuration](../reference/tools/) and [MCPs](../guides/mc
 - **Event-driven** — Respond to issues, PRs, pushes, etc.
 - **Scheduled** — Regular maintenance and reporting tasks
 - **Alias-triggered** — Activated by @mentions in comments
-- **Secure** — User minimal permissions and protect against untrusted content, see [Security Notes](../guides/security/)
+- **Secure** — User minimal permissions and protect against untrusted content, see [Security Guide](../guides/security/)
 
 ## Next Steps
 
@@ -127,7 +127,7 @@ Ready to build more sophisticated workflows? Explore:
 - **[Workflow Structure](../reference/workflow-structure/)** — Detailed file organization and security
 - **[Frontmatter Options](../reference/frontmatter/)** — Complete configuration reference
 - **[Tools Configuration](../reference/tools/)** — Available tools and permissions
-- **[Security Notes](../guides/security/)** — Important security considerations
+- **[Security Guide](../guides/security/)** — Important security considerations
 - **[VS Code Integration](../tools/vscode/)** — Enhanced authoring experience
 
 The power of agentic workflows lies in their ability to understand context, make intelligent decisions, and take meaningful actions — all while maintaining the reliability you expect from GitHub Actions.

@@ -1,5 +1,5 @@
 ---
-title: Coding & Development Workflows  
+title: Coding & Development 
 description: Automated workflows for dependency management, documentation updates, and pull request assistance
 sidebar:
   order: 3

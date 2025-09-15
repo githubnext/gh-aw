@@ -1,5 +1,5 @@
 ---
-title: Research, Status & Planning Workflows
+title: Research, Status & Planning
 description: Automated workflows for research, team coordination, and project planning
 sidebar:
   order: 1
