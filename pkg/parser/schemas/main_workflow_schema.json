@@ -1600,6 +1600,17 @@
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables to pass to safe output jobs",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "string",
+              "description": "Environment variable value, typically a secret reference like ${{ secrets.TOKEN_NAME }}"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

@@ -14,7 +14,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			"safe-outputs": map[string]any{
 				"create-issue": nil,
 				"env": map[string]any{
-					"GITHUB_TOKEN":   "${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}",
+					"GITHUB_TOKEN":   "${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
 					"CUSTOM_API_KEY": "${{ secrets.CUSTOM_API_KEY }}",
 					"DEBUG_MODE":     "true",
 				},
@@ -31,7 +31,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 		}
 
 		expected := map[string]string{
-			"GITHUB_TOKEN":   "${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}",
+			"GITHUB_TOKEN":   "${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
 			"CUSTOM_API_KEY": "${{ secrets.CUSTOM_API_KEY }}",
 			"DEBUG_MODE":     "true",
 		}
@@ -52,7 +52,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			SafeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{Max: 1},
 				Env: map[string]string{
-					"GITHUB_TOKEN": "${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}",
+					"GITHUB_TOKEN": "${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
 					"DEBUG_MODE":   "true",
 				},
 			},
@@ -66,7 +66,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 		// Check that the steps include our custom environment variables
 		stepsStr := strings.Join(job.Steps, "")
 
-		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
+		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
 			t.Error("Expected GITHUB_TOKEN to be included in job steps")
 		}
 
@@ -82,7 +82,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			SafeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{Max: 1},
 				Env: map[string]string{
-					"GITHUB_TOKEN": "${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}",
+					"GITHUB_TOKEN": "${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
 					"API_ENDPOINT": "https://api.example.com",
 				},
 			},
@@ -96,7 +96,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 		// Check that the steps include our custom environment variables
 		stepsStr := strings.Join(job.Steps, "")
 
-		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
+		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
 			t.Error("Expected GITHUB_TOKEN to be included in job steps")
 		}
 
