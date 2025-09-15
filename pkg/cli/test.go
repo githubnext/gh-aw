@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -135,7 +134,7 @@ func testSingleWorkflowLocally(workflowName, event string, verbose bool) error {
 	return nil
 }
 
-// checkActInstalled checks if the act tool is available and installs it if needed
+// checkActInstalled checks if the act tool is available and provides installation instructions if not
 func checkActInstalled(verbose bool) error {
 	// Check if act is already installed
 	if _, err := exec.LookPath("act"); err == nil {
@@ -145,33 +144,25 @@ func checkActInstalled(verbose bool) error {
 		return nil
 	}
 
-	if verbose {
-		fmt.Println(console.FormatInfoMessage("act tool not found, attempting to install via GitHub CLI extension"))
+	// act is not installed, provide instructions to the user
+	fmt.Println(console.FormatErrorMessage("act tool is required but not installed"))
+	fmt.Println()
+	fmt.Println(console.FormatInfoMessage("To install act, please run one of the following commands:"))
+	fmt.Println()
+
+	// Check if GitHub CLI is available
+	if _, err := exec.LookPath("gh"); err == nil {
+		fmt.Println(console.FormatCommandMessage("gh extension install https://github.com/nektos/act"))
+		fmt.Println()
+		fmt.Println(console.FormatInfoMessage("Or install manually from: https://nektosact.com"))
+	} else {
+		fmt.Println(console.FormatInfoMessage("Install GitHub CLI first (https://cli.github.com/) then run:"))
+		fmt.Println(console.FormatCommandMessage("gh extension install https://github.com/nektos/act"))
+		fmt.Println()
+		fmt.Println(console.FormatInfoMessage("Or install act manually from: https://nektosact.com"))
 	}
 
-	// Check if gh is available
-	if _, err := exec.LookPath("gh"); err != nil {
-		return fmt.Errorf("GitHub CLI (gh) not found. Please install GitHub CLI first: https://cli.github.com/")
-	}
-
-	// Install act via GitHub CLI extension
-	fmt.Println(console.FormatProgressMessage("Installing act via GitHub CLI extension..."))
-	cmd := exec.Command("gh", "extension", "install", "https://github.com/nektos/act")
-
-	// Capture output to provide better error messages
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		stderrStr := stderr.String()
-		if strings.Contains(stderrStr, "GH_TOKEN") {
-			return fmt.Errorf("GitHub CLI authentication required. Please run 'gh auth login' first, or install act manually: https://nektosact.com")
-		}
-		return fmt.Errorf("failed to install act extension: %w. Please install manually: https://nektosact.com", err)
-	}
-
-	fmt.Println(console.FormatSuccessMessage("Successfully installed act via GitHub CLI extension"))
-	return nil
+	return fmt.Errorf("act tool is not installed")
 }
 
 // CompileWorkflowForTesting compiles a single workflow with safe-outputs forced to staged mode

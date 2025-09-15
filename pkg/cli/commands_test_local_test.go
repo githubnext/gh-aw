@@ -15,12 +15,12 @@ func TestCheckActInstalled(t *testing.T) {
 		{
 			name:    "verbose mode",
 			verbose: true,
-			wantErr: false, // Should not error if act is in PATH
+			wantErr: true, // Should error if act is not in PATH (as expected in test environment)
 		},
 		{
 			name:    "quiet mode",
 			verbose: false,
-			wantErr: false,
+			wantErr: true, // Should error if act is not in PATH (as expected in test environment)
 		},
 	}
 
