@@ -75,14 +75,12 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       const message = JSON.stringify(initRequest);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-
-      serverProcess.stdin.write(header + message);
+      serverProcess.stdin.write(message + "\n");
 
       // Wait for response
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      expect(responseData).toContain("Content-Length:");
+      expect(responseData).toMatch(/\{.*"jsonrpc".*"2\.0".*\}/);
 
       // Extract JSON response - handle multiple responses by finding the one for our request id
       const response = findResponseById(responseData, 1);
@@ -125,8 +123,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       let message = JSON.stringify(initRequest);
-      let header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -142,12 +140,12 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       message = JSON.stringify(toolsRequest);
-      header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      expect(responseData).toContain("Content-Length:");
+      expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
 
       // Extract JSON response - handle multiple responses by finding the one for our request id
       const response = findResponseById(responseData, 2);
@@ -199,8 +197,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       const message = JSON.stringify(initRequest);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       // Wait for initialization to complete
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -233,13 +231,13 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       const message = JSON.stringify(toolCall);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check response
-      expect(responseData).toContain("Content-Length:");
+      expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
 
       // Extract JSON response - handle multiple responses by finding the one for our request id
       const response = findResponseById(responseData, 1);
@@ -288,13 +286,13 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       const message = JSON.stringify(toolCall);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check response
-      expect(responseData).toContain("Content-Length:");
+      expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
 
       // Check output file
       expect(fs.existsSync(tempOutputFile)).toBe(true);
@@ -334,12 +332,12 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       const message = JSON.stringify(toolCall);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      expect(responseData).toContain("Content-Length:");
+      expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
 
       // Extract JSON response - handle multiple responses by finding the one for our request id
       const response = findResponseById(responseData, 1);
@@ -382,8 +380,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
         };
 
         const message = JSON.stringify(initRequest);
-        const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-        serverProcess.stdin.write(header + message);
+        // No header needed for newline protocol
+        serverProcess.stdin.write(message + "\n");
 
         // Wait for initialization to complete
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -413,12 +411,12 @@ describe("safe_outputs_mcp_server.cjs", () => {
         };
 
         const message = JSON.stringify(toolCall);
-        const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-        serverProcess.stdin.write(header + message);
+        // No header needed for newline protocol
+        serverProcess.stdin.write(message + "\n");
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        expect(responseData).toContain("Content-Length:");
+        expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
         // Should still work because we're not doing strict schema validation
         // in the example server, but in a production server you might want to add validation
       });
@@ -434,12 +432,12 @@ describe("safe_outputs_mcp_server.cjs", () => {
 
         // Send malformed JSON
         const malformedMessage = "{ invalid json }";
-        const header = `Content-Length: ${Buffer.byteLength(malformedMessage)}\r\n\r\n`;
-        serverProcess.stdin.write(header + malformedMessage);
+        // No header needed for newline protocol
+        serverProcess.stdin.write(malformedMessage + "\n");
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        expect(responseData).toContain("Content-Length:");
+        expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
 
         // Extract JSON response - handle multiple responses by finding the one for our request id
         const response = findResponseById(responseData, null);
@@ -451,27 +449,19 @@ describe("safe_outputs_mcp_server.cjs", () => {
     });
   });
 
-  // Helper to parse multiple Content-Length-delimited JSON-RPC messages from a buffer
+  // Helper to parse multiple newline-delimited JSON-RPC messages from a buffer
   function parseRpcResponses(bufferStr) {
     const responses = [];
-    let cursor = 0;
-    while (true) {
-      const headerMatch = bufferStr
-        .slice(cursor)
-        .match(/Content-Length: (\d+)\r\n\r\n/);
-      if (!headerMatch) break;
-      const headerIndex = bufferStr.indexOf(headerMatch[0], cursor);
-      if (headerIndex === -1) break;
-      const length = parseInt(headerMatch[1], 10);
-      const jsonStart = headerIndex + headerMatch[0].length;
-      const jsonText = bufferStr.slice(jsonStart, jsonStart + length);
+    const lines = bufferStr.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed === "") continue; // Skip empty lines
       try {
-        const parsed = JSON.parse(jsonText);
+        const parsed = JSON.parse(trimmed);
         responses.push(parsed);
       } catch (e) {
-        // ignore parse errors for individual segments
+        // ignore parse errors for individual lines
       }
-      cursor = jsonStart + length;
     }
     return responses;
   }
@@ -525,8 +515,8 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       const message = JSON.stringify(initRequest);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       // Wait for initialization to complete
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -584,7 +574,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check response for first call
-      expect(responseData).toContain("Content-Length:");
+      expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
 
       let response = findResponseById(responseData, 1);
       expect(response).toBeTruthy();
@@ -657,13 +647,13 @@ describe("safe_outputs_mcp_server.cjs", () => {
       };
 
       const message = JSON.stringify(toolCall);
-      const header = `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n`;
-      serverProcess.stdin.write(header + message);
+      // No header needed for newline protocol
+      serverProcess.stdin.write(message + "\n");
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check response
-      expect(responseData).toContain("Content-Length:");
+      expect(responseData).toMatch(/\{.*"jsonrpc".*"2\\.0".*\}/);
 
       // Extract JSON response - handle multiple responses by finding the one for our request id
       const response = findResponseById(responseData, 1);

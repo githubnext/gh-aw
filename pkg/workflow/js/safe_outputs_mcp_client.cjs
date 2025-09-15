@@ -20,8 +20,8 @@ const pending = new Map();
 let nextId = 1;
 function writeMessage(obj) {
   const json = JSON.stringify(obj);
-  const header = `Content-Length: ${Buffer.byteLength(json)}\r\n\r\n`;
-  child.stdin.write(header + json);
+  const message = json + "\n";
+  child.stdin.write(message);
 }
 function sendRequest(method, params) {
   const id = nextId++;
@@ -73,24 +73,20 @@ function handleMessage(msg) {
 child.stdout.on("data", chunk => {
   stdoutBuffer = Buffer.concat([stdoutBuffer, chunk]);
   while (true) {
-    const sep = stdoutBuffer.indexOf("\r\n\r\n");
-    if (sep === -1) break;
-    const header = stdoutBuffer.slice(0, sep).toString("utf8");
-    const match = header.match(/Content-Length:\s*(\d+)/i);
-    if (!match) {
-      // Remove header and continue
-      stdoutBuffer = stdoutBuffer.slice(sep + 4);
-      continue;
-    }
-    const length = parseInt(match[1], 10);
-    const total = sep + 4 + length;
-    if (stdoutBuffer.length < total) break; // wait for full message
-    const body = stdoutBuffer.slice(sep + 4, total).toString("utf8");
-    stdoutBuffer = stdoutBuffer.slice(total);
+    const newlineIndex = stdoutBuffer.indexOf("\n");
+    if (newlineIndex === -1) break;
+
+    const line = stdoutBuffer
+      .slice(0, newlineIndex)
+      .toString("utf8")
+      .replace(/\r$/, "");
+    stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+
+    if (line.trim() === "") continue; // Skip empty lines
 
     let parsed = null;
     try {
-      parsed = JSON.parse(body);
+      parsed = JSON.parse(line);
     } catch (e) {
       console.error("Failed to parse server message", e);
       continue;

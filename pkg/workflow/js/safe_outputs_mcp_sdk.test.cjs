@@ -189,10 +189,10 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       };
 
       const messageJson = JSON.stringify(initMessage);
-      const header = `Content-Length: ${Buffer.byteLength(messageJson)}\r\n\r\n`;
+      // No header needed for newline protocol
 
       console.log("Sending initialization message...");
-      serverProcess.stdin.write(header + messageJson);
+      serverProcess.stdin.write(messageJson + "\n");
 
       let responseData = "";
       serverProcess.stdout.on("data", data => {
@@ -202,19 +202,14 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       // Give time for response
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      if (responseData.includes("Content-Length:")) {
+      if (responseData.includes('"jsonrpc"')) {
         console.log("✅ Server responded to initialization");
 
-        // Extract response
-        const firstMatch = responseData.match(/Content-Length: (\d+)\r\n\r\n/);
-        if (firstMatch) {
-          const contentLength = parseInt(firstMatch[1]);
-          const startPos = responseData.indexOf("\r\n\r\n") + 4;
-          const jsonText = responseData.substring(
-            startPos,
-            startPos + contentLength
-          );
-          const response = JSON.parse(jsonText);
+        // Extract response - find first complete JSON line
+        const lines = responseData.split("\n");
+        const jsonLine = lines.find(line => line.trim().includes('"jsonrpc"'));
+        if (jsonLine) {
+          const response = JSON.parse(jsonLine.trim());
           expect(response.jsonrpc).toBe("2.0");
           expect(response.result).toBeDefined();
           expect(response.result.serverInfo).toBeDefined();

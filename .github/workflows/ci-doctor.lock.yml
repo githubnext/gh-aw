@@ -86,41 +86,58 @@ jobs:
             if (!outputFile)
               throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
-            const debug = (msg) => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function writeMessage(obj) {
               const json = JSON.stringify(obj);
-              const bytes = encoder.encode(json);
-              const header = `Content-Length: ${bytes.byteLength}\r\n\r\n`;
-              const headerBytes = encoder.encode(header);
-              fs.writeSync(1, headerBytes);
+              const message = json + "\n";
+              const bytes = encoder.encode(message);
               fs.writeSync(1, bytes);
             }
-            let buffer = Buffer.alloc(0);
-            function onData(chunk) {
-              buffer = Buffer.concat([buffer, chunk]);
-              while (true) {
-                debug(`on data buffer length: ${buffer.length} - ${buffer.toString("utf8")}`);
-                const sep = buffer.indexOf("\r\n\r\n");
-                if (sep === -1) break;
-                const headerPart = buffer.slice(0, sep).toString("utf8");
-                const match = headerPart.match(/Content-Length:\s*(\d+)/i);
-                if (!match) {
-                  buffer = buffer.slice(sep + 4);
-                  continue;
+            class ReadBuffer {
+              append(chunk) {
+                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
+              }
+              readMessage() {
+                if (!this._buffer) {
+                  return null;
                 }
-                const length = parseInt(match[1], 10);
-                const total = sep + 4 + length;
-                if (buffer.length < total) break; // wait for full body
-                const body = buffer.slice(sep + 4, total);
-                buffer = buffer.slice(total);
+                const index = this._buffer.indexOf("\n");
+                if (index === -1) {
+                  return null;
+                }
+                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
+                this._buffer = this._buffer.subarray(index + 1);
+                if (line.trim() === "") {
+                  return this.readMessage(); // Skip empty lines recursively
+                }
                 try {
-                  const msg = JSON.parse(body.toString("utf8"));
-                  handleMessage(msg);
-                } catch (e) {
+                  return JSON.parse(line);
+                } catch (error) {
+                  throw new Error(
+                    `Parse error: ${error instanceof Error ? error.message : String(error)}`
+                  );
+                }
+              }
+            }
+            const readBuffer = new ReadBuffer();
+            function onData(chunk) {
+              readBuffer.append(chunk);
+              processReadBuffer();
+            }
+            function processReadBuffer() {
+              while (true) {
+                try {
+                  const message = readBuffer.readMessage();
+                  if (message === null) {
+                    break;
+                  }
+                  debug(`received message: ${message.method || "notification"}`);
+                  handleMessage(message);
+                } catch (error) {
                   const err = {
                     jsonrpc: "2.0",
                     id: null,
-                    error: { code: -32700, message: "Parse error", data: String(e) },
+                    error: { code: -32700, message: "Parse error", data: String(error) },
                   };
                   writeMessage(err);
                 }
@@ -384,16 +401,10 @@ jobs:
                 .filter(({ name }) => isToolEnabled(name))
                 .map(tool => [tool.name, tool])
             );
-            debug(
-              `v${SERVER_INFO.version} ready on stdio`
-            );
+            debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);
-            debug(
-              `  config: ${JSON.stringify(safeOutputsConfig)}`
-            );
-            debug(
-              `  tools: ${Object.keys(TOOLS).join(", ")}`
-            );
+            debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
+            debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length)
               throw new Error("No tools enabled in configuration");
             function handleMessage(req) {
@@ -473,7 +484,7 @@ jobs:
               }
             }
             process.stdin.on("data", onData);
-            process.stdin.on("error", (err) => debug(`stdin error: ${err}`));
+            process.stdin.on("error", err => debug(`stdin error: ${err}`));
             process.stdin.resume();
             debug(`listening...`);
           EOF
