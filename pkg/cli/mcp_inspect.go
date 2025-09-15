@@ -193,7 +193,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 func NewMCPInspectCommand() *cobra.Command {
 	cmd := NewMCPInspectSubCommand()
 	cmd.Use = "mcp-inspect [workflow-file]"
-	
+
 	// Update examples to show legacy command syntax
 	cmd.Long = `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
 
@@ -216,7 +216,7 @@ The command will:
 - Display results in formatted tables with error details
 
 NOTE: This command is deprecated. Use 'gh aw mcp inspect' instead.`
-	
+
 	return cmd
 }
 
@@ -276,7 +276,7 @@ The command will:
 				return generateMCPConfig(workflowFile, verbose)
 			}
 
-			// Handle launch servers flag  
+			// Handle launch servers flag
 			if launchServers {
 				return launchMCPServers(workflowFile, serverFilter, verbose)
 			}
@@ -545,7 +545,7 @@ func generateMCPConfig(workflowFile string, verbose bool) error {
 
 	// Create Claude engine to generate MCP configuration
 	claudeEngine := workflow.NewClaudeEngine()
-	
+
 	// Extract tools from frontmatter
 	tools := make(map[string]any)
 	if toolsSection, hasTools := workflowData.Frontmatter["tools"]; hasTools {
@@ -562,7 +562,7 @@ func generateMCPConfig(workflowFile string, verbose bool) error {
 
 	// Build list of MCP servers to include in config
 	mcpTools := []string{}
-	
+
 	// Add existing MCP server configurations
 	for _, config := range mcpConfigs {
 		mcpTools = append(mcpTools, config.Name)
@@ -581,7 +581,7 @@ func generateMCPConfig(workflowFile string, verbose bool) error {
 			mcpTools = append(mcpTools, "github")
 		}
 	}
-	
+
 	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
 		found := false
 		for _, existing := range mcpTools {
@@ -594,7 +594,7 @@ func generateMCPConfig(workflowFile string, verbose bool) error {
 			mcpTools = append(mcpTools, "playwright")
 		}
 	}
-	
+
 	if _, hasSafeOutputs := workflowData.Frontmatter["safe-outputs"]; hasSafeOutputs {
 		found := false
 		for _, existing := range mcpTools {
@@ -622,7 +622,7 @@ func generateMCPConfig(workflowFile string, verbose bool) error {
 	// Generate the MCP configuration
 	var mcpConfigBuilder strings.Builder
 	claudeEngine.RenderMCPConfig(&mcpConfigBuilder, tools, mcpTools, workflowDataForMCP)
-	
+
 	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated MCP configuration for %d server(s)", len(mcpTools))))
 	fmt.Println(console.FormatInfoMessage("MCP Configuration:"))
 	fmt.Println()
@@ -791,10 +791,10 @@ func launchMCPServers(workflowFile string, serverFilter string, verbose bool) er
 	}()
 
 	fmt.Println(console.FormatInfoMessage("MCP servers are running. Press Ctrl+C to stop all servers."))
-	
+
 	// Wait for interrupt signal
 	fmt.Println(console.FormatInfoMessage("Use 'gh aw mcp inspect --inspector' to launch the MCP inspector tool"))
-	
+
 	// Keep the process alive until interrupted
 	select {}
 }
