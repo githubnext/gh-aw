@@ -99,8 +99,6 @@ gh aw compile --watch --verbose
 gh aw compile --purge --verbose
 ```
 
-### Orphaned File Cleanup
-
 When markdown workflow files (`.md`) are deleted, their corresponding compiled workflow files (`.lock.yml`) remain behind. The `--purge` flag automatically removes these orphaned files:
 
 ```bash
