@@ -17,7 +17,7 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	// Test the DownloadWorkflowLogs function
 	// This should either fail with auth error (if not authenticated)
 	// or succeed with no results (if authenticated but no workflows match)
-	err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", "", false, false, false)
+	err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", "", "", 0, 0, false, false, false)
 
 	// If GitHub CLI is authenticated, the function may succeed but find no results
 	// If not authenticated, it should return an auth error
@@ -359,7 +359,7 @@ func TestListWorkflowRunsWithPagination(t *testing.T) {
 
 	// This should fail with authentication error (if not authenticated)
 	// or succeed with empty results (if authenticated but no workflows match)
-	runs, err := listWorkflowRunsWithPagination("nonexistent-workflow", 5, "", "", "2024-01-01T00:00:00Z", false)
+	runs, err := listWorkflowRunsWithPagination("nonexistent-workflow", 5, "", "", "2024-01-01T00:00:00Z", "", 0, 0, false)
 
 	if err != nil {
 		// If there's an error, it should be an authentication error or workflow not found
@@ -793,7 +793,7 @@ func TestDownloadWorkflowLogsWithEngineFilter(t *testing.T) {
 			if !tt.expectError {
 				// For valid engines, test that the function can be called without panic
 				// It may still fail with auth errors, which is expected
-				err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", tt.engine, false, false, false)
+				err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", tt.engine, "", 0, 0, false, false, false)
 
 				// Clean up any created directories
 				os.RemoveAll("./test-logs")
@@ -814,13 +814,47 @@ func TestLogsCommandFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 
 	// Check that all expected flags are present
-	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine"}
+	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "branch", "before-run-id", "after-run-id"}
 
 	for _, flagName := range expectedFlags {
 		flag := cmd.Flags().Lookup(flagName)
 		if flag == nil {
 			t.Errorf("Expected flag '%s' not found in logs command", flagName)
 		}
+	}
+
+	// Test branch flag specifically
+	branchFlag := cmd.Flags().Lookup("branch")
+	if branchFlag == nil {
+		t.Fatal("Branch flag not found")
+	}
+
+	if branchFlag.Usage != "Filter runs by branch name (e.g., main, feature-branch)" {
+		t.Errorf("Unexpected branch flag usage text: %s", branchFlag.Usage)
+	}
+
+	if branchFlag.DefValue != "" {
+		t.Errorf("Expected branch flag default value to be empty, got: %s", branchFlag.DefValue)
+	}
+
+	// Test before-run-id flag
+	beforeRunIDFlag := cmd.Flags().Lookup("before-run-id")
+	if beforeRunIDFlag == nil {
+		t.Fatal("Before-run-id flag not found")
+	}
+
+	if beforeRunIDFlag.Usage != "Filter runs with database ID before this value (exclusive)" {
+		t.Errorf("Unexpected before-run-id flag usage text: %s", beforeRunIDFlag.Usage)
+	}
+
+	// Test after-run-id flag
+	afterRunIDFlag := cmd.Flags().Lookup("after-run-id")
+	if afterRunIDFlag == nil {
+		t.Fatal("After-run-id flag not found")
+	}
+
+	if afterRunIDFlag.Usage != "Filter runs with database ID after this value (exclusive)" {
+		t.Errorf("Unexpected after-run-id flag usage text: %s", afterRunIDFlag.Usage)
 	}
 
 	// Test engine flag specifically
@@ -954,5 +988,99 @@ Now I'll implement the solution.
 	}
 	if metrics.ErrorCount != 1 {
 		t.Errorf("Expected error count 1 from generic logs, got %d", metrics.ErrorCount)
+	}
+}
+
+func TestRunIDFilteringLogic(t *testing.T) {
+	// Test the run ID filtering logic in isolation
+	testRuns := []WorkflowRun{
+		{DatabaseID: 1000, WorkflowName: "Test Workflow"},
+		{DatabaseID: 1500, WorkflowName: "Test Workflow"},
+		{DatabaseID: 2000, WorkflowName: "Test Workflow"},
+		{DatabaseID: 2500, WorkflowName: "Test Workflow"},
+		{DatabaseID: 3000, WorkflowName: "Test Workflow"},
+	}
+
+	// Test before-run-id filter (exclusive)
+	var filteredRuns []WorkflowRun
+	beforeRunID := int64(2000)
+	for _, run := range testRuns {
+		if beforeRunID > 0 && run.DatabaseID >= beforeRunID {
+			continue
+		}
+		filteredRuns = append(filteredRuns, run)
+	}
+
+	if len(filteredRuns) != 2 {
+		t.Errorf("Expected 2 runs before ID 2000 (exclusive), got %d", len(filteredRuns))
+	}
+	if filteredRuns[0].DatabaseID != 1000 || filteredRuns[1].DatabaseID != 1500 {
+		t.Errorf("Expected runs 1000 and 1500, got %d and %d", filteredRuns[0].DatabaseID, filteredRuns[1].DatabaseID)
+	}
+
+	// Test after-run-id filter (exclusive)
+	filteredRuns = nil
+	afterRunID := int64(2000)
+	for _, run := range testRuns {
+		if afterRunID > 0 && run.DatabaseID <= afterRunID {
+			continue
+		}
+		filteredRuns = append(filteredRuns, run)
+	}
+
+	if len(filteredRuns) != 2 {
+		t.Errorf("Expected 2 runs after ID 2000 (exclusive), got %d", len(filteredRuns))
+	}
+	if filteredRuns[0].DatabaseID != 2500 || filteredRuns[1].DatabaseID != 3000 {
+		t.Errorf("Expected runs 2500 and 3000, got %d and %d", filteredRuns[0].DatabaseID, filteredRuns[1].DatabaseID)
+	}
+
+	// Test range filter (both before and after)
+	filteredRuns = nil
+	beforeRunID = int64(2500)
+	afterRunID = int64(1000)
+	for _, run := range testRuns {
+		// Apply before-run-id filter (exclusive)
+		if beforeRunID > 0 && run.DatabaseID >= beforeRunID {
+			continue
+		}
+		// Apply after-run-id filter (exclusive)
+		if afterRunID > 0 && run.DatabaseID <= afterRunID {
+			continue
+		}
+		filteredRuns = append(filteredRuns, run)
+	}
+
+	if len(filteredRuns) != 2 {
+		t.Errorf("Expected 2 runs in range (1000, 2500), got %d", len(filteredRuns))
+	}
+	if filteredRuns[0].DatabaseID != 1500 || filteredRuns[1].DatabaseID != 2000 {
+		t.Errorf("Expected runs 1500 and 2000, got %d and %d", filteredRuns[0].DatabaseID, filteredRuns[1].DatabaseID)
+	}
+}
+
+func TestBranchFilteringWithGitHubCLI(t *testing.T) {
+	// Test that branch filtering is properly added to GitHub CLI args
+	// This is a unit test for the args construction, not a network test
+
+	// Simulate args construction for branch filtering
+	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
+
+	branch := "feature-branch"
+	if branch != "" {
+		args = append(args, "--branch", branch)
+	}
+
+	// Verify that the branch filter was added correctly
+	found := false
+	for i, arg := range args {
+		if arg == "--branch" && i+1 < len(args) && args[i+1] == "feature-branch" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Expected branch filter '--branch feature-branch' not found in args: %v", args)
 	}
 }

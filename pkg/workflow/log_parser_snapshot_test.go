@@ -110,7 +110,12 @@ const core = {
 	},
 	setFailed: function(message) {
 		console.error('FAILED:', message);
-		process.exit(1);
+		// Don't exit in test - just mark the failure
+		this._failed = true;
+		this._failureMessage = message;
+	},
+	info: function(message) {
+		// Mock info function for testing
 	}
 };
 

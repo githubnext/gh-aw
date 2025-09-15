@@ -47,8 +47,8 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 
 	t.Run("Should include custom env vars in create-issue job", func(t *testing.T) {
 		data := &WorkflowData{
-			Name:             "Test",
-			FrontmatterName:  "Test Workflow",
+			Name:            "Test",
+			FrontmatterName: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{Max: 1},
 				Env: map[string]string{
@@ -65,11 +65,11 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 
 		// Check that the steps include our custom environment variables
 		stepsStr := strings.Join(job.Steps, "")
-		
+
 		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
 			t.Error("Expected GITHUB_TOKEN to be included in job steps")
 		}
-		
+
 		if !strings.Contains(stepsStr, "DEBUG_MODE: true") {
 			t.Error("Expected DEBUG_MODE to be included in job steps")
 		}
@@ -77,8 +77,8 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 
 	t.Run("Should include custom env vars in create-pull-request job", func(t *testing.T) {
 		data := &WorkflowData{
-			Name:             "Test",
-			FrontmatterName:  "Test Workflow",
+			Name:            "Test",
+			FrontmatterName: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{Max: 1},
 				Env: map[string]string{
@@ -95,11 +95,11 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 
 		// Check that the steps include our custom environment variables
 		stepsStr := strings.Join(job.Steps, "")
-		
+
 		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.DSYME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
 			t.Error("Expected GITHUB_TOKEN to be included in job steps")
 		}
-		
+
 		if !strings.Contains(stepsStr, "API_ENDPOINT: https://api.example.com") {
 			t.Error("Expected API_ENDPOINT to be included in job steps")
 		}
@@ -125,9 +125,9 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 
 		// Job creation should still work
 		data := &WorkflowData{
-			Name:             "Test",
-			FrontmatterName:  "Test Workflow",
-			SafeOutputs: config,
+			Name:            "Test",
+			FrontmatterName: "Test Workflow",
+			SafeOutputs:     config,
 		}
 
 		_, err := compiler.buildCreateOutputIssueJob(data, "main_job", false, nil)
@@ -166,9 +166,9 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 				"create-issue": nil,
 				"env": map[string]any{
 					"STRING_VALUE": "valid",
-					"INT_VALUE":    123,      // should be ignored
-					"BOOL_VALUE":   true,     // should be ignored
-					"NULL_VALUE":   nil,      // should be ignored
+					"INT_VALUE":    123,  // should be ignored
+					"BOOL_VALUE":   true, // should be ignored
+					"NULL_VALUE":   nil,  // should be ignored
 				},
 			},
 		}

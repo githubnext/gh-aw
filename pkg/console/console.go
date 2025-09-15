@@ -316,6 +316,7 @@ func RenderTable(config TableConfig) string {
 		output.WriteString(renderTableRow(config.TotalRow, colWidths, totalStyle))
 		output.WriteString("\n")
 	}
+	output.WriteString("\n")
 
 	return output.String()
 }
