@@ -135,5 +135,4 @@ tools:
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options
 - [Tools Configuration](../reference/tools/) - GitHub and other tools setup
-- [MCPs](../reference/mcps/) - Model Context Protocol setup and configuration
-- [Secrets Management](../guides/secrets/) - Managing secrets and environment variables
+- [MCPs](../guides/mcps/) - Model Context Protocol setup and configuration

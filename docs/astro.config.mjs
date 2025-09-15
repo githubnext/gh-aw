@@ -41,20 +41,20 @@ export default defineConfig({
 					autogenerate: { directory: 'start-here' },
 				},
 				{
-					label: 'Guides',
-					autogenerate: { directory: 'guides' },
+					label: 'Workflows',
+					autogenerate: { directory: 'reference' },
 				},
 				{
 					label: 'Tools',
 					autogenerate: { directory: 'tools' },
 				},
 				{
-					label: 'Sample Workflows',
-					autogenerate: { directory: 'samples' },
+					label: 'Guides',
+					autogenerate: { directory: 'guides' },
 				},
 				{
-					label: 'Reference',
-					autogenerate: { directory: 'reference' },
+					label: 'Application Areas',
+					autogenerate: { directory: 'samples' },
 				},
 			],
 		}),
