@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/mentions` in issues and comments.
+GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
 
 ```yaml
 on:

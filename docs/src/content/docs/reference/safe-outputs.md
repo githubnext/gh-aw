@@ -574,5 +574,5 @@ This is useful when:
 
 - [Frontmatter Options](../reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
-- [Command Triggers](../reference/command-triggers/) - Special /mention triggers and context text
+- [Command Triggers](../reference/command-triggers/) - Special /my-bot triggers and context text
 - [CLI Commands](../tools/cli/) - CLI commands for workflow management
