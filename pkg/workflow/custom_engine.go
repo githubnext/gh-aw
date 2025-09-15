@@ -348,7 +348,7 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	return metrics
 }
 
-// GetLogParserScript returns the JavaScript script name for parsing custom engine logs
-func (e *CustomEngine) GetLogParserScript() string {
+// GetLogParserScriptId returns the JavaScript script name for parsing custom engine logs
+func (e *CustomEngine) GetLogParserScriptId() string {
 	return "parse_custom_log"
 }

@@ -51,8 +51,8 @@ type CodingAgentEngine interface {
 	// ParseLogMetrics extracts metrics from engine-specific log content
 	ParseLogMetrics(logContent string, verbose bool) LogMetrics
 
-	// GetLogParserScript returns the name of the JavaScript script to parse logs for this engine
-	GetLogParserScript() string
+	// GetLogParserScriptId returns the name of the JavaScript script to parse logs for this engine
+	GetLogParserScriptId() string
 
 	// GetErrorPatterns returns regex patterns for extracting error messages from logs
 	GetErrorPatterns() []ErrorPattern

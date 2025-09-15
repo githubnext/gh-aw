@@ -726,8 +726,7 @@ jobs:
           Before returning the poem:
           - store generated poem in memory
           
-          <!-- This workflow tests the integration with the Claude AI engine. 
-            Meant as a scratchpad in pull requests. -->
+          
           
           
           ---
