@@ -166,51 +166,6 @@ When `retention-days` is configured, memory data is also uploaded as artifacts:
 - **Manual Cleanup**: Repository administrators can clear caches manually
 - **Version Management**: Different cache keys allow for memory versioning
 
-## Generated Workflow Steps
-
-When cache-memory is enabled, these steps are automatically added to your workflow:
-
-### Basic Configuration (Cache Only)
-
-```yaml
-# Cache memory MCP configuration from frontmatter processed below
-- name: Create cache-memory directory
-  run: mkdir -p /tmp/cache-memory
-
-- name: Cache memory MCP data
-  uses: actions/cache@v4
-  with:
-    key: memory-${{ github.workflow }}-${{ github.run_id }}
-    path: /tmp/cache-memory
-    restore-keys: |
-      memory-${{ github.workflow }}-
-      memory-
-```
-
-### With Artifact Upload (retention-days configured)
-
-```yaml
-# Cache memory MCP configuration from frontmatter processed below
-- name: Create cache-memory directory
-  run: mkdir -p /tmp/cache-memory
-
-- name: Cache memory MCP data
-  uses: actions/cache@v4
-  with:
-    key: memory-${{ github.workflow }}-${{ github.run_id }}
-    path: /tmp/cache-memory
-    restore-keys: |
-      memory-${{ github.workflow }}-
-      memory-
-
-- name: Upload memory MCP data as artifact
-  uses: actions/upload-artifact@v4
-  with:
-    name: cache-memory-data
-    path: /tmp/cache-memory
-    retention-days: 30
-```
-
 ## MCP Server Configuration
 
 The memory server is configured using npx following official MCP documentation:
@@ -226,19 +181,6 @@ The memory server is configured using npx following official MCP documentation:
   }
 }
 ```
-
-### Benefits of npx Setup
-
-#### Simplified Installation
-- **No Docker Required**: Runs directly using npx package manager
-- **Automatic Updates**: Gets latest package versions automatically
-- **Faster Startup**: No container overhead or image pulling
-- **Universal Compatibility**: Works on any runner with Node.js/npm
-
-#### Package Management
-- **Official Package**: Uses `@modelcontextprotocol/server-memory` from npm
-- **Version Control**: Inherits npm's version resolution and dependency management
-- **Security**: Leverages npm's security scanning and vulnerability detection
 
 ## Memory Operations
 

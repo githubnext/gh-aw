@@ -1,6 +1,8 @@
 ---
 title: Include Directives
 description: Learn how to modularize and reuse workflow components across multiple workflows using include directives for better organization and maintainability.
+sidebar:
+  order: 3
 ---
 
 Include directives allow you to modularize and reuse workflow components across multiple workflows.
