@@ -28,6 +28,8 @@ jobs:
 
       - name: Install development dependencies
         run: make deps-dev
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Build gh-aw binary
         run: make build
