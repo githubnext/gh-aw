@@ -610,8 +610,8 @@ jobs:
                 "command": "node",
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"],
                 "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${GITHUB_AW_SAFE_OUTPUTS}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
+                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ JSON.stringify(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}"
                 }
               }
             }
