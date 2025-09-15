@@ -5,8 +5,6 @@ on:
   release:
     types: [created]
   push:
-    branches:
-      - main
     paths:
       - 'docs/**'
 
@@ -50,6 +48,8 @@ jobs:
           path: ./docs/dist
 
   deploy:
+    # make this conditional on the branch being main
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
