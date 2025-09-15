@@ -1107,7 +1107,7 @@ func (e *ClaudeEngine) distributeTotalDurationToToolCalls(toolCallMap map[string
 	}
 }
 
-// GetLogParserScript returns the JavaScript script name for parsing Claude logs
-func (e *ClaudeEngine) GetLogParserScript() string {
+// GetLogParserScriptId returns the JavaScript script name for parsing Claude logs
+func (e *ClaudeEngine) GetLogParserScriptId() string {
 	return "parse_claude_log"
 }

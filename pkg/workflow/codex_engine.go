@@ -489,8 +489,8 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 	return nil
 }
 
-// GetLogParserScript returns the JavaScript script name for parsing Codex logs
-func (e *CodexEngine) GetLogParserScript() string {
+// GetLogParserScriptId returns the JavaScript script name for parsing Codex logs
+func (e *CodexEngine) GetLogParserScriptId() string {
 	return "parse_codex_log"
 }
 
