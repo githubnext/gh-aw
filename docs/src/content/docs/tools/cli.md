@@ -1,9 +1,7 @@
 ---
-title: Workflow Management Commands
+title: CLI Commands
 description: Complete guide to all available CLI commands for managing agentic workflows with the GitHub CLI extension, including installation, compilation, and execution.
 ---
-
-# 🛠️ Workflow Management Commands
 
 This guide covers all available commands for managing agentic workflows with the GitHub CLI extension.
 
@@ -241,7 +239,7 @@ gh aw logs --format json -o ./exports/
 
 The `mcp-inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
 
-> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](mcps.md).
+> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](../guides/mcps/).
 
 ```bash
 # List all workflows that contain MCP server configurations
@@ -271,10 +269,10 @@ gh aw mcp-inspect workflow-name --inspector
 - Multi-protocol support (stdio, Docker, HTTP)
 - Web inspector integration
 
-For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](mcps.md#debugging-and-troubleshooting).
+For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](../guides/mcps/#debugging-and-troubleshooting).
 
 ## 👀 Watch Mode for Development
-The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in Visual Studio Code](./vscode.md).
+The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in VS Code](../tools/vscode/).
 
 ```bash
 # Watch all workflow files in .github/workflows/ for changes
@@ -345,9 +343,8 @@ gh aw uninstall org/repo --local
 
 ## Related Documentation
 
-- [Workflow Structure](workflow-structure.md) - Directory layout and file organization
-- [Frontmatter Options](frontmatter.md) - Configuration options for workflows
-- [Safe Outputs](safe-outputs.md) - Secure output processing including issue updates
-- [Tools Configuration](tools.md) - GitHub and MCP server configuration
-- [Include Directives](include-directives.md) - Modularizing workflows with includes
-- [Secrets Management](secrets.md) - Managing secrets and environment variables
+- [Workflow Structure](../reference/workflow-structure/) - Directory layout and file organization
+- [Frontmatter Options](../reference/frontmatter/) - Configuration options for workflows
+- [Safe Outputs](../reference/safe-outputs/) - Secure output processing including issue updates
+- [Tools Configuration](../reference/tools/) - GitHub and MCP server configuration
+- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes

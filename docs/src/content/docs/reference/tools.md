@@ -5,7 +5,7 @@ description: Configure GitHub API tools and AI capabilities available to your ag
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools and Claude-specific tools.
 
-> **📘 Looking for MCP servers?** See the complete [MCPs](mcps.md) for Model Context Protocol configuration, debugging, and examples.
+> **📘 Looking for MCP servers?** See the complete [MCPs](../guides/mcps/) for Model Context Protocol configuration, debugging, and examples.
 
 ## Overview
 
@@ -129,9 +129,8 @@ tools:
 
 ## Related Documentation
 
-- [Commands](commands.md) - CLI commands for workflow management
-- [MCPs](mcps.md) - Complete Model Context Protocol setup and usage
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Frontmatter Options](frontmatter.md) - All configuration options
-- [Include Directives](include-directives.md) - Modularizing workflows with includes
-- [Secrets Management](secrets.md) - Managing secrets and environment variables
+- [Commands](../tools/cli/) - CLI commands for workflow management
+- [MCPs](../guides/mcps/) - Complete Model Context Protocol setup and usage
+- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
+- [Frontmatter Options](../reference/frontmatter/) - All configuration options
+- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes

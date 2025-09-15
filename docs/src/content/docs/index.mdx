@@ -1,14 +1,14 @@
 ---
 title: GitHub Agentic Workflows
-description: Write agentic workflows in natural language markdown and run them safely in GitHub Actions. AI-powered automation for your repositories.
+description: AI-powered repository automation, run safely in GitHub Actions
 template: splash
 hero:
-  tagline: Write agentic workflows in natural language markdown, and run them safely in GitHub Actions
+  tagline: AI-powered repository automation, run safely in GitHub Actions
   image:
     file: ../../assets/houston.webp
   actions:
     - text: Quick Start Guide
-      link: ./reference/quick-start/
+      link: ./start-here/quick-start/
       icon: right-arrow
     - text: View on GitHub
       link: https://github.com/githubnext/gh-aw
@@ -20,26 +20,26 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## ✨ AI-Powered Repository Automation
 
-GitHub Agentic Workflows combines the power of AI agents with GitHub's collaboration platform to enable **Continuous AI** — the systematic, automated application of AI to software collaboration.
+GitHub Agentic Workflows combines the power of AI agents with GitHub's collaboration platform to enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — the systematic, automated application of AI to software collaboration.
 
-Transform natural language descriptions into intelligent GitHub Actions that can understand context, make decisions, and take meaningful actions across your repositories.
+Run natural language workflows that can understand context, make decisions, and take meaningful actions across your repositories.
 
 <CardGrid stagger>
 	<Card title="🚀 Quick Start" icon="rocket">
 		Get your first agentic workflow running in minutes. Learn how to install the extension and set up AI-powered automation.
-		[Get Started →](./reference/quick-start/)
+		[Get Started →](./start-here/quick-start/)
 	</Card>
 	<Card title="📖 Learn Concepts" icon="open-book">
 		Understand how agentic workflows work and explore the capabilities of AI-driven repository automation.
-		[Learn More →](./reference/concepts/)
+		[Learn More →](./start-here/concepts/)
 	</Card>
 	<Card title="🔧 Browse Commands" icon="setting">
 		Explore all available CLI commands for managing agentic workflows with the GitHub CLI extension.
-		[View Commands →](./reference/commands/)
+		[View Commands →](./tools/cli/)
 	</Card>
 	<Card title="🔒 Security Guide" icon="lock">
 		Learn about security considerations, permissions, and best practices for safe agentic automation.
-		[Security Notes →](./reference/security-notes/)
+		[Security Guide →](./guides/security/)
 	</Card>
 </CardGrid>
 
@@ -51,22 +51,34 @@ Transform natural language descriptions into intelligent GitHub Actions that can
 - **Security First**: Sandboxed execution with minimal permissions and safe output processing
 - **Multiple AI Engines**: Support for Claude, Codex, and custom AI processors
 
-## 🎯 Common Use Cases
+## 🎯 Sample Workflows
+
+Explore our comprehensive collection of agentic workflows organized into 4 main categories. Each category addresses different aspects of software development and team coordination through intelligent automation.
 
 <CardGrid>
-	<Card title="🏷️ Intelligent Triage" icon="tag">
-		Automatically analyze and triage issues and pull requests with AI-powered insights.
+	<Card title="📋 Research, Status & Planning" icon="information">
+		Automated workflows for research, team coordination, and project planning. Strategic awareness and team coordination through automated intelligence gathering and progress tracking.
+		[Explore Research & Planning Workflows →](./samples/research-planning/)
 	</Card>
-	<Card title="📚 Documentation Automation" icon="document">
-		Keep documentation current with AI that understands your codebase and updates.
+	<Card title="� Triage & Analysis" icon="magnifier">
+		Intelligent automation for issue management, accessibility reviews, and CI failure investigation. Deep analytical capabilities with pattern recognition and systematic analysis.
+		[Explore Triage & Analysis Workflows →](./samples/triage-analysis/)
 	</Card>
-	<Card title="🔍 Code Quality" icon="magnifier">
-		Automated code review, dependency updates, and continuous quality improvements.
+	<Card title="� Coding & Development" icon="setting">
+		Automated workflows for dependency management, documentation updates, and pull request assistance. Streamline development tasks while improving code quality.
+		[Explore Coding & Development Workflows →](./samples/coding-development/)
 	</Card>
-	<Card title="📊 Research & Planning" icon="information">
-		Weekly research reports, team status updates, and planning automation.
+	<Card title="🧪 Quality & Testing" icon="star">
+		Automated workflows for test coverage improvement and performance optimization. Systematic quality improvements and technical debt reduction.
+		[Explore Quality & Testing Workflows →](./samples/quality-testing/)
 	</Card>
 </CardGrid>
+
+### About Sample Workflows
+
+All sample workflows are part of the [Agentics collection](https://github.com/githubnext/agentics) - a comprehensive set of demonstrator agentic workflows that showcase the capabilities of GitHub Agentic Workflows for various automation scenarios.
+
+> **⚠️ Research Demonstrator**: These are demonstrator workflows for experimental use. Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
 ## ⚠️ Research Project Notice
 

@@ -1,10 +1,10 @@
 ---
-title: Security Notes
+title: Security Guide
 description: Important security considerations for GitHub Agentic Workflows, including sandboxing, permissions, and best practices for safe agentic automation.
 ---
 
-> [!CAUTION]
-> GitHub Agentic Workflows is a research demonstrator, and Agentic Workflows are not for production use.
+> [!WARNING]
+> GitHub Agentic Workflows is a research demonstrator, and not for production use.
 
 Security is foundational -- Agentic Workflows inherits GitHub Actions' sandboxing model, scoped permissions, and auditable execution. The attack surface of agentic automation can be subtle (prompt injection, tool invocation side‑effects, data exfiltration), so we bias toward explicit constraints over implicit trust: least‑privilege tokens, allow‑listed tools, and execution paths that always leave human‑visible artifacts (comments, PRs, logs) instead of silent mutation.
 
@@ -288,7 +288,7 @@ Engine network permissions provide fine-grained control over network access for 
    network: {}  # Deny all network access
    ```
 
-## Engine Security Notes
+## Engine Security Guide
 
 Different agentic engines have distinct defaults and operational surfaces.
 
@@ -304,10 +304,9 @@ Claude exposes richer default tools and optional Bash; codex relies more on CLI 
 
 ## See also
 
-- [Tools Configuration](tools.md)
-- [MCPs](mcps.md)
-- [Secrets Management](secrets.md)
-- [Workflow Structure](workflow-structure.md)
+- [Tools Configuration](../reference/tools/)
+- [MCPs](../guides/mcps/)
+- [Workflow Structure](../reference/workflow-structure/)
 
 ## References
 

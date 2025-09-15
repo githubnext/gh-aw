@@ -131,9 +131,8 @@ tools:
 
 ## Related Documentation
 
-- [Commands](commands.md) - CLI commands for workflow management
-- [Workflow Structure](workflow-structure.md) - Directory layout and organization
-- [Frontmatter Options](frontmatter.md) - All configuration options
-- [Tools Configuration](tools.md) - GitHub and other tools setup
-- [MCPs](mcps.md) - Model Context Protocol setup and configuration
-- [Secrets Management](secrets.md) - Managing secrets and environment variables
+- [Commands](../tools/cli/) - CLI commands for workflow management
+- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
+- [Frontmatter Options](../reference/frontmatter/) - All configuration options
+- [Tools Configuration](../reference/tools/) - GitHub and other tools setup
+- [MCPs](../guides/mcps/) - Model Context Protocol setup and configuration

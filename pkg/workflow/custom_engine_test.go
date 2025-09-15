@@ -337,7 +337,7 @@ ERROR: Another error`
 func TestCustomEngineGetLogParserScript(t *testing.T) {
 	engine := NewCustomEngine()
 
-	script := engine.GetLogParserScript()
+	script := engine.GetLogParserScriptId()
 	if script != "parse_custom_log" {
 		t.Errorf("Expected log parser script 'parse_custom_log', got '%s'", script)
 	}

@@ -66,7 +66,7 @@ your-repository/
 
 Each workflow consists of:
 
-1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](frontmatter.md) for details.
+1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](../reference/frontmatter/) for details.
 2. **Markdown Content**: Natural language instructions for the AI
 
 ### Example Workflow File
@@ -119,7 +119,7 @@ When you run `gh aw compile`, the system:
 - **Automatic Generation**: Never edit `.lock.yml` files manually
 - **Complete Workflows**: Contains full GitHub Actions YAML
 - **Security**: Includes proper permissions and secret handling
-- **MCP Integration**: Sets up Model Context Protocol servers (see [MCP Guide](mcps.md))
+- **MCP Integration**: Sets up Model Context Protocol servers (see [MCP Guide](../guides/mcps/))
 - **Artifact Collection**: Automatically saves logs and outputs
 
 ## Expressions in Markdown Content
@@ -231,9 +231,8 @@ Complex: ${{ toJson(github.workflow) }}
 
 ## Related Documentation
 
-- [Commands](commands.md) - CLI commands for workflow management
-- [Frontmatter Options](frontmatter.md) - Configuration options for workflows
-- [MCPs](mcps.md) - Model Context Protocol configuration
-- [Tools Configuration](tools.md) - GitHub and other tools setup
-- [Include Directives](include-directives.md) - Modularizing workflows with includes
-- [Secrets Management](secrets.md) - Managing secrets and environment variables
+- [Commands](../tools/cli/) - CLI commands for workflow management
+- [Frontmatter Options](../reference/frontmatter/) - Configuration options for workflows
+- [MCPs](../guides/mcps/) - Model Context Protocol configuration
+- [Tools Configuration](../reference/tools/) - GitHub and other tools setup
+- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
