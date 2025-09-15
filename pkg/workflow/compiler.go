@@ -3746,6 +3746,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.PushToPullRequestBranch = pushToBranchConfig
 			}
 
+			// Handle push-to-orphaned-branch
+			pushToOrphanedBranchConfig := c.parsePushToOrphanedBranchConfig(outputMap)
+			if pushToOrphanedBranchConfig != nil {
+				config.PushToOrphanedBranch = pushToOrphanedBranchConfig
+			}
+
 			// Handle missing-tool (parse configuration if present)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {
@@ -4175,6 +4181,52 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 		}
 
 		return pushToBranchConfig
+	}
+
+	return nil
+}
+
+// parsePushToOrphanedBranchConfig handles push-to-orphaned-branch configuration
+func (c *Compiler) parsePushToOrphanedBranchConfig(outputMap map[string]any) *PushToOrphanedBranchConfig {
+	if configData, exists := outputMap["push-to-orphaned-branch"]; exists {
+		pushToOrphanedBranchConfig := &PushToOrphanedBranchConfig{
+			Max: 1, // Default: 1 file upload
+		}
+
+		// Handle the case where configData is nil (push-to-orphaned-branch: with no value)
+		if configData == nil {
+			return pushToOrphanedBranchConfig
+		}
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max (optional, defaults to 1)
+			if maxCount, exists := configMap["max"]; exists {
+				// Handle different numeric types that YAML parsers might return
+				var maxCountInt int
+				var validMaxCount bool
+				switch v := maxCount.(type) {
+				case int:
+					maxCountInt = v
+					validMaxCount = true
+				case int64:
+					maxCountInt = int(v)
+					validMaxCount = true
+				case uint64:
+					maxCountInt = int(v)
+					validMaxCount = true
+				case float64:
+					maxCountInt = int(v)
+					validMaxCount = true
+				}
+				if validMaxCount && maxCountInt > 0 {
+					pushToOrphanedBranchConfig.Max = maxCountInt
+				} else if c.verbose {
+					fmt.Printf("Warning: invalid max value for push-to-orphaned-branch, using default 1\n")
+				}
+			}
+		}
+
+		return pushToOrphanedBranchConfig
 	}
 
 	return nil

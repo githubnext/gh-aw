@@ -326,14 +326,16 @@ const TOOLS = Object.fromEntries(
     },
     {
       name: "push-to-orphaned-branch",
-      description: "Upload a file to an orphaned branch and get a GitHub raw URL",
+      description:
+        "Upload a file to an orphaned branch and get a GitHub raw URL",
       inputSchema: {
         type: "object",
         required: ["filename"],
         properties: {
           filename: {
-            type: "string", 
-            description: "Name of the file to upload. Screenshots and images can be uploaded using this safe output."
+            type: "string",
+            description:
+              "Name of the file to upload. Screenshots and images can be uploaded using this safe output.",
           },
         },
         additionalProperties: false,
@@ -341,33 +343,33 @@ const TOOLS = Object.fromEntries(
       handler: args => {
         const fs = require("fs");
         const path = require("path");
-        
+
         const { filename } = args;
         if (!filename) {
           throw new Error("filename is required");
         }
-        
+
         // Check if file exists
         if (!fs.existsSync(filename)) {
           throw new Error(`File not found: ${filename}`);
         }
-        
+
         // Read file and encode as base64
         const fileContent = fs.readFileSync(filename);
-        const base64Content = fileContent.toString('base64');
-        
+        const base64Content = fileContent.toString("base64");
+
         // Create the output entry with base64 content
         const entry = {
           type: "push-to-orphaned-branch",
           filename: path.basename(filename),
-          content: base64Content
+          content: base64Content,
         };
-        
+
         appendSafeOutput(entry);
-        
+
         // Return a mock URL for now - the actual URL will be generated during the GitHub Actions job
         const mockUrl = `https://raw.githubusercontent.com/org/repo/orphaned-branch/sha/${path.basename(filename)}`;
-        
+
         return {
           content: [
             {
