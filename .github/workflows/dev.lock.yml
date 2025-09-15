@@ -676,14 +676,6 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
-              "safe_outputs": {
-                "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
-                "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${GITHUB_AW_SAFE_OUTPUTS}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
-                }
-              },
               "memory": {
                 "command": "npx",
                 "args": [
@@ -715,6 +707,14 @@ jobs:
                   "github.com,*.github.com"
                 ]
               },
+              "safe_outputs": {
+                "command": "node",
+                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "env": {
+                  "GITHUB_AW_SAFE_OUTPUTS": "${GITHUB_AW_SAFE_OUTPUTS}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
+                }
+              }
             }
           }
           EOF
