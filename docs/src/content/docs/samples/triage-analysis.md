@@ -7,16 +7,7 @@ sidebar:
 
 Triage and analysis workflows provide intelligent automation for managing issues, investigating problems, and ensuring quality standards through deep analytical capabilities.
 
-## Why This Matters
-
-- **Efficient Issue Management**: Automated triage reduces manual overhead and ensures consistent issue handling
-- **Proactive Problem Solving**: CI failure investigation prevents recurring issues and improves system reliability
-- **Accessibility Compliance**: Automated accessibility reviews ensure inclusive user experiences
-- **Knowledge Building**: Pattern recognition and investigation storage create institutional knowledge
-
-## Sample Workflows
-
-You can write your own triage and analysis workflows designed for your specific project requirements. Here are some sample workflows from the Agentics collection to get you started:
+You can write your own workflows designed for your specific project requirements. Here are some sample workflows from the Agentics collection to get you started:
 
 ### 🏷️ Issue Triage
 Automatically triage issues and pull requests with intelligent labeling and analysis.

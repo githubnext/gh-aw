@@ -7,16 +7,7 @@ sidebar:
 
 Quality and testing workflows focus on improving code quality through automated test coverage analysis, performance optimization, and systematic quality improvements.
 
-## Why This Matters
-
-- **Improved Code Coverage**: Systematic identification and testing of under-tested code areas
-- **Performance Optimization**: Automated performance analysis and optimization recommendations
-- **Quality Assurance**: Continuous quality improvements without manual overhead
-- **Technical Debt Reduction**: Proactive identification and resolution of quality issues
-
-## Sample Workflows
-
-You can write your own quality and testing workflows tailored to your specific needs. Here are some sample workflows from the Agentics collection to get you started:
+You can write your own workflows tailored to your specific needs. Here are some sample workflows from the Agentics collection to get you started:
 
 ### 🧪 Daily Test Coverage Improver
 Improve test coverage by adding meaningful tests to under-tested areas.

@@ -100,7 +100,7 @@ Workflows can use various tools through the Model Context Protocol (MCP):
 - **File operations** — Read, write, and analyze repository files
 - **Custom MCPs** — Build your own tool integrations
 
-Learn more in [Tools Configuration](../reference/tools/) and [MCPs](../reference/mcps/).
+Learn more in [Tools Configuration](../reference/tools/) and [MCPs](../guides/mcps/).
 
 ## Building Effective Workflows
 
@@ -128,6 +128,6 @@ Ready to build more sophisticated workflows? Explore:
 - **[Frontmatter Options](../reference/frontmatter/)** — Complete configuration reference
 - **[Tools Configuration](../reference/tools/)** — Available tools and permissions
 - **[Security Notes](../guides/security/)** — Important security considerations
-- **[VS Code Integration](../tools/vscode/)** — Enhanced authoring experience
+- **[Visual Studio Code Integration](../tools/vscode/)** — Enhanced authoring experience
 
 The power of agentic workflows lies in their ability to understand context, make intelligent decisions, and take meaningful actions — all while maintaining the reliability you expect from GitHub Actions.

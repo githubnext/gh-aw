@@ -7,16 +7,7 @@ sidebar:
 
 Coding and development workflows streamline common development tasks through intelligent automation, reducing manual overhead and improving code quality.
 
-## Why This Matters
-
-- **Reduced Maintenance Overhead**: Automated dependency updates and documentation maintenance
-- **Faster Problem Resolution**: PR Fix workflow helps resolve issues quickly and get code merged
-- **Improved Code Quality**: Automated QA checks catch issues before they impact users
-- **Documentation Currency**: Keep documentation in sync with code changes automatically
-
-## Sample Workflows
-
-You can write your own coding and development workflows tailored to your specific technology stack and development practices. Here are some sample workflows from the Agentics collection to get you started:
+You can write your own workflows tailored to your specific technology stack and development practices. Here are some sample workflows from the Agentics collection to get you started:
 
 ### 📦 Daily Dependency Updater
 Update dependencies and create pull requests automatically.

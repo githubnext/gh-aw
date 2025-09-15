@@ -1,5 +1,5 @@
 ---
-title: Workflow Management Commands
+title: CLI Commands
 description: Complete guide to all available CLI commands for managing agentic workflows with the GitHub CLI extension, including installation, compilation, and execution.
 ---
 
@@ -239,7 +239,7 @@ gh aw logs --format json -o ./exports/
 
 The `mcp-inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
 
-> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](../reference/mcps/).
+> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](../guides/mcps/).
 
 ```bash
 # List all workflows that contain MCP server configurations
@@ -269,7 +269,7 @@ gh aw mcp-inspect workflow-name --inspector
 - Multi-protocol support (stdio, Docker, HTTP)
 - Web inspector integration
 
-For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](../reference/mcps/#debugging-and-troubleshooting).
+For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](../guides/mcps/#debugging-and-troubleshooting).
 
 ## 👀 Watch Mode for Development
 The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in Visual Studio Code](../tools/vscode/).
@@ -348,4 +348,3 @@ gh aw uninstall org/repo --local
 - [Safe Outputs](../reference/safe-outputs/) - Secure output processing including issue updates
 - [Tools Configuration](../reference/tools/) - GitHub and MCP server configuration
 - [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
-- [Secrets Management](../guides/secrets/) - Managing secrets and environment variables
