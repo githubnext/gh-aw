@@ -91,6 +91,51 @@ More text`,
 More text`,
 		},
 		{
+			name: "XML comment in code block with 4 backticks should be preserved",
+			input: `Regular text
+` + "````" + `python
+<!-- this comment is in code -->
+` + "````" + `
+<!-- this comment should be removed -->
+More text`,
+			expected: `Regular text
+` + "````" + `python
+<!-- this comment is in code -->
+` + "````" + `
+
+More text`,
+		},
+		{
+			name: "XML comment in code block with tildes should be preserved",
+			input: `Regular text
+~~~bash
+<!-- this comment is in code -->
+~~~
+<!-- this comment should be removed -->
+More text`,
+			expected: `Regular text
+~~~bash
+<!-- this comment is in code -->
+~~~
+
+More text`,
+		},
+		{
+			name: "XML comment in code block with 5 tildes should be preserved",
+			input: `Regular text
+~~~~~
+<!-- this comment is in code -->
+~~~~~
+<!-- this comment should be removed -->
+More text`,
+			expected: `Regular text
+~~~~~
+<!-- this comment is in code -->
+~~~~~
+
+More text`,
+		},
+		{
 			name:     "Empty XML comment",
 			input:    "Before <!---->  after",
 			expected: "Before   after",

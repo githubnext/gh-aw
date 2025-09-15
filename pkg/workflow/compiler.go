@@ -3267,6 +3267,37 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
+// isCodeBlockMarker checks if a trimmed line is a code block marker (3 or more ` or ~)
+func isCodeBlockMarker(trimmedLine string) bool {
+	// Check for backtick markers (3 or more)
+	if len(trimmedLine) >= 3 && strings.HasPrefix(trimmedLine, "```") {
+		// Ensure all characters are backticks (until we hit a language specifier)
+		for i, r := range trimmedLine {
+			if r != '`' {
+				// If we've seen at least 3 backticks, this is valid
+				return i >= 3
+			}
+		}
+		// All characters are backticks and we have at least 3
+		return true
+	}
+
+	// Check for tilde markers (3 or more)
+	if len(trimmedLine) >= 3 && strings.HasPrefix(trimmedLine, "~~~") {
+		// Ensure all characters are tildes (until we hit a language specifier)
+		for i, r := range trimmedLine {
+			if r != '~' {
+				// If we've seen at least 3 tildes, this is valid
+				return i >= 3
+			}
+		}
+		// All characters are tildes and we have at least 3
+		return true
+	}
+
+	return false
+}
+
 // removeXMLComments removes XML comments (<!-- -->) from markdown content
 // while preserving comments that appear within code blocks
 func removeXMLComments(content string) string {
@@ -3277,9 +3308,9 @@ func removeXMLComments(content string) string {
 	inXMLComment := false
 
 	for _, line := range lines {
-		// Check for code block markers (``` or ~~~)
+		// Check for code block markers (3 or more ` or ~)
 		trimmedLine := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmedLine, "```") || strings.HasPrefix(trimmedLine, "~~~") {
+		if isCodeBlockMarker(trimmedLine) {
 			inCodeBlock = !inCodeBlock
 			result = append(result, line)
 			continue
