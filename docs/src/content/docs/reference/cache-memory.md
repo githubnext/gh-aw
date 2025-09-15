@@ -62,25 +62,6 @@ tools:
 ---
 ```
 
-### Legacy Docker Configuration (Deprecated)
-
-**Note**: Docker image configuration is deprecated. The cache-memory tool now uses npx for improved compatibility and simplified setup.
-
-For legacy configurations, the docker-image field is ignored:
-
-```yaml
----
-engine: claude
-tools:
-  cache-memory:
-    # docker-image field is deprecated and ignored
-    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
-    retention-days: 7
-  github:
-    allowed: [get_repository]
----
-```
-
 ### Artifact Retention
 
 Configure how long memory data artifacts are retained:
@@ -147,24 +128,6 @@ When `retention-days` is configured, memory data is also uploaded as artifacts:
 - **Branch Scoping**: Caches are accessible across branches in the same repository
 - **Workflow Scoping**: Each workflow maintains its own cache namespace by default
 - **Run Scoping**: Each run gets unique cache keys to prevent conflicts
-
-### Update Behavior
-
-#### First Run
-- **No Cache Hit**: Memory starts empty
-- **Storage**: New memories are stored in `/tmp/cache-memory`
-- **Cache Save**: Memory data is cached at workflow completion
-
-#### Subsequent Runs
-- **Cache Restore**: Previous memory data is restored from cache
-- **Memory Continuity**: AI agent can access previously stored information
-- **Incremental Updates**: New memories are added to existing data
-- **Cache Update**: Updated memory data is saved with new cache key
-
-#### Cache Expiration
-- **Automatic Expiration**: Caches expire after 7 days of inactivity
-- **Manual Cleanup**: Repository administrators can clear caches manually
-- **Version Management**: Different cache keys allow for memory versioning
 
 ## MCP Server Configuration
 
@@ -237,14 +200,6 @@ Be mindful of cache usage:
 - **Memory Size**: Monitor memory data growth over time
 - **Cache Limits**: Respect GitHub's 10GB repository cache limit
 - **Cleanup Strategy**: Consider periodic cache clearing for long-running projects
-
-### Node.js and npm Requirements
-
-Ensure runner compatibility:
-
-- **Node.js**: GitHub runners include Node.js by default
-- **npm/npx**: Available in all GitHub-hosted runners
-- **Package Access**: Ensure access to npm registry for package installation
 
 ## Troubleshooting
 

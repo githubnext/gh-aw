@@ -7,22 +7,6 @@ sidebar:
 
 One of the primary security features of GitHub Agentic Workflows is "safe output processing", enabling the creation of GitHub issues, comments, pull requests, and other outputs without giving the agentic portion of the workflow write permissions.
 
-## Available Safe Output Types
-
-| Output Type | Configuration Key | Description | Default Max |
-|-------------|------------------|-------------|-------------|
-| **New Issue Creation** | `create-issue:` | Create GitHub issues based on workflow output | 1 |
-| **Issue Comments** | `add-issue-comment:` | Post comments on issues or pull requests | 1 |
-| **Pull Request Creation** | `create-pull-request:` | Create pull requests with code changes | 1 |
-| **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
-| **Repository Security Advisories** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
-| **Label Addition** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
-| **Issue Updates** | `update-issue:` | Update issue status, title, or body | 1 |
-| **Push to Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
-| **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
-
-## Overview (`safe-outputs:`)
-
 The `safe-outputs:` element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
 
 **How It Works:**
@@ -35,13 +19,23 @@ For example:
 ```yaml
 safe-outputs:
   create-issue:
-  create-discussion:
-  add-issue-comment:
 ```
 
-This declares that the workflow should create at most one new issue, at most one new discussion, and add at most one comment to the triggering issue or pull request based on the agentic workflow's output. To create multiple issues, discussions, or comments, use the `max` parameter.
+This declares that the workflow should create at most one new issue.
 
-## Available Output Types
+## Available Safe Output Types
+
+| Output Type | Configuration Key | Description | Default Max |
+|-------------|------------------|-------------|-------------|
+| **Create Issue** | `create-issue:` | Create GitHub issues based on workflow output | 1 |
+| **Add Issue Comments** | `add-issue-comment:` | Post comments on issues or pull requests | 1 |
+| **Update Issues** | `update-issue:` | Update issue status, title, or body | 1 |
+| **Add Issue Label** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
+| **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 |
+| **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
+| **Push to Pull Request Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
+| **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
+| **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
 
 ### New Issue Creation (`create-issue:`)
 
@@ -74,40 +68,6 @@ Create new issues with your findings. For each issue, provide a title starting w
 ```
 
 The compiled workflow will have additional prompting describing that, to create issues, it should write the issue details to a file.
-
-### New Discussion Creation (`create-discussion:`)
-
-Adding discussion creation to the `safe-outputs:` section declares that the workflow should conclude with the creation of GitHub discussions based on the workflow's output.
-
-**Basic Configuration:**
-```yaml
-safe-outputs:
-  create-discussion:
-```
-
-**With Configuration:**
-```yaml
-safe-outputs:
-  create-discussion:
-    title-prefix: "[ai] "            # Optional: prefix for discussion titles
-    category-id: "DIC_kwDOGFsHUM4BsUn3"  # Optional: specific discussion category ID
-    max: 3                           # Optional: maximum number of discussions (default: 1)
-```
-
-The agentic part of your workflow should describe the discussion(s) it wants created.
-
-**Example markdown to generate the output:**
-
-```yaml
-# Research Discussion Agent
-
-Research the latest developments in AI and create discussions to share findings.
-Create new discussions with your research findings. For each discussion, provide a title starting with "AI Research Update" and detailed summary of the findings.
-```
-
-The compiled workflow will have additional prompting describing that, to create discussions, it should write the discussion details to a file.
-
-**Note:** If no `category-id` is specified, the workflow will use the first available discussion category in the repository.
 
 ### Issue Comment Creation (`add-issue-comment:`)
 
@@ -142,6 +102,80 @@ Create issue comments on the triggering issue or PR with your analysis findings.
 ```
 
 The compiled workflow will have additional prompting describing that, to create comments, it should write the comment content to a special file.
+
+### Add Issue Label (`add-issue-label:`)
+
+Adding `add-issue-label:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
+
+```yaml
+safe-outputs:
+  add-issue-label:
+```
+
+or with further configuration:
+
+```yaml
+safe-outputs:
+  add-issue-label:
+    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition.
+    max: 3                              # Optional: maximum number of labels to add (default: 3)
+```
+
+The agentic part of your workflow should analyze the issue content and determine appropriate labels. 
+
+**Example of natural language to generate the output:**
+
+```markdown
+# Issue Labeling Agent
+
+Analyze the issue content and add appropriate labels to the issue.
+```
+
+The agentic part of your workflow will have implicit additional prompting saying that, to add labels to a GitHub issue, you must write labels to a special file, one label per line.
+
+### Issue Updates (`update-issue:`)
+
+Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. You can configure which fields are allowed to be updated.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  update-issue:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  update-issue:
+    status:                             # Optional: presence indicates status can be updated (open/closed)
+    target: "*"                         # Optional: target for updates
+                                        # "triggering" (default) - only update triggering issue
+                                        # "*" - allow updates to any issue (requires issue_number in agent output)
+                                        # explicit number - update specific issue number
+    title:                              # Optional: presence indicates title can be updated
+    body:                               # Optional: presence indicates body can be updated
+    max: 3                              # Optional: maximum number of issues to update (default: 1)
+```
+
+The agentic part of your workflow should analyze the issue and determine what updates to make.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Issue Update Agent
+
+Analyze the issue and update its status, title, or body as needed.
+Update the issue based on your analysis. You can change the title, body content, or status (open/closed).
+```
+
+**Safety Features:**
+
+- Only explicitly enabled fields (`status`, `title`, `body`) can be updated
+- Status values are validated (must be "open" or "closed")
+- Empty or invalid field values are rejected
+- Target configuration controls which issues can be updated for security
+- Update count is limited by `max` setting (default: 1)
+- Only GitHub's `issues.update` API endpoint is used
 
 ### Pull Request Creation (`create-pull-request:`)
 
@@ -308,80 +342,6 @@ The compiled workflow will have additional prompting describing that, to create 
 - Customizable rule IDs via optional ruleIdSuffix field
 - Rule IDs default to `{workflow-filename}-security-finding-{index}` format when no custom suffix is provided
 
-### Label Addition (`add-issue-label:`)
-
-Adding `add-issue-label:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
-
-```yaml
-safe-outputs:
-  add-issue-label:
-```
-
-or with further configuration:
-
-```yaml
-safe-outputs:
-  add-issue-label:
-    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition.
-    max: 3                              # Optional: maximum number of labels to add (default: 3)
-```
-
-The agentic part of your workflow should analyze the issue content and determine appropriate labels. 
-
-**Example of natural language to generate the output:**
-
-```markdown
-# Issue Labeling Agent
-
-Analyze the issue content and add appropriate labels to the issue.
-```
-
-The agentic part of your workflow will have implicit additional prompting saying that, to add labels to a GitHub issue, you must write labels to a special file, one label per line.
-
-### Issue Updates (`update-issue:`)
-
-Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. You can configure which fields are allowed to be updated.
-
-**Basic Configuration:**
-```yaml
-safe-outputs:
-  update-issue:
-```
-
-**With Configuration:**
-```yaml
-safe-outputs:
-  update-issue:
-    status:                             # Optional: presence indicates status can be updated (open/closed)
-    target: "*"                         # Optional: target for updates
-                                        # "triggering" (default) - only update triggering issue
-                                        # "*" - allow updates to any issue (requires issue_number in agent output)
-                                        # explicit number - update specific issue number
-    title:                              # Optional: presence indicates title can be updated
-    body:                               # Optional: presence indicates body can be updated
-    max: 3                              # Optional: maximum number of issues to update (default: 1)
-```
-
-The agentic part of your workflow should analyze the issue and determine what updates to make.
-
-**Example natural language to generate the output:**
-
-```markdown
-# Issue Update Agent
-
-Analyze the issue and update its status, title, or body as needed.
-Update the issue based on your analysis. You can change the title, body content, or status (open/closed).
-```
-
-**Safety Features:**
-
-- Only explicitly enabled fields (`status`, `title`, `body`) can be updated
-- Status values are validated (must be "open" or "closed")
-- Empty or invalid field values are rejected
-- Target configuration controls which issues can be updated for security
-- Update count is limited by `max` setting (default: 1)
-- Only GitHub's `issues.update` API endpoint is used
-
 ### Push to Pull Request Branch (`push-to-pr-branch:`)
 
 Adding `push-to-pr-branch:` to the `safe-outputs:` section declares that the workflow should conclude with pushing additional changes to the branch associated with a pull request. This is useful for applying code changes directly to a designated branch within pull requests.
@@ -508,6 +468,40 @@ The compiled workflow will have additional prompting describing that, to report 
 - Reports are structured with tool name, reason, and optional alternatives
 - Maximum count can be configured to prevent excessive reporting
 - All missing tool data is captured in workflow artifacts for review
+
+### New Discussion Creation (`create-discussion:`)
+
+Adding discussion creation to the `safe-outputs:` section declares that the workflow should conclude with the creation of GitHub discussions based on the workflow's output.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  create-discussion:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  create-discussion:
+    title-prefix: "[ai] "            # Optional: prefix for discussion titles
+    category-id: "DIC_kwDOGFsHUM4BsUn3"  # Optional: specific discussion category ID
+    max: 3                           # Optional: maximum number of discussions (default: 1)
+```
+
+The agentic part of your workflow should describe the discussion(s) it wants created.
+
+**Example markdown to generate the output:**
+
+```yaml
+# Research Discussion Agent
+
+Research the latest developments in AI and create discussions to share findings.
+Create new discussions with your research findings. For each discussion, provide a title starting with "AI Research Update" and detailed summary of the findings.
+```
+
+The compiled workflow will have additional prompting describing that, to create discussions, it should write the discussion details to a file.
+
+**Note:** If no `category-id` is specified, the workflow will use the first available discussion category in the repository.
 
 ## Automatically Added Tools
 

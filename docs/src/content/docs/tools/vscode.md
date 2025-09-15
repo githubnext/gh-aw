@@ -20,7 +20,7 @@ files under the `.github/workflows` folder.
 Once configured, you will notice that Copilot Chat will be much more efficient at
 generating Agentic Workflows.
 
-## Background Compilation using Tasks
+## Background Compilation
 
 You can leverage tasks in VS Code to configure a background compilation of Agentic Workflows.
 
