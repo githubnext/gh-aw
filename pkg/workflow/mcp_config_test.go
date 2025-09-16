@@ -260,9 +260,9 @@ func TestMCPConfigurationEdgeCases(t *testing.T) {
 
 func TestGitHubHostEnvironmentVariable(t *testing.T) {
 	tests := []struct {
-		name           string
-		engine         string
-		expectedLines  []string
+		name          string
+		engine        string
+		expectedLines []string
 	}{
 		{
 			name:   "claude engine includes GITHUB_HOST",

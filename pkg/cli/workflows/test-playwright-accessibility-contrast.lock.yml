@@ -603,10 +603,13 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_HOST",
                   "ghcr.io/github/github-mcp-server:sha-09deac4"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+                  "GITHUB_HOST": "${{ env.GITHUB_SERVER_URL }}"
                 }
               },
               "playwright": {
