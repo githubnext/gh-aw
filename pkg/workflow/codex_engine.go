@@ -458,22 +458,24 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 }
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
-// Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
+// Uses Docker to launch Playwright MCP with containerized security
 func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
-	yaml.WriteString("          command = \"npx\"\n")
+	yaml.WriteString("          command = \"docker\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@latest\"")
-	if len(args.AllowedDomains) > 0 {
-		yaml.WriteString(",\n")
-		yaml.WriteString("            \"--allowed-origins\",\n")
-		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ",") + "\"")
-	}
-	yaml.WriteString("\n")
+	yaml.WriteString("            \"run\",\n")
+	yaml.WriteString("            \"-i\",\n")
+	yaml.WriteString("            \"--rm\",\n")
+	yaml.WriteString("            \"--shm-size=2gb\",\n")
+	yaml.WriteString("            \"--cap-add=SYS_ADMIN\",\n")
+	yaml.WriteString("            \"-e\",\n")
+	yaml.WriteString("            \"PLAYWRIGHT_ALLOWED_DOMAINS\",\n")
+	yaml.WriteString("            \"mcr.microsoft.com/playwright:" + args.ImageVersion + "\"\n")
 	yaml.WriteString("          ]\n")
+	yaml.WriteString("          env = { \"PLAYWRIGHT_ALLOWED_DOMAINS\" = \"" + strings.Join(args.AllowedDomains, ",") + "\" }\n")
 }
 
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml

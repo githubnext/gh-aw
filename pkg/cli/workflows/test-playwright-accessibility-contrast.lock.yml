@@ -610,12 +610,20 @@ jobs:
                 }
               },
               "playwright": {
-                "command": "npx",
+                "command": "docker",
                 "args": [
-                  "@playwright/mcp@latest",
-                  "--allowed-origins",
-                  "github.com,*.github.com"
-                ]
+                  "run",
+                  "-i",
+                  "--rm",
+                  "--shm-size=2gb",
+                  "--cap-add=SYS_ADMIN",
+                  "-e",
+                  "PLAYWRIGHT_ALLOWED_DOMAINS",
+                  "mcr.microsoft.com/playwright:latest"
+                ],
+                "env": {
+                  "PLAYWRIGHT_ALLOWED_DOMAINS": "github.com,*.github.com"
+                }
               },
               "safe_outputs": {
                 "command": "node",
