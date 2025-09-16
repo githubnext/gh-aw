@@ -706,6 +706,14 @@ jobs:
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
+            
+            // Add agentic workflow run information to step summary
+            core.summary
+              .addRaw('## Agentic Run Information\n\n')
+              .addRaw('```json\n')
+              .addRaw(JSON.stringify(awInfo, null, 2))
+              .addRaw('\n```\n')
+              .write();
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@v4
