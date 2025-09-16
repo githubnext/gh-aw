@@ -27,6 +27,8 @@ jobs:
           node-version: '24'
       - name: Install Codex
         run: npm install -g @openai/codex
+      - name: Authenticate with Codex
+        run: codex login --api-key "${{ secrets.OPENAI_API_KEY }}"
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/mcp-config

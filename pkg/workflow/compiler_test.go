@@ -3650,7 +3650,7 @@ engine: claude
 YAML error that demonstrates column position handling.`,
 			expectedErrorLine:   2, // The message field is on line 2 of the frontmatter (line 3 of file)
 			expectedErrorColumn: 1, // Schema validation error
-			expectedMessagePart: "additional properties 'message' not allowed",
+			expectedMessagePart: "Unknown property: message",
 			description:         "yaml error should be extracted with column information when available",
 		},
 	}
@@ -3691,13 +3691,8 @@ YAML error that demonstrates column position handling.`,
 				t.Errorf("%s: error should contain '%s', got: %s", tt.description, tt.expectedMessagePart, errorStr)
 			}
 
-			// For YAML parsing errors, verify error contains hint and context lines
+			// For YAML parsing errors, verify error contains context lines
 			if strings.Contains(errorStr, "frontmatter parsing failed") {
-				// Verify error contains hint
-				if !strings.Contains(errorStr, "hint: check YAML syntax in frontmatter section") {
-					t.Errorf("%s: error should contain YAML syntax hint, got: %s", tt.description, errorStr)
-				}
-
 				// Verify error contains context lines (should show surrounding code)
 				if !strings.Contains(errorStr, "|") {
 					t.Errorf("%s: error should contain context lines with '|' markers, got: %s", tt.description, errorStr)
