@@ -185,8 +185,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	if workflowData.SafeOutputs != nil {
 		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
-		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_DIR: ${{ steps.setup_agent_output.outputs.output_dir }}")
-		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_FILES_DIR: ${{ steps.setup_agent_output.outputs.files_dir }}")
+		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_DIR: ${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}")
+		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_FILES_DIR: ${{ env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR }}")
 
 		// Add staged flag if specified
 		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
@@ -567,8 +567,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
 			yaml.WriteString("                \"env\": {\n")
 			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_DIR\": \"${{ steps.setup_agent_output.outputs.output_dir }}\",\n")
-			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_FILES_DIR\": \"${{ steps.setup_agent_output.outputs.files_dir }}\",\n")
+			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_DIR\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}\",\n")
+			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_FILES_DIR\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR }}\",\n")
 			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
 			yaml.WriteString("                }\n")
 			serverCount++

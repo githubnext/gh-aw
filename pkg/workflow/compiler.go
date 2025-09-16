@@ -4558,7 +4558,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", OutputArtifactName)
-	yaml.WriteString("          path: /tmp/gh-aw/safe-outputs/\n")
+	yaml.WriteString("          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 	yaml.WriteString("      - name: Ingest agent output\n")

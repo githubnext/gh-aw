@@ -116,8 +116,8 @@ codex exec \
 	hasOutput := workflowData.SafeOutputs != nil
 	if hasOutput {
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-		env["GITHUB_AW_SAFE_OUTPUTS_DIR"] = "${{ steps.setup_agent_output.outputs.output_dir }}"
-		env["GITHUB_AW_SAFE_OUTPUTS_FILES_DIR"] = "${{ steps.setup_agent_output.outputs.files_dir }}"
+		env["GITHUB_AW_SAFE_OUTPUTS_DIR"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}"
+		env["GITHUB_AW_SAFE_OUTPUTS_FILES_DIR"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR }}"
 
 		// Add staged flag if specified
 		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
@@ -231,7 +231,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				yaml.WriteString("          args = [\n")
 				yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
 				yaml.WriteString("          ]\n")
-				yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_DIR\" = \"${{ steps.setup_agent_output.outputs.output_dir }}\", \"GITHUB_AW_SAFE_OUTPUTS_FILES_DIR\" = \"${{ steps.setup_agent_output.outputs.files_dir }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
+				yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_DIR\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}\", \"GITHUB_AW_SAFE_OUTPUTS_FILES_DIR\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
 			}
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)

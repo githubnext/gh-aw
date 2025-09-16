@@ -631,7 +631,8 @@ jobs:
                     }
                     const shaFilename = fileSha + originalExtension;
                     // Copy file to safe outputs files directory with SHA-based filename
-                    const filesDir = process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR || 
+                    const filesDir =
+                      process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR ||
                       `${process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs"}/files`;
                     const targetFile = path.join(filesDir, shaFilename);
                     // Ensure directory exists
@@ -820,8 +821,8 @@ jobs:
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_DIR": "${{ steps.setup_agent_output.outputs.output_dir }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_FILES_DIR": "${{ steps.setup_agent_output.outputs.files_dir }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_DIR": "${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_FILES_DIR": "${{ env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR }}",
                   "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
                 }
               }
@@ -987,8 +988,8 @@ jobs:
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_DIR: ${{ steps.setup_agent_output.outputs.output_dir }}
-          GITHUB_AW_SAFE_OUTPUTS_FILES_DIR: ${{ steps.setup_agent_output.outputs.files_dir }}
+          GITHUB_AW_SAFE_OUTPUTS_DIR: ${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}
+          GITHUB_AW_SAFE_OUTPUTS_FILES_DIR: ${{ env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
           GITHUB_AW_MAX_TURNS: 5
       - name: Ensure log file exists
@@ -1022,7 +1023,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: safe_output.jsonl
-          path: /tmp/gh-aw/safe-outputs/
+          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS_DIR }}
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
@@ -2645,7 +2646,8 @@ jobs:
                     continue;
                   }
                   // Find the file in the artifact files directory
-                  const filesDir = process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR || 
+                  const filesDir =
+                    process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR ||
                     `${process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs"}/files`;
                   const sourceFile = `${filesDir}/${filename}`;
                   if (!fs.existsSync(sourceFile)) {
