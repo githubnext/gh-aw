@@ -304,8 +304,8 @@ Claude exposes richer default tools and optional Bash; codex relies more on CLI 
 
 ## See also
 
-- [Tools Configuration](../reference/tools.md)
-- [MCPs](../guides/mcps.md)
+- [Tools Configuration](../../reference/tools/)
+- [MCPs](../../guides/mcps/)
 - [Workflow Structure](../reference/workflow-structure.md)
 
 ## References

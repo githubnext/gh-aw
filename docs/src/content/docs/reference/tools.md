@@ -156,9 +156,9 @@ tools:
 
 ## Related Documentation
 
-- [Frontmatter Options](../reference/frontmatter.md) - All frontmatter configuration options
-- [Network Permissions](../reference/network.md) - Network access control for AI engines
-- [MCPs](../guides/mcps.md) - Complete Model Context Protocol setup and usage
-- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
+- [Frontmatter Options](../../reference/frontmatter/) - All frontmatter configuration options
+- [Network Permissions](../../reference/network/) - Network access control for AI engines
+- [MCPs](../../guides/mcps/) - Complete Model Context Protocol setup and usage
+- [CLI Commands](../../tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
 - [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes

@@ -572,7 +572,7 @@ This is useful when:
 
 ## Related Documentation
 
-- [Frontmatter Options](../reference/frontmatter.md) - All configuration options for workflows
+- [Frontmatter Options](../../reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
 - [Command Triggers](../reference/command-triggers.md) - Special /my-bot triggers and context text
-- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
+- [CLI Commands](../../tools/cli/) - CLI commands for workflow management

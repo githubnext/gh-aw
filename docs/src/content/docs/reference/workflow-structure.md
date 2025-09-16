@@ -9,8 +9,8 @@ sidebar:
 
 Each workflow consists of:
 
-1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](./frontmatter.md) for details.
-2. **Markdown Content**: Natural language instructions for the AI. See [Markdown Content](./markdown.md).
+1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](.././frontmatter/) for details.
+2. **Markdown Content**: Natural language instructions for the AI. See [Markdown Content](.././markdown/).
 
 The markdown content is where you write natural language instructions for the AI agent. 
 
@@ -65,8 +65,8 @@ gh aw compile
 
 ## Related Documentation
 
-- [Frontmatter Options](./frontmatter.md) - Configuration options for workflows
-- [Markdown Content](./markdown.md) - The main markdown content of workflows
+- [Frontmatter Options](.././frontmatter/) - Configuration options for workflows
+- [Markdown Content](.././markdown/) - The main markdown content of workflows
 - [Include Directives](./include-directives.md) - Modularizing workflows with includes
-- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
-- [MCPs](../guides/mcps.md) - Model Context Protocol configuration
+- [CLI Commands](../../tools/cli/) - CLI commands for workflow management
+- [MCPs](../../guides/mcps/) - Model Context Protocol configuration

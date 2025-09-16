@@ -186,11 +186,11 @@ tools:
   bash: ["echo", "ls", "git status"]
 ```
 
-For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](../reference/tools.md).
+For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](../../reference/tools/).
 
 ## Network Permissions (`network:`)
 
-Control network access for AI engines using ecosystem identifiers and domain allowlists. See [Network Permissions](../reference/network.md) for detailed configuration options, security model, and examples.
+Control network access for AI engines using ecosystem identifiers and domain allowlists. See [Network Permissions](../../reference/network/) for detailed configuration options, security model, and examples.
 
 Quick example:
 ```yaml
@@ -294,10 +294,10 @@ cache:
 
 ## Related Documentation
 
-- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
+- [CLI Commands](../../tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
-- [Network Permissions](../reference/network.md) - Network access control configuration
+- [Network Permissions](../../reference/network/) - Network access control configuration
 - [Command Triggers](../reference/command-triggers.md) - Special @mention triggers and context text
-- [MCPs](../guides/mcps.md) - Model Context Protocol setup and configuration
-- [Tools Configuration](../reference/tools.md) - GitHub and other tools setup
+- [MCPs](../../guides/mcps/) - Model Context Protocol setup and configuration
+- [Tools Configuration](../../reference/tools/) - GitHub and other tools setup
 - [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes
