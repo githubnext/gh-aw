@@ -3,6 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -203,8 +205,23 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 func getMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, error) {
 	result := make(map[string]any)
 
-	// Check new format: mcp.type, mcp.url, mcp.command, etc.
-	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+	// Check for mcp-ref first
+	if mcpRefValue, hasMCPRef := toolConfig["mcp-ref"]; hasMCPRef {
+		if mcpRef, ok := mcpRefValue.(string); ok && mcpRef == "vscode" {
+			// For now, assume current working directory as workflow directory
+			// This will need to be improved to get the actual workflow directory
+			workflowDir := "."
+			
+			vscodeMCPConfig, err := loadVSCodeMCPConfig(workflowDir, toolName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load VSCode MCP config: %w", err)
+			}
+			
+			// Return the loaded configuration
+			result = vscodeMCPConfig
+		}
+	} else if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+		// Check new format: mcp.type, mcp.url, mcp.command, etc.
 		if mcpMap, ok := mcpSection.(map[string]any); ok {
 			// Copy all MCP properties
 			for key, value := range mcpMap {
@@ -322,6 +339,13 @@ func isMCPType(typeStr string) bool {
 
 // hasMCPConfig checks if a tool configuration has MCP configuration
 func hasMCPConfig(toolConfig map[string]any) (bool, string) {
+	// Check for mcp-ref first
+	if mcpRefValue, hasMCPRef := toolConfig["mcp-ref"]; hasMCPRef {
+		if mcpRef, ok := mcpRefValue.(string); ok && mcpRef == "vscode" {
+			return true, "stdio" // VSCode MCP configs are always stdio type
+		}
+	}
+
 	// Check new format: mcp.type
 	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
 		if mcpMap, ok := mcpSection.(map[string]any); ok {
@@ -350,6 +374,11 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 func ValidateMCPConfigs(tools map[string]any) error {
 	for toolName, toolConfig := range tools {
 		if config, ok := toolConfig.(map[string]any); ok {
+			// First validate mcp-ref field and its constraints
+			if err := validateMCPRef(toolName, config); err != nil {
+				return err
+			}
+
 			if mcpSection, hasMcp := config["mcp"]; hasMcp {
 				var mcpConfig map[string]any
 
@@ -544,4 +573,108 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	}
 
 	return nil
+}
+
+// VSCodeMCPConfig represents the structure of a VSCode MCP configuration
+type VSCodeMCPConfig struct {
+Servers map[string]VSCodeMCPServer `json:"servers"`
+}
+
+// VSCodeMCPServer represents a single MCP server configuration in VSCode format
+type VSCodeMCPServer struct {
+Command string            `json:"command"`
+Args    []string          `json:"args,omitempty"`
+Env     map[string]string `json:"env,omitempty"`
+}
+
+// loadVSCodeMCPConfig loads MCP configuration from .vscode/mcp.json file
+func loadVSCodeMCPConfig(workflowDir, serverName string) (map[string]any, error) {
+// Build path to .vscode/mcp.json relative to workflow directory
+vscodeMCPPath := filepath.Join(workflowDir, ".vscode", "mcp.json")
+
+// Check if file exists
+if _, err := os.Stat(vscodeMCPPath); os.IsNotExist(err) {
+return nil, fmt.Errorf(".vscode/mcp.json file not found at %s", vscodeMCPPath)
+}
+
+// Read and parse the file
+data, err := os.ReadFile(vscodeMCPPath)
+if err != nil {
+return nil, fmt.Errorf("failed to read .vscode/mcp.json: %w", err)
+}
+
+var config VSCodeMCPConfig
+if err := json.Unmarshal(data, &config); err != nil {
+return nil, fmt.Errorf("failed to parse .vscode/mcp.json: %w", err)
+}
+
+// Check if the requested server exists
+server, exists := config.Servers[serverName]
+if !exists {
+availableServers := make([]string, 0, len(config.Servers))
+for name := range config.Servers {
+availableServers = append(availableServers, name)
+}
+return nil, fmt.Errorf("server '%s' not found in .vscode/mcp.json. Available servers: %v", serverName, availableServers)
+}
+
+// Convert to the internal MCP config format
+result := map[string]any{
+"type":    "stdio",
+"command": server.Command,
+}
+
+if len(server.Args) > 0 {
+// Convert []string to []any for consistency with existing code
+args := make([]any, len(server.Args))
+for i, arg := range server.Args {
+args[i] = arg
+}
+result["args"] = args
+}
+
+if len(server.Env) > 0 {
+// Convert to map[string]any for consistency
+env := make(map[string]any)
+for key, value := range server.Env {
+env[key] = value
+}
+result["env"] = env
+}
+
+return result, nil
+}
+
+// validateMCPRef validates the mcp-ref field and related constraints
+func validateMCPRef(toolName string, toolConfig map[string]any) error {
+mcpRefValue, hasMCPRef := toolConfig["mcp-ref"]
+if !hasMCPRef {
+return nil // No mcp-ref field, validation passes
+}
+
+// Validate mcp-ref is a string
+mcpRef, ok := mcpRefValue.(string)
+if !ok {
+return fmt.Errorf("tool '%s' has 'mcp-ref' that must be a string", toolName)
+}
+
+// Validate mcp-ref has a supported value
+switch mcpRef {
+case "vscode":
+// Valid value, continue validation
+default:
+return fmt.Errorf("tool '%s' has unsupported 'mcp-ref' value '%s'. Supported values: vscode", toolName, mcpRef)
+}
+
+// When mcp-ref is used, refuse inputs
+if _, hasInputs := toolConfig["inputs"]; hasInputs {
+return fmt.Errorf("tool '%s' with 'mcp-ref' cannot specify 'inputs'", toolName)
+}
+
+// When mcp-ref is used, a regular mcp section should not be present
+if _, hasMCP := toolConfig["mcp"]; hasMCP {
+return fmt.Errorf("tool '%s' cannot specify both 'mcp-ref' and 'mcp' configuration", toolName)
+}
+
+return nil
 }

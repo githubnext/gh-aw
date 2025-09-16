@@ -1160,6 +1160,11 @@
                 "description": "MCP server configuration",
                 "additionalProperties": true
               },
+              "mcp-ref": {
+                "type": "string",
+                "enum": ["vscode"],
+                "description": "Reference to import MCP configuration from external sources"
+              },
               "allowed": {
                 "type": "array",
                 "description": "List of allowed tool functions",
