@@ -135,6 +135,11 @@ jobs:
           restore-keys: |
             memory-${{ github.workflow }}-
             memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory
+          path: /tmp/cache-memory
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude

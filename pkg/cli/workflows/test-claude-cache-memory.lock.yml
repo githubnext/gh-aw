@@ -40,10 +40,10 @@ jobs:
           restore-keys: |
             memory-${{ github.workflow }}-
             memory-
-      - name: Upload memory file share data as artifact
+      - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cache-memory-data
+          name: cache-memory
           path: /tmp/cache-memory
           retention-days: 14
       - name: Generate Claude Settings

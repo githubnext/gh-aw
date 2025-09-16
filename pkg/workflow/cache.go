@@ -153,13 +153,14 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 		fmt.Fprintf(builder, "            %s\n", key)
 	}
 
-	// Add upload-artifact step if retention-days is configured
+	// Always add upload-artifact step for cache-memory (runs always)
+	builder.WriteString("      - name: Upload cache-memory data as artifact\n")
+	builder.WriteString("        uses: actions/upload-artifact@v4\n")
+	builder.WriteString("        with:\n")
+	builder.WriteString("          name: cache-memory\n")
+	builder.WriteString("          path: /tmp/cache-memory\n")
+	// Add retention-days if configured
 	if data.CacheMemoryConfig.RetentionDays != nil {
-		builder.WriteString("      - name: Upload memory file share data as artifact\n")
-		builder.WriteString("        uses: actions/upload-artifact@v4\n")
-		builder.WriteString("        with:\n")
-		builder.WriteString("          name: cache-memory-data\n")
-		builder.WriteString("          path: /tmp/cache-memory\n")
 		fmt.Fprintf(builder, "          retention-days: %d\n", *data.CacheMemoryConfig.RetentionDays)
 	}
 }
