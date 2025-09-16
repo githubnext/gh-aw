@@ -1,0 +1,208 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/githubnext/gh-aw/schemas/agentic-workflow-frontmatter.json",
+  "title": "GitHub Agentic Workflow Frontmatter",
+  "description": "Schema for the YAML frontmatter in GitHub Agentic Workflow files",
+  "type": "object",
+  "properties": {
+    "on": {
+      "description": "Defines the events that trigger the workflow",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } },
+        {
+          "type": "object",
+          "properties": {
+            "workflow_dispatch": {
+              "oneOf": [
+                { "type": "null" },
+                { "type": "object" }
+              ]
+            },
+            "push": {
+              "type": "object",
+              "properties": {
+                "branches": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "pull_request": {
+              "type": "object",
+              "properties": {
+                "branches": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "schedule": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "cron": { "type": "string" }
+                }
+              }
+            },
+            "workflow_run": {
+              "type": "object",
+              "properties": {
+                "workflows": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "types": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["completed", "requested"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "engine": {
+      "description": "AI engine configuration",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["claude", "codex", "gpt-4"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "enum": ["claude", "codex", "gpt-4"]
+            },
+            "max-turns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          "required": ["id"]
+        }
+      ]
+    },
+    "permissions": {
+      "description": "GitHub token permissions",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["read-all", "write-all"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contents": { "enum": ["read", "write"] },
+            "issues": { "enum": ["read", "write"] },
+            "pull-requests": { "enum": ["read", "write"] },
+            "actions": { "enum": ["read", "write"] }
+          }
+        }
+      ]
+    },
+    "safe-outputs": {
+      "description": "Configuration for safe output actions",
+      "type": "object",
+      "properties": {
+        "create-issue": {
+          "type": "object",
+          "properties": {
+            "title-prefix": { "type": "string" },
+            "labels": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "max": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "add-issue-comment": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "object" }
+          ]
+        },
+        "create-pull-request": {
+          "type": "object",
+          "properties": {
+            "title-prefix": { "type": "string" },
+            "labels": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "max": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "missing-tool": {
+          "type": "object",
+          "properties": {
+            "staged": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "tools": {
+      "description": "Available tools for the AI agent",
+      "type": "object",
+      "properties": {
+        "web-fetch": { "type": ["null", "object"] },
+        "web-search": { "type": ["null", "object"] },
+        "playwright": {
+          "type": "object",
+          "properties": {
+            "docker_image_version": { "type": "string" },
+            "allowed_domains": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "description": "Network configuration",
+      "type": "string",
+      "enum": ["defaults", "restricted", "none"]
+    },
+    "cache": {
+      "description": "Caching configuration",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "path": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          ]
+        },
+        "restore-keys": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["key"]
+    },
+    "timeout_minutes": {
+      "description": "Maximum runtime in minutes",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 360
+    },
+    "if": {
+      "description": "Conditional execution expression",
+      "type": "string"
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

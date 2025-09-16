@@ -52,3 +52,7 @@ logs/
 
 .github/instructions/github-agentic-workflows.instructions.md
 node_modules/
+
+# VSCode extension build artifacts
+vscode/gh-aw/out/
+vscode/gh-aw/node_modules/

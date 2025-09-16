@@ -137,6 +137,13 @@ fmt-check-cjs:
 lint-cjs: fmt-check-cjs
 	@echo "✓ JavaScript formatting validated"
 
+# Compile VSCode extension
+.PHONY: vscode-compile
+vscode-compile:
+	@echo "Compiling VSCode extension..."
+	@cd vscode/gh-aw && npm install && npm run compile
+	@echo "✓ VSCode extension compiled"
+
 # Validate all project files
 .PHONY: lint
 lint: fmt-check lint-cjs golint
@@ -230,7 +237,7 @@ copy-copilot-to-claude:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint js build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint js build test-all recompile vscode-compile
 	@echo "Agent finished tasks successfully."
 
 # Help target

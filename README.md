@@ -37,6 +37,23 @@ The AI agent reads your repository context, understands the issue content, and t
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
+## 🎨 VSCode Extension
+
+The repository includes a minimalistic VSCode extension that provides syntax highlighting and schema validation for agentic workflow files:
+
+- **Syntax Highlighting**: Rich highlighting for YAML frontmatter and markdown content
+- **Schema Validation**: IntelliSense and validation for workflow configuration
+- **Auto-completion**: Smart completions for properties and values
+- **Hover Documentation**: Helpful tooltips explaining workflow features
+
+The extension automatically detects `.md` files in `.github/workflows/` and provides enhanced editing support. To build the extension:
+
+```bash
+make vscode-compile
+```
+
+The extension source is located in [`vscode/gh-aw/`](vscode/gh-aw/) with full TypeScript support and development configurations.
+
 ## 📖 Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).

@@ -21,6 +21,8 @@
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
     "format:cjs": "prettier --write 'pkg/workflow/js/**/*.cjs'",
-    "lint:cjs": "prettier --check 'pkg/workflow/js/**/*.cjs'"
+    "lint:cjs": "prettier --check 'pkg/workflow/js/**/*.cjs'",
+    "vscode:compile": "cd vscode/gh-aw && npm run compile",
+    "vscode:watch": "cd vscode/gh-aw && npm run watch"
   }
 }

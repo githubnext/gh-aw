@@ -1,0 +1,69 @@
+{
+  "name": "gh-aw",
+  "displayName": "GitHub Agentic Workflows",
+  "description": "Syntax highlighting and schema validation for GitHub Agentic Workflow files",
+  "version": "0.1.0",
+  "publisher": "github",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/githubnext/gh-aw.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "github",
+    "workflows",
+    "agentic",
+    "ai",
+    "automation",
+    "yaml",
+    "markdown"
+  ],
+  "activationEvents": [
+    "onLanguage:agentic-workflow"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "agentic-workflow",
+        "aliases": [
+          "Agentic Workflow",
+          "agentic-workflow"
+        ],
+        "extensions": [],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "agentic-workflow",
+        "scopeName": "source.agentic-workflow",
+        "path": "./syntaxes/agentic-workflow.tmLanguage.json"
+      }
+    ],
+    "yamlValidation": [
+      {
+        "fileMatch": [
+          ".github/workflows/*.md"
+        ],
+        "url": "./schemas/agentic-workflow-frontmatter.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^18.x",
+    "typescript": "^5.0.0"
+  }
+}
