@@ -2,12 +2,12 @@ function main() {
   const fs = require("fs");
   const crypto = require("crypto");
 
-  // Generate a random filename for the output file
-  const randomId = crypto.randomBytes(8).toString("hex");
-  const outputFile = `/tmp/aw_output_${randomId}.txt`;
+  // Create the safe outputs directory structure
+  const safeOutputsDir = "/tmp/gh-aw/safe-outputs";
+  const outputFile = `${safeOutputsDir}/outputs.jsonl`;
 
-  // Ensure the /tmp directory exists
-  fs.mkdirSync("/tmp", { recursive: true });
+  // Ensure the safe outputs directory exists
+  fs.mkdirSync(safeOutputsDir, { recursive: true });
 
   // We don't create the file, as the name is sufficiently random
   // and some engines (Claude) fails first Write to the file
@@ -15,9 +15,11 @@ function main() {
 
   // Set the environment variable for subsequent steps
   core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
+  core.exportVariable("GITHUB_AW_SAFE_OUTPUTS_DIR", safeOutputsDir);
 
   // Also set as step output for reference
   core.setOutput("output_file", outputFile);
+  core.setOutput("output_dir", safeOutputsDir);
 }
 
 main();

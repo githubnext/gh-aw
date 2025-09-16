@@ -216,13 +216,9 @@
           "type": "string",
           "description": "SHA256 hash of the file content",
           "minLength": 1
-        },
-        "content": {
-          "type": "string",
-          "description": "Base64 encoded file content"
         }
       },
-      "required": ["type", "filename", "original_filename", "sha", "content"],
+      "required": ["type", "filename", "original_filename", "sha"],
       "additionalProperties": false
     },
     "CreatePullRequestReviewCommentOutput": {

@@ -89,17 +89,24 @@ if (isStaged) {
 
     // Upload each file
     for (const item of orphanedBranchItems) {
-      const { filename, content, original_filename, sha } = item;
+      const { filename, original_filename, sha } = item;
 
-      if (!filename || !content) {
+      if (!filename) {
         core.warning(`Skipping invalid item: ${JSON.stringify(item)}`);
         continue;
       }
 
-      // Decode base64 content and write file
-      const fileBuffer = Buffer.from(content, "base64");
+      // Find the file in the artifact directory (safe outputs dir)
+      const artifactDir = "/tmp/gh-aw/safe-outputs";
+      const sourceFile = `${artifactDir}/${filename}`;
 
-      // Validate SHA matches the file content
+      if (!fs.existsSync(sourceFile)) {
+        core.setFailed(`File not found in artifact: ${sourceFile}`);
+        return;
+      }
+
+      // Read the file and validate SHA
+      const fileBuffer = fs.readFileSync(sourceFile);
       const crypto = require("crypto");
       const computedHash = crypto.createHash("sha256");
       computedHash.update(fileBuffer);
@@ -116,7 +123,8 @@ if (isStaged) {
       // Use the SHA-based filename directly (it already includes the extension)
       const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-      fs.writeFileSync(safeFilename, fileBuffer);
+      // Copy file to working directory for git operations
+      fs.copyFileSync(sourceFile, safeFilename);
       const originalName = original_filename || filename;
       core.info(
         `Created file: ${safeFilename} (${fileBuffer.length} bytes) - SHA: ${fileSha} - Original: ${originalName}`

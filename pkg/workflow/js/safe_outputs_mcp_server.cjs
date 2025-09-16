@@ -367,8 +367,6 @@ const TOOLS = Object.fromEntries(
           );
         }
 
-        const base64Content = fileContent.toString("base64");
-
         // Compute SHA256 hash of the file content
         const hash = crypto.createHash("sha256");
         hash.update(fileContent);
@@ -392,13 +390,23 @@ const TOOLS = Object.fromEntries(
 
         const shaFilename = fileSha + originalExtension;
 
-        // Create the output entry with base64 content and SHA filename
+        // Copy file to safe outputs directory with SHA-based filename
+        const safeOutputsDir =
+          process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs";
+        const targetFile = path.join(safeOutputsDir, shaFilename);
+
+        // Ensure directory exists
+        fs.mkdirSync(safeOutputsDir, { recursive: true });
+
+        // Copy the file
+        fs.copyFileSync(filename, targetFile);
+
+        // Create the output entry without base64 content (file is now copied to safe outputs dir)
         const entry = {
           type: "push-to-orphaned-branch",
           filename: shaFilename,
           original_filename: path.basename(filename),
           sha: fileSha,
-          content: base64Content,
         };
 
         appendSafeOutput(entry);

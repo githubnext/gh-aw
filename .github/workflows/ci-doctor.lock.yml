@@ -57,18 +57,20 @@ jobs:
             function main() {
               const fs = require("fs");
               const crypto = require("crypto");
-              // Generate a random filename for the output file
-              const randomId = crypto.randomBytes(8).toString("hex");
-              const outputFile = `/tmp/aw_output_${randomId}.txt`;
-              // Ensure the /tmp directory exists
-              fs.mkdirSync("/tmp", { recursive: true });
+              // Create the safe outputs directory structure
+              const safeOutputsDir = "/tmp/gh-aw/safe-outputs";
+              const outputFile = `${safeOutputsDir}/outputs.jsonl`;
+              // Ensure the safe outputs directory exists
+              fs.mkdirSync(safeOutputsDir, { recursive: true });
               // We don't create the file, as the name is sufficiently random
               // and some engines (Claude) fails first Write to the file
               // if it exists and has not been read.
               // Set the environment variable for subsequent steps
               core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
+              core.exportVariable("GITHUB_AW_SAFE_OUTPUTS_DIR", safeOutputsDir);
               // Also set as step output for reference
               core.setOutput("output_file", outputFile);
+              core.setOutput("output_dir", safeOutputsDir);
             }
             main();
       - name: Setup Safe Outputs Collector MCP
@@ -436,18 +438,29 @@ jobs:
                     // Validate file extension is reasonable (up to 5 alphanumeric characters)
                     if (originalExtension) {
                       const extWithoutDot = originalExtension.slice(1); // Remove the leading dot
-                      if (extWithoutDot.length > 5 || !/^[a-zA-Z0-9]+$/.test(extWithoutDot)) {
-                        throw new Error(`File extension '${originalExtension}' is not allowed. Extension must be up to 5 alphanumeric characters.`);
+                      if (
+                        extWithoutDot.length > 5 ||
+                        !/^[a-zA-Z0-9]+$/.test(extWithoutDot)
+                      ) {
+                        throw new Error(
+                          `File extension '${originalExtension}' is not allowed. Extension must be up to 5 alphanumeric characters.`
+                        );
                       }
                     }
                     const shaFilename = fileSha + originalExtension;
-                    // Create the output entry with base64 content and SHA filename
+                    // Copy file to safe outputs directory with SHA-based filename
+                    const safeOutputsDir = process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs";
+                    const targetFile = path.join(safeOutputsDir, shaFilename);
+                    // Ensure directory exists
+                    fs.mkdirSync(safeOutputsDir, { recursive: true });
+                    // Copy the file
+                    fs.copyFileSync(filename, targetFile);
+                    // Create the output entry without base64 content (file is now copied to safe outputs dir)
                     const entry = {
                       type: "push-to-orphaned-branch",
                       filename: shaFilename,
                       original_filename: path.basename(filename),
                       sha: fileSha,
-                      content: base64Content,
                     };
                     appendSafeOutput(entry);
                     // Get branch configuration if available
@@ -970,7 +983,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: safe_output.jsonl
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          path: /tmp/gh-aw/safe-outputs/
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
