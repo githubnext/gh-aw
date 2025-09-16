@@ -250,15 +250,9 @@ gh aw mcp inspect my-workflow --server trello-server
 
 # Enable verbose output for debugging connection issues
 gh aw mcp inspect my-workflow --verbose
+```
 
-# Launch official MCP inspector web interface
-gh aw mcp inspect my-workflow --inspector
-
-# Generate MCP server configuration using Claude engine
-gh aw mcp inspect my-workflow --generate-config
-
-# Launch all configured MCP servers
-gh aw mcp inspect my-workflow --launch-servers
+The `mcp inspect` command automatically generates MCP server configurations using the Claude agentic engine and displays them along with the inspection results.
 
 ### Common Issues and Solutions
 

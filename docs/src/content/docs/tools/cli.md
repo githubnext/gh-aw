@@ -208,15 +208,6 @@ gh aw mcp inspect workflow-name --server server-name --tool tool-name
 
 # Enable verbose output with connection details
 gh aw mcp inspect workflow-name --verbose
-
-# Launch the official @modelcontextprotocol/inspector web interface
-gh aw mcp inspect workflow-name --inspector
-
-# Generate MCP server configuration using Claude engine
-gh aw mcp inspect workflow-name --generate-config
-
-# Launch all configured MCP servers
-gh aw mcp inspect workflow-name --launch-servers
 ```
 
 **Key Features:**

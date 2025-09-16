@@ -57,7 +57,7 @@ func TestNewMCPCommand(t *testing.T) {
 			test: func(t *testing.T) {
 				cmd := NewMCPInspectSubCommand()
 
-				expectedFlags := []string{"server", "tool", "verbose", "inspector", "generate-config", "launch-servers"}
+				expectedFlags := []string{"server", "tool", "verbose"}
 
 				for _, flagName := range expectedFlags {
 					flag := cmd.Flags().Lookup(flagName)
@@ -92,7 +92,7 @@ func TestMCPInspectSubCommand(t *testing.T) {
 					t.Error("Expected Short description to be set")
 				}
 
-				expectedFeatures := []string{"generate MCP configurations", "Claude agentic engine", "github, playwright, and safe-outputs"}
+				expectedFeatures := []string{"generates MCP configurations", "Claude agentic engine", "github, playwright, and safe-outputs"}
 				for _, feature := range expectedFeatures {
 					if !strings.Contains(cmd.Long, feature) {
 						t.Errorf("Expected Long description to mention '%s'", feature)
@@ -105,7 +105,7 @@ func TestMCPInspectSubCommand(t *testing.T) {
 			test: func(t *testing.T) {
 				cmd := NewMCPInspectSubCommand()
 
-				expectedExamples := []string{"--generate-config", "--launch-servers", "--inspector"}
+				expectedExamples := []string{"--server", "--tool", "-v"}
 				for _, example := range expectedExamples {
 					if !strings.Contains(cmd.Long, example) {
 						t.Errorf("Expected Long description to include example with '%s'", example)
