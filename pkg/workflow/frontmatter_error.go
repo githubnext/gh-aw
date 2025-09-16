@@ -71,7 +71,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 				Position: console.ErrorPosition{
 					File:   filePath,
 					Line:   line,
-					Column: -1, // Use -1 to highlight entire line
+					Column: column, // Use original column, we'll extend to word in console rendering
 				},
 				Type:    "error",
 				Message: fmt.Sprintf("frontmatter parsing failed: %s", message),

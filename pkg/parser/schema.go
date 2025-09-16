@@ -217,7 +217,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 					Position: console.ErrorPosition{
 						File:   filePath,
 						Line:   adjustedLine,
-						Column: -1, // Use -1 to highlight entire line for JSON validation errors
+						Column: location.Column, // Use original column, we'll extend to word in console rendering
 					},
 					Type:    "error",
 					Message: message,
@@ -239,7 +239,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 			Position: console.ErrorPosition{
 				File:   filePath,
 				Line:   frontmatterStart,
-				Column: -1, // Use -1 to highlight entire line for JSON validation errors
+				Column: 1, // Use column 1 for fallback, we'll extend to word in console rendering
 			},
 			Type:    "error",
 			Message: message,
