@@ -92,7 +92,7 @@ describe("parse_claude_log.cjs", () => {
     delete global.require;
   });
 
-  const runScript = async (logContent) => {
+  const runScript = async logContent => {
     // Create a temporary log file
     const tempFile = path.join(process.cwd(), `test_log_${Date.now()}.txt`);
     fs.writeFileSync(tempFile, logContent);
@@ -139,23 +139,28 @@ describe("parse_claude_log.cjs", () => {
           subtype: "init",
           session_id: "test-123",
           tools: ["Bash", "Read"],
-          model: "claude-sonnet-4-20250514"
+          model: "claude-sonnet-4-20250514",
         },
         {
           type: "assistant",
           message: {
             content: [
               { type: "text", text: "I'll help you with this task." },
-              { type: "tool_use", id: "tool_123", name: "Bash", input: { command: "echo 'Hello World'" } }
-            ]
-          }
+              {
+                type: "tool_use",
+                id: "tool_123",
+                name: "Bash",
+                input: { command: "echo 'Hello World'" },
+              },
+            ],
+          },
         },
         {
           type: "result",
           total_cost_usd: 0.0015,
           usage: { input_tokens: 150, output_tokens: 50 },
-          num_turns: 1
-        }
+          num_turns: 1,
+        },
       ]);
 
       const result = parseClaudeLog(jsonArrayLog);
@@ -213,10 +218,10 @@ npm warn exec The following package was not found
           tools: ["Bash"],
           mcp_servers: [
             { name: "github", status: "connected" },
-            { name: "failed_server", status: "failed" }
+            { name: "failed_server", status: "failed" },
           ],
-          model: "claude-sonnet-4-20250514"
-        }
+          model: "claude-sonnet-4-20250514",
+        },
       ]);
 
       const result = parseClaudeLog(logWithFailures);
@@ -262,8 +267,11 @@ npm warn exec The following package was not found
           type: "system",
           subtype: "init",
           session_id: "mcp-test",
-          tools: ["mcp__github__create_issue", "mcp__safe_outputs__missing-tool"],
-          model: "claude-sonnet-4-20250514"
+          tools: [
+            "mcp__github__create_issue",
+            "mcp__safe_outputs__missing-tool",
+          ],
+          model: "claude-sonnet-4-20250514",
         },
         {
           type: "assistant",
@@ -273,17 +281,17 @@ npm warn exec The following package was not found
                 type: "tool_use",
                 id: "tool_1",
                 name: "mcp__github__create_issue",
-                input: { title: "Test Issue", body: "Test description" }
+                input: { title: "Test Issue", body: "Test description" },
               },
               {
                 type: "tool_use",
                 id: "tool_2",
                 name: "mcp__safe_outputs__missing-tool",
-                input: { tool: "missing_tool", reason: "Not available" }
-              }
-            ]
-          }
-        }
+                input: { tool: "missing_tool", reason: "Not available" },
+              },
+            ],
+          },
+        },
       ]);
 
       const result = parseClaudeLog(logWithMcpTools);
@@ -302,14 +310,14 @@ npm warn exec The following package was not found
           subtype: "init",
           session_id: "integration-test",
           tools: ["Bash"],
-          model: "claude-sonnet-4-20250514"
+          model: "claude-sonnet-4-20250514",
         },
         {
           type: "result",
           total_cost_usd: 0.001,
           usage: { input_tokens: 50, output_tokens: 25 },
-          num_turns: 1
-        }
+          num_turns: 1,
+        },
       ]);
 
       await runScript(validLog);
@@ -332,11 +340,11 @@ npm warn exec The following package was not found
           session_id: "failure-test",
           mcp_servers: [
             { name: "working_server", status: "connected" },
-            { name: "broken_server", status: "failed" }
+            { name: "broken_server", status: "failed" },
           ],
           tools: ["Bash"],
-          model: "claude-sonnet-4-20250514"
-        }
+          model: "claude-sonnet-4-20250514",
+        },
       ]);
 
       await runScript(logWithFailures);
@@ -386,7 +394,7 @@ npm warn exec The following package was not found
   describe("helper function tests", () => {
     it("should format bash commands correctly", () => {
       const parseClaudeLog = extractParseFunction();
-      
+
       // Test with the parseClaudeLog function to access formatBashCommand indirectly
       const logWithCommand = JSON.stringify([
         {
@@ -397,22 +405,22 @@ npm warn exec The following package was not found
                 type: "tool_use",
                 id: "tool_1",
                 name: "Bash",
-                input: { command: "echo 'hello world'\n  && ls -la\n  && pwd" }
-              }
-            ]
-          }
-        }
+                input: { command: "echo 'hello world'\n  && ls -la\n  && pwd" },
+              },
+            ],
+          },
+        },
       ]);
 
       const result = parseClaudeLog(logWithCommand);
-      
+
       // Check that multi-line commands are normalized to single line
       expect(result.markdown).toContain("echo 'hello world' && ls -la && pwd");
     });
 
     it("should truncate long strings appropriately", () => {
       const parseClaudeLog = extractParseFunction();
-      
+
       const longCommand = "a".repeat(100);
       const logWithLongCommand = JSON.stringify([
         {
@@ -423,22 +431,22 @@ npm warn exec The following package was not found
                 type: "tool_use",
                 id: "tool_1",
                 name: "Bash",
-                input: { command: longCommand }
-              }
-            ]
-          }
-        }
+                input: { command: longCommand },
+              },
+            ],
+          },
+        },
       ]);
 
       const result = parseClaudeLog(logWithLongCommand);
-      
+
       // Should truncate and add ellipsis
       expect(result.markdown).toContain("...");
     });
 
     it("should format MCP tool names correctly", () => {
       const parseClaudeLog = extractParseFunction();
-      
+
       const logWithMcpTool = JSON.stringify([
         {
           type: "assistant",
@@ -448,15 +456,15 @@ npm warn exec The following package was not found
                 type: "tool_use",
                 id: "tool_1",
                 name: "mcp__github__create_pull_request",
-                input: { title: "Test PR" }
-              }
-            ]
-          }
-        }
+                input: { title: "Test PR" },
+              },
+            ],
+          },
+        },
       ]);
 
       const result = parseClaudeLog(logWithMcpTool);
-      
+
       expect(result.markdown).toContain("github::create_pull_request");
     });
   });
