@@ -2,7 +2,7 @@
 title: Network Permissions
 description: Control network access for AI engines using ecosystem identifiers and domain allowlists
 sidebar:
-  order: 5
+  order: 7
 ---
 
 Control network access for AI engines using the top-level `network` field. Network permissions provide fine-grained control over which domains and services your agentic workflows can access during execution.

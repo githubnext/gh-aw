@@ -252,8 +252,6 @@ All other expressions are disallowed, including:
 - `${{ vars.* }}` - All repository variables
 - Complex functions like `${{ toJson(...) }}`, `${{ fromJson(...) }}`, etc.
 
-## Security Rationale
-
 This restriction prevents:
 - **Secret leakage**: Prevents accidentally exposing secrets in AI prompts or logs
 - **Environment variable exposure**: Protects sensitive configuration from being accessed
