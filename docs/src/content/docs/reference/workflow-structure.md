@@ -5,19 +5,14 @@ sidebar:
   order: 1
 ---
 
-This guide explains how agentic workflows are organized and structured within your repository.
+## Workflow File Format
 
-## File Organization
+Each workflow consists of:
 
-Agentic workflows are stored in the `.github/workflows` folder as Markdown files (`*.md`)
-and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
+1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](./frontmatter/) for details.
+2. **Markdown Content**: Natural language instructions for the AI. See [Markdown Content](./markdown/).
 
-```
-.github/
-└── workflows/
-  ├── weekly-research.md # Agentic Workflow
-  └── weekly-research.lock.yml # Compiled GitHub Actions Workflow
-```
+The markdown content is where you write natural language instructions for the AI agent. 
 
 Create a markdown file in `.github/workflows/` with the following structure:
 
@@ -40,26 +35,25 @@ tools:
 Read the issue #${{ github.event.issue.number }}. Add a comment to the issue listing useful resources and links.
 ```
 
-then run the `compile` command to generate the lock file.
+This guide explains how agentic workflows are organized and structured within your repository.
+
+## File Organization
+
+Agentic workflows are stored in the `.github/workflows` folder as Markdown files (`*.md`)
+and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
+
+```
+.github/
+└── workflows/
+  ├── weekly-research.md # Agentic Workflow
+  └── weekly-research.lock.yml # Compiled GitHub Actions Workflow
+```
+
+When you run the `compile` command you generate the lock file.
 
 ```sh
 gh aw compile
 ```
-
-When you run `gh aw compile`, the system:
-
-1. **Reads** your `.md` files from `.github/workflows/`
-2. **Processes** the frontmatter and markdown content
-3. **Generates** corresponding `.lock.yml` GitHub Actions workflow files
-
-## Workflow File Format
-
-Each workflow consists of:
-
-1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter Options](./frontmatter/) for details.
-2. **Markdown Content**: Natural language instructions for the AI. See [Markdown Content](./markdown/).
-
-The markdown content is where you write natural language instructions for the AI agent. 
 
 ## Best Practices
 

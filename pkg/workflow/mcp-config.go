@@ -73,7 +73,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 
 	// Render properties based on format
 	for propIndex, property := range existingProperties {
-		isLastProperty := propIndex == len(existingProperties)-1
+		isLast := propIndex == len(existingProperties)-1
 
 		switch property {
 		case "command":
@@ -83,7 +83,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, cmdStr)
 					} else {
 						comma := ","
-						if isLastProperty {
+						if isLast {
 							comma = ""
 						}
 						fmt.Fprintf(yaml, "%s\"command\": \"%s\"%s\n", renderer.IndentLevel, cmdStr, comma)
@@ -103,7 +103,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
 					} else {
 						comma := ","
-						if isLastProperty {
+						if isLast {
 							comma = ""
 						}
 						fmt.Fprintf(yaml, "%s\"args\": [\n", renderer.IndentLevel)
@@ -138,7 +138,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 						yaml.WriteString(" }\n")
 					} else {
 						comma := ","
-						if isLastProperty {
+						if isLast {
 							comma = ""
 						}
 						fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
@@ -163,7 +163,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if url, exists := mcpConfig["url"]; exists {
 				if urlStr, ok := url.(string); ok {
 					comma := ","
-					if isLastProperty {
+					if isLast {
 						comma = ""
 					}
 					fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, urlStr, comma)
@@ -173,7 +173,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if headers, exists := mcpConfig["headers"]; exists {
 				if headersMap, ok := headers.(map[string]any); ok {
 					comma := ","
-					if isLastProperty {
+					if isLast {
 						comma = ""
 					}
 					fmt.Fprintf(yaml, "%s\"headers\": {\n", renderer.IndentLevel)

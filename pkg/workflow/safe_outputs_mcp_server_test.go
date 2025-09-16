@@ -113,9 +113,9 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]interface{}{
-		"create-issue":      map[string]interface{}{"enabled": true},
-		"create-discussion": map[string]interface{}{"enabled": true},
-		"missing-tool":      map[string]interface{}{"enabled": true},
+		"create-issue":      true,
+		"create-discussion": true,
+		"missing-tool":      true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -238,49 +238,12 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 	t.Log("missing-tool executed successfully using Go MCP SDK")
 }
 
-func TestSafeOutputsMCPServer_DisabledTool(t *testing.T) {
-	tempFile := createTempOutputFile(t)
-	defer os.Remove(tempFile)
-
-	config := map[string]interface{}{
-		"create-issue": map[string]interface{}{
-			"enabled": false, // Explicitly disabled
-		},
-		"missing-tool": map[string]interface{}{
-			"enabled": true, // Keep one enabled so server can start
-		},
-	}
-
-	client := NewMCPTestClient(t, tempFile, config)
-	defer client.Close()
-
-	// Try to call disabled tool - should return an error
-	ctx := context.Background()
-	_, err := client.CallTool(ctx, "create-issue", map[string]any{
-		"title": "This should fail",
-		"body":  "Tool is disabled",
-	})
-
-	// Should get an error
-	if err == nil {
-		t.Fatalf("Expected error for disabled tool, got success")
-	}
-
-	if !strings.Contains(err.Error(), "create-issue safe-output is not enabled") &&
-		!strings.Contains(err.Error(), "Tool 'create-issue' failed") &&
-		!strings.Contains(err.Error(), "Tool not found: create-issue") {
-		t.Errorf("Expected error about disabled tool, got: %s", err.Error())
-	}
-
-	t.Log("Disabled tool correctly rejected using Go MCP SDK")
-}
-
 func TestSafeOutputsMCPServer_UnknownTool(t *testing.T) {
 	tempFile := createTempOutputFile(t)
 	defer os.Remove(tempFile)
 
 	config := map[string]interface{}{
-		"create-issue": map[string]interface{}{"enabled": true},
+		"create-issue": true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -307,8 +270,8 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]interface{}{
-		"create-issue":      map[string]interface{}{"enabled": true},
-		"add-issue-comment": map[string]interface{}{"enabled": true},
+		"create-issue":      true,
+		"add-issue-comment": true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
