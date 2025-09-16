@@ -142,7 +142,6 @@ Downloaded artifacts include:
 - safe_output.jsonl: Agent's final output content (available when non-empty)
 - agent_output.json: Full/raw agent output (if the workflow uploaded this artifact)
 - aw.patch: Git patch of changes made during execution
-- cache-memory/: Persistent cache files from cache-memory feature (if enabled)
 - Various log files with execution details and metrics
 
 The agentic-workflow-id is the basename of the markdown file without the .md extension.
@@ -796,24 +795,6 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			if statErr == nil {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", formatFileSize(fileInfo.Size()))))
 			}
-		}
-	}
-
-	// Check for cache-memory artifact directory
-	cacheMemoryPath := filepath.Join(logDir, "cache-memory")
-	if stat, err := os.Stat(cacheMemoryPath); err == nil && stat.IsDir() {
-		if verbose {
-			// Count files in cache-memory directory
-			fileCount := 0
-			totalSize := int64(0)
-			filepath.Walk(cacheMemoryPath, func(path string, info os.FileInfo, err error) error {
-				if err == nil && !info.IsDir() {
-					fileCount++
-					totalSize += info.Size()
-				}
-				return nil
-			})
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found cache-memory directory: %d files (%s)", fileCount, formatFileSize(totalSize))))
 		}
 	}
 
