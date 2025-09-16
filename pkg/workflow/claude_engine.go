@@ -451,19 +451,21 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
 				// Cache-memory now provides simple file share access at /tmp/cache-memory/
-				// Ensure Read and Write tools are available for file operations
-				if !slices.Contains(allowedTools, "Read") {
-					allowedTools = append(allowedTools, "Read")
+				// Add path-specific Read and Write tools for the cache directory only
+				cacheDirPattern := "/tmp/cache-memory/*"
+				
+				// Add path-specific tools for cache directory access
+				if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
 				}
-				if !slices.Contains(allowedTools, "Write") {
-					allowedTools = append(allowedTools, "Write")
+				if !slices.Contains(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
 				}
-				// Also ensure Edit tools are available for file manipulation
-				if !slices.Contains(allowedTools, "Edit") {
-					allowedTools = append(allowedTools, "Edit")
+				if !slices.Contains(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
 				}
-				if !slices.Contains(allowedTools, "MultiEdit") {
-					allowedTools = append(allowedTools, "MultiEdit")
+				if !slices.Contains(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
 				}
 				continue
 			}

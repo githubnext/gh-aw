@@ -50,20 +50,20 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__create_issue,mcp__github__list_issues",
 		},
 		{
-			name: "cache-memory tool (provides file system access with Read/Write tools)",
+			name: "cache-memory tool (provides file system access with path-specific cache tools)",
 			tools: map[string]any{
 				"cache-memory": map[string]any{
 					"key": "test-memory-key",
 				},
 			},
-			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookRead,Read,Task,TodoWrite,Write",
+			expected: "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write(/tmp/cache-memory/*)",
 		},
 		{
 			name: "cache-memory with boolean true",
 			tools: map[string]any{
 				"cache-memory": true,
 			},
-			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookRead,Read,Task,TodoWrite,Write",
+			expected: "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write(/tmp/cache-memory/*)",
 		},
 		{
 			name: "cache-memory with github tools",
@@ -73,7 +73,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 					"allowed": []any{"get_repository"},
 				},
 			},
-			expected: "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_repository",
+			expected: "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write(/tmp/cache-memory/*),mcp__github__get_repository",
 		},
 		{
 			name: "mixed neutral and mcp tools",
