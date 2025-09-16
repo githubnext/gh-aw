@@ -625,6 +625,12 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
 	}
 
+	// Check if frontmatter specifies a custom name and use it instead
+	frontmatterName := c.extractStringValue(result.Frontmatter, "name")
+	if frontmatterName != "" {
+		workflowName = frontmatterName
+	}
+
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Extracted workflow name: '%s'", workflowName)))
 	}
@@ -635,7 +641,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:               workflowName,
-		FrontmatterName:    c.extractStringValue(result.Frontmatter, "name"),
+		FrontmatterName:    frontmatterName,
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,

@@ -1,4 +1,5 @@
 ---
+name: "dev"
 on:
   workflow_dispatch: # do not remove this trigger
   push:

@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Development Assistant"
+name: "dev"
 on:
   push:
     branches:
@@ -15,7 +15,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
-run-name: "Development Assistant"
+run-name: "dev"
 
 jobs:
   task:
@@ -111,7 +111,7 @@ jobs:
             }
             await main();
 
-  development-assistant:
+  dev:
     needs: task
     runs-on: ubuntu-latest
     permissions: read-all
@@ -814,7 +814,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Development Assistant",
+              workflow_name: "dev",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -906,7 +906,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --max-turns 5 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/development-assistant.log
+          npx @anthropic-ai/claude-code@latest --print --max-turns 5 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/dev.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -920,10 +920,10 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/development-assistant.log
+          touch /tmp/dev.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/development-assistant.log || echo "No log content available"
+          tail -10 /tmp/dev.log || echo "No log content available"
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1752,7 +1752,7 @@ jobs:
         if: always()
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/development-assistant.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/dev.log
         with:
           script: |
             function main() {
@@ -2269,12 +2269,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: development-assistant.log
-          path: /tmp/development-assistant.log
+          name: dev.log
+          path: /tmp/dev.log
           if-no-files-found: warn
 
   missing_tool:
-    needs: development-assistant
+    needs: dev
     if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
@@ -2288,7 +2288,7 @@ jobs:
         id: missing_tool
         uses: actions/github-script@v7
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.development-assistant.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
         with:
           script: |
             async function main() {
