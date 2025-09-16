@@ -43,16 +43,33 @@ func ExtractFirstMatch(text, pattern string) string {
 func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 	var metrics LogMetrics
 
-	// Skip lines that don't look like JSON
+	// Trim the line first
 	trimmed := strings.TrimSpace(line)
-	if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
+	if trimmed == "" {
 		return metrics
+	}
+
+	// If the line isn't a clean JSON object, try to extract a JSON object substring
+	jsonStr := trimmed
+	if !(strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}")) {
+		// Find first '{' and last '}' and attempt to parse that slice
+		open := strings.Index(trimmed, "{")
+		close := strings.LastIndex(trimmed, "}")
+		if open == -1 || close == -1 || close <= open {
+			return metrics
+		}
+		jsonStr = trimmed[open : close+1]
 	}
 
 	// Try to parse as generic JSON
 	var jsonData map[string]interface{}
-	if err := json.Unmarshal([]byte(trimmed), &jsonData); err != nil {
-		return metrics
+	if err := json.Unmarshal([]byte(jsonStr), &jsonData); err != nil {
+		// If parsing fails, try a relaxed approach: sometimes logs contain a JSON-like object with single quotes
+		// Replace single quotes with double quotes as a last resort (not ideal, but helpful for noisy logs)
+		relaxed := strings.ReplaceAll(jsonStr, "'", "\"")
+		if err2 := json.Unmarshal([]byte(relaxed), &jsonData); err2 != nil {
+			return metrics
+		}
 	}
 
 	// Extract token usage from various possible fields and structures
@@ -70,8 +87,15 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 
 // ExtractJSONTokenUsage extracts token usage from JSON data
 func ExtractJSONTokenUsage(data map[string]interface{}) int {
-	// Check top-level token fields
-	tokenFields := []string{"tokens", "token_count", "input_tokens", "output_tokens", "total_tokens"}
+	// Prefer explicit input+output sums at the top-level
+	inputTop := ConvertToInt(data["input_tokens"])
+	outputTop := ConvertToInt(data["output_tokens"])
+	if inputTop > 0 || outputTop > 0 {
+		return inputTop + outputTop
+	}
+
+	// Check top-level token fields that represent a single total value
+	tokenFields := []string{"tokens", "token_count", "total_tokens"}
 	for _, field := range tokenFields {
 		if val, exists := data[field]; exists {
 			if tokens := ConvertToInt(val); tokens > 0 {
@@ -94,7 +118,7 @@ func ExtractJSONTokenUsage(data map[string]interface{}) int {
 				return totalTokens
 			}
 
-			// Generic token count in usage
+			// Generic token count fields inside usage
 			for _, field := range tokenFields {
 				if val, exists := usageMap[field]; exists {
 					if tokens := ConvertToInt(val); tokens > 0 {
@@ -126,7 +150,14 @@ func ExtractJSONTokenUsage(data map[string]interface{}) int {
 // ExtractJSONCost extracts cost information from JSON data
 func ExtractJSONCost(data map[string]interface{}) float64 {
 	// Common cost field names
-	costFields := []string{"cost", "price", "amount", "total_cost", "estimated_cost", "total_cost_usd"}
+	costFields := []string{"total_cost_usd", "cost", "price", "amount", "total_cost", "estimated_cost"}
+
+	// Prefer explicit total_cost_usd at top-level
+	if val, exists := data["total_cost_usd"]; exists {
+		if cost := ConvertToFloat(val); cost > 0 {
+			return cost
+		}
+	}
 
 	for _, field := range costFields {
 		if val, exists := data[field]; exists {
