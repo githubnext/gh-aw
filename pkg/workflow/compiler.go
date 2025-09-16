@@ -156,7 +156,6 @@ type WorkflowData struct {
 type CacheMemoryConfig struct {
 	Enabled       bool   `yaml:"enabled,omitempty"`        // whether cache-memory is enabled
 	Key           string `yaml:"key,omitempty"`            // custom cache key
-	DockerImage   string `yaml:"docker-image,omitempty"`   // deprecated: no longer used (cache-memory is now a simple file share)
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
 
@@ -3832,14 +3831,6 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 				if !strings.HasSuffix(config.Key, runIdSuffix) {
 					config.Key = config.Key + runIdSuffix
 				}
-			}
-		}
-
-		// Parse custom docker image (deprecated and ignored)
-		if dockerImage, exists := configMap["docker-image"]; exists {
-			if dockerImageStr, ok := dockerImage.(string); ok {
-				config.DockerImage = dockerImageStr
-				// Note: docker-image is deprecated and ignored in cache-memory file share mode
 			}
 		}
 

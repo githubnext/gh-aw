@@ -451,7 +451,20 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
 				// Cache-memory now provides simple file share access at /tmp/cache-memory/
-				// No specific tool is added as it uses standard file operations
+				// Ensure Read and Write tools are available for file operations
+				if !slices.Contains(allowedTools, "Read") {
+					allowedTools = append(allowedTools, "Read")
+				}
+				if !slices.Contains(allowedTools, "Write") {
+					allowedTools = append(allowedTools, "Write")
+				}
+				// Also ensure Edit tools are available for file manipulation
+				if !slices.Contains(allowedTools, "Edit") {
+					allowedTools = append(allowedTools, "Edit")
+				}
+				if !slices.Contains(allowedTools, "MultiEdit") {
+					allowedTools = append(allowedTools, "MultiEdit")
+				}
 				continue
 			}
 
