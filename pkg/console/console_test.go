@@ -45,8 +45,7 @@ func TestFormatError(t *testing.T) {
 				"workflow.md:2:1:",
 				"warning:",
 				"deprecated field",
-				"hint:",
-				"use 'new_field' instead",
+				// Hints are no longer displayed as per requirements
 			},
 		},
 		{

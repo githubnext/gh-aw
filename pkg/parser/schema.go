@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -208,17 +209,20 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 					adjustedContextLines = contextLines
 				}
 
+				// Rewrite "additional properties not allowed" errors to be more friendly
+				message := rewriteAdditionalPropertiesError(primaryPath.Message)
+
 				// Create a compiler error with precise location information
 				compilerErr := console.CompilerError{
 					Position: console.ErrorPosition{
 						File:   filePath,
 						Line:   adjustedLine,
-						Column: location.Column,
+						Column: -1, // Use -1 to highlight entire line for JSON validation errors
 					},
 					Type:    "error",
-					Message: primaryPath.Message,
+					Message: message,
 					Context: adjustedContextLines,
-					Hint:    "Check the YAML frontmatter against the schema requirements",
+					// Hints removed as per requirements
 				}
 
 				// Format and return the error
@@ -227,17 +231,20 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 			}
 		}
 
+		// Rewrite "additional properties not allowed" errors to be more friendly
+		message := rewriteAdditionalPropertiesError(errorMsg)
+
 		// Fallback: Create a compiler error with basic location information
 		compilerErr := console.CompilerError{
 			Position: console.ErrorPosition{
 				File:   filePath,
 				Line:   frontmatterStart,
-				Column: 1,
+				Column: -1, // Use -1 to highlight entire line for JSON validation errors
 			},
 			Type:    "error",
-			Message: errorMsg,
+			Message: message,
 			Context: contextLines,
-			Hint:    "Check the YAML frontmatter against the schema requirements",
+			// Hints removed as per requirements
 		}
 
 		// Format and return the error
@@ -371,4 +378,28 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 	frontmatterContent = strings.Join(frontmatterLines, "\n")
 
 	return startIdx, endIdx, frontmatterContent
+}
+
+// rewriteAdditionalPropertiesError rewrites "additional properties not allowed" errors to be more user-friendly
+func rewriteAdditionalPropertiesError(message string) string {
+	// Check if this is an "additional properties not allowed" error
+	if strings.Contains(strings.ToLower(message), "additional propert") && strings.Contains(strings.ToLower(message), "not allowed") {
+		// Extract property names from the message using regex
+		re := regexp.MustCompile(`additional propert(?:y|ies) (.+?) not allowed`)
+		match := re.FindStringSubmatch(message)
+		
+		if len(match) >= 2 {
+			properties := match[1]
+			// Clean up the property list and make it more readable
+			properties = strings.ReplaceAll(properties, "'", "")
+			
+			if strings.Contains(properties, ",") {
+				return fmt.Sprintf("Unknown properties: %s", properties)
+			} else {
+				return fmt.Sprintf("Unknown property: %s", properties)
+			}
+		}
+	}
+	
+	return message
 }

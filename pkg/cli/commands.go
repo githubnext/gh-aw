@@ -662,7 +662,9 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
 			}
 			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
-				return fmt.Errorf("failed to compile workflow '%s': %w", markdownFile, err)
+				// Always put error on a new line and don't wrap with "failed to compile workflow"
+				fmt.Fprintln(os.Stderr, err.Error())
+				return fmt.Errorf("compilation failed")
 			}
 			compiledCount++
 		}
@@ -899,8 +901,8 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 			fmt.Printf("🔨 Initial compilation of %s...\n", markdownFile)
 		}
 		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose); err != nil {
-			// Always show initial compilation errors, not just in verbose mode
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
+			// Always show initial compilation errors on new line without wrapping
+			fmt.Fprintln(os.Stderr, err.Error())
 		}
 		fmt.Println("Recompiled")
 	}
@@ -994,8 +996,8 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
-			// Always show compilation errors, not just in verbose mode
-			fmt.Println(err)
+			// Always show compilation errors on new line
+			fmt.Fprintln(os.Stderr, err.Error())
 		} else if verbose {
 			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
 		}
@@ -1036,8 +1038,8 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		}
 
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
-			// Always show compilation errors, not just in verbose mode
-			fmt.Println(err)
+			// Always show compilation errors on new line
+			fmt.Fprintln(os.Stderr, err.Error())
 		} else if verbose {
 			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
 		}

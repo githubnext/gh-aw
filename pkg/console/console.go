@@ -134,13 +134,7 @@ func FormatError(err CompilerError) string {
 		output.WriteString(renderContext(err))
 	}
 
-	// Optional hint
-	if err.Hint != "" {
-		output.WriteString("\n")
-		output.WriteString(applyStyle(hintStyle, "hint: "))
-		output.WriteString(err.Hint)
-		output.WriteString("\n")
-	}
+	// Remove hints as per requirements - hints are no longer displayed
 
 	return output.String()
 }
@@ -167,8 +161,13 @@ func renderContext(err CompilerError) string {
 
 		// Highlight the error line
 		if lineNum == err.Position.Line {
-			// Highlight the specific column if available
-			if err.Position.Column > 0 && err.Position.Column <= len(line) {
+			// For JSON validation errors (when Column is -1), or when highlighting entire line is needed,
+			// highlight the entire line instead of specific column
+			if err.Position.Column <= 0 || err.Position.Column > len(line) {
+				// Highlight entire line if no specific column or invalid column
+				output.WriteString(applyStyle(highlightStyle, line))
+			} else {
+				// Highlight the specific column if available and valid
 				before := line[:err.Position.Column-1]
 				errorChar := string(line[err.Position.Column-1])
 				after := ""
@@ -179,17 +178,14 @@ func renderContext(err CompilerError) string {
 				output.WriteString(applyStyle(contextLineStyle, before))
 				output.WriteString(applyStyle(highlightStyle, errorChar))
 				output.WriteString(applyStyle(contextLineStyle, after))
-			} else {
-				// Highlight entire line if no specific column
-				output.WriteString(applyStyle(highlightStyle, line))
 			}
 		} else {
 			output.WriteString(applyStyle(contextLineStyle, line))
 		}
 		output.WriteString("\n")
 
-		// Add pointer to error position
-		if lineNum == err.Position.Line && err.Position.Column > 0 {
+		// Add pointer to error position (only when highlighting specific column)
+		if lineNum == err.Position.Line && err.Position.Column > 0 && err.Position.Column <= len(line) {
 			// Create pointer line
 			padding := strings.Repeat(" ", lineNumWidth+3+err.Position.Column-1)
 			pointer := applyStyle(errorStyle, "^")
