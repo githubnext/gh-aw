@@ -7,8 +7,6 @@ sidebar:
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and Claude-specific tools.
 
-> **📘 Looking for MCP servers?** See the complete [MCPs](../guides/mcps.md) for Model Context Protocol configuration, debugging, and examples.
-
 ## Overview
 
 Tools are defined in the frontmatter to specify which GitHub API calls, browser automation, and AI capabilities are available to your workflow:
@@ -33,15 +31,13 @@ All tools declared in included components are merged into the final workflow.
 
 Configure which GitHub API operations are allowed for your workflow.
 
-### Basic Configuration
-
 ```yaml
 tools:
   github:
     # Uses default GitHub API access with workflow permissions
 ```
 
-### Extended Configuration
+or the extended form:
 
 ```yaml
 tools:
@@ -49,8 +45,6 @@ tools:
     allowed: [create_issue, update_issue, add_issue_comment]  # Optional: specific permissions
     docker_image_version: "latest"                          # Optional: MCP server version
 ```
-
-### GitHub Tools Overview
 
 The system automatically includes comprehensive default read-only GitHub tools. These defaults are merged with your custom `allowed` tools, providing comprehensive repository access.
 
@@ -132,8 +126,6 @@ tools:
 
 ## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
 
-Available when using `engine: claude` (it is the default engine). Configure Claude-specific capabilities and tools.
-
 ```yaml
 tools:
   edit:        # File editing capabilities
@@ -161,48 +153,6 @@ tools:
 - **`prefix:*`**: Allows **all commands starting with prefix**
 
 **Security Note**: Using `:*` allows unrestricted bash access. Use only in trusted environments.
-
-### Default Claude Tools
-
-When using `engine: claude` with a `github` tool, these tools are automatically added:
-
-- **`Task`**: Task management and workflow coordination
-- **`Glob`**: File pattern matching and globbing operations  
-- **`Grep`**: Text search and pattern matching within files
-- **`LS`**: Directory listing and file system navigation
-- **`Read`**: File reading operations
-- **`NotebookRead`**: Jupyter notebook reading capabilities
-
-No explicit declaration needed - automatically included with Claude + GitHub configuration.
-
-### Complete Claude Example
-
-```yaml
-tools:
-  github:
-    allowed: [get_issue, add_issue_comment]
-  edit:
-  web-fetch:
-  bash: ["echo", "ls", "git", "npm test"]
-```
-
-
-## Security Considerations
-
-### Bash Command Restrictions
-```yaml
-tools:
-  bash: ["echo", "ls", "git status"]        # ✅ Restricted set
-  # bash: [":*"]                           # ⚠️  Unrestricted - use carefully
-```
-
-### Tool Permissions
-```yaml
-tools:
-  github:
-    allowed: [get_issue, add_issue_comment]     # ✅ Minimal required permissions
-    # allowed: ["*"]                           # ⚠️  Broad access - review carefully
-```
 
 ## Related Documentation
 

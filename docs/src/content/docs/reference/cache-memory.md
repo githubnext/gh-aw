@@ -25,9 +25,7 @@ When `cache-memory` is enabled, the workflow compiler automatically:
 4. **Cache Key Management**: Generates intelligent cache keys with progressive fallback
 5. **Tool Integration**: Adds "memory" tool to the MCP configuration for AI engines
 
-## Basic Usage
-
-### Simple Enable
+## Enabling Cache Memory
 
 Enable cache-memory with default settings:
 
@@ -46,9 +44,39 @@ This uses:
 - **Default setup**: Uses `npx @modelcontextprotocol/server-memory` 
 - **Default storage path**: `/tmp/cache-memory` for memory data files
 
-### Advanced Configuration
+## Prompting for Memory Operations
 
-Customize cache key and artifact retention:
+Memory is accessed via the `memory` tool in your workflow steps.
+
+### Storing Information
+
+The AI agent can store information using the memory tool:
+
+```
+Remember that the user prefers verbose error messages when debugging.
+```
+
+### Retrieving Information
+
+The AI agent can query its memory:
+
+```
+What do I know about the user's debugging preferences?
+```
+
+### Memory Categories
+
+The MCP memory server organizes information into categories:
+
+- **Basic Identity**: User identification and context
+- **Behaviors**: Observed patterns and preferences  
+- **Preferences**: Explicit user preferences
+- **Goals**: Stated objectives and tasks
+- **Relationships**: Connections between entities
+
+## Advanced Configuration
+
+You can also use the more advanced configuration to customize cache key and artifact retention:
 
 ```yaml
 ---
@@ -85,9 +113,23 @@ The `retention-days` option controls the `actions/upload-artifact` retention per
 
 ## Cache Behavior and GitHub Actions Integration
 
-### Cache Key Strategy
+Cache Memory leverages GitHub Actions cache with these characteristics:
 
-Cache Memory builds on GitHub Actions cache infrastructure with these behaviors:
+#### Cache Retention
+- **Retention Period**: 7 days (GitHub Actions standard)
+- **Size Limit**: 10GB per repository (GitHub Actions standard)
+- **LRU Eviction**: Least recently used caches are evicted when limits are reached
+
+#### Artifact Upload (Optional)
+When `retention-days` is configured, memory data is also uploaded as artifacts:
+- **Retention Period**: 1-90 days (configurable via `retention-days`)
+- **Purpose**: Alternative access to memory data beyond cache expiration
+- **Use Case**: Long-term memory persistence for workflows that run infrequently
+
+#### Cache Scoping
+- **Branch Scoping**: Caches are accessible across branches in the same repository
+- **Workflow Scoping**: Each workflow maintains its own cache namespace by default
+- **Run Scoping**: Each run gets unique cache keys to prevent conflicts
 
 #### Automatic Key Generation
 
@@ -109,29 +151,9 @@ custom-
 
 This ensures the most specific match is found first, with progressive fallbacks.
 
-### GitHub Actions Cache Integration
-
-Cache Memory leverages GitHub Actions cache with these characteristics:
-
-#### Cache Retention
-- **Retention Period**: 7 days (GitHub Actions standard)
-- **Size Limit**: 10GB per repository (GitHub Actions standard)
-- **LRU Eviction**: Least recently used caches are evicted when limits are reached
-
-#### Artifact Upload (Optional)
-When `retention-days` is configured, memory data is also uploaded as artifacts:
-- **Retention Period**: 1-90 days (configurable via `retention-days`)
-- **Purpose**: Alternative access to memory data beyond cache expiration
-- **Use Case**: Long-term memory persistence for workflows that run infrequently
-
-#### Cache Scoping
-- **Branch Scoping**: Caches are accessible across branches in the same repository
-- **Workflow Scoping**: Each workflow maintains its own cache namespace by default
-- **Run Scoping**: Each run gets unique cache keys to prevent conflicts
-
 ## MCP Server Configuration
 
-The memory server is configured using npx following official MCP documentation:
+The memory from the cache is accessed via a memory server is implicitly configured using npx following official MCP documentation:
 
 ```json
 "memory": {
@@ -144,34 +166,6 @@ The memory server is configured using npx following official MCP documentation:
   }
 }
 ```
-
-## Memory Operations
-
-### Storing Information
-
-The AI agent can store information using the memory tool:
-
-```
-Remember that the user prefers verbose error messages when debugging.
-```
-
-### Retrieving Information
-
-The AI agent can query its memory:
-
-```
-What do I know about the user's debugging preferences?
-```
-
-### Memory Categories
-
-The MCP memory server organizes information into categories:
-
-- **Basic Identity**: User identification and context
-- **Behaviors**: Observed patterns and preferences  
-- **Preferences**: Explicit user preferences
-- **Goals**: Stated objectives and tasks
-- **Relationships**: Connections between entities
 
 ## Best Practices
 
