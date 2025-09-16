@@ -2,7 +2,7 @@
 title: Network Permissions
 description: Control network access for AI engines using ecosystem identifiers and domain allowlists
 sidebar:
-  order: 5
+  order: 7
 ---
 
 Control network access for AI engines using the top-level `network` field. Network permissions provide fine-grained control over which domains and services your agentic workflows can access during execution.
@@ -243,6 +243,6 @@ network:
 
 ## Related Documentation
 
-- [Frontmatter Options](.././frontmatter/) - Complete frontmatter configuration guide
-- [Tools Configuration](.././tools/) - Tool-specific network access configuration
-- [Security Notes](../../guides/security/) - Comprehensive security guidance
+- [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
+- [Tools Configuration](/gh-aw/reference/tools/) - Tool-specific network access configuration
+- [Security Notes](/gh-aw/guides/security/) - Comprehensive security guidance

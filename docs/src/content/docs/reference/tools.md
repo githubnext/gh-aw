@@ -156,9 +156,9 @@ tools:
 
 ## Related Documentation
 
-- [Frontmatter Options](../../reference/frontmatter/) - All frontmatter configuration options
-- [Network Permissions](../../reference/network/) - Network access control for AI engines
-- [MCPs](../../guides/mcps/) - Complete Model Context Protocol setup and usage
-- [CLI Commands](../../tools/cli/) - CLI commands for workflow management
-- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
-- [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes
+- [Frontmatter Options](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
+- [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines
+- [MCPs](/gh-aw/guides/mcps/) - Complete Model Context Protocol setup and usage
+- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
+- [Include Directives](/gh-aw/reference/include-directives/) - Modularizing workflows with includes

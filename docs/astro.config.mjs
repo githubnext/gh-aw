@@ -16,8 +16,8 @@ export default defineConfig({
 			plugins: [
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
-					errorOnRelativeLinks: false,
-					errorOnLocalLinks: false,
+					errorOnRelativeLinks: true,
+					errorOnLocalLinks: true,
 				}),
 				starlightLlmsTxt({
 					description: 'GitHub Agentic Workflows (gh-aw) is a Go-based GitHub CLI extension that enables writing agentic workflows in natural language using markdown files, and running them as GitHub Actions workflows.',

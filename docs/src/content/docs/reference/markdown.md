@@ -252,8 +252,6 @@ All other expressions are disallowed, including:
 - `${{ vars.* }}` - All repository variables
 - Complex functions like `${{ toJson(...) }}`, `${{ fromJson(...) }}`, etc.
 
-## Security Rationale
-
 This restriction prevents:
 - **Secret leakage**: Prevents accidentally exposing secrets in AI prompts or logs
 - **Environment variable exposure**: Protects sensitive configuration from being accessed
@@ -298,6 +296,6 @@ Complex: ${{ toJson(github.workflow) }}
 
 ## Related Documentation
 
-- [Workflow Structure](./workflow-structure.md) - Overall workflow file organization
-- [Frontmatter Options](.././frontmatter/) - YAML configuration options
-- [Security Notes](../../guides/security/) - Comprehensive security guidance
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow file organization
+- [Frontmatter Options](/gh-aw/reference/frontmatter/) - YAML configuration options
+- [Security Notes](/gh-aw/guides/security/) - Comprehensive security guidance

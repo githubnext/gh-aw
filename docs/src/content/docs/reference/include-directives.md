@@ -68,8 +68,8 @@ tools:
 
 ## Related Documentation
 
-- [CLI Commands](../../tools/cli/) - CLI commands for workflow management
-- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
-- [Frontmatter Options](../../reference/frontmatter/) - All configuration options
-- [Tools Configuration](../../reference/tools/) - GitHub and other tools setup
-- [MCPs](../../guides/mcps/) - Model Context Protocol setup and configuration
+- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
+- [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options
+- [Tools Configuration](/gh-aw/reference/tools/) - GitHub and other tools setup
+- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
