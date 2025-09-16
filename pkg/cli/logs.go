@@ -1162,6 +1162,7 @@ func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 
 	// Render compact table without title as requested
 	tableConfig := console.TableConfig{
+		Title:     "MCP Tool Calls",
 		Headers:   headers,
 		Rows:      rows,
 		ShowTotal: false, // Keep it simple and compact
@@ -1627,7 +1628,6 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 			!strings.Contains(fileName, "agent_output") &&
 			!strings.Contains(fileName, "access") {
 
-			// Parse this log file for MCP server failures
 			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose)
 			if parseErr != nil {
 				if verbose {
@@ -1670,7 +1670,6 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 		for _, entry := range logEntries {
 			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
 				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
-					// Extract MCP server failures from this init entry
 					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
 						for _, serverInterface := range mcpServers {
 							if server, ok := serverInterface.(map[string]interface{}); ok {
@@ -1720,7 +1719,6 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 			// Look for system init entries that contain MCP server information
 			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
 				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
-					// Extract MCP server failures from this init entry
 					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
 						for _, serverInterface := range mcpServers {
 							if server, ok := serverInterface.(map[string]interface{}); ok {
@@ -1803,9 +1801,6 @@ func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
 		return // No MCP failures to display
 	}
 
-	// Display summary header
-	fmt.Printf("\n%s\n", console.FormatListHeader("🔌 MCP Server Failures"))
-
 	// Convert map to slice for sorting
 	var summaries []*MCPFailureSummary
 	for _, summary := range failureSummary {
@@ -1845,6 +1840,7 @@ func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	}
 
 	tableConfig := console.TableConfig{
+		Title:   "MCP Server Failures",
 		Headers: headers,
 		Rows:    rows,
 	}

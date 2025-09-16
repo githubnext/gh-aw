@@ -2,25 +2,18 @@ function main() {
   const fs = require("fs");
 
   try {
-    // Get the log file path from environment
     const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!logFile) {
       core.info("No agent log file specified");
       return;
     }
-
     if (!fs.existsSync(logFile)) {
       core.info(`Log file not found: ${logFile}`);
       return;
     }
-
     const logContent = fs.readFileSync(logFile, "utf8");
     const result = parseClaudeLog(logContent);
-
-    // Append to GitHub step summary
     core.summary.addRaw(result.markdown).write();
-
-    // Check for MCP server failures and fail the job if any occurred
     if (result.mcpFailures && result.mcpFailures.length > 0) {
       const failedServers = result.mcpFailures.join(", ");
       core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
