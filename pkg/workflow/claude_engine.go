@@ -53,7 +53,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 // GetDeclaredOutputFiles returns the output files that Claude may produce
 func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
-	return []string{"output.txt"}
+	return []string{}
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
@@ -822,17 +822,56 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 	return metrics
 }
 
-// parseClaudeJSONLog parses Claude logs as a JSON array to find the result payload
+// parseClaudeJSONLog parses Claude logs as a JSON array or mixed format (debug logs + JSONL)
 func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMetrics {
 	var metrics LogMetrics
 
-	// Try to parse the entire log as a JSON array
+	// Try to parse the entire log as a JSON array first (old format)
 	var logEntries []map[string]interface{}
 	if err := json.Unmarshal([]byte(logContent), &logEntries); err != nil {
+		// If that fails, try to parse as mixed format (debug logs + JSONL)
 		if verbose {
-			fmt.Printf("Failed to parse Claude log as JSON array: %v\n", err)
+			fmt.Printf("Failed to parse Claude log as JSON array, trying JSONL format: %v\n", err)
 		}
-		return metrics
+
+		logEntries = []map[string]interface{}{}
+		lines := strings.Split(logContent, "\n")
+
+		for _, line := range lines {
+			trimmedLine := strings.TrimSpace(line)
+			if trimmedLine == "" {
+				continue // Skip empty lines
+			}
+
+			// Skip debug log lines that don't start with {
+			// (these are typically timestamped debug messages)
+			if !strings.HasPrefix(trimmedLine, "{") {
+				continue
+			}
+
+			// Try to parse each line as JSON
+			var jsonEntry map[string]interface{}
+			if err := json.Unmarshal([]byte(trimmedLine), &jsonEntry); err != nil {
+				// Skip invalid JSON lines (could be partial debug output)
+				if verbose {
+					fmt.Printf("Skipping invalid JSON line: %s\n", trimmedLine[:min(50, len(trimmedLine))])
+				}
+				continue
+			}
+
+			logEntries = append(logEntries, jsonEntry)
+		}
+
+		if len(logEntries) == 0 {
+			if verbose {
+				fmt.Printf("No valid JSON entries found in Claude log\n")
+			}
+			return metrics
+		}
+
+		if verbose {
+			fmt.Printf("Extracted %d JSON entries from mixed format Claude log\n", len(logEntries))
+		}
 	}
 
 	// Look for the result entry with type: "result"

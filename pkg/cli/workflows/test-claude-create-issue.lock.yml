@@ -287,16 +287,6 @@ jobs:
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
           tail -10 /tmp/test-claude-create-issue.log || echo "No log content available"
-      - name: Upload engine output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent_outputs
-          path: |
-            output.txt
-          if-no-files-found: ignore
-      - name: Clean up engine output files
-        run: |
-          rm -f output.txt
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v7
@@ -338,11 +328,41 @@ jobs:
              */
             function parseClaudeLog(logContent) {
               try {
-                const logEntries = JSON.parse(logContent);
-                if (!Array.isArray(logEntries)) {
+                let logEntries;
+                // First, try to parse as JSON array (old format)
+                try {
+                  logEntries = JSON.parse(logContent);
+                  if (!Array.isArray(logEntries)) {
+                    throw new Error("Not a JSON array");
+                  }
+                } catch (jsonArrayError) {
+                  // If that fails, try to parse as mixed format (debug logs + JSONL)
+                  logEntries = [];
+                  const lines = logContent.split("\n");
+                  for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === "") {
+                      continue; // Skip empty lines
+                    }
+                    // Skip debug log lines that don't start with {
+                    // (these are typically timestamped debug messages)
+                    if (!trimmedLine.startsWith("{")) {
+                      continue;
+                    }
+                    // Try to parse each line as JSON
+                    try {
+                      const jsonEntry = JSON.parse(trimmedLine);
+                      logEntries.push(jsonEntry);
+                    } catch (jsonLineError) {
+                      // Skip invalid JSON lines (could be partial debug output)
+                      continue;
+                    }
+                  }
+                }
+                if (!Array.isArray(logEntries) || logEntries.length === 0) {
                   return {
                     markdown:
-                      "## Agent Log Summary\n\nLog format not recognized as Claude JSON array.\n",
+                      "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
                     mcpFailures: [],
                   };
                 }
@@ -494,7 +514,7 @@ jobs:
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 return {
-                  markdown: `## Agent Log Summary\n\nError parsing Claude log: ${errorMessage}\n`,
+                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
                   mcpFailures: [],
                 };
               }
