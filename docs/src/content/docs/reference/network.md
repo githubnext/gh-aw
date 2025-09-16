@@ -243,6 +243,6 @@ network:
 
 ## Related Documentation
 
-- [Frontmatter Options](./frontmatter.md) - Complete frontmatter configuration guide
-- [Tools Configuration](./tools.md) - Tool-specific network access configuration
-- [Security Notes](../guides/security.md) - Comprehensive security guidance
+- [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
+- [Tools Configuration](/gh-aw/reference/tools/) - Tool-specific network access configuration
+- [Security Notes](/gh-aw/guides/security/) - Comprehensive security guidance

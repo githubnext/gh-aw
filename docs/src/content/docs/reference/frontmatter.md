@@ -21,10 +21,10 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
-- `safe-outputs`: [Safe Output Processing](../reference/safe-outputs.md)
+- `safe-outputs`: [Safe Output Processing](/gh-aw/reference/safe-outputs/)
 - `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine
-- `cache-memory`: [Persistent memory configuration](../reference/cache-memory.md)
+- `cache-memory`: [Persistent memory configuration](/gh-aw/reference/cache-memory/)
 
 ## Trigger Events (`on:`)
 
@@ -93,7 +93,7 @@ on:
 
 ### Command Triggers (`command:`)
 
-An additional kind of trigger called `command:` is supported, see [Command Triggers](../reference/command-triggers.md) for special `/my-bot` triggers and context text functionality.
+An additional kind of trigger called `command:` is supported, see [Command Triggers](/gh-aw/reference/command-triggers/) for special `/my-bot` triggers and context text functionality.
 
 ## Permissions (`permissions:`)
 
@@ -186,11 +186,11 @@ tools:
   bash: ["echo", "ls", "git status"]
 ```
 
-For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](../reference/tools.md).
+For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](/gh-aw/reference/tools/).
 
 ## Network Permissions (`network:`)
 
-Control network access for AI engines using ecosystem identifiers and domain allowlists. See [Network Permissions](../reference/network.md) for detailed configuration options, security model, and examples.
+Control network access for AI engines using ecosystem identifiers and domain allowlists. See [Network Permissions](/gh-aw/reference/network/) for detailed configuration options, security model, and examples.
 
 Quick example:
 ```yaml
@@ -206,7 +206,7 @@ network:
 
 ## Safe Outputs Configuration (`safe-outputs:`)
 
-See [Safe Outputs Processing](../reference/safe-outputs.md) for automatic issue creation, comment posting and other safe outputs.
+See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/) for automatic issue creation, comment posting and other safe outputs.
 
 ## Run Configuration (`run-name:`, `runs-on:`, `timeout_minutes:`)
 
@@ -294,10 +294,10 @@ cache:
 
 ## Related Documentation
 
-- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
-- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
-- [Network Permissions](../reference/network.md) - Network access control configuration
-- [Command Triggers](../reference/command-triggers.md) - Special @mention triggers and context text
-- [MCPs](../guides/mcps.md) - Model Context Protocol setup and configuration
-- [Tools Configuration](../reference/tools.md) - GitHub and other tools setup
-- [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes
+- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
+- [Network Permissions](/gh-aw/reference/network/) - Network access control configuration
+- [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
+- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
+- [Tools Configuration](/gh-aw/reference/tools/) - GitHub and other tools setup
+- [Include Directives](/gh-aw/reference/include-directives/) - Modularizing workflows with includes
