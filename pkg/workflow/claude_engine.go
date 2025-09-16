@@ -448,11 +448,25 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// Skip the claude section as we've already processed it
 			continue
 		} else {
-			// Handle cache-memory as a special case first (can be boolean or map)
+			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
-				// For cache-memory, it's configured as MCP server "memory" and has no allowed restrictions
-				// Default to wildcard access since cache-memory doesn't specify allowed tools
-				allowedTools = append(allowedTools, "mcp__memory")
+				// Cache-memory now provides simple file share access at /tmp/cache-memory/
+				// Add path-specific Read and Write tools for the cache directory only
+				cacheDirPattern := "/tmp/cache-memory/*"
+
+				// Add path-specific tools for cache directory access
+				if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
+				}
+				if !slices.Contains(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
+				}
+				if !slices.Contains(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
+				}
+				if !slices.Contains(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
+				}
 				continue
 			}
 
@@ -652,23 +666,13 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 	return nil
 }
 
-// renderCacheMemoryMCPConfig generates the Memory MCP server configuration
-// Uses npx-based @modelcontextprotocol/server-memory setup
+// renderCacheMemoryMCPConfig handles cache-memory configuration without MCP server mounting
+// Cache-memory is now a simple file share, not an MCP server
 func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	yaml.WriteString("              \"memory\": {\n")
-	yaml.WriteString("                \"command\": \"npx\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"@modelcontextprotocol/server-memory\"\n")
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/tmp/cache-memory/memory.json\"\n")
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	// Cache-memory no longer uses MCP server mounting
+	// The cache folder is available as a simple file share at /tmp/cache-memory/
+	// The folder is created by the cache step and is accessible to all tools
+	// No MCP configuration is needed for simple file access
 }
 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
@@ -837,14 +841,50 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		logEntries = []map[string]interface{}{}
 		lines := strings.Split(logContent, "\n")
 
-		for _, line := range lines {
+		for i := 0; i < len(lines); i++ {
+			line := lines[i]
 			trimmedLine := strings.TrimSpace(line)
 			if trimmedLine == "" {
 				continue // Skip empty lines
 			}
 
-			// Skip debug log lines that don't start with {
-			// (these are typically timestamped debug messages)
+			// If a line looks like a JSON array (starts with '['), try to parse it as an array
+			if strings.HasPrefix(trimmedLine, "[") {
+				buf := trimmedLine
+				// If the closing bracket is not on the same line, accumulate subsequent lines
+				if !strings.Contains(trimmedLine, "]") {
+					j := i + 1
+					for j < len(lines) {
+						buf += "\n" + lines[j]
+						if strings.Contains(lines[j], "]") {
+							// Advance outer loop to the line we consumed
+							i = j
+							break
+						}
+						j++
+					}
+				}
+
+				var arr []map[string]interface{}
+				if err := json.Unmarshal([]byte(buf), &arr); err == nil {
+					logEntries = append(logEntries, arr...)
+					continue
+				}
+
+				// If parsing as a single-line or multi-line array failed, attempt to extract a JSON array substring
+				openIdx := strings.Index(buf, "[")
+				closeIdx := strings.LastIndex(buf, "]")
+				if openIdx != -1 && closeIdx != -1 && closeIdx > openIdx {
+					sub := buf[openIdx : closeIdx+1]
+					var arr2 []map[string]interface{}
+					if err2 := json.Unmarshal([]byte(sub), &arr2); err2 == nil {
+						logEntries = append(logEntries, arr2...)
+						continue
+					}
+				}
+			}
+
+			// Skip debug log lines that don't start with '{'
 			if !strings.HasPrefix(trimmedLine, "{") {
 				continue
 			}
@@ -854,7 +894,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			if err := json.Unmarshal([]byte(trimmedLine), &jsonEntry); err != nil {
 				// Skip invalid JSON lines (could be partial debug output)
 				if verbose {
-					fmt.Printf("Skipping invalid JSON line: %s\n", trimmedLine[:min(50, len(trimmedLine))])
+					fmt.Printf("Skipping invalid JSON line: %s\n", trimmedLine)
 				}
 				continue
 			}
@@ -1105,22 +1145,22 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 								}
 							}
 						}
-					}
-				} else if typeStr == "tool_result" {
-					// Extract output size for tool results
-					if content, exists := contentMap["content"]; exists {
-						if contentStr, ok := content.(string); ok {
-							// Estimate token count (rough approximation: 1 token = ~4 characters)
-							outputSize := len(contentStr) / 4
+					} else if typeStr == "tool_result" {
+						// Extract output size for tool results
+						if content, exists := contentMap["content"]; exists {
+							if contentStr, ok := content.(string); ok {
+								// Estimate token count (rough approximation: 1 token = ~4 characters)
+								outputSize := len(contentStr) / 4
 
-							// Find corresponding tool call to update max output size
-							if toolUseID, exists := contentMap["tool_use_id"]; exists {
-								if _, ok := toolUseID.(string); ok {
-									// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
-									// For now, we'll update the max output size for all tools (conservative estimate)
-									for _, toolInfo := range toolCallMap {
-										if outputSize > toolInfo.MaxOutputSize {
-											toolInfo.MaxOutputSize = outputSize
+								// Find corresponding tool call to update max output size
+								if toolUseID, exists := contentMap["tool_use_id"]; exists {
+									if _, ok := toolUseID.(string); ok {
+										// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
+										// For now, we'll update the max output size for all tools (conservative estimate)
+										for _, toolInfo := range toolCallMap {
+											if outputSize > toolInfo.MaxOutputSize {
+												toolInfo.MaxOutputSize = outputSize
+											}
 										}
 									}
 								}

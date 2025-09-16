@@ -244,32 +244,13 @@ func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName str
 
 // renderCacheMemoryMCPConfig generates the Memory MCP server configuration using shared logic
 // Uses Docker-based @modelcontextprotocol/server-memory setup
+// renderCacheMemoryMCPConfig handles cache-memory configuration without MCP server mounting
+// Cache-memory is now a simple file share, not an MCP server
 func (e *CustomEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	// Determine Docker image to use
-	dockerImage := "mcp/memory" // default from official documentation
-	if workflowData.CacheMemoryConfig != nil && workflowData.CacheMemoryConfig.DockerImage != "" {
-		dockerImage = workflowData.CacheMemoryConfig.DockerImage
-	}
-
-	yaml.WriteString("              \"memory\": {\n")
-	yaml.WriteString("                \"command\": \"docker\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"run\",\n")
-	yaml.WriteString("                  \"-i\",\n")
-	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"-v\",\n")
-	yaml.WriteString("                  \"/tmp/cache-memory:/app/dist\",\n")
-	fmt.Fprintf(yaml, "                  \"%s\"\n", dockerImage)
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/app/dist/memory.json\"\n")
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	// Cache-memory no longer uses MCP server mounting
+	// The cache folder is available as a simple file share at /tmp/cache-memory/
+	// The folder is created by the cache step and is accessible to all tools
+	// No MCP configuration is needed for simple file access
 }
 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration

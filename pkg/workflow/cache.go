@@ -105,17 +105,22 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 }
 
 // generateCacheMemorySteps generates cache steps for the cache-memory configuration
+// Cache-memory provides a simple file share that LLMs can read/write freely
 func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verbose bool) {
 	if data.CacheMemoryConfig == nil || !data.CacheMemoryConfig.Enabled {
 		return
 	}
 
 	// Add comment indicating cache-memory configuration was processed
-	builder.WriteString("      # Cache memory MCP configuration from frontmatter processed below\n")
+	builder.WriteString("      # Cache memory file share configuration from frontmatter processed below\n")
 
 	// Add step to create cache-memory directory
 	builder.WriteString("      - name: Create cache-memory directory\n")
-	builder.WriteString("        run: mkdir -p /tmp/cache-memory\n")
+	builder.WriteString("        run: |\n")
+	builder.WriteString("          mkdir -p /tmp/cache-memory\n")
+	builder.WriteString("          echo \"Cache memory directory created at /tmp/cache-memory\"\n")
+	builder.WriteString("          echo \"This folder provides persistent file storage across workflow runs\"\n")
+	builder.WriteString("          echo \"LLMs and agentic tools can freely read and write files in this directory\"\n")
 
 	// Use the parsed configuration
 	cacheKey := data.CacheMemoryConfig.Key
@@ -138,7 +143,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 		restoreKeys = append(restoreKeys, restoreKey)
 	}
 
-	builder.WriteString("      - name: Cache memory MCP data\n")
+	builder.WriteString("      - name: Cache memory file share data\n")
 	builder.WriteString("        uses: actions/cache@v4\n")
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          key: %s\n", cacheKey)
@@ -148,13 +153,14 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 		fmt.Fprintf(builder, "            %s\n", key)
 	}
 
-	// Add upload-artifact step if retention-days is configured
+	// Always add upload-artifact step for cache-memory (runs always)
+	builder.WriteString("      - name: Upload cache-memory data as artifact\n")
+	builder.WriteString("        uses: actions/upload-artifact@v4\n")
+	builder.WriteString("        with:\n")
+	builder.WriteString("          name: cache-memory\n")
+	builder.WriteString("          path: /tmp/cache-memory\n")
+	// Add retention-days if configured
 	if data.CacheMemoryConfig.RetentionDays != nil {
-		builder.WriteString("      - name: Upload memory MCP data as artifact\n")
-		builder.WriteString("        uses: actions/upload-artifact@v4\n")
-		builder.WriteString("        with:\n")
-		builder.WriteString("          name: cache-memory-data\n")
-		builder.WriteString("          path: /tmp/cache-memory\n")
 		fmt.Fprintf(builder, "          retention-days: %d\n", *data.CacheMemoryConfig.RetentionDays)
 	}
 }

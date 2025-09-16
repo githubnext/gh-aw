@@ -156,7 +156,6 @@ type WorkflowData struct {
 type CacheMemoryConfig struct {
 	Enabled       bool   `yaml:"enabled,omitempty"`        // whether cache-memory is enabled
 	Key           string `yaml:"key,omitempty"`            // custom cache key
-	DockerImage   string `yaml:"docker-image,omitempty"`   // deprecated: no longer used (npx is used instead)
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
 
@@ -626,6 +625,12 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
 	}
 
+	// Check if frontmatter specifies a custom name and use it instead
+	frontmatterName := c.extractStringValue(result.Frontmatter, "name")
+	if frontmatterName != "" {
+		workflowName = frontmatterName
+	}
+
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Extracted workflow name: '%s'", workflowName)))
 	}
@@ -636,7 +641,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:               workflowName,
-		FrontmatterName:    c.extractStringValue(result.Frontmatter, "name"),
+		FrontmatterName:    frontmatterName,
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
@@ -2996,6 +3001,37 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	return playwrightDockerImageVersion
 }
 
+// ensureLocalhostDomainsWorkflow ensures that localhost and 127.0.0.1 are always included
+// in the allowed domains list for Playwright, even when custom domains are specified
+func ensureLocalhostDomainsWorkflow(domains []string) []string {
+	hasLocalhost := false
+	hasLoopback := false
+
+	for _, domain := range domains {
+		if domain == "localhost" {
+			hasLocalhost = true
+		}
+		if domain == "127.0.0.1" {
+			hasLoopback = true
+		}
+	}
+
+	result := make([]string, 0, len(domains)+2)
+
+	// Always add localhost domains first
+	if !hasLocalhost {
+		result = append(result, "localhost")
+	}
+	if !hasLoopback {
+		result = append(result, "127.0.0.1")
+	}
+
+	// Add the rest of the domains
+	result = append(result, domains...)
+
+	return result
+}
+
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
@@ -3026,7 +3062,10 @@ func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *Ne
 			}
 
 			// Use the same domain bundle resolution as the top-level network configuration
-			allowedDomains = GetAllowedDomains(playwrightNetwork)
+			resolvedDomains := GetAllowedDomains(playwrightNetwork)
+
+			// Ensure localhost domains are always included
+			allowedDomains = ensureLocalhostDomainsWorkflow(resolvedDomains)
 		}
 	}
 
@@ -3494,6 +3533,29 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          " + line + "\n")
 	}
 
+	// Add cache folder notification if cache-memory is enabled
+	if data.CacheMemoryConfig != nil && data.CacheMemoryConfig.Enabled {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ---\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ## Cache Folder Available\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
+		yaml.WriteString("          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache\n")
+		yaml.WriteString("          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved\n")
+		yaml.WriteString("          - **File Share**: Use this as a simple file share - organize files as you see fit\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          Examples of what you can store:\n")
+		yaml.WriteString("          - `/tmp/cache-memory/notes.txt` - general notes and observations\n")
+		yaml.WriteString("          - `/tmp/cache-memory/preferences.json` - user preferences and settings\n")
+		yaml.WriteString("          - `/tmp/cache-memory/history.log` - activity history and logs\n")
+		yaml.WriteString("          - `/tmp/cache-memory/state/` - organized state files in subdirectories\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
+	}
+
 	if data.SafeOutputs != nil {
 		// Add output instructions for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
 		yaml.WriteString("          \n")
@@ -3809,14 +3871,6 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 				if !strings.HasSuffix(config.Key, runIdSuffix) {
 					config.Key = config.Key + runIdSuffix
 				}
-			}
-		}
-
-		// Parse custom docker image (deprecated)
-		if dockerImage, exists := configMap["docker-image"]; exists {
-			if dockerImageStr, ok := dockerImage.(string); ok {
-				config.DockerImage = dockerImageStr
-				// Note: docker-image is deprecated and ignored when using npx
 			}
 		}
 

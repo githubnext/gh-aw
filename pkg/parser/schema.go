@@ -186,6 +186,28 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 				// Adjust line number to account for frontmatter position in file
 				adjustedLine := location.Line + frontmatterStart - 1
 
+				// Create context lines around the adjusted line number in the full file
+				var adjustedContextLines []string
+				if filePath != "" {
+					if content, readErr := os.ReadFile(filePath); readErr == nil {
+						allLines := strings.Split(string(content), "\n")
+						// Create context around the adjusted line (±3 lines)
+						// The console formatter expects context to be centered around the error line
+						contextSize := 7                                     // ±3 lines around the error
+						contextStart := max(0, adjustedLine-contextSize/2-1) // -1 for 0-based indexing
+						contextEnd := min(len(allLines), contextStart+contextSize)
+
+						for i := contextStart; i < contextEnd; i++ {
+							adjustedContextLines = append(adjustedContextLines, allLines[i])
+						}
+					}
+				}
+
+				// If we couldn't create adjusted context, fall back to frontmatter context
+				if len(adjustedContextLines) == 0 {
+					adjustedContextLines = contextLines
+				}
+
 				// Create a compiler error with precise location information
 				compilerErr := console.CompilerError{
 					Position: console.ErrorPosition{
@@ -195,7 +217,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 					},
 					Type:    "error",
 					Message: primaryPath.Message,
-					Context: contextLines,
+					Context: adjustedContextLines,
 					Hint:    "Check the YAML frontmatter against the schema requirements",
 				}
 

@@ -10,7 +10,6 @@ on:
 
 tools:
   cache-memory:
-    docker-image: "ghcr.io/modelcontextprotocol/server-memory:v1.0.0"
     retention-days: 14
   github:
     allowed: [get_repository]
@@ -18,41 +17,41 @@ tools:
 timeout_minutes: 5
 ---
 
-# Test Claude with Cache Memory and Custom Docker Image
+# Test Claude with Cache Memory File Share
 
-You are a test agent that demonstrates the cache-memory functionality with Claude engine using a custom Docker image.
+You are a test agent that demonstrates the cache-memory functionality with Claude engine using a simple file share approach.
 
 ## Task
 
 Your job is to:
 
-1. **Store a test task** in your memory using the memory MCP server
-2. **Retrieve any previous tasks** that you've stored in memory
-3. **Report on the memory contents** including both current and historical tasks
+1. **Store a test task** in the cache folder using file operations
+2. **Retrieve any previous tasks** that you've stored in previous runs
+3. **Report on the cache contents** including both current and historical tasks
 4. **Use GitHub tools** to get basic repository information
 
 ## Instructions
 
-1. First, use the memory tool to see what you already know from previous runs
-2. Store a new test task: "Test task for run ${{ github.run_number }}" in your memory
-3. List all tasks you now have in memory
+1. First, check what files exist in `/tmp/cache-memory/` from previous runs
+2. Store a new test task: "Test task for run ${{ github.run_number }}" in a file in the cache folder
+3. List all files and contents you now have in the cache folder
 4. Get basic information about this repository using the GitHub tool
 5. Provide a summary of:
-   - What you remembered from before
+   - What you found from before (if anything)
    - What you just stored
    - Basic repository information
 
 ## Expected Behavior
 
-- **First run**: Should show empty memory, then store the new task
-- **Subsequent runs**: Should show previously stored tasks, then add the new one
-- **Memory persistence**: Tasks should persist across workflow runs thanks to cache-memory
-- **Custom Docker image**: Uses ghcr.io/modelcontextprotocol/server-memory:v1.0.0 instead of latest
-- **Artifact upload**: Memory data is also uploaded as artifact with 14-day retention
+- **First run**: Should show empty cache folder, then store the new task
+- **Subsequent runs**: Should show previously stored files, then add the new one
+- **File persistence**: Files should persist across workflow runs thanks to cache-memory
+- **Simple file access**: Uses standard file operations (no MCP server needed)
+- **Artifact upload**: Cache data is also uploaded as artifact with 14-day retention
 
 This workflow tests that the cache-memory configuration properly:
-- Mounts the memory MCP server with custom Docker image
+- Creates a simple file share at `/tmp/cache-memory/`
 - Persists data between runs using GitHub Actions cache
-- Uploads memory data as artifacts with configurable retention
-- Works with Claude engine and MCP tools
+- Uploads cache data as artifacts with configurable retention
+- Works with Claude engine and file operations
 - Integrates with other tools like GitHub
