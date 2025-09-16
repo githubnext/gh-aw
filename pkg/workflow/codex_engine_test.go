@@ -27,7 +27,7 @@ func TestCodexEngine(t *testing.T) {
 
 	// Test installation steps
 	steps := engine.GetInstallationSteps(&WorkflowData{})
-	expectedStepCount := 3 // Setup Node.js, Install Codex, and Authenticate with Codex
+	expectedStepCount := 2 // Setup Node.js, Install Codex
 	if len(steps) != expectedStepCount {
 		t.Errorf("Expected %d installation steps, got %d", expectedStepCount, len(steps))
 	}

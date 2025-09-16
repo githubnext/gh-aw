@@ -69,10 +69,6 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 			"      - name: Install Codex",
 			fmt.Sprintf("        run: %s", installCmd),
 		},
-		{
-			"      - name: Authenticate with Codex",
-			"        run: codex login --api-key \"${{ secrets.OPENAI_API_KEY }}\"",
-		},
 	}
 }
 
@@ -110,6 +106,15 @@ export CODEX_HOME=/tmp/mcp-config
 
 # Create log directory outside git repo
 mkdir -p /tmp/aw-logs
+
+# where is Codex
+which codex
+
+# Check Codex version
+codex --version
+
+# Authenticate with Codex
+codex login --api-key "${{ secrets.OPENAI_API_KEY }}"
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
 codex exec %s%s--full-auto "$INSTRUCTION" 2>&1 | tee %s`, modelParam, searchParam, logFile)
