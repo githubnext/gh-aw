@@ -94,6 +94,6 @@ See [Reactions](../reference/frontmatter/#reactions) for the complete list of av
 
 ## Related Documentation
 
-- [Frontmatter Options](../reference/frontmatter.md) - All configuration options for workflows
+- [Frontmatter Options](../../reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
-- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
+- [CLI Commands](../../tools/cli/) - CLI commands for workflow management
