@@ -166,6 +166,13 @@ vscode-test: vscode-compile
 	@cd vscode/gh-aw && npm test
 	@echo "✓ VSCode extension tests completed"
 
+# Test VSCode extension integration tests
+.PHONY: vscode-test-integration
+vscode-test-integration: vscode-compile
+	@echo "Running VSCode extension integration tests..."
+	@cd vscode/gh-aw && npm run test:integration
+	@echo "✓ VSCode extension integration tests completed"
+
 # Validate all project files
 .PHONY: lint
 lint: fmt-check lint-cjs golint
@@ -287,7 +294,8 @@ help:
 	@echo "  copy-copilot-to-claude - Copy copilot instructions to Claude instructions file"
 	@echo "  vscode-copy-schema - Copy main workflow schema to VSCode extension"
 	@echo "  vscode-compile   - Compile VSCode extension (includes schema copy)"
-	@echo "  vscode-test      - Test VSCode extension"
+	@echo "  vscode-test      - Test VSCode extension (unit tests with Vitest)"
+	@echo "  vscode-test-integration - Test VSCode extension (integration tests)"
 	@echo "  vscode-package   - Package VSCode extension as .vsix file"
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  patch-release    - Create and push patch release (increments patch version)"

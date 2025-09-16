@@ -2,11 +2,19 @@
 src/
 tsconfig.json
 tsconfig.test.json
+tsconfig.integration.json
+vitest.config.ts
 
 # Test files
 out/test/
 out-test/
+out-integration/
 .vscode-test/
+**/*.test.ts
+**/*.test.js
+**/*.test.js.map
+integration-tests/
+**/__mocks__/
 
 # Development files
 .vscode/
