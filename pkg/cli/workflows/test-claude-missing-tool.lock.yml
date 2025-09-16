@@ -263,7 +263,7 @@ jobs:
               writeMessage(res);
             }
             function isToolEnabled(name) {
-              return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
+              return safeOutputsConfig[name];
             }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
