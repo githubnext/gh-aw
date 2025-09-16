@@ -96,9 +96,11 @@ if (isStaged) {
         continue;
       }
 
-      // Find the file in the artifact directory (safe outputs dir)
-      const artifactDir = "/tmp/gh-aw/safe-outputs";
-      const sourceFile = `${artifactDir}/${filename}`;
+      // Find the file in the artifact files directory
+      const filesDir =
+        process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR ||
+        `${process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs"}/files`;
+      const sourceFile = `${filesDir}/${filename}`;
 
       if (!fs.existsSync(sourceFile)) {
         core.setFailed(`File not found in artifact: ${sourceFile}`);

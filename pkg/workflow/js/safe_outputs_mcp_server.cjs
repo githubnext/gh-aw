@@ -390,13 +390,14 @@ const TOOLS = Object.fromEntries(
 
         const shaFilename = fileSha + originalExtension;
 
-        // Copy file to safe outputs directory with SHA-based filename
-        const safeOutputsDir =
-          process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs";
-        const targetFile = path.join(safeOutputsDir, shaFilename);
+        // Copy file to safe outputs files directory with SHA-based filename
+        const filesDir =
+          process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR ||
+          `${process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs"}/files`;
+        const targetFile = path.join(filesDir, shaFilename);
 
         // Ensure directory exists
-        fs.mkdirSync(safeOutputsDir, { recursive: true });
+        fs.mkdirSync(filesDir, { recursive: true });
 
         // Copy the file
         fs.copyFileSync(filename, targetFile);

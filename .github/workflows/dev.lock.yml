@@ -238,18 +238,22 @@ jobs:
               const crypto = require("crypto");
               // Create the safe outputs directory structure
               const safeOutputsDir = "/tmp/gh-aw/safe-outputs";
+              const filesDir = `${safeOutputsDir}/files`;
               const outputFile = `${safeOutputsDir}/outputs.jsonl`;
-              // Ensure the safe outputs directory exists
+              // Ensure the safe outputs directory structure exists
               fs.mkdirSync(safeOutputsDir, { recursive: true });
+              fs.mkdirSync(filesDir, { recursive: true });
               // We don't create the file, as the name is sufficiently random
               // and some engines (Claude) fails first Write to the file
               // if it exists and has not been read.
-              // Set the environment variable for subsequent steps
+              // Set the environment variables for subsequent steps
               core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
               core.exportVariable("GITHUB_AW_SAFE_OUTPUTS_DIR", safeOutputsDir);
+              core.exportVariable("GITHUB_AW_SAFE_OUTPUTS_FILES_DIR", filesDir);
               // Also set as step output for reference
               core.setOutput("output_file", outputFile);
               core.setOutput("output_dir", safeOutputsDir);
+              core.setOutput("files_dir", filesDir);
             }
             main();
       - name: Setup Safe Outputs Collector MCP
@@ -607,7 +611,6 @@ jobs:
                         `File size ${Math.round(fileSizeBytes / 1024 / 1024)}MB exceeds 10MB limit`
                       );
                     }
-                    const base64Content = fileContent.toString("base64");
                     // Compute SHA256 hash of the file content
                     const hash = crypto.createHash("sha256");
                     hash.update(fileContent);
@@ -627,11 +630,12 @@ jobs:
                       }
                     }
                     const shaFilename = fileSha + originalExtension;
-                    // Copy file to safe outputs directory with SHA-based filename
-                    const safeOutputsDir = process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs";
-                    const targetFile = path.join(safeOutputsDir, shaFilename);
+                    // Copy file to safe outputs files directory with SHA-based filename
+                    const filesDir = process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR || 
+                      `${process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs"}/files`;
+                    const targetFile = path.join(filesDir, shaFilename);
                     // Ensure directory exists
-                    fs.mkdirSync(safeOutputsDir, { recursive: true });
+                    fs.mkdirSync(filesDir, { recursive: true });
                     // Copy the file
                     fs.copyFileSync(filename, targetFile);
                     // Create the output entry without base64 content (file is now copied to safe outputs dir)
@@ -816,6 +820,8 @@ jobs:
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_DIR": "${{ steps.setup_agent_output.outputs.output_dir }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_FILES_DIR": "${{ steps.setup_agent_output.outputs.files_dir }}",
                   "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
                 }
               }
@@ -981,6 +987,8 @@ jobs:
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_DIR: ${{ steps.setup_agent_output.outputs.output_dir }}
+          GITHUB_AW_SAFE_OUTPUTS_FILES_DIR: ${{ steps.setup_agent_output.outputs.files_dir }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
           GITHUB_AW_MAX_TURNS: 5
       - name: Ensure log file exists
@@ -2636,9 +2644,10 @@ jobs:
                     core.warning(`Skipping invalid item: ${JSON.stringify(item)}`);
                     continue;
                   }
-                  // Find the file in the artifact directory (safe outputs dir)
-                  const artifactDir = "/tmp/gh-aw/safe-outputs";
-                  const sourceFile = `${artifactDir}/${filename}`;
+                  // Find the file in the artifact files directory
+                  const filesDir = process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR || 
+                    `${process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs"}/files`;
+                  const sourceFile = `${filesDir}/${filename}`;
                   if (!fs.existsSync(sourceFile)) {
                     core.setFailed(`File not found in artifact: ${sourceFile}`);
                     return;

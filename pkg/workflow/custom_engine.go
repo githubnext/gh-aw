@@ -52,6 +52,8 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
 			if workflowData.SafeOutputs != nil {
 				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+				envVars["GITHUB_AW_SAFE_OUTPUTS_DIR"] = "${{ steps.setup_agent_output.outputs.output_dir }}"
+				envVars["GITHUB_AW_SAFE_OUTPUTS_FILES_DIR"] = "${{ steps.setup_agent_output.outputs.files_dir }}"
 
 				// Add staged flag if specified
 				if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
@@ -156,6 +158,8 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
 			yaml.WriteString("                \"env\": {\n")
 			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
+			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_DIR\": \"${{ steps.setup_agent_output.outputs.output_dir }}\",\n")
+			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_FILES_DIR\": \"${{ steps.setup_agent_output.outputs.files_dir }}\",\n")
 			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
 			yaml.WriteString("                }\n")
 			serverCount++
