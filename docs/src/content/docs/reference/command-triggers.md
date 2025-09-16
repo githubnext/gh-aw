@@ -2,7 +2,7 @@
 title: Command Triggers
 description: Learn about command triggers and context text functionality for agentic workflows, including special @mention triggers for interactive automation.
 sidebar:
-  order: 7
+  order: 6
 ---
 
 GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
@@ -90,10 +90,10 @@ When someone mentions `/my-bot` in a comment, the workflow will:
 
 This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution.
 
-See [Reactions](../reference/frontmatter/#reactions) for the complete list of available reactions.
+See [Reactions](/gh-aw/reference/frontmatter/) for the complete list of available reactions.
 
 ## Related Documentation
 
-- [Frontmatter Options](../../reference/frontmatter/) - All configuration options for workflows
-- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
-- [CLI Commands](../../tools/cli/) - CLI commands for workflow management
+- [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options for workflows
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
+- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management

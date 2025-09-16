@@ -27,7 +27,6 @@ One crucial difference from regular agentic prompting is that GitHub Agentic Wor
 Agentic workflows are designed with security and reliability in mind:
 - **Minimal permissions** — Workflows run with the least privilege necessary, reducing risk, including no write permissions by default, and usually no write permissions to GitHub at all during the "agentic" steps
 * **Tool allowlists** — Explicitly specify which tools the AI can use, preventing unexpected actions
-- **Input validation** — All inputs are automatically sanitized to prevent injection attacks
 - **Safe outputs** — Outputs are processed through a safety layer to ensure they meet criteria before being applied, for example declaring and checking that only one issue is created, ensuring minimal safe additions to your GitHub repository
 - **Human oversight** — Issues, pull requests, and other critical actions can require human approval before proceeding
 
@@ -52,7 +51,7 @@ Analyze this issue and provide helpful triage comments...
 
 One crucial difference from traditional agentic prompting is that GitHub Agentic Workflows can contain triggers, permissions and other declarative elements. This works towards more reliable and more secure agentic programming, setting the AI up to contribute to success, in a partially sandboxed way, at the right time in your team's work.
 
-See [Workflow Structure](../reference/workflow-structure.md) and [Frontmatter Options](../../reference/frontmatter/) for details of file layout and configuration options.
+See [Workflow Structure](/gh-aw/reference/workflow-structure/) and [Frontmatter Options](/gh-aw/reference/frontmatter/) for details of file layout and configuration options.
 
 ## Understanding AI Engines
 
@@ -91,10 +90,9 @@ Agentic workflows require careful security consideration:
 
 - **Minimal permissions** — Grant only what the workflow needs
 - **Tool allowlists** — Explicitly specify which tools the AI can use  
-- **Input validation** — All inputs are automatically sanitized
 - **Human oversight** — Critical actions can require human approval
 
-See [Security Guide](../../guides/security/) for comprehensive guidelines.
+See [Security Guide](/gh-aw/guides/security/) for comprehensive guidelines.
 
 ## Tools and MCPs
 
@@ -105,7 +103,7 @@ Workflows can use various tools through the Model Context Protocol (MCP):
 - **File operations** — Read, write, and analyze repository files
 - **Custom MCPs** — Build your own tool integrations
 
-Learn more in [Tools Configuration](../../reference/tools/) and [MCPs](../../guides/mcps/).
+Learn more in [Tools Configuration](/gh-aw/reference/tools/) and [MCPs](/gh-aw/guides/mcps/).
 
 ## Best Practices
 
@@ -114,23 +112,23 @@ Learn more in [Tools Configuration](../../reference/tools/) and [MCPs](../../gui
 3. **Test iteratively** — Use `gh aw compile --watch` and `gh aw run` during development
 4. **Monitor costs** — Use `gh aw logs` to track AI usage and optimize
 5. **Review outputs** — Always verify AI-generated content before merging
-6. **Use safe outputs** — Leverage [Safe Output Processing](../reference/safe-outputs.md) to automatically create issues, comments, and PRs from agentic workflow output
+6. **Use safe outputs** — Leverage [Safe Output Processing](/gh-aw/reference/safe-outputs/) to automatically create issues, comments, and PRs from agentic workflow output
 
 ## Common Patterns
 
 - **Event-driven** — Respond to issues, PRs, pushes, etc.
 - **Scheduled** — Regular maintenance and reporting tasks
 - **Alias-triggered** — Activated by @mentions in comments
-- **Secure** — User minimal permissions and protect against untrusted content, see [Security Guide](../../guides/security/)
+- **Secure** — User minimal permissions and protect against untrusted content, see [Security Guide](/gh-aw/guides/security/)
 
 ## Next Steps
 
 Ready to build more sophisticated workflows? Explore:
 
-- **[Workflow Structure](../reference/workflow-structure.md)** — Detailed file organization and security
-- **[Frontmatter Options](../../reference/frontmatter/)** — Complete configuration reference
-- **[Tools Configuration](../../reference/tools/)** — Available tools and permissions
-- **[Security Guide](../../guides/security/)** — Important security considerations
-- **[VS Code Integration](../../tools/vscode/)** — Enhanced authoring experience
+- **[Workflow Structure](/gh-aw/reference/workflow-structure/)** — Detailed file organization and security
+- **[Frontmatter Options](/gh-aw/reference/frontmatter/)** — Complete configuration reference
+- **[Tools Configuration](/gh-aw/reference/tools/)** — Available tools and permissions
+- **[Security Guide](/gh-aw/guides/security/)** — Important security considerations
+- **[VS Code Integration](/gh-aw/tools/vscode/)** — Enhanced authoring experience
 
 The power of agentic workflows lies in their ability to understand context, make intelligent decisions, and take meaningful actions — all while maintaining the reliability you expect from GitHub Actions.
