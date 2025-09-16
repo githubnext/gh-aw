@@ -1,22 +1,24 @@
 ---
 title: Tools Configuration
-description: Configure GitHub API tools and AI capabilities available to your agentic workflows, including GitHub tools and Claude-specific integrations.
+description: Configure GitHub API tools, browser automation, and AI capabilities available to your agentic workflows, including GitHub tools, Playwright, and custom MCP servers.
 sidebar:
   order: 5
 ---
 
-This guide covers the available tools that can be configured in agentic workflows, including GitHub tools and Claude-specific tools.
+This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and Claude-specific tools.
 
 > **📘 Looking for MCP servers?** See the complete [MCPs](../guides/mcps/) for Model Context Protocol configuration, debugging, and examples.
 
 ## Overview
 
-Tools are defined in the frontmatter to specify which GitHub API calls and AI capabilities are available to your workflow:
+Tools are defined in the frontmatter to specify which GitHub API calls, browser automation, and AI capabilities are available to your workflow:
 
 ```yaml
 tools:
   github:
     allowed: [create_issue, update_issue]
+  playwright:
+    allowed_domains: ["github.com", "*.example.com"]
   edit:
   bash: ["echo", "ls", "git status"]
 ```
@@ -36,7 +38,16 @@ Configure which GitHub API operations are allowed for your workflow.
 ```yaml
 tools:
   github:
-    allowed: [create_issue, update_issue, add_issue_comment]
+    # Uses default GitHub API access with workflow permissions
+```
+
+### Extended Configuration
+
+```yaml
+tools:
+  github:
+    allowed: [create_issue, update_issue, add_issue_comment]  # Optional: specific permissions
+    docker_image_version: "latest"                          # Optional: MCP server version
 ```
 
 ### GitHub Tools Overview
@@ -54,6 +65,70 @@ The system automatically includes comprehensive default read-only GitHub tools. 
 **Security**: `get_code_scanning_alert`, `list_secret_scanning_alerts`, `get_dependabot_alert`
 
 **Users & Organizations**: `search_users`, `search_orgs`, `get_me`
+
+## Playwright Tool (`playwright:`)
+
+Enable browser automation and web testing capabilities using containerized Playwright:
+
+```yaml
+tools:
+  playwright:
+    allowed_domains: ["github.com", "*.example.com"]
+```
+
+### Playwright Configuration Options
+
+```yaml
+tools:
+  playwright:
+    docker_image_version: "latest"                    # Optional: Playwright Docker image version
+    allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
+```
+
+### Domain Configuration
+
+The `allowed_domains` field supports the same ecosystem bundle resolution as the top-level `network:` configuration, with **localhost-only** as the default for enhanced security:
+
+**Ecosystem Bundle Examples:**
+```yaml
+tools:
+  playwright:
+    allowed_domains: 
+      - "defaults"              # Basic infrastructure domains
+      - "github"               # GitHub domains (github.com, api.github.com, etc.)
+      - "node"                 # Node.js ecosystem
+      - "python"               # Python ecosystem
+      - "*.example.com"        # Custom domain with wildcard
+```
+
+**Security Model:**
+- **Default**: `["localhost", "127.0.0.1"]` - localhost access only
+- **Ecosystem bundles**: Use same identifiers as `network:` configuration
+- **Custom domains**: Support exact matches and wildcard patterns
+- **Containerized execution**: Isolated Docker environment for security
+
+**Available Ecosystem Identifiers:**
+Same as `network:` configuration: `defaults`, `github`, `node`, `python`, `containers`, `java`, `rust`, `playwright`, etc.
+
+## Custom MCP Tools
+
+Add custom Model Context Protocol servers for specialized integrations:
+
+```yaml
+tools:
+  custom-api:
+    mcp:
+      command: "node"
+      args: ["custom-mcp-server.js"]
+      env:
+        API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
+```
+
+**Tool Execution:**
+- Tools are configured as MCP servers that run alongside the AI engine
+- Each tool provides specific capabilities (APIs, browser automation, etc.)
+- Tools run in isolated environments with controlled access
+- Domain restrictions apply to network-enabled tools like Playwright
 
 ## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
 
@@ -131,8 +206,9 @@ tools:
 
 ## Related Documentation
 
-- [CLI Commands](../tools/cli/) - CLI commands for workflow management
+- [Frontmatter Options](../reference/frontmatter/) - All frontmatter configuration options
+- [Network Permissions](../reference/network/) - Network access control for AI engines
 - [MCPs](../guides/mcps/) - Complete Model Context Protocol setup and usage
+- [CLI Commands](../tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
-- [Frontmatter Options](../reference/frontmatter/) - All configuration options
 - [Include Directives](../reference/include-directives/) - Modularizing workflows with includes

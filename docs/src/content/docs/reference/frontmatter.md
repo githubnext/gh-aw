@@ -17,13 +17,13 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `env`: Environment variables for the workflow
 - `if`: Conditional execution of the workflow
 - `steps`: Custom steps for the job
+- `cache`: Cache configuration for workflow dependencies
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
 - `safe-outputs`: [Safe Output Processing](../reference/safe-outputs/)
 - `network`: Network access control for AI engines
-- `tools`: Available tools and MCP servers for the AI engine  
-- `cache`: Cache configuration for workflow dependencies
+- `tools`: Available tools and MCP servers for the AI engine
 - `cache-memory`: [Persistent memory configuration](../reference/cache-memory/)
 
 ## Trigger Events (`on:`)
@@ -70,7 +70,7 @@ on:
 
 Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
 
-### Visual Feedback (`reaction:`)
+### Reactions (`reaction:`)
 
 You can add a `reaction:` option within the `on:` section to enable emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status:
 
@@ -176,86 +176,17 @@ engine:
 
 The `tools:` section specifies which tools and MCP (Model Context Protocol) servers are available to the AI engine. This enables integration with GitHub APIs, browser automation, and other external services.
 
-### GitHub Tool
-
-Enable GitHub API access for issue management, pull requests, and repository operations:
-
 ```yaml
 tools:
   github:
-    # Uses default GitHub API access with workflow permissions
-```
-
-Extended GitHub tool configuration:
-```yaml
-tools:
-  github:
-    docker_image_version: "latest"  # Optional: specify MCP server version
-```
-
-### Playwright Tool
-
-Enable browser automation and web testing capabilities using containerized Playwright:
-
-```yaml
-tools:
+    allowed: [create_issue, update_issue]
   playwright:
     allowed_domains: ["github.com", "*.example.com"]
+  edit:
+  bash: ["echo", "ls", "git status"]
 ```
 
-**Playwright Configuration Options:**
-
-```yaml
-tools:
-  playwright:
-    docker_image_version: "latest"                    # Optional: Playwright Docker image version
-    allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
-```
-
-**Domain Configuration:**
-
-The `allowed_domains` field supports the same ecosystem bundle resolution as the top-level `network:` configuration, with **localhost-only** as the default for enhanced security:
-
-**Ecosystem Bundle Examples:**
-```yaml
-tools:
-  playwright:
-    allowed_domains: 
-      - "defaults"              # Basic infrastructure domains
-      - "github"               # GitHub domains (github.com, api.github.com, etc.)
-      - "node"                 # Node.js ecosystem
-      - "python"               # Python ecosystem
-      - "*.example.com"        # Custom domain with wildcard
-```
-
-**Security Model:**
-- **Default**: `["localhost", "127.0.0.1"]` - localhost access only
-- **Ecosystem bundles**: Use same identifiers as `network:` configuration
-- **Custom domains**: Support exact matches and wildcard patterns
-- **Containerized execution**: Isolated Docker environment for security
-
-**Available Ecosystem Identifiers:**
-Same as `network:` configuration: `defaults`, `github`, `node`, `python`, `containers`, `java`, `rust`, `playwright`, etc.
-
-### Custom MCP Tools
-
-Add custom Model Context Protocol servers:
-
-```yaml
-tools:
-  custom-api:
-    mcp:
-      command: "node"
-      args: ["custom-mcp-server.js"]
-      env:
-        API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
-```
-
-**Tool Execution:**
-- Tools are configured as MCP servers that run alongside the AI engine
-- Each tool provides specific capabilities (APIs, browser automation, etc.)
-- Tools run in isolated environments with controlled access
-- Domain restrictions apply to network-enabled tools like Playwright
+For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](../reference/tools/).
 
 ## Network Permissions (`network:`)
 

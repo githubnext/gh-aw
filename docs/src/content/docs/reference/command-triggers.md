@@ -73,7 +73,7 @@ All workflows have access to a special computed `needs.task.outputs.text` value 
 
 **Note**: Using this feature results in the addition of `.github/actions/compute-text/action.yml` file to the repository when the workflow is compiled.
 
-## Visual Feedback with Reactions
+## Reactions
 
 Command workflows can provide immediate visual feedback by adding reactions to triggering comments and automatically editing them with workflow run links:
 
@@ -90,7 +90,7 @@ When someone mentions `/my-bot` in a comment, the workflow will:
 
 This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution.
 
-See [Visual Feedback (`reaction:`)](../reference/frontmatter/#visual-feedback-reaction) for the complete list of available reactions.
+See [Reactions](../reference/frontmatter/#visual-feedback-reaction) for the complete list of available reactions.
 
 ## Related Documentation
 
