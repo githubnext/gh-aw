@@ -309,7 +309,7 @@ func TestCommandLineIntegration(t *testing.T) {
 
 	t.Run("command structure validation", func(t *testing.T) {
 		// Test that essential commands are present
-		expectedCommands := []string{"add", "compile", "list", "remove", "status", "run", "version"}
+		expectedCommands := []string{"add", "compile", "list", "remove", "status", "run", "version", "mcp"}
 
 		cmdMap := make(map[string]bool)
 		for _, cmd := range rootCmd.Commands() {
@@ -337,6 +337,61 @@ func TestCommandLineIntegration(t *testing.T) {
 
 		if flag != nil && flag.DefValue != "false" {
 			t.Error("verbose flag should default to false")
+		}
+	})
+}
+
+func TestMCPCommand(t *testing.T) {
+	// Test the new MCP command structure
+	t.Run("mcp command is available", func(t *testing.T) {
+		found := false
+		for _, cmd := range rootCmd.Commands() {
+			if cmd.Name() == "mcp" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("mcp command should be available")
+		}
+	})
+
+	t.Run("mcp command has inspect subcommand", func(t *testing.T) {
+		mcpCmd, _, _ := rootCmd.Find([]string{"mcp"})
+		if mcpCmd == nil {
+			t.Fatal("mcp command not found")
+		}
+
+		found := false
+		for _, subCmd := range mcpCmd.Commands() {
+			if subCmd.Name() == "inspect" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("mcp inspect subcommand should be available")
+		}
+	})
+
+	t.Run("mcp inspect command help", func(t *testing.T) {
+		// Test help for nested command
+		mcpCmd, _, _ := rootCmd.Find([]string{"mcp"})
+		if mcpCmd == nil {
+			t.Fatal("mcp command not found")
+		}
+
+		inspectCmd, _, _ := mcpCmd.Find([]string{"inspect"})
+		if inspectCmd == nil {
+			t.Fatal("mcp inspect command not found")
+		}
+
+		// Basic validation that command structure is valid
+		if inspectCmd.Use == "" {
+			t.Error("mcp inspect command should have usage text")
+		}
+		if inspectCmd.Short == "" {
+			t.Error("mcp inspect command should have short description")
 		}
 	})
 }
