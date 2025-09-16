@@ -163,6 +163,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
+  ` + constants.CLIExtensionPrefix + ` logs --run-id 17751484917      # Download a specific workflow run by ID
   ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
   ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -199,6 +200,7 @@ Examples:
 			branch, _ := cmd.Flags().GetString("branch")
 			beforeRunID, _ := cmd.Flags().GetInt64("before-run-id")
 			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
+			runID, _ := cmd.Flags().GetInt64("run-id")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
@@ -241,7 +243,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, runID, verbose, toolGraph, noStaged); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -260,6 +262,7 @@ Examples:
 	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
+	logsCmd.Flags().Int64("run-id", 0, "Download a specific workflow run by its database ID")
 	logsCmd.Flags().BoolP("verbose", "v", false, "Show individual tool names instead of grouping by MCP server")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
@@ -268,7 +271,23 @@ Examples:
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID, runID int64, verbose bool, toolGraph bool, noStaged bool) error {
+	// Validate mutually exclusive flags when run-id is specified
+	if runID > 0 {
+		if beforeRunID > 0 || afterRunID > 0 {
+			return fmt.Errorf("--run-id cannot be used with --before-run-id or --after-run-id")
+		}
+		if startDate != "" || endDate != "" {
+			return fmt.Errorf("--run-id cannot be used with --start-date or --end-date")
+		}
+		if count != 20 { // 20 is the default value
+			return fmt.Errorf("--run-id cannot be used with --count")
+		}
+
+		// Handle single run download
+		return downloadSingleRun(runID, outputDir, engine, verbose, toolGraph, noStaged)
+	}
+
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -755,6 +774,181 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	}
 
 	return nil
+}
+
+// downloadSingleRun downloads and analyzes a specific workflow run by its ID
+func downloadSingleRun(runID int64, outputDir, engine string, verbose bool, toolGraph bool, noStaged bool) error {
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Downloading specific workflow run %d...", runID)))
+	}
+
+	// Create a dummy WorkflowRun struct for the specified run ID
+	// We don't have all the metadata, but we have the essential information needed
+	run := WorkflowRun{
+		DatabaseID: runID,
+		Number:     0, // We don't know the number, but it's not critical for downloading
+		Status:     "unknown",
+		Conclusion: "unknown",
+	}
+
+	// Download artifacts for this specific run
+	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
+	err := downloadRunArtifacts(runID, runOutputDir, verbose)
+
+	result := DownloadResult{
+		Run:      run,
+		LogsPath: runOutputDir,
+	}
+
+	if err != nil {
+		if errors.Is(err, ErrNoArtifacts) {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (run may be cancelled or failed)", runID)))
+			return nil
+		}
+		return fmt.Errorf("failed to download artifacts for run %d: %w", runID, err)
+	}
+
+	// Extract metrics from logs
+	metrics, metricsErr := extractLogMetrics(runOutputDir, verbose)
+	if metricsErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", runID, metricsErr)))
+		}
+		// Don't fail the whole download for metrics errors
+		metrics = LogMetrics{}
+	}
+	result.Metrics = metrics
+
+	// Analyze access logs if available
+	accessAnalysis, accessErr := analyzeAccessLogs(runOutputDir, verbose)
+	if accessErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", runID, accessErr)))
+		}
+	}
+	result.AccessAnalysis = accessAnalysis
+
+	// Analyze missing tools if available
+	missingTools, missingToolsErr := extractMissingToolsFromRun(runOutputDir, run, verbose)
+	if missingToolsErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to analyze missing tools for run %d: %v", runID, missingToolsErr)))
+		}
+	}
+	result.MissingTools = missingTools
+
+	// Analyze MCP failures if available
+	mcpFailures, mcpFailuresErr := extractMCPFailuresFromRun(runOutputDir, run, verbose)
+	if mcpFailuresErr != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to analyze MCP failures for run %d: %v", runID, mcpFailuresErr)))
+		}
+	}
+	result.MCPFailures = mcpFailures
+
+	// Filter by engine if specified
+	if engine != "" {
+		runEngine := extractEngineFromAwInfo(filepath.Join(runOutputDir, "aw_info.json"), verbose)
+		if runEngine == nil || runEngine.GetID() != engine {
+			if verbose {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine mismatch (wanted %s, found %s)", runID, engine, getEngineID(runEngine))))
+			}
+			// Clean up directory since we're filtering it out
+			os.RemoveAll(runOutputDir)
+			return nil
+		}
+	}
+
+	// Apply staged filtering if requested
+	if noStaged {
+		awInfo, parseErr := parseAwInfo(filepath.Join(runOutputDir, "aw_info.json"), verbose)
+		if parseErr == nil && awInfo.Staged {
+			if verbose {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: staged run filtered out", runID)))
+			}
+			// Clean up directory since we're filtering it out
+			os.RemoveAll(runOutputDir)
+			return nil
+		}
+	}
+
+	// Process the single result
+	processedRun := ProcessedRun{
+		Run:            result.Run,
+		AccessAnalysis: result.AccessAnalysis,
+		MissingTools:   result.MissingTools,
+		MCPFailures:    result.MCPFailures,
+	}
+
+	// Display results
+	displaySingleRunResults(processedRun, result.Metrics, verbose)
+
+	// Generate tool graph if requested
+	if toolGraph {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage("Generating Mermaid tool sequence graph..."))
+		}
+		generateToolGraph([]ProcessedRun{processedRun}, verbose)
+	}
+
+	return nil
+}
+
+// getEngineID safely gets the engine ID from a workflow engine, handling nil case
+func getEngineID(engine workflow.CodingAgentEngine) string {
+	if engine == nil {
+		return "unknown"
+	}
+	return engine.GetID()
+}
+
+// displaySingleRunResults displays information about a single downloaded run
+func displaySingleRunResults(run ProcessedRun, metrics LogMetrics, verbose bool) {
+	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded run %d", run.Run.DatabaseID)))
+
+	if run.Run.Duration > 0 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Duration: %v", run.Run.Duration)))
+	}
+	if metrics.TokenUsage > 0 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Token usage: %d", metrics.TokenUsage)))
+	}
+	if metrics.EstimatedCost > 0 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Estimated cost: $%.4f", metrics.EstimatedCost)))
+	}
+	if metrics.Turns > 0 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Conversation turns: %d", metrics.Turns)))
+	}
+
+	// Display access analysis if available
+	if run.AccessAnalysis != nil && (len(run.AccessAnalysis.AllowedDomains) > 0 || len(run.AccessAnalysis.DeniedDomains) > 0) {
+		fmt.Println(console.FormatInfoMessage("Domain access summary:"))
+		if len(run.AccessAnalysis.AllowedDomains) > 0 {
+			fmt.Printf("  Allowed: %d requests\n", run.AccessAnalysis.AllowedCount)
+		}
+		if len(run.AccessAnalysis.DeniedDomains) > 0 {
+			fmt.Printf("  Denied: %d requests\n", run.AccessAnalysis.DeniedCount)
+		}
+	}
+
+	// Display missing tools if any
+	if len(run.MissingTools) > 0 {
+		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Missing tools reported: %d", len(run.MissingTools))))
+		if verbose {
+			for _, tool := range run.MissingTools {
+				fmt.Printf("  %s: %s\n", tool.Tool, tool.Reason)
+			}
+		}
+	}
+
+	// Display MCP failures if any
+	if len(run.MCPFailures) > 0 {
+		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("MCP failures detected: %d", len(run.MCPFailures))))
+		if verbose {
+			for _, failure := range run.MCPFailures {
+				fmt.Printf("  %s: %s\n", failure.ServerName, failure.Status)
+			}
+		}
+	}
 }
 
 // extractLogMetrics extracts metrics from downloaded log files

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,7 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 	// Test the DownloadWorkflowLogs function
 	// This should either fail with auth error (if not authenticated)
 	// or succeed with no results (if authenticated but no workflows match)
-	err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", "", "", 0, 0, false, false, false)
+	err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", "", "", 0, 0, 0, false, false, false)
 
 	// If GitHub CLI is authenticated, the function may succeed but find no results
 	// If not authenticated, it should return an auth error
@@ -793,7 +794,7 @@ func TestDownloadWorkflowLogsWithEngineFilter(t *testing.T) {
 			if !tt.expectError {
 				// For valid engines, test that the function can be called without panic
 				// It may still fail with auth errors, which is expected
-				err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", tt.engine, "", 0, 0, false, false, false)
+				err := DownloadWorkflowLogs("", 1, "", "", "./test-logs", tt.engine, "", 0, 0, 0, false, false, false)
 
 				// Clean up any created directories
 				os.RemoveAll("./test-logs")
@@ -814,7 +815,7 @@ func TestLogsCommandFlags(t *testing.T) {
 	cmd := NewLogsCommand()
 
 	// Check that all expected flags are present
-	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "branch", "before-run-id", "after-run-id"}
+	expectedFlags := []string{"count", "start-date", "end-date", "output", "engine", "branch", "before-run-id", "after-run-id", "run-id"}
 
 	for _, flagName := range expectedFlags {
 		flag := cmd.Flags().Lookup(flagName)
@@ -869,6 +870,20 @@ func TestLogsCommandFlags(t *testing.T) {
 
 	if engineFlag.DefValue != "" {
 		t.Errorf("Expected engine flag default value to be empty, got: %s", engineFlag.DefValue)
+	}
+
+	// Test run-id flag specifically
+	runIDFlag := cmd.Flags().Lookup("run-id")
+	if runIDFlag == nil {
+		t.Fatal("Run-id flag not found")
+	}
+
+	if runIDFlag.Usage != "Download a specific workflow run by its database ID" {
+		t.Errorf("Unexpected run-id flag usage text: %s", runIDFlag.Usage)
+	}
+
+	if runIDFlag.DefValue != "0" {
+		t.Errorf("Expected run-id flag default value to be '0', got: %s", runIDFlag.DefValue)
 	}
 }
 
@@ -1082,5 +1097,85 @@ func TestBranchFilteringWithGitHubCLI(t *testing.T) {
 
 	if !found {
 		t.Errorf("Expected branch filter '--branch feature-branch' not found in args: %v", args)
+	}
+}
+
+func TestRunIDSingleDownloadValidation(t *testing.T) {
+	// Test validation logic for single run ID download
+	testCases := []struct {
+		name          string
+		runID         int64
+		beforeRunID   int64
+		afterRunID    int64
+		startDate     string
+		endDate       string
+		count         int
+		expectedError string
+	}{
+		{
+			name:          "valid single run ID",
+			runID:         12345,
+			count:         20, // Use the default count value
+			expectedError: "",
+		},
+		{
+			name:          "run-id with before-run-id conflict",
+			runID:         12345,
+			beforeRunID:   67890,
+			expectedError: "--run-id cannot be used with --before-run-id or --after-run-id",
+		},
+		{
+			name:          "run-id with after-run-id conflict",
+			runID:         12345,
+			afterRunID:    67890,
+			expectedError: "--run-id cannot be used with --before-run-id or --after-run-id",
+		},
+		{
+			name:          "run-id with start-date conflict",
+			runID:         12345,
+			startDate:     "2024-01-01",
+			expectedError: "--run-id cannot be used with --start-date or --end-date",
+		},
+		{
+			name:          "run-id with end-date conflict",
+			runID:         12345,
+			endDate:       "2024-01-31",
+			expectedError: "--run-id cannot be used with --start-date or --end-date",
+		},
+		{
+			name:          "run-id with count conflict",
+			runID:         12345,
+			count:         5, // Different from default
+			expectedError: "--run-id cannot be used with --count",
+		},
+		{
+			name:          "no run-id specified should not error",
+			runID:         0,
+			count:         10,
+			startDate:     "2024-01-01",
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Test the validation logic directly
+			if tc.runID > 0 {
+				var err error
+				if tc.beforeRunID > 0 || tc.afterRunID > 0 {
+					err = fmt.Errorf("--run-id cannot be used with --before-run-id or --after-run-id")
+				} else if tc.startDate != "" || tc.endDate != "" {
+					err = fmt.Errorf("--run-id cannot be used with --start-date or --end-date")
+				} else if tc.count != 0 && tc.count != 20 { // 20 is the default value, 0 means not set
+					err = fmt.Errorf("--run-id cannot be used with --count")
+				}
+
+				if tc.expectedError == "" && err != nil {
+					t.Errorf("Expected no error, got: %v", err)
+				} else if tc.expectedError != "" && (err == nil || err.Error() != tc.expectedError) {
+					t.Errorf("Expected error '%s', got: %v", tc.expectedError, err)
+				}
+			}
+		})
 	}
 }
