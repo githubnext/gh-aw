@@ -21,6 +21,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
+- `roles`: Permission restrictions based on repository access levels
 - `safe-outputs`: [Safe Output Processing](/gh-aw/reference/safe-outputs/)
 - `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine
@@ -115,6 +116,37 @@ permissions: {}
 ```
 
 If you specify any permission, unspecified ones are set to `none`.
+
+## Repository Access Roles (`roles:`)
+
+The `roles:` section controls who can trigger agentic workflows based on their repository permission level. By default, workflows are restricted to users with `admin` or `maintainer` permissions for security reasons.
+
+```yaml
+# Default behavior (admin or maintainer required)
+roles: [admin, maintainer]
+
+# Allow additional permission levels
+roles: [admin, maintainer, write]
+
+# Allow any authenticated user (use with caution)
+roles: all
+
+# Single role as a string
+roles: admin
+```
+
+**Available repository roles:**
+- **`admin`**: Full administrative access to the repository
+- **`maintainer`**: Can manage the repository and its settings (renamed from `maintain` in GitHub)  
+- **`write`**: Can push to the repository and manage issues and pull requests
+- **`read`**: Can read and clone the repository
+- **`all`**: Disables permission checking entirely (⚠️ security consideration)
+
+**Behavior:**
+- Workflows with potentially unsafe triggers (like `push`, `issues`, `pull_request`) automatically include permission checks
+- "Safe" triggers like `workflow_dispatch`, `schedule`, and `workflow_run` skip permission checks by default
+- When permission checks fail, the workflow is automatically cancelled with a warning message
+- Users without sufficient permissions will see the workflow start but then immediately stop
 
 ## AI Engine (`engine:`)
 
