@@ -8,7 +8,7 @@ import (
 
 func TestParseClaudeLogNewFormatFile(t *testing.T) {
 	// Test the new format from file
-	content, err := os.ReadFile("test_data/sample_claude_log_new_format.txt")
+	content, err := os.ReadFile("test_data/sample_claude_log.txt")
 	if err != nil {
 		t.Fatalf("Failed to read test file: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestParseClaudeLogNewFormatJSScriptFromFile(t *testing.T) {
 		t.Skip("parse_claude_log script not available")
 	}
 
-	content, err := os.ReadFile("test_data/sample_claude_log_new_format.txt")
+	content, err := os.ReadFile("test_data/sample_claude_log.txt")
 	if err != nil {
 		t.Fatalf("Failed to read test file: %v", err)
 	}
