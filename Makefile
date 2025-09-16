@@ -137,9 +137,16 @@ fmt-check-cjs:
 lint-cjs: fmt-check-cjs
 	@echo "✓ JavaScript formatting validated"
 
+# Copy main workflow schema to VSCode extension
+.PHONY: vscode-copy-schema
+vscode-copy-schema:
+	@echo "Copying main workflow schema to VSCode extension..."
+	@cp pkg/parser/schemas/main_workflow_schema.json vscode/gh-aw/schemas/agentic-workflow-frontmatter.json
+	@echo "✓ Schema copied to VSCode extension"
+
 # Compile VSCode extension
 .PHONY: vscode-compile
-vscode-compile:
+vscode-compile: vscode-copy-schema
 	@echo "Compiling VSCode extension..."
 	@cd vscode/gh-aw && npm install && npm run compile
 	@echo "✓ VSCode extension compiled"
@@ -263,6 +270,8 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  recompile        - Recompile all workflow files (depends on build)"
 	@echo "  copy-copilot-to-claude - Copy copilot instructions to Claude instructions file"
+	@echo "  vscode-copy-schema - Copy main workflow schema to VSCode extension"
+	@echo "  vscode-compile   - Compile VSCode extension (includes schema copy)"
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  patch-release    - Create and push patch release (increments patch version)"
 	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"

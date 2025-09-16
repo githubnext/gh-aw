@@ -1,67 +1,806 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/githubnext/gh-aw/schemas/agentic-workflow-frontmatter.json",
-  "title": "GitHub Agentic Workflow Frontmatter",
-  "description": "Schema for the YAML frontmatter in GitHub Agentic Workflow files",
   "type": "object",
   "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the workflow"
+    },
     "on": {
-      "description": "Defines the events that trigger the workflow",
+      "description": "GitHub Actions workflow triggers",
       "oneOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string" } },
+        {
+          "type": "string",
+          "description": "Simple trigger event name"
+        },
         {
           "type": "object",
+          "description": "Complex trigger configuration",
           "properties": {
-            "workflow_dispatch": {
+            "command": {
+              "description": "Command trigger configuration for /mentions",
               "oneOf": [
-                { "type": "null" },
-                { "type": "object" }
+                {
+                  "type": "null",
+                  "description": "Null command (defaults to filename)"
+                },
+                {
+                  "type": "object",
+                  "description": "Command configuration object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Command name (defaults to filename without .md extension)"
+                    }
+                  },
+                  "additionalProperties": false
+                }
               ]
             },
             "push": {
+              "description": "Push event trigger",
               "type": "object",
+              "additionalProperties": false,
               "properties": {
                 "branches": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "description": "Branches to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "branches-ignore": {
+                  "type": "array",
+                  "description": "Branches to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths": {
+                  "type": "array",
+                  "description": "Paths to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths-ignore": {
+                  "type": "array",
+                  "description": "Paths to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "description": "Tags to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags-ignore": {
+                  "type": "array",
+                  "description": "Tags to ignore",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             },
             "pull_request": {
+              "description": "Pull request event trigger",
               "type": "object",
               "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of pull request events",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "branches": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "description": "Branches to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "branches-ignore": {
+                  "type": "array",
+                  "description": "Branches to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths": {
+                  "type": "array",
+                  "description": "Paths to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths-ignore": {
+                  "type": "array",
+                  "description": "Paths to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "draft": {
+                  "type": "boolean",
+                  "description": "Filter by draft state. Set to false to ignore draft PRs"
+                },
+                "forks": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single fork pattern (e.g., '*' for all forks, 'org/*' for org glob, 'org/repo' for exact match)"
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of allowed fork repositories with glob support (e.g., 'org/repo', 'org/*', '*' for all forks)",
+                      "items": {
+                        "type": "string",
+                        "description": "Repository pattern with optional glob support"
+                      }
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "issues": {
+              "description": "Issues event trigger",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of issue events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "opened",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "closed",
+                      "reopened",
+                      "assigned",
+                      "unassigned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "milestoned",
+                      "demilestoned"
+                    ]
+                  }
+                }
+              }
+            },
+            "issue_comment": {
+              "description": "Issue comment event trigger",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of issue comment events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
                 }
               }
             },
             "schedule": {
               "type": "array",
+              "description": "Scheduled trigger events",
               "items": {
                 "type": "object",
                 "properties": {
-                  "cron": { "type": "string" }
-                }
+                  "cron": {
+                    "type": "string",
+                    "description": "Cron expression for schedule"
+                  }
+                },
+                "required": [
+                  "cron"
+                ],
+                "additionalProperties": false
               }
             },
+            "workflow_dispatch": {
+              "description": "Manual workflow dispatch trigger",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple workflow dispatch trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "inputs": {
+                      "type": "object",
+                      "description": "Input parameters for manual dispatch",
+                      "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "description": {
+                            "type": "string",
+                            "description": "Input description"
+                          },
+                          "required": {
+                            "type": "boolean",
+                            "description": "Whether input is required"
+                          },
+                          "default": {
+                            "type": "string",
+                            "description": "Default value"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "string",
+                              "choice",
+                              "boolean"
+                            ],
+                            "description": "Input type"
+                          },
+                          "options": {
+                            "type": "array",
+                            "description": "Options for choice type",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
             "workflow_run": {
+              "description": "Workflow run trigger",
               "type": "object",
+              "additionalProperties": false,
               "properties": {
                 "workflows": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "description": "List of workflows to trigger on",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "types": {
                   "type": "array",
+                  "description": "Types of workflow run events",
                   "items": {
                     "type": "string",
-                    "enum": ["completed", "requested"]
+                    "enum": [
+                      "completed",
+                      "requested"
+                    ]
+                  }
+                },
+                "branches": {
+                  "type": "array",
+                  "description": "Branches to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "branches-ignore": {
+                  "type": "array",
+                  "description": "Branches to ignore",
+                  "items": {
+                    "type": "string"
                   }
                 }
               }
+            },
+            "release": {
+              "description": "Release event trigger",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of release events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "published",
+                      "unpublished",
+                      "created",
+                      "edited",
+                      "deleted",
+                      "prereleased",
+                      "released"
+                    ]
+                  }
+                }
+              }
+            },
+            "pull_request_review_comment": {
+              "description": "Pull request review comment event trigger",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of pull request review comment events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
+                }
+              }
+            },
+            "stop-after": {
+              "type": "string",
+              "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
+            },
+            "reaction": {
+              "type": "string",
+              "enum": [
+                "+1",
+                "-1",
+                "laugh",
+                "confused",
+                "heart",
+                "hooray",
+                "rocket",
+                "eyes"
+              ],
+              "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes). Defaults to 'eyes' if not specified."
             }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "permissions": {
+      "description": "You can modify the default permissions granted to the GITHUB_TOKEN, adding or removing access as required, so that you only allow the minimum required access.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "read-all",
+            "write-all",
+            "read",
+            "write"
+          ],
+          "description": "Simple permissions string"
+        },
+        {
+          "type": "object",
+          "description": "Detailed permissions object",
+          "additionalProperties": false,
+          "properties": {
+            "actions": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "attestations": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "checks": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "contents": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "deployments": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "discussions": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "id-token": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "issues": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "models": {
+              "type": "string",
+              "enum": [
+                "read",
+                "none"
+              ]
+            },
+            "packages": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "pages": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "pull-requests": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "repository-projects": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "security-events": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            },
+            "statuses": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "none"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "run-name": {
+      "type": "string",
+      "description": "Custom run name for the workflow"
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Default settings that will apply to all jobs in the workflow",
+      "additionalProperties": false,
+      "properties": {
+        "run": {
+          "type": "object",
+          "description": "Default shell and working directory",
+          "additionalProperties": false,
+          "properties": {
+            "shell": {
+              "type": "string",
+              "description": "Default shell for run steps"
+            },
+            "working-directory": {
+              "type": "string",
+              "description": "Default working directory for run steps"
+            }
+          }
+        }
+      }
+    },
+    "jobs": {
+      "type": "object",
+      "description": "Groups together all the jobs that run in the workflow",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Job definition",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the job"
+          },
+          "runs-on": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Runner type as string"
+              },
+              {
+                "type": "array",
+                "description": "Runner type as array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "description": "Runner type as object",
+                "additionalProperties": false
+              }
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "description": "Job steps",
+            "items": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "if": {
+            "type": "string",
+            "description": "Conditional execution for the job"
+          },
+          "needs": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Single job dependency"
+              },
+              {
+                "type": "array",
+                "description": "Multiple job dependencies",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "env": {
+            "type": "object",
+            "description": "Environment variables for the job",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "$ref": "#/properties/permissions"
+          },
+          "timeout-minutes": {
+            "type": "integer",
+            "description": "Job timeout in minutes"
+          },
+          "strategy": {
+            "type": "object",
+            "description": "Matrix strategy for the job",
+            "additionalProperties": false
+          },
+          "continue-on-error": {
+            "type": "boolean",
+            "description": "Continue workflow on job failure"
+          },
+          "container": {
+            "type": "object",
+            "description": "Container to run the job in",
+            "additionalProperties": false
+          },
+          "services": {
+            "type": "object",
+            "description": "Service containers for the job",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "outputs": {
+            "type": "object",
+            "description": "Job outputs",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "defaults": {
+            "$ref": "#/properties/defaults"
+          },
+          "concurrency": {
+            "$ref": "#/properties/concurrency"
+          }
+        }
+      }
+    },
+    "runs-on": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Runner type as string"
+        },
+        {
+          "type": "array",
+          "description": "Runner type as array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "description": "Runner type as object",
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "Runner group"
+            },
+            "labels": {
+              "type": "array",
+              "description": "Runner labels",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "timeout_minutes": {
+      "type": "integer",
+      "description": "Timeout in minutes for the workflow"
+    },
+    "concurrency": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Simple concurrency group name"
+        },
+        {
+          "type": "object",
+          "description": "Concurrency configuration object",
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string",
+              "description": "Concurrency group name"
+            },
+            "cancel-in-progress": {
+              "type": "boolean",
+              "description": "Cancel in-progress jobs in the same concurrency group"
+            }
+          },
+          "required": [
+            "group"
+          ]
+        }
+      ]
+    },
+    "env": {
+      "description": "Environment variables for the workflow",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "network": {
+      "description": "Network access control configuration",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "defaults"
+          ],
+          "description": "Use default network permissions (currently full network access, will change later)"
+        },
+        {
+          "type": "object",
+          "description": "Custom network access configuration",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "description": "List of allowed domains for network access",
+              "items": {
+                "type": "string",
+                "description": "Domain name (supports wildcards with * prefix)"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "if": {
+      "type": "string",
+      "description": "Conditional execution expression"
+    },
+    "steps": {
+      "description": "Custom workflow steps",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "post-steps": {
+      "description": "Custom workflow steps to run after AI execution",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
           }
         }
       ]
@@ -71,138 +810,835 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["claude", "codex", "gpt-4"]
+          "enum": [
+            "claude",
+            "codex",
+            "custom"
+          ],
+          "description": "Simple engine name (claude, codex, or custom)"
         },
         {
           "type": "object",
+          "description": "Extended engine configuration object",
           "properties": {
             "id": {
               "type": "string",
-              "enum": ["claude", "codex", "gpt-4"]
+              "enum": [
+                "claude",
+                "codex",
+                "custom"
+              ],
+              "description": "Agent CLI identifier (claude, codex, or custom)"
+            },
+            "version": {
+              "type": "string",
+              "description": "Optional version of the action"
+            },
+            "model": {
+              "type": "string",
+              "description": "Optional LLM model to use"
             },
             "max-turns": {
               "type": "integer",
-              "minimum": 1,
-              "maximum": 20
+              "description": "Maximum number of chat iterations per run"
+            },
+
+            "user-agent": {
+              "type": "string",
+              "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
+            },
+            "env": {
+              "type": "object",
+              "description": "Custom environment variables to pass to the agentic engine",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "description": "Custom GitHub Actions steps (for custom engine)",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "error_patterns": {
+              "type": "array",
+              "description": "Custom error patterns for validating agent logs",
+              "items": {
+                "type": "object",
+                "description": "Error pattern definition",
+                "properties": {
+                  "pattern": {
+                    "type": "string",
+                    "description": "Ecma script regular expression pattern to match log lines"
+                  },
+                  "level_group": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
+                  },
+                  "message_group": {
+                    "type": "integer", 
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Human-readable description of what this pattern matches"
+                  }
+                },
+                "required": ["pattern"],
+                "additionalProperties": false
+              }
             }
           },
-          "required": ["id"]
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
         }
       ]
     },
-    "permissions": {
-      "description": "GitHub token permissions",
+    "claude": {
+      "description": "Claude-specific configuration",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Claude model to use"
+        },
+        "version": {
+          "type": "string",
+          "description": "Claude version"
+        },
+        "allowed": {
+          "description": "Allowed Claude tools",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "description": "Tools configuration for the workflow",
+      "properties": {
+        "github": {
+          "description": "GitHub tools configuration",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Simple github tool string"
+            },
+            {
+              "type": "object",
+              "description": "GitHub tools object configuration",
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "description": "List of allowed GitHub tools",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "use_docker_mcp": {
+                  "type": "boolean",
+                  "description": "Whether to use Docker MCP for GitHub tools"
+                },
+                "docker_image_version": {
+                  "type": "string",
+                  "description": "Docker image version for GitHub MCP server"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "claude": {
+          "description": "Claude tools configuration",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Simple claude tool string"
+            },
+            {
+              "type": "object",
+              "description": "Claude tools object configuration",
+              "properties": {
+                "allowed": {
+                  "description": "Allowed Claude tools",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "bash": {
+          "description": "Bash tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable bash tool with all commands allowed"
+            },
+            {
+              "type": "array",
+              "description": "List of allowed bash commands",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "web-fetch": {
+          "description": "Web fetch tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable web fetch tool"
+            },
+            {
+              "type": "object",
+              "description": "Web fetch tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "web-search": {
+          "description": "Web search tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable web search tool"
+            },
+            {
+              "type": "object",
+              "description": "Web search tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "edit": {
+          "description": "Edit tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable edit tool"
+            },
+            {
+              "type": "object",
+              "description": "Edit tool configuration object",
+              "additionalProperties": false
+            }
+          ]
+        },
+        "playwright": {
+          "description": "Playwright browser automation tool configuration (neutral tool)",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Playwright tool with default settings (localhost only)"
+            },
+            {
+              "type": "object",
+              "description": "Playwright tool configuration object",
+              "properties": {
+                "docker_image_version": {
+                  "type": "string",
+                  "description": "Docker image version for Playwright container"
+                },
+                "allowed_domains": {
+                  "description": "Domains allowed for Playwright network access (defaults to localhost only)",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "List of allowed domains or domain patterns",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Single allowed domain"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "cache-memory": {
+          "description": "Cache memory MCP configuration for persistent memory storage",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable cache-memory with default settings"
+            },
+            {
+              "type": "object",
+              "description": "Cache-memory configuration object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "Custom cache key for memory MCP data (restore keys are auto-generated by splitting on '-')"
+                },
+                "docker-image": {
+                  "type": "string",
+                  "description": "Docker image to use for the memory MCP server (default: mcp/memory)"
+                },
+                "retention-days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 90,
+                  "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": {
+        "description": "Custom tool configuration",
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Simple tool string"
+          },
+          {
+            "type": "object",
+            "description": "Custom tool object configuration",
+            "properties": {
+              "mcp": {
+                "description": "MCP server configuration",
+                "additionalProperties": true
+              },
+              "allowed": {
+                "type": "array",
+                "description": "List of allowed tool functions",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "command": {
+      "type": "string",
+      "description": "Command name for the workflow"
+    },
+    "cache": {
+      "description": "Cache configuration for workflow (uses actions/cache syntax)",
       "oneOf": [
         {
-          "type": "string",
-          "enum": ["read-all", "write-all"]
+          "type": "object",
+          "description": "Single cache configuration",
+          "properties": {
+            "key": {
+              "type": "string",
+              "description": "An explicit key for restoring and saving the cache"
+            },
+            "path": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "A single path to cache"
+                },
+                {
+                  "type": "array",
+                  "description": "Multiple paths to cache",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "restore-keys": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "A single restore key"
+                },
+                {
+                  "type": "array",
+                  "description": "Multiple restore keys",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "upload-chunk-size": {
+              "type": "integer",
+              "description": "The chunk size used to split up large files during upload, in bytes"
+            },
+            "fail-on-cache-miss": {
+              "type": "boolean",
+              "description": "Fail the workflow if cache entry is not found"
+            },
+            "lookup-only": {
+              "type": "boolean",
+              "description": "If true, only checks if cache entry exists and skips download"
+            }
+          },
+          "required": [
+            "key",
+            "path"
+          ],
+          "additionalProperties": false
         },
         {
-          "type": "object",
-          "properties": {
-            "contents": { "enum": ["read", "write"] },
-            "issues": { "enum": ["read", "write"] },
-            "pull-requests": { "enum": ["read", "write"] },
-            "actions": { "enum": ["read", "write"] }
+          "type": "array",
+          "description": "Multiple cache configurations",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "An explicit key for restoring and saving the cache"
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "A single path to cache"
+                  },
+                  {
+                    "type": "array",
+                    "description": "Multiple paths to cache",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              },
+              "restore-keys": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "A single restore key"
+                  },
+                  {
+                    "type": "array",
+                    "description": "Multiple restore keys",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              },
+              "upload-chunk-size": {
+                "type": "integer",
+                "description": "The chunk size used to split up large files during upload, in bytes"
+              },
+              "fail-on-cache-miss": {
+                "type": "boolean",
+                "description": "Fail the workflow if cache entry is not found"
+              },
+              "lookup-only": {
+                "type": "boolean",
+                "description": "If true, only checks if cache entry exists and skips download"
+              }
+            },
+            "required": [
+              "key",
+              "path"
+            ],
+            "additionalProperties": false
           }
         }
       ]
     },
     "safe-outputs": {
-      "description": "Configuration for safe output actions",
       "type": "object",
+      "description": "Output configuration for automatic safe outputs",
       "properties": {
-        "create-issue": {
-          "type": "object",
-          "properties": {
-            "title-prefix": { "type": "string" },
-            "labels": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "max": { "type": "integer", "minimum": 1 }
+        "allowed-domains": {
+          "type": "array",
+          "description": "List of allowed domains for URI filtering in agentic workflow output",
+          "items": {
+            "type": "string"
           }
+        },
+        "create-issue": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub issues from agentic workflow output",
+              "properties": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for the issue title"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Optional list of labels to attach to the issue",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to create (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue creation with default configuration"
+            }
+          ]
+        },
+        "create-discussion": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub discussions from agentic workflow output",
+              "properties": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for the discussion title"
+                },
+                "category-id": {
+                  "type": "string",
+                  "description": "Optional discussion category ID. If not specified, uses the first available category"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of discussions to create (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable discussion creation with default configuration"
+            }
+          ]
         },
         "add-issue-comment": {
           "oneOf": [
-            { "type": "null" },
-            { "type": "object" }
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub issue/PR comments from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of comments to create (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue comment creation with default configuration"
+            }
           ]
         },
         "create-pull-request": {
-          "type": "object",
-          "properties": {
-            "title-prefix": { "type": "string" },
-            "labels": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "max": { "type": "integer", "minimum": 1 }
-          }
-        },
-        "missing-tool": {
-          "type": "object",
-          "properties": {
-            "staged": { "type": "boolean" }
-          }
-        }
-      }
-    },
-    "tools": {
-      "description": "Available tools for the AI agent",
-      "type": "object",
-      "properties": {
-        "web-fetch": { "type": ["null", "object"] },
-        "web-search": { "type": ["null", "object"] },
-        "playwright": {
-          "type": "object",
-          "properties": {
-            "docker_image_version": { "type": "string" },
-            "allowed_domains": {
-              "type": "array",
-              "items": { "type": "string" }
-            }
-          }
-        }
-      }
-    },
-    "network": {
-      "description": "Network configuration",
-      "type": "string",
-      "enum": ["defaults", "restricted", "none"]
-    },
-    "cache": {
-      "description": "Caching configuration",
-      "type": "object",
-      "properties": {
-        "key": { "type": "string" },
-        "path": {
           "oneOf": [
-            { "type": "string" },
             {
-              "type": "array",
-              "items": { "type": "string" }
+              "type": "object",
+              "description": "Configuration for creating GitHub pull requests from agentic workflow output",
+              "properties": {
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Optional prefix for the pull request title"
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Optional list of labels to attach to the pull request",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "draft": {
+                  "type": "boolean",
+                  "description": "Whether to create pull request as draft (defaults to true)"
+                },
+                "if-no-changes": {
+                  "type": "string",
+                  "enum": ["warn", "error", "ignore"],
+                  "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable pull request creation with default configuration"
             }
           ]
         },
-        "restore-keys": {
-          "type": "array",
-          "items": { "type": "string" }
+        "create-pull-request-review-comment": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub pull request review comments from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of review comments to create (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "side": {
+                  "type": "string",
+                  "description": "Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')",
+                  "enum": [
+                    "LEFT",
+                    "RIGHT"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable PR review comment creation with default configuration"
+            }
+          ]
+        },
+        "create-code-scanning-alert": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating repository security advisories (SARIF format) from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of security findings to include (default: unlimited)",
+                  "minimum": 1
+                },
+                "driver": {
+                  "type": "string",
+                  "description": "Driver name for SARIF tool.driver.name field (default: 'GitHub Agentic Workflows Security Scanner')"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable code scanning alert creation with default configuration (unlimited findings)"
+            }
+          ]
+        },
+        "add-issue-label": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows any labels"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for adding labels to issues/PRs from agentic workflow output",
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be added. If omitted, any labels are allowed (including creating new ones).",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of labels to add (default: 3)",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "update-issue": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub issues from agentic workflow output",
+              "properties": {
+                "status": {
+                  "type": "null",
+                  "description": "Allow updating issue status (open/closed) - presence of key indicates field can be updated"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for updates: 'triggering' (default), '*' (any issue), or explicit issue number"
+                },
+                "title": {
+                  "type": "null",
+                  "description": "Allow updating issue title - presence of key indicates field can be updated"
+                },
+                "body": {
+                  "type": "null",
+                  "description": "Allow updating issue body - presence of key indicates field can be updated"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue updating with default configuration"
+            }
+          ]
+        },
+        "push-to-pr-branch": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Use default configuration (branch: 'triggering', if-no-changes: 'warn')"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for pushing changes to a specific branch from agentic workflow output",
+              "properties": {
+                "branch": {
+                  "type": "string",
+                  "description": "The branch to push changes to (defaults to 'triggering')"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
+                },
+                "if-no-changes": {
+                  "type": "string",
+                  "enum": ["warn", "error", "ignore"],
+                  "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "missing-tool": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for reporting missing tools from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of missing tool reports (default: unlimited)",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable missing tool reporting with default configuration"
+            }
+          ]
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables to pass to safe output jobs",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "string",
+              "description": "Environment variable value, typically a secret reference like ${{ secrets.TOKEN_NAME }}"
+            }
+          },
+          "additionalProperties": false
+        },
+        "github-token": {
+          "type": "string",
+          "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}"
         }
       },
-      "required": ["key"]
+      "additionalProperties": false
     },
-    "timeout_minutes": {
-      "description": "Maximum runtime in minutes",
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 360
-    },
-    "if": {
-      "description": "Conditional execution expression",
-      "type": "string"
+    "roles": {
+      "description": "Permission levels required to trigger workflow. Use 'all' to allow any user, or specify permission levels like [admin, maintainer, write, triage]",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["all"],
+          "description": "Allow any user to trigger the workflow"
+        },
+        {
+          "type": "array",
+          "description": "List of permission levels required to trigger the workflow",
+          "items": {
+            "type": "string",
+            "enum": ["admin", "maintainer", "maintain", "write", "triage"],
+            "description": "Repository permission level"
+          },
+          "minItems": 1
+        }
+      ]
     }
   },
-  "required": [],
   "additionalProperties": false
 }
