@@ -71,12 +71,12 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 				Position: console.ErrorPosition{
 					File:   filePath,
 					Line:   line,
-					Column: column,
+					Column: column, // Use original column, we'll extend to word in console rendering
 				},
 				Type:    "error",
 				Message: fmt.Sprintf("frontmatter parsing failed: %s", message),
 				Context: context,
-				Hint:    "check YAML syntax in frontmatter section",
+				// Hints removed as per requirements
 			}
 
 			// Format and return the error

@@ -53,10 +53,6 @@ var (
 	highlightStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("#FF5555")).
 			Foreground(lipgloss.Color("#282A36"))
-
-	hintStyle = lipgloss.NewStyle().
-			Italic(true).
-			Foreground(lipgloss.Color("#50FA7B"))
 )
 
 // isTTY checks if stdout is a terminal
@@ -134,15 +130,29 @@ func FormatError(err CompilerError) string {
 		output.WriteString(renderContext(err))
 	}
 
-	// Optional hint
-	if err.Hint != "" {
-		output.WriteString("\n")
-		output.WriteString(applyStyle(hintStyle, "hint: "))
-		output.WriteString(err.Hint)
-		output.WriteString("\n")
-	}
+	// Remove hints as per requirements - hints are no longer displayed
 
 	return output.String()
+}
+
+// findWordEnd finds the end of a word starting at the given position
+// A word ends at whitespace, punctuation, or end of line
+func findWordEnd(line string, start int) int {
+	if start >= len(line) {
+		return len(line)
+	}
+	
+	end := start
+	for end < len(line) {
+		char := line[end]
+		// Stop at whitespace or common punctuation that would end a YAML key/value
+		if char == ' ' || char == '\t' || char == ':' || char == '\n' || char == '\r' {
+			break
+		}
+		end++
+	}
+	
+	return end
 }
 
 // renderContext renders source code context with line numbers and highlighting
@@ -167,20 +177,23 @@ func renderContext(err CompilerError) string {
 
 		// Highlight the error line
 		if lineNum == err.Position.Line {
-			// Highlight the specific column if available
+			// For JSON validation errors, highlight from column to end of word
 			if err.Position.Column > 0 && err.Position.Column <= len(line) {
 				before := line[:err.Position.Column-1]
-				errorChar := string(line[err.Position.Column-1])
+				
+				// Find the end of the word starting at the column position
+				wordEnd := findWordEnd(line, err.Position.Column-1)
+				highlightedPart := line[err.Position.Column-1:wordEnd]
 				after := ""
-				if err.Position.Column < len(line) {
-					after = line[err.Position.Column:]
+				if wordEnd < len(line) {
+					after = line[wordEnd:]
 				}
 
 				output.WriteString(applyStyle(contextLineStyle, before))
-				output.WriteString(applyStyle(highlightStyle, errorChar))
+				output.WriteString(applyStyle(highlightStyle, highlightedPart))
 				output.WriteString(applyStyle(contextLineStyle, after))
 			} else {
-				// Highlight entire line if no specific column
+				// Highlight entire line if no specific column or invalid column
 				output.WriteString(applyStyle(highlightStyle, line))
 			}
 		} else {
@@ -188,11 +201,14 @@ func renderContext(err CompilerError) string {
 		}
 		output.WriteString("\n")
 
-		// Add pointer to error position
-		if lineNum == err.Position.Line && err.Position.Column > 0 {
-			// Create pointer line
+		// Add pointer to error position (only when highlighting specific column)
+		if lineNum == err.Position.Line && err.Position.Column > 0 && err.Position.Column <= len(line) {
+			// Create pointer line that spans the highlighted word
+			wordEnd := findWordEnd(line, err.Position.Column-1)
+			wordLength := wordEnd - (err.Position.Column - 1)
+			
 			padding := strings.Repeat(" ", lineNumWidth+3+err.Position.Column-1)
-			pointer := applyStyle(errorStyle, "^")
+			pointer := applyStyle(errorStyle, strings.Repeat("^", wordLength))
 			output.WriteString(padding)
 			output.WriteString(pointer)
 			output.WriteString("\n")

@@ -4394,6 +4394,14 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
+	yaml.WriteString("            \n")
+	yaml.WriteString("            // Add agentic workflow run information to step summary\n")
+	yaml.WriteString("            core.summary\n")
+	yaml.WriteString("              .addRaw('## Agentic Run Information\\n\\n')\n")
+	yaml.WriteString("              .addRaw('```json\\n')\n")
+	yaml.WriteString("              .addRaw(JSON.stringify(awInfo, null, 2))\n")
+	yaml.WriteString("              .addRaw('\\n```\\n')\n")
+	yaml.WriteString("              .write();\n")
 }
 
 // generateOutputFileSetup generates a step that sets up the GITHUB_AW_SAFE_OUTPUTS environment variable
