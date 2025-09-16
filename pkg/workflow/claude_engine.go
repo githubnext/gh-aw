@@ -560,19 +560,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "cache-memory":
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		case "safe-outputs":
-			yaml.WriteString("              \"safe_outputs\": {\n")
-			yaml.WriteString("                \"command\": \"node\",\n")
-			yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
-			yaml.WriteString("                \"env\": {\n")
-			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-			yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
-			yaml.WriteString("                }\n")
-			serverCount++
-			if serverCount < totalServers {
-				yaml.WriteString("              },\n")
-			} else {
-				yaml.WriteString("              }\n")
-			}
+			e.renderSafeOutputsMCPConfig(yaml, isLast)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -674,6 +662,23 @@ func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/tmp/cache-memory/memory.json\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
+func (e *ClaudeEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
+	yaml.WriteString("              \"safe_outputs\": {\n")
+	yaml.WriteString("                \"command\": \"node\",\n")
+	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

@@ -88,10 +88,16 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		}
 	}
 
-	// Use model from engineConfig if available, otherwise default to o4-mini
-	model := "o4-mini"
+	// Build model parameter only if specified in engineConfig
+	var modelParam string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
-		model = workflowData.EngineConfig.Model
+		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
+	}
+
+	// Build search parameter if web-search tool is present
+	var searchParam string
+	if _, hasWebSearch := workflowData.Tools["web-search"]; hasWebSearch {
+		searchParam = "--search "
 	}
 
 	command := fmt.Sprintf(`set -o pipefail
@@ -102,9 +108,7 @@ export CODEX_HOME=/tmp/mcp-config
 mkdir -p /tmp/aw-logs
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
-codex exec \
-  -c model=%s \
-  --full-auto "$INSTRUCTION" 2>&1 | tee %s`, model, logFile)
+codex exec %s%s--full-auto "$INSTRUCTION" 2>&1 | tee %s`, modelParam, searchParam, logFile)
 
 	env := map[string]string{
 		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
@@ -220,17 +224,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			playwrightTool := expandedTools["playwright"]
 			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
 		case "safe-outputs":
-			// Add safe-outputs MCP server if safe-outputs are configured
-			hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
-			if hasSafeOutputs {
-				yaml.WriteString("          \n")
-				yaml.WriteString("          [mcp_servers.safe_outputs]\n")
-				yaml.WriteString("          command = \"node\"\n")
-				yaml.WriteString("          args = [\n")
-				yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
-				yaml.WriteString("          ]\n")
-				yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
-			}
+			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := expandedTools[toolName].(map[string]any); ok {
@@ -499,6 +493,21 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 	}
 
 	return nil
+}
+
+// renderSafeOutputsCodexMCPConfig generates the Safe Outputs MCP server configuration for codex config.toml
+func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, workflowData *WorkflowData) {
+	// Add safe-outputs MCP server if safe-outputs are configured
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	if hasSafeOutputs {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
+		yaml.WriteString("          command = \"node\"\n")
+		yaml.WriteString("          args = [\n")
+		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
+		yaml.WriteString("          ]\n")
+		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
+	}
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs

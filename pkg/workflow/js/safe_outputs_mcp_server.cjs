@@ -99,7 +99,7 @@ function replyError(id, code, message, data) {
 }
 
 function isToolEnabled(name) {
-  return safeOutputsConfig[name] && safeOutputsConfig[name].enabled;
+  return safeOutputsConfig[name];
 }
 
 function appendSafeOutput(entry) {
