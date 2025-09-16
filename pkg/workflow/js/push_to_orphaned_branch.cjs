@@ -137,9 +137,9 @@ if (isStaged) {
     }).trim();
     core.info(`Pushed to orphaned branch with commit: ${commitSha}`);
 
-    // Generate GitHub raw URLs
+    // Generate GitHub raw URLs using branch name
     for (const filename of uploadedFiles) {
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo.repo}/${commitSha}/${filename}`;
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo.repo}/${branchName}/${filename}`;
       fileUrls.push(rawUrl);
       core.info(`File URL: ${rawUrl}`);
     }

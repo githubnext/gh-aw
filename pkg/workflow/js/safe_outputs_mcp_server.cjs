@@ -379,12 +379,20 @@ const TOOLS = Object.fromEntries(
 
         appendSafeOutput(entry);
 
-        // Return response with SHA information
+        // Get branch configuration if available
+        const branchConfig =
+          safeOutputsConfig["push-to-orphaned-branch"]?.branch;
+        const branchName = branchConfig || "assets/{workflow-name}";
+
+        // Create template URL (will be resolved during GitHub Actions execution)
+        const templateUrl = `https://raw.githubusercontent.com/{owner}/{repo}/${branchName}/${shaFilename}`;
+
+        // Return response with SHA information and expected URL
         return {
           content: [
             {
               type: "text",
-              text: `File uploaded successfully. SHA: ${fileSha}, Original filename: ${path.basename(filename)}`,
+              text: `File uploaded successfully. SHA: ${fileSha}, Original filename: ${path.basename(filename)}, Expected URL: ${templateUrl}`,
             },
           ],
         };
