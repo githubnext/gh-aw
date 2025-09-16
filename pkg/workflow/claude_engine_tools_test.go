@@ -50,20 +50,20 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__create_issue,mcp__github__list_issues",
 		},
 		{
-			name: "cache-memory tool (should get wildcard access as mcp__memory)",
+			name: "cache-memory tool (provides file system access, no MCP tool)",
 			tools: map[string]any{
 				"cache-memory": map[string]any{
 					"key": "test-memory-key",
 				},
 			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__memory",
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
 			name: "cache-memory with boolean true",
 			tools: map[string]any{
 				"cache-memory": true,
 			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__memory",
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite",
 		},
 		{
 			name: "cache-memory with github tools",
@@ -73,7 +73,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 					"allowed": []any{"get_repository"},
 				},
 			},
-			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__get_repository,mcp__memory",
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__get_repository",
 		},
 		{
 			name: "mixed neutral and mcp tools",
