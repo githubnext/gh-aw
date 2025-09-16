@@ -56,3 +56,5 @@ node_modules/
 # VSCode extension build artifacts
 vscode/gh-aw/out/
 vscode/gh-aw/node_modules/
+vscode/gh-aw/*.vsix
+vscode/gh-aw/LICENSE

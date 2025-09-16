@@ -151,6 +151,14 @@ vscode-compile: vscode-copy-schema
 	@cd vscode/gh-aw && npm install && npm run compile
 	@echo "✓ VSCode extension compiled"
 
+# Package VSCode extension using vsce
+.PHONY: vscode-package
+vscode-package: vscode-compile
+	@echo "Packaging VSCode extension..."
+	@cp LICENSE vscode/gh-aw/LICENSE
+	@cd vscode/gh-aw && npm run package
+	@echo "✓ VSCode extension packaged as .vsix file"
+
 # Validate all project files
 .PHONY: lint
 lint: fmt-check lint-cjs golint
@@ -272,6 +280,7 @@ help:
 	@echo "  copy-copilot-to-claude - Copy copilot instructions to Claude instructions file"
 	@echo "  vscode-copy-schema - Copy main workflow schema to VSCode extension"
 	@echo "  vscode-compile   - Compile VSCode extension (includes schema copy)"
+	@echo "  vscode-package   - Package VSCode extension as .vsix file"
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  patch-release    - Create and push patch release (increments patch version)"
 	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"

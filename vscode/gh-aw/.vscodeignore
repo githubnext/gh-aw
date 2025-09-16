@@ -1,0 +1,12 @@
+# Source files
+src/
+tsconfig.json
+
+# Development files
+.vscode/
+node_modules/
+.gitignore
+
+# Build artifacts that shouldn't be in the package
+*.log
+npm-debug.log*
