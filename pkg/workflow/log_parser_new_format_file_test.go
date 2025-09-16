@@ -17,7 +17,7 @@ func TestParseClaudeLogNewFormatFile(t *testing.T) {
 	metrics := engine.ParseLogMetrics(string(content), true)
 
 	// Verify parsing worked correctly
-	t.Logf("Parsed metrics: Tokens=%d, Cost=%.6f, Turns=%d, Errors=%d", 
+	t.Logf("Parsed metrics: Tokens=%d, Cost=%.6f, Turns=%d, Errors=%d",
 		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, metrics.ErrorCount)
 
 	// Should extract the correct final result metrics
