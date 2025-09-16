@@ -248,7 +248,7 @@ cache:
     path: node_modules
     restore-keys: |
       node-modules-
-  - key: build-cache-${{ github.sha }}
+  - key: build-cache-${{ github.run_id }}
     path: 
       - dist
       - .cache
@@ -416,7 +416,7 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
 - **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 
-All other expressions are dissallowed.
+All other expressions are disallowed.
 
 ### Security Validation
 
@@ -427,7 +427,7 @@ Expression safety is automatically validated during compilation. If unauthorized
 # Valid expressions
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
+The issue was created by ${{ github.actor }} for issue #${{ github.event.issue.number }}
 
 Using output from previous task: "${{ needs.task.outputs.text }}"
 
