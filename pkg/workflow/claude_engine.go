@@ -453,7 +453,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 				// Cache-memory now provides simple file share access at /tmp/cache-memory/
 				// Add path-specific Read and Write tools for the cache directory only
 				cacheDirPattern := "/tmp/cache-memory/*"
-				
+
 				// Add path-specific tools for cache directory access
 				if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
 					allowedTools = append(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
