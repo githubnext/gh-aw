@@ -64,7 +64,7 @@ func TestParseClaudeLogNewFormatJSScriptFromFile(t *testing.T) {
 	if !strings.Contains(result, "Total Cost") {
 		t.Error("Expected new format Claude log output to contain cost information")
 	}
-	if !strings.Contains(result, "15b818fc-d93c-45e7-b7f2-89bad9ba54f7") {
+	if !strings.Contains(result, "29d324d8-1a92-43c6-8740-babc2875a1d6") {
 		t.Error("Expected new format Claude log output to contain session ID")
 	}
 	if !strings.Contains(result, "safe_outputs::missing-tool") {
