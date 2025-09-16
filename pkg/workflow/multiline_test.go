@@ -21,7 +21,7 @@ func TestMultilineStringHandling(t *testing.T) {
 			name: "multiline script in with parameters",
 			stepMap: map[string]any{
 				"name": "Test Script",
-				"uses": "actions/github-script@v7",
+				"uses": "actions/github-script@v8",
 				"with": map[string]any{
 					"script": `const fs = require('fs');
 const data = {
@@ -34,7 +34,7 @@ console.log(data);`,
 			},
 			shouldContain: []string{
 				"name: Test Script",
-				"uses: actions/github-script@v7",
+				"uses: actions/github-script@v8",
 				"with:",
 				"script: |-", // goccy/go-yaml uses |- (literal strip scalar)
 				"  const fs = require('fs');",
@@ -128,7 +128,7 @@ func TestEngineStepSerialization(t *testing.T) {
 
 	stepMap := map[string]any{
 		"name": "Test multiline in engine",
-		"uses": "actions/github-script@v7",
+		"uses": "actions/github-script@v8",
 		"with": map[string]any{
 			"script": `const multiline = 'hello';
 This is a multiline

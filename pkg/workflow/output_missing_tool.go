@@ -13,7 +13,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	var steps []string
 	steps = append(steps, "      - name: Record Missing Tool\n")
 	steps = append(steps, "        id: missing_tool\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")

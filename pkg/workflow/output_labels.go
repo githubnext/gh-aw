@@ -25,7 +25,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	var steps []string
 	steps = append(steps, "      - name: Add Labels\n")
 	steps = append(steps, "        id: add_labels\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")

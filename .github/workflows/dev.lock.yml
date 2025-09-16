@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Check team membership for workflow
         id: check-team-member
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
@@ -250,7 +250,7 @@ jobs:
           chmod +x .claude/hooks/network_permissions.py
       - name: Setup agent output
         id: setup_agent_output
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             function main() {
@@ -804,7 +804,7 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
       - name: Generate agentic run info
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -959,7 +959,7 @@ jobs:
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true}}"
@@ -1758,7 +1758,7 @@ jobs:
           if-no-files-found: warn
       - name: Parse agent logs for step summary
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/dev.log
         with:
@@ -2294,7 +2294,7 @@ jobs:
     steps:
       - name: Record Missing Tool
         id: missing_tool
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
         with:
