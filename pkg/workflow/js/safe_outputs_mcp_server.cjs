@@ -377,40 +377,17 @@ const TOOLS = Object.fromEntries(
         // Get file extension from original filename
         const originalExtension = path.extname(filename);
 
-        // Validate file extension is reasonable
-        const allowedExtensions = [
-          ".png",
-          ".jpg",
-          ".jpeg",
-          ".gif",
-          ".webp",
-          ".svg",
-          ".bmp",
-          ".ico",
-          ".pdf",
-          ".txt",
-          ".md",
-          ".json",
-          ".yaml",
-          ".yml",
-          ".xml",
-          ".csv",
-          ".log",
-          ".zip",
-          ".tar",
-          ".gz",
-          ".html",
-          ".css",
-          ".js",
-          ".ts",
-        ];
-        if (
-          originalExtension &&
-          !allowedExtensions.includes(originalExtension.toLowerCase())
-        ) {
-          throw new Error(
-            `File extension '${originalExtension}' is not allowed. Allowed extensions: ${allowedExtensions.join(", ")}`
-          );
+        // Validate file extension is reasonable (up to 5 alphanumeric characters)
+        if (originalExtension) {
+          const extWithoutDot = originalExtension.slice(1); // Remove the leading dot
+          if (
+            extWithoutDot.length > 5 ||
+            !/^[a-zA-Z0-9]+$/.test(extWithoutDot)
+          ) {
+            throw new Error(
+              `File extension '${originalExtension}' is not allowed. Extension must be up to 5 alphanumeric characters.`
+            );
+          }
         }
 
         const shaFilename = fileSha + originalExtension;
@@ -448,7 +425,6 @@ const TOOLS = Object.fromEntries(
               text: `File uploaded successfully. SHA: ${fileSha}, Original filename: ${path.basename(filename)}, Expected URL: ${templateUrl}`,
             },
           ],
-          url: templateUrl,
         };
       },
     },

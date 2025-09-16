@@ -252,7 +252,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":true,\"missing-tool\":{\"enabled\":true},\"push-to-orphaned-branch\":{\"enabled\":true,\"max\":3}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -601,7 +601,9 @@ jobs:
                     const fileSizeBytes = fileContent.length;
                     const maxSizeBytes = 10 * 1024 * 1024; // 10MB
                     if (fileSizeBytes > maxSizeBytes) {
-                      throw new Error(`File size ${Math.round(fileSizeBytes / 1024 / 1024)}MB exceeds 10MB limit`);
+                      throw new Error(
+                        `File size ${Math.round(fileSizeBytes / 1024 / 1024)}MB exceeds 10MB limit`
+                      );
                     }
                     const base64Content = fileContent.toString("base64");
                     // Compute SHA256 hash of the file content
@@ -610,14 +612,12 @@ jobs:
                     const fileSha = hash.digest("hex");
                     // Get file extension from original filename
                     const originalExtension = path.extname(filename);
-                    // Validate file extension is reasonable
-                    const allowedExtensions = [
-                      '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico',
-                      '.pdf', '.txt', '.md', '.json', '.yaml', '.yml', '.xml', '.csv',
-                      '.log', '.zip', '.tar', '.gz', '.html', '.css', '.js', '.ts'
-                    ];
-                    if (originalExtension && !allowedExtensions.includes(originalExtension.toLowerCase())) {
-                      throw new Error(`File extension '${originalExtension}' is not allowed. Allowed extensions: ${allowedExtensions.join(', ')}`);
+                    // Validate file extension is reasonable (up to 5 alphanumeric characters)
+                    if (originalExtension) {
+                      const extWithoutDot = originalExtension.slice(1); // Remove the leading dot
+                      if (extWithoutDot.length > 5 || !/^[a-zA-Z0-9]+$/.test(extWithoutDot)) {
+                        throw new Error(`File extension '${originalExtension}' is not allowed. Extension must be up to 5 alphanumeric characters.`);
+                      }
                     }
                     const shaFilename = fileSha + originalExtension;
                     // Create the output entry with base64 content and SHA filename
@@ -635,7 +635,9 @@ jobs:
                     const branchName = branchConfig || "assets/{workflow-name}";
                     // Get repository information from environment or use placeholders
                     const owner = process.env.GITHUB_REPOSITORY_OWNER || "{owner}";
-                    const repo = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[1] : "{repo}";
+                    const repo = process.env.GITHUB_REPOSITORY
+                      ? process.env.GITHUB_REPOSITORY.split("/")[1]
+                      : "{repo}";
                     // Create template URL (will be resolved during GitHub Actions execution)
                     const templateUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branchName}/${shaFilename}`;
                     // Return response with SHA information and expected URL
@@ -646,7 +648,6 @@ jobs:
                           text: `File uploaded successfully. SHA: ${fileSha}, Original filename: ${path.basename(filename)}, Expected URL: ${templateUrl}`,
                         },
                       ],
-                      url: templateUrl,
                     };
                   },
                 },
@@ -769,7 +770,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":true,\"missing-tool\":{\"enabled\":true},\"push-to-orphaned-branch\":{\"enabled\":true,\"max\":3}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -789,6 +790,14 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
               },
+              "playwright": {
+                "command": "npx",
+                "args": [
+                  "@playwright/mcp@latest",
+                  "--allowed-origins",
+                  "localhost,127.0.0.1,*.github.com,github.com"
+                ]
+              },
               "safe_outputs": {
                 "command": "node",
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"],
@@ -807,12 +816,18 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Try to call a tool, `draw_pelican` that draws a pelican.
+          You have access to a `push-to-orphaned-branch` tool that can upload files (like screenshots) to an orphaned branch and return a GitHub raw URL. Use the expected URL from the response in your issue descriptions.
+          
+          Please:
+          1. Build the documentation by running appropriate build commands
+          2. Take a screenshot of the documentation using playwright 
+          3. Upload the screenshot using the push-to-orphaned-branch tool - it will give you a URL to use
+          4. Create an issue describing the documentation status and include the screenshot using the URL provided by the upload tool
           
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Creating an IssueUploading Files to Orphaned Branch, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           EOF
@@ -920,11 +935,32 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
+        # - mcp__playwright__browser_click
+        # - mcp__playwright__browser_close
+        # - mcp__playwright__browser_console_messages
+        # - mcp__playwright__browser_drag
+        # - mcp__playwright__browser_evaluate
+        # - mcp__playwright__browser_file_upload
+        # - mcp__playwright__browser_fill_form
+        # - mcp__playwright__browser_handle_dialog
+        # - mcp__playwright__browser_hover
+        # - mcp__playwright__browser_install
+        # - mcp__playwright__browser_navigate
+        # - mcp__playwright__browser_navigate_back
+        # - mcp__playwright__browser_network_requests
+        # - mcp__playwright__browser_press_key
+        # - mcp__playwright__browser_resize
+        # - mcp__playwright__browser_select_option
+        # - mcp__playwright__browser_snapshot
+        # - mcp__playwright__browser_tabs
+        # - mcp__playwright__browser_take_screenshot
+        # - mcp__playwright__browser_type
+        # - mcp__playwright__browser_wait_for
         timeout-minutes: 5
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --max-turns 5 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/dev.log
+          npx @anthropic-ai/claude-code@latest --print --max-turns 5 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/dev.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -972,7 +1008,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":true,\"missing-tool\":{\"enabled\":true},\"push-to-orphaned-branch\":{\"enabled\":true,\"max\":3}}"
         with:
           script: |
             async function main() {
@@ -2273,6 +2309,406 @@ jobs:
           name: dev.log
           path: /tmp/dev.log
           if-no-files-found: warn
+
+  create_issue:
+    needs: dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+    steps:
+      - name: Create Output Issue
+        id: create_issue
+        uses: actions/github-script@v7
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          script: |
+            async function main() {
+              // Check if we're in staged mode
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              // Read the validated output content from environment variable
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              // Parse the validated output JSON
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              // Find all create-issue items
+              const createIssueItems = validatedOutput.items.filter(
+                /** @param {any} item */ item => item.type === "create-issue"
+              );
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              // If in staged mode, emit step summary instead of creating issues
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent +=
+                  "The following issues would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createIssueItems.length; i++) {
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                // Write to step summary
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Issue creation preview written to step summary");
+                return;
+              }
+              // Check if we're in an issue context (triggered by an issue event)
+              const parentIssueNumber = context.payload?.issue?.number;
+              // Parse labels from environment variable (comma-separated string)
+              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(/** @param {string} label */ label => label.trim())
+                    .filter(/** @param {string} label */ label => label)
+                : [];
+              const createdIssues = [];
+              // Process each create-issue item
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                );
+                // Merge environment labels with item-specific labels
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
+                }
+                // Extract title and body from the JSON item
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let bodyLines = createIssueItem.body.split("\n");
+                // If no title was found, use the body content as title (or a default)
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                // Apply title prefix if provided via environment variable
+                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (parentIssueNumber) {
+                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
+                  // Add reference to parent issue in the child issue body
+                  bodyLines.push(`Related to #${parentIssueNumber}`);
+                }
+                // Add AI disclaimer with run id, run htmlurl
+                // Add AI disclaimer with workflow run information
+                const runId = context.runId;
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `https://github.com/actions/runs/${runId}`;
+                bodyLines.push(
+                  ``,
+                  ``,
+                  `> Generated by Agentic Workflow [Run](${runUrl})`,
+                  ""
+                );
+                // Prepare the body content
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  // Create the issue using GitHub API
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: body,
+                    labels: labels,
+                  });
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  createdIssues.push(issue);
+                  // If we have a parent issue, add a comment to it referencing the new child issue
+                  if (parentIssueNumber) {
+                    try {
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: parentIssueNumber,
+                        body: `Created related issue: #${issue.number}`,
+                      });
+                      core.info("Added comment to parent issue #" + parentIssueNumber);
+                    } catch (error) {
+                      core.info(
+                        `Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`
+                      );
+                    }
+                  }
+                  // Set output for the last created issue (for backward compatibility)
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage =
+                    error instanceof Error ? error.message : String(error);
+                  // Special handling for disabled issues repository
+                  if (
+                    errorMessage.includes("Issues has been disabled in this repository")
+                  ) {
+                    core.info(
+                      `⚠ Cannot create issue "${title}": Issues are disabled for this repository`
+                    );
+                    core.info(
+                      "Consider enabling issues in repository settings if you want to create issues automatically"
+                    );
+                    continue; // Skip this issue but continue processing others
+                  }
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  throw error;
+                }
+              }
+              // Write summary for all created issues
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+            }
+            await main();
+
+  push_to_orphaned_branch:
+    needs: dev
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    timeout-minutes: 10
+    outputs:
+      commit_sha: ${{ steps.push_to_orphaned_branch.outputs.commit_sha }}
+      file_urls: ${{ steps.push_to_orphaned_branch.outputs.file_urls }}
+      uploaded_files: ${{ steps.push_to_orphaned_branch.outputs.uploaded_files }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Push to Orphaned Branch
+        id: push_to_orphaned_branch
+        uses: actions/github-script@v7
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
+          GITHUB_AW_ORPHANED_BRANCH_MAX_COUNT: 3
+          GITHUB_AW_ORPHANED_BRANCH_NAME: assets/Dev
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          script: |
+            const { execSync } = require("child_process");
+            const fs = require("fs");
+            // Get environment variables
+            const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "{}";
+            const maxCount = parseInt(
+              process.env.GITHUB_AW_ORPHANED_BRANCH_MAX_COUNT || "1"
+            );
+            const branchName =
+              process.env.GITHUB_AW_ORPHANED_BRANCH_NAME || "assets/workflow";
+            const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+            const repo = context.repo;
+            const owner = context.repo.owner;
+            core.info(`Processing agent output for orphaned branch upload`);
+            core.info(`Repository: ${owner}/${repo.repo}`);
+            core.info(`Max files allowed: ${maxCount}`);
+            core.info(`Branch name: ${branchName}`);
+            let parsedOutput;
+            try {
+              parsedOutput = JSON.parse(agentOutput);
+            } catch (error) {
+              core.setFailed(
+                `Failed to parse agent output: ${error instanceof Error ? error.message : String(error)}`
+              );
+              return;
+            }
+            // Extract push-to-orphaned-branch items
+            const orphanedBranchItems = (parsedOutput.items || []).filter(
+              item => item.type === "push-to-orphaned-branch"
+            );
+            if (orphanedBranchItems.length === 0) {
+              core.info("No orphaned branch upload items found in agent output");
+              return;
+            }
+            if (orphanedBranchItems.length > maxCount) {
+              core.setFailed(
+                `Too many files to upload: ${orphanedBranchItems.length} (max: ${maxCount})`
+              );
+              return;
+            }
+            core.info(
+              `Found ${orphanedBranchItems.length} file(s) to upload to orphaned branch`
+            );
+            const uploadedFiles = [];
+            const fileUrls = [];
+            let commitSha = null;
+            if (isStaged) {
+              // In staged mode, just show what would be uploaded
+              core.summary.addHeading("Orphaned Branch File Upload (Staged Mode)", 2);
+              core.summary.addRaw(
+                "The following files would be uploaded to an orphaned branch:\n\n"
+              );
+              for (const item of orphanedBranchItems) {
+                const originalFilename = item.original_filename || item.filename;
+                const sha = item.sha || "unknown";
+                core.summary.addRaw(
+                  `- **${item.filename}** (${Math.round(item.content.length * 0.75)} bytes) - SHA: ${sha} - Original: ${originalFilename}\n`
+                );
+                uploadedFiles.push(item.filename);
+                fileUrls.push(
+                  `https://raw.githubusercontent.com/${owner}/${repo.repo}/${branchName}/staged/${item.filename}`
+                );
+              }
+              await core.summary.write();
+            } else {
+              // Actually upload files to orphaned branch
+              try {
+                // Create or switch to orphaned branch
+                try {
+                  execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+                  core.info(`Switched to existing orphaned branch: ${branchName}`);
+                } catch (error) {
+                  // Branch doesn't exist, create orphaned branch
+                  execSync(`git checkout --orphan ${branchName}`, { stdio: "inherit" });
+                  execSync(`git rm -rf .`, { stdio: "inherit" });
+                  core.info(`Created new orphaned branch: ${branchName}`);
+                }
+                // Upload each file
+                for (const item of orphanedBranchItems) {
+                  const { filename, content, original_filename, sha } = item;
+                  if (!filename || !content) {
+                    core.warning(`Skipping invalid item: ${JSON.stringify(item)}`);
+                    continue;
+                  }
+                  // Decode base64 content and write file
+                  const fileBuffer = Buffer.from(content, "base64");
+                  // Validate SHA matches the file content
+                  const crypto = require("crypto");
+                  const computedHash = crypto.createHash("sha256");
+                  computedHash.update(fileBuffer);
+                  const computedSha = computedHash.digest("hex");
+                  const fileSha = sha || "unknown";
+                  if (fileSha !== "unknown" && fileSha !== computedSha) {
+                    core.setFailed(
+                      `SHA validation failed for ${filename}. Expected: ${fileSha}, Computed: ${computedSha}`
+                    );
+                    return;
+                  }
+                  // Use the SHA-based filename directly (it already includes the extension)
+                  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+                  fs.writeFileSync(safeFilename, fileBuffer);
+                  const originalName = original_filename || filename;
+                  core.info(
+                    `Created file: ${safeFilename} (${fileBuffer.length} bytes) - SHA: ${fileSha} - Original: ${originalName}`
+                  );
+                  // Add to git
+                  execSync(`git add ${safeFilename}`, { stdio: "inherit" });
+                  uploadedFiles.push(safeFilename);
+                }
+                // Commit files
+                const fileList = uploadedFiles
+                  .map(filename => {
+                    const item = orphanedBranchItems.find(
+                      i => i.filename.replace(/[^a-zA-Z0-9._-]/g, "_") === filename
+                    );
+                    const originalName = item?.original_filename || filename;
+                    const sha = item?.sha || "unknown";
+                    return `${filename} (${originalName}, SHA: ${sha.substring(0, 8)})`;
+                  })
+                  .join(", ");
+                const commitMessage = `Upload ${uploadedFiles.length} file(s) to orphaned branch\n\nFiles: ${fileList}`;
+                execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+                // Push to remote
+                execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                // Get the commit SHA
+                commitSha = execSync(`git rev-parse HEAD`, {
+                  encoding: "utf8",
+                }).trim();
+                core.info(`Pushed to orphaned branch with commit: ${commitSha}`);
+                // Generate GitHub raw URLs using branch name
+                for (const filename of uploadedFiles) {
+                  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo.repo}/${branchName}/${filename}`;
+                  fileUrls.push(rawUrl);
+                  core.info(`File URL: ${rawUrl}`);
+                }
+                // Add summary
+                core.summary.addHeading("Files Uploaded to Orphaned Branch", 2);
+                core.summary.addRaw(
+                  `Successfully uploaded ${uploadedFiles.length} file(s) to orphaned branch \`${branchName}\`\n\n`
+                );
+                core.summary.addRaw(`**Commit:** \`${commitSha}\`\n\n`);
+                core.summary.addRaw("**Files:**\n");
+                for (let i = 0; i < uploadedFiles.length; i++) {
+                  const filename = uploadedFiles[i];
+                  const item = orphanedBranchItems.find(
+                    item => item.filename.replace(/[^a-zA-Z0-9._-]/g, "_") === filename
+                  );
+                  const originalName = item?.original_filename || filename;
+                  const sha = item?.sha || "unknown";
+                  core.summary.addRaw(
+                    `- [${filename}](${fileUrls[i]}) - Original: ${originalName} - SHA: ${sha.substring(0, 8)}\n`
+                  );
+                }
+                await core.summary.write();
+              } catch (error) {
+                core.setFailed(
+                  `Failed to upload files to orphaned branch: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
+              }
+            }
+            // Set outputs
+            core.setOutput("uploaded_files", JSON.stringify(uploadedFiles));
+            core.setOutput("file_urls", JSON.stringify(fileUrls));
+            if (commitSha) {
+              core.setOutput("commit_sha", commitSha);
+            }
+            core.info(
+              `Successfully processed ${uploadedFiles.length} file(s) for orphaned branch upload`
+            );
 
   missing_tool:
     needs: dev
