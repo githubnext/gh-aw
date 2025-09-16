@@ -6,6 +6,18 @@ const safeOutputsConfig = JSON.parse(configEnv);
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile)
   throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
+
+// Validate required directory environment variables
+const safeOutputsDir = process.env.GITHUB_AW_SAFE_OUTPUTS_DIR;
+if (!safeOutputsDir)
+  throw new Error(
+    "GITHUB_AW_SAFE_OUTPUTS_DIR not set, no safe outputs directory"
+  );
+const filesDir = process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR;
+if (!filesDir)
+  throw new Error(
+    "GITHUB_AW_SAFE_OUTPUTS_FILES_DIR not set, no files directory"
+  );
 const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
 function writeMessage(obj) {
@@ -391,9 +403,6 @@ const TOOLS = Object.fromEntries(
         const shaFilename = fileSha + originalExtension;
 
         // Copy file to safe outputs files directory with SHA-based filename
-        const filesDir =
-          process.env.GITHUB_AW_SAFE_OUTPUTS_FILES_DIR ||
-          `${process.env.GITHUB_AW_SAFE_OUTPUTS_DIR || "/tmp/gh-aw/safe-outputs"}/files`;
         const targetFile = path.join(filesDir, shaFilename);
 
         // Ensure directory exists

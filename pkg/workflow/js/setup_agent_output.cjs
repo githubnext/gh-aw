@@ -5,7 +5,7 @@ function main() {
   // Create the safe outputs directory structure
   const safeOutputsDir = "/tmp/gh-aw/safe-outputs";
   const filesDir = `${safeOutputsDir}/files`;
-  const outputFile = `${safeOutputsDir}/outputs.jsonl`;
+  const outputFile = `${safeOutputsDir}/safe_outputs.jsonl`;
 
   // Ensure the safe outputs directory structure exists
   fs.mkdirSync(safeOutputsDir, { recursive: true });
