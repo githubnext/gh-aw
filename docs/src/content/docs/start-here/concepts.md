@@ -22,6 +22,15 @@ Traditional GitHub Actions follow pre-programmed steps. Agentic workflows use AI
 
 One crucial difference from regular agentic prompting is that GitHub Agentic Workflows can contain **both** traditional GitHub Actions steps and agentic natural language instructions. This allows the best of both worlds: traditional steps for deterministic actions, and agentic steps for flexible, context-aware AI-driven actions.
 
+## What makes a workflow "safe"?
+
+Agentic workflows are designed with security and reliability in mind:
+- **Minimal permissions** — Workflows run with the least privilege necessary, reducing risk, including no write permissions by default, and usually no write permissions to GitHub at all during the "agentic" steps
+* **Tool allowlists** — Explicitly specify which tools the AI can use, preventing unexpected actions
+- **Input validation** — All inputs are automatically sanitized to prevent injection attacks
+- **Safe outputs** — Outputs are processed through a safety layer to ensure they meet criteria before being applied, for example declaring and checking that only one issue is created, ensuring minimal safe additions to your GitHub repository
+- **Human oversight** — Issues, pull requests, and other critical actions can require human approval before proceeding
+
 ## The anatomy of an agentic workflow
 
 Every agentic workflow has two main parts:
@@ -41,7 +50,7 @@ steps: ...
 Analyze this issue and provide helpful triage comments...
 ```
 
-Another crucial difference from traditional agentic prompting is that GitHub Agentic Workflows can contain triggers, permissions and other declarative elements. This works towards more reliable and more secure agentic programming, setting the AI up to contribute to success, in a partially sandboxed way, at the right time in your team's work.
+One crucial difference from traditional agentic prompting is that GitHub Agentic Workflows can contain triggers, permissions and other declarative elements. This works towards more reliable and more secure agentic programming, setting the AI up to contribute to success, in a partially sandboxed way, at the right time in your team's work.
 
 See [Workflow Structure](../reference/workflow-structure.md) and [Frontmatter Options](../reference/frontmatter.md) for details of file layout and configuration options.
 
