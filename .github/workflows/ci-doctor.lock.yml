@@ -1744,10 +1744,51 @@ jobs:
                   // If that fails, try to parse as mixed format (debug logs + JSONL)
                   logEntries = [];
                   const lines = logContent.split("\n");
-                  for (const line of lines) {
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
                     const trimmedLine = line.trim();
                     if (trimmedLine === "") {
                       continue; // Skip empty lines
+                    }
+                    // If a line looks like a JSON array (starts with '['), try to parse it as an array
+                    if (trimmedLine.startsWith("[")) {
+                      let buf = trimmedLine;
+                      // If the closing bracket is not on the same line, accumulate subsequent lines
+                      if (!trimmedLine.includes("]")) {
+                        let j = i + 1;
+                        while (j < lines.length) {
+                          buf += "\n" + lines[j];
+                          if (lines[j].includes("]")) {
+                            // Advance outer loop to the line we consumed
+                            i = j;
+                            break;
+                          }
+                          j++;
+                        }
+                      }
+                      try {
+                        const arr = JSON.parse(buf);
+                        if (Array.isArray(arr)) {
+                          logEntries = logEntries.concat(arr);
+                          continue;
+                        }
+                      } catch (arrayParseError) {
+                        // If parsing as a single-line or multi-line array failed, attempt to extract a JSON array substring
+                        const openIdx = buf.indexOf("[");
+                        const closeIdx = buf.lastIndexOf("]");
+                        if (openIdx !== -1 && closeIdx !== -1 && closeIdx > openIdx) {
+                          const sub = buf.substring(openIdx, closeIdx + 1);
+                          try {
+                            const arr2 = JSON.parse(sub);
+                            if (Array.isArray(arr2)) {
+                              logEntries = logEntries.concat(arr2);
+                              continue;
+                            }
+                          } catch (subParseError) {
+                            // Continue to individual JSON line parsing
+                          }
+                        }
+                      }
                     }
                     // Skip debug log lines that don't start with {
                     // (these are typically timestamped debug messages)
