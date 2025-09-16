@@ -21,7 +21,7 @@ func TestLogParserSnapshots(t *testing.T) {
 		{
 			name:         "Claude log parsing",
 			engine:       "claude",
-			logFile:      "sample_claude_log.txt",
+			logFile:      "sample_claude_log_new_format.txt",
 			expectedFile: "expected_claude_baseline.md",
 		},
 	}
