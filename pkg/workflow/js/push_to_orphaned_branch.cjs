@@ -51,6 +51,7 @@ core.info(
 
 const uploadedFiles = [];
 const fileUrls = [];
+let commitSha = null;
 
 if (isStaged) {
   // In staged mode, just show what would be uploaded
@@ -98,12 +99,25 @@ if (isStaged) {
       // Decode base64 content and write file
       const fileBuffer = Buffer.from(content, "base64");
 
+      // Validate SHA matches the file content
+      const crypto = require("crypto");
+      const computedHash = crypto.createHash("sha256");
+      computedHash.update(fileBuffer);
+      const computedSha = computedHash.digest("hex");
+
+      const fileSha = sha || "unknown";
+      if (fileSha !== "unknown" && fileSha !== computedSha) {
+        core.setFailed(
+          `SHA validation failed for ${filename}. Expected: ${fileSha}, Computed: ${computedSha}`
+        );
+        return;
+      }
+
       // Use the SHA-based filename directly (it already includes the extension)
       const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 
       fs.writeFileSync(safeFilename, fileBuffer);
       const originalName = original_filename || filename;
-      const fileSha = sha || "unknown";
       core.info(
         `Created file: ${safeFilename} (${fileBuffer.length} bytes) - SHA: ${fileSha} - Original: ${originalName}`
       );
@@ -132,7 +146,7 @@ if (isStaged) {
     execSync(`git push origin ${branchName}`, { stdio: "inherit" });
 
     // Get the commit SHA
-    const commitSha = execSync(`git rev-parse HEAD`, {
+    commitSha = execSync(`git rev-parse HEAD`, {
       encoding: "utf8",
     }).trim();
     core.info(`Pushed to orphaned branch with commit: ${commitSha}`);
@@ -176,6 +190,9 @@ if (isStaged) {
 // Set outputs
 core.setOutput("uploaded_files", JSON.stringify(uploadedFiles));
 core.setOutput("file_urls", JSON.stringify(fileUrls));
+if (commitSha) {
+  core.setOutput("commit_sha", commitSha);
+}
 
 core.info(
   `Successfully processed ${uploadedFiles.length} file(s) for orphaned branch upload`

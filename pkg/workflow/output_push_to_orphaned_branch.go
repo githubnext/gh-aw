@@ -67,6 +67,7 @@ func (c *Compiler) buildCreateOutputPushToOrphanedBranchJob(data *WorkflowData, 
 	outputs := map[string]string{
 		"uploaded_files": "${{ steps.push_to_orphaned_branch.outputs.uploaded_files }}",
 		"file_urls":      "${{ steps.push_to_orphaned_branch.outputs.file_urls }}",
+		"commit_sha":     "${{ steps.push_to_orphaned_branch.outputs.commit_sha }}",
 	}
 
 	// This job can run in any context since it only uploads files to orphaned branches

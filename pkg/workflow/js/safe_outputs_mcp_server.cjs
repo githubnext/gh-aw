@@ -357,6 +357,16 @@ const TOOLS = Object.fromEntries(
 
         // Read file and encode as base64
         const fileContent = fs.readFileSync(filename);
+
+        // Check file size (10MB limit)
+        const fileSizeBytes = fileContent.length;
+        const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+        if (fileSizeBytes > maxSizeBytes) {
+          throw new Error(
+            `File size ${Math.round(fileSizeBytes / 1024 / 1024)}MB exceeds 10MB limit`
+          );
+        }
+
         const base64Content = fileContent.toString("base64");
 
         // Compute SHA256 hash of the file content
@@ -366,6 +376,43 @@ const TOOLS = Object.fromEntries(
 
         // Get file extension from original filename
         const originalExtension = path.extname(filename);
+
+        // Validate file extension is reasonable
+        const allowedExtensions = [
+          ".png",
+          ".jpg",
+          ".jpeg",
+          ".gif",
+          ".webp",
+          ".svg",
+          ".bmp",
+          ".ico",
+          ".pdf",
+          ".txt",
+          ".md",
+          ".json",
+          ".yaml",
+          ".yml",
+          ".xml",
+          ".csv",
+          ".log",
+          ".zip",
+          ".tar",
+          ".gz",
+          ".html",
+          ".css",
+          ".js",
+          ".ts",
+        ];
+        if (
+          originalExtension &&
+          !allowedExtensions.includes(originalExtension.toLowerCase())
+        ) {
+          throw new Error(
+            `File extension '${originalExtension}' is not allowed. Allowed extensions: ${allowedExtensions.join(", ")}`
+          );
+        }
+
         const shaFilename = fileSha + originalExtension;
 
         // Create the output entry with base64 content and SHA filename
@@ -384,8 +431,14 @@ const TOOLS = Object.fromEntries(
           safeOutputsConfig["push-to-orphaned-branch"]?.branch;
         const branchName = branchConfig || "assets/{workflow-name}";
 
+        // Get repository information from environment or use placeholders
+        const owner = process.env.GITHUB_REPOSITORY_OWNER || "{owner}";
+        const repo = process.env.GITHUB_REPOSITORY
+          ? process.env.GITHUB_REPOSITORY.split("/")[1]
+          : "{repo}";
+
         // Create template URL (will be resolved during GitHub Actions execution)
-        const templateUrl = `https://raw.githubusercontent.com/{owner}/{repo}/${branchName}/${shaFilename}`;
+        const templateUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branchName}/${shaFilename}`;
 
         // Return response with SHA information and expected URL
         return {
@@ -395,6 +448,7 @@ const TOOLS = Object.fromEntries(
               text: `File uploaded successfully. SHA: ${fileSha}, Original filename: ${path.basename(filename)}, Expected URL: ${templateUrl}`,
             },
           ],
+          url: templateUrl,
         };
       },
     },
