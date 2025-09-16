@@ -27,7 +27,7 @@ func TestCodexEngine(t *testing.T) {
 
 	// Test installation steps
 	steps := engine.GetInstallationSteps(&WorkflowData{})
-	expectedStepCount := 2 // Setup Node.js and Install Codex
+	expectedStepCount := 3 // Setup Node.js, Install Codex, and Authenticate with Codex
 	if len(steps) != expectedStepCount {
 		t.Errorf("Expected %d installation steps, got %d", expectedStepCount, len(steps))
 	}
@@ -43,6 +43,13 @@ func TestCodexEngine(t *testing.T) {
 	if len(steps) > 1 && len(steps[1]) > 0 {
 		if !strings.Contains(steps[1][0], "Install Codex") {
 			t.Errorf("Expected second step to contain 'Install Codex', got '%s'", steps[1][0])
+		}
+	}
+
+	// Verify third step is Authenticate with Codex
+	if len(steps) > 2 && len(steps[2]) > 0 {
+		if !strings.Contains(steps[2][0], "Authenticate with Codex") {
+			t.Errorf("Expected third step to contain 'Authenticate with Codex', got '%s'", steps[2][0])
 		}
 	}
 

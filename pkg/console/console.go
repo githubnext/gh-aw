@@ -141,7 +141,7 @@ func findWordEnd(line string, start int) int {
 	if start >= len(line) {
 		return len(line)
 	}
-	
+
 	end := start
 	for end < len(line) {
 		char := line[end]
@@ -151,7 +151,7 @@ func findWordEnd(line string, start int) int {
 		}
 		end++
 	}
-	
+
 	return end
 }
 
@@ -180,10 +180,10 @@ func renderContext(err CompilerError) string {
 			// For JSON validation errors, highlight from column to end of word
 			if err.Position.Column > 0 && err.Position.Column <= len(line) {
 				before := line[:err.Position.Column-1]
-				
+
 				// Find the end of the word starting at the column position
 				wordEnd := findWordEnd(line, err.Position.Column-1)
-				highlightedPart := line[err.Position.Column-1:wordEnd]
+				highlightedPart := line[err.Position.Column-1 : wordEnd]
 				after := ""
 				if wordEnd < len(line) {
 					after = line[wordEnd:]
@@ -206,7 +206,7 @@ func renderContext(err CompilerError) string {
 			// Create pointer line that spans the highlighted word
 			wordEnd := findWordEnd(line, err.Position.Column-1)
 			wordLength := wordEnd - (err.Position.Column - 1)
-			
+
 			padding := strings.Repeat(" ", lineNumWidth+3+err.Position.Column-1)
 			pointer := applyStyle(errorStyle, strings.Repeat("^", wordLength))
 			output.WriteString(padding)
