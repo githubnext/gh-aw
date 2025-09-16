@@ -17,9 +17,15 @@ This guide will get you from zero to a running agentic workflow in minutes. You'
 
 **Step 1 — Install the extension**
 
+- Install the [GitHub CLI](https://cli.github.com/).
+
+- Install the GitHub Agentic Workflows extension:
+
 ```bash
 gh extension install githubnext/gh-aw
 ```
+
+If this step fails, you may need to use a personal access token or run the [install-gh-aw.sh script](https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh).
 
 **Step 2 — Add a sample workflow, review and merge**
 
