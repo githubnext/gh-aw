@@ -183,10 +183,13 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+	yaml.WriteString("                  \"-e\",\n")
+	yaml.WriteString("                  \"GITHUB_HOST\",\n")
 	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
+	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\",\n")
+	yaml.WriteString("                  \"GITHUB_HOST\": \"${{ env.GITHUB_SERVER_URL }}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

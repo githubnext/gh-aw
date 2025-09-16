@@ -258,6 +258,100 @@ func TestMCPConfigurationEdgeCases(t *testing.T) {
 	}
 }
 
+func TestGitHubHostEnvironmentVariable(t *testing.T) {
+	tests := []struct {
+		name           string
+		engine         string
+		expectedLines  []string
+	}{
+		{
+			name:   "claude engine includes GITHUB_HOST",
+			engine: "claude",
+			expectedLines: []string{
+				`"-e",`,
+				`"GITHUB_HOST",`,
+				`"GITHUB_HOST": "${{ env.GITHUB_SERVER_URL }}"`,
+			},
+		},
+		{
+			name:   "custom engine includes GITHUB_HOST",
+			engine: "custom",
+			expectedLines: []string{
+				`"-e",`,
+				`"GITHUB_HOST",`,
+				`"GITHUB_HOST": "${{ env.GITHUB_SERVER_URL }}"`,
+			},
+		},
+		{
+			name:   "codex engine includes GITHUB_HOST",
+			engine: "codex",
+			expectedLines: []string{
+				`"-e",`,
+				`"GITHUB_HOST",`,
+				`"GITHUB_HOST" = "${{ env.GITHUB_SERVER_URL }}"`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir, err := os.MkdirTemp("", "github-host-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			compiler := NewCompiler(false, "", "test")
+
+			frontmatter := fmt.Sprintf(`---
+engine: %s
+tools:
+  github:
+    allowed: [list_issues, create_issue]
+---`, tt.engine)
+
+			testContent := frontmatter + `
+
+# Test GitHub Host Configuration
+
+This is a test workflow to verify GITHUB_HOST environment variable is included.
+`
+
+			testFile := filepath.Join(tmpDir, "github-host-test.md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			err = compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Unexpected error compiling workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			// Check that all expected lines are present
+			for _, expectedLine := range tt.expectedLines {
+				if !strings.Contains(lockContent, expectedLine) {
+					t.Errorf("Expected line '%s' not found in %s engine output:\n%s", expectedLine, tt.engine, lockContent)
+				}
+			}
+
+			// Verify that GITHUB_HOST environment variable appears in docker args
+			if !strings.Contains(lockContent, "GITHUB_HOST") {
+				t.Errorf("GITHUB_HOST not found in %s engine output", tt.engine)
+			}
+		})
+	}
+}
+
 func TestCustomDockerMCPConfiguration(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "custom-docker-mcp-test")
