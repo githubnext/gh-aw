@@ -27,7 +27,6 @@ One crucial difference from regular agentic prompting is that GitHub Agentic Wor
 Agentic workflows are designed with security and reliability in mind:
 - **Minimal permissions** — Workflows run with the least privilege necessary, reducing risk, including no write permissions by default, and usually no write permissions to GitHub at all during the "agentic" steps
 * **Tool allowlists** — Explicitly specify which tools the AI can use, preventing unexpected actions
-- **Input validation** — All inputs are automatically sanitized to prevent injection attacks
 - **Safe outputs** — Outputs are processed through a safety layer to ensure they meet criteria before being applied, for example declaring and checking that only one issue is created, ensuring minimal safe additions to your GitHub repository
 - **Human oversight** — Issues, pull requests, and other critical actions can require human approval before proceeding
 
@@ -91,7 +90,6 @@ Agentic workflows require careful security consideration:
 
 - **Minimal permissions** — Grant only what the workflow needs
 - **Tool allowlists** — Explicitly specify which tools the AI can use  
-- **Input validation** — All inputs are automatically sanitized
 - **Human oversight** — Critical actions can require human approval
 
 See [Security Guide](/gh-aw/guides/security/) for comprehensive guidelines.
