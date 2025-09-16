@@ -1749,6 +1749,19 @@ jobs:
                     if (trimmedLine === "") {
                       continue; // Skip empty lines
                     }
+                    // Handle lines that start with [ (JSON array format)
+                    if (trimmedLine.startsWith("[{")) {
+                      try {
+                        const arrayEntries = JSON.parse(trimmedLine);
+                        if (Array.isArray(arrayEntries)) {
+                          logEntries.push(...arrayEntries);
+                          continue;
+                        }
+                      } catch (arrayParseError) {
+                        // Skip invalid array lines
+                        continue;
+                      }
+                    }
                     // Skip debug log lines that don't start with {
                     // (these are typically timestamped debug messages)
                     if (!trimmedLine.startsWith("{")) {
