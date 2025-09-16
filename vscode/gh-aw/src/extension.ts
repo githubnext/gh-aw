@@ -112,7 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(completionProvider);
 }
 
-function isAgenticWorkflowFile(document: vscode.TextDocument): boolean {
+export function isAgenticWorkflowFile(document: vscode.TextDocument): boolean {
     // Check if it's a markdown file in .github/workflows directory
     const filePath = document.fileName;
     const isMarkdown = path.extname(filePath) === '.md';
@@ -127,7 +127,7 @@ function isAgenticWorkflowFile(document: vscode.TextDocument): boolean {
     return text.startsWith('---');
 }
 
-function isInFrontmatter(document: vscode.TextDocument, position: vscode.Position): boolean {
+export function isInFrontmatter(document: vscode.TextDocument, position: vscode.Position): boolean {
     const text = document.getText();
     const lines = text.split('\n');
     

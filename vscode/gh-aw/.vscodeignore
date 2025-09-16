@@ -1,6 +1,12 @@
 # Source files
 src/
 tsconfig.json
+tsconfig.test.json
+
+# Test files
+out/test/
+out-test/
+.vscode-test/
 
 # Development files
 .vscode/
