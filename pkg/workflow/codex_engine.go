@@ -94,6 +94,12 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
 	}
 
+	// Build search parameter if web-search tool is present
+	var searchParam string
+	if _, hasWebSearch := workflowData.Tools["web-search"]; hasWebSearch {
+		searchParam = "--search "
+	}
+
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 export CODEX_HOME=/tmp/mcp-config
@@ -102,7 +108,7 @@ export CODEX_HOME=/tmp/mcp-config
 mkdir -p /tmp/aw-logs
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
-codex exec %s--full-auto "$INSTRUCTION" 2>&1 | tee %s`, modelParam, logFile)
+codex exec %s%s--full-auto "$INSTRUCTION" 2>&1 | tee %s`, modelParam, searchParam, logFile)
 
 	env := map[string]string{
 		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
