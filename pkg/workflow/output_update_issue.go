@@ -13,7 +13,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	var steps []string
 	steps = append(steps, "      - name: Update Issue\n")
 	steps = append(steps, "        id: update_issue\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")

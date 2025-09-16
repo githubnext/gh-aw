@@ -32,7 +32,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	// Step 4: Push to Branch
 	steps = append(steps, "      - name: Push to Branch\n")
 	steps = append(steps, "        id: push_to_pr_branch\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")

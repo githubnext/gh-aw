@@ -69,6 +69,10 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 			"      - name: Install Codex",
 			fmt.Sprintf("        run: %s", installCmd),
 		},
+		{
+			"      - name: Authenticate with Codex",
+			"        run: codex login --api-key \"${{ secrets.OPENAI_API_KEY }}\"",
+		},
 	}
 }
 

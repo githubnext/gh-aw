@@ -266,7 +266,7 @@ This workflow tests the create-issue job generation.
 	}
 
 	// Verify the job uses github-script
-	if !strings.Contains(lockContent, "uses: actions/github-script@v7") {
+	if !strings.Contains(lockContent, "uses: actions/github-script@v8") {
 		t.Error("Expected github-script action to be used in create_issue job")
 	}
 
@@ -569,7 +569,7 @@ This workflow tests the create_issue_comment job generation.
 	}
 
 	// Verify the job uses github-script
-	if !strings.Contains(lockContent, "uses: actions/github-script@v7") {
+	if !strings.Contains(lockContent, "uses: actions/github-script@v8") {
 		t.Error("Expected github-script action to be used in create_issue_comment job")
 	}
 
@@ -801,7 +801,7 @@ This workflow tests the create_pull_request job generation.
 		t.Error("Expected 'Create Pull Request' step in create_pull_request job")
 	}
 
-	if !strings.Contains(lockContentStr, "uses: actions/github-script@v7") {
+	if !strings.Contains(lockContentStr, "uses: actions/github-script@v8") {
 		t.Error("Expected github-script action to be used in create_pull_request job")
 	}
 
@@ -1108,7 +1108,7 @@ This workflow tests the add_labels job generation.
 	}
 
 	// Verify the job uses github-script
-	if !strings.Contains(lockContent, "uses: actions/github-script@v7") {
+	if !strings.Contains(lockContent, "uses: actions/github-script@v8") {
 		t.Error("Expected github-script action to be used in add_labels job")
 	}
 
