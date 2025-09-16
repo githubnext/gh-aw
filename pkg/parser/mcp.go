@@ -8,6 +8,37 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// ensureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
+// in the allowed domains list for Playwright, even when custom domains are specified
+func ensureLocalhostDomains(domains []string) []string {
+	hasLocalhost := false
+	hasLoopback := false
+
+	for _, domain := range domains {
+		if domain == "localhost" {
+			hasLocalhost = true
+		}
+		if domain == "127.0.0.1" {
+			hasLoopback = true
+		}
+	}
+
+	result := make([]string, 0, len(domains)+2)
+
+	// Always add localhost domains first
+	if !hasLocalhost {
+		result = append(result, "localhost")
+	}
+	if !hasLoopback {
+		result = append(result, "127.0.0.1")
+	}
+
+	// Add the rest of the domains
+	result = append(result, domains...)
+
+	return result
+}
+
 // MCPServerConfig represents a parsed MCP server configuration
 type MCPServerConfig struct {
 	Name      string            `json:"name"`
@@ -172,19 +203,23 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
 						// For now, we'll use a simple conversion. In a full implementation,
 						// we'd need to use the same domain bundle resolution as the compiler
+						var customDomains []string
 						switch domains := domainsConfig.(type) {
 						case []string:
-							allowedDomains = domains
+							customDomains = domains
 						case []any:
-							allowedDomains = make([]string, len(domains))
+							customDomains = make([]string, len(domains))
 							for i, domain := range domains {
 								if domainStr, ok := domain.(string); ok {
-									allowedDomains[i] = domainStr
+									customDomains[i] = domainStr
 								}
 							}
 						case string:
-							allowedDomains = []string{domains}
+							customDomains = []string{domains}
 						}
+
+						// Ensure localhost domains are always included
+						allowedDomains = ensureLocalhostDomains(customDomains)
 					}
 
 					// Check for custom Docker image version

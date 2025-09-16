@@ -614,7 +614,7 @@ jobs:
                 "args": [
                   "@playwright/mcp@latest",
                   "--allowed-origins",
-                  "github.com,*.github.com"
+                  "localhost,127.0.0.1,github.com,*.github.com"
                 ]
               },
               "safe_outputs": {

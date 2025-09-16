@@ -6,6 +6,55 @@ import (
 	"testing"
 )
 
+// TestEnsureLocalhostDomains tests the helper function that ensures localhost domains are always included
+func TestEnsureLocalhostDomains(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			name:     "Empty input should add both localhost domains",
+			input:    []string{},
+			expected: []string{"localhost", "127.0.0.1"},
+		},
+		{
+			name:     "Custom domains without localhost should add localhost domains",
+			input:    []string{"github.com", "*.github.com"},
+			expected: []string{"localhost", "127.0.0.1", "github.com", "*.github.com"},
+		},
+		{
+			name:     "Input with localhost but no 127.0.0.1 should add 127.0.0.1",
+			input:    []string{"localhost", "example.com"},
+			expected: []string{"127.0.0.1", "localhost", "example.com"},
+		},
+		{
+			name:     "Input with 127.0.0.1 but no localhost should add localhost",
+			input:    []string{"127.0.0.1", "example.com"},
+			expected: []string{"localhost", "127.0.0.1", "example.com"},
+		},
+		{
+			name:     "Input with both localhost domains should remain unchanged",
+			input:    []string{"localhost", "127.0.0.1", "example.com"},
+			expected: []string{"localhost", "127.0.0.1", "example.com"},
+		},
+		{
+			name:     "Input with both in different order should just add what's missing",
+			input:    []string{"example.com", "127.0.0.1", "localhost"},
+			expected: []string{"example.com", "127.0.0.1", "localhost"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ensureLocalhostDomains(tt.input)
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("ensureLocalhostDomains(%v) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestExtractMCPConfigurations(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -91,7 +140,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:latest",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "github.com,*.github.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,127.0.0.1,github.com,*.github.com"},
 				},
 			},
 		},
@@ -115,7 +164,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:v1.41.0",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,127.0.0.1,example.com"},
 				},
 			},
 		},
