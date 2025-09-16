@@ -9,7 +9,7 @@
     "url": "https://github.com/githubnext/gh-aw.git"
   },
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.102.0"
   },
   "categories": [
     "Programming Languages",
