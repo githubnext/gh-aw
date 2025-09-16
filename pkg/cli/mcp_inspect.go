@@ -1,10 +1,16 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/parser"
@@ -222,7 +228,208 @@ func generateAndDisplayMCPConfig(workflowData *parser.FrontmatterResult, verbose
 	fmt.Println()
 	fmt.Println(mcpConfigBuilder.String())
 
+	// Parse and spawn MCP servers from the generated configuration
+	if err := spawnMCPServersFromConfig(mcpConfigBuilder.String(), verbose); err != nil {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to spawn MCP servers: %v", err)))
+		}
+	}
+
 	return nil
+}
+
+// MCPServerConfig represents a single MCP server configuration
+type MCPServerConfig struct {
+	Command string            `json:"command"`
+	Args    []string          `json:"args"`
+	Env     map[string]string `json:"env"`
+}
+
+// MCPConfig represents the complete MCP configuration
+type MCPConfig struct {
+	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
+}
+
+// spawnMCPServersFromConfig parses the generated MCP configuration and spawns servers
+func spawnMCPServersFromConfig(configScript string, verbose bool) error {
+	// Extract JSON from the generated shell script
+	jsonConfig, err := extractJSONFromScript(configScript)
+	if err != nil {
+		return fmt.Errorf("failed to extract JSON from configuration script: %w", err)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage("Extracted MCP JSON configuration:"))
+		fmt.Println(jsonConfig)
+		fmt.Println()
+	}
+
+	// Replace GitHub Actions template variables with actual environment values
+	resolvedConfig := resolveTemplateVariables(jsonConfig, verbose)
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage("Resolved MCP JSON configuration:"))
+		fmt.Println(resolvedConfig)
+		fmt.Println()
+	}
+
+	// Parse the JSON configuration
+	var config MCPConfig
+	if err := json.Unmarshal([]byte(resolvedConfig), &config); err != nil {
+		return fmt.Errorf("failed to parse MCP configuration JSON: %w", err)
+	}
+
+	if len(config.MCPServers) == 0 {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage("No MCP servers found in configuration to spawn"))
+		}
+		return nil
+	}
+
+	fmt.Println()
+	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Spawning %d MCP server(s) from generated configuration...", len(config.MCPServers))))
+
+	var wg sync.WaitGroup
+	var serverProcesses []*exec.Cmd
+
+	// Start each server
+	for serverName, serverConfig := range config.MCPServers {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Starting MCP server: %s", serverName)))
+		}
+
+		// Create the command
+		cmd := exec.Command(serverConfig.Command, serverConfig.Args...)
+		
+		// Set environment variables
+		cmd.Env = os.Environ()
+		for key, value := range serverConfig.Env {
+			// Resolve environment variable references (simple implementation)
+			resolvedValue := os.ExpandEnv(value)
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, resolvedValue))
+		}
+
+		// Start the server process
+		if err := cmd.Start(); err != nil {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to start server %s: %v", serverName, err)))
+			continue
+		}
+
+		serverProcesses = append(serverProcesses, cmd)
+
+		// Monitor the process in the background
+		wg.Add(1)
+		go func(serverCmd *exec.Cmd, name string) {
+			defer wg.Done()
+			if err := serverCmd.Wait(); err != nil && verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", name, err)))
+			}
+		}(cmd, serverName)
+
+		if verbose {
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Started server: %s (PID: %d)", serverName, cmd.Process.Pid)))
+		}
+	}
+
+	if len(serverProcesses) > 0 {
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully started %d MCP server(s)", len(serverProcesses))))
+		fmt.Println(console.FormatInfoMessage("Servers are running in the background"))
+		fmt.Println(console.FormatInfoMessage("Press Ctrl+C to stop the inspection and cleanup servers"))
+
+		// Set up cleanup on interrupt
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		
+		go func() {
+			<-c
+			fmt.Println()
+			fmt.Println(console.FormatInfoMessage("Cleaning up MCP servers..."))
+			for i, cmd := range serverProcesses {
+				if cmd.Process != nil {
+					if err := cmd.Process.Kill(); err != nil && verbose {
+						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process %d: %v", cmd.Process.Pid, err)))
+					}
+				}
+				// Give each process a chance to clean up
+				if i < len(serverProcesses)-1 {
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+			
+			// Wait for all background goroutines to finish (with timeout)
+			done := make(chan struct{})
+			go func() {
+				wg.Wait()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				// All finished
+			case <-time.After(5 * time.Second):
+				// Timeout waiting for cleanup
+				if verbose {
+					fmt.Println(console.FormatWarningMessage("Timeout waiting for server cleanup"))
+				}
+			}
+			
+			os.Exit(0)
+		}()
+
+		// Keep the main process alive to maintain servers
+		select {}
+	}
+
+	return nil
+}
+
+// resolveTemplateVariables replaces GitHub Actions template variables with local environment values
+func resolveTemplateVariables(jsonConfig string, verbose bool) string {
+	// Replace common GitHub Actions template variables with environment values or defaults
+	resolved := jsonConfig
+	
+	// Replace ${{ env.GITHUB_AW_SAFE_OUTPUTS }} with environment value or default
+	if safeOutputs := os.Getenv("GITHUB_AW_SAFE_OUTPUTS"); safeOutputs != "" {
+		resolved = strings.ReplaceAll(resolved, `"${{ env.GITHUB_AW_SAFE_OUTPUTS }}"`, fmt.Sprintf(`"%s"`, safeOutputs))
+	} else {
+		// Default to a temporary file for local testing
+		resolved = strings.ReplaceAll(resolved, `"${{ env.GITHUB_AW_SAFE_OUTPUTS }}"`, `"/tmp/safe-outputs.jsonl"`)
+	}
+	
+	// Replace ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} with environment value or default
+	if safeOutputsConfig := os.Getenv("GITHUB_AW_SAFE_OUTPUTS_CONFIG"); safeOutputsConfig != "" {
+		resolved = strings.ReplaceAll(resolved, `${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}`, safeOutputsConfig)
+	} else {
+		// Default to empty config for local testing
+		resolved = strings.ReplaceAll(resolved, `${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}`, `"{}"`)
+	}
+	
+	// Replace ${{ secrets.GITHUB_TOKEN }} with environment value or default
+	if ghToken := os.Getenv("GITHUB_TOKEN"); ghToken != "" {
+		resolved = strings.ReplaceAll(resolved, `"${{ secrets.GITHUB_TOKEN }}"`, fmt.Sprintf(`"%s"`, ghToken))
+	} else if ghToken := os.Getenv("GH_TOKEN"); ghToken != "" {
+		resolved = strings.ReplaceAll(resolved, `"${{ secrets.GITHUB_TOKEN }}"`, fmt.Sprintf(`"%s"`, ghToken))
+	} else {
+		if verbose {
+			fmt.Println(console.FormatWarningMessage("GitHub token not found in environment (set GITHUB_TOKEN or GH_TOKEN)"))
+		}
+		resolved = strings.ReplaceAll(resolved, `"${{ secrets.GITHUB_TOKEN }}"`, `"your-github-token"`)
+	}
+	
+	return resolved
+}
+
+// extractJSONFromScript extracts the JSON configuration from the generated shell script
+func extractJSONFromScript(script string) (string, error) {
+	// Look for the JSON content between << 'EOF' and EOF (multiline with DOTALL flag)
+	re := regexp.MustCompile(`(?s)cat > [^<]+ << 'EOF'\s*\n(.*?)\n\s*EOF`)
+	matches := re.FindStringSubmatch(script)
+	
+	if len(matches) < 2 {
+		return "", fmt.Errorf("could not find JSON configuration in script")
+	}
+	
+	return strings.TrimSpace(matches[1]), nil
 }
 
 // listWorkflowsWithMCP shows available workflow files that contain MCP configurations
@@ -301,8 +508,8 @@ func NewMCPInspectSubCommand() *cobra.Command {
 		Short: "Inspect MCP servers and list available tools, resources, and roots",
 		Long: `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
 
-This command generates MCP configurations using the Claude agentic engine and launches
-configured servers including github, playwright, and safe-outputs.
+This command generates MCP configurations using the Claude agentic engine and automatically
+spawns configured servers including github, playwright, and safe-outputs.
 
 Examples:
   gh aw mcp inspect                    # List workflows with MCP servers
@@ -314,10 +521,11 @@ Examples:
 The command will:
 - Parse the workflow file to extract MCP server configurations
 - Generate MCP configuration using the Claude agentic engine
-- Start each MCP server (stdio, docker, http)
+- Spawn MCP servers from the generated configuration
 - Query available tools, resources, and roots
 - Validate required secrets are available  
-- Display results in formatted tables with error details`,
+- Display results in formatted tables with error details
+- Keep servers running until interrupted (Ctrl+C)`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string
