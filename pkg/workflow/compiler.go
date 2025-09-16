@@ -2996,6 +2996,37 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	return playwrightDockerImageVersion
 }
 
+// ensureLocalhostDomainsWorkflow ensures that localhost and 127.0.0.1 are always included
+// in the allowed domains list for Playwright, even when custom domains are specified
+func ensureLocalhostDomainsWorkflow(domains []string) []string {
+	hasLocalhost := false
+	hasLoopback := false
+
+	for _, domain := range domains {
+		if domain == "localhost" {
+			hasLocalhost = true
+		}
+		if domain == "127.0.0.1" {
+			hasLoopback = true
+		}
+	}
+
+	result := make([]string, 0, len(domains)+2)
+
+	// Always add localhost domains first
+	if !hasLocalhost {
+		result = append(result, "localhost")
+	}
+	if !hasLoopback {
+		result = append(result, "127.0.0.1")
+	}
+
+	// Add the rest of the domains
+	result = append(result, domains...)
+
+	return result
+}
+
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
@@ -3026,7 +3057,10 @@ func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *Ne
 			}
 
 			// Use the same domain bundle resolution as the top-level network configuration
-			allowedDomains = GetAllowedDomains(playwrightNetwork)
+			resolvedDomains := GetAllowedDomains(playwrightNetwork)
+
+			// Ensure localhost domains are always included
+			allowedDomains = ensureLocalhostDomainsWorkflow(resolvedDomains)
 		}
 	}
 
