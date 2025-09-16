@@ -135,7 +135,7 @@ tools:
 
 ## GitHub MCP Integration
 
-GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools Configuration](../reference/tools.md) for details.
+GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools Configuration](../../reference/tools/) for details.
 
 You can configure the docker image version for GitHub tools:
 
