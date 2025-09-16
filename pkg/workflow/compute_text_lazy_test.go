@@ -97,7 +97,7 @@ Create a report based on repository analysis.`
 			t.Error("Expected compiled workflow to contain text output")
 		}
 		// Check that JavaScript is inlined instead of using shared action
-		if !strings.Contains(lockStr, "uses: actions/github-script@v7") {
+		if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
 			t.Error("Expected compute-text step to use inlined JavaScript")
 		}
 		if strings.Contains(lockStr, "uses: ./.github/actions/compute-text") {

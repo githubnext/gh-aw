@@ -2001,7 +2001,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 			steps = append(steps, "      - name: Check team membership for workflow\n")
 		}
 		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, "        uses: actions/github-script@v7\n")
+		steps = append(steps, "        uses: actions/github-script@v8\n")
 
 		// Add environment variables for permission check
 		steps = append(steps, "        env:\n")
@@ -2024,7 +2024,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 	if data.NeedsTextOutput {
 		steps = append(steps, "      - name: Compute current body text\n")
 		steps = append(steps, "        id: compute-text\n")
-		steps = append(steps, "        uses: actions/github-script@v7\n")
+		steps = append(steps, "        uses: actions/github-script@v8\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -2087,7 +2087,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 		// Add team member check step
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, "        uses: actions/github-script@v7\n")
+		steps = append(steps, "        uses: actions/github-script@v8\n")
 
 		// Add environment variables for permission check
 		steps = append(steps, "        env:\n")
@@ -2108,7 +2108,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 
 	steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
 	steps = append(steps, "        id: react\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -2171,7 +2171,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		// Add team member check step
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, "        uses: actions/github-script@v7\n")
+		steps = append(steps, "        uses: actions/github-script@v8\n")
 
 		// Add environment variables for permission check
 		steps = append(steps, "        env:\n")
@@ -2192,7 +2192,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	steps = append(steps, "      - name: Create Output Issue\n")
 	steps = append(steps, "        id: create_issue\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -2275,7 +2275,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	var steps []string
 	steps = append(steps, "      - name: Create Output Discussion\n")
 	steps = append(steps, "        id: create_discussion\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -2344,7 +2344,7 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 	var steps []string
 	steps = append(steps, "      - name: Add Issue Comment\n")
 	steps = append(steps, "        id: create_comment\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -2426,7 +2426,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	var steps []string
 	steps = append(steps, "      - name: Create PR Review Comment\n")
 	steps = append(steps, "        id: create_pr_review_comment\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -2495,7 +2495,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	var steps []string
 	steps = append(steps, "      - name: Create Code Scanning Alert\n")
 	steps = append(steps, "        id: create_code_scanning_alert\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -2607,7 +2607,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Step 4: Create pull request
 	steps = append(steps, "      - name: Create Pull Request\n")
 	steps = append(steps, "        id: create_pull_request\n")
-	steps = append(steps, "        uses: actions/github-script@v7\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
@@ -2705,7 +2705,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 			// Add team member check step
 			steps = append(steps, "      - name: Check team membership for workflow\n")
 			steps = append(steps, "        id: check-team-member\n")
-			steps = append(steps, "        uses: actions/github-script@v7\n")
+			steps = append(steps, "        uses: actions/github-script@v8\n")
 
 			// Add environment variables for permission check
 			steps = append(steps, "        env:\n")
@@ -3218,7 +3218,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
 	yaml.WriteString("        with:\n")
@@ -3257,7 +3257,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 
 	yaml.WriteString("      - name: Validate agent logs for errors\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
 
@@ -4329,7 +4329,7 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
-	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const fs = require('fs');\n")
@@ -4408,7 +4408,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Setup agent output\n")
 	yaml.WriteString("        id: setup_agent_output\n")
-	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -4526,7 +4526,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
-	yaml.WriteString("        uses: actions/github-script@v7\n")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")

@@ -50,8 +50,7 @@ func TestValidateWithSchemaAndLocation(t *testing.T) {
 			wantErr:  true,
 			errContains: []string{
 				"/test/file.md:2:1:",
-				"additional properties 'invalid' not allowed",
-				"hint:",
+				"Unknown property: invalid",
 			},
 			errNotContains: []string{
 				"contoso.com",
@@ -76,7 +75,7 @@ func TestValidateWithSchemaAndLocation(t *testing.T) {
 			filePath: "", // No file path
 			wantErr:  true,
 			errContains: []string{
-				"additional properties 'invalid' not allowed",
+				"Unknown property: invalid",
 			},
 			errNotContains: []string{
 				"contoso.com",

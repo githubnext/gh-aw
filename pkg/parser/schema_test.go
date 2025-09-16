@@ -792,8 +792,8 @@ timeout_minu tes: 10
 		t.Errorf("Error message should not contain '- at '':' prefix, got: %s", errorMsg)
 	}
 
-	// The error message should contain the actual useful error description
-	if !strings.Contains(errorMsg, "additional properties 'timeout_minu tes' not allowed") {
+	// The error message should contain the friendly rewritten error description
+	if !strings.Contains(errorMsg, "Unknown property: timeout_minu tes") {
 		t.Errorf("Error message should contain the validation error, got: %s", errorMsg)
 	}
 
