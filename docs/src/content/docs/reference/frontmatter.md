@@ -21,10 +21,10 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
-- `safe-outputs`: [Safe Output Processing](../reference/safe-outputs/)
+- `safe-outputs`: [Safe Output Processing](../reference/safe-outputs.md)
 - `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine
-- `cache-memory`: [Persistent memory configuration](../reference/cache-memory/)
+- `cache-memory`: [Persistent memory configuration](../reference/cache-memory.md)
 
 ## Trigger Events (`on:`)
 
@@ -93,7 +93,7 @@ on:
 
 ### Command Triggers (`command:`)
 
-An additional kind of trigger called `command:` is supported, see [Command Triggers](../reference/command-triggers/) for special `/my-bot` triggers and context text functionality.
+An additional kind of trigger called `command:` is supported, see [Command Triggers](../reference/command-triggers.md) for special `/my-bot` triggers and context text functionality.
 
 ## Permissions (`permissions:`)
 
@@ -186,11 +186,11 @@ tools:
   bash: ["echo", "ls", "git status"]
 ```
 
-For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](../reference/tools/).
+For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](../reference/tools.md).
 
 ## Network Permissions (`network:`)
 
-Control network access for AI engines using ecosystem identifiers and domain allowlists. See [Network Permissions](../reference/network/) for detailed configuration options, security model, and examples.
+Control network access for AI engines using ecosystem identifiers and domain allowlists. See [Network Permissions](../reference/network.md) for detailed configuration options, security model, and examples.
 
 Quick example:
 ```yaml
@@ -206,7 +206,7 @@ network:
 
 ## Safe Outputs Configuration (`safe-outputs:`)
 
-See [Safe Outputs Processing](../reference/safe-outputs/) for automatic issue creation, comment posting and other safe outputs.
+See [Safe Outputs Processing](../reference/safe-outputs.md) for automatic issue creation, comment posting and other safe outputs.
 
 ## Run Configuration (`run-name:`, `runs-on:`, `timeout_minutes:`)
 
@@ -294,10 +294,10 @@ cache:
 
 ## Related Documentation
 
-- [CLI Commands](../tools/cli/) - CLI commands for workflow management
-- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
-- [Network Permissions](../reference/network/) - Network access control configuration
-- [Command Triggers](../reference/command-triggers/) - Special @mention triggers and context text
-- [MCPs](../guides/mcps/) - Model Context Protocol setup and configuration
-- [Tools Configuration](../reference/tools/) - GitHub and other tools setup
-- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
+- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
+- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
+- [Network Permissions](../reference/network.md) - Network access control configuration
+- [Command Triggers](../reference/command-triggers.md) - Special @mention triggers and context text
+- [MCPs](../guides/mcps.md) - Model Context Protocol setup and configuration
+- [Tools Configuration](../reference/tools.md) - GitHub and other tools setup
+- [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes

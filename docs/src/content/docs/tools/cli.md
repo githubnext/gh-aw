@@ -191,7 +191,7 @@ gh aw logs --format json -o ./exports/
 
 The `mcp-inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
 
-> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](../guides/mcps/).
+> **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](../guides/mcps.md).
 
 ```bash
 # List all workflows that contain MCP server configurations
@@ -224,7 +224,7 @@ gh aw mcp-inspect workflow-name --inspector
 For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](../guides/mcps/#debugging-and-troubleshooting).
 
 ## 👀 Watch Mode for Development
-The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in VS Code](../tools/vscode/).
+The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in VS Code](../tools/vscode.md).
 
 ```bash
 # Watch all workflow files in .github/workflows/ for changes
@@ -295,8 +295,8 @@ gh aw uninstall org/repo --local
 
 ## Related Documentation
 
-- [Workflow Structure](../reference/workflow-structure/) - Directory layout and file organization
-- [Frontmatter Options](../reference/frontmatter/) - Configuration options for workflows
-- [Safe Outputs](../reference/safe-outputs/) - Secure output processing including issue updates
-- [Tools Configuration](../reference/tools/) - GitHub and MCP server configuration
-- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
+- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and file organization
+- [Frontmatter Options](../reference/frontmatter.md) - Configuration options for workflows
+- [Safe Outputs](../reference/safe-outputs.md) - Secure output processing including issue updates
+- [Tools Configuration](../reference/tools.md) - GitHub and MCP server configuration
+- [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes

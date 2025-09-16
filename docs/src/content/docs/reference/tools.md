@@ -7,7 +7,7 @@ sidebar:
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and Claude-specific tools.
 
-> **📘 Looking for MCP servers?** See the complete [MCPs](../guides/mcps/) for Model Context Protocol configuration, debugging, and examples.
+> **📘 Looking for MCP servers?** See the complete [MCPs](../guides/mcps.md) for Model Context Protocol configuration, debugging, and examples.
 
 ## Overview
 
@@ -206,9 +206,9 @@ tools:
 
 ## Related Documentation
 
-- [Frontmatter Options](../reference/frontmatter/) - All frontmatter configuration options
-- [Network Permissions](../reference/network/) - Network access control for AI engines
-- [MCPs](../guides/mcps/) - Complete Model Context Protocol setup and usage
-- [CLI Commands](../tools/cli/) - CLI commands for workflow management
-- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
-- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
+- [Frontmatter Options](../reference/frontmatter.md) - All frontmatter configuration options
+- [Network Permissions](../reference/network.md) - Network access control for AI engines
+- [MCPs](../guides/mcps.md) - Complete Model Context Protocol setup and usage
+- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
+- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
+- [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes

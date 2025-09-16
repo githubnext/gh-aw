@@ -135,7 +135,7 @@ tools:
 
 ## GitHub MCP Integration
 
-GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools Configuration](../reference/tools/) for details.
+GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools Configuration](../reference/tools.md) for details.
 
 You can configure the docker image version for GitHub tools:
 
@@ -283,11 +283,11 @@ Error: Tool 'my_tool' not found
 
 ## Related Documentation
 
-- [Tools Configuration](../reference/tools/) - Complete tools reference
-- [CLI Commands](../tools/cli/) - CLI commands including `mcp-inspect`
-- [Include Directives](../reference/include-directives/) - Modularizing workflows with includes
-- [Frontmatter Options](../reference/frontmatter/) - All configuration options
-- [Workflow Structure](../reference/workflow-structure/) - Directory organization
+- [Tools Configuration](../reference/tools.md) - Complete tools reference
+- [CLI Commands](../tools/cli.md) - CLI commands including `mcp-inspect`
+- [Include Directives](../reference/include-directives.md) - Modularizing workflows with includes
+- [Frontmatter Options](../reference/frontmatter,md) - All configuration options
+- [Workflow Structure](../reference/workflow-structure.md) - Directory organization
 
 ## External Resources
 

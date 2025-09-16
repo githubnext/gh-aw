@@ -298,6 +298,6 @@ Complex: ${{ toJson(github.workflow) }}
 
 ## Related Documentation
 
-- [Workflow Structure](./workflow-structure/) - Overall workflow file organization
-- [Frontmatter Options](./frontmatter/) - YAML configuration options
-- [Security Notes](../guides/security-notes/) - Comprehensive security guidance
+- [Workflow Structure](./workflow-structure.md) - Overall workflow file organization
+- [Frontmatter Options](./frontmatter.md) - YAML configuration options
+- [Security Notes](../guides/security.md) - Comprehensive security guidance

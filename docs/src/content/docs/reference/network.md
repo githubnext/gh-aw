@@ -243,6 +243,6 @@ network:
 
 ## Related Documentation
 
-- [Frontmatter Options](./frontmatter/) - Complete frontmatter configuration guide
-- [Tools Configuration](./tools/) - Tool-specific network access configuration
-- [Security Notes](../guides/security-notes/) - Comprehensive security guidance
+- [Frontmatter Options](./frontmatter.md) - Complete frontmatter configuration guide
+- [Tools Configuration](./tools.md) - Tool-specific network access configuration
+- [Security Notes](../guides/security.md) - Comprehensive security guidance

@@ -90,10 +90,10 @@ When someone mentions `/my-bot` in a comment, the workflow will:
 
 This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution.
 
-See [Reactions](../reference/frontmatter/#visual-feedback-reaction) for the complete list of available reactions.
+See [Reactions](../reference/frontmatter/#reactions) for the complete list of available reactions.
 
 ## Related Documentation
 
-- [Frontmatter Options](../reference/frontmatter/) - All configuration options for workflows
-- [Workflow Structure](../reference/workflow-structure/) - Directory layout and organization
-- [CLI Commands](../tools/cli/) - CLI commands for workflow management
+- [Frontmatter Options](../reference/frontmatter.md) - All configuration options for workflows
+- [Workflow Structure](../reference/workflow-structure.md) - Directory layout and organization
+- [CLI Commands](../tools/cli.md) - CLI commands for workflow management
