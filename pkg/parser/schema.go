@@ -387,12 +387,12 @@ func rewriteAdditionalPropertiesError(message string) string {
 		// Extract property names from the message using regex
 		re := regexp.MustCompile(`additional propert(?:y|ies) (.+?) not allowed`)
 		match := re.FindStringSubmatch(message)
-		
+
 		if len(match) >= 2 {
 			properties := match[1]
 			// Clean up the property list and make it more readable
 			properties = strings.ReplaceAll(properties, "'", "")
-			
+
 			if strings.Contains(properties, ",") {
 				return fmt.Sprintf("Unknown properties: %s", properties)
 			} else {
@@ -400,6 +400,6 @@ func rewriteAdditionalPropertiesError(message string) string {
 			}
 		}
 	}
-	
+
 	return message
 }

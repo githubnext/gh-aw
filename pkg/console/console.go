@@ -53,10 +53,6 @@ var (
 	highlightStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("#FF5555")).
 			Foreground(lipgloss.Color("#282A36"))
-
-	hintStyle = lipgloss.NewStyle().
-			Italic(true).
-			Foreground(lipgloss.Color("#50FA7B"))
 )
 
 // isTTY checks if stdout is a terminal
