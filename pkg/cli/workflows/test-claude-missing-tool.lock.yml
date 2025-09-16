@@ -27,10 +27,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      # Cache memory MCP configuration from frontmatter processed below
+      # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
-        run: mkdir -p /tmp/cache-memory
-      - name: Cache memory MCP data
+        run: |
+          mkdir -p /tmp/cache-memory
+          echo "Cache memory directory created at /tmp/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
         uses: actions/cache@v4
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
@@ -38,6 +42,11 @@ jobs:
           restore-keys: |
             memory-${{ github.workflow }}-
             memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory
+          path: /tmp/cache-memory
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -610,15 +619,6 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
-              "memory": {
-                "command": "npx",
-                "args": [
-                  "@modelcontextprotocol/server-memory"
-                ],
-                "env": {
-                  "MEMORY_FILE_PATH": "/tmp/cache-memory/memory.json"
-                }
-              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -693,6 +693,25 @@ jobs:
           
           ---
           
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/cache-memory/history.log` - activity history and logs
+          - `/tmp/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          
+          ---
+          
           ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
@@ -748,15 +767,19 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Edit(/tmp/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - LS
+        # - MultiEdit(/tmp/cache-memory/*)
         # - NotebookRead
         # - Read
+        # - Read(/tmp/cache-memory/*)
         # - Task
         # - TodoWrite
         # - Write
+        # - Write(/tmp/cache-memory/*)
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -802,12 +825,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        # - mcp__memory
         timeout-minutes: 5
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__memory" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-claude-with-missing-tool-safe-output-and-cache-memory.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"

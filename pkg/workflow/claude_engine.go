@@ -448,11 +448,25 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			// Skip the claude section as we've already processed it
 			continue
 		} else {
-			// Handle cache-memory as a special case first (can be boolean or map)
+			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
-				// For cache-memory, it's configured as MCP server "memory" and has no allowed restrictions
-				// Default to wildcard access since cache-memory doesn't specify allowed tools
-				allowedTools = append(allowedTools, "mcp__memory")
+				// Cache-memory now provides simple file share access at /tmp/cache-memory/
+				// Add path-specific Read and Write tools for the cache directory only
+				cacheDirPattern := "/tmp/cache-memory/*"
+
+				// Add path-specific tools for cache directory access
+				if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
+				}
+				if !slices.Contains(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
+				}
+				if !slices.Contains(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
+				}
+				if !slices.Contains(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern)) {
+					allowedTools = append(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
+				}
 				continue
 			}
 
@@ -652,23 +666,13 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 	return nil
 }
 
-// renderCacheMemoryMCPConfig generates the Memory MCP server configuration
-// Uses npx-based @modelcontextprotocol/server-memory setup
+// renderCacheMemoryMCPConfig handles cache-memory configuration without MCP server mounting
+// Cache-memory is now a simple file share, not an MCP server
 func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	yaml.WriteString("              \"memory\": {\n")
-	yaml.WriteString("                \"command\": \"npx\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"@modelcontextprotocol/server-memory\"\n")
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"MEMORY_FILE_PATH\": \"/tmp/cache-memory/memory.json\"\n")
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	// Cache-memory no longer uses MCP server mounting
+	// The cache folder is available as a simple file share at /tmp/cache-memory/
+	// The folder is created by the cache step and is accessible to all tools
+	// No MCP configuration is needed for simple file access
 }
 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration

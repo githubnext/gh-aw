@@ -225,8 +225,8 @@ func FormatWarningMessage(message string) string {
 var (
 	tableHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.Color("#BD93F9")).
-				Background(lipgloss.Color("#44475A"))
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#34374A"))
 
 	tableCellStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#F8F8F2"))
@@ -259,8 +259,7 @@ func RenderTable(config TableConfig) string {
 	if config.Title != "" {
 		titleStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#50FA7B")).
-			MarginBottom(1)
+			Foreground(lipgloss.Color("#50FA7B"))
 		output.WriteString(applyStyle(titleStyle, config.Title))
 		output.WriteString("\n")
 	}

@@ -1,17 +1,17 @@
 ---
 title: Cache Memory
-description: Complete guide to using cache-memory for persistent memory across workflow runs using GitHub Actions cache and MCP memory servers.
+description: Complete guide to using cache-memory for persistent file storage across workflow runs using GitHub Actions cache and simple file operations.
 ---
 
-The `cache-memory` feature enables agentic workflows to maintain persistent memory across workflow runs by integrating the Model Context Protocol (MCP) memory server with GitHub Actions cache.
+The `cache-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using GitHub Actions cache infrastructure and simple file operations.
 
 ## Overview
 
 Cache Memory provides:
 
-- **Persistent Memory**: AI agents can remember information across multiple workflow runs
+- **Persistent File Storage**: AI agents can store and retrieve files across multiple workflow runs
 - **GitHub Actions Integration**: Built on top of GitHub Actions cache infrastructure 
-- **MCP Memory Server**: Uses the official Model Context Protocol memory server via npx
+- **Simple File Operations**: Uses standard file system operations instead of specialized tools
 - **Automatic Configuration**: Seamlessly integrates with Claude and Custom engines
 - **Smart Caching**: Intelligent cache key generation and restoration strategies
 
@@ -19,11 +19,11 @@ Cache Memory provides:
 
 When `cache-memory` is enabled, the workflow compiler automatically:
 
-1. **Mounts Memory MCP Server**: Configures an official MCP memory server via npx
-2. **Creates Cache Steps**: Adds GitHub Actions cache steps to restore and save memory data
-3. **Persistent Storage**: Maps `/tmp/cache-memory` to store memory data files
+1. **Creates Cache Directory**: Sets up `/tmp/cache-memory/` directory for file storage
+2. **Creates Cache Steps**: Adds GitHub Actions cache steps to restore and save data
+3. **Persistent Storage**: Maps `/tmp/cache-memory/` to store user data files
 4. **Cache Key Management**: Generates intelligent cache keys with progressive fallback
-5. **Tool Integration**: Adds "memory" tool to the MCP configuration for AI engines
+5. **Prompts LLM**: Informs the AI agent about the available cache folder
 
 ## Enabling Cache Memory
 
@@ -41,42 +41,40 @@ tools:
 
 This uses:
 - **Default cache key**: `memory-${{ github.workflow }}-${{ github.run_id }}`
-- **Default setup**: Uses `npx @modelcontextprotocol/server-memory` 
-- **Default storage path**: `/tmp/cache-memory` for memory data files
+- **Simple file access**: Uses standard file operations for read/write
+- **Default storage path**: `/tmp/cache-memory/` for data files
 
-## Prompting for Memory Operations
+## Using the Cache Folder
 
-Memory is accessed via the `memory` tool in your workflow steps.
+The cache folder is accessible to AI agents and provides file system access for persistent storage.
 
 ### Storing Information
 
-The AI agent can store information using the memory tool:
+The AI agent can store information using standard file operations:
 
 ```
-Remember that the user prefers verbose error messages when debugging.
+Please save this information to a file in the cache folder: "User prefers verbose error messages when debugging."
 ```
 
 ### Retrieving Information
 
-The AI agent can query its memory:
+The AI agent can read files from the cache folder:
 
 ```
-What do I know about the user's debugging preferences?
+Check what information I have stored in the cache folder from previous runs.
 ```
 
-### Memory Categories
+### File Organization
 
-The MCP memory server organizes information into categories:
+The AI agent can organize files as needed:
 
-- **Basic Identity**: User identification and context
-- **Behaviors**: Observed patterns and preferences  
-- **Preferences**: Explicit user preferences
-- **Goals**: Stated objectives and tasks
-- **Relationships**: Connections between entities
+- **Structured data**: JSON or YAML files for configuration and preferences
+- **Text files**: Plain text for notes, logs, and observations
+- **Directories**: Organize files into subdirectories for better structure
 
 ## Advanced Configuration
 
-You can also use the more advanced configuration to customize cache key and artifact retention:
+You can customize cache key and artifact retention:
 
 ```yaml
 ---
@@ -92,7 +90,7 @@ tools:
 
 ### Artifact Retention
 
-Configure how long memory data artifacts are retained:
+Configure how long cache data artifacts are retained:
 
 ```yaml
 ---
@@ -109,7 +107,7 @@ tools:
 The `retention-days` option controls the `actions/upload-artifact` retention period:
 - **Range**: 1-90 days
 - **Default**: Repository setting (if not specified)
-- **Purpose**: Provides alternative access to memory data beyond cache expiration
+- **Purpose**: Provides alternative access to cache data beyond cache expiration
 
 ## Cache Behavior and GitHub Actions Integration
 
@@ -121,10 +119,10 @@ Cache Memory leverages GitHub Actions cache with these characteristics:
 - **LRU Eviction**: Least recently used caches are evicted when limits are reached
 
 #### Artifact Upload (Optional)
-When `retention-days` is configured, memory data is also uploaded as artifacts:
+When `retention-days` is configured, cache data is also uploaded as artifacts:
 - **Retention Period**: 1-90 days (configurable via `retention-days`)
-- **Purpose**: Alternative access to memory data beyond cache expiration
-- **Use Case**: Long-term memory persistence for workflows that run infrequently
+- **Purpose**: Alternative access to cache data beyond cache expiration
+- **Use Case**: Long-term persistence for workflows that run infrequently
 
 #### Cache Scoping
 - **Branch Scoping**: Caches are accessible across branches in the same repository
@@ -151,20 +149,34 @@ custom-
 
 This ensures the most specific match is found first, with progressive fallbacks.
 
-## MCP Server Configuration
+## File Access and Organization
 
-The memory from the cache is accessed via a memory server is implicitly configured using npx following official MCP documentation:
+The cache folder provides standard file system access:
 
-```json
-"memory": {
-  "command": "npx",
-  "args": [
-    "@modelcontextprotocol/server-memory"
-  ],
-  "env": {
-    "MEMORY_FILE_PATH": "/tmp/cache-memory/memory.json"
-  }
-}
+### File Operations
+```
+/tmp/cache-memory/notes.txt           # Simple text files
+/tmp/cache-memory/config.json         # Structured data
+/tmp/cache-memory/logs/activity.log   # Organized in subdirectories
+/tmp/cache-memory/state/session.yaml  # State management
+```
+
+### Best Practices for File Organization
+
+Use descriptive file names and directory structures:
+
+```
+/tmp/cache-memory/
+├── preferences/
+│   ├── user-settings.json
+│   └── workflow-config.yaml
+├── logs/
+│   ├── activity.log
+│   └── errors.log
+├── state/
+│   ├── last-run.txt
+│   └── context.json
+└── notes.md
 ```
 
 ## Best Practices
@@ -181,9 +193,9 @@ tools:
 
 ### Memory Scope
 
-Consider the scope of memory needed:
+Consider the scope of cache needed:
 
-- **Workflow-specific**: Default behavior, memory per workflow
+- **Workflow-specific**: Default behavior, cache per workflow
 - **Repository-wide**: Use repository name in cache key
 - **User-specific**: Include user information in cache key
 
@@ -191,7 +203,7 @@ Consider the scope of memory needed:
 
 Be mindful of cache usage:
 
-- **Memory Size**: Monitor memory data growth over time
+- **File Size**: Monitor cache data growth over time
 - **Cache Limits**: Respect GitHub's 10GB repository cache limit
 - **Cleanup Strategy**: Consider periodic cache clearing for long-running projects
 
@@ -199,15 +211,15 @@ Be mindful of cache usage:
 
 ### Common Issues
 
-#### Memory Not Persisting
+#### Files Not Persisting
 - **Check Cache Keys**: Ensure keys are consistent between runs
-- **Verify Paths**: Confirm `/tmp/cache-memory` directory exists
+- **Verify Paths**: Confirm `/tmp/cache-memory/` directory exists
 - **Review Logs**: Check workflow logs for cache restore/save messages
 
-#### Package Installation Issues
-- **npm Registry Access**: Verify runner can access npm registry
-- **Package Availability**: Confirm `@modelcontextprotocol/server-memory` package exists
-- **Network Access**: Ensure runner has internet connectivity for package installation
+#### File Access Issues
+- **Directory Creation**: Ensure subdirectories are created before use
+- **Permissions**: Verify file write permissions in the cache folder
+- **Path Resolution**: Use absolute paths within `/tmp/cache-memory/`
 
 #### Cache Size Issues
 - **Monitor Usage**: Track cache size growth over time
@@ -230,29 +242,30 @@ timeout_minutes: 10  # Allow time for debugging
 
 Please debug the cache-memory functionality by:
 
-1. Checking what's currently in memory
-2. Storing a test message
-3. Retrieving the stored message
-4. Reporting on memory persistence
+1. Checking what files exist in the cache folder
+2. Creating a test file with current timestamp
+3. Reading the test file back
+4. Listing all files in the cache folder
+5. Reporting on file persistence
 ```
 
 ## Security Considerations
 
 ### Data Privacy
 
-- **Sensitive Data**: Avoid storing sensitive information in memory
-- **Access Control**: Memory data follows repository access permissions
+- **Sensitive Data**: Avoid storing sensitive information in cache files
+- **Access Control**: Cache data follows repository access permissions
 - **Audit Trail**: Cache access is logged in workflow execution logs
 
-### Package Security
+### File Security
 
-- **Official Package**: Use only the official `@modelcontextprotocol/server-memory` package
-- **Dependency Scanning**: npm automatically scans for vulnerabilities
-- **Audit Trail**: Package installation is logged in workflow execution logs
+- **Standard Permissions**: Files use standard GitHub Actions runner permissions
+- **Temporary Storage**: Cache directory is temporary and cleaned between runs
+- **No External Access**: Cache folder is only accessible within workflow execution
 
 ## Examples
 
-### Basic Memory Usage
+### Basic File Storage
 
 ```yaml
 ---
@@ -260,8 +273,8 @@ engine: claude
 on:
   workflow_dispatch:
     inputs:
-      remember:
-        description: 'Information to remember'
+      note:
+        description: 'Note to remember'
         required: true
 
 tools:
@@ -270,19 +283,19 @@ tools:
     allowed: [get_repository]
 ---
 
-# Memory Test Workflow
+# File Storage Test Workflow
 
-Store and retrieve information across workflow runs.
+Store and retrieve information using simple file operations.
 
 ## Task
 
-1. Check what you remember from previous runs
-2. Store the new information: "${{ inputs.remember }}"
-3. List all stored memories
-4. Provide a summary of memory persistence
+1. Check what files exist in the cache folder from previous runs
+2. Store the new note: "${{ inputs.note }}" in a timestamped file
+3. List all files in the cache folder
+4. Provide a summary of stored files and persistence
 ```
 
-### Project-Specific Memory
+### Project-Specific Cache
 
 ```yaml
 ---
@@ -296,27 +309,42 @@ tools:
 
 # Documentation Assistant
 
-Use project-specific memory to maintain context about documentation updates.
+Use project-specific cache to maintain context about documentation updates.
+Store progress, preferences, and notes in organized files.
 ```
 
-### Multi-Workflow Memory Sharing
+### Multi-Workflow File Sharing
 
 ```yaml
 ---
 engine: claude
 tools:
   cache-memory:
-    key: shared-memory-${{ github.repository }}
+    key: shared-cache-${{ github.repository }}
 ---
 
-# Shared Memory Workflow
+# Shared Cache Workflow
 
-Share memory data across multiple workflows in the same repository.
+Share cache data across multiple workflows in the same repository using files.
 ```
+
+## Migration from MCP Memory Server
+
+If migrating from the previous MCP memory server approach:
+
+### Changes
+- **No MCP server**: Cache-memory no longer uses `@modelcontextprotocol/server-memory`
+- **File operations**: Use standard file read/write instead of memory tools
+- **Direct access**: Access files directly at `/tmp/cache-memory/`
+- **No tools**: No `mcp__memory` tool is provided
+
+### Migration Steps
+1. **Update workflow syntax**: Remove any `docker-image` configuration
+2. **Modify prompts**: Update prompts to reference file operations instead of memory tools
+3. **Test file access**: Verify file operations work as expected
 
 ## Related Documentation
 
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
-- [MCP Tools](/gh-aw/guides/mcps/) - Model Context Protocol integration
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Output processing and automation
 - [GitHub Actions Cache Documentation](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows) - Official GitHub cache documentation
