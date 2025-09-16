@@ -182,7 +182,7 @@ Use descriptive, hierarchical cache keys:
 ```yaml
 tools:
   cache-memory:
-    key: project-${{ github.owner }}-${{ github.workflow }}
+    key: project-${{ github.repository_owner }}-${{ github.workflow }}
 ```
 
 ### Memory Scope

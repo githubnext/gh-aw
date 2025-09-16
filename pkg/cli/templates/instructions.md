@@ -248,7 +248,7 @@ cache:
     path: node_modules
     restore-keys: |
       node-modules-
-  - key: build-cache-${{ github.run_id }}
+  - key: build-cache-${{ github.sha }}
     path: 
       - dist
       - .cache
@@ -427,7 +427,7 @@ Expression safety is automatically validated during compilation. If unauthorized
 # Valid expressions
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue was created by ${{ github.actor }} for issue #${{ github.event.issue.number }}
+The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
 
 Using output from previous task: "${{ needs.task.outputs.text }}"
 
