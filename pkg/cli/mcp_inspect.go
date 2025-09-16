@@ -184,7 +184,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 	for _, workflow := range workflowsWithMCP {
 		fmt.Printf("  • %s\n", workflow)
 	}
-	fmt.Printf("\nRun 'gh aw mcp-inspect <workflow-name>' to inspect MCP servers in a specific workflow.\n")
+	fmt.Printf("\nRun 'gh aw mcp inspect <workflow-name>' to inspect MCP servers in a specific workflow.\n")
 
 	return nil
 }
