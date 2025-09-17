@@ -55,6 +55,20 @@ jobs:
           echo "Listing installed workflows..."
           ./gh-aw list
 
+      - name: Test MCP server discovery
+        run: |
+          echo "Testing MCP server discovery..."
+          ./gh-aw mcp list
+          echo "Testing MCP server discovery with verbose mode..."
+          ./gh-aw mcp list --verbose
+
+      - name: Test MCP server inspection
+        run: |
+          echo "Testing MCP server inspection..."
+          ./gh-aw mcp inspect
+          echo "Testing MCP inspection help..."
+          ./gh-aw mcp inspect --help
+
       - name: Recompile all workflows
         run: |
           echo "Recompiling all installed workflows..."
