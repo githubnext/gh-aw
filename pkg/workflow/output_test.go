@@ -134,7 +134,7 @@ engine: claude
 safe-outputs:
   create-issue:
   create-pull-request:
-  add-issue-comment:
+  add-comment:
   add-labels:
 ---
 
@@ -183,9 +183,9 @@ This workflow tests the null output configuration parsing.
 		t.Errorf("Expected empty labels for null create-pull-request, got %v", workflowData.SafeOutputs.CreatePullRequests.Labels)
 	}
 
-	// Verify add-issue-comment configuration is parsed with empty values
-	if workflowData.SafeOutputs.AddIssueComments == nil {
-		t.Fatal("Expected add-issue-comment configuration to be parsed with null value")
+	// Verify add-comment configuration is parsed with empty values
+	if workflowData.SafeOutputs.AddComments == nil {
+		t.Fatal("Expected add-comment configuration to be parsed with null value")
 	}
 
 	// Verify add-labels configuration is parsed with empty values
@@ -295,7 +295,7 @@ func TestOutputCommentConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.add-issue-comment configuration
+	// Test case with output.add-comment configuration
 	testContent := `---
 on:
   issues:
@@ -306,12 +306,12 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
 ---
 
 # Test Output Issue Comment Configuration
 
-This workflow tests the output.add-issue-comment configuration parsing.
+This workflow tests the output.add-comment configuration parsing.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue-comment.md")
@@ -332,7 +332,7 @@ This workflow tests the output.add-issue-comment configuration parsing.
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComments == nil {
+	if workflowData.SafeOutputs.AddComments == nil {
 		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 }
@@ -345,7 +345,7 @@ func TestOutputCommentConfigParsingNull(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.add-issue-comment: null (no {} brackets)
+	// Test case with output.add-comment: null (no {} brackets)
 	testContent := `---
 on:
   issues:
@@ -356,12 +356,12 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
 ---
 
 # Test Output Issue Comment Configuration with Null Value
 
-This workflow tests the output.add-issue-comment configuration parsing with null value.
+This workflow tests the output.add-comment configuration parsing with null value.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue-comment-null.md")
@@ -382,7 +382,7 @@ This workflow tests the output.add-issue-comment configuration parsing with null
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComments == nil {
+	if workflowData.SafeOutputs.AddComments == nil {
 		t.Fatal("Expected issue_comment configuration to be parsed even with null value")
 	}
 }
@@ -406,13 +406,13 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
     target: "*"
 ---
 
 # Test Output Issue Comment Target Configuration
 
-This workflow tests the output.add-issue-comment target configuration parsing.
+This workflow tests the output.add-comment target configuration parsing.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue-comment-target.md")
@@ -433,12 +433,12 @@ This workflow tests the output.add-issue-comment target configuration parsing.
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComments == nil {
+	if workflowData.SafeOutputs.AddComments == nil {
 		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComments.Target != "*" {
-		t.Fatalf("Expected target to be '*', got '%s'", workflowData.SafeOutputs.AddIssueComments.Target)
+	if workflowData.SafeOutputs.AddComments.Target != "*" {
+		t.Fatalf("Expected target to be '*', got '%s'", workflowData.SafeOutputs.AddComments.Target)
 	}
 }
 
@@ -461,14 +461,14 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
     max: 3
     target: "123"
 ---
 
 # Test Output Issue Comments Max Target Configuration
 
-This workflow tests the add-issue-comment max and target configuration parsing.
+This workflow tests the add-comment max and target configuration parsing.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue-comment-max-target.md")
@@ -489,16 +489,16 @@ This workflow tests the add-issue-comment max and target configuration parsing.
 		t.Fatal("Expected output configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComments == nil {
+	if workflowData.SafeOutputs.AddComments == nil {
 		t.Fatal("Expected issue_comment configuration to be parsed")
 	}
 
-	if workflowData.SafeOutputs.AddIssueComments.Max != 3 {
-		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.AddIssueComments.Max)
+	if workflowData.SafeOutputs.AddComments.Max != 3 {
+		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.AddComments.Max)
 	}
 
-	if workflowData.SafeOutputs.AddIssueComments.Target != "123" {
-		t.Fatalf("Expected target to be '123', got '%s'", workflowData.SafeOutputs.AddIssueComments.Target)
+	if workflowData.SafeOutputs.AddComments.Target != "123" {
+		t.Fatalf("Expected target to be '123', got '%s'", workflowData.SafeOutputs.AddComments.Target)
 	}
 }
 
@@ -510,7 +510,7 @@ func TestOutputCommentJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with output.add-issue-comment configuration
+	// Test case with output.add-comment configuration
 	testContent := `---
 on:
   issues:
@@ -524,7 +524,7 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
 ---
 
 # Test Output Issue Comment Job Generation
@@ -599,7 +599,7 @@ func TestOutputCommentJobSkippedForNonIssueEvents(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-comment configuration but push trigger (not issue/PR)
+	// Test case with add-comment configuration but push trigger (not issue/PR)
 	testContent := `---
 on: push
 permissions:
@@ -608,7 +608,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
 ---
 
 # Test Output Issue Comment Job Skipping

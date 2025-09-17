@@ -34,16 +34,22 @@ async function main() {
     // Neutralize @mentions to prevent unintended notifications
     sanitized = neutralizeMentions(sanitized);
 
+    // Remove XML comments to prevent content hiding
+    sanitized = removeXmlComments(sanitized);
+
+    // Remove ANSI escape sequences BEFORE removing control characters
+    sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+
     // Remove control characters (except newlines and tabs)
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
-    // XML character escaping
-    sanitized = sanitized
-      .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&apos;");
+    // // XML character escaping
+    // sanitized = sanitized
+    //   .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
+    //   .replace(/</g, "&lt;")
+    //   .replace(/>/g, "&gt;")
+    //   .replace(/"/g, "&quot;")
+    //   .replace(/'/g, "&apos;");
 
     // URI filtering - replace non-https protocols with "(redacted)"
     sanitized = sanitizeUrlProtocols(sanitized);
@@ -68,8 +74,7 @@ async function main() {
         "\n[Content truncated due to line count]";
     }
 
-    // Remove ANSI escape sequences
-    sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+    // ANSI escape sequences already removed earlier in the function
 
     // Neutralize common bot trigger phrases
     sanitized = neutralizeBotTriggers(sanitized);
@@ -84,10 +89,13 @@ async function main() {
      */
     function sanitizeUrlDomains(s) {
       return s.replace(
-        /\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi,
-        (match, domain) => {
+        /\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi,
+        (match) => {
+          // Extract just the URL part after https://
+          const urlAfterProtocol = match.slice(8); // Remove 'https://'
+          
           // Extract the hostname part (before first slash, colon, or other delimiter)
-          const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+          const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
 
           // Check if this domain or any parent domain is in the allowlist
           const isAllowed = allowedDomains.some(allowedDomain => {
@@ -109,9 +117,10 @@ async function main() {
      * @returns {string} The string with non-https protocols redacted
      */
     function sanitizeUrlProtocols(s) {
-      // Match both protocol:// and protocol: patterns
+      // Match protocol:// patterns (URLs) and standalone protocol: patterns that look like URLs
+      // Avoid matching command line flags like -v:10 or z3 -memory:high
       return s.replace(
-        /\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi,
+        /\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi,
         (match, protocol) => {
           // Allow https (case insensitive), redact everything else
           return protocol.toLowerCase() === "https" ? match : "(redacted)";
@@ -130,6 +139,17 @@ async function main() {
         /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
         (_m, p1, p2) => `${p1}\`@${p2}\``
       );
+    }
+
+    /**
+     * Removes XML comments to prevent content hiding
+     * @param {string} s - The string to process
+     * @returns {string} The string with XML comments removed
+     */
+    function removeXmlComments(s) {
+      // Remove XML/HTML comments including malformed ones that might be used to hide content
+      // Matches: <!-- ... --> and <!--- ... --> and <!--- ... --!> variations
+      return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
     }
 
     /**
@@ -167,7 +187,7 @@ async function main() {
     switch (itemType) {
       case "create-issue":
         return 1; // Only one issue allowed
-      case "add-issue-comment":
+      case "add-comment":
         return 1; // Only one comment allowed
       case "create-pull-request":
         return 1; // Only one pull request allowed
@@ -416,10 +436,10 @@ async function main() {
           }
           break;
 
-        case "add-issue-comment":
+        case "add-comment":
           if (!item.body || typeof item.body !== "string") {
             errors.push(
-              `Line ${i + 1}: add-issue-comment requires a 'body' string field`
+              `Line ${i + 1}: add-comment requires a 'body' string field`
             );
             continue;
           }

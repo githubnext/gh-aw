@@ -136,14 +136,14 @@ The YAML frontmatter supports these fields:
         max: 5                          # Optional: maximum number of issues (default: 1)
     ```
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
-  - `add-issue-comment:` - Safe comment creation on issues/PRs
+  - `add-comment:` - Safe comment creation on issues/PRs
     ```yaml
     safe-outputs:
-      add-issue-comment:
+      add-comment:
         max: 3                          # Optional: maximum number of comments (default: 1)
         target: "*"                     # Optional: target for comments (default: "triggering")
     ```
-    When using `safe-outputs.add-issue-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
+    When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
   - `create-pull-request:` - Safe pull request creation with git patches
     ```yaml
     safe-outputs:
@@ -178,7 +178,7 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       create-issue:
-      add-issue-comment:
+      add-comment:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
@@ -547,7 +547,7 @@ permissions:
 
 safe-outputs:
   create-issue:       # Automatic issue creation
-  add-issue-comment:  # Automatic comment creation  
+  add-comment:  # Automatic comment creation  
   create-pull-request: # Automatic PR creation
 ```
 
@@ -628,7 +628,7 @@ Create a pull request with your changes.
 
 ### Automatic Comment Creation
 
-Use the `safe-outputs.add-issue-comment` configuration to automatically create an issue or pull request comment from coding agent output:
+Use the `safe-outputs.add-comment` configuration to automatically create an issue or pull request comment from coding agent output:
 
 ```yaml
 ---
@@ -640,7 +640,7 @@ permissions:
   actions: read
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
     max: 3                # Optional: create multiple comments (default: 1)
 ---
 

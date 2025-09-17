@@ -24,7 +24,7 @@ on:
     types: [opened]
 permissions: read-all 
 safe-outputs:
-  add-issue-comment:
+  add-comment:
 ---
 # Issue Clarifier
 

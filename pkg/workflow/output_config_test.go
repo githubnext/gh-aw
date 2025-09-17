@@ -163,7 +163,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 					"create-discussion":                  map[string]any{"max": 3},
 					"create-pull-request-review-comment": map[string]any{"max": 10},
 					"create-code-scanning-alert":         map[string]any{},
-					"add-issue-comment":                  map[string]any{},
+					"add-comment":                        map[string]any{},
 				},
 			},
 			expectedInConfig: []string{
@@ -171,7 +171,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 				"create-discussion",
 				"create-pull-request-review-comment",
 				"create-code-scanning-alert",
-				"add-issue-comment",
+				"add-comment",
 			},
 		},
 		{

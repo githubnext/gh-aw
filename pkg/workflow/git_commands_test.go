@@ -285,8 +285,8 @@ func TestNeedsGitCommands(t *testing.T) {
 		{
 			name: "only other outputs enabled",
 			safeOutputs: &SafeOutputsConfig{
-				CreateIssues:     &CreateIssuesConfig{},
-				AddIssueComments: &AddIssueCommentsConfig{},
+				CreateIssues: &CreateIssuesConfig{},
+				AddComments:  &AddCommentsConfig{},
 			},
 			expected: false,
 		},

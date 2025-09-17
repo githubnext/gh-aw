@@ -163,7 +163,7 @@ type CacheMemoryConfig struct {
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
 	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
-	AddIssueComments                *AddIssueCommentsConfig                `yaml:"add-issue-comment,omitempty"`
+	AddComments                     *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alert,omitempty"`
@@ -191,13 +191,13 @@ type CreateDiscussionsConfig struct {
 	Max         int    `yaml:"max,omitempty"`         // Maximum number of discussions to create
 }
 
-// AddIssueCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddIssueCommentsConfig)
-type AddIssueCommentConfig struct {
+// AddCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddCommentsConfig)
+type AddCommentConfig struct {
 	// Empty struct for now, as per requirements, but structured for future expansion
 }
 
-// AddIssueCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
-type AddIssueCommentsConfig struct {
+// AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
+type AddCommentsConfig struct {
 	Max    int    `yaml:"max,omitempty"`    // Maximum number of comments to create
 	Target string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 }
@@ -240,7 +240,7 @@ type UpdateIssuesConfig struct {
 
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
-	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-issue-comment but for pull requests
+	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-comment but for pull requests
 	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 }
 
@@ -1883,9 +1883,9 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
-		// Build create_issue_comment job if output.add-issue-comment is configured
-		if data.SafeOutputs.AddIssueComments != nil {
-			createCommentJob, err := c.buildCreateOutputAddIssueCommentJob(data, jobName)
+		// Build create_issue_comment job if output.add-comment is configured
+		if data.SafeOutputs.AddComments != nil {
+			createCommentJob, err := c.buildCreateOutputAddCommentJob(data, jobName)
 			if err != nil {
 				return fmt.Errorf("failed to build create_issue_comment job: %w", err)
 			}
@@ -2335,15 +2335,15 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	return job, nil
 }
 
-// buildCreateOutputAddIssueCommentJob creates the create_issue_comment job
-func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.AddIssueComments == nil {
-		return nil, fmt.Errorf("safe-outputs.add-issue-comment configuration is required")
+// buildCreateOutputAddCommentJob creates the create_issue_comment job
+func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
+		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
 	}
 
 	var steps []string
 	steps = append(steps, "      - name: Add Issue Comment\n")
-	steps = append(steps, "        id: create_comment\n")
+	steps = append(steps, "        id: add_comment\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
@@ -2351,8 +2351,8 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 	// Pass the agent output content from the main job
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	// Pass the comment target configuration
-	if data.SafeOutputs.AddIssueComments.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddIssueComments.Target))
+	if data.SafeOutputs.AddComments.Target != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
 	}
 
 	// Add custom environment variables from safe-outputs.env
@@ -2369,13 +2369,13 @@ func (c *Compiler) buildCreateOutputAddIssueCommentJob(data *WorkflowData, mainJ
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"comment_id":  "${{ steps.create_comment.outputs.comment_id }}",
-		"comment_url": "${{ steps.create_comment.outputs.comment_url }}",
+		"comment_id":  "${{ steps.add_comment.outputs.comment_id }}",
+		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
 	}
 
 	// Determine the job condition based on target configuration
 	var baseCondition string
-	if data.SafeOutputs.AddIssueComments.Target == "*" {
+	if data.SafeOutputs.AddComments.Target == "*" {
 		// Allow the job to run in any context when target is "*"
 		baseCondition = "always()" // This allows the job to run even without triggering issue/PR
 	} else {
@@ -3563,7 +3563,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          \n")
 		yaml.WriteString("          ## ")
 		written := false
-		if data.SafeOutputs.AddIssueComments != nil {
+		if data.SafeOutputs.AddComments != nil {
 			yaml.WriteString("Adding a Comment to an Issue or Pull Request")
 			written = true
 		}
@@ -3623,10 +3623,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n")
 		yaml.WriteString("          \n")
 
-		if data.SafeOutputs.AddIssueComments != nil {
+		if data.SafeOutputs.AddComments != nil {
 			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To add a comment to an issue or pull request, use the add-issue-comments tool from the safe-outputs MCP\n")
+			yaml.WriteString("          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3644,7 +3644,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
 			yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-			yaml.WriteString("          4. Do not push your changes. That will be done by the tool.")
+			yaml.WriteString("          4. Do not push your changes. That will be done by the tool.\n")
 			yaml.WriteString("          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP\n")
 			yaml.WriteString("          \n")
 		}
@@ -3652,7 +3652,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		if data.SafeOutputs.AddLabels != nil {
 			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
 			yaml.WriteString("          \n")
-			yaml.WriteString("          To add labels to a pull request, use the add-labels tool from the safe-outputs MCP\n")
+			yaml.WriteString("          To add labels to an issue or a pull request, use the add-labels tool from the safe-outputs MCP\n")
 			yaml.WriteString("          \n")
 		}
 
@@ -3758,10 +3758,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateDiscussions = discussionsConfig
 			}
 
-			// Handle add-issue-comment
+			// Handle add-comment
 			commentsConfig := c.parseCommentsConfig(outputMap)
 			if commentsConfig != nil {
-				config.AddIssueComments = commentsConfig
+				config.AddComments = commentsConfig
 			}
 
 			// Handle create-pull-request
@@ -4040,10 +4040,10 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	return nil
 }
 
-// parseCommentsConfig handles add-issue-comment configuration
-func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddIssueCommentsConfig {
-	if configData, exists := outputMap["add-issue-comment"]; exists {
-		commentsConfig := &AddIssueCommentsConfig{Max: 1} // Default max is 1
+// parseCommentsConfig handles add-comment configuration
+func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsConfig {
+	if configData, exists := outputMap["add-comment"]; exists {
+		commentsConfig := &AddCommentsConfig{Max: 1} // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse max
@@ -4251,7 +4251,7 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target (optional, similar to add-issue-comment)
+			// Parse target (optional, similar to add-comment)
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
 					pushToBranchConfig.Target = targetStr
@@ -4499,15 +4499,15 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	if data.SafeOutputs.CreateIssues != nil {
 		safeOutputsConfig["create-issue"] = true
 	}
-	if data.SafeOutputs.AddIssueComments != nil {
+	if data.SafeOutputs.AddComments != nil {
 		// Pass the full comment configuration including target
 		commentConfig := map[string]interface{}{
 			"enabled": true,
 		}
-		if data.SafeOutputs.AddIssueComments.Target != "" {
-			commentConfig["target"] = data.SafeOutputs.AddIssueComments.Target
+		if data.SafeOutputs.AddComments.Target != "" {
+			commentConfig["target"] = data.SafeOutputs.AddComments.Target
 		}
-		safeOutputsConfig["add-issue-comment"] = commentConfig
+		safeOutputsConfig["add-comment"] = commentConfig
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
 		discussionConfig := map[string]interface{}{

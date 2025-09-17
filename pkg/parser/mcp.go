@@ -87,8 +87,8 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						config.Allowed = append(config.Allowed, "create-issue")
 					case "create-discussion":
 						config.Allowed = append(config.Allowed, "create-discussion")
-					case "add-issue-comment":
-						config.Allowed = append(config.Allowed, "add-issue-comment")
+					case "add-comment":
+						config.Allowed = append(config.Allowed, "add-comment")
 					case "create-pull-request":
 						config.Allowed = append(config.Allowed, "create-pull-request")
 					case "create-pull-request-review-comment":

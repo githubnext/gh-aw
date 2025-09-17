@@ -162,7 +162,7 @@ const TOOLS = Object.fromEntries(
       },
     },
     {
-      name: "add-issue-comment",
+      name: "add-comment",
       description: "Add a comment to a GitHub issue or pull request",
       inputSchema: {
         type: "object",

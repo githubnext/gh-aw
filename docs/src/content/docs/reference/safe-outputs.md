@@ -28,7 +28,7 @@ This declares that the workflow should create at most one new issue.
 | Output Type | Configuration Key | Description | Default Max |
 |-------------|------------------|-------------|-------------|
 | **Create Issue** | `create-issue:` | Create GitHub issues based on workflow output | 1 |
-| **Add Issue Comments** | `add-issue-comment:` | Post comments on issues or pull requests | 1 |
+| **Add Issue Comments** | `add-comment:` | Post comments on issues or pull requests | 1 |
 | **Update Issues** | `update-issue:` | Update issue status, title, or body | 1 |
 | **Add Issue Label** | `add-labels:` | Add labels to issues or pull requests | 3 |
 | **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 |
@@ -69,20 +69,20 @@ Create new issues with your findings. For each issue, provide a title starting w
 
 The compiled workflow will have additional prompting describing that, to create issues, it should write the issue details to a file.
 
-### Issue Comment Creation (`add-issue-comment:`)
+### Issue Comment Creation (`add-comment:`)
 
 Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments based on the workflow's output. By default, comments are posted on the triggering issue or pull request, but this can be configured using the `target` option.
 
 **Basic Configuration:**
 ```yaml
 safe-outputs:
-  add-issue-comment:
+  add-comment:
 ```
 
 **With Configuration:**
 ```yaml
 safe-outputs:
-  add-issue-comment:
+  add-comment:
     max: 3                          # Optional: maximum number of comments (default: 1)
     target: "*"                     # Optional: target for comments
                                     # "triggering" (default) - only comment on triggering issue/PR
@@ -559,7 +559,7 @@ By default, safe output jobs use the standard `GITHUB_TOKEN` provided by GitHub 
 ```yaml
 safe-outputs:
   create-issue:
-  add-issue-comment:
+  add-comment:
   github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
 ```
 
@@ -568,7 +568,7 @@ This is useful when:
 - You want to perform actions across multiple repositories
 - You need to bypass GitHub Actions token restrictions
 
-**Note:** The custom `github-token` is applied to all safe output jobs (create-issue, add-issue-comment, create-pull-request, etc.). Individual safe output types cannot have different tokens.
+**Note:** The custom `github-token` is applied to all safe output jobs (create-issue, add-comment, create-pull-request, etc.). Individual safe output types cannot have different tokens.
 
 ## Related Documentation
 

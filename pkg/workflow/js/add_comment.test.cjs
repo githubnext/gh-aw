@@ -75,7 +75,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("create_comment.cjs", () => {
+describe("add_comment.cjs", () => {
   let createCommentScript;
 
   beforeEach(() => {
@@ -92,7 +92,7 @@ describe("create_comment.cjs", () => {
     // Read the script content
     const scriptPath = path.join(
       process.cwd(),
-      "pkg/workflow/js/create_comment.cjs"
+      "pkg/workflow/js/add_comment.cjs"
     );
     createCommentScript = fs.readFileSync(scriptPath, "utf8");
   });
@@ -124,7 +124,7 @@ describe("create_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-issue-comment",
+          type: "add-comment",
           body: "Test comment content",
         },
       ],
@@ -144,7 +144,7 @@ describe("create_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-issue-comment",
+          type: "add-comment",
           body: "Test comment content",
         },
       ],
@@ -184,7 +184,7 @@ describe("create_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-issue-comment",
+          type: "add-comment",
           body: "Test PR comment content",
         },
       ],
@@ -218,7 +218,7 @@ describe("create_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-issue-comment",
+          type: "add-comment",
           body: "Test content",
         },
       ],

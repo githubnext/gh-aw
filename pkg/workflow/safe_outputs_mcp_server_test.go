@@ -270,8 +270,8 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]interface{}{
-		"create-issue":      true,
-		"add-issue-comment": true,
+		"create-issue": true,
+		"add-comment":  true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -292,11 +292,11 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 			expectedType: "create-issue",
 		},
 		{
-			name: "add-issue-comment",
+			name: "add-comment",
 			args: map[string]any{
 				"body": "This is a comment",
 			},
-			expectedType: "add-issue-comment",
+			expectedType: "add-comment",
 		},
 	}
 

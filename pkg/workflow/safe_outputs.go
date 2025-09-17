@@ -4,7 +4,7 @@ package workflow
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateDiscussions != nil ||
-		safeOutputs.AddIssueComments != nil ||
+		safeOutputs.AddComments != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
