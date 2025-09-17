@@ -27,32 +27,63 @@ func listAvailableServers(registryURL string, verbose bool) error {
 		return fmt.Errorf("failed to fetch MCP servers: %w", err)
 	}
 
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
+		if len(servers) > 0 {
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - ID: '%s', Name: '%s', Description: '%s', Transport: '%s'", 
+				servers[0].ID, servers[0].Name, servers[0].Description, servers[0].Transport)))
+		}
+	}
+
 	if len(servers) == 0 {
 		fmt.Println(console.FormatWarningMessage("No MCP servers found in the registry"))
 		return nil
 	}
 
-	// Display the list of servers
-	fmt.Println(console.FormatListHeader("Available MCP Servers"))
-	fmt.Println(console.FormatListHeader("====================="))
-	fmt.Println()
+	// Prepare table data
+	headers := []string{"ID", "Name", "Description", "Transport"}
+	rows := make([][]string, 0, len(servers))
 
 	for _, server := range servers {
-		fmt.Println(console.FormatListItem(fmt.Sprintf("%s", server.ID)))
-		if server.Name != server.ID {
-			fmt.Printf("  %s\n", console.FormatInfoMessage(fmt.Sprintf("Name: %s", server.Name)))
+		// Use server.ID if name is empty or same as ID
+		name := server.Name
+		if name == "" || name == server.ID {
+			name = "-"
 		}
-		if server.Description != "" {
-			fmt.Printf("  %s\n", console.FormatInfoMessage(fmt.Sprintf("Description: %s", server.Description)))
+
+		// Truncate long descriptions for table display
+		description := server.Description
+		if len(description) > 60 {
+			description = description[:57] + "..."
 		}
-		if server.Transport != "" {
-			fmt.Printf("  %s\n", console.FormatInfoMessage(fmt.Sprintf("Transport: %s", server.Transport)))
+		if description == "" {
+			description = "-"
 		}
-		fmt.Println()
+
+		// Default transport if empty
+		transport := server.Transport
+		if transport == "" {
+			transport = "stdio"
+		}
+
+		rows = append(rows, []string{
+			server.ID,
+			name,
+			description,
+			transport,
+		})
 	}
 
-	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP servers", len(servers))))
-	fmt.Println()
+	// Create and render table
+	tableConfig := console.TableConfig{
+		Title:     "Available MCP Servers",
+		Headers:   headers,
+		Rows:      rows,
+		ShowTotal: true,
+		TotalRow:  []string{fmt.Sprintf("Total: %d servers", len(servers)), "", "", ""},
+	}
+
+	fmt.Print(console.RenderTable(tableConfig))
 	fmt.Println(console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-id>"))
 
 	return nil

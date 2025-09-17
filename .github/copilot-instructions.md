@@ -273,7 +273,6 @@ fmt.Println(console.FormatLocationMessage(fmt.Sprintf("Workflow saved to: %s", f
 ```go
 // List Headers (underlined green)
 fmt.Println(console.FormatListHeader("Available Workflows"))
-fmt.Println(console.FormatListHeader("=================="))
 
 // List Items (• prefix)
 fmt.Println(console.FormatListItem("weekly-research.md"))

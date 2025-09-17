@@ -51,16 +51,24 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 
 // SearchServers searches for MCP servers in the registry
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, error) {
-	// Build search URL
-	searchURL := fmt.Sprintf("%s/servers/search", c.registryURL)
-	if query != "" {
+	var searchURL string
+	var spinnerMessage string
+
+	if query == "" {
+		// Use servers endpoint for listing all servers
+		searchURL = fmt.Sprintf("%s/servers", c.registryURL)
+		spinnerMessage = "Fetching all MCP servers..."
+	} else {
+		// Use search endpoint for specific queries
+		searchURL = fmt.Sprintf("%s/servers/search", c.registryURL)
 		params := url.Values{}
 		params.Set("q", query)
 		searchURL = fmt.Sprintf("%s?%s", searchURL, params.Encode())
+		spinnerMessage = fmt.Sprintf("Searching MCP registry for '%s'...", query)
 	}
 
 	// Make HTTP request with spinner
-	spinner := console.NewSpinner(fmt.Sprintf("Searching MCP registry for '%s'...", query))
+	spinner := console.NewSpinner(spinnerMessage)
 	spinner.Start()
 	resp, err := c.httpClient.Get(searchURL)
 	spinner.Stop()
