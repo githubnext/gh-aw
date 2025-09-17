@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/modelcontextprotocol/registry/pkg/model"
 )
 
@@ -58,7 +59,7 @@ type MCPRegistryClient struct {
 // NewMCPRegistryClient creates a new MCP registry client
 func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 	if registryURL == "" {
-		registryURL = "https://registry.modelcontextprotocol.io"
+		registryURL = constants.DefaultMCPRegistryURL
 	}
 
 	return &MCPRegistryClient{
@@ -72,7 +73,7 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 // SearchServers searches for MCP servers in the registry by fetching all servers and filtering locally
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForProcessing, error) {
 	// Always use servers endpoint for listing all servers
-	searchURL := fmt.Sprintf("%s/v0/servers", c.registryURL)
+	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
 
 	var spinnerMessage string
 	if query == "" {
@@ -216,7 +217,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 // GetServer gets a specific server by name from the registry
 func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForProcessing, error) {
 	// Build server URL - we'll search by name since the new API doesn't use server IDs for direct access
-	searchURL := fmt.Sprintf("%s/v0/servers?search=%s", c.registryURL, url.QueryEscape(serverName))
+	searchURL := fmt.Sprintf("%s/servers?search=%s", c.registryURL, url.QueryEscape(serverName))
 
 	// Make HTTP request with spinner
 	spinner := console.NewSpinner(fmt.Sprintf("Fetching MCP server '%s'...", serverName))

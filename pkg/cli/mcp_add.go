@@ -2,10 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -250,7 +252,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 	// Create MCP configuration based on transport type
 	mcpSection := map[string]any{
 		"type":     transport,
-		"registry": server.Name, // Use server name which follows reverse-DNS namespacing
+		"registry": fmt.Sprintf("%s/servers?search=%s", registryURL, url.QueryEscape(server.Name)),
 	}
 
 	switch transport {
@@ -380,7 +382,7 @@ The command will:
 - Add the MCP tool configuration to the workflow's frontmatter
 - Automatically compile the workflow to generate the .lock.yml file
 
-Registry URL defaults to: https://registry.modelcontextprotocol.io`,
+Registry URL defaults to: https://api.mcp.github.com/v0`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -403,7 +405,7 @@ Registry URL defaults to: https://registry.modelcontextprotocol.io`,
 			if len(args) == 0 {
 				// Use default registry URL if not provided
 				if registryURL == "" {
-					registryURL = "https://registry.modelcontextprotocol.io"
+					registryURL = constants.DefaultMCPRegistryURL
 				}
 				return listAvailableServers(registryURL, verbose)
 			}
@@ -421,7 +423,7 @@ Registry URL defaults to: https://registry.modelcontextprotocol.io`,
 		},
 	}
 
-	cmd.Flags().StringVar(&registryURL, "registry", "", "MCP registry URL (default: https://registry.modelcontextprotocol.io)")
+	cmd.Flags().StringVar(&registryURL, "registry", "", "MCP registry URL (default: https://api.mcp.github.com/v0)")
 	cmd.Flags().StringVar(&transportType, "transport", "", "Preferred transport type (stdio, http, docker)")
 	cmd.Flags().StringVar(&customToolID, "tool-id", "", "Custom tool ID to use in the workflow (default: uses server ID)")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")

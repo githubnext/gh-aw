@@ -56,7 +56,7 @@ This is a test workflow.
 
 	// Create a mock registry server
 	registryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v0/servers" {
+		if r.URL.Path == "/servers" {
 			// Return mock search response with new structure based on official specification
 			response := `{
 				"servers": [
@@ -441,8 +441,8 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 		t.Errorf("Expected env TEST_TOKEN to be '${{ secrets.TEST_TOKEN }}', got '%s'", env["TEST_TOKEN"])
 	}
 
-	// Check that registry field contains the server name (namespaced)
-	expectedRegistry := "io.github.example/test-server"
+	// Check that registry field contains the search URL with server name
+	expectedRegistry := "https://api.mcp.github.com/v0/servers?search=io.github.example%2Ftest-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
@@ -474,8 +474,8 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 		t.Errorf("Expected type 'docker', got '%v'", mcpSection["type"])
 	}
 
-	// Check that registry field contains the server name (namespaced)
-	expectedRegistry := "io.github.example/test-server"
+	// Check that registry field contains the search URL with server name
+	expectedRegistry := "https://api.mcp.github.com/v0/servers?search=io.github.example%2Ftest-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
@@ -484,7 +484,7 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 func TestListAvailableServers(t *testing.T) {
 	// Create a test HTTP server
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v0/servers" {
+		if r.URL.Path == "/servers" {
 			response := MCPRegistryResponse{
 				Servers: []MCPRegistryServer{
 					{
