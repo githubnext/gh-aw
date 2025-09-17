@@ -3702,10 +3702,16 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Build the prompt content and pass it as an environment variable
 	promptContent := c.buildPromptContent(data)
 	yaml.WriteString("          GITHUB_AW_PROMPT_CONTENT: ")
-	// Use a JSON-encoded string to handle special characters and newlines properly
-	yamlEscapedContent := strings.ReplaceAll(promptContent, "\n", "\\n")
-	yamlEscapedContent = strings.ReplaceAll(yamlEscapedContent, "\"", "\\\"")
-	yaml.WriteString("\"" + yamlEscapedContent + "\"\n")
+	// Use JSON encoder to properly escape special characters and newlines
+	promptContentJson, err := json.Marshal(promptContent)
+	if err != nil {
+		// Fallback to manual escaping if JSON marshal fails (unlikely)
+		yamlEscapedContent := strings.ReplaceAll(promptContent, "\n", "\\n")
+		yamlEscapedContent = strings.ReplaceAll(yamlEscapedContent, "\"", "\\\"")
+		yaml.WriteString("\"" + yamlEscapedContent + "\"\n")
+	} else {
+		yaml.WriteString(string(promptContentJson) + "\n")
+	}
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")

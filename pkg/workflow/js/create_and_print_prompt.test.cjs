@@ -129,23 +129,20 @@ describe("create_and_print_prompt.cjs", () => {
       expect(fileContent).toBe(promptContent);
 
       // Check that exportVariable was called with JSON stringified content
-      expect(mockCore.exportVariable).toHaveBeenCalledWith(
-        "GITHUB_AW_PROMPT_JSON",
-        JSON.stringify(promptContent)
-      );
+      expect(mockCore.exportVariable).not.toHaveBeenCalled();
 
       // Check that setOutput was called correctly
       expect(mockCore.setOutput).toHaveBeenCalledWith("prompt_file", promptPath);
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith(
         "prompt_content_json",
-        JSON.stringify(promptContent)
+        expect.anything()
       );
 
       // Check that summary was written
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Generated Prompt\n\n");
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith("```markdown\n");
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith("``````markdown\n");
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(promptContent);
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith("\n```");
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith("\n``````");
       expect(mockCore.summary.write).toHaveBeenCalled();
 
       // Check success logging
@@ -192,12 +189,8 @@ describe("create_and_print_prompt.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${promptScript} })()`);
 
-      // Check that JSON serialization handled special characters correctly
-      const expectedJson = JSON.stringify(promptContent);
-      expect(mockCore.exportVariable).toHaveBeenCalledWith(
-        "GITHUB_AW_PROMPT_JSON",
-        expectedJson
-      );
+      // Check that the JSON export was not called (removed)
+      expect(mockCore.exportVariable).not.toHaveBeenCalled();
 
       // Check that the file content is preserved exactly
       const fileContent = fs.readFileSync(promptPath, "utf8");

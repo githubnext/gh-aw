@@ -24,20 +24,15 @@ async function main() {
     core.info(`Prompt written to: ${promptPath}`);
     core.debug(`Prompt content length: ${promptContent.length} characters`);
 
-    // Set the prompt as an environment variable using JSON.stringify for proper escaping
-    const promptContentJson = JSON.stringify(promptContent);
-    core.exportVariable("GITHUB_AW_PROMPT_JSON", promptContentJson);
-
     // Also set as step output for reference
     core.setOutput("prompt_file", promptPath);
-    core.setOutput("prompt_content_json", promptContentJson);
 
     // Print prompt to GitHub step summary using core.summary API
     await core.summary
       .addRaw("## Generated Prompt\n\n")
-      .addRaw("```markdown\n")
+      .addRaw("``````markdown\n")
       .addRaw(promptContent)
-      .addRaw("\n```")
+      .addRaw("\n``````")
       .write();
 
     core.info("Prompt successfully written to step summary");
