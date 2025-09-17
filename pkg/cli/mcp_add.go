@@ -251,7 +251,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 	// Create MCP configuration based on transport type
 	mcpSection := map[string]any{
 		"type":     transport,
-		"registry": fmt.Sprintf("%s/servers?search=%s", registryURL, url.QueryEscape(server.Name)),
+		"registry": fmt.Sprintf("%s/servers/%s", registryURL, url.QueryEscape(server.Name)),
 	}
 
 	switch transport {
