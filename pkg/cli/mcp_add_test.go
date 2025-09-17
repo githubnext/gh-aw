@@ -408,7 +408,7 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 		},
 	}
 
-	config, err := createMCPToolConfig(server, "", "https://api.mcp.github.com/v0", false)
+	config, err := createMCPToolConfig(server, "", "https://registry.modelcontextprotocol.io/v0", false)
 	if err != nil {
 		t.Fatalf("createMCPToolConfig failed: %v", err)
 	}
@@ -441,8 +441,8 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 		t.Errorf("Expected env TEST_TOKEN to be '${{ secrets.TEST_TOKEN }}', got '%s'", env["TEST_TOKEN"])
 	}
 
-	// Check that registry field contains the search URL with server name
-	expectedRegistry := "https://api.mcp.github.com/v0/servers?search=io.github.example%2Ftest-server"
+	// Check that registry field contains the direct server URL with server name
+	expectedRegistry := "https://registry.modelcontextprotocol.io/v0/servers/io.github.example%2Ftest-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
@@ -460,7 +460,7 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 	}
 
 	// Test with preferred docker transport
-	config, err := createMCPToolConfig(server, "docker", "https://api.mcp.github.com/v0", false)
+	config, err := createMCPToolConfig(server, "docker", "https://registry.modelcontextprotocol.io/v0", false)
 	if err != nil {
 		t.Fatalf("createMCPToolConfig failed: %v", err)
 	}
@@ -474,8 +474,8 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 		t.Errorf("Expected type 'docker', got '%v'", mcpSection["type"])
 	}
 
-	// Check that registry field contains the search URL with server name
-	expectedRegistry := "https://api.mcp.github.com/v0/servers?search=io.github.example%2Ftest-server"
+	// Check that registry field contains the direct server URL with server name
+	expectedRegistry := "https://registry.modelcontextprotocol.io/v0/servers/io.github.example%2Ftest-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}

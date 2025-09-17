@@ -194,7 +194,7 @@ func TestMCPRegistryClient_GetServerNotFound(t *testing.T) {
 
 func TestNewMCPRegistryClient_DefaultURL(t *testing.T) {
 	client := NewMCPRegistryClient("")
-	expectedURL := "https://api.mcp.github.com/v0"
+	expectedURL := "https://registry.modelcontextprotocol.io/v0"
 	if client.registryURL != expectedURL {
 		t.Errorf("Expected default registry URL '%s', got '%s'", expectedURL, client.registryURL)
 	}
