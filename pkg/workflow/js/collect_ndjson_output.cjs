@@ -283,6 +283,160 @@ async function main() {
   }
 
   /**
+   * Validates that a value is a positive integer
+   * @param {any} value - The value to validate
+   * @param {string} fieldName - The name of the field being validated
+   * @param {number} lineNum - The line number for error reporting
+   * @returns {{isValid: boolean, error?: string, normalizedValue?: number}} Validation result
+   */
+  function validatePositiveInteger(value, fieldName, lineNum) {
+    if (value === undefined || value === null) {
+      // Match the original error format for create-code-scanning-alert
+      if (fieldName.includes("create-code-scanning-alert 'line'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-code-scanning-alert requires a 'line' field (number or string)`,
+        };
+      }
+      if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number`,
+        };
+      }
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} is required`,
+      };
+    }
+
+    if (typeof value !== "number" && typeof value !== "string") {
+      // Match the original error format for create-code-scanning-alert
+      if (fieldName.includes("create-code-scanning-alert 'line'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-code-scanning-alert requires a 'line' field (number or string)`,
+        };
+      }
+      if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number or string field`,
+        };
+      }
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} must be a number or string`,
+      };
+    }
+
+    const parsed = typeof value === "string" ? parseInt(value, 10) : value;
+    if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      // Match the original error format for different field types
+      if (fieldName.includes("create-code-scanning-alert 'line'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${value})`,
+        };
+      }
+      if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-pull-request-review-comment 'line' must be a positive integer`,
+        };
+      }
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} must be a positive integer (got: ${value})`,
+      };
+    }
+
+    return { isValid: true, normalizedValue: parsed };
+  }
+
+  /**
+   * Validates an optional positive integer field
+   * @param {any} value - The value to validate
+   * @param {string} fieldName - The name of the field being validated
+   * @param {number} lineNum - The line number for error reporting
+   * @returns {{isValid: boolean, error?: string, normalizedValue?: number}} Validation result
+   */
+  function validateOptionalPositiveInteger(value, fieldName, lineNum) {
+    if (value === undefined) {
+      return { isValid: true };
+    }
+
+    if (typeof value !== "number" && typeof value !== "string") {
+      // Match the original error format for specific field types
+      if (
+        fieldName.includes("create-pull-request-review-comment 'start_line'")
+      ) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a number or string`,
+        };
+      }
+      if (fieldName.includes("create-code-scanning-alert 'column'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a number or string`,
+        };
+      }
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} must be a number or string`,
+      };
+    }
+
+    const parsed = typeof value === "string" ? parseInt(value, 10) : value;
+    if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      // Match the original error format for different field types
+      if (
+        fieldName.includes("create-pull-request-review-comment 'start_line'")
+      ) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a positive integer`,
+        };
+      }
+      if (fieldName.includes("create-code-scanning-alert 'column'")) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${value})`,
+        };
+      }
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} must be a positive integer (got: ${value})`,
+      };
+    }
+
+    return { isValid: true, normalizedValue: parsed };
+  }
+
+  /**
+   * Validates an issue or pull request number (optional field)
+   * @param {any} value - The value to validate
+   * @param {string} fieldName - The name of the field being validated
+   * @param {number} lineNum - The line number for error reporting
+   * @returns {{isValid: boolean, error?: string}} Validation result
+   */
+  function validateIssueOrPRNumber(value, fieldName, lineNum) {
+    if (value === undefined) {
+      return { isValid: true };
+    }
+
+    if (typeof value !== "number" && typeof value !== "string") {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} must be a number or string`,
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  /**
    * Attempts to parse JSON with repair fallback
    * @param {string} jsonStr - The JSON string to parse
    * @returns {Object|undefined} The parsed JSON object, or undefined if parsing fails
@@ -433,13 +587,13 @@ async function main() {
             continue;
           }
           // Validate optional issue_number field
-          if (
-            item.issue_number !== undefined &&
-            typeof item.issue_number !== "number"
-          ) {
-            errors.push(
-              `Line ${i + 1}: add-comment 'issue_number' must be a number`
-            );
+          const issueNumValidation = validateIssueOrPRNumber(
+            item.issue_number,
+            "add-comment 'issue_number'",
+            i + 1
+          );
+          if (!issueNumValidation.isValid) {
+            errors.push(issueNumValidation.error);
             continue;
           }
           // Sanitize text content
@@ -493,13 +647,13 @@ async function main() {
             continue;
           }
           // Validate optional issue_number field
-          if (
-            item.issue_number !== undefined &&
-            typeof item.issue_number !== "number"
-          ) {
-            errors.push(
-              `Line ${i + 1}: add-labels 'issue_number' must be a number`
-            );
+          const labelsIssueNumValidation = validateIssueOrPRNumber(
+            item.issue_number,
+            "add-labels 'issue_number'",
+            i + 1
+          );
+          if (!labelsIssueNumValidation.isValid) {
+            errors.push(labelsIssueNumValidation.error);
             continue;
           }
           // Sanitize label strings
@@ -553,16 +707,14 @@ async function main() {
             item.body = sanitizeContent(item.body);
           }
           // Validate issue_number if provided (for target "*")
-          if (item.issue_number !== undefined) {
-            if (
-              typeof item.issue_number !== "number" &&
-              typeof item.issue_number !== "string"
-            ) {
-              errors.push(
-                `Line ${i + 1}: update-issue 'issue_number' must be a number or string`
-              );
-              continue;
-            }
+          const updateIssueNumValidation = validateIssueOrPRNumber(
+            item.issue_number,
+            "update-issue 'issue_number'",
+            i + 1
+          );
+          if (!updateIssueNumValidation.isValid) {
+            errors.push(updateIssueNumValidation.error);
+            continue;
           }
           break;
 
@@ -585,16 +737,14 @@ async function main() {
           item.branch_name = sanitizeContent(item.branch_name);
           item.message = sanitizeContent(item.message);
           // Validate pull_request_number if provided (for target "*")
-          if (item.pull_request_number !== undefined) {
-            if (
-              typeof item.pull_request_number !== "number" &&
-              typeof item.pull_request_number !== "string"
-            ) {
-              errors.push(
-                `Line ${i + 1}: push-to-pr-branch 'pull_request_number' must be a number or string`
-              );
-              continue;
-            }
+          const pushPRNumValidation = validateIssueOrPRNumber(
+            item.pull_request_number,
+            "push-to-pr-branch 'pull_request_number'",
+            i + 1
+          );
+          if (!pushPRNumValidation.isValid) {
+            errors.push(pushPRNumValidation.error);
+            continue;
           }
           break;
         case "create-pull-request-review-comment":
@@ -606,28 +756,17 @@ async function main() {
             continue;
           }
           // Validate required line field
-          if (
-            item.line === undefined ||
-            (typeof item.line !== "number" && typeof item.line !== "string")
-          ) {
-            errors.push(
-              `Line ${i + 1}: create-pull-request-review-comment requires a 'line' number or string field`
-            );
+          const lineValidation = validatePositiveInteger(
+            item.line,
+            "create-pull-request-review-comment 'line'",
+            i + 1
+          );
+          if (!lineValidation.isValid) {
+            errors.push(lineValidation.error);
             continue;
           }
-          // Validate line is a positive integer
-          const lineNumber =
-            typeof item.line === "string" ? parseInt(item.line, 10) : item.line;
-          if (
-            isNaN(lineNumber) ||
-            lineNumber <= 0 ||
-            !Number.isInteger(lineNumber)
-          ) {
-            errors.push(
-              `Line ${i + 1}: create-pull-request-review-comment 'line' must be a positive integer`
-            );
-            continue;
-          }
+          // lineValidation.normalizedValue is guaranteed to be defined when isValid is true
+          const lineNumber = lineValidation.normalizedValue;
           // Validate required body field
           if (!item.body || typeof item.body !== "string") {
             errors.push(
@@ -638,36 +777,24 @@ async function main() {
           // Sanitize required text content
           item.body = sanitizeContent(item.body);
           // Validate optional start_line field
-          if (item.start_line !== undefined) {
-            if (
-              typeof item.start_line !== "number" &&
-              typeof item.start_line !== "string"
-            ) {
-              errors.push(
-                `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be a number or string`
-              );
-              continue;
-            }
-            const startLineNumber =
-              typeof item.start_line === "string"
-                ? parseInt(item.start_line, 10)
-                : item.start_line;
-            if (
-              isNaN(startLineNumber) ||
-              startLineNumber <= 0 ||
-              !Number.isInteger(startLineNumber)
-            ) {
-              errors.push(
-                `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be a positive integer`
-              );
-              continue;
-            }
-            if (startLineNumber > lineNumber) {
-              errors.push(
-                `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`
-              );
-              continue;
-            }
+          const startLineValidation = validateOptionalPositiveInteger(
+            item.start_line,
+            "create-pull-request-review-comment 'start_line'",
+            i + 1
+          );
+          if (!startLineValidation.isValid) {
+            errors.push(startLineValidation.error);
+            continue;
+          }
+          if (
+            startLineValidation.normalizedValue !== undefined &&
+            lineNumber !== undefined &&
+            startLineValidation.normalizedValue > lineNumber
+          ) {
+            errors.push(
+              `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`
+            );
+            continue;
           }
           // Validate optional side field
           if (item.side !== undefined) {
@@ -748,22 +875,13 @@ async function main() {
             );
             continue;
           }
-          if (
-            item.line === undefined ||
-            item.line === null ||
-            (typeof item.line !== "number" && typeof item.line !== "string")
-          ) {
-            errors.push(
-              `Line ${i + 1}: create-code-scanning-alert requires a 'line' field (number or string)`
-            );
-            continue;
-          }
-          // Additional validation: line must be parseable as a positive integer
-          const parsedLine = parseInt(item.line, 10);
-          if (isNaN(parsedLine) || parsedLine <= 0) {
-            errors.push(
-              `Line ${i + 1}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${item.line})`
-            );
+          const alertLineValidation = validatePositiveInteger(
+            item.line,
+            "create-code-scanning-alert 'line'",
+            i + 1
+          );
+          if (!alertLineValidation.isValid) {
+            errors.push(alertLineValidation.error);
             continue;
           }
           if (!item.severity || typeof item.severity !== "string") {
@@ -789,24 +907,14 @@ async function main() {
           }
 
           // Validate optional column field
-          if (item.column !== undefined) {
-            if (
-              typeof item.column !== "number" &&
-              typeof item.column !== "string"
-            ) {
-              errors.push(
-                `Line ${i + 1}: create-code-scanning-alert 'column' must be a number or string`
-              );
-              continue;
-            }
-            // Additional validation: must be parseable as a positive integer
-            const parsedColumn = parseInt(item.column, 10);
-            if (isNaN(parsedColumn) || parsedColumn <= 0) {
-              errors.push(
-                `Line ${i + 1}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${item.column})`
-              );
-              continue;
-            }
+          const columnValidation = validateOptionalPositiveInteger(
+            item.column,
+            "create-code-scanning-alert 'column'",
+            i + 1
+          );
+          if (!columnValidation.isValid) {
+            errors.push(columnValidation.error);
+            continue;
           }
 
           // Validate optional ruleIdSuffix field
