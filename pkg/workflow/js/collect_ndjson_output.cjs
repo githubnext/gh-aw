@@ -613,13 +613,16 @@ async function main() {
             );
             continue;
           }
+          if (!item.branch || typeof item.branch !== "string") {
+            errors.push(
+              `Line ${i + 1}: create-pull-request requires a 'branch' string field`
+            );
+            continue;
+          }
           // Sanitize text content
           item.title = sanitizeContent(item.title);
           item.body = sanitizeContent(item.body);
-          // Sanitize branch name if present
-          if (item.branch && typeof item.branch === "string") {
-            item.branch = sanitizeContent(item.branch);
-          }
+          item.branch = sanitizeContent(item.branch);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(

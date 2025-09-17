@@ -191,8 +191,7 @@ const TOOLS = Object.fromEntries(
           },
           branch: {
             type: "string",
-            description:
-              "Required branch name",
+            description: "Required branch name",
           },
           labels: {
             type: "array",
@@ -421,12 +420,19 @@ function handleMessage(req) {
           ? tool.inputSchema.required
           : [];
       if (requiredFields.length) {
-        const missing = requiredFields.filter(f => args[f] === undefined);
+        const missing = requiredFields.filter(f => {
+          const value = args[f];
+          return (
+            value === undefined ||
+            value === null ||
+            (typeof value === "string" && value.trim() === "")
+          );
+        });
         if (missing.length) {
           replyError(
             id,
             -32602,
-            `Invalid arguments: missing ${missing.map(m => `'${m}'`).join(", ")}`
+            `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`
           );
           return;
         }
