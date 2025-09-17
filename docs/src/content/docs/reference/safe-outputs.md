@@ -577,6 +577,52 @@ safe-outputs:
     github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
 ```
 
+### Maximum Patch Size (`max-patch-size:`)
+
+When using `create-pull-request` or `push-to-pr-branch`, you can configure the maximum allowed size for git patches to prevent workflow failures from excessively large patches:
+
+```yaml
+safe-outputs:
+  max-patch-size: 512                   # Optional: maximum patch size in KB (default: 1024)
+  create-pull-request:
+  push-to-pr-branch:
+```
+
+**Configuration Options:**
+- **Range**: 1 KB to 10,240 KB (10 MB)
+- **Default**: 1024 KB (1 MB) when not specified
+- **Behavior**: If a patch exceeds the configured size, the job fails with a clear error message
+
+**Example with different size limits:**
+
+```yaml
+# Small patches only (256 KB limit)
+safe-outputs:
+  max-patch-size: 256
+  create-pull-request:
+    title-prefix: "[SMALL] "
+
+# Large patches allowed (5 MB limit)  
+safe-outputs:
+  max-patch-size: 5120
+  push-to-pr-branch:
+    if-no-changes: "error"
+```
+
+**Error Handling:**
+When a patch exceeds the limit, you'll see an error like:
+```
+Patch size (2048 KB) exceeds maximum allowed size (512 KB)
+```
+
+In staged mode, this shows as a preview error rather than failing the workflow.
+
+**Use Cases:**
+- Prevent repository bloat from large automated changes
+- Avoid GitHub API limits and timeouts
+- Ensure manageable code review sizes
+- Control CI/CD resource usage
+
 ## Related Documentation
 
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options for workflows

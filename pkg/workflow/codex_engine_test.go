@@ -73,8 +73,8 @@ func TestCodexEngine(t *testing.T) {
 		t.Errorf("Expected no action for Codex (uses command), got step with 'uses:' in:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "codex exec") {
-		t.Errorf("Expected command to contain 'codex exec' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "codex login") {
+		t.Errorf("Expected command to contain 'codex login' in step content:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "test-log") {
