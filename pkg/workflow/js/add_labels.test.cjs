@@ -700,7 +700,7 @@ describe("add_labels.cjs", () => {
       await eval(`(async () => { ${addLabelsScript} })()`);
 
       expect(mockCore.debug).toHaveBeenCalledWith(
-        "Agent output content length: 69"
+        "Agent output content length: 70"
       );
     });
 
