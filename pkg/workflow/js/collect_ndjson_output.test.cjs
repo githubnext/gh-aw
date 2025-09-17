@@ -1648,12 +1648,19 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith("output", expect.any(String));
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(mockCore.setOutput).toHaveBeenCalledWith(
+        "output",
+        expect.any(String)
+      );
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].body).toBe("Use z3 -v:10 and z3 -memory:high for performance monitoring");
+      expect(parsedOutput.items[0].body).toBe(
+        "Use z3 -v:10 and z3 -memory:high for performance monitoring"
+      );
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -1667,10 +1674,14 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192");
+      expect(parsedOutput.items[0].body).toBe(
+        "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"
+      );
     });
 
     it("should redact non-https protocols while preserving command flags", async () => {
@@ -1683,10 +1694,14 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("Use https://github.com/repo for code, avoid (redacted) and (redacted) but z3 -v:10 should work");
+      expect(parsedOutput.items[0].body).toBe(
+        "Use https://github.com/repo for code, avoid (redacted) and (redacted) but z3 -v:10 should work"
+      );
     });
 
     it("should handle mixed protocols and command flags in complex text", async () => {
@@ -1699,10 +1714,14 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid (redacted) or (redacted)");
+      expect(parsedOutput.items[0].body).toBe(
+        "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid (redacted) or (redacted)"
+      );
     });
 
     it("should preserve allowed domains while redacting unknown ones", async () => {
@@ -1715,10 +1734,14 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: (redacted)");
+      expect(parsedOutput.items[0].body).toBe(
+        "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: (redacted)"
+      );
     });
 
     it("should handle @mentions neutralization", async () => {
@@ -1731,10 +1754,14 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("Hey `@username` and `@org/team`, check this out! But preserve email@domain.com");
+      expect(parsedOutput.items[0].body).toBe(
+        "Hey `@username` and `@org/team`, check this out! But preserve email@domain.com"
+      );
     });
 
     it("should neutralize bot trigger phrases", async () => {
@@ -1747,17 +1774,26 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("This `fixes #123` and `closes #456`, also `resolves #789`");
+      expect(parsedOutput.items[0].body).toBe(
+        "This `fixes #123` and `closes #456`, also `resolves #789`"
+      );
     });
 
     it("should remove ANSI escape sequences", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
       // Use actual ANSI escape sequences
-      const bodyWithAnsi = "\u001b[31mRed text\u001b[0m and \u001b[1mBold text\u001b[m";
-      const ndjsonContent = JSON.stringify({"type": "create-issue", "title": "ANSI Test", "body": bodyWithAnsi});
+      const bodyWithAnsi =
+        "\u001b[31mRed text\u001b[0m and \u001b[1mBold text\u001b[m";
+      const ndjsonContent = JSON.stringify({
+        type: "create-issue",
+        title: "ANSI Test",
+        body: bodyWithAnsi,
+      });
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
@@ -1765,7 +1801,9 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe("Red text and Bold text");
@@ -1774,7 +1812,7 @@ Line 3"}
     it("should handle custom allowed domains from environment", async () => {
       // Set custom allowed domains
       process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,test.org";
-      
+
       const testFile = "/tmp/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Custom Domains", "body": "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: https://github.com/repo, https://blocked.com/page"}`;
 
@@ -1784,11 +1822,15 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: (redacted), (redacted)");
-      
+      expect(parsedOutput.items[0].body).toBe(
+        "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: (redacted), (redacted)"
+      );
+
       // Clean up
       delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
     });
@@ -1803,11 +1845,15 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
       // All these should be preserved since they don't match the protocol:// pattern
-      expect(parsedOutput.items[0].body).toBe("Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function");
+      expect(parsedOutput.items[0].body).toBe(
+        "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"
+      );
     });
 
     it("should truncate excessively long content", async () => {
@@ -1821,17 +1867,25 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toMatch(/\[Content truncated due to length\]$/);
+      expect(parsedOutput.items[0].body).toMatch(
+        /\[Content truncated due to length\]$/
+      );
       expect(parsedOutput.items[0].body.length).toBeLessThan(600000);
     });
 
     it("should truncate content with too many lines", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
       const manyLines = Array(66000).fill("line").join("\n"); // Exceeds 65K line limit
-      const ndjsonContent = JSON.stringify({"type": "create-issue", "title": "Many Lines Test", "body": manyLines});
+      const ndjsonContent = JSON.stringify({
+        type: "create-issue",
+        title: "Many Lines Test",
+        body: manyLines,
+      });
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
@@ -1839,12 +1893,16 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       expect(outputCall).toBeDefined();
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toMatch(/\[Content truncated due to line count\]$/);
-      const lineCount = parsedOutput.items[0].body.split('\n').length;
+      expect(parsedOutput.items[0].body).toMatch(
+        /\[Content truncated due to line count\]$/
+      );
+      const lineCount = parsedOutput.items[0].body.split("\n").length;
       expect(lineCount).toBeLessThan(66000);
     });
 
@@ -1858,7 +1916,9 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
       // The content should be preserved with proper escaping
@@ -1872,15 +1932,20 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
+        '{"create-pull-request": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].title).toBe("PR with z3 -v:10 flag");
-      expect(parsedOutput.items[0].body).toBe("Testing https://github.com/repo and (redacted)");
+      expect(parsedOutput.items[0].body).toBe(
+        "Testing https://github.com/repo and (redacted)"
+      );
       expect(parsedOutput.items[0].branch).toBe("feature/z3-timeout:5000");
       expect(parsedOutput.items[0].labels).toEqual(["bug", "z3:solver"]);
     });
@@ -1895,10 +1960,14 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const outputCall = mockCore.setOutput.mock.calls.find(
+        call => call[0] === "output"
+      );
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe("This is visible  more visible text  and more text  final text");
+      expect(parsedOutput.items[0].body).toBe(
+        "This is visible  more visible text  and more text  final text"
+      );
     });
   });
 });

@@ -80,27 +80,24 @@ async function main() {
      * @returns {string} The string with unknown domains redacted
      */
     function sanitizeUrlDomains(s) {
-      return s.replace(
-        /\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi,
-        (match) => {
-          // Extract just the URL part after https://
-          const urlAfterProtocol = match.slice(8); // Remove 'https://'
-          
-          // Extract the hostname part (before first slash, colon, or other delimiter)
-          const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
+      return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
+        // Extract just the URL part after https://
+        const urlAfterProtocol = match.slice(8); // Remove 'https://'
 
-          // Check if this domain or any parent domain is in the allowlist
-          const isAllowed = allowedDomains.some(allowedDomain => {
-            const normalizedAllowed = allowedDomain.toLowerCase();
-            return (
-              hostname === normalizedAllowed ||
-              hostname.endsWith("." + normalizedAllowed)
-            );
-          });
+        // Extract the hostname part (before first slash, colon, or other delimiter)
+        const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
 
-          return isAllowed ? match : "(redacted)";
-        }
-      );
+        // Check if this domain or any parent domain is in the allowlist
+        const isAllowed = allowedDomains.some(allowedDomain => {
+          const normalizedAllowed = allowedDomain.toLowerCase();
+          return (
+            hostname === normalizedAllowed ||
+            hostname.endsWith("." + normalizedAllowed)
+          );
+        });
+
+        return isAllowed ? match : "(redacted)";
+      });
     }
 
     /**

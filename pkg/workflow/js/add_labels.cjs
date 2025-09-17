@@ -38,9 +38,7 @@ async function main() {
     return;
   }
 
-  core.debug(
-    `Found add-labels item with ${labelsItem.labels.length} labels`
-  );
+  core.debug(`Found add-labels item with ${labelsItem.labels.length} labels`);
 
   // If in staged mode, emit step summary instead of adding labels
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
