@@ -24,8 +24,9 @@ tools:
 All tools declared in included components are merged into the final workflow.
 
 > [!TIP]
-> You can inspect the tools available for an Agentic Workflow by running <br/>
-> `gh aw mcp-inspect <workflow-file>`
+> You can discover and inspect the tools available for Agentic Workflows by running: <br/>
+> `gh aw mcp list <workflow-file>` - Quick overview of MCP servers <br/>
+> `gh aw mcp inspect <workflow-file>` - Detailed inspection with connection testing
 
 ## GitHub Tools (`github:`)
 

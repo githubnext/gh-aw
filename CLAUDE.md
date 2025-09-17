@@ -399,7 +399,12 @@ make agent-finish
 ./gh-aw compile
 ./gh-aw list
 
-# 5. Verify no unwanted files are included
+# 5. Test MCP command functionality (added in recent updates)
+./gh-aw mcp --help
+./gh-aw mcp list
+./gh-aw mcp inspect --help
+
+# 6. Verify no unwanted files are included
 git status
 git diff --name-only
 ```
@@ -482,6 +487,31 @@ The gh-aw tool provides:
 - **Browser automation**: Playwright integration for web testing and accessibility analysis
 - **Local execution**: Run workflows locally for testing
 - **Package management**: Install workflow packages from GitHub repositories
+- **MCP server management**: Discovery, listing, and inspection of Model Context Protocol servers
+
+### MCP (Model Context Protocol) Management
+The gh-aw tool provides comprehensive MCP server management capabilities:
+
+```bash
+# Quick discovery and listing of MCP servers
+gh aw mcp list                    # List all workflows with MCP servers
+gh aw mcp list workflow-name      # List MCP servers in specific workflow
+gh aw mcp list --verbose          # Show detailed server configuration
+
+# Deep inspection and troubleshooting
+gh aw mcp inspect workflow-name   # Connect to and inspect MCP servers
+gh aw mcp inspect --server name   # Filter to specific server
+gh aw mcp inspect --tool name     # Show detailed tool information
+gh aw mcp inspect --inspector     # Launch web-based inspector
+```
+
+**Key MCP Features:**
+- **Server Discovery**: Find all workflows containing MCP configurations
+- **Configuration Overview**: Table-based display of server details (name, type, commands, allowed tools)
+- **Connection Testing**: Verify MCP server connectivity and capabilities
+- **Tool Inspection**: Detailed analysis of available tools, resources, and roots
+- **Multi-Protocol Support**: stdio, Docker, and HTTP MCP servers
+- **Web Inspector Integration**: Launch official MCP inspector for advanced debugging
 
 ### AI Processing Configuration
 Workflows support different AI processors via frontmatter:
