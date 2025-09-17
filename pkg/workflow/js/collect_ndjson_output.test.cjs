@@ -1884,5 +1884,21 @@ Line 3"}
       expect(parsedOutput.items[0].branch).toBe("feature/z3-timeout:5000");
       expect(parsedOutput.items[0].labels).toEqual(["bug", "z3:solver"]);
     });
+
+    it("should remove XML comments to prevent content hiding", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "XML Comment Test", "body": "This is visible <!-- This is hidden content --> more visible text <!--- This is also hidden ---> and more text <!--- malformed comment --!> final text"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("This is visible  more visible text  and more text  final text");
+    });
   });
 });

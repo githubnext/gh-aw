@@ -34,6 +34,9 @@ async function main() {
     // Neutralize @mentions to prevent unintended notifications
     sanitized = neutralizeMentions(sanitized);
 
+    // Remove XML comments to prevent content hiding
+    sanitized = removeXmlComments(sanitized);
+
     // Remove ANSI escape sequences BEFORE removing control characters
     sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
 
@@ -136,6 +139,17 @@ async function main() {
         /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
         (_m, p1, p2) => `${p1}\`@${p2}\``
       );
+    }
+
+    /**
+     * Removes XML comments to prevent content hiding
+     * @param {string} s - The string to process
+     * @returns {string} The string with XML comments removed
+     */
+    function removeXmlComments(s) {
+      // Remove XML/HTML comments including malformed ones that might be used to hide content
+      // Matches: <!-- ... --> and <!--- ... --> and <!--- ... --!> variations
+      return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
     }
 
     /**
