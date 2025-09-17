@@ -38,24 +38,24 @@ type MCPRegistryVersionDetail struct {
 
 // MCPRegistryPackage represents a package within a server
 type MCPRegistryPackage struct {
-	Name                 string                        `json:"name"`
-	RegistryName         string                        `json:"registry_name"`
-	Version              string                        `json:"version"`
-	RuntimeHint          string                        `json:"runtime_hint"`
-	RuntimeArguments     []MCPRegistryRuntimeArgument  `json:"runtime_arguments"`
-	EnvironmentVariables []map[string]interface{}      `json:"environment_variables"`
+	Name                 string                       `json:"name"`
+	RegistryName         string                       `json:"registry_name"`
+	Version              string                       `json:"version"`
+	RuntimeHint          string                       `json:"runtime_hint"`
+	RuntimeArguments     []MCPRegistryRuntimeArgument `json:"runtime_arguments"`
+	EnvironmentVariables []map[string]interface{}     `json:"environment_variables"`
 }
 
 // MCPRegistryServerData represents the actual server data nested in the response
 type MCPRegistryServerData struct {
-	ID            string                    `json:"id"`
-	Name          string                    `json:"name"`
-	Description   string                    `json:"description"`
-	Repository    MCPRegistryRepository     `json:"repository"`
-	CreatedAt     string                    `json:"created_at"`
-	UpdatedAt     string                    `json:"updated_at"`
-	VersionDetail MCPRegistryVersionDetail  `json:"version_detail"`
-	Packages      []MCPRegistryPackage      `json:"packages"`
+	ID            string                   `json:"id"`
+	Name          string                   `json:"name"`
+	Description   string                   `json:"description"`
+	Repository    MCPRegistryRepository    `json:"repository"`
+	CreatedAt     string                   `json:"created_at"`
+	UpdatedAt     string                   `json:"updated_at"`
+	VersionDetail MCPRegistryVersionDetail `json:"version_detail"`
+	Packages      []MCPRegistryPackage     `json:"packages"`
 }
 
 // MCPRegistryServerWrapper represents a server entry from the MCP registry API
@@ -105,7 +105,7 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, error) {
 	// Always use servers endpoint for listing all servers
 	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
-	
+
 	var spinnerMessage string
 	if query == "" {
 		spinnerMessage = "Fetching all MCP servers..."
@@ -153,13 +153,13 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, er
 		// Extract transport and config from first package if available
 		if len(wrapper.Server.Packages) > 0 {
 			pkg := wrapper.Server.Packages[0]
-			
+
 			// Determine transport type from runtime hint
 			switch pkg.RuntimeHint {
 			case "node", "python", "binary":
 				server.Transport = "stdio"
 				server.Command = pkg.RegistryName
-				
+
 				// Extract string values from runtime arguments
 				args := make([]string, 0, len(pkg.RuntimeArguments))
 				for _, arg := range pkg.RuntimeArguments {
@@ -186,16 +186,16 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, er
 	if query != "" {
 		filteredServers := make([]MCPRegistryServer, 0)
 		queryLower := strings.ToLower(query)
-		
+
 		for _, server := range servers {
 			// Check if query matches ID, name, or description (case-insensitive)
 			if strings.Contains(strings.ToLower(server.ID), queryLower) ||
-			   strings.Contains(strings.ToLower(server.Name), queryLower) ||
-			   strings.Contains(strings.ToLower(server.Description), queryLower) {
+				strings.Contains(strings.ToLower(server.Name), queryLower) ||
+				strings.Contains(strings.ToLower(server.Description), queryLower) {
 				filteredServers = append(filteredServers, server)
 			}
 		}
-		
+
 		return filteredServers, nil
 	}
 
@@ -249,13 +249,13 @@ func (c *MCPRegistryClient) GetServer(serverID string) (*MCPRegistryServer, erro
 	// Extract transport and config from first package if available
 	if len(wrapper.Server.Packages) > 0 {
 		pkg := wrapper.Server.Packages[0]
-		
+
 		// Determine transport type from runtime hint
 		switch pkg.RuntimeHint {
 		case "node", "python", "binary":
 			server.Transport = "stdio"
 			server.Command = pkg.RegistryName
-			
+
 			// Extract string values from runtime arguments
 			args := make([]string, 0, len(pkg.RuntimeArguments))
 			for _, arg := range pkg.RuntimeArguments {
