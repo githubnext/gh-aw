@@ -12,6 +12,52 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// listAvailableServers shows a list of available MCP servers from the registry
+func listAvailableServers(registryURL string, verbose bool) error {
+	// Create registry client
+	registryClient := NewMCPRegistryClient(registryURL)
+
+	// Search for all servers (empty query)
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Fetching available MCP servers from registry: %s", registryClient.registryURL)))
+	}
+
+	servers, err := registryClient.SearchServers("")
+	if err != nil {
+		return fmt.Errorf("failed to fetch MCP servers: %w", err)
+	}
+
+	if len(servers) == 0 {
+		fmt.Println(console.FormatWarningMessage("No MCP servers found in the registry"))
+		return nil
+	}
+
+	// Display the list of servers
+	fmt.Println(console.FormatListHeader("Available MCP Servers"))
+	fmt.Println(console.FormatListHeader("====================="))
+	fmt.Println()
+
+	for _, server := range servers {
+		fmt.Println(console.FormatListItem(fmt.Sprintf("%s", server.ID)))
+		if server.Name != server.ID {
+			fmt.Printf("  %s\n", console.FormatInfoMessage(fmt.Sprintf("Name: %s", server.Name)))
+		}
+		if server.Description != "" {
+			fmt.Printf("  %s\n", console.FormatInfoMessage(fmt.Sprintf("Description: %s", server.Description)))
+		}
+		if server.Transport != "" {
+			fmt.Printf("  %s\n", console.FormatInfoMessage(fmt.Sprintf("Transport: %s", server.Transport)))
+		}
+		fmt.Println()
+	}
+
+	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP servers", len(servers))))
+	fmt.Println()
+	fmt.Println(console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-id>"))
+
+	return nil
+}
+
 // AddMCPTool adds an MCP tool to an agentic workflow
 func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error {
 	// Resolve the workflow file path
@@ -326,14 +372,17 @@ func NewMCPAddSubcommand() *cobra.Command {
 	var customToolID string
 
 	cmd := &cobra.Command{
-		Use:   "add <workflow-file> <mcp-server-id>",
+		Use:   "add <workflow-file> [mcp-server-id]",
 		Short: "Add an MCP tool to an agentic workflow",
 		Long: `Add an MCP tool to an agentic workflow by searching the MCP registry.
 
 This command searches the MCP registry for the specified server, adds it to the workflow's tools section,
 and automatically compiles the workflow. If the tool already exists, the command will fail.
 
+When called with only a workflow file, it will show a list of available MCP servers from the registry.
+
 Examples:
+  gh aw mcp add weekly-research                # List available MCP servers
   gh aw mcp add weekly-research notion        # Add Notion MCP server to weekly-research.md
   gh aw mcp add weekly-research notion --transport stdio  # Prefer stdio transport
   gh aw mcp add weekly-research notion --registry https://custom.registry.com/v1  # Use custom registry
@@ -346,11 +395,8 @@ The command will:
 - Automatically compile the workflow to generate the .lock.yml file
 
 Registry URL defaults to: https://api.mcp.github.com/v0`,
-		Args: cobra.ExactArgs(2),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			workflowFile := args[0]
-			mcpServerID := args[1]
-
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			// Inherit verbose from parent commands
@@ -366,6 +412,19 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 					}
 				}
 			}
+
+			// If only workflow file is provided, show list of available servers
+			if len(args) == 1 {
+				// Use default registry URL if not provided
+				if registryURL == "" {
+					registryURL = "https://api.mcp.github.com/v0"
+				}
+				return listAvailableServers(registryURL, verbose)
+			}
+
+			// If both arguments are provided, add the MCP tool
+			workflowFile := args[0]
+			mcpServerID := args[1]
 
 			return AddMCPTool(workflowFile, mcpServerID, registryURL, transportType, customToolID, verbose)
 		},

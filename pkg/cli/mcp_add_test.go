@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -405,6 +406,41 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 
 	if mcpSection["type"] != "docker" {
 		t.Errorf("Expected type 'docker', got '%v'", mcpSection["type"])
+	}
+}
+
+func TestListAvailableServers(t *testing.T) {
+	// Create a test HTTP server
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/servers/search" {
+			response := MCPRegistryResponse{
+				Servers: []MCPRegistryServer{
+					{
+						ID:          "notion-mcp",
+						Name:        "Notion MCP Server",
+						Description: "Connect to Notion API",
+						Transport:   "stdio",
+					},
+					{
+						ID:          "github-mcp",
+						Name:        "GitHub MCP Server",
+						Description: "Connect to GitHub API",
+						Transport:   "http",
+					},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+		} else {
+			http.NotFound(w, r)
+		}
+	}))
+	defer testServer.Close()
+
+	// Test listing servers
+	err := listAvailableServers(testServer.URL, false)
+	if err != nil {
+		t.Errorf("listAvailableServers failed: %v", err)
 	}
 }
 
