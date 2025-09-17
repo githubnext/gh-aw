@@ -5397,14 +5397,14 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 	compiler := NewCompiler(false, "", "test-version")
 
 	tests := []struct {
-		name       string
+		name        string
 		frontmatter map[string]any
-		expected   int
+		expected    int
 	}{
 		{
-			name: "default value when safe-outputs not specified",
+			name:        "default value when safe-outputs not specified",
 			frontmatter: map[string]any{},
-			expected:   1024,
+			expected:    1024,
 		},
 		{
 			name: "default value when max-patch-size not specified in safe-outputs",
@@ -5419,7 +5419,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "custom value as int",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"max-patch-size": 512,
+					"max-patch-size":      512,
 					"create-pull-request": nil,
 				},
 			},
@@ -5429,7 +5429,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "custom value as float64",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"max-patch-size": 2048.0,
+					"max-patch-size":      2048.0,
 					"create-pull-request": nil,
 				},
 			},
@@ -5439,7 +5439,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "custom value as uint64 (from YAML parsing)",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"max-patch-size": uint64(4096),
+					"max-patch-size":      uint64(4096),
 					"create-pull-request": nil,
 				},
 			},
@@ -5449,7 +5449,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "invalid negative value falls back to default",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"max-patch-size": -5,
+					"max-patch-size":      -5,
 					"create-pull-request": nil,
 				},
 			},
@@ -5459,7 +5459,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "invalid zero value falls back to default",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"max-patch-size": 0,
+					"max-patch-size":      0,
 					"create-pull-request": nil,
 				},
 			},
@@ -5469,7 +5469,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "invalid string value falls back to default",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"max-patch-size": "invalid",
+					"max-patch-size":      "invalid",
 					"create-pull-request": nil,
 				},
 			},

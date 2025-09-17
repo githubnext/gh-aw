@@ -172,9 +172,9 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
-	Staged                          *bool                                  `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls
-	Env                             map[string]string                      `yaml:"env,omitempty"`          // Environment variables to pass to safe output jobs
-	GitHubToken                     string                                 `yaml:"github-token,omitempty"` // GitHub token for safe output jobs
+	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
+	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
+	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 }
 
@@ -820,7 +820,6 @@ func (c *Compiler) extractStringValue(frontmatter map[string]any, key string) st
 
 	return ""
 }
-
 
 // commentOutProcessedFieldsInOnSection comments out draft, fork, and forks fields in pull_request sections within the YAML string
 // These fields are processed separately by applyPullRequestDraftFilter and applyPullRequestForkFilter and should be commented for documentation
@@ -3956,7 +3955,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					}
 				}
 			}
-			
+
 			// Set default value if not specified or invalid
 			if config.MaximumPatchSize == 0 {
 				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
