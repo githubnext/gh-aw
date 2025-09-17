@@ -136,6 +136,30 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	return nil
 }
 
+// convertToGitHubActionsEnv converts environment variables from shell syntax to GitHub Actions syntax
+// Converts "${TOKEN_NAME}" to "${{ secrets.TOKEN_NAME }}"
+// Leaves existing GitHub Actions syntax unchanged
+func convertToGitHubActionsEnv(env interface{}) map[string]string {
+	result := make(map[string]string)
+
+	if envMap, ok := env.(map[string]interface{}); ok {
+		for key, value := range envMap {
+			if valueStr, ok := value.(string); ok {
+				// Only convert shell syntax ${TOKEN_NAME}, leave GitHub Actions syntax unchanged
+				if strings.HasPrefix(valueStr, "${") && strings.HasSuffix(valueStr, "}") && !strings.Contains(valueStr, "{{") {
+					tokenName := valueStr[2 : len(valueStr)-1] // Remove ${ and }
+					result[key] = fmt.Sprintf("${{ secrets.%s }}", tokenName)
+				} else {
+					// Keep as-is if not shell syntax or already GitHub Actions syntax
+					result[key] = valueStr
+				}
+			}
+		}
+	}
+
+	return result
+}
+
 // createMCPToolConfig creates the MCP tool configuration based on registry server info
 func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, verbose bool) (map[string]any, error) {
 	config := make(map[string]any)
@@ -161,17 +185,38 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, v
 
 	switch transport {
 	case "stdio":
-		if server.Command != "" {
-			mcpSection["command"] = server.Command
-		}
-		if len(server.Args) > 0 {
-			mcpSection["args"] = server.Args
-		}
-
-		// Add environment variables if present
+		// Handle container field (simplified Docker run)
 		if server.Config != nil {
-			if env, hasEnv := server.Config["env"]; hasEnv {
-				mcpSection["env"] = env
+			if container, hasContainer := server.Config["container"]; hasContainer {
+				if containerStr, ok := container.(string); ok {
+					mcpSection["container"] = containerStr
+
+					// Add environment variables for Docker container
+					if env, hasEnv := server.Config["env"]; hasEnv {
+						mcpSection["env"] = convertToGitHubActionsEnv(env)
+					}
+				}
+			} else {
+				// Handle regular command and args
+				if server.Command != "" {
+					mcpSection["command"] = server.Command
+				}
+				if len(server.Args) > 0 {
+					mcpSection["args"] = server.Args
+				}
+
+				// Add environment variables if present
+				if env, hasEnv := server.Config["env"]; hasEnv {
+					mcpSection["env"] = convertToGitHubActionsEnv(env)
+				}
+			}
+		} else {
+			// Handle command and args when no config
+			if server.Command != "" {
+				mcpSection["command"] = server.Command
+			}
+			if len(server.Args) > 0 {
+				mcpSection["args"] = server.Args
 			}
 		}
 
@@ -203,7 +248,7 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, v
 
 			// Add environment variables if present
 			if env, hasEnv := server.Config["env"]; hasEnv {
-				mcpSection["env"] = env
+				mcpSection["env"] = convertToGitHubActionsEnv(env)
 			}
 		} else {
 			return nil, fmt.Errorf("Docker transport requires configuration")
