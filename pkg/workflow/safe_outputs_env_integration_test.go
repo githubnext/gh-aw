@@ -58,7 +58,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 				"name": "Test Workflow",
 				"on":   "issues",
 				"safe-outputs": map[string]any{
-					"add-issue-comment": nil,
+					"add-comment": nil,
 					"env": map[string]any{
 						"NOTIFICATION_URL": "${{ secrets.WEBHOOK_URL }}",
 						"COMMENT_TEMPLATE": "template-v2",
@@ -69,7 +69,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 				"NOTIFICATION_URL: ${{ secrets.WEBHOOK_URL }}",
 				"COMMENT_TEMPLATE: template-v2",
 			},
-			expectedSafeOutput: "add-issue-comment",
+			expectedSafeOutput: "add-comment",
 		},
 		{
 			name: "Multiple safe outputs with shared env vars",
@@ -146,8 +146,8 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 				}
 			}
 
-			if strings.Contains(tt.expectedSafeOutput, "add-issue-comment") {
-				job, err := compiler.buildCreateOutputAddIssueCommentJob(data, "main_job")
+			if strings.Contains(tt.expectedSafeOutput, "add-comment") {
+				job, err := compiler.buildCreateOutputAddCommentJob(data, "main_job")
 				if err != nil {
 					t.Errorf("Error building add issue comment job: %v", err)
 				}

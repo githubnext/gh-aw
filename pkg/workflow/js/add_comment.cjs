@@ -32,16 +32,16 @@ async function main() {
     return;
   }
 
-  // Find all add-issue-comment items
+  // Find all add-comment items
   const commentItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "add-issue-comment"
+    /** @param {any} item */ item => item.type === "add-comment"
   );
   if (commentItems.length === 0) {
-    core.info("No add-issue-comment items found in agent output");
+    core.info("No add-comment items found in agent output");
     return;
   }
 
-  core.info(`Found ${commentItems.length} add-issue-comment item(s)`);
+  core.info(`Found ${commentItems.length} add-comment item(s)`);
 
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
@@ -93,7 +93,7 @@ async function main() {
   for (let i = 0; i < commentItems.length; i++) {
     const commentItem = commentItems[i];
     core.info(
-      `Processing add-issue-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
+      `Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
     );
 
     // Determine the issue/PR number and comment endpoint for this comment

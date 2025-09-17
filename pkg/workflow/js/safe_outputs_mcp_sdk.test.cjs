@@ -30,7 +30,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
         "create-issue": { enabled: true, max: 5 },
         "create-discussion": { enabled: true },
-        "add-issue-comment": { enabled: true, max: 3 },
+        "add-comment": { enabled: true, max: 3 },
         "missing-tool": { enabled: true },
         "push-to-pr-branch": { enabled: true }, // Enable for SDK testing
       }),

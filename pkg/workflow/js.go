@@ -15,7 +15,7 @@ var createIssueScript string
 //go:embed js/create_discussion.cjs
 var createDiscussionScript string
 
-//go:embed js/create_comment.cjs
+//go:embed js/add_comment.cjs
 var createCommentScript string
 
 //go:embed js/create_pr_review_comment.cjs

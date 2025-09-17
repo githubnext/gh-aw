@@ -1371,7 +1371,7 @@
             }
           ]
         },
-        "add-issue-comment": {
+        "add-comment": {
           "oneOf": [
             {
               "type": "object",
@@ -1484,7 +1484,7 @@
             }
           ]
         },
-        "add-issue-label": {
+        "add-labels": {
           "oneOf": [
             {
               "type": "null",

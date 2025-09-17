@@ -129,12 +129,12 @@ describe("collect_ndjson_output.cjs", () => {
   it("should validate and parse valid JSONL content", async () => {
     const testFile = "/tmp/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
-{"type": "add-issue-comment", "body": "Test comment"}`;
+{"type": "add-comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
     process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-issue-comment": true}';
+      '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -145,7 +145,7 @@ describe("collect_ndjson_output.cjs", () => {
     const parsedOutput = JSON.parse(outputCall[1]);
     expect(parsedOutput.items).toHaveLength(2);
     expect(parsedOutput.items[0].type).toBe("create-issue");
-    expect(parsedOutput.items[1].type).toBe("add-issue-comment");
+    expect(parsedOutput.items[1].type).toBe("add-comment");
     expect(parsedOutput.errors).toHaveLength(0);
   });
 
@@ -194,15 +194,15 @@ describe("collect_ndjson_output.cjs", () => {
     expect(outputCall).toBeUndefined();
   });
 
-  it("should validate required fields for add-issue-label type", async () => {
+  it("should validate required fields for add-labels type", async () => {
     const testFile = "/tmp/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "enhancement"]}
-{"type": "add-issue-label", "labels": "not-an-array"}
-{"type": "add-issue-label", "labels": [1, 2, 3]}`;
+    const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "enhancement"]}
+{"type": "add-labels", "labels": "not-an-array"}
+{"type": "add-labels", "labels": [1, 2, 3]}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -220,12 +220,12 @@ describe("collect_ndjson_output.cjs", () => {
     const testFile = "/tmp/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
 {invalid json}
-{"type": "add-issue-comment", "body": "Test comment"}`;
+{"type": "add-comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
     process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-issue-comment": true}';
+      '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -315,13 +315,13 @@ describe("collect_ndjson_output.cjs", () => {
     const testFile = "/tmp/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
 
-{"type": "add-issue-comment", "body": "Test comment"}
+{"type": "add-comment", "body": "Test comment"}
 `;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
     process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-issue-comment": true}';
+      '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -599,11 +599,11 @@ describe("collect_ndjson_output.cjs", () => {
 
     it("should repair JSON with array syntax issues", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "enhancement",}`;
+      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "enhancement",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -646,12 +646,12 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Line 1
 Line 2
 Line 3"}
-{"type": "add-issue-comment", "body": "This is a valid line"}`;
+{"type": "add-comment", "body": "This is a valid line"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-issue": true, "add-issue-comment": true}';
+        '{"create-issue": true, "add-comment": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -662,7 +662,7 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       // The first broken JSON should produce errors, but the last valid line should work
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-issue-comment");
+      expect(parsedOutput.items[0].type).toBe("add-comment");
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
       expect(
         parsedOutput.errors.some(error => error.includes("JSON parsing failed"))
@@ -734,11 +734,11 @@ Line 3"}
 
     it("should repair arrays ending with wrong bracket type", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "feature", "enhancement"}`;
+      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature", "enhancement"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -758,11 +758,11 @@ Line 3"}
 
     it("should handle simple missing closing brackets with graceful repair", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "feature"`;
+      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -773,7 +773,7 @@ Line 3"}
       if (outputCall) {
         // Repair succeeded
         const parsedOutput = JSON.parse(outputCall[1]);
-        expect(parsedOutput.items[0].type).toBe("add-issue-label");
+        expect(parsedOutput.items[0].type).toBe("add-labels");
         expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
@@ -1209,11 +1209,11 @@ Line 3"}
 
     it("should repair arrays with mixed bracket types in complex structures", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'add-issue-label', labels: ['priority', 'bug', 'urgent'}, extra: ['data', 'here'}`;
+      const ndjsonContent = `{type: 'add-labels', labels: ['priority', 'bug', 'urgent'}, extra: ['data', 'here'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1223,7 +1223,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-issue-label");
+      expect(parsedOutput.items[0].type).toBe("add-labels");
       expect(parsedOutput.items[0].labels).toEqual([
         "priority",
         "bug",
@@ -1262,11 +1262,11 @@ Line 3"}
 
     it("should repair JSON with simple missing closing brackets", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "feature"]}`;
+      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1276,7 +1276,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-issue-label");
+      expect(parsedOutput.items[0].type).toBe("add-labels");
       expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });
@@ -1307,12 +1307,12 @@ Line 3"}
   it("should store validated output in agent_output.json file and set GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
     const testFile = "/tmp/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
-{"type": "add-issue-comment", "body": "Test comment"}`;
+{"type": "add-comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
     process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-issue-comment": true}';
+      '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -1328,7 +1328,7 @@ Line 3"}
 
     expect(agentOutputJson.items).toHaveLength(2);
     expect(agentOutputJson.items[0].type).toBe("create-issue");
-    expect(agentOutputJson.items[1].type).toBe("add-issue-comment");
+    expect(agentOutputJson.items[1].type).toBe("add-comment");
     expect(agentOutputJson.errors).toHaveLength(0);
 
     // Verify GITHUB_AW_AGENT_OUTPUT environment variable was set
@@ -1634,6 +1634,271 @@ Line 3"}
       const setOutputCalls = mockCore.setOutput.mock.calls;
       const outputCall = setOutputCalls.find(call => call[0] === "output");
       expect(outputCall).toBeUndefined();
+    });
+  });
+
+  describe("Content sanitization functionality", () => {
+    it("should preserve command-line flags with colons", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Test issue", "body": "Use z3 -v:10 and z3 -memory:high for performance monitoring"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("output", expect.any(String));
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].body).toBe("Use z3 -v:10 and z3 -memory:high for performance monitoring");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should preserve various command-line flag patterns", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "CLI Flags Test", "body": "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192");
+    });
+
+    it("should redact non-https protocols while preserving command flags", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Protocol Test", "body": "Use https://github.com/repo for code, avoid ftp://example.com/file and git://example.com/repo, but z3 -v:10 should work"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("Use https://github.com/repo for code, avoid (redacted) and (redacted) but z3 -v:10 should work");
+    });
+
+    it("should handle mixed protocols and command flags in complex text", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Complex Test", "body": "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid ssh://git.example.com/repo.git or file://localhost/path"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid (redacted) or (redacted)");
+    });
+
+    it("should preserve allowed domains while redacting unknown ones", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Domain Test", "body": "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: https://example.com/page"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: (redacted)");
+    });
+
+    it("should handle @mentions neutralization", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "@mention Test", "body": "Hey @username and @org/team, check this out! But preserve email@domain.com"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("Hey `@username` and `@org/team`, check this out! But preserve email@domain.com");
+    });
+
+    it("should neutralize bot trigger phrases", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Bot Trigger Test", "body": "This fixes #123 and closes #456, also resolves #789"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("This `fixes #123` and `closes #456`, also `resolves #789`");
+    });
+
+    it("should remove ANSI escape sequences", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      // Use actual ANSI escape sequences
+      const bodyWithAnsi = "\u001b[31mRed text\u001b[0m and \u001b[1mBold text\u001b[m";
+      const ndjsonContent = JSON.stringify({"type": "create-issue", "title": "ANSI Test", "body": bodyWithAnsi});
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("Red text and Bold text");
+    });
+
+    it("should handle custom allowed domains from environment", async () => {
+      // Set custom allowed domains
+      process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,test.org";
+      
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Custom Domains", "body": "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: https://github.com/repo, https://blocked.com/page"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: (redacted), (redacted)");
+      
+      // Clean up
+      delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
+    });
+
+    it("should handle edge cases with colons in different contexts", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Colon Edge Cases", "body": "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      // All these should be preserved since they don't match the protocol:// pattern
+      expect(parsedOutput.items[0].body).toBe("Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function");
+    });
+
+    it("should truncate excessively long content", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const longBody = "x".repeat(600000); // 600KB, exceeds 512KB limit
+      const ndjsonContent = `{"type": "create-issue", "title": "Long Content Test", "body": "${longBody}"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toMatch(/\[Content truncated due to length\]$/);
+      expect(parsedOutput.items[0].body.length).toBeLessThan(600000);
+    });
+
+    it("should truncate content with too many lines", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const manyLines = Array(66000).fill("line").join("\n"); // Exceeds 65K line limit
+      const ndjsonContent = JSON.stringify({"type": "create-issue", "title": "Many Lines Test", "body": manyLines});
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toMatch(/\[Content truncated due to line count\]$/);
+      const lineCount = parsedOutput.items[0].body.split('\n').length;
+      expect(lineCount).toBeLessThan(66000);
+    });
+
+    it("should preserve backticks and code blocks", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Code Test", "body": "Use \`z3 -v:10\` in terminal. Code block:\\n\`\`\`\\nz3 -memory:high input.smt2\\nftp://should-not-be-redacted-in-code\\n\`\`\`"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      // The content should be preserved with proper escaping
+      expect(parsedOutput.items[0].body).toContain("z3 -v:10");
+      expect(parsedOutput.items[0].body).toContain("z3 -memory:high");
+    });
+
+    it("should handle sanitization across multiple field types", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-pull-request", "title": "PR with z3 -v:10 flag", "body": "Testing https://github.com/repo and ftp://example.com", "branch": "feature/z3-timeout:5000", "labels": ["bug", "z3:solver"]}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].title).toBe("PR with z3 -v:10 flag");
+      expect(parsedOutput.items[0].body).toBe("Testing https://github.com/repo and (redacted)");
+      expect(parsedOutput.items[0].branch).toBe("feature/z3-timeout:5000");
+      expect(parsedOutput.items[0].labels).toEqual(["bug", "z3:solver"]);
+    });
+
+    it("should remove XML comments to prevent content hiding", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "XML Comment Test", "body": "This is visible <!-- This is hidden content --> more visible text <!--- This is also hidden ---> and more text <!--- malformed comment --!> final text"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      const parsedOutput = JSON.parse(outputCall[1]);
+
+      expect(parsedOutput.items[0].body).toBe("This is visible  more visible text  and more text  final text");
     });
   });
 });

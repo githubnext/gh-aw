@@ -38,8 +38,8 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
 /**
  * JSONL item for adding a comment to an issue or PR
  */
-interface AddIssueCommentItem extends BaseSafeOutputItem {
-  type: "add-issue-comment";
+interface AddCommentItem extends BaseSafeOutputItem {
+  type: "add-comment";
   /** Comment body content */
   body: string;
 }
@@ -98,8 +98,8 @@ interface CreateCodeScanningAlertItem extends BaseSafeOutputItem {
 /**
  * JSONL item for adding labels to an issue or PR
  */
-interface AddIssueLabelItem extends BaseSafeOutputItem {
-  type: "add-issue-label";
+interface AddLabelsItem extends BaseSafeOutputItem {
+  type: "add-labels";
   /** Array of label names to add */
   labels: string[];
 }
@@ -149,11 +149,11 @@ interface MissingToolItem extends BaseSafeOutputItem {
 type SafeOutputItem =
   | CreateIssueItem
   | CreateDiscussionItem
-  | AddIssueCommentItem
+  | AddCommentItem
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
-  | AddIssueLabelItem
+  | AddLabelsItem
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem;
@@ -166,11 +166,11 @@ export {
   BaseSafeOutputItem,
   CreateIssueItem,
   CreateDiscussionItem,
-  AddIssueCommentItem,
+  AddCommentItem,
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
-  AddIssueLabelItem,
+  AddLabelsItem,
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,

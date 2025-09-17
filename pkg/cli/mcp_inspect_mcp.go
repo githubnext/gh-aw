@@ -790,7 +790,7 @@ func getSafeOutputToolDescription(toolName string) string {
 		return "Create a new GitHub issue"
 	case "create-discussion":
 		return "Create a new GitHub discussion"
-	case "add-issue-comment":
+	case "add-comment":
 		return "Add a comment to a GitHub issue or pull request"
 	case "create-pull-request":
 		return "Create a new GitHub pull request"
@@ -798,7 +798,7 @@ func getSafeOutputToolDescription(toolName string) string {
 		return "Create a review comment on a GitHub pull request"
 	case "create-code-scanning-alert":
 		return "Create a code scanning alert"
-	case "add-issue-label":
+	case "add-labels":
 		return "Add labels to a GitHub issue or pull request"
 	case "update-issue":
 		return "Update a GitHub issue"

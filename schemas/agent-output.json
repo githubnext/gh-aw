@@ -28,9 +28,9 @@
       "description": "Union type of all supported safe output entries",
       "oneOf": [
         {"$ref": "#/$defs/CreateIssueOutput"},
-        {"$ref": "#/$defs/AddIssueCommentOutput"},
+        {"$ref": "#/$defs/AddCommentOutput"},
         {"$ref": "#/$defs/CreatePullRequestOutput"},
-        {"$ref": "#/$defs/AddIssueLabelOutput"},
+        {"$ref": "#/$defs/AddLabelsOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
@@ -68,13 +68,13 @@
       "required": ["type", "title", "body"],
       "additionalProperties": false
     },
-    "AddIssueCommentOutput": {
+    "AddCommentOutput": {
       "title": "Add Issue Comment Output",
       "description": "Output for adding a comment to an issue or pull request",
       "type": "object",
       "properties": {
         "type": {
-          "const": "add-issue-comment"
+          "const": "add-comment"
         },
         "body": {
           "type": "string",
@@ -118,13 +118,13 @@
       "required": ["type", "title", "body"],
       "additionalProperties": false
     },
-    "AddIssueLabelOutput": {
+    "AddLabelsOutput": {
       "title": "Add Issue Label Output",
       "description": "Output for adding labels to an issue or pull request",
       "type": "object",
       "properties": {
         "type": {
-          "const": "add-issue-label"
+          "const": "add-labels"
         },
         "labels": {
           "type": "array",

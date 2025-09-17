@@ -14,7 +14,7 @@ concurrency:
 run-name: "Test Codex Add Issue Comment"
 
 jobs:
-  test-codex-add-issue-comment:
+  test-codex-add-comment:
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -35,7 +35,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
-          user_agent = "test-codex-add-issue-comment"
+          user_agent = "test-codex-add-comment"
           command = "docker"
           args = [
             "run",
@@ -135,7 +135,7 @@ jobs:
           codex login --api-key "${{ secrets.OPENAI_API_KEY }}"
           
           # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex exec --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-add-issue-comment.log
+          codex exec --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-add-comment.log
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -144,7 +144,7 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-add-issue-comment.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-add-comment.log
         with:
           script: |
             function main() {
@@ -420,14 +420,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-codex-add-issue-comment.log
-          path: /tmp/test-codex-add-issue-comment.log
+          name: test-codex-add-comment.log
+          path: /tmp/test-codex-add-comment.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-add-issue-comment.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-add-comment.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |
