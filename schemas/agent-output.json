@@ -30,7 +30,7 @@
         {"$ref": "#/$defs/CreateIssueOutput"},
         {"$ref": "#/$defs/AddIssueCommentOutput"},
         {"$ref": "#/$defs/CreatePullRequestOutput"},
-        {"$ref": "#/$defs/AddIssueLabelOutput"},
+        {"$ref": "#/$defs/AddLabelsOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
@@ -118,13 +118,13 @@
       "required": ["type", "title", "body"],
       "additionalProperties": false
     },
-    "AddIssueLabelOutput": {
+    "AddLabelsOutput": {
       "title": "Add Issue Label Output",
       "description": "Output for adding labels to an issue or pull request",
       "type": "object",
       "properties": {
         "type": {
-          "const": "add-issue-labels"
+          "const": "add-labels"
         },
         "labels": {
           "type": "array",

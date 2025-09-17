@@ -269,7 +269,7 @@ const TOOLS = Object.fromEntries(
       },
     },
     {
-      name: "add-issue-labels",
+      name: "add-labels",
       description: "Add labels to a GitHub issue or pull request",
       inputSchema: {
         type: "object",

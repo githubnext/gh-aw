@@ -95,8 +95,8 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						config.Allowed = append(config.Allowed, "create-pull-request-review-comment")
 					case "create-code-scanning-alert":
 						config.Allowed = append(config.Allowed, "create-code-scanning-alert")
-					case "add-issue-labels":
-						config.Allowed = append(config.Allowed, "add-issue-labels")
+					case "add-labels":
+						config.Allowed = append(config.Allowed, "add-labels")
 					case "update-issue":
 						config.Allowed = append(config.Allowed, "update-issue")
 					case "push-to-pr-branch":

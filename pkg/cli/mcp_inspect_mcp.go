@@ -798,7 +798,7 @@ func getSafeOutputToolDescription(toolName string) string {
 		return "Create a review comment on a GitHub pull request"
 	case "create-code-scanning-alert":
 		return "Create a code scanning alert"
-	case "add-issue-labels":
+	case "add-labels":
 		return "Add labels to a GitHub issue or pull request"
 	case "update-issue":
 		return "Update a GitHub issue"
