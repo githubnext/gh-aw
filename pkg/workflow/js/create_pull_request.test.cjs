@@ -789,6 +789,15 @@ describe("create_pull_request.cjs", () => {
         "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
       mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
 
+      const mockPullRequest = {
+        number: 123,
+        html_url: "https://github.com/testowner/testrepo/pull/123",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
       const main = createMainFunction(mockDependencies);
       await main();
 
@@ -823,9 +832,7 @@ describe("create_pull_request.cjs", () => {
       const main = createMainFunction(mockDependencies);
 
       await expect(main()).rejects.toThrow(
-        expect.stringMatching(
-          /Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/
-        )
+        /Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/
       );
 
       expect(mockDependencies.core.info).toHaveBeenCalledWith(
@@ -884,6 +891,15 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.fs.existsSync.mockReturnValue(true);
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
       mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+
+      const mockPullRequest = {
+        number: 123,
+        html_url: "https://github.com/testowner/testrepo/pull/123",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
 
       const main = createMainFunction(mockDependencies);
       await main();
