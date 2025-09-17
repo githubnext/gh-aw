@@ -2065,7 +2065,7 @@ jobs:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test basic YAML validation (this is now always performed)
-			var yamlTest interface{}
+			var yamlTest any
 			err := yaml.Unmarshal([]byte(tt.yaml), &yamlTest)
 
 			if tt.wantErr {
@@ -4213,7 +4213,7 @@ This workflow should get default permissions applied automatically.
 	}
 
 	// Parse the generated YAML to verify structure
-	var workflow map[string]interface{}
+	var workflow map[string]any
 	if err := yaml.Unmarshal(lockContent, &workflow); err != nil {
 		t.Fatalf("Failed to parse generated YAML: %v", err)
 	}
@@ -4224,16 +4224,16 @@ This workflow should get default permissions applied automatically.
 		t.Fatal("Jobs section not found in parsed workflow")
 	}
 
-	jobsMap, ok := jobs.(map[string]interface{})
+	jobsMap, ok := jobs.(map[string]any)
 	if !ok {
 		t.Fatal("Jobs section is not a map")
 	}
 
 	// Find the main job (should be the one with the workflow name converted to kebab-case)
-	var mainJob map[string]interface{}
+	var mainJob map[string]any
 	for jobName, job := range jobsMap {
 		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
-			if jobMap, ok := job.(map[string]interface{}); ok {
+			if jobMap, ok := job.(map[string]any); ok {
 				mainJob = jobMap
 				break
 			}
@@ -4310,7 +4310,7 @@ This workflow has custom permissions that should override defaults.
 	}
 
 	// Parse the generated YAML to verify structure
-	var workflow map[string]interface{}
+	var workflow map[string]any
 	if err := yaml.Unmarshal(lockContent, &workflow); err != nil {
 		t.Fatalf("Failed to parse generated YAML: %v", err)
 	}
@@ -4321,16 +4321,16 @@ This workflow has custom permissions that should override defaults.
 		t.Fatal("Jobs section not found in parsed workflow")
 	}
 
-	jobsMap, ok := jobs.(map[string]interface{})
+	jobsMap, ok := jobs.(map[string]any)
 	if !ok {
 		t.Fatal("Jobs section is not a map")
 	}
 
 	// Find the main job (should be the one with the workflow name converted to kebab-case)
-	var mainJob map[string]interface{}
+	var mainJob map[string]any
 	for jobName, job := range jobsMap {
 		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
-			if jobMap, ok := job.(map[string]interface{}); ok {
+			if jobMap, ok := job.(map[string]any); ok {
 				mainJob = jobMap
 				break
 			}
@@ -4348,7 +4348,7 @@ This workflow has custom permissions that should override defaults.
 	}
 
 	// Verify permissions is a map
-	permissionsMap, ok := permissions.(map[string]interface{})
+	permissionsMap, ok := permissions.(map[string]any)
 	if !ok {
 		t.Fatal("Permissions section is not a map")
 	}
@@ -4477,7 +4477,7 @@ engine: claude
 			lockContent := string(content)
 
 			// Verify the YAML is valid by parsing it
-			var yamlData map[string]interface{}
+			var yamlData map[string]any
 			if err := yaml.Unmarshal(content, &yamlData); err != nil {
 				t.Errorf("Generated YAML is not valid: %v\nContent:\n%s", err, lockContent)
 			}
@@ -4838,7 +4838,7 @@ engine: claude
 					t.Fatalf("Failed to read generated lock file: %v", err)
 				}
 
-				var yamlData map[string]interface{}
+				var yamlData map[string]any
 				if err := yaml.Unmarshal(content, &yamlData); err != nil {
 					t.Errorf("Generated YAML is not valid: %v", err)
 				}
@@ -5366,15 +5366,15 @@ This workflow tests that forks array fields are properly commented out in the on
 				}
 
 				// Parse the generated YAML to ensure the forks field is not active in the parsed structure
-				var workflow map[string]interface{}
+				var workflow map[string]any
 				if err := yaml.Unmarshal(content, &workflow); err != nil {
 					t.Fatalf("Failed to parse generated YAML: %v", err)
 				}
 
 				if onSection, exists := workflow["on"]; exists {
-					if onMap, ok := onSection.(map[string]interface{}); ok {
+					if onMap, ok := onSection.(map[string]any); ok {
 						if prSection, hasPR := onMap["pull_request"]; hasPR {
-							if prMap, isPRMap := prSection.(map[string]interface{}); isPRMap {
+							if prMap, isPRMap := prSection.(map[string]any); isPRMap {
 								// The forks field should NOT be present in the parsed YAML (since it's commented)
 								if _, hasForks := prMap["forks"]; hasForks {
 									t.Errorf("Forks field found in parsed YAML pull_request section (should be commented): %v", prMap)

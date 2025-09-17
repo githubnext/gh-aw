@@ -165,7 +165,7 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 	t.Run("Generated JSON validity", func(t *testing.T) {
 		jsonStr := generator.GenerateSettingsJSON()
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err := json.Unmarshal([]byte(jsonStr), &settings)
 		if err != nil {
 			t.Fatalf("Generated JSON should be valid: %v", err)
@@ -177,7 +177,7 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 			t.Error("Settings should contain hooks section")
 		}
 
-		hooksMap, ok := hooks.(map[string]interface{})
+		hooksMap, ok := hooks.(map[string]any)
 		if !ok {
 			t.Error("Hooks should be an object")
 		}
@@ -187,7 +187,7 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 			t.Error("Hooks should contain PreToolUse section")
 		}
 
-		preToolUseArray, ok := preToolUse.([]interface{})
+		preToolUseArray, ok := preToolUse.([]any)
 		if !ok {
 			t.Error("PreToolUse should be an array")
 		}

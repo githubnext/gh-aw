@@ -13,7 +13,7 @@ func TestParseAwInfo(t *testing.T) {
 
 	t.Run("staged true as boolean", func(t *testing.T) {
 		// Create aw_info.json with staged: true as boolean
-		infoData := map[string]interface{}{
+		infoData := map[string]any{
 			"engine_id":     "claude",
 			"staged":        true,
 			"workflow_name": "test-workflow",
@@ -42,7 +42,7 @@ func TestParseAwInfo(t *testing.T) {
 
 	t.Run("staged false as boolean", func(t *testing.T) {
 		// Create aw_info.json with staged: false as boolean
-		infoData := map[string]interface{}{
+		infoData := map[string]any{
 			"engine_id":     "claude",
 			"staged":        false,
 			"workflow_name": "test-workflow",
@@ -65,7 +65,7 @@ func TestParseAwInfo(t *testing.T) {
 
 	t.Run("no staged field", func(t *testing.T) {
 		// Create aw_info.json without staged field
-		infoData := map[string]interface{}{
+		infoData := map[string]any{
 			"engine_id":     "claude",
 			"workflow_name": "test-workflow",
 		}
@@ -117,7 +117,7 @@ func TestParseAwInfo(t *testing.T) {
 		}
 
 		// Create nested aw_info.json with staged: true
-		infoData := map[string]interface{}{
+		infoData := map[string]any{
 			"engine_id":     "claude",
 			"staged":        true,
 			"workflow_name": "test-workflow",
@@ -140,7 +140,7 @@ func TestParseAwInfo(t *testing.T) {
 
 	t.Run("complete aw_info structure", func(t *testing.T) {
 		// Test parsing all fields in aw_info.json
-		infoData := map[string]interface{}{
+		infoData := map[string]any{
 			"engine_id":     "claude",
 			"engine_name":   "Claude AI",
 			"model":         "claude-3-5-sonnet-20241022",
