@@ -2645,7 +2645,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAXIMUM_PATCH_SIZE: %d\n", maxPatchSize))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {

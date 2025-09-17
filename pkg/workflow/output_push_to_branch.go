@@ -51,7 +51,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAXIMUM_PATCH_SIZE: %d\n", maxPatchSize))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
 	// Add custom environment variables from safe-outputs.env
 	c.addCustomSafeOutputEnvVars(&steps, data)

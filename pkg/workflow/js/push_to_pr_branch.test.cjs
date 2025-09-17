@@ -377,7 +377,7 @@ describe("push_to_pr_branch.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "10"; // 10 KB limit
+      process.env.GITHUB_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
@@ -411,7 +411,7 @@ describe("push_to_pr_branch.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "1"; // 1 KB limit
+      process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
@@ -443,7 +443,7 @@ describe("push_to_pr_branch.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-      delete process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE; // No limit set
+      delete process.env.GITHUB_AW_MAX_PATCH_SIZE; // No limit set
 
       mockFs.existsSync.mockReturnValue(true);
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
@@ -475,7 +475,7 @@ describe("push_to_pr_branch.cjs", () => {
       };
 
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "1"; // 1 KB limit
+      process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue(""); // Empty patch

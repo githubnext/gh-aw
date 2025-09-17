@@ -101,7 +101,7 @@ async function main() {
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
     const maxSizeKb = parseInt(
-      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE || "1024",
+      process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024",
       10
     );
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");

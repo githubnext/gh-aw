@@ -781,7 +781,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "10"; // 10 KB limit
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
@@ -812,7 +812,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "1"; // 1 KB limit
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
@@ -845,7 +845,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "1"; // 1 KB limit
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
@@ -879,7 +879,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      delete mockDependencies.process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE; // No limit set
+      delete mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE; // No limit set
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
@@ -907,7 +907,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "1"; // 1 KB limit
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       mockDependencies.fs.readFileSync.mockReturnValue(""); // Empty patch
