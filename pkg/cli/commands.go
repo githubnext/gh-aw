@@ -615,7 +615,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	} else {
 		// Ensure the path is relative
 		if filepath.IsAbs(workflowDir) {
-			return fmt.Errorf("workflow-dir must be a relative path, got: %s", workflowDir)
+			return fmt.Errorf("workflows-dir must be a relative path, got: %s", workflowDir)
 		}
 		// Clean the path to avoid issues with ".." or other problematic elements
 		workflowDir = filepath.Clean(workflowDir)

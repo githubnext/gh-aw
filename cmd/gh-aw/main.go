@@ -206,13 +206,13 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile weekly-research    # Compile a specific workflow
   ` + constants.CLIExtensionPrefix + ` compile weekly-research daily-plan  # Compile multiple workflows
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
-  ` + constants.CLIExtensionPrefix + ` compile --workflow-dir custom/workflows  # Compile from custom directory
+  ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
   ` + constants.CLIExtensionPrefix + ` compile --watch weekly-research     # Watch and auto-compile`,
 	Run: func(cmd *cobra.Command, args []string) {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
-		workflowDir, _ := cmd.Flags().GetString("workflow-dir")
+		workflowDir, _ := cmd.Flags().GetString("workflows-dir")
 		instructions, _ := cmd.Flags().GetBool("instructions")
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
@@ -349,7 +349,7 @@ func init() {
 	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex)")
 	compileCmd.Flags().Bool("validate", true, "Enable GitHub Actions workflow schema validation (default: true)")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
-	compileCmd.Flags().String("workflow-dir", "", "Relative directory containing workflows (default: .github/workflows)")
+	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
 	compileCmd.Flags().Bool("instructions", false, "Generate or update GitHub Copilot instructions file")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
