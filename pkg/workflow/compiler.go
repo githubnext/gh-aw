@@ -4623,14 +4623,6 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	// Add each line of the script with proper indentation
 	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
 
-	yaml.WriteString("      - name: Print sanitized agent output\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Processed Output\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````json' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
-
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GITHUB_AW_AGENT_OUTPUT\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")

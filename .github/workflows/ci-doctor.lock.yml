@@ -1696,16 +1696,22 @@ jobs:
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
+              // Write processed output to step summary using core.summary
+              try {
+                await core.summary
+                  .addRaw("## Processed Output\n\n")
+                  .addRaw("```json\n")
+                  .addRaw(JSON.stringify(validatedOutput))
+                  .addRaw("\n```\n")
+                  .write();
+                core.info("Successfully wrote processed output to step summary");
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to write to step summary: ${errorMsg}`);
+              }
             }
             // Call the main function
             await main();
-      - name: Print sanitized agent output
-        run: |
-          echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````json' >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY
-          echo '``````' >> $GITHUB_STEP_SUMMARY
       - name: Upload sanitized agent output
         if: always() && env.GITHUB_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4
