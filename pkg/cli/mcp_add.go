@@ -250,7 +250,8 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, v
 
 	// Create MCP configuration based on transport type
 	mcpSection := map[string]any{
-		"type": transport,
+		"type":     transport,
+		"registry": server.ID,
 	}
 
 	switch transport {
