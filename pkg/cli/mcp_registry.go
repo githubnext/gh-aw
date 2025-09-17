@@ -128,7 +128,7 @@ type MCPRegistryClient struct {
 // NewMCPRegistryClient creates a new MCP registry client
 func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 	if registryURL == "" {
-		registryURL = "https://registry.modelcontextprotocol.io/v0"
+		registryURL = "https://api.mcp.github.com/v0"
 	}
 
 	return &MCPRegistryClient{
