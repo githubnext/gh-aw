@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 
@@ -251,7 +250,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 	// Create MCP configuration based on transport type
 	mcpSection := map[string]any{
 		"type":     transport,
-		"registry": fmt.Sprintf("%s/servers?search=%s", registryURL, url.QueryEscape(server.Name)),
+		"registry": server.Name, // Use server name which follows reverse-DNS namespacing
 	}
 
 	switch transport {
@@ -381,7 +380,7 @@ The command will:
 - Add the MCP tool configuration to the workflow's frontmatter
 - Automatically compile the workflow to generate the .lock.yml file
 
-Registry URL defaults to: https://api.mcp.github.com/v0`,
+Registry URL defaults to: https://registry.modelcontextprotocol.io`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -404,7 +403,7 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 			if len(args) == 0 {
 				// Use default registry URL if not provided
 				if registryURL == "" {
-					registryURL = "https://api.mcp.github.com/v0"
+					registryURL = "https://registry.modelcontextprotocol.io"
 				}
 				return listAvailableServers(registryURL, verbose)
 			}
@@ -422,7 +421,7 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 		},
 	}
 
-	cmd.Flags().StringVar(&registryURL, "registry", "", "MCP registry URL (default: https://api.mcp.github.com/v0)")
+	cmd.Flags().StringVar(&registryURL, "registry", "", "MCP registry URL (default: https://registry.modelcontextprotocol.io)")
 	cmd.Flags().StringVar(&transportType, "transport", "", "Preferred transport type (stdio, http, docker)")
 	cmd.Flags().StringVar(&customToolID, "tool-id", "", "Custom tool ID to use in the workflow (default: uses server ID)")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")

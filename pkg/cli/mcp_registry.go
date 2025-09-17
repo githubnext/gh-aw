@@ -10,96 +10,26 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/modelcontextprotocol/registry/pkg/model"
 )
 
 // MCPRegistryServer represents a server from the MCP registry API
 type MCPRegistryServer struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Status      string                 `json:"status"`
-	Version     string                 `json:"version"`
-	Repository  *MCPRegistryRepository `json:"repository,omitempty"`
-	Packages    []MCPRegistryPackage   `json:"packages,omitempty"`
-	Remotes     []MCPRegistryRemote    `json:"remotes,omitempty"`
-	WebsiteURL  string                 `json:"website_url,omitempty"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Status      model.Status        `json:"status"`
+	Version     string              `json:"version"`
+	Repository  *model.Repository   `json:"repository,omitempty"`
+	Packages    []model.Package     `json:"packages,omitempty"`
+	Remotes     []MCPRegistryRemote `json:"remotes,omitempty"`
+	WebsiteURL  string              `json:"website_url,omitempty"`
 }
 
 // MCPRegistryRemote represents a remote server configuration
 type MCPRegistryRemote struct {
-	Type    string                    `json:"type"`
-	URL     string                    `json:"url"`
-	Headers []MCPRegistryRemoteHeader `json:"headers,omitempty"`
-}
-
-// MCPRegistryRemoteHeader represents a header for remote server
-type MCPRegistryRemoteHeader struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	IsRequired  bool     `json:"is_required,omitempty"`
-	IsSecret    bool     `json:"is_secret,omitempty"`
-	Default     string   `json:"default,omitempty"`
-	Choices     []string `json:"choices,omitempty"`
-}
-
-// MCPRegistryTransport represents transport configuration
-type MCPRegistryTransport struct {
-	Type string `json:"type"`
-}
-
-// MCPRegistryEnvironmentVariable represents an environment variable
-type MCPRegistryEnvironmentVariable struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	IsRequired  bool     `json:"is_required,omitempty"`
-	IsSecret    bool     `json:"is_secret,omitempty"`
-	Default     string   `json:"default,omitempty"`
-	Choices     []string `json:"choices,omitempty"`
-}
-
-// MCPRegistryArgument represents a package argument
-type MCPRegistryArgument struct {
-	Type        string                         `json:"type"`
-	Name        string                         `json:"name,omitempty"`
-	Value       string                         `json:"value,omitempty"`
-	ValueHint   string                         `json:"value_hint,omitempty"`
-	Description string                         `json:"description,omitempty"`
-	IsRequired  bool                           `json:"is_required,omitempty"`
-	IsRepeated  bool                           `json:"is_repeated,omitempty"`
-	Default     string                         `json:"default,omitempty"`
-	Format      string                         `json:"format,omitempty"`
-	Choices     []string                       `json:"choices,omitempty"`
-	Variables   map[string]MCPRegistryVariable `json:"variables,omitempty"`
-}
-
-// MCPRegistryVariable represents a variable in runtime arguments
-type MCPRegistryVariable struct {
-	Description string   `json:"description,omitempty"`
-	Format      string   `json:"format,omitempty"`
-	IsRequired  bool     `json:"is_required,omitempty"`
-	Default     string   `json:"default,omitempty"`
-	Choices     []string `json:"choices,omitempty"`
-}
-
-// MCPRegistryRepository represents repository information
-type MCPRegistryRepository struct {
-	URL       string `json:"url"`
-	Source    string `json:"source"`
-	ID        string `json:"id,omitempty"`
-	Subfolder string `json:"subfolder,omitempty"`
-}
-
-// MCPRegistryPackage represents a package within a server
-type MCPRegistryPackage struct {
-	RegistryType         string                           `json:"registry_type"`
-	RegistryBaseURL      string                           `json:"registry_base_url,omitempty"`
-	Identifier           string                           `json:"identifier"`
-	Version              string                           `json:"version"`
-	RuntimeHint          string                           `json:"runtime_hint,omitempty"`
-	Transport            MCPRegistryTransport             `json:"transport"`
-	PackageArguments     []MCPRegistryArgument            `json:"package_arguments,omitempty"`
-	RuntimeArguments     []MCPRegistryArgument            `json:"runtime_arguments,omitempty"`
-	EnvironmentVariables []MCPRegistryEnvironmentVariable `json:"environment_variables,omitempty"`
-	FileSha256           string                           `json:"file_sha256,omitempty"`
+	Type    string                `json:"type"`
+	URL     string                `json:"url"`
+	Headers []model.KeyValueInput `json:"headers,omitempty"`
 }
 
 // MCPRegistryResponse represents the response from the MCP registry API
@@ -128,7 +58,7 @@ type MCPRegistryClient struct {
 // NewMCPRegistryClient creates a new MCP registry client
 func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 	if registryURL == "" {
-		registryURL = "https://api.mcp.github.com/v0"
+		registryURL = "https://registry.modelcontextprotocol.io"
 	}
 
 	return &MCPRegistryClient{
@@ -142,7 +72,7 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 // SearchServers searches for MCP servers in the registry by fetching all servers and filtering locally
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForProcessing, error) {
 	// Always use servers endpoint for listing all servers
-	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
+	searchURL := fmt.Sprintf("%s/v0/servers", c.registryURL)
 
 	var spinnerMessage string
 	if query == "" {
@@ -182,7 +112,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	servers := make([]MCPRegistryServerForProcessing, 0, len(response.Servers))
 	for _, server := range response.Servers {
 		// Only include active servers
-		if server.Status != "active" {
+		if server.Status != model.StatusActive {
 			continue
 		}
 
@@ -212,7 +142,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			// Extract string values from package arguments as command args
 			args := make([]string, 0)
 			for _, arg := range pkg.PackageArguments {
-				if arg.Type == "positional" && arg.Value != "" {
+				if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
 					args = append(args, arg.Value)
 				}
 			}
@@ -286,7 +216,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 // GetServer gets a specific server by name from the registry
 func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForProcessing, error) {
 	// Build server URL - we'll search by name since the new API doesn't use server IDs for direct access
-	searchURL := fmt.Sprintf("%s/servers?search=%s", c.registryURL, url.QueryEscape(serverName))
+	searchURL := fmt.Sprintf("%s/v0/servers?search=%s", c.registryURL, url.QueryEscape(serverName))
 
 	// Make HTTP request with spinner
 	spinner := console.NewSpinner(fmt.Sprintf("Fetching MCP server '%s'...", serverName))
@@ -317,7 +247,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 
 	// Find exact match by name
 	for _, server := range response.Servers {
-		if server.Name == serverName && server.Status == "active" {
+		if server.Name == serverName && server.Status == model.StatusActive {
 			// Convert to flattened format similar to SearchServers
 			processedServer := MCPRegistryServerForProcessing{
 				Name:        server.Name,
@@ -345,7 +275,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				// Extract string values from package arguments as command args
 				args := make([]string, 0)
 				for _, arg := range pkg.PackageArguments {
-					if arg.Type == "positional" && arg.Value != "" {
+					if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
 						args = append(args, arg.Value)
 					}
 				}

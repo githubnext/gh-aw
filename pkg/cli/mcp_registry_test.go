@@ -9,8 +9,8 @@ import (
 func TestMCPRegistryClient_SearchServers(t *testing.T) {
 	// Create a test server that mocks the MCP registry API
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/servers" {
-			t.Errorf("Expected path /servers, got %s", r.URL.Path)
+		if r.URL.Path != "/v0/servers" {
+			t.Errorf("Expected path /v0/servers, got %s", r.URL.Path)
 		}
 
 		// Return mock response with new structure based on official specification
@@ -94,7 +94,7 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 func TestMCPRegistryClient_GetServer(t *testing.T) {
 	// Create a test server that mocks the MCP registry API
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		expectedPath := "/servers"
+		expectedPath := "/v0/servers"
 		if r.URL.Path != expectedPath {
 			t.Errorf("Expected path %s, got %s", expectedPath, r.URL.Path)
 		}
@@ -194,7 +194,7 @@ func TestMCPRegistryClient_GetServerNotFound(t *testing.T) {
 
 func TestNewMCPRegistryClient_DefaultURL(t *testing.T) {
 	client := NewMCPRegistryClient("")
-	expectedURL := "https://api.mcp.github.com/v0"
+	expectedURL := "https://registry.modelcontextprotocol.io"
 	if client.registryURL != expectedURL {
 		t.Errorf("Expected default registry URL '%s', got '%s'", expectedURL, client.registryURL)
 	}
