@@ -315,7 +315,8 @@ const TOOLS = Object.fromEntries(
       inputSchema: {
         type: "object",
         properties: {
-          message: { type: "string", description: "Optional commit message" },
+          branch_name: { type: "string", description: "The name of the branch to push to, should be the branch name associated with the pull request. Required." },
+          message: { type: "string", description: "Commit message. Required." },
           pull_request_number: {
             type: ["number", "string"],
             description: "Optional pull request number for target '*'",
