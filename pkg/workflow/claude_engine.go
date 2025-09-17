@@ -767,7 +767,7 @@ func (e *ClaudeEngine) isClaudeResultPayload(line string) bool {
 		return false
 	}
 
-	var jsonData map[string]interface{}
+	var jsonData map[string]any
 	if err := json.Unmarshal([]byte(trimmed), &jsonData); err != nil {
 		return false
 	}
@@ -786,7 +786,7 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 	var metrics LogMetrics
 
 	trimmed := strings.TrimSpace(line)
-	var jsonData map[string]interface{}
+	var jsonData map[string]any
 	if err := json.Unmarshal([]byte(trimmed), &jsonData); err != nil {
 		return metrics
 	}
@@ -800,7 +800,7 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 
 	// Extract usage information with all token types
 	if usage, exists := jsonData["usage"]; exists {
-		if usageMap, ok := usage.(map[string]interface{}); ok {
+		if usageMap, ok := usage.(map[string]any); ok {
 			inputTokens := ConvertToInt(usageMap["input_tokens"])
 			outputTokens := ConvertToInt(usageMap["output_tokens"])
 			cacheCreationTokens := ConvertToInt(usageMap["cache_creation_input_tokens"])
@@ -831,14 +831,14 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 	var metrics LogMetrics
 
 	// Try to parse the entire log as a JSON array first (old format)
-	var logEntries []map[string]interface{}
+	var logEntries []map[string]any
 	if err := json.Unmarshal([]byte(logContent), &logEntries); err != nil {
 		// If that fails, try to parse as mixed format (debug logs + JSONL)
 		if verbose {
 			fmt.Printf("Failed to parse Claude log as JSON array, trying JSONL format: %v\n", err)
 		}
 
-		logEntries = []map[string]interface{}{}
+		logEntries = []map[string]any{}
 		lines := strings.Split(logContent, "\n")
 
 		for i := 0; i < len(lines); i++ {
@@ -865,7 +865,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 					}
 				}
 
-				var arr []map[string]interface{}
+				var arr []map[string]any
 				if err := json.Unmarshal([]byte(buf), &arr); err == nil {
 					logEntries = append(logEntries, arr...)
 					continue
@@ -876,7 +876,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 				closeIdx := strings.LastIndex(buf, "]")
 				if openIdx != -1 && closeIdx != -1 && closeIdx > openIdx {
 					sub := buf[openIdx : closeIdx+1]
-					var arr2 []map[string]interface{}
+					var arr2 []map[string]any
 					if err2 := json.Unmarshal([]byte(sub), &arr2); err2 == nil {
 						logEntries = append(logEntries, arr2...)
 						continue
@@ -890,7 +890,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			}
 
 			// Try to parse each line as JSON
-			var jsonEntry map[string]interface{}
+			var jsonEntry map[string]any
 			if err := json.Unmarshal([]byte(trimmedLine), &jsonEntry); err != nil {
 				// Skip invalid JSON lines (could be partial debug output)
 				if verbose {
@@ -930,7 +930,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 
 				// Extract usage information with all token types
 				if usage, exists := entry["usage"]; exists {
-					if usageMap, ok := usage.(map[string]interface{}); ok {
+					if usageMap, ok := usage.(map[string]any); ok {
 						inputTokens := ConvertToInt(usageMap["input_tokens"])
 						outputTokens := ConvertToInt(usageMap["output_tokens"])
 						cacheCreationTokens := ConvertToInt(usageMap["cache_creation_input_tokens"])
@@ -969,9 +969,9 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			} else if typeStr == "assistant" {
 				// Parse tool_use entries for tool call statistics and sequence
 				if message, exists := entry["message"]; exists {
-					if messageMap, ok := message.(map[string]interface{}); ok {
+					if messageMap, ok := message.(map[string]any); ok {
 						if content, exists := messageMap["content"]; exists {
-							if contentArray, ok := content.([]interface{}); ok {
+							if contentArray, ok := content.([]any); ok {
 								sequenceInMessage := e.parseToolCallsWithSequence(contentArray, toolCallMap)
 								if len(sequenceInMessage) > 0 {
 									currentSequence = append(currentSequence, sequenceInMessage...)
@@ -986,9 +986,9 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		// Parse tool_use entries for tool call statistics from both assistant and user entries
 		if entry["type"] == "user" || entry["type"] == "assistant" {
 			if message, exists := entry["message"]; exists {
-				if messageMap, ok := message.(map[string]interface{}); ok {
+				if messageMap, ok := message.(map[string]any); ok {
 					if content, exists := messageMap["content"]; exists {
-						if contentArray, ok := content.([]interface{}); ok {
+						if contentArray, ok := content.([]any); ok {
 							e.parseToolCalls(contentArray, toolCallMap)
 						}
 					}
@@ -1025,11 +1025,11 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 }
 
 // parseToolCallsWithSequence extracts tool call information from Claude log content array and returns sequence
-func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) []string {
+func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMap map[string]*ToolCallInfo) []string {
 	var sequence []string
 
 	for _, contentItem := range contentArray {
-		if contentMap, ok := contentItem.(map[string]interface{}); ok {
+		if contentMap, ok := contentItem.(map[string]any); ok {
 			if contentType, exists := contentMap["type"]; exists {
 				if typeStr, ok := contentType.(string); ok && typeStr == "tool_use" {
 					// Extract tool name
@@ -1049,7 +1049,7 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, to
 							// Special handling for bash - each invocation is unique
 							if nameStr == "Bash" {
 								if input, exists := contentMap["input"]; exists {
-									if inputMap, ok := input.(map[string]interface{}); ok {
+									if inputMap, ok := input.(map[string]any); ok {
 										if command, exists := inputMap["command"]; exists {
 											if commandStr, ok := command.(string); ok {
 												// Create unique bash entry with command info, avoiding colons
@@ -1107,9 +1107,9 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []interface{}, to
 }
 
 // parseToolCalls extracts tool call information from Claude log content array without sequence tracking
-func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap map[string]*ToolCallInfo) {
+func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string]*ToolCallInfo) {
 	for _, contentItem := range contentArray {
-		if contentMap, ok := contentItem.(map[string]interface{}); ok {
+		if contentMap, ok := contentItem.(map[string]any); ok {
 			if contentType, exists := contentMap["type"]; exists {
 				if typeStr, ok := contentType.(string); ok && typeStr == "tool_use" {
 					// Extract tool name
@@ -1121,7 +1121,7 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []interface{}, toolCallMap ma
 							// Special handling for bash - each invocation is unique
 							if nameStr == "Bash" {
 								if input, exists := contentMap["input"]; exists {
-									if inputMap, ok := input.(map[string]interface{}); ok {
+									if inputMap, ok := input.(map[string]any); ok {
 										if command, exists := inputMap["command"]; exists {
 											if commandStr, ok := command.(string); ok {
 												// Create unique bash entry with command info, avoiding colons

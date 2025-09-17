@@ -23,7 +23,7 @@ type MCPTestClient struct {
 }
 
 // NewMCPTestClient creates a new MCP client using the Go SDK
-func NewMCPTestClient(t *testing.T, outputFile string, config map[string]interface{}) *MCPTestClient {
+func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *MCPTestClient {
 	t.Helper()
 
 	// Set up environment
@@ -91,12 +91,12 @@ func TestSafeOutputsMCPServer_Initialize(t *testing.T) {
 	tempFile := createTempOutputFile(t)
 	defer os.Remove(tempFile)
 
-	config := map[string]interface{}{
-		"create-issue": map[string]interface{}{
+	config := map[string]any{
+		"create-issue": map[string]any{
 			"enabled": true,
 			"max":     5,
 		},
-		"missing-tool": map[string]interface{}{
+		"missing-tool": map[string]any{
 			"enabled": true,
 		},
 	}
@@ -112,7 +112,7 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 	tempFile := createTempOutputFile(t)
 	defer os.Remove(tempFile)
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"create-issue":      true,
 		"create-discussion": true,
 		"missing-tool":      true,
@@ -154,8 +154,8 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 	tempFile := createTempOutputFile(t)
 	defer os.Remove(tempFile)
 
-	config := map[string]interface{}{
-		"create-issue": map[string]interface{}{
+	config := map[string]any{
+		"create-issue": map[string]any{
 			"enabled": true,
 			"max":     5,
 		},
@@ -191,10 +191,10 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 	}
 
 	// Verify output file was written
-	if err := verifyOutputFile(t, tempFile, "create-issue", map[string]interface{}{
+	if err := verifyOutputFile(t, tempFile, "create-issue", map[string]any{
 		"title":  "Test Issue",
 		"body":   "This is a test issue created by MCP server",
-		"labels": []interface{}{"bug", "test"},
+		"labels": []any{"bug", "test"},
 	}); err != nil {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
@@ -206,8 +206,8 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 	tempFile := createTempOutputFile(t)
 	defer os.Remove(tempFile)
 
-	config := map[string]interface{}{
-		"missing-tool": map[string]interface{}{
+	config := map[string]any{
+		"missing-tool": map[string]any{
 			"enabled": true,
 		},
 	}
@@ -227,7 +227,7 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 	}
 
 	// Verify output file was written
-	if err := verifyOutputFile(t, tempFile, "missing-tool", map[string]interface{}{
+	if err := verifyOutputFile(t, tempFile, "missing-tool", map[string]any{
 		"tool":         "advanced-analyzer",
 		"reason":       "Need to analyze complex data structures",
 		"alternatives": "Could use basic analysis tools with manual processing",
@@ -242,7 +242,7 @@ func TestSafeOutputsMCPServer_UnknownTool(t *testing.T) {
 	tempFile := createTempOutputFile(t)
 	defer os.Remove(tempFile)
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"create-issue": true,
 	}
 
@@ -269,7 +269,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 	tempFile := createTempOutputFile(t)
 	defer os.Remove(tempFile)
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"create-issue": true,
 		"add-comment":  true,
 	}
@@ -320,7 +320,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 	}
 
 	for i, line := range lines {
-		var entry map[string]interface{}
+		var entry map[string]any
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			t.Fatalf("Failed to parse output line %d: %v", i, err)
 		}
@@ -347,7 +347,7 @@ func createTempOutputFile(t *testing.T) string {
 	return tmpFile.Name()
 }
 
-func verifyOutputFile(t *testing.T, filename string, expectedType string, expectedFields map[string]interface{}) error {
+func verifyOutputFile(t *testing.T, filename string, expectedType string, expectedFields map[string]any) error {
 	t.Helper()
 
 	// Wait a bit for file to be written
@@ -366,7 +366,7 @@ func verifyOutputFile(t *testing.T, filename string, expectedType string, expect
 	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
 	lastLine := lines[len(lines)-1]
 
-	var entry map[string]interface{}
+	var entry map[string]any
 	if err := json.Unmarshal([]byte(lastLine), &entry); err != nil {
 		return fmt.Errorf("failed to parse output entry: %w", err)
 	}
@@ -393,7 +393,7 @@ func verifyOutputFile(t *testing.T, filename string, expectedType string, expect
 }
 
 // Simple deep equality check for test purposes
-func deepEqual(a, b interface{}) bool {
+func deepEqual(a, b any) bool {
 	aBytes, err := json.Marshal(a)
 	if err != nil {
 		return false

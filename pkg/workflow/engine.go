@@ -219,7 +219,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	}
 
 	// Must be from included file
-	var firstEngine interface{}
+	var firstEngine any
 	if err := json.Unmarshal([]byte(includedEnginesJSON[0]), &firstEngine); err != nil {
 		return "", fmt.Errorf("failed to parse included engine configuration: %w", err)
 	}
@@ -227,7 +227,7 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	// Handle string format
 	if engineStr, ok := firstEngine.(string); ok {
 		return engineStr, nil
-	} else if engineObj, ok := firstEngine.(map[string]interface{}); ok {
+	} else if engineObj, ok := firstEngine.(map[string]any); ok {
 		// Handle object format - return the ID
 		if id, hasID := engineObj["id"]; hasID {
 			if idStr, ok := id.(string); ok {

@@ -62,7 +62,7 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 	}
 
 	// Try to parse as generic JSON
-	var jsonData map[string]interface{}
+	var jsonData map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &jsonData); err != nil {
 		// If parsing fails, try a relaxed approach: sometimes logs contain a JSON-like object with single quotes
 		// Replace single quotes with double quotes as a last resort (not ideal, but helpful for noisy logs)
@@ -86,7 +86,7 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 }
 
 // ExtractJSONTokenUsage extracts token usage from JSON data
-func ExtractJSONTokenUsage(data map[string]interface{}) int {
+func ExtractJSONTokenUsage(data map[string]any) int {
 	// Prefer explicit input+output sums at the top-level
 	inputTop := ConvertToInt(data["input_tokens"])
 	outputTop := ConvertToInt(data["output_tokens"])
@@ -106,7 +106,7 @@ func ExtractJSONTokenUsage(data map[string]interface{}) int {
 
 	// Check nested usage objects (Claude API format)
 	if usage, exists := data["usage"]; exists {
-		if usageMap, ok := usage.(map[string]interface{}); ok {
+		if usageMap, ok := usage.(map[string]any); ok {
 			// Claude format: {"usage": {"input_tokens": 10, "output_tokens": 5, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 200}}
 			inputTokens := ConvertToInt(usageMap["input_tokens"])
 			outputTokens := ConvertToInt(usageMap["output_tokens"])
@@ -131,9 +131,9 @@ func ExtractJSONTokenUsage(data map[string]interface{}) int {
 
 	// Check for delta structures (streaming format)
 	if delta, exists := data["delta"]; exists {
-		if deltaMap, ok := delta.(map[string]interface{}); ok {
+		if deltaMap, ok := delta.(map[string]any); ok {
 			if usage, exists := deltaMap["usage"]; exists {
-				if usageMap, ok := usage.(map[string]interface{}); ok {
+				if usageMap, ok := usage.(map[string]any); ok {
 					inputTokens := ConvertToInt(usageMap["input_tokens"])
 					outputTokens := ConvertToInt(usageMap["output_tokens"])
 					if inputTokens > 0 || outputTokens > 0 {
@@ -148,7 +148,7 @@ func ExtractJSONTokenUsage(data map[string]interface{}) int {
 }
 
 // ExtractJSONCost extracts cost information from JSON data
-func ExtractJSONCost(data map[string]interface{}) float64 {
+func ExtractJSONCost(data map[string]any) float64 {
 	// Common cost field names
 	costFields := []string{"total_cost_usd", "cost", "price", "amount", "total_cost", "estimated_cost"}
 
@@ -169,7 +169,7 @@ func ExtractJSONCost(data map[string]interface{}) float64 {
 
 	// Check nested billing or pricing objects
 	if billing, exists := data["billing"]; exists {
-		if billingMap, ok := billing.(map[string]interface{}); ok {
+		if billingMap, ok := billing.(map[string]any); ok {
 			for _, field := range costFields {
 				if val, exists := billingMap[field]; exists {
 					if cost := ConvertToFloat(val); cost > 0 {
@@ -183,8 +183,8 @@ func ExtractJSONCost(data map[string]interface{}) float64 {
 	return 0
 }
 
-// ConvertToInt safely converts interface{} to int
-func ConvertToInt(val interface{}) int {
+// ConvertToInt safely converts any to int
+func ConvertToInt(val any) int {
 	switch v := val.(type) {
 	case int:
 		return v
@@ -200,8 +200,8 @@ func ConvertToInt(val interface{}) int {
 	return 0
 }
 
-// ConvertToFloat safely converts interface{} to float64
-func ConvertToFloat(val interface{}) float64 {
+// ConvertToFloat safely converts any to float64
+func ConvertToFloat(val any) float64 {
 	switch v := val.(type) {
 	case float64:
 		return v
