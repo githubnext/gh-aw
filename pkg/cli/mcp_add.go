@@ -1,40 +1,25 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+	"os/exec"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // AddMCPTool adds an MCP tool to an agentic workflow
 func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error {
-	// Determine the workflow directory and file path
-	workflowsDir := ".github/workflows"
-	var workflowPath string
-
-	if strings.HasSuffix(workflowFile, ".md") {
-		// If it's already a .md file, use it directly if it exists
-		if _, err := os.Stat(workflowFile); err == nil {
-			workflowPath = workflowFile
-		} else {
-			// Try in workflows directory
-			workflowPath = filepath.Join(workflowsDir, workflowFile)
-		}
-	} else {
-		// Add .md extension and look in workflows directory
-		workflowPath = filepath.Join(workflowsDir, workflowFile+".md")
-	}
-
-	// Verify the workflow file exists
-	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-		return fmt.Errorf("workflow file not found: %s", workflowPath)
+	// Resolve the workflow file path
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		return err
 	}
 
 	if verbose {
@@ -75,8 +60,8 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		}
 	}
 
-	// Determine tool ID (use custom if provided, otherwise use server ID)
-	toolID := selectedServer.ID
+	// Determine tool ID (use custom if provided, otherwise use cleaned server ID)
+	toolID := cleanMCPToolID(selectedServer.ID)
 	if customToolID != "" {
 		toolID = customToolID
 	}
@@ -120,6 +105,14 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 
 	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Added MCP tool '%s' to workflow %s", toolID, console.ToRelativePath(workflowPath))))
 
+	// Check for required secrets and provide CLI commands if missing
+	if err := checkAndSuggestSecrets(mcpConfig, verbose); err != nil {
+		// Don't fail the command if secret checking fails, just log a warning
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Could not check repository secrets: %v", err)))
+		}
+	}
+
 	// Compile the workflow
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Compiling workflow..."))
@@ -134,6 +127,29 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	return nil
+}
+
+// cleanMCPToolID removes common MCP prefixes and suffixes from tool IDs
+// Examples: "notion-mcp" -> "notion", "mcp-notion" -> "notion", "some-mcp-server" -> "some-server"
+func cleanMCPToolID(toolID string) string {
+	cleaned := toolID
+
+	// Remove "mcp-" prefix
+	if strings.HasPrefix(cleaned, "mcp-") {
+		cleaned = strings.TrimPrefix(cleaned, "mcp-")
+	}
+
+	// Remove "-mcp" suffix
+	if strings.HasSuffix(cleaned, "-mcp") {
+		cleaned = strings.TrimSuffix(cleaned, "-mcp")
+	}
+
+	// If the result is empty, use the original
+	if cleaned == "" {
+		return toolID
+	}
+
+	return cleaned
 }
 
 // convertToGitHubActionsEnv converts environment variables from shell syntax to GitHub Actions syntax
@@ -408,4 +424,97 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	return cmd
+}
+
+// checkAndSuggestSecrets checks if required secrets exist in the repository and suggests CLI commands to add them
+func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
+	// Extract environment variables from the tool config
+	var requiredSecrets []string
+
+	if mcpSection, ok := toolConfig["mcp"].(map[string]any); ok {
+		if env, hasEnv := mcpSection["env"].(map[string]string); hasEnv {
+			for _, value := range env {
+				// Extract secret name from GitHub Actions syntax: ${{ secrets.SECRET_NAME }}
+				if strings.HasPrefix(value, "${{ secrets.") && strings.HasSuffix(value, " }}") {
+					secretName := value[12 : len(value)-3] // Remove "${{ secrets." and " }}"
+					requiredSecrets = append(requiredSecrets, secretName)
+				}
+			}
+		}
+	}
+
+	if len(requiredSecrets) == 0 {
+		return nil
+	}
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage("Checking repository secrets..."))
+	}
+
+	// Check each secret using GitHub CLI
+	var missingSecrets []string
+	for _, secretName := range requiredSecrets {
+		exists, err := checkSecretExists(secretName)
+		if err != nil {
+			// If we get a 403 error, ignore it as requested
+			if strings.Contains(err.Error(), "403") {
+				if verbose {
+					fmt.Println(console.FormatWarningMessage("Repository secrets check skipped (insufficient permissions)"))
+				}
+				return nil
+			}
+			return err
+		}
+
+		if !exists {
+			missingSecrets = append(missingSecrets, secretName)
+		}
+	}
+
+	// Suggest CLI commands for missing secrets
+	if len(missingSecrets) > 0 {
+		fmt.Println(console.FormatWarningMessage("The following secrets are required but not found in the repository:"))
+		for _, secretName := range missingSecrets {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("To add %s secret:", secretName)))
+			fmt.Println(console.FormatCommandMessage(fmt.Sprintf("gh secret set %s", secretName)))
+		}
+	} else if verbose {
+		fmt.Println(console.FormatSuccessMessage("All required secrets are available in the repository"))
+	}
+
+	return nil
+}
+
+// checkSecretExists checks if a secret exists in the repository using GitHub CLI
+func checkSecretExists(secretName string) (bool, error) {
+	// Use gh CLI to list repository secrets
+	cmd := exec.Command("gh", "secret", "list", "--json", "name")
+	output, err := cmd.Output()
+	if err != nil {
+		// Check if it's a 403 error by examining the error
+		if exitError, ok := err.(*exec.ExitError); ok {
+			if strings.Contains(string(exitError.Stderr), "403") {
+				return false, fmt.Errorf("403 access denied")
+			}
+		}
+		return false, fmt.Errorf("failed to list secrets: %w", err)
+	}
+
+	// Parse the JSON output
+	var secrets []struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(output, &secrets); err != nil {
+		return false, fmt.Errorf("failed to parse secrets list: %w", err)
+	}
+
+	// Check if our secret exists
+	for _, secret := range secrets {
+		if secret.Name == secretName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

@@ -18,23 +18,11 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 	var workflowPath string
 
 	if workflowFile != "" {
-		// If workflowFile is provided, determine the full path
-		if strings.HasSuffix(workflowFile, ".md") {
-			// If it's already a .md file, use it directly if it exists
-			if _, err := os.Stat(workflowFile); err == nil {
-				workflowPath = workflowFile
-			} else {
-				// Try in workflows directory
-				workflowPath = filepath.Join(workflowsDir, workflowFile)
-			}
-		} else {
-			// Add .md extension and look in workflows directory
-			workflowPath = filepath.Join(workflowsDir, workflowFile+".md")
-		}
-
-		// Verify the file exists
-		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-			return fmt.Errorf("workflow file not found: %s", workflowPath)
+		// Resolve the workflow file path
+		var err error
+		workflowPath, err = ResolveWorkflowPath(workflowFile)
+		if err != nil {
+			return err
 		}
 	} else {
 		// No specific workflow file provided, list all workflows with MCP servers

@@ -98,9 +98,9 @@ This is a test workflow.
 
 	updatedContentStr := string(updatedContent)
 
-	// Check that the notion-mcp tool was added
-	if !strings.Contains(updatedContentStr, "notion-mcp:") {
-		t.Error("Expected notion-mcp tool to be added to workflow")
+	// Check that the notion tool was added (cleaned from notion-mcp)
+	if !strings.Contains(updatedContentStr, "notion:") {
+		t.Error("Expected notion tool to be added to workflow")
 	}
 
 	// Check that it has MCP configuration
@@ -186,7 +186,7 @@ func TestAddMCPTool_ToolAlreadyExists(t *testing.T) {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 
-	// Create a test workflow file with existing notion-mcp tool
+	// Create a test workflow file with existing notion tool (cleaned from notion-mcp)
 	workflowContent := `---
 name: Test Workflow
 on:
@@ -194,7 +194,7 @@ on:
     - cron: "0 9 * * 1"
 tools:
   github:
-  notion-mcp:
+  notion:
     mcp:
       type: stdio
       command: npx
@@ -235,7 +235,7 @@ This is a test workflow.
 		t.Fatal("Expected error for existing tool, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "tool 'notion-mcp' already exists") {
+	if !strings.Contains(err.Error(), "tool 'notion' already exists") {
 		t.Errorf("Expected 'tool already exists' error, got: %v", err)
 	}
 }
@@ -465,6 +465,64 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 				} else if actualValue != expectedValue {
 					t.Errorf("For key '%s', expected '%s', got '%s'", key, expectedValue, actualValue)
 				}
+			}
+		})
+	}
+}
+
+func TestCleanMCPToolID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "remove -mcp suffix",
+			input:    "notion-mcp",
+			expected: "notion",
+		},
+		{
+			name:     "remove mcp- prefix",
+			input:    "mcp-notion",
+			expected: "notion",
+		},
+		{
+			name:     "remove both prefix and suffix",
+			input:    "mcp-notion-mcp",
+			expected: "notion",
+		},
+		{
+			name:     "no changes needed",
+			input:    "notion",
+			expected: "notion",
+		},
+		{
+			name:     "complex name with mcp suffix",
+			input:    "some-server-mcp",
+			expected: "some-server",
+		},
+		{
+			name:     "complex name with mcp prefix",
+			input:    "mcp-some-server",
+			expected: "some-server",
+		},
+		{
+			name:     "mcp only should remain unchanged",
+			input:    "mcp",
+			expected: "mcp",
+		},
+		{
+			name:     "edge case: mcp-mcp",
+			input:    "mcp-mcp",
+			expected: "mcp",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := cleanMCPToolID(tt.input)
+			if result != tt.expected {
+				t.Errorf("cleanMCPToolID(%s) = %s, expected %s", tt.input, result, tt.expected)
 			}
 		})
 	}
