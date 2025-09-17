@@ -41,7 +41,7 @@ This workflow tests default patch size configuration.`,
 			name: "custom patch size 512 KB",
 			frontmatterContent: `---
 safe-outputs:
-  maximum-patch-size: 512
+  max-patch-size: 512
   push-to-pr-branch: null
   create-pull-request: null
 ---
@@ -57,7 +57,7 @@ This workflow tests custom 512KB patch size configuration.`,
 			name: "custom patch size 2MB",
 			frontmatterContent: `---
 safe-outputs:
-  maximum-patch-size: 2048
+  max-patch-size: 2048
   create-pull-request: null
 ---
 
@@ -141,7 +141,7 @@ func TestPatchSizeWithInvalidValues(t *testing.T) {
 			name: "very small patch size should work",
 			frontmatterContent: `---
 safe-outputs:
-  maximum-patch-size: 1
+  max-patch-size: 1
   push-to-pr-branch: null
 ---
 
@@ -154,7 +154,7 @@ This workflow tests very small patch size configuration.`,
 			name: "large valid patch size should work",
 			frontmatterContent: `---
 safe-outputs:
-  maximum-patch-size: 10240
+  max-patch-size: 10240
   create-pull-request: null
 ---
 

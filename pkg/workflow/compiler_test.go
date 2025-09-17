@@ -5407,7 +5407,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			expected:   1024,
 		},
 		{
-			name: "default value when maximum-patch-size not specified in safe-outputs",
+			name: "default value when max-patch-size not specified in safe-outputs",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
 					"create-pull-request": nil,
@@ -5419,7 +5419,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "custom value as int",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"maximum-patch-size": 512,
+					"max-patch-size": 512,
 					"create-pull-request": nil,
 				},
 			},
@@ -5429,7 +5429,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "custom value as float64",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"maximum-patch-size": 2048.0,
+					"max-patch-size": 2048.0,
 					"create-pull-request": nil,
 				},
 			},
@@ -5439,7 +5439,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "custom value as uint64 (from YAML parsing)",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"maximum-patch-size": uint64(4096),
+					"max-patch-size": uint64(4096),
 					"create-pull-request": nil,
 				},
 			},
@@ -5449,7 +5449,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "invalid negative value falls back to default",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"maximum-patch-size": -5,
+					"max-patch-size": -5,
 					"create-pull-request": nil,
 				},
 			},
@@ -5459,7 +5459,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "invalid zero value falls back to default",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"maximum-patch-size": 0,
+					"max-patch-size": 0,
 					"create-pull-request": nil,
 				},
 			},
@@ -5469,7 +5469,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 			name: "invalid string value falls back to default",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"maximum-patch-size": "invalid",
+					"max-patch-size": "invalid",
 					"create-pull-request": nil,
 				},
 			},

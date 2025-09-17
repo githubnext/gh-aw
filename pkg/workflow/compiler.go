@@ -175,7 +175,7 @@ type SafeOutputsConfig struct {
 	Staged                          *bool                                  `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`          // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"` // GitHub token for safe output jobs
-	MaximumPatchSize                int                                    `yaml:"maximum-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
+	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -3897,8 +3897,8 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Handle maximum-patch-size configuration
-			if maxPatchSize, exists := outputMap["maximum-patch-size"]; exists {
+			// Handle max-patch-size configuration
+			if maxPatchSize, exists := outputMap["max-patch-size"]; exists {
 				switch v := maxPatchSize.(type) {
 				case int:
 					if v >= 1 {
