@@ -306,3 +306,112 @@ console.log('PR created:', result.data.html_url);`
 		WriteJavaScriptToYAML(&yaml, script)
 	}
 }
+
+func TestFormatJavaScriptForYAMLWithOptions(t *testing.T) {
+	tests := []struct {
+		name            string
+		script          string
+		indentSpaces    int
+		excludeComments bool
+		expected        []string
+	}{
+		{
+			name:            "custom 4-space indentation",
+			script:          "const x = 1;\nconsole.log(x);",
+			indentSpaces:    4,
+			excludeComments: false,
+			expected: []string{
+				"    const x = 1;\n",
+				"    console.log(x);\n",
+			},
+		},
+		{
+			name:            "exclude JavaScript comments",
+			script:          "// Comment\nconst x = 1;\n// Another comment\nconsole.log(x);",
+			indentSpaces:    2,
+			excludeComments: true,
+			expected: []string{
+				"  const x = 1;\n",
+				"  console.log(x);\n",
+			},
+		},
+		{
+			name:            "include JavaScript comments",
+			script:          "// Comment\nconst x = 1;\n// Another comment\nconsole.log(x);",
+			indentSpaces:    2,
+			excludeComments: false,
+			expected: []string{
+				"  // Comment\n",
+				"  const x = 1;\n",
+				"  // Another comment\n",
+				"  console.log(x);\n",
+			},
+		},
+		{
+			name:            "zero indentation",
+			script:          "const x = 1;\nconsole.log(x);",
+			indentSpaces:    0,
+			excludeComments: false,
+			expected: []string{
+				"const x = 1;\n",
+				"console.log(x);\n",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatJavaScriptForYAMLWithOptions(tt.script, tt.indentSpaces, tt.excludeComments)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d lines, got %d", len(tt.expected), len(result))
+				t.Errorf("Expected: %v", tt.expected)
+				t.Errorf("Got: %v", result)
+				return
+			}
+
+			for i, line := range result {
+				if line != tt.expected[i] {
+					t.Errorf("Line %d: expected %q, got %q", i, tt.expected[i], line)
+				}
+			}
+		})
+	}
+}
+
+func TestWriteJavaScriptToYAMLWithOptions(t *testing.T) {
+	tests := []struct {
+		name            string
+		script          string
+		indentSpaces    int
+		excludeComments bool
+		expected        string
+	}{
+		{
+			name:            "8-space indentation with comments excluded",
+			script:          "// Header comment\nconst x = 1;\nconsole.log(x);",
+			indentSpaces:    8,
+			excludeComments: true,
+			expected:        "        const x = 1;\n        console.log(x);\n",
+		},
+		{
+			name:            "6-space indentation with comments included",
+			script:          "// Important comment\nconst y = 2;\nreturn y;",
+			indentSpaces:    6,
+			excludeComments: false,
+			expected:        "      // Important comment\n      const y = 2;\n      return y;\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			WriteJavaScriptToYAMLWithOptions(&yaml, tt.script, tt.indentSpaces, tt.excludeComments)
+			result := yaml.String()
+
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}

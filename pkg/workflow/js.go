@@ -2,7 +2,6 @@ package workflow
 
 import (
 	_ "embed"
-	"fmt"
 	"strings"
 )
 
@@ -68,26 +67,30 @@ var safeOutputsMCPServerScript string
 
 // FormatJavaScriptForYAML formats a JavaScript script with proper indentation for embedding in YAML
 func FormatJavaScriptForYAML(script string) []string {
-	var formattedLines []string
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
-		// Skip empty lines when inlining to YAML
-		if strings.TrimSpace(line) != "" {
-			formattedLines = append(formattedLines, fmt.Sprintf("            %s\n", line))
-		}
-	}
-	return formattedLines
+	writer := NewIndentWriterWithSpaces(12)
+	writer.WriteString(script)
+	return writer.Lines()
 }
 
 // WriteJavaScriptToYAML writes a JavaScript script with proper indentation to a strings.Builder
 func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
-		// Skip empty lines when inlining to YAML
-		if strings.TrimSpace(line) != "" {
-			fmt.Fprintf(yaml, "            %s\n", line)
-		}
-	}
+	writer := NewIndentWriterWithSpaces(12)
+	writer.WriteString(script)
+	writer.WriteToBuilder(yaml)
+}
+
+// FormatJavaScriptForYAMLWithOptions formats a JavaScript script with configurable options
+func FormatJavaScriptForYAMLWithOptions(script string, indentSpaces int, excludeComments bool) []string {
+	writer := NewIndentWriterWithSpaces(indentSpaces).ExcludeJSComments(excludeComments)
+	writer.WriteString(script)
+	return writer.Lines()
+}
+
+// WriteJavaScriptToYAMLWithOptions writes a JavaScript script with configurable options to a strings.Builder
+func WriteJavaScriptToYAMLWithOptions(yaml *strings.Builder, script string, indentSpaces int, excludeComments bool) {
+	writer := NewIndentWriterWithSpaces(indentSpaces).ExcludeJSComments(excludeComments)
+	writer.WriteString(script)
+	writer.WriteToBuilder(yaml)
 }
 
 // GetLogParserScript returns the JavaScript content for a log parser by name
