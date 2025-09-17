@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // MCPRegistryServer represents a server entry from the MCP registry
@@ -57,8 +59,12 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, er
 		searchURL = fmt.Sprintf("%s?%s", searchURL, params.Encode())
 	}
 
-	// Make HTTP request
+	// Make HTTP request with spinner
+	spinner := console.NewSpinner(fmt.Sprintf("Searching MCP registry for '%s'...", query))
+	spinner.Start()
 	resp, err := c.httpClient.Get(searchURL)
+	spinner.Stop()
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to search MCP registry: %w", err)
 	}
@@ -88,8 +94,12 @@ func (c *MCPRegistryClient) GetServer(serverID string) (*MCPRegistryServer, erro
 	// Build server URL
 	serverURL := fmt.Sprintf("%s/servers/%s", c.registryURL, url.PathEscape(serverID))
 
-	// Make HTTP request
+	// Make HTTP request with spinner
+	spinner := console.NewSpinner(fmt.Sprintf("Fetching MCP server '%s'...", serverID))
+	spinner.Start()
 	resp, err := c.httpClient.Get(serverURL)
+	spinner.Stop()
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MCP server: %w", err)
 	}

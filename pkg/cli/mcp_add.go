@@ -1,10 +1,8 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -152,30 +150,6 @@ func cleanMCPToolID(toolID string) string {
 	return cleaned
 }
 
-// convertToGitHubActionsEnv converts environment variables from shell syntax to GitHub Actions syntax
-// Converts "${TOKEN_NAME}" to "${{ secrets.TOKEN_NAME }}"
-// Leaves existing GitHub Actions syntax unchanged
-func convertToGitHubActionsEnv(env interface{}) map[string]string {
-	result := make(map[string]string)
-
-	if envMap, ok := env.(map[string]interface{}); ok {
-		for key, value := range envMap {
-			if valueStr, ok := value.(string); ok {
-				// Only convert shell syntax ${TOKEN_NAME}, leave GitHub Actions syntax unchanged
-				if strings.HasPrefix(valueStr, "${") && strings.HasSuffix(valueStr, "}") && !strings.Contains(valueStr, "{{") {
-					tokenName := valueStr[2 : len(valueStr)-1] // Remove ${ and }
-					result[key] = fmt.Sprintf("${{ secrets.%s }}", tokenName)
-				} else {
-					// Keep as-is if not shell syntax or already GitHub Actions syntax
-					result[key] = valueStr
-				}
-			}
-		}
-	}
-
-	return result
-}
-
 // createMCPToolConfig creates the MCP tool configuration based on registry server info
 func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, verbose bool) (map[string]any, error) {
 	config := make(map[string]any)
@@ -287,53 +261,32 @@ func addToolToWorkflow(workflowPath string, toolID string, toolConfig map[string
 		return fmt.Errorf("failed to read workflow file: %w", err)
 	}
 
-	// Parse YAML frontmatter and markdown content
-	fileContent := string(content)
-
-	// Find frontmatter boundaries
-	lines := strings.Split(fileContent, "\n")
-	if len(lines) < 3 || lines[0] != "---" {
-		return fmt.Errorf("workflow file does not have valid YAML frontmatter")
-	}
-
-	// Find the end of frontmatter
-	frontmatterEnd := -1
-	for i := 1; i < len(lines); i++ {
-		if lines[i] == "---" {
-			frontmatterEnd = i
-			break
-		}
-	}
-
-	if frontmatterEnd == -1 {
-		return fmt.Errorf("workflow file frontmatter is not properly closed")
-	}
-
-	// Extract frontmatter YAML
-	frontmatterLines := lines[1:frontmatterEnd]
-	frontmatterYAML := strings.Join(frontmatterLines, "\n")
-
-	// Parse the frontmatter
-	var frontmatter map[string]any
-	if err := yaml.Unmarshal([]byte(frontmatterYAML), &frontmatter); err != nil {
-		return fmt.Errorf("failed to parse frontmatter YAML: %w", err)
+	// Use existing frontmatter parser
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return fmt.Errorf("failed to parse frontmatter: %w", err)
 	}
 
 	// Ensure tools section exists
-	if frontmatter["tools"] == nil {
-		frontmatter["tools"] = make(map[string]any)
+	if result.Frontmatter["tools"] == nil {
+		result.Frontmatter["tools"] = make(map[string]any)
 	}
 
-	tools, ok := frontmatter["tools"].(map[string]any)
+	tools, ok := result.Frontmatter["tools"].(map[string]any)
 	if !ok {
 		return fmt.Errorf("tools section is not a valid map")
+	}
+
+	// Check if tool already exists
+	if _, exists := tools[toolID]; exists {
+		return fmt.Errorf("tool '%s' already exists in workflow", toolID)
 	}
 
 	// Add the new tool
 	tools[toolID] = toolConfig
 
 	// Convert back to YAML
-	updatedFrontmatter, err := yaml.Marshal(frontmatter)
+	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to marshal updated frontmatter: %w", err)
 	}
@@ -349,8 +302,8 @@ func addToolToWorkflow(workflowPath string, toolID string, toolConfig map[string
 	newLines = append(newLines, "---")
 
 	// Add the remaining content (markdown)
-	if frontmatterEnd+1 < len(lines) {
-		newLines = append(newLines, lines[frontmatterEnd+1:]...)
+	if result.Markdown != "" {
+		newLines = append(newLines, result.Markdown)
 	}
 
 	// Write the updated content back to the file
@@ -424,97 +377,4 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	return cmd
-}
-
-// checkAndSuggestSecrets checks if required secrets exist in the repository and suggests CLI commands to add them
-func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
-	// Extract environment variables from the tool config
-	var requiredSecrets []string
-
-	if mcpSection, ok := toolConfig["mcp"].(map[string]any); ok {
-		if env, hasEnv := mcpSection["env"].(map[string]string); hasEnv {
-			for _, value := range env {
-				// Extract secret name from GitHub Actions syntax: ${{ secrets.SECRET_NAME }}
-				if strings.HasPrefix(value, "${{ secrets.") && strings.HasSuffix(value, " }}") {
-					secretName := value[12 : len(value)-3] // Remove "${{ secrets." and " }}"
-					requiredSecrets = append(requiredSecrets, secretName)
-				}
-			}
-		}
-	}
-
-	if len(requiredSecrets) == 0 {
-		return nil
-	}
-
-	if verbose {
-		fmt.Println(console.FormatInfoMessage("Checking repository secrets..."))
-	}
-
-	// Check each secret using GitHub CLI
-	var missingSecrets []string
-	for _, secretName := range requiredSecrets {
-		exists, err := checkSecretExists(secretName)
-		if err != nil {
-			// If we get a 403 error, ignore it as requested
-			if strings.Contains(err.Error(), "403") {
-				if verbose {
-					fmt.Println(console.FormatWarningMessage("Repository secrets check skipped (insufficient permissions)"))
-				}
-				return nil
-			}
-			return err
-		}
-
-		if !exists {
-			missingSecrets = append(missingSecrets, secretName)
-		}
-	}
-
-	// Suggest CLI commands for missing secrets
-	if len(missingSecrets) > 0 {
-		fmt.Println(console.FormatWarningMessage("The following secrets are required but not found in the repository:"))
-		for _, secretName := range missingSecrets {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("To add %s secret:", secretName)))
-			fmt.Println(console.FormatCommandMessage(fmt.Sprintf("gh secret set %s", secretName)))
-		}
-	} else if verbose {
-		fmt.Println(console.FormatSuccessMessage("All required secrets are available in the repository"))
-	}
-
-	return nil
-}
-
-// checkSecretExists checks if a secret exists in the repository using GitHub CLI
-func checkSecretExists(secretName string) (bool, error) {
-	// Use gh CLI to list repository secrets
-	cmd := exec.Command("gh", "secret", "list", "--json", "name")
-	output, err := cmd.Output()
-	if err != nil {
-		// Check if it's a 403 error by examining the error
-		if exitError, ok := err.(*exec.ExitError); ok {
-			if strings.Contains(string(exitError.Stderr), "403") {
-				return false, fmt.Errorf("403 access denied")
-			}
-		}
-		return false, fmt.Errorf("failed to list secrets: %w", err)
-	}
-
-	// Parse the JSON output
-	var secrets []struct {
-		Name string `json:"name"`
-	}
-
-	if err := json.Unmarshal(output, &secrets); err != nil {
-		return false, fmt.Errorf("failed to parse secrets list: %w", err)
-	}
-
-	// Check if our secret exists
-	for _, secret := range secrets {
-		if secret.Name == secretName {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
