@@ -150,7 +150,6 @@ type WorkflowData struct {
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
-	MaximumPatchSize   int                 // maximum allowed patch size in KB (defaults to 1024)
 }
 
 // CacheMemoryConfig holds configuration for cache-memory functionality
@@ -176,6 +175,7 @@ type SafeOutputsConfig struct {
 	Staged                          *bool                                  `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`          // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"` // GitHub token for safe output jobs
+	MaximumPatchSize                int                                    `yaml:"maximum-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -676,7 +676,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 	workflowData.Roles = c.extractRolesPermissions(result.Frontmatter)
-	workflowData.MaximumPatchSize = c.extractMaximumPatchSize(result.Frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
@@ -812,42 +811,6 @@ func (c *Compiler) extractStringValue(frontmatter map[string]any, key string) st
 	return ""
 }
 
-// extractMaximumPatchSize extracts the maximum patch size from frontmatter (in KB)
-func (c *Compiler) extractMaximumPatchSize(frontmatter map[string]any) int {
-	value, exists := frontmatter["maximum-patch-size"]
-	if !exists {
-		return 1024 // Default to 1MB = 1024 KB
-	}
-
-	// Handle different numeric types
-	switch v := value.(type) {
-	case int:
-		if v < 1 {
-			return 1024 // Use default if invalid
-		}
-		return v
-	case int64:
-		intVal := int(v)
-		if intVal < 1 {
-			return 1024 // Use default if invalid
-		}
-		return intVal
-	case uint64:
-		intVal := int(v)
-		if intVal < 1 {
-			return 1024 // Use default if invalid
-		}
-		return intVal
-	case float64:
-		intVal := int(v)
-		if intVal < 1 {
-			return 1024 // Use default if invalid
-		}
-		return intVal
-	default:
-		return 1024 // Use default if type is unexpected
-	}
-}
 
 // commentOutProcessedFieldsInOnSection comments out draft, fork, and forks fields in pull_request sections within the YAML string
 // These fields are processed separately by applyPullRequestDraftFilter and applyPullRequestForkFilter and should be commented for documentation
@@ -2678,7 +2641,11 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
 
 	// Pass the maximum patch size configuration
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAXIMUM_PATCH_SIZE: %d\n", data.MaximumPatchSize))
+	maxPatchSize := 1024 // Default value
+	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
+		maxPatchSize = data.SafeOutputs.MaximumPatchSize
+	}
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAXIMUM_PATCH_SIZE: %d\n", maxPatchSize))
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
@@ -3928,6 +3895,34 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if githubTokenStr, ok := githubToken.(string); ok {
 					config.GitHubToken = githubTokenStr
 				}
+			}
+
+			// Handle maximum-patch-size configuration
+			if maxPatchSize, exists := outputMap["maximum-patch-size"]; exists {
+				switch v := maxPatchSize.(type) {
+				case int:
+					if v >= 1 {
+						config.MaximumPatchSize = v
+					}
+				case int64:
+					if v >= 1 {
+						config.MaximumPatchSize = int(v)
+					}
+				case uint64:
+					if v >= 1 {
+						config.MaximumPatchSize = int(v)
+					}
+				case float64:
+					intVal := int(v)
+					if intVal >= 1 {
+						config.MaximumPatchSize = intVal
+					}
+				}
+			}
+			
+			// Set default value if not specified or invalid
+			if config.MaximumPatchSize == 0 {
+				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
 			}
 		}
 	}

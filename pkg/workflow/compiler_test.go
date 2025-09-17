@@ -5393,82 +5393,101 @@ This workflow tests that forks array fields are properly commented out in the on
 	}
 }
 
-func TestExtractMaximumPatchSize(t *testing.T) {
+func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 	compiler := NewCompiler(false, "", "test-version")
 
 	tests := []struct {
-		name        string
+		name       string
 		frontmatter map[string]any
-		expected    int
+		expected   int
 	}{
 		{
-			name:        "default value when not specified",
+			name: "default value when safe-outputs not specified",
 			frontmatter: map[string]any{},
-			expected:    1024,
+			expected:   1024,
+		},
+		{
+			name: "default value when maximum-patch-size not specified in safe-outputs",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-pull-request": nil,
+				},
+			},
+			expected: 1024,
 		},
 		{
 			name: "custom value as int",
 			frontmatter: map[string]any{
-				"maximum-patch-size": 512,
+				"safe-outputs": map[string]any{
+					"maximum-patch-size": 512,
+					"create-pull-request": nil,
+				},
 			},
 			expected: 512,
 		},
 		{
 			name: "custom value as float64",
 			frontmatter: map[string]any{
-				"maximum-patch-size": 2048.0,
+				"safe-outputs": map[string]any{
+					"maximum-patch-size": 2048.0,
+					"create-pull-request": nil,
+				},
 			},
 			expected: 2048,
 		},
 		{
+			name: "custom value as uint64 (from YAML parsing)",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"maximum-patch-size": uint64(4096),
+					"create-pull-request": nil,
+				},
+			},
+			expected: 4096,
+		},
+		{
 			name: "invalid negative value falls back to default",
 			frontmatter: map[string]any{
-				"maximum-patch-size": -5,
+				"safe-outputs": map[string]any{
+					"maximum-patch-size": -5,
+					"create-pull-request": nil,
+				},
 			},
 			expected: 1024,
 		},
 		{
 			name: "invalid zero value falls back to default",
 			frontmatter: map[string]any{
-				"maximum-patch-size": 0,
+				"safe-outputs": map[string]any{
+					"maximum-patch-size": 0,
+					"create-pull-request": nil,
+				},
 			},
 			expected: 1024,
 		},
 		{
 			name: "invalid string value falls back to default",
 			frontmatter: map[string]any{
-				"maximum-patch-size": "invalid",
+				"safe-outputs": map[string]any{
+					"maximum-patch-size": "invalid",
+					"create-pull-request": nil,
+				},
 			},
 			expected: 1024,
-		},
-		{
-			name: "large valid value",
-			frontmatter: map[string]any{
-				"maximum-patch-size": 10240,
-			},
-			expected: 10240,
-		},
-		{
-			name: "uint64 value (from YAML parsing)",
-			frontmatter: map[string]any{
-				"maximum-patch-size": uint64(2048),
-			},
-			expected: 2048,
-		},
-		{
-			name: "int64 value",
-			frontmatter: map[string]any{
-				"maximum-patch-size": int64(4096),
-			},
-			expected: 4096,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.extractMaximumPatchSize(tt.frontmatter)
+			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
+			var result int
+			if config != nil {
+				result = config.MaximumPatchSize
+			} else {
+				result = 1024 // Default when no safe outputs
+			}
 			if result != tt.expected {
-				t.Errorf("extractMaximumPatchSize() = %d, want %d", result, tt.expected)
+				t.Errorf("extractSafeOutputsConfig().MaximumPatchSize = %d, want %d", result, tt.expected)
 			}
 		})
 	}
