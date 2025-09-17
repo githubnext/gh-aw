@@ -43,14 +43,6 @@ async function main() {
     // Remove control characters (except newlines and tabs)
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
-    // // XML character escaping
-    // sanitized = sanitized
-    //   .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
-    //   .replace(/</g, "&lt;")
-    //   .replace(/>/g, "&gt;")
-    //   .replace(/"/g, "&quot;")
-    //   .replace(/'/g, "&apos;");
-
     // URI filtering - replace non-https protocols with "(redacted)"
     sanitized = sanitizeUrlProtocols(sanitized);
 
