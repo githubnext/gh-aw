@@ -719,10 +719,10 @@ async function main() {
           break;
 
         case "push-to-pr-branch":
-          // Validate required branch_name field
-          if (!item.branch_name || typeof item.branch_name !== "string") {
+          // Validate required branch field
+          if (!item.branch || typeof item.branch !== "string") {
             errors.push(
-              `Line ${i + 1}: push-to-pr-branch requires a 'branch_name' string field`
+              `Line ${i + 1}: push-to-pr-branch requires a 'branch' string field`
             );
             continue;
           }
@@ -734,7 +734,7 @@ async function main() {
             continue;
           }
           // Sanitize text content
-          item.branch_name = sanitizeContent(item.branch_name);
+          item.branch = sanitizeContent(item.branch);
           item.message = sanitizeContent(item.message);
           // Validate pull_request_number if provided (for target "*")
           const pushPRNumValidation = validateIssueOrPRNumber(

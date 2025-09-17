@@ -182,7 +182,7 @@ const TOOLS = Object.fromEntries(
       description: "Create a new GitHub pull request",
       inputSchema: {
         type: "object",
-        required: ["title", "body"],
+        required: ["title", "body", "branch"],
         properties: {
           title: { type: "string", description: "Pull request title" },
           body: {
@@ -192,7 +192,7 @@ const TOOLS = Object.fromEntries(
           branch: {
             type: "string",
             description:
-              "Optional branch name (will be auto-generated if not provided)",
+              "Required branch name",
           },
           labels: {
             type: "array",
@@ -314,9 +314,9 @@ const TOOLS = Object.fromEntries(
       description: "Push changes to a pull request branch",
       inputSchema: {
         type: "object",
-        required: ["branch_name", "message"],
+        required: ["branch", "message"],
         properties: {
-          branch_name: {
+          branch: {
             type: "string",
             description:
               "The name of the branch to push to, should be the branch name associated with the pull request",

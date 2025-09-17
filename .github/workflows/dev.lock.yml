@@ -445,7 +445,7 @@ jobs:
                   description: "Create a new GitHub pull request",
                   inputSchema: {
                     type: "object",
-                    required: ["title", "body"],
+                    required: ["title", "body", "branch"],
                     properties: {
                       title: { type: "string", description: "Pull request title" },
                       body: {
@@ -455,7 +455,7 @@ jobs:
                       branch: {
                         type: "string",
                         description:
-                          "Optional branch name (will be auto-generated if not provided)",
+                          "Required branch name",
                       },
                       labels: {
                         type: "array",
@@ -577,9 +577,9 @@ jobs:
                   description: "Push changes to a pull request branch",
                   inputSchema: {
                     type: "object",
-                    required: ["branch_name", "message"],
+                    required: ["branch", "message"],
                     properties: {
-                      branch_name: {
+                      branch: {
                         type: "string",
                         description:
                           "The name of the branch to push to, should be the branch name associated with the pull request",
@@ -1629,10 +1629,10 @@ jobs:
                       }
                       break;
                     case "push-to-pr-branch":
-                      // Validate required branch_name field
-                      if (!item.branch_name || typeof item.branch_name !== "string") {
+                      // Validate required branch field
+                      if (!item.branch || typeof item.branch !== "string") {
                         errors.push(
-                          `Line ${i + 1}: push-to-pr-branch requires a 'branch_name' string field`
+                          `Line ${i + 1}: push-to-pr-branch requires a 'branch' string field`
                         );
                         continue;
                       }
@@ -1644,7 +1644,7 @@ jobs:
                         continue;
                       }
                       // Sanitize text content
-                      item.branch_name = sanitizeContent(item.branch_name);
+                      item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
                       // Validate pull_request_number if provided (for target "*")
                       const pushPRNumValidation = validateIssueOrPRNumber(
