@@ -27,7 +27,7 @@ tools:
     allowed: [list_issues]
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-labels:
     allowed: ["bug", "enhancement"]
 ---
 
@@ -135,7 +135,7 @@ tools:
     allowed: [list_issues]
 engine: codex
 safe-outputs:
-  add-issue-label:
+  add-labels:
     allowed: ["bug", "enhancement"]
 ---
 

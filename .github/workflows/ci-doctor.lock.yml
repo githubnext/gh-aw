@@ -73,7 +73,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true},\"create-issue\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"enabled\":true},\"create-issue\":true}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -226,7 +226,7 @@ jobs:
                   },
                 },
                 {
-                  name: "add-issue-comment",
+                  name: "add-comment",
                   description: "Add a comment to a GitHub issue or pull request",
                   inputSchema: {
                     type: "object",
@@ -333,7 +333,7 @@ jobs:
                   },
                 },
                 {
-                  name: "add-issue-label",
+                  name: "add-labels",
                   description: "Add labels to a GitHub issue or pull request",
                   inputSchema: {
                     type: "object",
@@ -507,7 +507,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true},\"create-issue\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"enabled\":true},\"create-issue\":true}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -739,7 +739,7 @@ jobs:
           
           **Adding a Comment to an Issue or Pull Request**
           
-          To add a comment to an issue or pull request, use the add-issue-comments tool from the safe-outputs MCP
+          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP
           
           **Creating an Issue**
           
@@ -910,7 +910,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true},\"create-issue\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"enabled\":true},\"create-issue\":true}"
         with:
           script: |
             async function main() {
@@ -1064,13 +1064,13 @@ jobs:
                 switch (itemType) {
                   case "create-issue":
                     return 1; // Only one issue allowed
-                  case "add-issue-comment":
+                  case "add-comment":
                     return 1; // Only one comment allowed
                   case "create-pull-request":
                     return 1; // Only one pull request allowed
                   case "create-pull-request-review-comment":
                     return 10; // Default to 10 review comments allowed
-                  case "add-issue-label":
+                  case "add-labels":
                     return 5; // Only one labels operation allowed
                   case "update-issue":
                     return 1; // Only one issue update allowed
@@ -1285,10 +1285,10 @@ jobs:
                         );
                       }
                       break;
-                    case "add-issue-comment":
+                    case "add-comment":
                       if (!item.body || typeof item.body !== "string") {
                         errors.push(
-                          `Line ${i + 1}: add-issue-comment requires a 'body' string field`
+                          `Line ${i + 1}: add-comment requires a 'body' string field`
                         );
                         continue;
                       }
@@ -1323,10 +1323,10 @@ jobs:
                         );
                       }
                       break;
-                    case "add-issue-label":
+                    case "add-labels":
                       if (!item.labels || !Array.isArray(item.labels)) {
                         errors.push(
-                          `Line ${i + 1}: add-issue-label requires a 'labels' array field`
+                          `Line ${i + 1}: add-labels requires a 'labels' array field`
                         );
                         continue;
                       }
@@ -1336,7 +1336,7 @@ jobs:
                         )
                       ) {
                         errors.push(
-                          `Line ${i + 1}: add-issue-label labels array must contain only strings`
+                          `Line ${i + 1}: add-labels labels array must contain only strings`
                         );
                         continue;
                       }
@@ -2453,11 +2453,11 @@ jobs:
       pull-requests: write
     timeout-minutes: 10
     outputs:
-      comment_id: ${{ steps.create_comment.outputs.comment_id }}
-      comment_url: ${{ steps.create_comment.outputs.comment_url }}
+      comment_id: ${{ steps.add_comment.outputs.comment_id }}
+      comment_url: ${{ steps.add_comment.outputs.comment_url }}
     steps:
       - name: Add Issue Comment
-        id: create_comment
+        id: add_comment
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.ci-failure-doctor.outputs.output }}
@@ -2491,15 +2491,15 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              // Find all add-issue-comment items
+              // Find all add-comment items
               const commentItems = validatedOutput.items.filter(
-                /** @param {any} item */ item => item.type === "add-issue-comment"
+                /** @param {any} item */ item => item.type === "add-comment"
               );
               if (commentItems.length === 0) {
-                core.info("No add-issue-comment items found in agent output");
+                core.info("No add-comment items found in agent output");
                 return;
               }
-              core.info(`Found ${commentItems.length} add-issue-comment item(s)`);
+              core.info(`Found ${commentItems.length} add-comment item(s)`);
               // If in staged mode, emit step summary instead of creating comments
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -2543,7 +2543,7 @@ jobs:
               for (let i = 0; i < commentItems.length; i++) {
                 const commentItem = commentItems[i];
                 core.info(
-                  `Processing add-issue-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
+                  `Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
                 );
                 // Determine the issue/PR number and comment endpoint for this comment
                 let issueNumber;

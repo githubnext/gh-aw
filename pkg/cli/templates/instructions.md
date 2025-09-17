@@ -106,47 +106,6 @@ The YAML frontmatter supports these fields:
         # Add your custom processing logic here
     ```
 
-    **Writing Safe Output Entries Manually (Custom Engines):**
-    
-    Custom engines can write safe output entries by appending JSON objects to the `$GITHUB_AW_SAFE_OUTPUTS` environment variable (a JSONL file). Each line should contain a complete JSON object with a `type` field and the relevant data for that output type.
-    
-    ```bash
-    # Create an issue
-    echo '{"type": "create-issue", "title": "Issue Title", "body": "Issue description", "labels": ["label1", "label2"]}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Add a comment to an issue/PR
-    echo '{"type": "add-issue-comment", "body": "Comment text"}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Add labels to an issue/PR
-    echo '{"type": "add-issue-label", "labels": ["bug", "enhancement"]}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Update an issue
-    echo '{"type": "update-issue", "title": "New title", "body": "New body", "status": "closed"}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Create a pull request (after making file changes)
-    echo '{"type": "create-pull-request", "title": "PR Title", "body": "PR description", "labels": ["automation"], "draft": true}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Create a PR review comment
-    echo '{"type": "create-pull-request-review-comment", "path": "file.js", "line": 10, "body": "Review comment"}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Push to branch (after making file changes)
-    echo '{"type": "push-to-pr-branch", "message": "Commit message"}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Create a discussion
-    echo '{"type": "create-discussion", "title": "Discussion Title", "body": "Discussion content"}' >> $GITHUB_AW_SAFE_OUTPUTS
-    
-    # Report missing tools
-    echo '{"type": "missing-tool", "tool": "tool-name", "reason": "Why it is needed", "alternatives": "Possible alternatives"}' >> $GITHUB_AW_SAFE_OUTPUTS
-    ```
-    
-    **Important Notes for Manual Safe Output Writing:**
-    - Each JSON object must be on a single line (JSONL format)
-    - All string values should be properly escaped JSON strings
-    - The `type` field is required and must match the configured safe output types
-    - File changes for `create-pull-request` and `push-to-pr-branch` are made by committing to a branch
-    - Output entries are processed only if the corresponding safe output type is configured in the workflow frontmatter
-    - Invalid JSON entries are ignored with warnings in the workflow logs
-
 - **`network:`** - Network access control for Claude Code engine (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)  
   - Empty object format: `{}` (no network access)
@@ -177,14 +136,14 @@ The YAML frontmatter supports these fields:
         max: 5                          # Optional: maximum number of issues (default: 1)
     ```
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
-  - `add-issue-comment:` - Safe comment creation on issues/PRs
+  - `add-comment:` - Safe comment creation on issues/PRs
     ```yaml
     safe-outputs:
-      add-issue-comment:
+      add-comment:
         max: 3                          # Optional: maximum number of comments (default: 1)
         target: "*"                     # Optional: target for comments (default: "triggering")
     ```
-    When using `safe-outputs.add-issue-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
+    When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
   - `create-pull-request:` - Safe pull request creation with git patches
     ```yaml
     safe-outputs:
@@ -219,7 +178,7 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       create-issue:
-      add-issue-comment:
+      add-comment:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
@@ -588,7 +547,7 @@ permissions:
 
 safe-outputs:
   create-issue:       # Automatic issue creation
-  add-issue-comment:  # Automatic comment creation  
+  add-comment:  # Automatic comment creation  
   create-pull-request: # Automatic PR creation
 ```
 
@@ -669,7 +628,7 @@ Create a pull request with your changes.
 
 ### Automatic Comment Creation
 
-Use the `safe-outputs.add-issue-comment` configuration to automatically create an issue or pull request comment from coding agent output:
+Use the `safe-outputs.add-comment` configuration to automatically create an issue or pull request comment from coding agent output:
 
 ```yaml
 ---
@@ -681,7 +640,7 @@ permissions:
   actions: read
 engine: claude
 safe-outputs:
-  add-issue-comment:
+  add-comment:
     max: 3                # Optional: create multiple comments (default: 1)
 ---
 

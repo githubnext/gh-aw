@@ -11,7 +11,7 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 		testSingular := map[string]any{
 			"safe-outputs": map[string]any{
 				"create-issue":        nil,
-				"add-issue-comment":   nil,
+				"add-comment":         nil,
 				"create-pull-request": nil,
 				"update-issue":        nil,
 			},
@@ -29,11 +29,11 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 			t.Errorf("Expected CreateIssues.Max to be 1 by default, got %d", config.CreateIssues.Max)
 		}
 
-		if config.AddIssueComments == nil {
-			t.Fatal("Expected AddIssueComments to be parsed")
+		if config.AddComments == nil {
+			t.Fatal("Expected AddComments to be parsed")
 		}
-		if config.AddIssueComments.Max != 1 {
-			t.Errorf("Expected AddIssueComments.Max to be 1 by default, got %d", config.AddIssueComments.Max)
+		if config.AddComments.Max != 1 {
+			t.Errorf("Expected AddComments.Max to be 1 by default, got %d", config.AddComments.Max)
 		}
 
 		if config.CreatePullRequests == nil {
@@ -57,7 +57,7 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 				"create-issue": map[string]any{
 					"max": 3,
 				},
-				"add-issue-comment": map[string]any{
+				"add-comment": map[string]any{
 					"max": 5,
 				},
 				"create-pull-request": map[string]any{
@@ -82,11 +82,11 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 			t.Errorf("Expected CreateIssues.Max to be 3, got %d", config.CreateIssues.Max)
 		}
 
-		if config.AddIssueComments == nil {
-			t.Fatal("Expected AddIssueComments to be parsed")
+		if config.AddComments == nil {
+			t.Fatal("Expected AddComments to be parsed")
 		}
-		if config.AddIssueComments.Max != 5 {
-			t.Errorf("Expected AddIssueComments.Max to be 5, got %d", config.AddIssueComments.Max)
+		if config.AddComments.Max != 5 {
+			t.Errorf("Expected AddComments.Max to be 5, got %d", config.AddComments.Max)
 		}
 
 		if config.CreatePullRequests == nil {
@@ -112,7 +112,7 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 					"labels":       []any{"bug", "auto-generated"},
 					"max":          2,
 				},
-				"add-issue-comment": map[string]any{
+				"add-comment": map[string]any{
 					"max":    3,
 					"target": "*",
 				},
@@ -150,15 +150,15 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 			t.Errorf("Expected CreateIssues.Labels to be ['bug', 'auto-generated'], got %v", config.CreateIssues.Labels)
 		}
 
-		// Check add-issue-comment
-		if config.AddIssueComments == nil {
-			t.Fatal("Expected AddIssueComments to be parsed")
+		// Check add-comment
+		if config.AddComments == nil {
+			t.Fatal("Expected AddComments to be parsed")
 		}
-		if config.AddIssueComments.Max != 3 {
-			t.Errorf("Expected AddIssueComments.Max to be 3, got %d", config.AddIssueComments.Max)
+		if config.AddComments.Max != 3 {
+			t.Errorf("Expected AddComments.Max to be 3, got %d", config.AddComments.Max)
 		}
-		if config.AddIssueComments.Target != "*" {
-			t.Errorf("Expected AddIssueComments.Target to be '*', got '%s'", config.AddIssueComments.Target)
+		if config.AddComments.Target != "*" {
+			t.Errorf("Expected AddComments.Target to be '*', got '%s'", config.AddComments.Target)
 		}
 
 		// Check create-pull-request

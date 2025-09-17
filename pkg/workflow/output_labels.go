@@ -11,14 +11,14 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
 
-	// Handle case where AddIssueLabels is nil (equivalent to empty configuration)
+	// Handle case where AddLabels is nil (equivalent to empty configuration)
 	var allowedLabels []string
 	maxCount := 3
 
-	if data.SafeOutputs.AddIssueLabels != nil {
-		allowedLabels = data.SafeOutputs.AddIssueLabels.Allowed
-		if data.SafeOutputs.AddIssueLabels.MaxCount != nil {
-			maxCount = *data.SafeOutputs.AddIssueLabels.MaxCount
+	if data.SafeOutputs.AddLabels != nil {
+		allowedLabels = data.SafeOutputs.AddLabels.Allowed
+		if data.SafeOutputs.AddLabels.MaxCount != nil {
+			maxCount = *data.SafeOutputs.AddLabels.MaxCount
 		}
 	}
 

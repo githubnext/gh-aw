@@ -173,13 +173,13 @@ async function main() {
     switch (itemType) {
       case "create-issue":
         return 1; // Only one issue allowed
-      case "add-issue-comment":
+      case "add-comment":
         return 1; // Only one comment allowed
       case "create-pull-request":
         return 1; // Only one pull request allowed
       case "create-pull-request-review-comment":
         return 10; // Default to 10 review comments allowed
-      case "add-issue-label":
+      case "add-labels":
         return 5; // Only one labels operation allowed
       case "update-issue":
         return 1; // Only one issue update allowed
@@ -422,10 +422,10 @@ async function main() {
           }
           break;
 
-        case "add-issue-comment":
+        case "add-comment":
           if (!item.body || typeof item.body !== "string") {
             errors.push(
-              `Line ${i + 1}: add-issue-comment requires a 'body' string field`
+              `Line ${i + 1}: add-comment requires a 'body' string field`
             );
             continue;
           }
@@ -462,10 +462,10 @@ async function main() {
           }
           break;
 
-        case "add-issue-label":
+        case "add-labels":
           if (!item.labels || !Array.isArray(item.labels)) {
             errors.push(
-              `Line ${i + 1}: add-issue-label requires a 'labels' array field`
+              `Line ${i + 1}: add-labels requires a 'labels' array field`
             );
             continue;
           }
@@ -475,7 +475,7 @@ async function main() {
             )
           ) {
             errors.push(
-              `Line ${i + 1}: add-issue-label labels array must contain only strings`
+              `Line ${i + 1}: add-labels labels array must contain only strings`
             );
             continue;
           }

@@ -322,7 +322,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 			},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues:       &CreateIssuesConfig{Max: 1},
-				AddIssueComments:   &AddIssueCommentsConfig{Max: 1},
+				AddComments:        &AddCommentsConfig{Max: 1},
 				CreatePullRequests: &CreatePullRequestsConfig{Max: 1},
 			},
 			expected: "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write",

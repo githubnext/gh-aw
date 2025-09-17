@@ -103,7 +103,7 @@ func TestSafeOutputsGitHubTokenIntegration(t *testing.T) {
 				"name": "Test Workflow",
 				"safe-outputs": map[string]any{
 					"create-issue":        nil,
-					"add-issue-comment":   nil,
+					"add-comment":         nil,
 					"create-pull-request": nil,
 					"github-token":        "${{ secrets.GITHUB_TOKEN }}",
 				},
@@ -150,9 +150,9 @@ func TestSafeOutputsGitHubTokenIntegration(t *testing.T) {
 				}
 			}
 
-			// Test add-issue-comment job if configured
-			if config != nil && config.AddIssueComments != nil {
-				job, err := compiler.buildCreateOutputAddIssueCommentJob(workflowData, "main")
+			// Test add-comment job if configured
+			if config != nil && config.AddComments != nil {
+				job, err := compiler.buildCreateOutputAddCommentJob(workflowData, "main")
 				if err != nil {
 					t.Fatalf("Failed to build add issue comment job: %v", err)
 				}
