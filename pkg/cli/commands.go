@@ -471,10 +471,11 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		return fmt.Errorf("add workflow requires being in a git repository: %w", err)
 	}
 
-	// Ensure .github/workflows directory exists relative to git root
-	githubWorkflowsDir := filepath.Join(gitRoot, ".github/workflows")
+	// Ensure workflows directory exists relative to git root
+	targetWorkflowsDir := getWorkflowsDir(workflowsDir)
+	githubWorkflowsDir := filepath.Join(gitRoot, targetWorkflowsDir)
 	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
+		return fmt.Errorf("failed to create %s directory: %w", targetWorkflowsDir, err)
 	}
 
 	// Determine the filename to use
@@ -491,7 +492,7 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	// Check if a workflow with this name already exists
 	existingFile := filepath.Join(githubWorkflowsDir, filename+".md")
 	if _, err := os.Stat(existingFile); err == nil && !force {
-		return fmt.Errorf("workflow '%s' already exists in .github/workflows/. Use a different name with -n flag, remove the existing workflow first, or use --force to overwrite", filename)
+		return fmt.Errorf("workflow '%s' already exists in %s/. Use a different name with -n flag, remove the existing workflow first, or use --force to overwrite", filename, targetWorkflowsDir)
 	}
 
 	// Collect all @include dependencies from the workflow file
@@ -500,14 +501,14 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to collect include dependencies: %v", err)))
 	}
 
-	// Copy all @include dependencies to .github/workflows maintaining relative paths
+	// Copy all @include dependencies to workflows directory maintaining relative paths
 	if err := copyIncludeDependenciesFromSourceWithForce(includeDeps, githubWorkflowsDir, sourceInfo, verbose, force, tracker); err != nil {
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to copy include dependencies: %v", err)))
 	}
 
 	// Process each copy
 	for i := 1; i <= number; i++ {
-		// Construct the destination file path with numbering in .github/workflows
+		// Construct the destination file path with numbering in workflows directory
 		var destFile string
 		if number == 1 {
 			destFile = filepath.Join(githubWorkflowsDir, filename+".md")
@@ -2457,7 +2458,7 @@ func findAndReadWorkflow(workflowPath, workflowsDir string, verbose bool) ([]byt
 
 	// If not found in local, try packages
 	if verbose {
-		fmt.Printf("Workflow not found in local .github/workflows or local components, searching packages...\n")
+		fmt.Printf("Workflow not found in local %s or local components, searching packages...\n", workflowsDir)
 	}
 
 	return findWorkflowInPackages(workflowPath, verbose)
@@ -2831,7 +2832,7 @@ func cleanupOrphanedIncludes(verbose bool, workflowsDir ...string) error {
 		if verbose {
 			fmt.Printf("No markdown files found, cleaning up all includes\n")
 		}
-		return cleanupAllIncludes(verbose)
+		return cleanupAllIncludes(verbose, workflowsDir...)
 	}
 
 	// Collect all include dependencies from remaining workflows
@@ -2932,7 +2933,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool, workflowsDir 
 
 	// If no files remain, all include files would be orphaned
 	if len(remainingFiles) == 0 {
-		return getAllIncludeFiles()
+		return getAllIncludeFiles(workflowsDir...)
 	}
 
 	// Collect all include dependencies from remaining workflows
@@ -2962,7 +2963,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool, workflowsDir 
 	}
 
 	// Find all include files and check which ones would be orphaned
-	allIncludes, err := getAllIncludeFiles()
+	allIncludes, err := getAllIncludeFiles(workflowsDir...)
 	if err != nil {
 		return nil, err
 	}
@@ -2977,18 +2978,18 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool, workflowsDir 
 	return orphanedIncludes, nil
 }
 
-// getAllIncludeFiles returns all include files in .github/workflows subdirectories
-func getAllIncludeFiles() ([]string, error) {
-	workflowsDir := ".github/workflows"
+// getAllIncludeFiles returns all include files in workflows subdirectories
+func getAllIncludeFiles(workflowsDir ...string) ([]string, error) {
+	targetWorkflowsDir := getWorkflowsDir(workflowsDir...)
 	var allIncludes []string
 
-	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(targetWorkflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, err := filepath.Rel(workflowsDir, path)
+			relPath, err := filepath.Rel(targetWorkflowsDir, path)
 			if err != nil {
 				return err
 			}
@@ -3007,16 +3008,16 @@ func getAllIncludeFiles() ([]string, error) {
 }
 
 // cleanupAllIncludes removes all include files when no workflows remain
-func cleanupAllIncludes(verbose bool) error {
-	workflowsDir := ".github/workflows"
+func cleanupAllIncludes(verbose bool, workflowsDir ...string) error {
+	targetWorkflowsDir := getWorkflowsDir(workflowsDir...)
 
-	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(targetWorkflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, _ := filepath.Rel(workflowsDir, path)
+			relPath, _ := filepath.Rel(targetWorkflowsDir, path)
 
 			// Only remove files in subdirectories (like shared/) as these are include files
 			// Root-level .md files are workflow files, not include files
@@ -3208,7 +3209,7 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 	// Try to find the workflow from multiple sources
 	sourceContent, sourceInfo, err := findAndReadWorkflow(workflowPath, workflowsDir, verbose)
 	if err != nil {
-		return "", fmt.Errorf("workflow '%s' not found in local .github/workflows, components or packages", fileOrWorkflowName)
+		return "", fmt.Errorf("workflow '%s' not found in local %s, components or packages", fileOrWorkflowName, workflowsDir)
 	}
 
 	// If we found the workflow in packages,
