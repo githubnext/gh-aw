@@ -47,7 +47,11 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	var token string
+	if data.SafeOutputs.AddLabels != nil {
+		token = data.SafeOutputs.AddLabels.GitHubToken
+	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
