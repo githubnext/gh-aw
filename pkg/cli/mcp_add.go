@@ -30,8 +30,8 @@ func listAvailableServers(registryURL string, verbose bool) error {
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
 		if len(servers) > 0 {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - ID: '%s', Name: '%s', Description: '%s', Transport: '%s'",
-				servers[0].ID, servers[0].Name, servers[0].Description, servers[0].Transport)))
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - ID: '%s', Name: '%s', Description: '%s'",
+				servers[0].ID, servers[0].Name, servers[0].Description)))
 		}
 	}
 
@@ -41,7 +41,7 @@ func listAvailableServers(registryURL string, verbose bool) error {
 	}
 
 	// Prepare table data
-	headers := []string{"Name", "Description", "Transport"}
+	headers := []string{"Name", "Description"}
 	rows := make([][]string, 0, len(servers))
 
 	for _, server := range servers {
@@ -60,16 +60,9 @@ func listAvailableServers(registryURL string, verbose bool) error {
 			description = "-"
 		}
 
-		// Default transport if empty
-		transport := server.Transport
-		if transport == "" {
-			transport = "stdio"
-		}
-
 		rows = append(rows, []string{
 			name,
 			description,
-			transport,
 		})
 	}
 

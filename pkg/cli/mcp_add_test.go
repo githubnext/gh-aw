@@ -56,26 +56,35 @@ This is a test workflow.
 
 	// Create a mock registry server
 	registryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "/servers/search") {
-			// Return mock search response
+		if r.URL.Path == "/servers" {
+			// Return mock search response with new structure
 			response := `{
 				"servers": [
 					{
-						"id": "notion-mcp",
-						"name": "Notion MCP Server",
-						"description": "MCP server for Notion integration",
-						"repository": "https://github.com/example/notion-mcp",
-						"command": "npx",
-						"args": ["notion-mcp"],
-						"transport": "stdio",
-						"config": {
-							"env": {
-								"NOTION_TOKEN": "${NOTION_TOKEN}"
-							}
+						"server": {
+							"id": "notion-mcp",
+							"name": "Notion MCP Server",
+							"description": "MCP server for Notion integration",
+							"repository": {
+								"url": "https://github.com/example/notion-mcp"
+							},
+							"packages": [
+								{
+									"registry_name": "notion-mcp",
+									"runtime_hint": "node",
+									"runtime_arguments": [
+										{"value": "notion-mcp"}
+									],
+									"environment_variables": [
+										{
+											"NOTION_TOKEN": "${NOTION_TOKEN}"
+										}
+									]
+								}
+							]
 						}
 					}
-				],
-				"total": 1
+				]
 			}`
 
 			w.Header().Set("Content-Type", "application/json")
@@ -99,9 +108,9 @@ This is a test workflow.
 
 	updatedContentStr := string(updatedContent)
 
-	// Check that the notion tool was added (cleaned from notion-mcp)
-	if !strings.Contains(updatedContentStr, "notion:") {
-		t.Error("Expected notion tool to be added to workflow")
+	// Check that the Notion MCP Server tool was added (cleaned from notion-mcp server name)
+	if !strings.Contains(updatedContentStr, "Notion MCP Server:") {
+		t.Error("Expected Notion MCP Server tool to be added to workflow")
 	}
 
 	// Check that it has MCP configuration
@@ -114,13 +123,14 @@ This is a test workflow.
 		t.Error("Expected stdio transport type")
 	}
 
-	// Check that it has the correct command
-	if !strings.Contains(updatedContentStr, "command: npx") {
-		t.Error("Expected npx command")
+	// Check that it has the correct command (now uses registry_name)
+	if !strings.Contains(updatedContentStr, "command: notion-mcp") {
+		t.Error("Expected notion-mcp command")
 	}
 
 	// Check that environment variables use GitHub Actions syntax
 	if !strings.Contains(updatedContentStr, "${{ secrets.NOTION_TOKEN }}") {
+		t.Logf("Workflow content: %s", updatedContentStr)
 		t.Error("Expected GitHub Actions syntax for environment variables")
 	}
 }
@@ -187,7 +197,7 @@ func TestAddMCPTool_ToolAlreadyExists(t *testing.T) {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 
-	// Create a test workflow file with existing notion tool (cleaned from notion-mcp)
+	// Create a test workflow file with existing Notion MCP Server tool
 	workflowContent := `---
 name: Test Workflow
 on:
@@ -195,10 +205,10 @@ on:
     - cron: "0 9 * * 1"
 tools:
   github:
-  notion:
+  Notion MCP Server:
     mcp:
       type: stdio
-      command: npx
+      command: notion-mcp
       args: ["notion-mcp"]
 ---
 
@@ -216,12 +226,23 @@ This is a test workflow.
 		response := `{
 			"servers": [
 				{
-					"id": "notion-mcp",
-					"name": "Notion MCP Server",
-					"transport": "stdio"
+					"server": {
+						"id": "notion-mcp",
+						"name": "Notion MCP Server",
+						"repository": {
+							"url": "https://github.com/example/notion-mcp"
+						},
+						"packages": [
+							{
+								"registry_name": "notion-mcp",
+								"runtime_hint": "node",
+								"runtime_arguments": [],
+								"environment_variables": []
+							}
+						]
+					}
 				}
-			],
-			"total": 1
+			]
 		}`
 
 		w.Header().Set("Content-Type", "application/json")
@@ -236,7 +257,7 @@ This is a test workflow.
 		t.Fatal("Expected error for existing tool, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "tool 'notion' already exists") {
+	if !strings.Contains(err.Error(), "tool 'Notion MCP Server' already exists") {
 		t.Errorf("Expected 'tool already exists' error, got: %v", err)
 	}
 }
@@ -290,15 +311,25 @@ This is a test workflow.
 		response := `{
 			"servers": [
 				{
-					"id": "notion-mcp",
-					"name": "Notion MCP Server",
-					"transport": "stdio",
-					"command": "npx",
-					"args": ["notion-mcp"],
-					"config": {}
+					"server": {
+						"id": "notion-mcp",
+						"name": "Notion MCP Server",
+						"repository": {
+							"url": "https://github.com/example/notion-mcp"
+						},
+						"packages": [
+							{
+								"registry_name": "notion-mcp",
+								"runtime_hint": "node",
+								"runtime_arguments": [
+									{"value": "notion-mcp"}
+								],
+								"environment_variables": []
+							}
+						]
+					}
 				}
-			],
-			"total": 1
+			]
 		}`
 
 		w.Header().Set("Content-Type", "application/json")
@@ -412,20 +443,22 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 func TestListAvailableServers(t *testing.T) {
 	// Create a test HTTP server
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/servers/search" {
+		if r.URL.Path == "/servers" {
 			response := MCPRegistryResponse{
-				Servers: []MCPRegistryServer{
+				Servers: []MCPRegistryServerWrapper{
 					{
-						ID:          "notion-mcp",
-						Name:        "Notion MCP Server",
-						Description: "Connect to Notion API",
-						Transport:   "stdio",
+						Server: MCPRegistryServerData{
+							ID:          "notion-mcp",
+							Name:        "Notion MCP Server",
+							Description: "Connect to Notion API",
+						},
 					},
 					{
-						ID:          "github-mcp",
-						Name:        "GitHub MCP Server",
-						Description: "Connect to GitHub API",
-						Transport:   "http",
+						Server: MCPRegistryServerData{
+							ID:          "github-mcp",
+							Name:        "GitHub MCP Server",
+							Description: "Connect to GitHub API",
+						},
 					},
 				},
 			}

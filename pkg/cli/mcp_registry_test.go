@@ -9,34 +9,38 @@ import (
 func TestMCPRegistryClient_SearchServers(t *testing.T) {
 	// Create a test server that mocks the MCP registry API
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/servers/search" {
-			t.Errorf("Expected path /servers/search, got %s", r.URL.Path)
+		if r.URL.Path != "/servers" {
+			t.Errorf("Expected path /servers, got %s", r.URL.Path)
 		}
 
-		query := r.URL.Query().Get("q")
-		if query != "notion" {
-			t.Errorf("Expected query 'notion', got '%s'", query)
-		}
-
-		// Return mock response
+		// Return mock response with new structure
 		response := `{
 			"servers": [
 				{
-					"id": "notion-mcp",
-					"name": "Notion MCP Server",
-					"description": "MCP server for Notion integration",
-					"repository": "https://github.com/example/notion-mcp",
-					"command": "npx",
-					"args": ["notion-mcp"],
-					"transport": "stdio",
-					"config": {
-						"env": {
-							"NOTION_TOKEN": "${NOTION_TOKEN}"
-						}
+					"server": {
+						"id": "notion-mcp",
+						"name": "Notion MCP Server",
+						"description": "MCP server for Notion integration",
+						"repository": {
+							"url": "https://github.com/example/notion-mcp"
+						},
+						"packages": [
+							{
+								"registry_name": "notion-mcp",
+								"runtime_hint": "node",
+								"runtime_arguments": [
+									{"value": "notion-mcp"}
+								],
+								"environment_variables": [
+									{
+										"NOTION_TOKEN": "${NOTION_TOKEN}"
+									}
+								]
+							}
+						]
 					}
 				}
-			],
-			"total": 1
+			]
 		}`
 
 		w.Header().Set("Content-Type", "application/json")
@@ -71,8 +75,8 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 		t.Errorf("Expected transport 'stdio', got '%s'", mcpServer.Transport)
 	}
 
-	if mcpServer.Command != "npx" {
-		t.Errorf("Expected command 'npx', got '%s'", mcpServer.Command)
+	if mcpServer.Command != "notion-mcp" {
+		t.Errorf("Expected command 'notion-mcp', got '%s'", mcpServer.Command)
 	}
 
 	if len(mcpServer.Args) != 1 || mcpServer.Args[0] != "notion-mcp" {
@@ -87,19 +91,29 @@ func TestMCPRegistryClient_GetServer(t *testing.T) {
 			t.Errorf("Expected path /servers/notion-mcp, got %s", r.URL.Path)
 		}
 
-		// Return mock response
+		// Return mock response with new structure
 		response := `{
-			"id": "notion-mcp",
-			"name": "Notion MCP Server",
-			"description": "MCP server for Notion integration",
-			"repository": "https://github.com/example/notion-mcp",
-			"command": "npx",
-			"args": ["notion-mcp"],
-			"transport": "stdio",
-			"config": {
-				"env": {
-					"NOTION_TOKEN": "${NOTION_TOKEN}"
-				}
+			"server": {
+				"id": "notion-mcp",
+				"name": "Notion MCP Server",
+				"description": "MCP server for Notion integration",
+				"repository": {
+					"url": "https://github.com/example/notion-mcp"
+				},
+				"packages": [
+					{
+						"registry_name": "notion-mcp",
+						"runtime_hint": "node",
+						"runtime_arguments": [
+							{"value": "notion-mcp"}
+						],
+						"environment_variables": [
+							{
+								"NOTION_TOKEN": "${NOTION_TOKEN}"
+							}
+						]
+					}
+				]
 			}
 		}`
 
