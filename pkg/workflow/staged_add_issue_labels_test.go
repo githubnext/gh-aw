@@ -28,7 +28,7 @@ func TestAddIssueLabelsJobWithStagedFlag(t *testing.T) {
 
 	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included in the env section
 	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in add-issue-label job")
+		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in add-issue-labels job")
 	}
 
 	// Test with staged: false

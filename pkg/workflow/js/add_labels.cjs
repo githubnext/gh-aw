@@ -29,17 +29,17 @@ async function main() {
     return;
   }
 
-  // Find the add-issue-label item
+  // Find the add-issue-labels item
   const labelsItem = validatedOutput.items.find(
-    /** @param {any} item */ item => item.type === "add-issue-label"
+    /** @param {any} item */ item => item.type === "add-issue-labels"
   );
   if (!labelsItem) {
-    core.warning("No add-issue-label item found in agent output");
+    core.warning("No add-issue-labels item found in agent output");
     return;
   }
 
   core.debug(
-    `Found add-issue-label item with ${labelsItem.labels.length} labels`
+    `Found add-issue-labels item with ${labelsItem.labels.length} labels`
   );
 
   // If in staged mode, emit step summary instead of adding labels

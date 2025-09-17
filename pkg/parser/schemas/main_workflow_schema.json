@@ -1484,7 +1484,7 @@
             }
           ]
         },
-        "add-issue-label": {
+        "add-issue-labels": {
           "oneOf": [
             {
               "type": "null",

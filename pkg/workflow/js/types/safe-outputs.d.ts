@@ -99,7 +99,7 @@ interface CreateCodeScanningAlertItem extends BaseSafeOutputItem {
  * JSONL item for adding labels to an issue or PR
  */
 interface AddIssueLabelItem extends BaseSafeOutputItem {
-  type: "add-issue-label";
+  type: "add-issue-labels";
   /** Array of label names to add */
   labels: string[];
 }

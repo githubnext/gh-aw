@@ -135,7 +135,7 @@ safe-outputs:
   create-issue:
   create-pull-request:
   add-issue-comment:
-  add-issue-label:
+  add-issue-labels:
 ---
 
 # Test Null Output Configuration
@@ -188,15 +188,15 @@ This workflow tests the null output configuration parsing.
 		t.Fatal("Expected add-issue-comment configuration to be parsed with null value")
 	}
 
-	// Verify add-issue-label configuration is parsed with empty values
+	// Verify add-issue-labels configuration is parsed with empty values
 	if workflowData.SafeOutputs.AddIssueLabels == nil {
-		t.Fatal("Expected add-issue-label configuration to be parsed with null value")
+		t.Fatal("Expected add-issue-labels configuration to be parsed with null value")
 	}
 	if len(workflowData.SafeOutputs.AddIssueLabels.Allowed) != 0 {
-		t.Errorf("Expected empty allowed labels for null add-issue-label, got %v", workflowData.SafeOutputs.AddIssueLabels.Allowed)
+		t.Errorf("Expected empty allowed labels for null add-issue-labels, got %v", workflowData.SafeOutputs.AddIssueLabels.Allowed)
 	}
 	if workflowData.SafeOutputs.AddIssueLabels.MaxCount != nil {
-		t.Errorf("Expected nil MaxCount for null add-issue-label, got %v", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
+		t.Errorf("Expected nil MaxCount for null add-issue-labels, got %v", *workflowData.SafeOutputs.AddIssueLabels.MaxCount)
 	}
 }
 
@@ -985,7 +985,7 @@ func TestOutputLabelConfigParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-label configuration
+	// Test case with add-issue-labels configuration
 	testContent := `---
 on:
   issues:
@@ -996,7 +996,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: [triage, bug, enhancement, needs-review]
 ---
 
@@ -1048,7 +1048,7 @@ func TestOutputLabelJobGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-label configuration
+	// Test case with add-issue-labels configuration
 	testContent := `---
 on:
   issues:
@@ -1062,7 +1062,7 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
 ---
 
@@ -1157,7 +1157,7 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     max: 5
 ---
 
@@ -1219,7 +1219,7 @@ func TestOutputLabelJobGenerationNullConfig(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test workflow with null add-issue-label configuration
+	// Test workflow with null add-issue-labels configuration
 	testContent := `---
 on:
   issues:
@@ -1229,7 +1229,7 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
 ---
 
 # Test Output Label Null Config
@@ -1295,7 +1295,7 @@ func TestOutputLabelConfigNullParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with null add-issue-label configuration
+	// Test case with null add-issue-labels configuration
 	testContent := `---
 on:
   issues:
@@ -1306,7 +1306,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
 ---
 
 # Test Output Label Null Configuration Parsing
@@ -1355,7 +1355,7 @@ func TestOutputLabelConfigMaxCountParsing(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-label configuration including max
+	// Test case with add-issue-labels configuration including max
 	testContent := `---
 on:
   issues:
@@ -1366,7 +1366,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: [triage, bug, enhancement, needs-review]
     max: 5
 ---
@@ -1429,7 +1429,7 @@ func TestOutputLabelConfigDefaultMaxCount(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-label configuration without max (should use default)
+	// Test case with add-issue-labels configuration without max (should use default)
 	testContent := `---
 on:
   issues:
@@ -1440,7 +1440,7 @@ permissions:
   pull-requests: write
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
 ---
 
@@ -1476,7 +1476,7 @@ func TestOutputLabelJobGenerationWithMaxCount(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-label configuration including max
+	// Test case with add-issue-labels configuration including max
 	testContent := `---
 on:
   issues:
@@ -1490,7 +1490,7 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
     max: 2
 ---
@@ -1548,7 +1548,7 @@ func TestOutputLabelJobGenerationWithDefaultMaxCount(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with add-issue-label configuration without max (should use default of 3)
+	// Test case with add-issue-labels configuration without max (should use default of 3)
 	testContent := `---
 on:
   issues:
@@ -1562,7 +1562,7 @@ tools:
     allowed: [get_issue]
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: [triage, bug, enhancement]
 ---
 
@@ -1624,7 +1624,7 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: []
 ---
 
@@ -1669,7 +1669,7 @@ permissions:
   issues: write
 engine: claude
 safe-outputs:
-  add-issue-label: {}
+  add-issue-labels: {}
 ---
 
 # Test Output Label Missing Allowed

@@ -30,7 +30,7 @@ This declares that the workflow should create at most one new issue.
 | **Create Issue** | `create-issue:` | Create GitHub issues based on workflow output | 1 |
 | **Add Issue Comments** | `add-issue-comment:` | Post comments on issues or pull requests | 1 |
 | **Update Issues** | `update-issue:` | Update issue status, title, or body | 1 |
-| **Add Issue Label** | `add-issue-label:` | Add labels to issues or pull requests | 3 |
+| **Add Issue Label** | `add-issue-labels:` | Add labels to issues or pull requests | 3 |
 | **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 |
 | **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
 | **Push to Pull Request Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
@@ -103,20 +103,20 @@ Create issue comments on the triggering issue or PR with your analysis findings.
 
 The compiled workflow will have additional prompting describing that, to create comments, it should write the comment content to a special file.
 
-### Add Issue Label (`add-issue-label:`)
+### Add Issue Label (`add-issue-labels:`)
 
-Adding `add-issue-label:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
+Adding `add-issue-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
 
 ```yaml
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
 ```
 
 or with further configuration:
 
 ```yaml
 safe-outputs:
-  add-issue-label:
+  add-issue-labels:
     allowed: [triage, bug, enhancement] # Optional: allowed labels for addition.
     max: 3                              # Optional: maximum number of labels to add (default: 3)
 ```

@@ -3852,7 +3852,7 @@ safe-outputs:
   # create-pull-request: # Creates exactly one pull request
   # add-issue-comment:   # Adds comments (default max: 1)
   #   max: 2             # Optional: specify maximum number
-  # add-issue-label:
+  # add-issue-labels:
 
 ---
 

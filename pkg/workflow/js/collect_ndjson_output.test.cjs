@@ -194,15 +194,15 @@ describe("collect_ndjson_output.cjs", () => {
     expect(outputCall).toBeUndefined();
   });
 
-  it("should validate required fields for add-issue-label type", async () => {
+  it("should validate required fields for add-issue-labels type", async () => {
     const testFile = "/tmp/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "enhancement"]}
-{"type": "add-issue-label", "labels": "not-an-array"}
-{"type": "add-issue-label", "labels": [1, 2, 3]}`;
+    const ndjsonContent = `{"type": "add-issue-labels", "labels": ["bug", "enhancement"]}
+{"type": "add-issue-labels", "labels": "not-an-array"}
+{"type": "add-issue-labels", "labels": [1, 2, 3]}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-labels": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -599,11 +599,11 @@ describe("collect_ndjson_output.cjs", () => {
 
     it("should repair JSON with array syntax issues", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "enhancement",}`;
+      const ndjsonContent = `{"type": "add-issue-labels", "labels": ["bug", "enhancement",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -734,11 +734,11 @@ Line 3"}
 
     it("should repair arrays ending with wrong bracket type", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "feature", "enhancement"}`;
+      const ndjsonContent = `{"type": "add-issue-labels", "labels": ["bug", "feature", "enhancement"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -758,11 +758,11 @@ Line 3"}
 
     it("should handle simple missing closing brackets with graceful repair", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "feature"`;
+      const ndjsonContent = `{"type": "add-issue-labels", "labels": ["bug", "feature"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -773,7 +773,7 @@ Line 3"}
       if (outputCall) {
         // Repair succeeded
         const parsedOutput = JSON.parse(outputCall[1]);
-        expect(parsedOutput.items[0].type).toBe("add-issue-label");
+        expect(parsedOutput.items[0].type).toBe("add-issue-labels");
         expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
@@ -1209,11 +1209,11 @@ Line 3"}
 
     it("should repair arrays with mixed bracket types in complex structures", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'add-issue-label', labels: ['priority', 'bug', 'urgent'}, extra: ['data', 'here'}`;
+      const ndjsonContent = `{type: 'add-issue-labels', labels: ['priority', 'bug', 'urgent'}, extra: ['data', 'here'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1223,7 +1223,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-issue-label");
+      expect(parsedOutput.items[0].type).toBe("add-issue-labels");
       expect(parsedOutput.items[0].labels).toEqual([
         "priority",
         "bug",
@@ -1262,11 +1262,11 @@ Line 3"}
 
     it("should repair JSON with simple missing closing brackets", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-issue-label", "labels": ["bug", "feature"]}`;
+      const ndjsonContent = `{"type": "add-issue-labels", "labels": ["bug", "feature"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-label": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-issue-labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1276,7 +1276,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-issue-label");
+      expect(parsedOutput.items[0].type).toBe("add-issue-labels");
       expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });

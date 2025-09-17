@@ -124,7 +124,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "add-issue-label"
+          "const": "add-issue-labels"
         },
         "labels": {
           "type": "array",
