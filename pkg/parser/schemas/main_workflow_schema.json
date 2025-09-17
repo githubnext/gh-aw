@@ -1332,6 +1332,10 @@
                   "description": "Maximum number of issues to create (default: 1)",
                   "minimum": 1,
                   "maximum": 100
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1361,6 +1365,10 @@
                   "description": "Maximum number of discussions to create (default: 1)",
                   "minimum": 1,
                   "maximum": 100
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1386,6 +1394,10 @@
                 "target": {
                   "type": "string",
                   "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1421,6 +1433,10 @@
                   "type": "string",
                   "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1450,6 +1466,10 @@
                     "LEFT",
                     "RIGHT"
                   ]
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1474,6 +1494,10 @@
                 "driver": {
                   "type": "string",
                   "description": "Driver name for SARIF tool.driver.name field (default: 'GitHub Agentic Workflows Security Scanner')"
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1506,6 +1530,10 @@
                   "type": "integer",
                   "description": "Optional maximum number of labels to add (default: 3)",
                   "minimum": 1
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1539,6 +1567,10 @@
                   "description": "Maximum number of issues to update (default: 1)",
                   "minimum": 1,
                   "maximum": 100
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1571,6 +1603,10 @@
                   "type": "string",
                   "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false
@@ -1587,6 +1623,10 @@
                   "type": "integer",
                   "description": "Maximum number of missing tool reports (default: unlimited)",
                   "minimum": 1
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
               "additionalProperties": false

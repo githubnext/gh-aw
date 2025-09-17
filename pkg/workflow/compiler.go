@@ -182,14 +182,16 @@ type SafeOutputsConfig struct {
 type CreateIssuesConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
-	Max         int      `yaml:"max,omitempty"` // Maximum number of issues to create
+	Max         int      `yaml:"max,omitempty"`          // Maximum number of issues to create
+	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // CreateDiscussionsConfig holds configuration for creating GitHub discussions from agent output
 type CreateDiscussionsConfig struct {
 	TitlePrefix string `yaml:"title-prefix,omitempty"`
-	CategoryId  string `yaml:"category-id,omitempty"` // Discussion category ID
-	Max         int    `yaml:"max,omitempty"`         // Maximum number of discussions to create
+	CategoryId  string `yaml:"category-id,omitempty"`  // Discussion category ID
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of discussions to create
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // AddCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddCommentsConfig)
@@ -199,8 +201,9 @@ type AddCommentConfig struct {
 
 // AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddCommentsConfig struct {
-	Max    int    `yaml:"max,omitempty"`    // Maximum number of comments to create
-	Target string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of comments to create
+	Target      string `yaml:"target,omitempty"`       // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
@@ -210,44 +213,51 @@ type CreatePullRequestsConfig struct {
 	Draft       *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
 	Max         int      `yaml:"max,omitempty"`           // Maximum number of pull requests to create
 	IfNoChanges string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
+	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
 }
 
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
-	Max  int    `yaml:"max,omitempty"`  // Maximum number of review comments to create (default: 1)
-	Side string `yaml:"side,omitempty"` // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of review comments to create (default: 1)
+	Side        string `yaml:"side,omitempty"`         // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // CreateCodeScanningAlertsConfig holds configuration for creating repository security advisories (SARIF format) from agent output
 type CreateCodeScanningAlertsConfig struct {
-	Max    int    `yaml:"max,omitempty"`    // Maximum number of security findings to include (default: unlimited)
-	Driver string `yaml:"driver,omitempty"` // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of security findings to include (default: unlimited)
+	Driver      string `yaml:"driver,omitempty"`       // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddLabelsConfig struct {
-	Allowed  []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	MaxCount *int     `yaml:"max,omitempty"`     // Optional maximum number of labels to add (default: 3)
+	Allowed     []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	MaxCount    *int     `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
+	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
 type UpdateIssuesConfig struct {
-	Status *bool  `yaml:"status,omitempty"` // Allow updating issue status (open/closed) - presence indicates field can be updated
-	Target string `yaml:"target,omitempty"` // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
-	Title  *bool  `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
-	Body   *bool  `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
-	Max    int    `yaml:"max,omitempty"`    // Maximum number of issues to update (default: 1)
+	Status      *bool  `yaml:"status,omitempty"`       // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Target      string `yaml:"target,omitempty"`       // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
+	Title       *bool  `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
+	Body        *bool  `yaml:"body,omitempty"`         // Allow updating issue body - presence indicates field can be updated
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of issues to update (default: 1)
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
 	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-comment but for pull requests
 	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	GitHubToken string `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
 }
 
 // MissingToolConfig holds configuration for reporting missing tools or functionality
 type MissingToolConfig struct {
-	Max int `yaml:"max,omitempty"` // Maximum number of missing tool reports (default: unlimited)
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of missing tool reports (default: unlimited)
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -2218,7 +2228,11 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	var token string
+	if data.SafeOutputs.CreateIssues != nil {
+		token = data.SafeOutputs.CreateIssues.GitHubToken
+	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2300,7 +2314,11 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	var token string
+	if data.SafeOutputs.CreateDiscussions != nil {
+		token = data.SafeOutputs.CreateDiscussions.GitHubToken
+	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2362,7 +2380,11 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	var token string
+	if data.SafeOutputs.AddComments != nil {
+		token = data.SafeOutputs.AddComments.GitHubToken
+	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2444,7 +2466,11 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	var token string
+	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+		token = data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken
+	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2525,7 +2551,11 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	var token string
+	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+		token = data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken
+	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -2657,7 +2687,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, data.SafeOutputs.CreatePullRequests.GitHubToken)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
@@ -3846,6 +3876,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
+					// Parse github-token
+					if githubToken, exists := labelsMap["github-token"]; exists {
+						if githubTokenStr, ok := githubToken.(string); ok {
+							labelConfig.GitHubToken = githubTokenStr
+						}
+					}
+
 					config.AddLabels = labelConfig
 				} else if labels == nil {
 					// Handle null case: create empty config (allows any labels)
@@ -3946,6 +3983,17 @@ func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData)
 	}
 }
 
+// addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
+func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+	token := configToken
+	if token == "" && data.SafeOutputs != nil {
+		token = data.SafeOutputs.GitHubToken
+	}
+	if token != "" {
+		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", token))
+	}
+}
+
 // extractCacheMemoryConfig extracts cache-memory configuration from tools section
 func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryConfig {
 	cacheMemoryValue, exists := tools["cache-memory"]
@@ -4035,6 +4083,13 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 					issuesConfig.Max = maxInt
 				}
 			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					issuesConfig.GitHubToken = githubTokenStr
+				}
+			}
 		}
 
 		return issuesConfig
@@ -4069,6 +4124,13 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 					discussionsConfig.Max = maxInt
 				}
 			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					discussionsConfig.GitHubToken = githubTokenStr
+				}
+			}
 		}
 
 		return discussionsConfig
@@ -4094,6 +4156,13 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
 					commentsConfig.Target = targetStr
+				}
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					commentsConfig.GitHubToken = githubTokenStr
 				}
 			}
 		}
@@ -4149,6 +4218,13 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 			}
 		}
 
+		// Parse github-token
+		if githubToken, exists := configMap["github-token"]; exists {
+			if githubTokenStr, ok := githubToken.(string); ok {
+				pullRequestsConfig.GitHubToken = githubTokenStr
+			}
+		}
+
 		// Note: max parameter is not supported for pull requests (always limited to 1)
 		// If max is specified, it will be ignored as pull requests are singular only
 	}
@@ -4182,6 +4258,13 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 				}
 			}
 		}
+
+		// Parse github-token
+		if githubToken, exists := configMap["github-token"]; exists {
+			if githubTokenStr, ok := githubToken.(string); ok {
+				prReviewCommentsConfig.GitHubToken = githubTokenStr
+			}
+		}
 	}
 
 	return prReviewCommentsConfig
@@ -4208,6 +4291,13 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		if driver, exists := configMap["driver"]; exists {
 			if driverStr, ok := driver.(string); ok {
 				securityReportsConfig.Driver = driverStr
+			}
+		}
+
+		// Parse github-token
+		if githubToken, exists := configMap["github-token"]; exists {
+			if githubTokenStr, ok := githubToken.(string); ok {
+				securityReportsConfig.GitHubToken = githubTokenStr
 			}
 		}
 	}
@@ -4267,6 +4357,13 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 			if _, exists := configMap["body"]; exists {
 				updateIssuesConfig.Body = new(bool)
 			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					updateIssuesConfig.GitHubToken = githubTokenStr
+				}
+			}
 		}
 
 		return updateIssuesConfig
@@ -4311,6 +4408,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 					}
 				}
 			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					pushToBranchConfig.GitHubToken = githubTokenStr
+				}
+			}
 		}
 
 		return pushToBranchConfig
@@ -4351,6 +4455,13 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 				}
 				if validMax {
 					missingToolConfig.Max = maxInt
+				}
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					missingToolConfig.GitHubToken = githubTokenStr
 				}
 			}
 		}

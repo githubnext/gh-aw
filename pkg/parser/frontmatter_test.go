@@ -677,10 +677,10 @@ This has invalid frontmatter fields but it's outside workflows dir.`
 		t.Fatalf("Failed to write invalid non-workflow file: %v", err)
 	}
 
-	// Test file 3: Copilot instructions file (should pass with warnings)
-	copilotFile := filepath.Join(docsDir, "copilot-instructions.md")
-	copilotContent := `---
-description: Copilot instructions
+	// Test file 3: Agent instructions file (should pass with warnings)
+	agentFile := filepath.Join(docsDir, "agent-instructions.md")
+	agentContent := `---
+description: Agent instructions
 applyTo: "**/*.py"
 temperature: 0.7
 tools:
@@ -688,10 +688,10 @@ tools:
     allowed: [get_issue]
 ---
 
-# Copilot Instructions
-These are instructions for GitHub Copilot.`
-	if err := os.WriteFile(copilotFile, []byte(copilotContent), 0644); err != nil {
-		t.Fatalf("Failed to write copilot file: %v", err)
+# Agent Instructions
+These are instructions for AI agents.`
+	if err := os.WriteFile(agentFile, []byte(agentContent), 0644); err != nil {
+		t.Fatalf("Failed to write agent file: %v", err)
 	}
 
 	// Test file 4: Plain markdown file (no frontmatter)
@@ -734,12 +734,12 @@ This is just plain markdown content with no frontmatter.`
 			checkContent: "# Invalid External File",
 		},
 		{
-			name:         "copilot instructions file inclusion should succeed",
-			content:      "@include docs/copilot-instructions.md",
+			name:         "agent instructions file inclusion should succeed",
+			content:      "@include docs/agent-instructions.md",
 			baseDir:      tempDir,
 			extractTools: false,
 			wantErr:      false,
-			checkContent: "# Copilot Instructions",
+			checkContent: "# Agent Instructions",
 		},
 		{
 			name:         "plain markdown file inclusion should succeed",
@@ -758,8 +758,8 @@ This is just plain markdown content with no frontmatter.`
 			checkContent: `{"github":{"allowed":["get_issue"]}}`,
 		},
 		{
-			name:         "extract tools from copilot file",
-			content:      "@include docs/copilot-instructions.md",
+			name:         "extract tools from agent file",
+			content:      "@include docs/agent-instructions.md",
 			baseDir:      tempDir,
 			extractTools: true,
 			wantErr:      false,
