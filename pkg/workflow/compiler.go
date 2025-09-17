@@ -172,9 +172,10 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
-	Staged                          *bool                                  `yaml:"staged,omitempty"`       // If true, emit step summary messages instead of making GitHub API calls
-	Env                             map[string]string                      `yaml:"env,omitempty"`          // Environment variables to pass to safe output jobs
-	GitHubToken                     string                                 `yaml:"github-token,omitempty"` // GitHub token for safe output jobs
+	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
+	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
+	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
+	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 }
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -2668,6 +2669,13 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
 
+	// Pass the maximum patch size configuration
+	maxPatchSize := 1024 // Default value
+	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
+		maxPatchSize = data.SafeOutputs.MaximumPatchSize
+	}
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
@@ -3923,6 +3931,34 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if githubTokenStr, ok := githubToken.(string); ok {
 					config.GitHubToken = githubTokenStr
 				}
+			}
+
+			// Handle max-patch-size configuration
+			if maxPatchSize, exists := outputMap["max-patch-size"]; exists {
+				switch v := maxPatchSize.(type) {
+				case int:
+					if v >= 1 {
+						config.MaximumPatchSize = v
+					}
+				case int64:
+					if v >= 1 {
+						config.MaximumPatchSize = int(v)
+					}
+				case uint64:
+					if v >= 1 {
+						config.MaximumPatchSize = int(v)
+					}
+				case float64:
+					intVal := int(v)
+					if intVal >= 1 {
+						config.MaximumPatchSize = intVal
+					}
+				}
+			}
+
+			// Set default value if not specified or invalid
+			if config.MaximumPatchSize == 0 {
+				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
 			}
 		}
 	}

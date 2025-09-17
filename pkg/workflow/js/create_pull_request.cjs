@@ -96,8 +96,46 @@ async function main() {
     }
   }
 
-  // Empty patch is valid - behavior depends on if-no-changes configuration
+  // Validate patch size (unless empty)
   const isEmpty = !patchContent || !patchContent.trim();
+  if (!isEmpty) {
+    // Get maximum patch size from environment (default: 1MB = 1024 KB)
+    const maxSizeKb = parseInt(
+      process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024",
+      10
+    );
+    const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+    const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+
+    core.info(
+      `Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`
+    );
+
+    if (patchSizeKb > maxSizeKb) {
+      const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+
+      // If in staged mode, still show preview with error
+      if (isStaged) {
+        let summaryContent =
+          "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent +=
+          "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+        summaryContent += `**Message:** ${message}\n\n`;
+
+        // Write to step summary
+        await core.summary.addRaw(summaryContent).write();
+        core.info(
+          "📝 Pull request creation preview written to step summary (patch size error)"
+        );
+        return;
+      }
+
+      throw new Error(message);
+    }
+
+    core.info("Patch size validation passed");
+  }
   if (isEmpty && !isStaged) {
     const message =
       "Patch file is empty - no changes to apply (noop operation)";

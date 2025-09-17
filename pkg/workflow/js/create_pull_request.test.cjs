@@ -769,5 +769,173 @@ describe("create_pull_request.cjs", () => {
         "📝 Pull request creation preview written to step summary (patch error)"
       );
     });
+
+    it("should validate patch size within limit", async () => {
+      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create-pull-request",
+            title: "Test PR",
+            body: "This is a test PR",
+            branch: "test-branch",
+          },
+        ],
+      });
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
+
+      mockDependencies.fs.existsSync.mockReturnValue(true);
+      // Create patch content under 10 KB (approximately 5 KB)
+      const patchContent =
+        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+
+      const mockPullRequest = {
+        number: 123,
+        html_url: "https://github.com/testowner/testrepo/pull/123",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      const main = createMainFunction(mockDependencies);
+      await main();
+
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/)
+      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
+        "Patch size validation passed"
+      );
+      // Should not throw an error
+    });
+
+    it("should fail when patch size exceeds limit", async () => {
+      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create-pull-request",
+            title: "Test PR",
+            body: "This is a test PR",
+            branch: "test-branch",
+          },
+        ],
+      });
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+
+      mockDependencies.fs.existsSync.mockReturnValue(true);
+      // Create patch content over 1 KB (approximately 5 KB)
+      const patchContent =
+        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+
+      const main = createMainFunction(mockDependencies);
+
+      await expect(main()).rejects.toThrow(
+        /Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/
+      );
+
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/)
+      );
+    });
+
+    it("should show staged preview when patch size exceeds limit in staged mode", async () => {
+      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create-pull-request",
+            title: "Test PR",
+            body: "This is a test PR",
+            branch: "test-branch",
+          },
+        ],
+      });
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+
+      mockDependencies.fs.existsSync.mockReturnValue(true);
+      // Create patch content over 1 KB (approximately 5 KB)
+      const patchContent =
+        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+
+      const main = createMainFunction(mockDependencies);
+      await main();
+
+      // Should show staged preview instead of throwing error
+      expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
+      const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("❌ Patch size exceeded");
+      expect(summaryCall).toContain("exceeds maximum allowed size");
+
+      // Verify console log for staged mode
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
+        "📝 Pull request creation preview written to step summary (patch size error)"
+      );
+    });
+
+    it("should use default 1024 KB limit when env var not set", async () => {
+      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create-pull-request",
+            title: "Test PR",
+            body: "This is a test PR",
+            branch: "test-branch",
+          },
+        ],
+      });
+      delete mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE; // No limit set
+
+      mockDependencies.fs.existsSync.mockReturnValue(true);
+      const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
+      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+
+      const mockPullRequest = {
+        number: 123,
+        html_url: "https://github.com/testowner/testrepo/pull/123",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      const main = createMainFunction(mockDependencies);
+      await main();
+
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/)
+      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(
+        "Patch size validation passed"
+      );
+    });
+
+    it("should skip patch size validation for empty patches", async () => {
+      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create-pull-request",
+            title: "Test PR",
+            body: "This is a test PR",
+            branch: "test-branch",
+          },
+        ],
+      });
+      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+
+      mockDependencies.fs.existsSync.mockReturnValue(true);
+      mockDependencies.fs.readFileSync.mockReturnValue(""); // Empty patch
+
+      const main = createMainFunction(mockDependencies);
+      await main();
+
+      // Should not check patch size for empty patches
+      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size:/)
+      );
+      // Should proceed with empty patch handling
+    });
   });
 });
