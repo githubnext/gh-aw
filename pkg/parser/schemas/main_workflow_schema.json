@@ -891,6 +891,10 @@
                 "required": ["pattern"],
                 "additionalProperties": false
               }
+            },
+            "config": {
+              "type": "string",
+              "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
             }
           },
           "required": [
