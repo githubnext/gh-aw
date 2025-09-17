@@ -94,11 +94,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		modelParam = fmt.Sprintf("-c model=%s ", workflowData.EngineConfig.Model)
 	}
 
-	// Build search parameter if web-search tool is present
-	var searchParam string
-	if _, hasWebSearch := workflowData.Tools["web-search"]; hasWebSearch {
-		searchParam = "--search "
-	}
+	// // Build search parameter if web-search tool is present
+	searchParam := ""
+	// if _, hasWebSearch := workflowData.Tools["web-search"]; hasWebSearch {
+	// 	searchParam = "--search "
+	// }
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
