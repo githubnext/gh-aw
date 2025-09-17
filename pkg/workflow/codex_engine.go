@@ -114,7 +114,7 @@ which codex
 codex --version
 
 # Authenticate with Codex
-codex login --api-key "${{ secrets.OPENAI_API_KEY }}"
+codex login --api-key "$OPENAI_API_KEY"
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
 codex exec %s%s--full-auto "$INSTRUCTION" 2>&1 | tee %s`, modelParam, searchParam, logFile)

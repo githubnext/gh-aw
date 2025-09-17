@@ -179,6 +179,36 @@ engine:
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
 - **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
 
+### Environment Variables and Secret Overrides
+
+The `env` option supports overriding default secrets and environment variables used by engines:
+
+**Basic Environment Variables:**
+```yaml
+engine:
+  id: claude
+  env:
+    AWS_REGION: us-west-2
+    CUSTOM_API_ENDPOINT: https://api.example.com
+    DEBUG_MODE: "true"
+```
+
+**Secret Override Example:**
+
+You can override default secrets used by engines. This is particularly useful for Codex workflows when you need to use a different OpenAI API key:
+
+```yaml
+engine:
+  id: codex
+  model: gpt-4
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_CI }}
+```
+
+This configuration overrides the default `OPENAI_API_KEY` secret with your custom secret, allowing you to use organization-specific API keys without duplicating secrets.
+
+### Turn Limiting
+
 The `max-turns` option is configured within the engine configuration to limit the number of chat iterations within a single agentic run:
 
 ```yaml
@@ -186,23 +216,12 @@ engine:
   id: claude
   max-turns: 5
 ```
-0
+
 **Behavior:**
 1. Passes the limit to the AI engine (e.g., Claude Code action)
 2. Engine stops iterating when the turn limit is reached
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
-
-The `env` option allows you to pass custom environment variables to the agentic engine:
-
-```yaml
-engine:
-  id: claude
-  env:
-    - "AWS_REGION=us-west-2"
-    - "CUSTOM_API_ENDPOINT: https://api.example.com"  
-    - "DEBUG_MODE: true"
-```
 
 ## Tools Configuration (`tools:`)
 
