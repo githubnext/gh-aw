@@ -173,7 +173,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, er
 			// Convert environment variables to config
 			if len(pkg.EnvironmentVariables) > 0 {
 				server.Config = make(map[string]interface{})
-				
+
 				// Merge all environment variable maps into a single map
 				envVars := make(map[string]interface{})
 				for _, envMap := range pkg.EnvironmentVariables {

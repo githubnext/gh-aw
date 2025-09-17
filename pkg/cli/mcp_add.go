@@ -8,7 +8,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
-	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
@@ -336,68 +335,20 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, r
 
 // addToolToWorkflow adds a tool configuration to the workflow file
 func addToolToWorkflow(workflowPath string, toolID string, toolConfig map[string]any, verbose bool) error {
-	// Read the file content
-	content, err := os.ReadFile(workflowPath)
-	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
+	// Use frontmatter helper to update the workflow file
+	return UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
+		// Ensure tools section exists
+		tools := ensureToolsSection(frontmatter)
 
-	// Use existing frontmatter parser
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
-	}
+		// Check if tool already exists
+		if _, exists := tools[toolID]; exists {
+			return fmt.Errorf("tool '%s' already exists in workflow", toolID)
+		}
 
-	// Ensure tools section exists
-	if result.Frontmatter["tools"] == nil {
-		result.Frontmatter["tools"] = make(map[string]any)
-	}
-
-	tools, ok := result.Frontmatter["tools"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("tools section is not a valid map")
-	}
-
-	// Check if tool already exists
-	if _, exists := tools[toolID]; exists {
-		return fmt.Errorf("tool '%s' already exists in workflow", toolID)
-	}
-
-	// Add the new tool
-	tools[toolID] = toolConfig
-
-	// Convert back to YAML
-	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
-	if err != nil {
-		return fmt.Errorf("failed to marshal updated frontmatter: %w", err)
-	}
-
-	// Reconstruct the file
-	var newLines []string
-	newLines = append(newLines, "---")
-
-	// Add the updated frontmatter (trim the trailing newline from Marshal)
-	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
-	newLines = append(newLines, strings.Split(frontmatterStr, "\n")...)
-
-	newLines = append(newLines, "---")
-
-	// Add the remaining content (markdown)
-	if result.Markdown != "" {
-		newLines = append(newLines, result.Markdown)
-	}
-
-	// Write the updated content back to the file
-	updatedContent := strings.Join(newLines, "\n")
-	if err := os.WriteFile(workflowPath, []byte(updatedContent), 0644); err != nil {
-		return fmt.Errorf("failed to write updated workflow file: %w", err)
-	}
-
-	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Updated workflow file: %s", console.ToRelativePath(workflowPath))))
-	}
-
-	return nil
+		// Add the new tool
+		tools[toolID] = toolConfig
+		return nil
+	}, verbose)
 }
 
 // NewMCPAddSubcommand creates the mcp add subcommand
