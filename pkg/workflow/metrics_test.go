@@ -171,27 +171,27 @@ func TestExtractJSONMetrics(t *testing.T) {
 func TestExtractJSONTokenUsage(t *testing.T) {
 	tests := []struct {
 		name     string
-		data     map[string]interface{}
+		data     map[string]any
 		expected int
 	}{
 		{
 			name: "Direct tokens field",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"tokens": 500,
 			},
 			expected: 500,
 		},
 		{
 			name: "Token count field",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"token_count": 300,
 			},
 			expected: 300,
 		},
 		{
 			name: "Usage object with input/output tokens",
-			data: map[string]interface{}{
-				"usage": map[string]interface{}{
+			data: map[string]any{
+				"usage": map[string]any{
 					"input_tokens":  100,
 					"output_tokens": 50,
 				},
@@ -200,8 +200,8 @@ func TestExtractJSONTokenUsage(t *testing.T) {
 		},
 		{
 			name: "Usage object with cache tokens",
-			data: map[string]interface{}{
-				"usage": map[string]interface{}{
+			data: map[string]any{
+				"usage": map[string]any{
 					"input_tokens":                100,
 					"output_tokens":               50,
 					"cache_creation_input_tokens": 200,
@@ -212,9 +212,9 @@ func TestExtractJSONTokenUsage(t *testing.T) {
 		},
 		{
 			name: "Delta format",
-			data: map[string]interface{}{
-				"delta": map[string]interface{}{
-					"usage": map[string]interface{}{
+			data: map[string]any{
+				"delta": map[string]any{
+					"usage": map[string]any{
 						"input_tokens":  25,
 						"output_tokens": 35,
 					},
@@ -224,36 +224,36 @@ func TestExtractJSONTokenUsage(t *testing.T) {
 		},
 		{
 			name: "String token count",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"tokens": "750",
 			},
 			expected: 750,
 		},
 		{
 			name: "Float token count",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"tokens": 123.45,
 			},
 			expected: 123,
 		},
 		{
 			name: "No token information",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"message": "hello",
 			},
 			expected: 0,
 		},
 		{
 			name: "Invalid usage object",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"usage": "not an object",
 			},
 			expected: 0,
 		},
 		{
 			name: "Partial usage information",
-			data: map[string]interface{}{
-				"usage": map[string]interface{}{
+			data: map[string]any{
+				"usage": map[string]any{
 					"input_tokens": 100,
 					// No output_tokens
 				},
@@ -275,34 +275,34 @@ func TestExtractJSONTokenUsage(t *testing.T) {
 func TestExtractJSONCost(t *testing.T) {
 	tests := []struct {
 		name     string
-		data     map[string]interface{}
+		data     map[string]any
 		expected float64
 	}{
 		{
 			name: "Direct cost field",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"cost": 0.05,
 			},
 			expected: 0.05,
 		},
 		{
 			name: "Price field",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"price": 1.25,
 			},
 			expected: 1.25,
 		},
 		{
 			name: "Total cost USD",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"total_cost_usd": 0.125,
 			},
 			expected: 0.125,
 		},
 		{
 			name: "Billing object",
-			data: map[string]interface{}{
-				"billing": map[string]interface{}{
+			data: map[string]any{
+				"billing": map[string]any{
 					"total_cost": 0.75,
 				},
 			},
@@ -310,49 +310,49 @@ func TestExtractJSONCost(t *testing.T) {
 		},
 		{
 			name: "String cost value",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"cost": "0.25",
 			},
 			expected: 0.25,
 		},
 		{
 			name: "Integer cost value",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"cost": 2,
 			},
 			expected: 2.0,
 		},
 		{
 			name: "No cost information",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"message": "hello",
 			},
 			expected: 0.0,
 		},
 		{
 			name: "Invalid billing object",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"billing": "not an object",
 			},
 			expected: 0.0,
 		},
 		{
 			name: "Zero cost",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"cost": 0.0,
 			},
 			expected: 0.0,
 		},
 		{
 			name: "Negative cost (should be ignored)",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"cost": -1.0,
 			},
 			expected: 0.0,
 		},
 		{
 			name: "Multiple cost fields - first found wins",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"cost":  0.10,
 				"price": 0.20,
 			},
@@ -373,7 +373,7 @@ func TestExtractJSONCost(t *testing.T) {
 func TestConvertToInt(t *testing.T) {
 	tests := []struct {
 		name     string
-		val      interface{}
+		val      any
 		expected int
 	}{
 		{
@@ -451,7 +451,7 @@ func TestConvertToInt(t *testing.T) {
 func TestConvertToFloat(t *testing.T) {
 	tests := []struct {
 		name     string
-		val      interface{}
+		val      any
 		expected float64
 	}{
 		{
@@ -529,12 +529,12 @@ func TestConvertToFloat(t *testing.T) {
 // TestExtractJSONMetricsIntegration tests the integration between different metric extraction functions
 func TestExtractJSONMetricsIntegration(t *testing.T) {
 	// Test with realistic Claude API response
-	claudeResponse := map[string]interface{}{
+	claudeResponse := map[string]any{
 		"id":   "msg_01ABC123",
 		"type": "message",
 		"role": "assistant",
-		"content": []interface{}{
-			map[string]interface{}{
+		"content": []any{
+			map[string]any{
 				"type": "text",
 				"text": "Hello, world!",
 			},
@@ -542,7 +542,7 @@ func TestExtractJSONMetricsIntegration(t *testing.T) {
 		"model":         "claude-3-5-sonnet-20241022",
 		"stop_reason":   "end_turn",
 		"stop_sequence": nil,
-		"usage": map[string]interface{}{
+		"usage": map[string]any{
 			"input_tokens":  25,
 			"output_tokens": 5,
 		},

@@ -300,8 +300,8 @@ func TestExpandNeutralToolsToClaudeTools(t *testing.T) {
 	}
 }
 
-// compareValues compares two interface{} values for equality
-func compareValues(expected, actual interface{}) bool {
+// compareValues compares two any values for equality
+func compareValues(expected, actual any) bool {
 	if expected == nil && actual == nil {
 		return true
 	}

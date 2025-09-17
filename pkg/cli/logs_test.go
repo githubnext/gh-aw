@@ -235,7 +235,7 @@ Regular log line: tokens: 1000
 
 func TestConvertToInt(t *testing.T) {
 	tests := []struct {
-		value    interface{}
+		value    any
 		expected int
 	}{
 		{123, 123},
@@ -256,7 +256,7 @@ func TestConvertToInt(t *testing.T) {
 
 func TestConvertToFloat(t *testing.T) {
 	tests := []struct {
-		value    interface{}
+		value    any
 		expected float64
 	}{
 		{123.45, 123.45},
@@ -394,27 +394,27 @@ func TestIterativeAlgorithmConstants(t *testing.T) {
 func TestExtractJSONCost(t *testing.T) {
 	tests := []struct {
 		name     string
-		data     map[string]interface{}
+		data     map[string]any
 		expected float64
 	}{
 		{
 			name:     "total_cost_usd field",
-			data:     map[string]interface{}{"total_cost_usd": 0.8606770999999999},
+			data:     map[string]any{"total_cost_usd": 0.8606770999999999},
 			expected: 0.8606770999999999,
 		},
 		{
 			name:     "traditional cost field",
-			data:     map[string]interface{}{"cost": 1.23},
+			data:     map[string]any{"cost": 1.23},
 			expected: 1.23,
 		},
 		{
 			name:     "nested billing cost",
-			data:     map[string]interface{}{"billing": map[string]interface{}{"cost": 2.45}},
+			data:     map[string]any{"billing": map[string]any{"cost": 2.45}},
 			expected: 2.45,
 		},
 		{
 			name:     "no cost fields",
-			data:     map[string]interface{}{"tokens": 1000},
+			data:     map[string]any{"tokens": 1000},
 			expected: 0,
 		},
 	}

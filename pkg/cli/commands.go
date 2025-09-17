@@ -592,7 +592,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	}
 
 	// Validate the lock file is valid YAML
-	var yamlValidationTest interface{}
+	var yamlValidationTest any
 	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
 		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
 	}

@@ -107,9 +107,9 @@ type AwInfo struct {
 	Staged       bool   `json:"staged"`
 	CreatedAt    string `json:"created_at"`
 	// Additional fields that might be present
-	RunID      interface{} `json:"run_id,omitempty"`
-	RunNumber  interface{} `json:"run_number,omitempty"`
-	Repository string      `json:"repository,omitempty"`
+	RunID      any    `json:"run_id,omitempty"`
+	RunNumber  any    `json:"run_number,omitempty"`
+	Repository string `json:"repository,omitempty"`
 }
 
 // Constants for the iterative algorithm
@@ -1664,15 +1664,15 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 	logContent := string(content)
 
 	// First try to parse as JSON array
-	var logEntries []map[string]interface{}
+	var logEntries []map[string]any
 	if err := json.Unmarshal(content, &logEntries); err == nil {
 		// Successfully parsed as JSON array, process entries
 		for _, entry := range logEntries {
 			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
 				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
-					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
+					if mcpServers, ok := entry["mcp_servers"].([]any); ok {
 						for _, serverInterface := range mcpServers {
-							if server, ok := serverInterface.(map[string]interface{}); ok {
+							if server, ok := serverInterface.(map[string]any); ok {
 								serverName, hasName := server["name"].(string)
 								status, hasStatus := server["status"].(string)
 
@@ -1711,7 +1711,7 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 			}
 
 			// Try to parse each line as JSON
-			var entry map[string]interface{}
+			var entry map[string]any
 			if err := json.Unmarshal([]byte(line), &entry); err != nil {
 				continue // Skip non-JSON lines
 			}
@@ -1719,9 +1719,9 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 			// Look for system init entries that contain MCP server information
 			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
 				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
-					if mcpServers, ok := entry["mcp_servers"].([]interface{}); ok {
+					if mcpServers, ok := entry["mcp_servers"].([]any); ok {
 						for _, serverInterface := range mcpServers {
-							if server, ok := serverInterface.(map[string]interface{}); ok {
+							if server, ok := serverInterface.(map[string]any); ok {
 								serverName, hasName := server["name"].(string)
 								status, hasStatus := server["status"].(string)
 
