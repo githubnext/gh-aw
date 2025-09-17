@@ -1,4 +1,4 @@
-package cli
+package parser
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ tools:
 # Test Workflow
 Some content`,
 			updateFunc: func(frontmatter map[string]any) error {
-				tools := ensureToolsSection(frontmatter)
+				tools := EnsureToolsSection(frontmatter)
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
@@ -53,7 +53,7 @@ engine: claude
 # Test Workflow
 Some content`,
 			updateFunc: func(frontmatter map[string]any) error {
-				tools := ensureToolsSection(frontmatter)
+				tools := EnsureToolsSection(frontmatter)
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
@@ -74,7 +74,7 @@ Some content`,
 # Test Workflow
 Some content`,
 			updateFunc: func(frontmatter map[string]any) error {
-				tools := ensureToolsSection(frontmatter)
+				tools := EnsureToolsSection(frontmatter)
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
@@ -92,7 +92,7 @@ Some content`,
 			initialContent: `# Test Workflow
 Some content without frontmatter`,
 			updateFunc: func(frontmatter map[string]any) error {
-				tools := ensureToolsSection(frontmatter)
+				tools := EnsureToolsSection(frontmatter)
 				tools["new-tool"] = map[string]any{"type": "test"}
 				return nil
 			},
@@ -199,7 +199,7 @@ func TestEnsureToolsSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tools := ensureToolsSection(tt.frontmatter)
+			tools := EnsureToolsSection(tt.frontmatter)
 
 			// Verify tools section is a map
 			if tools == nil {

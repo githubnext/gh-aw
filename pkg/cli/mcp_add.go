@@ -336,9 +336,9 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, r
 // addToolToWorkflow adds a tool configuration to the workflow file
 func addToolToWorkflow(workflowPath string, toolID string, toolConfig map[string]any, verbose bool) error {
 	// Use frontmatter helper to update the workflow file
-	return UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
+	return parser.UpdateWorkflowFrontmatter(workflowPath, func(frontmatter map[string]any) error {
 		// Ensure tools section exists
-		tools := ensureToolsSection(frontmatter)
+		tools := parser.EnsureToolsSection(frontmatter)
 
 		// Check if tool already exists
 		if _, exists := tools[toolID]; exists {
