@@ -233,7 +233,6 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		}
 
 		tableConfig := console.TableConfig{
-			Title:   fmt.Sprintf("Workflows with MCP servers (%d workflows, %d total servers)", len(workflowData), totalMCPCount),
 			Headers: headers,
 			Rows:    rows,
 		}
@@ -251,7 +250,6 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		}
 
 		tableConfig := console.TableConfig{
-			Title:   fmt.Sprintf("Workflows with MCP servers (%d workflows, %d total servers)", len(workflowData), totalMCPCount),
 			Headers: headers,
 			Rows:    rows,
 		}
