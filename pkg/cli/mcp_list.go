@@ -64,33 +64,75 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 	}
 
 	// Display the MCP servers
-	fmt.Println(console.FormatListHeader(fmt.Sprintf("MCP servers in %s:", filepath.Base(workflowPath))))
+	if verbose {
+		// Create detailed table for verbose mode
+		headers := []string{"Name", "Type", "Command/URL", "Args", "Allowed Tools", "Env Vars"}
+		rows := make([][]string, 0, len(mcpConfigs))
 
-	for _, config := range mcpConfigs {
-		if verbose {
-			fmt.Printf("  • %s\n", console.FormatInfoMessage(fmt.Sprintf("%s (%s)", config.Name, config.Type)))
+		for _, config := range mcpConfigs {
+			commandOrURL := ""
 			if config.Command != "" {
-				fmt.Printf("    Command: %s\n", config.Command)
+				commandOrURL = config.Command
+			} else if config.URL != "" {
+				commandOrURL = config.URL
+			} else if config.Container != "" {
+				commandOrURL = config.Container
 			}
+
+			args := ""
 			if len(config.Args) > 0 {
-				fmt.Printf("    Args: %s\n", strings.Join(config.Args, " "))
+				args = strings.Join(config.Args, " ")
+				// Truncate if too long
+				if len(args) > 30 {
+					args = args[:27] + "..."
+				}
 			}
-			if config.URL != "" {
-				fmt.Printf("    URL: %s\n", config.URL)
-			}
-			if config.Container != "" {
-				fmt.Printf("    Container: %s\n", config.Container)
-			}
+
+			allowedTools := ""
 			if len(config.Allowed) > 0 {
-				fmt.Printf("    Allowed tools: %s\n", strings.Join(config.Allowed, ", "))
+				allowedTools = strings.Join(config.Allowed, ", ")
+				// Truncate if too long
+				if len(allowedTools) > 30 {
+					allowedTools = allowedTools[:27] + "..."
+				}
 			}
+
+			envVars := ""
 			if len(config.Env) > 0 {
-				fmt.Printf("    Environment variables: %d defined\n", len(config.Env))
+				envVars = fmt.Sprintf("%d defined", len(config.Env))
 			}
-			fmt.Println()
-		} else {
-			fmt.Println(console.FormatListItem(config.Name))
+
+			rows = append(rows, []string{
+				config.Name,
+				config.Type,
+				commandOrURL,
+				args,
+				allowedTools,
+				envVars,
+			})
 		}
+
+		tableConfig := console.TableConfig{
+			Title:   fmt.Sprintf("MCP servers in %s", filepath.Base(workflowPath)),
+			Headers: headers,
+			Rows:    rows,
+		}
+		fmt.Print(console.RenderTable(tableConfig))
+	} else {
+		// Simple table for basic mode
+		headers := []string{"Name", "Type"}
+		rows := make([][]string, 0, len(mcpConfigs))
+
+		for _, config := range mcpConfigs {
+			rows = append(rows, []string{config.Name, config.Type})
+		}
+
+		tableConfig := console.TableConfig{
+			Title:   fmt.Sprintf("MCP servers in %s", filepath.Base(workflowPath)),
+			Headers: headers,
+			Rows:    rows,
+		}
+		fmt.Print(console.RenderTable(tableConfig))
 	}
 
 	if !verbose {
@@ -113,7 +155,11 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		return fmt.Errorf("failed to search for workflow files: %w", err)
 	}
 
-	var workflowsWithMCP []string
+	var workflowData []struct {
+		name        string
+		serverCount int
+		serverNames []string
+	}
 	var totalMCPCount int
 
 	for _, file := range files {
@@ -125,7 +171,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 			continue
 		}
 
-		workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+		frontmatterData, err := parser.ExtractFrontmatterFromContent(string(content))
 		if err != nil {
 			if verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
@@ -133,7 +179,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 			continue
 		}
 
-		mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
+		mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterData.Frontmatter, "")
 		if err != nil {
 			if verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Error extracting MCP from %s: %v", filepath.Base(file), err)))
@@ -143,27 +189,73 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 
 		if len(mcpConfigs) > 0 {
 			baseName := strings.TrimSuffix(filepath.Base(file), ".md")
-			if verbose {
-				serverNames := make([]string, len(mcpConfigs))
-				for i, config := range mcpConfigs {
-					serverNames[i] = config.Name
-				}
-				workflowsWithMCP = append(workflowsWithMCP, fmt.Sprintf("%s (%d servers: %s)", baseName, len(mcpConfigs), strings.Join(serverNames, ", ")))
-			} else {
-				workflowsWithMCP = append(workflowsWithMCP, baseName)
+			serverNames := make([]string, len(mcpConfigs))
+			for i, config := range mcpConfigs {
+				serverNames[i] = config.Name
 			}
+			
+			workflowData = append(workflowData, struct {
+				name        string
+				serverCount int
+				serverNames []string
+			}{
+				name:        baseName,
+				serverCount: len(mcpConfigs),
+				serverNames: serverNames,
+			})
 			totalMCPCount += len(mcpConfigs)
 		}
 	}
 
-	if len(workflowsWithMCP) == 0 {
+	if len(workflowData) == 0 {
 		fmt.Println(console.FormatInfoMessage("No workflows with MCP servers found"))
 		return nil
 	}
 
-	fmt.Println(console.FormatListHeader(fmt.Sprintf("Workflows with MCP servers (%d workflows, %d total servers):", len(workflowsWithMCP), totalMCPCount)))
-	for _, workflow := range workflowsWithMCP {
-		fmt.Println(console.FormatListItem(workflow))
+	// Display results in table format
+	if verbose {
+		// Detailed table with server names
+		headers := []string{"Workflow", "Server Count", "MCP Servers"}
+		rows := make([][]string, 0, len(workflowData))
+
+		for _, workflow := range workflowData {
+			serverList := strings.Join(workflow.serverNames, ", ")
+			// Truncate if too long
+			if len(serverList) > 50 {
+				serverList = serverList[:47] + "..."
+			}
+			
+			rows = append(rows, []string{
+				workflow.name,
+				fmt.Sprintf("%d", workflow.serverCount),
+				serverList,
+			})
+		}
+
+		tableConfig := console.TableConfig{
+			Title:   fmt.Sprintf("Workflows with MCP servers (%d workflows, %d total servers)", len(workflowData), totalMCPCount),
+			Headers: headers,
+			Rows:    rows,
+		}
+		fmt.Print(console.RenderTable(tableConfig))
+	} else {
+		// Simple table with just workflow names and counts
+		headers := []string{"Workflow", "Server Count"}
+		rows := make([][]string, 0, len(workflowData))
+
+		for _, workflow := range workflowData {
+			rows = append(rows, []string{
+				workflow.name,
+				fmt.Sprintf("%d", workflow.serverCount),
+			})
+		}
+
+		tableConfig := console.TableConfig{
+			Title:   fmt.Sprintf("Workflows with MCP servers (%d workflows, %d total servers)", len(workflowData), totalMCPCount),
+			Headers: headers,
+			Rows:    rows,
+		}
+		fmt.Print(console.RenderTable(tableConfig))
 	}
 
 	if !verbose {
