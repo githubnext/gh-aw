@@ -34,16 +34,19 @@ async function main() {
     // Neutralize @mentions to prevent unintended notifications
     sanitized = neutralizeMentions(sanitized);
 
+    // Remove ANSI escape sequences BEFORE removing control characters
+    sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+
     // Remove control characters (except newlines and tabs)
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
-    // XML character escaping
-    sanitized = sanitized
-      .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&apos;");
+    // // XML character escaping
+    // sanitized = sanitized
+    //   .replace(/&/g, "&amp;") // Must be first to avoid double-escaping
+    //   .replace(/</g, "&lt;")
+    //   .replace(/>/g, "&gt;")
+    //   .replace(/"/g, "&quot;")
+    //   .replace(/'/g, "&apos;");
 
     // URI filtering - replace non-https protocols with "(redacted)"
     sanitized = sanitizeUrlProtocols(sanitized);
@@ -68,8 +71,7 @@ async function main() {
         "\n[Content truncated due to line count]";
     }
 
-    // Remove ANSI escape sequences
-    sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+    // ANSI escape sequences already removed earlier in the function
 
     // Neutralize common bot trigger phrases
     sanitized = neutralizeBotTriggers(sanitized);
@@ -84,10 +86,13 @@ async function main() {
      */
     function sanitizeUrlDomains(s) {
       return s.replace(
-        /\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi,
-        (match, domain) => {
+        /\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi,
+        (match) => {
+          // Extract just the URL part after https://
+          const urlAfterProtocol = match.slice(8); // Remove 'https://'
+          
           // Extract the hostname part (before first slash, colon, or other delimiter)
-          const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+          const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
 
           // Check if this domain or any parent domain is in the allowlist
           const isAllowed = allowedDomains.some(allowedDomain => {
@@ -109,9 +114,10 @@ async function main() {
      * @returns {string} The string with non-https protocols redacted
      */
     function sanitizeUrlProtocols(s) {
-      // Match both protocol:// and protocol: patterns
+      // Match protocol:// patterns (URLs) and standalone protocol: patterns that look like URLs
+      // Avoid matching command line flags like -v:10 or z3 -memory:high
       return s.replace(
-        /\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi,
+        /\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi,
         (match, protocol) => {
           // Allow https (case insensitive), redact everything else
           return protocol.toLowerCase() === "https" ? match : "(redacted)";

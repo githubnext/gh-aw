@@ -3621,6 +3621,79 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n")
+		yaml.WriteString("          \n")
+
+		if data.SafeOutputs.AddIssueComments != nil {
+			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add a comment to an issue or pull request, use the add-issue-comments tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreateIssues != nil {
+			yaml.WriteString("          **Creating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create an issue, use the create-issue tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreatePullRequests != nil {
+			yaml.WriteString("          **Creating a Pull Request**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a pull request:\n")
+			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
+			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
+			yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          4. Do not push your changes. That will be done by the tool.\n")
+			yaml.WriteString("          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.AddIssueLabels != nil {
+			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add labels to a pull request, use the add-issue-labels tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.UpdateIssues != nil {
+			yaml.WriteString("          **Updating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To udpate an issue, use the update-issue tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			yaml.WriteString("          **Pushing Changes to Pull Request Branch**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To push changes to the branch of a pull request:\n")
+			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
+			yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          3. Push the branch to the repo by using the push-to-pr-branch tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+			yaml.WriteString("          **Creating Code Scanning Alert**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create code scanning alert use the create-code-scanning-alert tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		// Missing-tool instructions are only included when configured
+		if data.SafeOutputs.MissingTool != nil {
+			yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To report a missing tool use the missing-tool tool from the safe-outputs MCP.\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			yaml.WriteString("          **Creating a Pull Request Review Comment**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a pull request review comment, use the create-pull-request-review-comment tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
 	}
 
 	yaml.WriteString("          EOF\n")
