@@ -98,8 +98,8 @@ interface CreateCodeScanningAlertItem extends BaseSafeOutputItem {
 /**
  * JSONL item for adding labels to an issue or PR
  */
-interface AddIssueLabelItem extends BaseSafeOutputItem {
-  type: "add-issue-label";
+interface AddLabelsItem extends BaseSafeOutputItem {
+  type: "add-labels";
   /** Array of label names to add */
   labels: string[];
 }
@@ -153,7 +153,7 @@ type SafeOutputItem =
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
-  | AddIssueLabelItem
+  | AddLabelsItem
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem;
@@ -170,7 +170,7 @@ export {
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
-  AddIssueLabelItem,
+  AddLabelsItem,
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,

@@ -173,7 +173,7 @@ async function main() {
         return 1; // Only one pull request allowed
       case "create-pull-request-review-comment":
         return 10; // Default to 10 review comments allowed
-      case "add-issue-label":
+      case "add-labels":
         return 5; // Only one labels operation allowed
       case "update-issue":
         return 1; // Only one issue update allowed
@@ -456,10 +456,10 @@ async function main() {
           }
           break;
 
-        case "add-issue-label":
+        case "add-labels":
           if (!item.labels || !Array.isArray(item.labels)) {
             errors.push(
-              `Line ${i + 1}: add-issue-label requires a 'labels' array field`
+              `Line ${i + 1}: add-labels requires a 'labels' array field`
             );
             continue;
           }
@@ -469,7 +469,7 @@ async function main() {
             )
           ) {
             errors.push(
-              `Line ${i + 1}: add-issue-label labels array must contain only strings`
+              `Line ${i + 1}: add-labels labels array must contain only strings`
             );
             continue;
           }

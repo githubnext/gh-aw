@@ -532,7 +532,7 @@ jobs:
                   },
                 },
                 {
-                  name: "add-issue-label",
+                  name: "add-labels",
                   description: "Add labels to a GitHub issue or pull request",
                   inputSchema: {
                     type: "object",
@@ -793,6 +793,11 @@ jobs:
           ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          
           EOF
       - name: Print prompt to step summary
         run: |
@@ -1118,7 +1123,7 @@ jobs:
                     return 1; // Only one pull request allowed
                   case "create-pull-request-review-comment":
                     return 10; // Default to 10 review comments allowed
-                  case "add-issue-label":
+                  case "add-labels":
                     return 5; // Only one labels operation allowed
                   case "update-issue":
                     return 1; // Only one issue update allowed
@@ -1371,10 +1376,10 @@ jobs:
                         );
                       }
                       break;
-                    case "add-issue-label":
+                    case "add-labels":
                       if (!item.labels || !Array.isArray(item.labels)) {
                         errors.push(
-                          `Line ${i + 1}: add-issue-label requires a 'labels' array field`
+                          `Line ${i + 1}: add-labels requires a 'labels' array field`
                         );
                         continue;
                       }
@@ -1384,7 +1389,7 @@ jobs:
                         )
                       ) {
                         errors.push(
-                          `Line ${i + 1}: add-issue-label labels array must contain only strings`
+                          `Line ${i + 1}: add-labels labels array must contain only strings`
                         );
                         continue;
                       }

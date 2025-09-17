@@ -167,7 +167,7 @@ type SafeOutputsConfig struct {
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alert,omitempty"`
-	AddIssueLabels                  *AddIssueLabelsConfig                  `yaml:"add-issue-label,omitempty"`
+	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
@@ -223,8 +223,8 @@ type CreateCodeScanningAlertsConfig struct {
 	Driver string `yaml:"driver,omitempty"` // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
 }
 
-// AddIssueLabelsConfig holds configuration for adding labels to issues/PRs from agent output
-type AddIssueLabelsConfig struct {
+// AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
+type AddLabelsConfig struct {
 	Allowed  []string `yaml:"allowed,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	MaxCount *int     `yaml:"max,omitempty"`     // Optional maximum number of labels to add (default: 3)
 }
@@ -1929,8 +1929,8 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			}
 		}
 
-		// Build add_labels job if output.add-issue-label is configured (including null/empty)
-		if data.SafeOutputs.AddIssueLabels != nil {
+		// Build add_labels job if output.add-labels is configured (including null/empty)
+		if data.SafeOutputs.AddLabels != nil {
 			addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
 			if err != nil {
 				return fmt.Errorf("failed to build add_labels job: %w", err)
@@ -3580,7 +3580,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			yaml.WriteString("Creating a Pull Request")
 		}
 
-		if data.SafeOutputs.AddIssueLabels != nil {
+		if data.SafeOutputs.AddLabels != nil {
 			if written {
 				yaml.WriteString(", ")
 			}
@@ -3608,7 +3608,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 			if written {
 				yaml.WriteString(", ")
 			}
-			yaml.WriteString("Creating Repository Security Advisories")
+			yaml.WriteString("Creating Code Scanning Alert")
 			written = true
 		}
 
@@ -3621,6 +3621,79 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n")
+		yaml.WriteString("          \n")
+
+		if data.SafeOutputs.AddIssueComments != nil {
+			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add a comment to an issue or pull request, use the add-issue-comments tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreateIssues != nil {
+			yaml.WriteString("          **Creating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create an issue, use the create-issue tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreatePullRequests != nil {
+			yaml.WriteString("          **Creating a Pull Request**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a pull request:\n")
+			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
+			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
+			yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          4. Do not push your changes. That will be done by the tool.")
+			yaml.WriteString("          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.AddLabels != nil {
+			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To add labels to a pull request, use the add-labels tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.UpdateIssues != nil {
+			yaml.WriteString("          **Updating an Issue**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To udpate an issue, use the update-issue tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			yaml.WriteString("          **Pushing Changes to Pull Request Branch**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To push changes to the branch of a pull request:\n")
+			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
+			yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			yaml.WriteString("          3. Push the branch to the repo by using the push-to-pr-branch tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+			yaml.WriteString("          **Creating Code Scanning Alert**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create code scanning alert use the create-code-scanning-alert tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
+
+		// Missing-tool instructions are only included when configured
+		if data.SafeOutputs.MissingTool != nil {
+			yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To report a missing tool use the missing-tool tool from the safe-outputs MCP.\n")
+			yaml.WriteString("          \n")
+		}
+
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			yaml.WriteString("          **Creating a Pull Request Review Comment**\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          To create a pull request review comment, use the create-pull-request-review-comment tool from the safe-outputs MCP\n")
+			yaml.WriteString("          \n")
+		}
 	}
 
 	yaml.WriteString("          EOF\n")
@@ -3722,10 +3795,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
-			// Parse add-issue-label configuration
-			if labels, exists := outputMap["add-issue-label"]; exists {
+			// Parse add-labels configuration
+			if labels, exists := outputMap["add-labels"]; exists {
 				if labelsMap, ok := labels.(map[string]any); ok {
-					labelConfig := &AddIssueLabelsConfig{}
+					labelConfig := &AddLabelsConfig{}
 
 					// Parse allowed labels (optional)
 					if allowed, exists := labelsMap["allowed"]; exists {
@@ -3764,10 +3837,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
-					config.AddIssueLabels = labelConfig
+					config.AddLabels = labelConfig
 				} else if labels == nil {
 					// Handle null case: create empty config (allows any labels)
-					config.AddIssueLabels = &AddIssueLabelsConfig{}
+					config.AddLabels = &AddLabelsConfig{}
 				}
 			}
 
@@ -4467,8 +4540,8 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
 	}
-	if data.SafeOutputs.AddIssueLabels != nil {
-		safeOutputsConfig["add-issue-label"] = true
+	if data.SafeOutputs.AddLabels != nil {
+		safeOutputsConfig["add-labels"] = true
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		safeOutputsConfig["update-issue"] = true

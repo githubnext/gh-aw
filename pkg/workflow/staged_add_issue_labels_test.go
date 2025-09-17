@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAddIssueLabelsJobWithStagedFlag(t *testing.T) {
+func TestAddLabelsJobWithStagedFlag(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
@@ -13,8 +13,8 @@ func TestAddIssueLabelsJobWithStagedFlag(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			AddIssueLabels: &AddIssueLabelsConfig{},
-			Staged:         &[]bool{true}[0], // pointer to true
+			AddLabels: &AddLabelsConfig{},
+			Staged:    &[]bool{true}[0], // pointer to true
 		},
 	}
 
@@ -28,7 +28,7 @@ func TestAddIssueLabelsJobWithStagedFlag(t *testing.T) {
 
 	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included in the env section
 	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in add-issue-label job")
+		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in add-labels job")
 	}
 
 	// Test with staged: false
@@ -64,7 +64,7 @@ func TestAddIssueLabelsJobWithStagedFlag(t *testing.T) {
 	}
 }
 
-func TestAddIssueLabelsJobWithNilSafeOutputs(t *testing.T) {
+func TestAddLabelsJobWithNilSafeOutputs(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
@@ -85,22 +85,22 @@ func TestAddIssueLabelsJobWithNilSafeOutputs(t *testing.T) {
 	}
 }
 
-func TestAddIssueLabelsJobWithNilAddIssueLabelsConfig(t *testing.T) {
+func TestAddLabelsJobWithNilAddLabelsConfig(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with SafeOutputs but nil AddIssueLabels config - this should work as it's a valid case
+	// Test with SafeOutputs but nil AddLabels config - this should work as it's a valid case
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			AddIssueLabels: nil, // This is valid - means empty configuration
-			Staged:         &[]bool{true}[0],
+			AddLabels: nil, // This is valid - means empty configuration
+			Staged:    &[]bool{true}[0],
 		},
 	}
 
 	job, err := c.buildCreateOutputLabelJob(workflowData, "main_job")
 	if err != nil {
-		t.Fatalf("Expected no error when AddIssueLabels is nil (should use defaults): %v", err)
+		t.Fatalf("Expected no error when AddLabels is nil (should use defaults): %v", err)
 	}
 
 	// Convert steps to a single string for testing
@@ -108,11 +108,11 @@ func TestAddIssueLabelsJobWithNilAddIssueLabelsConfig(t *testing.T) {
 
 	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included in the env section
 	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true even with nil AddIssueLabels config")
+		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true even with nil AddLabels config")
 	}
 
 	// Check that default max count is used
 	if !strings.Contains(stepsContent, "          GITHUB_AW_LABELS_MAX_COUNT: 3\n") {
-		t.Error("Expected default max count of 3 when AddIssueLabels is nil")
+		t.Error("Expected default max count of 3 when AddLabels is nil")
 	}
 }
