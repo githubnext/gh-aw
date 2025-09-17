@@ -272,7 +272,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -579,7 +579,11 @@ jobs:
                     type: "object",
                     required: ["branch_name", "message"],
                     properties: {
-                      branch_name: { type: "string", description: "The name of the branch to push to, should be the branch name associated with the pull request" },
+                      branch_name: {
+                        type: "string",
+                        description:
+                          "The name of the branch to push to, should be the branch name associated with the pull request",
+                      },
                       message: { type: "string", description: "Commit message" },
                       pull_request_number: {
                         type: ["number", "string"],
@@ -708,7 +712,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -969,7 +973,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":true}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{}}"
         with:
           script: |
             async function main() {

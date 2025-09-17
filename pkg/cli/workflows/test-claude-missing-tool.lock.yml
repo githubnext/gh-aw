@@ -179,7 +179,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true,\"max\":5}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"max\":5}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -484,8 +484,14 @@ jobs:
                   description: "Push changes to a pull request branch",
                   inputSchema: {
                     type: "object",
+                    required: ["branch_name", "message"],
                     properties: {
-                      message: { type: "string", description: "Optional commit message" },
+                      branch_name: {
+                        type: "string",
+                        description:
+                          "The name of the branch to push to, should be the branch name associated with the pull request",
+                      },
+                      message: { type: "string", description: "Commit message" },
                       pull_request_number: {
                         type: ["number", "string"],
                         description: "Optional pull request number for target '*'",
@@ -613,7 +619,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true,\"max\":5}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"max\":5}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -889,7 +895,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"enabled\":true,\"max\":5}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"max\":5}}"
         with:
           script: |
             async function main() {
@@ -958,24 +964,21 @@ jobs:
                  * @returns {string} The string with unknown domains redacted
                  */
                 function sanitizeUrlDomains(s) {
-                  return s.replace(
-                    /\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi,
-                    (match) => {
-                      // Extract just the URL part after https://
-                      const urlAfterProtocol = match.slice(8); // Remove 'https://'
-                      // Extract the hostname part (before first slash, colon, or other delimiter)
-                      const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
-                      // Check if this domain or any parent domain is in the allowlist
-                      const isAllowed = allowedDomains.some(allowedDomain => {
-                        const normalizedAllowed = allowedDomain.toLowerCase();
-                        return (
-                          hostname === normalizedAllowed ||
-                          hostname.endsWith("." + normalizedAllowed)
-                        );
-                      });
-                      return isAllowed ? match : "(redacted)";
-                    }
-                  );
+                  return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
+                    // Extract just the URL part after https://
+                    const urlAfterProtocol = match.slice(8); // Remove 'https://'
+                    // Extract the hostname part (before first slash, colon, or other delimiter)
+                    const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
+                    // Check if this domain or any parent domain is in the allowlist
+                    const isAllowed = allowedDomains.some(allowedDomain => {
+                      const normalizedAllowed = allowedDomain.toLowerCase();
+                      return (
+                        hostname === normalizedAllowed ||
+                        hostname.endsWith("." + normalizedAllowed)
+                      );
+                    });
+                    return isAllowed ? match : "(redacted)";
+                  });
                 }
                 /**
                  * Remove unknown protocols except https
@@ -1276,6 +1279,15 @@ jobs:
                         );
                         continue;
                       }
+                      // Validate optional issue_number field
+                      if (item.issue_number !== undefined) {
+                        if (typeof item.issue_number !== "number") {
+                          errors.push(
+                            `Line ${i + 1}: add-comment 'issue_number' must be a number`
+                          );
+                          continue;
+                        }
+                      }
                       // Sanitize text content
                       item.body = sanitizeContent(item.body);
                       break;
@@ -1323,6 +1335,15 @@ jobs:
                           `Line ${i + 1}: add-labels labels array must contain only strings`
                         );
                         continue;
+                      }
+                      // Validate optional issue_number field
+                      if (item.issue_number !== undefined) {
+                        if (typeof item.issue_number !== "number") {
+                          errors.push(
+                            `Line ${i + 1}: add-labels 'issue_number' must be a number`
+                          );
+                          continue;
+                        }
                       }
                       // Sanitize label strings
                       item.labels = item.labels.map(
@@ -1387,16 +1408,23 @@ jobs:
                       }
                       break;
                     case "push-to-pr-branch":
-                      // Validate message if provided (optional)
-                      if (item.message !== undefined) {
-                        if (typeof item.message !== "string") {
-                          errors.push(
-                            `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
-                          );
-                          continue;
-                        }
-                        item.message = sanitizeContent(item.message);
+                      // Validate required branch_name field
+                      if (!item.branch_name || typeof item.branch_name !== "string") {
+                        errors.push(
+                          `Line ${i + 1}: push-to-pr-branch requires a 'branch_name' string field`
+                        );
+                        continue;
                       }
+                      // Validate required message field
+                      if (!item.message || typeof item.message !== "string") {
+                        errors.push(
+                          `Line ${i + 1}: push-to-pr-branch requires a 'message' string field`
+                        );
+                        continue;
+                      }
+                      // Sanitize text content
+                      item.branch_name = sanitizeContent(item.branch_name);
+                      item.message = sanitizeContent(item.message);
                       // Validate pull_request_number if provided (for target "*")
                       if (item.pull_request_number !== undefined) {
                         if (
@@ -1507,6 +1535,16 @@ jobs:
                           `Line ${i + 1}: create-discussion requires a 'body' string field`
                         );
                         continue;
+                      }
+                      // Validate optional category field
+                      if (item.category !== undefined) {
+                        if (typeof item.category !== "string") {
+                          errors.push(
+                            `Line ${i + 1}: create-discussion 'category' must be a string`
+                          );
+                          continue;
+                        }
+                        item.category = sanitizeContent(item.category);
                       }
                       // Sanitize text content
                       item.title = sanitizeContent(item.title);
@@ -1675,16 +1713,22 @@ jobs:
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
+              // Write processed output to step summary using core.summary
+              try {
+                await core.summary
+                  .addRaw("## Processed Output\n\n")
+                  .addRaw("```json\n")
+                  .addRaw(JSON.stringify(validatedOutput))
+                  .addRaw("\n```\n")
+                  .write();
+                core.info("Successfully wrote processed output to step summary");
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to write to step summary: ${errorMsg}`);
+              }
             }
             // Call the main function
             await main();
-      - name: Print sanitized agent output
-        run: |
-          echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````json' >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.collect_output.outputs.output }}' >> $GITHUB_STEP_SUMMARY
-          echo '``````' >> $GITHUB_STEP_SUMMARY
       - name: Upload sanitized agent output
         if: always() && env.GITHUB_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4

@@ -398,8 +398,8 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 
 // validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
 func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
-	// Convert YAML to interface{} for JSON conversion
-	var workflowData interface{}
+	// Convert YAML to any for JSON conversion
+	var workflowData any
 	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
 		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
 	}
@@ -411,7 +411,7 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	}
 
 	// Parse the embedded schema
-	var schemaDoc interface{}
+	var schemaDoc any
 	if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
 		return fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
 	}
@@ -430,7 +430,7 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	}
 
 	// Validate the JSON data against the schema
-	var jsonObj interface{}
+	var jsonObj any
 	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
 		return fmt.Errorf("failed to unmarshal JSON for validation: %w", err)
 	}
@@ -1113,7 +1113,7 @@ func (c *Compiler) extractRolesPermissions(frontmatter map[string]any) []string 
 			}
 			// Single permission level as string
 			return []string{v}
-		case []interface{}:
+		case []any:
 			// Array of permission levels
 			var permissions []string
 			for _, item := range v {
@@ -4495,80 +4495,61 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		return ""
 	}
 	// Create a simplified config object for validation
-	safeOutputsConfig := make(map[string]interface{})
+	safeOutputsConfig := make(map[string]any)
 	if data.SafeOutputs.CreateIssues != nil {
-		safeOutputsConfig["create-issue"] = true
+		safeOutputsConfig["create-issue"] = map[string]any{}
 	}
 	if data.SafeOutputs.AddComments != nil {
-		// Pass the full comment configuration including target
+		commentConfig := map[string]any{}
 		if data.SafeOutputs.AddComments.Target != "" {
-			commentConfig := map[string]interface{}{
-				"target": data.SafeOutputs.AddComments.Target,
-			}
-			safeOutputsConfig["add-comment"] = commentConfig
-		} else {
-			safeOutputsConfig["add-comment"] = true
+			commentConfig["target"] = data.SafeOutputs.AddComments.Target
 		}
+		safeOutputsConfig["add-comment"] = commentConfig
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
+		discussionConfig := map[string]any{}
 		if data.SafeOutputs.CreateDiscussions.Max > 0 {
-			discussionConfig := map[string]interface{}{
-				"max": data.SafeOutputs.CreateDiscussions.Max,
-			}
-			safeOutputsConfig["create-discussion"] = discussionConfig
-		} else {
-			safeOutputsConfig["create-discussion"] = true
+			discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
 		}
+		safeOutputsConfig["create-discussion"] = discussionConfig
 	}
 	if data.SafeOutputs.CreatePullRequests != nil {
-		safeOutputsConfig["create-pull-request"] = true
+		safeOutputsConfig["create-pull-request"] = map[string]any{}
 	}
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+		prReviewCommentConfig := map[string]any{}
 		if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
-			prReviewCommentConfig := map[string]interface{}{
-				"max": data.SafeOutputs.CreatePullRequestReviewComments.Max,
-			}
-			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
-		} else {
-			safeOutputsConfig["create-pull-request-review-comment"] = true
+			prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
 		}
+		safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
 	}
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		// Security reports typically have unlimited max, but check if configured
+		securityReportConfig := map[string]any{}
 		if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-			securityReportConfig := map[string]interface{}{
-				"max": data.SafeOutputs.CreateCodeScanningAlerts.Max,
-			}
-			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
-		} else {
-			safeOutputsConfig["create-code-scanning-alert"] = true
+			securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
 		}
+		safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
 	}
 	if data.SafeOutputs.AddLabels != nil {
-		safeOutputsConfig["add-labels"] = true
+		safeOutputsConfig["add-labels"] = map[string]any{}
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
-		safeOutputsConfig["update-issue"] = true
+		safeOutputsConfig["update-issue"] = map[string]any{}
 	}
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		pushToBranchConfig := map[string]any{}
 		if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
-			pushToBranchConfig := map[string]interface{}{
-				"target": data.SafeOutputs.PushToPullRequestBranch.Target,
-			}
-			safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
-		} else {
-			safeOutputsConfig["push-to-pr-branch"] = true
+			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 		}
+		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
 	}
 	if data.SafeOutputs.MissingTool != nil {
+		missingToolConfig := map[string]any{}
 		if data.SafeOutputs.MissingTool.Max > 0 {
-			missingToolConfig := map[string]interface{}{
-				"max": data.SafeOutputs.MissingTool.Max,
-			}
-			safeOutputsConfig["missing-tool"] = missingToolConfig
-		} else {
-			safeOutputsConfig["missing-tool"] = true
+			missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
 		}
+		safeOutputsConfig["missing-tool"] = missingToolConfig
 	}
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	return string(configJSON)

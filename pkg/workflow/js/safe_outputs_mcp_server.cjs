@@ -316,7 +316,11 @@ const TOOLS = Object.fromEntries(
         type: "object",
         required: ["branch_name", "message"],
         properties: {
-          branch_name: { type: "string", description: "The name of the branch to push to, should be the branch name associated with the pull request" },
+          branch_name: {
+            type: "string",
+            description:
+              "The name of the branch to push to, should be the branch name associated with the pull request",
+          },
           message: { type: "string", description: "Commit message" },
           pull_request_number: {
             type: ["number", "string"],
