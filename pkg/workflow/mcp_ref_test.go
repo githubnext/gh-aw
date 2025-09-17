@@ -76,7 +76,7 @@ func TestMCPRef(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := loadVSCodeMCPConfig(tmpDir, tt.serverName)
-			
+
 			if tt.expectedErr {
 				if err == nil {
 					t.Errorf("Expected error for server '%s', but got none", tt.serverName)
@@ -158,7 +158,7 @@ func TestValidateMCPRef(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateMCPRef("test-tool", tt.toolConfig)
-			
+
 			if tt.expectErr {
 				if err == nil {
 					t.Errorf("Expected error but got none")
@@ -178,9 +178,9 @@ func TestValidateMCPRef(t *testing.T) {
 
 func TestHasMCPConfigWithMCPRef(t *testing.T) {
 	tests := []struct {
-		name        string
-		toolConfig  map[string]any
-		expectMCP   bool
+		name         string
+		toolConfig   map[string]any
+		expectMCP    bool
 		expectedType string
 	}{
 		{
@@ -212,11 +212,11 @@ func TestHasMCPConfigWithMCPRef(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hasMCP, mcpType := hasMCPConfig(tt.toolConfig)
-			
+
 			if hasMCP != tt.expectMCP {
 				t.Errorf("Expected hasMCP=%v, got %v", tt.expectMCP, hasMCP)
 			}
-			
+
 			if mcpType != tt.expectedType {
 				t.Errorf("Expected type='%s', got '%s'", tt.expectedType, mcpType)
 			}
