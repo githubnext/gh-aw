@@ -30,7 +30,7 @@ func listAvailableServers(registryURL string, verbose bool) error {
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
 		if len(servers) > 0 {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - ID: '%s', Name: '%s', Description: '%s', Transport: '%s'", 
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - ID: '%s', Name: '%s', Description: '%s', Transport: '%s'",
 				servers[0].ID, servers[0].Name, servers[0].Description, servers[0].Transport)))
 		}
 	}
@@ -41,20 +41,20 @@ func listAvailableServers(registryURL string, verbose bool) error {
 	}
 
 	// Prepare table data
-	headers := []string{"ID", "Name", "Description", "Transport"}
+	headers := []string{"Name", "Description", "Transport"}
 	rows := make([][]string, 0, len(servers))
 
 	for _, server := range servers {
-		// Use server.ID if name is empty or same as ID
+		// Use server name as the primary identifier
 		name := server.Name
-		if name == "" || name == server.ID {
-			name = "-"
+		if name == "" {
+			name = server.ID // fallback to ID if no name
 		}
 
 		// Truncate long descriptions for table display
 		description := server.Description
-		if len(description) > 60 {
-			description = description[:57] + "..."
+		if len(description) > 80 {
+			description = description[:77] + "..."
 		}
 		if description == "" {
 			description = "-"
@@ -67,7 +67,6 @@ func listAvailableServers(registryURL string, verbose bool) error {
 		}
 
 		rows = append(rows, []string{
-			server.ID,
 			name,
 			description,
 			transport,
@@ -80,11 +79,11 @@ func listAvailableServers(registryURL string, verbose bool) error {
 		Headers:   headers,
 		Rows:      rows,
 		ShowTotal: true,
-		TotalRow:  []string{fmt.Sprintf("Total: %d servers", len(servers)), "", "", ""},
+		TotalRow:  []string{fmt.Sprintf("Total: %d servers", len(servers)), "", ""},
 	}
 
 	fmt.Print(console.RenderTable(tableConfig))
-	fmt.Println(console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-id>"))
+	fmt.Println(console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-name>"))
 
 	return nil
 }
@@ -118,25 +117,40 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		return fmt.Errorf("no MCP servers found matching '%s'", mcpServerID)
 	}
 
-	// Find exact match or best match
+	// Find exact match by name first, then by ID
 	var selectedServer *MCPRegistryServer
 	for i, server := range servers {
-		if server.ID == mcpServerID || server.Name == mcpServerID {
+		// Prioritize name matches over ID matches
+		if server.Name == mcpServerID {
 			selectedServer = &servers[i]
 			break
 		}
 	}
 
-	// If no exact match, use the first result
+	// If no name match, try ID match
 	if selectedServer == nil {
+		for i, server := range servers {
+			if server.ID == mcpServerID {
+				selectedServer = &servers[i]
+				break
+			}
+		}
+	}
+
+	// If still no exact match, use the first result if it looks like a partial match
+	if selectedServer == nil && len(servers) > 0 {
 		selectedServer = &servers[0]
 		if verbose {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No exact match for '%s', using closest match: %s", mcpServerID, selectedServer.Name)))
 		}
 	}
 
-	// Determine tool ID (use custom if provided, otherwise use cleaned server ID)
-	toolID := cleanMCPToolID(selectedServer.ID)
+	if selectedServer == nil {
+		return fmt.Errorf("no MCP servers found matching '%s'", mcpServerID)
+	}
+
+	// Determine tool ID (use custom if provided, otherwise use cleaned server name)
+	toolID := cleanMCPToolID(selectedServer.Name)
 	if customToolID != "" {
 		toolID = customToolID
 	}
@@ -210,14 +224,10 @@ func cleanMCPToolID(toolID string) string {
 	cleaned := toolID
 
 	// Remove "mcp-" prefix
-	if strings.HasPrefix(cleaned, "mcp-") {
-		cleaned = strings.TrimPrefix(cleaned, "mcp-")
-	}
+	cleaned = strings.TrimPrefix(cleaned, "mcp-")
 
 	// Remove "-mcp" suffix
-	if strings.HasSuffix(cleaned, "-mcp") {
-		cleaned = strings.TrimSuffix(cleaned, "-mcp")
-	}
+	cleaned = strings.TrimSuffix(cleaned, "-mcp")
 
 	// If the result is empty, use the original
 	if cleaned == "" {
@@ -310,7 +320,7 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, v
 			if container, hasContainer := server.Config["container"]; hasContainer {
 				mcpSection["container"] = container
 			} else {
-				return nil, fmt.Errorf("Docker transport requires container configuration")
+				return nil, fmt.Errorf("docker transport requires container configuration")
 			}
 
 			// Add environment variables if present
@@ -318,7 +328,7 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, v
 				mcpSection["env"] = convertToGitHubActionsEnv(env)
 			}
 		} else {
-			return nil, fmt.Errorf("Docker transport requires configuration")
+			return nil, fmt.Errorf("docker transport requires configuration")
 		}
 
 	default:
@@ -403,7 +413,7 @@ func NewMCPAddSubcommand() *cobra.Command {
 	var customToolID string
 
 	cmd := &cobra.Command{
-		Use:   "add <workflow-file> [mcp-server-id]",
+		Use:   "add <workflow-file> [mcp-server-name]",
 		Short: "Add an MCP tool to an agentic workflow",
 		Long: `Add an MCP tool to an agentic workflow by searching the MCP registry.
 
@@ -413,11 +423,11 @@ and automatically compiles the workflow. If the tool already exists, the command
 When called with only a workflow file, it will show a list of available MCP servers from the registry.
 
 Examples:
-  gh aw mcp add weekly-research                # List available MCP servers
-  gh aw mcp add weekly-research notion        # Add Notion MCP server to weekly-research.md
-  gh aw mcp add weekly-research notion --transport stdio  # Prefer stdio transport
-  gh aw mcp add weekly-research notion --registry https://custom.registry.com/v1  # Use custom registry
-  gh aw mcp add weekly-research notion --tool-id my-notion  # Use custom tool ID
+  gh aw mcp add weekly-research                          # List available MCP servers
+  gh aw mcp add weekly-research makenotion/notion-mcp-server  # Add Notion MCP server to weekly-research.md
+  gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio  # Prefer stdio transport
+  gh aw mcp add weekly-research makenotion/notion-mcp-server --registry https://custom.registry.com/v1  # Use custom registry
+  gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion  # Use custom tool ID
 
 The command will:
 - Search the MCP registry for the specified server

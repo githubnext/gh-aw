@@ -6,12 +6,64 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
-// MCPRegistryServer represents a server entry from the MCP registry
+// MCPRegistryRuntimeArgument represents a runtime argument
+type MCPRegistryRuntimeArgument struct {
+	Format     string `json:"format"`
+	IsRequired bool   `json:"is_required"`
+	Type       string `json:"type"`
+	Value      string `json:"value"`
+	ValueHint  string `json:"value_hint"`
+}
+
+// MCPRegistryRepository represents repository information
+type MCPRegistryRepository struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	URL    string `json:"url"`
+	Readme string `json:"readme"`
+}
+
+// MCPRegistryVersionDetail represents version information
+type MCPRegistryVersionDetail struct {
+	Version     string `json:"version"`
+	IsLatest    bool   `json:"is_latest"`
+	ReleaseDate string `json:"release_date"`
+}
+
+// MCPRegistryPackage represents a package within a server
+type MCPRegistryPackage struct {
+	Name                 string                        `json:"name"`
+	RegistryName         string                        `json:"registry_name"`
+	Version              string                        `json:"version"`
+	RuntimeHint          string                        `json:"runtime_hint"`
+	RuntimeArguments     []MCPRegistryRuntimeArgument  `json:"runtime_arguments"`
+	EnvironmentVariables []map[string]interface{}      `json:"environment_variables"`
+}
+
+// MCPRegistryServerData represents the actual server data nested in the response
+type MCPRegistryServerData struct {
+	ID            string                    `json:"id"`
+	Name          string                    `json:"name"`
+	Description   string                    `json:"description"`
+	Repository    MCPRegistryRepository     `json:"repository"`
+	CreatedAt     string                    `json:"created_at"`
+	UpdatedAt     string                    `json:"updated_at"`
+	VersionDetail MCPRegistryVersionDetail  `json:"version_detail"`
+	Packages      []MCPRegistryPackage      `json:"packages"`
+}
+
+// MCPRegistryServerWrapper represents a server entry from the MCP registry API
+type MCPRegistryServerWrapper struct {
+	Server MCPRegistryServerData `json:"server"`
+}
+
+// MCPRegistryServer represents a flattened server for internal use
 type MCPRegistryServer struct {
 	ID          string                 `json:"id"`
 	Name        string                 `json:"name"`
@@ -25,8 +77,8 @@ type MCPRegistryServer struct {
 
 // MCPRegistryResponse represents the response from the MCP registry API
 type MCPRegistryResponse struct {
-	Servers []MCPRegistryServer `json:"servers"`
-	Total   int                 `json:"total"`
+	Servers  []MCPRegistryServerWrapper `json:"servers"`
+	Metadata map[string]interface{}     `json:"metadata"`
 }
 
 // MCPRegistryClient handles communication with MCP registries
@@ -49,22 +101,16 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 	}
 }
 
-// SearchServers searches for MCP servers in the registry
+// SearchServers searches for MCP servers in the registry by fetching all servers and filtering locally
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, error) {
-	var searchURL string
+	// Always use servers endpoint for listing all servers
+	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
+	
 	var spinnerMessage string
-
 	if query == "" {
-		// Use servers endpoint for listing all servers
-		searchURL = fmt.Sprintf("%s/servers", c.registryURL)
 		spinnerMessage = "Fetching all MCP servers..."
 	} else {
-		// Use search endpoint for specific queries
-		searchURL = fmt.Sprintf("%s/servers/search", c.registryURL)
-		params := url.Values{}
-		params.Set("q", query)
-		searchURL = fmt.Sprintf("%s?%s", searchURL, params.Encode())
-		spinnerMessage = fmt.Sprintf("Searching MCP registry for '%s'...", query)
+		spinnerMessage = fmt.Sprintf("Fetching MCP servers and filtering for '%s'...", query)
 	}
 
 	// Make HTTP request with spinner
@@ -94,7 +140,66 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServer, er
 		return nil, fmt.Errorf("failed to parse registry response: %w", err)
 	}
 
-	return response.Servers, nil
+	// Convert wrapped servers to flattened format
+	servers := make([]MCPRegistryServer, 0, len(response.Servers))
+	for _, wrapper := range response.Servers {
+		server := MCPRegistryServer{
+			ID:          wrapper.Server.ID,
+			Name:        wrapper.Server.Name,
+			Description: wrapper.Server.Description,
+			Repository:  wrapper.Server.Repository.URL,
+		}
+
+		// Extract transport and config from first package if available
+		if len(wrapper.Server.Packages) > 0 {
+			pkg := wrapper.Server.Packages[0]
+			
+			// Determine transport type from runtime hint
+			switch pkg.RuntimeHint {
+			case "node", "python", "binary":
+				server.Transport = "stdio"
+				server.Command = pkg.RegistryName
+				
+				// Extract string values from runtime arguments
+				args := make([]string, 0, len(pkg.RuntimeArguments))
+				for _, arg := range pkg.RuntimeArguments {
+					args = append(args, arg.Value)
+				}
+				server.Args = args
+			default:
+				server.Transport = "stdio" // default fallback
+			}
+
+			// Convert environment variables to config
+			if len(pkg.EnvironmentVariables) > 0 {
+				server.Config = make(map[string]interface{})
+				server.Config["env"] = pkg.EnvironmentVariables
+			}
+		} else {
+			server.Transport = "stdio" // default fallback
+		}
+
+		servers = append(servers, server)
+	}
+
+	// Apply local filtering if query is provided
+	if query != "" {
+		filteredServers := make([]MCPRegistryServer, 0)
+		queryLower := strings.ToLower(query)
+		
+		for _, server := range servers {
+			// Check if query matches ID, name, or description (case-insensitive)
+			if strings.Contains(strings.ToLower(server.ID), queryLower) ||
+			   strings.Contains(strings.ToLower(server.Name), queryLower) ||
+			   strings.Contains(strings.ToLower(server.Description), queryLower) {
+				filteredServers = append(filteredServers, server)
+			}
+		}
+		
+		return filteredServers, nil
+	}
+
+	return servers, nil
 }
 
 // GetServer gets a specific server by ID from the registry
@@ -128,9 +233,46 @@ func (c *MCPRegistryClient) GetServer(serverID string) (*MCPRegistryServer, erro
 		return nil, fmt.Errorf("failed to read registry response: %w", err)
 	}
 
-	var server MCPRegistryServer
-	if err := json.Unmarshal(body, &server); err != nil {
+	var wrapper MCPRegistryServerWrapper
+	if err := json.Unmarshal(body, &wrapper); err != nil {
 		return nil, fmt.Errorf("failed to parse server response: %w", err)
+	}
+
+	// Convert to flattened format
+	server := MCPRegistryServer{
+		ID:          wrapper.Server.ID,
+		Name:        wrapper.Server.Name,
+		Description: wrapper.Server.Description,
+		Repository:  wrapper.Server.Repository.URL,
+	}
+
+	// Extract transport and config from first package if available
+	if len(wrapper.Server.Packages) > 0 {
+		pkg := wrapper.Server.Packages[0]
+		
+		// Determine transport type from runtime hint
+		switch pkg.RuntimeHint {
+		case "node", "python", "binary":
+			server.Transport = "stdio"
+			server.Command = pkg.RegistryName
+			
+			// Extract string values from runtime arguments
+			args := make([]string, 0, len(pkg.RuntimeArguments))
+			for _, arg := range pkg.RuntimeArguments {
+				args = append(args, arg.Value)
+			}
+			server.Args = args
+		default:
+			server.Transport = "stdio" // default fallback
+		}
+
+		// Convert environment variables to config
+		if len(pkg.EnvironmentVariables) > 0 {
+			server.Config = make(map[string]interface{})
+			server.Config["env"] = pkg.EnvironmentVariables
+		}
+	} else {
+		server.Transport = "stdio" // default fallback
 	}
 
 	return &server, nil
