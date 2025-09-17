@@ -3,11 +3,14 @@ package workflow
 import "strings"
 
 // generateGitPatchStep generates a step that creates and uploads a git patch of changes
-func (c *Compiler) generateGitPatchStep(yaml *strings.Builder, data *WorkflowData) {
+func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Generate git patch\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          GITHUB_EVENT_NAME: ${{ github.event_name }}\n")
+	yaml.WriteString("          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref }}\n")
+	yaml.WriteString("          GITHUB_SHA: ${{ github.sha }}\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          # Check current git status\n")
 	yaml.WriteString("          echo \"Current git status:\"\n")
