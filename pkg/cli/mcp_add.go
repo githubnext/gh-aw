@@ -175,7 +175,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	// Create MCP tool configuration based on server info and preferences
-	mcpConfig, err := createMCPToolConfig(selectedServer, transportType, verbose)
+	mcpConfig, err := createMCPToolConfig(selectedServer, transportType, registryClient.registryURL, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to create MCP tool configuration: %w", err)
 	}
@@ -231,7 +231,7 @@ func cleanMCPToolID(toolID string) string {
 }
 
 // createMCPToolConfig creates the MCP tool configuration based on registry server info
-func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, verbose bool) (map[string]any, error) {
+func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, registryURL string, verbose bool) (map[string]any, error) {
 	config := make(map[string]any)
 
 	// Determine transport type (use preference if provided and supported)
@@ -251,7 +251,7 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, v
 	// Create MCP configuration based on transport type
 	mcpSection := map[string]any{
 		"type":     transport,
-		"registry": server.ID,
+		"registry": fmt.Sprintf("%s/servers/%s", registryURL, server.ID),
 	}
 
 	switch transport {

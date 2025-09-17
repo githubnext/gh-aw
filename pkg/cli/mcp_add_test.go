@@ -378,7 +378,7 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 		},
 	}
 
-	config, err := createMCPToolConfig(server, "", false)
+	config, err := createMCPToolConfig(server, "", "https://api.mcp.github.com/v0", false)
 	if err != nil {
 		t.Fatalf("createMCPToolConfig failed: %v", err)
 	}
@@ -410,6 +410,11 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 	if env["TEST_TOKEN"] != "${{ secrets.TEST_TOKEN }}" {
 		t.Errorf("Expected env TEST_TOKEN to be '${{ secrets.TEST_TOKEN }}', got '%s'", env["TEST_TOKEN"])
 	}
+
+	// Check that registry field contains the full registry URL path
+	if mcpSection["registry"] != "https://api.mcp.github.com/v0/servers/test-server" {
+		t.Errorf("Expected registry to be 'https://api.mcp.github.com/v0/servers/test-server', got '%v'", mcpSection["registry"])
+	}
 }
 
 func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
@@ -425,7 +430,7 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 	}
 
 	// Test with preferred docker transport
-	config, err := createMCPToolConfig(server, "docker", false)
+	config, err := createMCPToolConfig(server, "docker", "https://api.mcp.github.com/v0", false)
 	if err != nil {
 		t.Fatalf("createMCPToolConfig failed: %v", err)
 	}
@@ -437,6 +442,11 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 
 	if mcpSection["type"] != "docker" {
 		t.Errorf("Expected type 'docker', got '%v'", mcpSection["type"])
+	}
+
+	// Check that registry field contains the full registry URL path
+	if mcpSection["registry"] != "https://api.mcp.github.com/v0/servers/test-server" {
+		t.Errorf("Expected registry to be 'https://api.mcp.github.com/v0/servers/test-server', got '%v'", mcpSection["registry"])
 	}
 }
 
