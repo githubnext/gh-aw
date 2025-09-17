@@ -3,6 +3,8 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -551,45 +553,86 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 }
 
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
-
-	// Add safe-outputs MCP server if safe-outputs are configured
-	totalServers := len(mcpTools)
-	serverCount := 0
-
-	// Generate configuration for each MCP tool using shared logic
-	for _, toolName := range mcpTools {
-		serverCount++
-		isLast := serverCount == totalServers
-
-		switch toolName {
-		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast, workflowData)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
-		case "cache-memory":
-			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
-		case "safe-outputs":
-			e.renderSafeOutputsMCPConfig(yaml, isLast)
-		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderClaudeMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
-		}
+	// Convert tools configuration to JSON
+	toolsConfigJSON, err := json.Marshal(tools)
+	if err != nil {
+		fmt.Printf("Error marshaling tools configuration: %v\n", err)
+		return
 	}
 
+	// Use actions/github-script to generate MCP configuration
+	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_TOOLS_CONFIG: |\n")
+	
+	// Split the JSON across multiple lines for better readability
+	toolsConfigStr := string(toolsConfigJSON)
+	lines := strings.Split(toolsConfigStr, "\n")
+	for _, line := range lines {
+		yaml.WriteString("            " + line + "\n")
+	}
+	
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	
+	// Try to read the setup_mcp_config.cjs file content and embed it
+	// Try multiple possible paths for the script file
+	var scriptContent []byte
+	possiblePaths := []string{
+		filepath.Join("pkg", "workflow", "js", "setup_mcp_config.cjs"),
+		filepath.Join("..", "..", "pkg", "workflow", "js", "setup_mcp_config.cjs"),
+		"setup_mcp_config.cjs",
+	}
+	
+	for _, scriptPath := range possiblePaths {
+		if content, err := os.ReadFile(scriptPath); err == nil {
+			scriptContent = content
+			break
+		}
+	}
+	
+	if scriptContent == nil {
+		// Fallback: Use a simplified inline script when the external file is not found
+		e.renderFallbackMCPScript(yaml, tools)
+		return
+	}
+	
+	// Embed the script content, indenting each line properly
+	scriptLines := strings.Split(string(scriptContent), "\n")
+	for _, line := range scriptLines {
+		yaml.WriteString("            " + line + "\n")
+	}
+}
+
+// renderFallbackMCPScript provides a basic MCP configuration when the main script file is not available
+func (e *ClaudeEngine) renderFallbackMCPScript(yaml *strings.Builder, tools map[string]any) {
+	yaml.WriteString("            const fs = require(\"fs\");\n")
+	yaml.WriteString("            try {\n")
+	yaml.WriteString("              const toolsConfigStr = process.env.GITHUB_AW_TOOLS_CONFIG;\n")
+	yaml.WriteString("              if (!toolsConfigStr) {\n")
+	yaml.WriteString("                core.setFailed(\"GITHUB_AW_TOOLS_CONFIG environment variable not set\");\n")
+	yaml.WriteString("                return;\n")
+	yaml.WriteString("              }\n")
+	yaml.WriteString("              const toolsConfig = JSON.parse(toolsConfigStr);\n")
+	yaml.WriteString("              const mcpServers = {};\n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              // Basic GitHub MCP configuration\n")
+	yaml.WriteString("              if (toolsConfig.github) {\n")
+	yaml.WriteString("                const dockerVersion = toolsConfig.github.docker_image_version || 'sha-09deac4';\n")
+	yaml.WriteString("                mcpServers.github = {\n")
+	yaml.WriteString("                  command: 'docker',\n")
+	yaml.WriteString("                  args: ['run', '-i', '--rm', '-e', 'GITHUB_PERSONAL_ACCESS_TOKEN', `ghcr.io/github/github-mcp-server:${dockerVersion}`],\n")
+	yaml.WriteString("                  env: { GITHUB_PERSONAL_ACCESS_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }\n")
+	yaml.WriteString("                };\n")
+	yaml.WriteString("              }\n")
+	yaml.WriteString("              \n")
+	yaml.WriteString("              fs.mkdirSync('/tmp/mcp-config', { recursive: true });\n")
+	yaml.WriteString("              fs.writeFileSync('/tmp/mcp-config/mcp-servers.json', JSON.stringify({ mcpServers }, null, 2));\n")
+	yaml.WriteString("              core.info('Generated MCP configuration using fallback script');\n")
+	yaml.WriteString("            } catch (error) {\n")
+	yaml.WriteString("              const errorMessage = error instanceof Error ? error.message : String(error);\n")
+	yaml.WriteString("              core.setFailed(`Failed to setup MCP configuration: ${errorMessage}`);\n")
 	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
 }
 
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration

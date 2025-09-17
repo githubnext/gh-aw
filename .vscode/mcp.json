@@ -13,6 +13,13 @@
       "env": {
         "GITHUB_TOKEN": "ghp_xxx"
       }
+    },
+    "time": {
+      "command": "npx",
+      "args": ["-y", "mcp-time-server"],
+      "env": {
+        "TIMEZONE": "America/New_York"
+      }
     }
   }
 }

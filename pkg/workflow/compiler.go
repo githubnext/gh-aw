@@ -2970,8 +2970,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
 		}
 	}
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 

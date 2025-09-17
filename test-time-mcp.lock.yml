@@ -2,20 +2,19 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Weekly file analysis using VSCode MCP configuration"
+name: "Time MCP Test Workflow"
 on:
-  schedule:
-  - cron: 0 9 * * 1
+  workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Weekly file analysis using VSCode MCP configuration"
+run-name: "Time MCP Test Workflow"
 
 jobs:
-  weekly-file-analysis-using-vscode-mcp-configuration:
+  time-mcp-test-workflow:
     runs-on: ubuntu-latest
     permissions: read-all
     steps:
@@ -133,7 +132,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_TOOLS_CONFIG: |
-            {"github":{"allowed":["download_workflow_run_artifact","get_job_logs","get_workflow_run","get_workflow_run_logs","get_workflow_run_usage","list_workflow_jobs","list_workflow_run_artifacts","list_workflow_runs","list_workflows","get_code_scanning_alert","list_code_scanning_alerts","get_me","get_dependabot_alert","list_dependabot_alerts","get_discussion","get_discussion_comments","list_discussion_categories","list_discussions","get_issue","get_issue_comments","list_issues","search_issues","get_notification_details","list_notifications","search_orgs","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_reviews","get_pull_request_status","list_pull_requests","search_pull_requests","get_commit","get_file_contents","get_tag","list_branches","list_commits","list_tags","search_code","search_repositories","get_secret_scanning_alert","list_secret_scanning_alerts","search_users"]},"my-tool":{"allowed":["list_files","read_file"],"mcp-ref":"vscode"}}
+            {"github":{"allowed":["list_issues","create_issue","download_workflow_run_artifact","get_job_logs","get_workflow_run","get_workflow_run_logs","get_workflow_run_usage","list_workflow_jobs","list_workflow_run_artifacts","list_workflow_runs","list_workflows","get_code_scanning_alert","list_code_scanning_alerts","get_me","get_dependabot_alert","list_dependabot_alerts","get_discussion","get_discussion_comments","list_discussion_categories","list_discussions","get_issue","get_issue_comments","search_issues","get_notification_details","list_notifications","search_orgs","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_reviews","get_pull_request_status","list_pull_requests","search_pull_requests","get_commit","get_file_contents","get_tag","list_branches","list_commits","list_tags","search_code","search_repositories","get_secret_scanning_alert","list_secret_scanning_alerts","search_users"]},"time":{"allowed":["current_time","get_timezone","set_timezone"],"mcp-ref":"vscode"}}
         with:
           script: |
             /**
@@ -426,11 +425,15 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Weekly file analysis using VSCode MCP configuration
+          # Time MCP Test Workflow
           
-          This workflow uses the MCP server configuration defined in `.vscode/mcp.json` to analyze files in the repository.
+          This workflow tests the mcp/time MCP server using VSCode configuration import.
           
-          The tool configuration references the "my-tool" server from VSCode MCP settings.
+          Please:
+          1. Get the current time
+          2. Check the current timezone 
+          3. Create a summary of the current date and time information
+          4. Create a simple issue documenting the time information
           
           EOF
       - name: Print prompt to step summary
@@ -453,7 +456,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Weekly file analysis using VSCode MCP configuration",
+              workflow_name: "Time MCP Test Workflow",
               experimental: false,
               supports_tools_whitelist: true,
               supports_http_transport: true,
@@ -500,6 +503,7 @@ jobs:
         # - Read
         # - Task
         # - TodoWrite
+        # - mcp__github__create_issue
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -544,13 +548,14 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        # - mcp__my-tool__list_files
-        # - mcp__my-tool__read_file
+        # - mcp__time__current_time
+        # - mcp__time__get_timezone
+        # - mcp__time__set_timezone
         timeout-minutes: 5
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__my-tool__list_files,mcp__my-tool__read_file" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/weekly-file-analysis-using-vscode-mcp-configuration.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__create_issue,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__time__current_time,mcp__time__get_timezone,mcp__time__set_timezone" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/time-mcp-test-workflow.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -561,15 +566,15 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/weekly-file-analysis-using-vscode-mcp-configuration.log
+          touch /tmp/time-mcp-test-workflow.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/weekly-file-analysis-using-vscode-mcp-configuration.log || echo "No log content available"
+          tail -10 /tmp/time-mcp-test-workflow.log || echo "No log content available"
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/weekly-file-analysis-using-vscode-mcp-configuration.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/time-mcp-test-workflow.log
         with:
           script: |
             function main() {
@@ -1099,7 +1104,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: weekly-file-analysis-using-vscode-mcp-configuration.log
-          path: /tmp/weekly-file-analysis-using-vscode-mcp-configuration.log
+          name: time-mcp-test-workflow.log
+          path: /tmp/time-mcp-test-workflow.log
           if-no-files-found: warn
 

@@ -508,36 +508,17 @@ jobs:
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-issue-comment\":{\"enabled\":true},\"create-issue\":true}"
-        run: |
-          mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
-          {
-            "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-                }
-              },
-              "safe_outputs": {
-                "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
-                "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
-                }
-              }
-            }
-          }
-          EOF
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_TOOLS_CONFIG: |
+            {"github":{"allowed":["download_workflow_run_artifact","get_job_logs","get_workflow_run","get_workflow_run_logs","get_workflow_run_usage","list_workflow_jobs","list_workflow_run_artifacts","list_workflow_runs","list_workflows","get_code_scanning_alert","list_code_scanning_alerts","get_me","get_dependabot_alert","list_dependabot_alerts","get_discussion","get_discussion_comments","list_discussion_categories","list_discussions","get_issue","get_issue_comments","list_issues","search_issues","get_notification_details","list_notifications","search_orgs","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_reviews","get_pull_request_status","list_pull_requests","search_pull_requests","get_commit","get_file_contents","get_tag","list_branches","list_commits","list_tags","search_code","search_repositories","get_secret_scanning_alert","list_secret_scanning_alerts","search_users"]},"web-fetch":null,"web-search":null}
+        with:
+          script: |
+            const fs = require("fs");
+            const toolsConfig = JSON.parse(process.env.GITHUB_AW_TOOLS_CONFIG || '{}');
+            fs.mkdirSync("/tmp/mcp-config", { recursive: true });
+            fs.writeFileSync("/tmp/mcp-config/mcp-servers.json", JSON.stringify({ mcpServers: {} }, null, 2));
+            core.info("Generated fallback MCP configuration");
       - name: Create prompt
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
