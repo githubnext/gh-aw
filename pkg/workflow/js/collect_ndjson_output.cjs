@@ -433,13 +433,14 @@ async function main() {
             continue;
           }
           // Validate optional issue_number field
-          if (item.issue_number !== undefined) {
-            if (typeof item.issue_number !== "number") {
-              errors.push(
-                `Line ${i + 1}: add-comment 'issue_number' must be a number`
-              );
-              continue;
-            }
+          if (
+            item.issue_number !== undefined &&
+            typeof item.issue_number !== "number"
+          ) {
+            errors.push(
+              `Line ${i + 1}: add-comment 'issue_number' must be a number`
+            );
+            continue;
           }
           // Sanitize text content
           item.body = sanitizeContent(item.body);
@@ -492,13 +493,14 @@ async function main() {
             continue;
           }
           // Validate optional issue_number field
-          if (item.issue_number !== undefined) {
-            if (typeof item.issue_number !== "number") {
-              errors.push(
-                `Line ${i + 1}: add-labels 'issue_number' must be a number`
-              );
-              continue;
-            }
+          if (
+            item.issue_number !== undefined &&
+            typeof item.issue_number !== "number"
+          ) {
+            errors.push(
+              `Line ${i + 1}: add-labels 'issue_number' must be a number`
+            );
+            continue;
           }
           // Sanitize label strings
           item.labels = item.labels.map(
