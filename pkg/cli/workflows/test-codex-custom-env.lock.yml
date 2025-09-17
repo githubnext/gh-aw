@@ -2,7 +2,7 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 
-name: "Test Codex Add Issue Comment"
+name: "Test Codex Custom Environment Variable"
 on:
   workflow_dispatch: null
 
@@ -11,13 +11,13 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Codex Add Issue Comment"
+run-name: "Test Codex Custom Environment Variable"
 
 jobs:
-  test-codex-add-issue-comment:
+  test-codex-custom-environment-variable:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -35,7 +35,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
-          user_agent = "test-codex-add-issue-comment"
+          user_agent = "test-codex-custom-environment-variable"
           command = "docker"
           args = [
             "run",
@@ -53,11 +53,11 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Codex Add Issue Comment
+          # Test Codex Custom Environment Variable
           
-          This is a test workflow to verify that Codex can add comments to GitHub issues.
+          This is a test workflow to demonstrate how to configure custom environment variables for the Codex engine, specifically overriding the default OPENAI_API_KEY secret.
           
-          Please add a comment to issue #1 saying "This is a test comment from the Codex workflow."
+          Please analyze the current repository structure and list the main directories and their purposes.
           
           EOF
       - name: Print prompt to step summary
@@ -80,7 +80,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Test Codex Add Issue Comment",
+              workflow_name: "Test Codex Custom Environment Variable",
               experimental: true,
               supports_tools_whitelist: true,
               supports_http_transport: false,
@@ -135,16 +135,16 @@ jobs:
           codex login --api-key "$OPENAI_API_KEY"
           
           # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex exec --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-add-issue-comment.log
+          codex exec --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-custom-environment-variable.log
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_CI }}
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-add-issue-comment.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-custom-environment-variable.log
         with:
           script: |
             function main() {
@@ -420,14 +420,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-codex-add-issue-comment.log
-          path: /tmp/test-codex-add-issue-comment.log
+          name: test-codex-custom-environment-variable.log
+          path: /tmp/test-codex-custom-environment-variable.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-add-issue-comment.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-codex-custom-environment-variable.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |
