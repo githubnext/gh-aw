@@ -22,7 +22,10 @@ func getPackagesDir(local bool) (string, error) {
 	return filepath.Join(homeDir, ".aw", "packages"), nil
 }
 
-func getWorkflowsDir() string {
+func getWorkflowsDir(customDir ...string) string {
+	if len(customDir) > 0 && customDir[0] != "" {
+		return customDir[0]
+	}
 	return ".github/workflows"
 }
 

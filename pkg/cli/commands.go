@@ -158,6 +158,10 @@ func listAgenticEngines(verbose bool) error {
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
 func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool, createPR bool) error {
+	return AddWorkflowsWithDir(workflows, number, verbose, engineOverride, repoSpec, name, force, createPR, "")
+}
+
+func AddWorkflowsWithDir(workflows []string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool, createPR bool, workflowsDir string) error {
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
 	}
@@ -209,15 +213,15 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 
 	// Handle PR creation workflow
 	if createPR {
-		return addWorkflowsWithPR(workflows, number, verbose, engineOverride, name, force)
+		return addWorkflowsWithPR(workflows, number, verbose, engineOverride, name, force, workflowsDir)
 	}
 
 	// Handle normal workflow addition
-	return addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force)
+	return addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, workflowsDir)
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []string, number int, verbose bool, engineOverride string, name string, force bool) error {
+func addWorkflowsNormal(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, workflowsDir string) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -244,7 +248,7 @@ func addWorkflowsNormal(workflows []string, number int, verbose bool, engineOver
 			currentName = name
 		}
 
-		if err := AddWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, tracker); err != nil {
+		if err := AddWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, tracker, workflowsDir); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", workflow, err)
 		}
 	}
@@ -257,7 +261,7 @@ func addWorkflowsNormal(workflows []string, number int, verbose bool, engineOver
 }
 
 // addWorkflowsWithPR handles workflow addition with PR creation
-func addWorkflowsWithPR(workflows []string, number int, verbose bool, engineOverride string, name string, force bool) error {
+func addWorkflowsWithPR(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, workflowsDir string) error {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -295,7 +299,7 @@ func addWorkflowsWithPR(workflows []string, number int, verbose bool, engineOver
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, workflowsDir); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
@@ -410,7 +414,7 @@ func AddMultipleWorkflowsWithRepoAndPR(workflows []string, number int, verbose b
 }
 
 // AddWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
-func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOverride string, name string, force bool, tracker *FileTracker) error {
+func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOverride string, name string, force bool, tracker *FileTracker, workflowsDir string) error {
 	if workflow == "" {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("No components path specified. Usage: "+constants.CLIExtensionPrefix+" add <name>"))
 		// Show available workflows using the same logic as ListWorkflows
@@ -434,7 +438,7 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		fmt.Println("Locating workflow components...")
 	}
 
-	workflowsDir := getWorkflowsDir()
+	workflowsDir = getWorkflowsDir(workflowsDir)
 
 	// Add .md extension if not present
 	workflowPath := workflow
@@ -615,7 +619,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	} else {
 		// Ensure the path is relative
 		if filepath.IsAbs(workflowDir) {
-			return fmt.Errorf("workflow-dir must be a relative path, got: %s", workflowDir)
+			return fmt.Errorf("workflows-dir must be a relative path, got: %s", workflowDir)
 		}
 		// Clean the path to avoid issues with ".." or other problematic elements
 		workflowDir = filepath.Clean(workflowDir)
@@ -1076,14 +1080,18 @@ func handleFileDeleted(mdFile string, verbose bool) {
 
 // RemoveWorkflows removes workflows matching a pattern
 func RemoveWorkflows(pattern string, keepOrphans bool) error {
-	workflowsDir := getWorkflowsDir()
+	return RemoveWorkflowsFromDir(pattern, keepOrphans, "")
+}
+
+func RemoveWorkflowsFromDir(pattern string, keepOrphans bool, workflowsDir string) error {
+	workflowsDir = getWorkflowsDir(workflowsDir)
 
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		fmt.Println("No .github/workflows directory found.")
+		fmt.Printf("No %s directory found.\n", workflowsDir)
 		return nil
 	}
 
-	// Find all markdown files in .github/workflows
+	// Find all markdown files in workflows directory
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
 		return fmt.Errorf("failed to find workflow files: %w", err)
@@ -1135,7 +1143,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	var orphanedIncludes []string
 	if !keepOrphans {
 		var err error
-		orphanedIncludes, err = previewOrphanedIncludes(filesToRemove, false)
+		orphanedIncludes, err = previewOrphanedIncludes(filesToRemove, false, workflowsDir)
 		if err != nil {
 			fmt.Printf("Warning: Failed to preview orphaned includes: %v\n", err)
 			orphanedIncludes = []string{} // Continue with empty list
@@ -1201,7 +1209,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 
 	// Clean up orphaned include files (if orphan removal is enabled)
 	if len(removedFiles) > 0 && !keepOrphans {
-		if err := cleanupOrphanedIncludes(false); err != nil {
+		if err := cleanupOrphanedIncludes(false, workflowsDir); err != nil {
 			fmt.Printf("Warning: Failed to clean up orphaned includes: %v\n", err)
 		}
 	}
@@ -1216,15 +1224,15 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 
 // StatusWorkflows shows status of workflows
 // getMarkdownWorkflowFiles finds all markdown files in .github/workflows directory
-func getMarkdownWorkflowFiles() ([]string, error) {
-	workflowsDir := getWorkflowsDir()
+func getMarkdownWorkflowFiles(workflowsDir ...string) ([]string, error) {
+	targetWorkflowsDir := getWorkflowsDir(workflowsDir...)
 
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("no .github/workflows directory found")
+	if _, err := os.Stat(targetWorkflowsDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("no %s directory found", targetWorkflowsDir)
 	}
 
-	// Find all markdown files in .github/workflows
-	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	// Find all markdown files in workflows directory
+	mdFiles, err := filepath.Glob(filepath.Join(targetWorkflowsDir, "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find workflow files: %w", err)
 	}
@@ -1233,6 +1241,10 @@ func getMarkdownWorkflowFiles() ([]string, error) {
 }
 
 func StatusWorkflows(pattern string, verbose bool) error {
+	return StatusWorkflowsInDir(pattern, verbose, "")
+}
+
+func StatusWorkflowsInDir(pattern string, verbose bool, workflowsDir string) error {
 	if verbose {
 		fmt.Printf("Checking status of workflow files\n")
 		if pattern != "" {
@@ -1240,7 +1252,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		}
 	}
 
-	mdFiles, err := getMarkdownWorkflowFiles()
+	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir)
 	if err != nil {
 		fmt.Println(err.Error())
 		return nil
@@ -1395,16 +1407,24 @@ func calculateTimeRemaining(stopTimeStr string) string {
 
 // EnableWorkflows enables workflows matching a pattern
 func EnableWorkflows(pattern string) error {
-	return toggleWorkflows(pattern, true)
+	return EnableWorkflowsInDir(pattern, "")
+}
+
+func EnableWorkflowsInDir(pattern string, workflowsDir string) error {
+	return toggleWorkflows(pattern, true, workflowsDir)
 }
 
 // DisableWorkflows disables workflows matching a pattern
 func DisableWorkflows(pattern string) error {
-	return toggleWorkflows(pattern, false)
+	return DisableWorkflowsInDir(pattern, "")
+}
+
+func DisableWorkflowsInDir(pattern string, workflowsDir string) error {
+	return toggleWorkflows(pattern, false, workflowsDir)
 }
 
 // Helper function to toggle workflows
-func toggleWorkflows(pattern string, enable bool) error {
+func toggleWorkflows(pattern string, enable bool, workflowsDir string) error {
 	action := "enable"
 	if !enable {
 		action = "disable"
@@ -1415,8 +1435,8 @@ func toggleWorkflows(pattern string, enable bool) error {
 		return fmt.Errorf("GitHub CLI (gh) is required but not available")
 	}
 
-	// Get the core set of workflows from markdown files in .github/workflows
-	mdFiles, err := getMarkdownWorkflowFiles()
+	// Get the core set of workflows from markdown files in workflows directory
+	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir)
 	if err != nil {
 		// Handle missing .github/workflows directory gracefully
 		fmt.Printf("No workflow files found to %s.\n", action)
@@ -2803,9 +2823,9 @@ func copyIncludeDependenciesFromPackageWithForce(dependencies []IncludeDependenc
 }
 
 // cleanupOrphanedIncludes removes include files that are no longer used by any workflow
-func cleanupOrphanedIncludes(verbose bool) error {
+func cleanupOrphanedIncludes(verbose bool, workflowsDir ...string) error {
 	// Get all remaining markdown files
-	mdFiles, err := getMarkdownWorkflowFiles()
+	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir...)
 	if err != nil {
 		// No markdown files means we can clean up all includes
 		if verbose {
@@ -2840,19 +2860,19 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		}
 	}
 
-	// Find all include files in .github/workflows
+	// Find all include files in workflows directory
 	// Only consider files in subdirectories (like shared/) as potential include files
 	// Root-level .md files are workflow files, not include files
-	workflowsDir := ".github/workflows"
+	targetWorkflowsDir := getWorkflowsDir(workflowsDir...)
 	var allIncludes []string
 
-	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(targetWorkflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
-			relPath, err := filepath.Rel(workflowsDir, path)
+			relPath, err := filepath.Rel(targetWorkflowsDir, path)
 			if err != nil {
 				return err
 			}
@@ -2874,7 +2894,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 	// Remove unused includes
 	for _, include := range allIncludes {
 		if !usedIncludes[include] {
-			includePath := filepath.Join(workflowsDir, include)
+			includePath := filepath.Join(targetWorkflowsDir, include)
 			if err := os.Remove(includePath); err != nil {
 				if verbose {
 					fmt.Printf("Warning: Failed to remove orphaned include %s: %v\n", include, err)
@@ -2889,9 +2909,9 @@ func cleanupOrphanedIncludes(verbose bool) error {
 }
 
 // previewOrphanedIncludes returns a list of include files that would become orphaned if the specified files were removed
-func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, error) {
+func previewOrphanedIncludes(filesToRemove []string, verbose bool, workflowsDir ...string) ([]string, error) {
 	// Get all current markdown files
-	allMdFiles, err := getMarkdownWorkflowFiles()
+	allMdFiles, err := getMarkdownWorkflowFiles(workflowsDir...)
 	if err != nil {
 		return nil, err
 	}
@@ -3785,20 +3805,27 @@ func createPR(branchName, title, body string, verbose bool) error {
 
 // NewWorkflow creates a new workflow markdown file with template content
 func NewWorkflow(workflowName string, verbose bool, force bool) error {
+	return NewWorkflowWithDir(workflowName, verbose, force, "")
+}
+
+func NewWorkflowWithDir(workflowName string, verbose bool, force bool, workflowsDir string) error {
 	if verbose {
 		fmt.Printf("Creating new workflow: %s\n", workflowName)
 	}
 
-	// Get current working directory for .github/workflows
+	// Get current working directory for workflows directory
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	// Create .github/workflows directory if it doesn't exist
-	githubWorkflowsDir := filepath.Join(workingDir, ".github", "workflows")
+	// Determine the workflows directory to use
+	targetWorkflowsDir := getWorkflowsDir(workflowsDir)
+
+	// Create workflows directory if it doesn't exist
+	githubWorkflowsDir := filepath.Join(workingDir, targetWorkflowsDir)
 	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
+		return fmt.Errorf("failed to create %s directory: %w", targetWorkflowsDir, err)
 	}
 
 	// Construct the destination file path
