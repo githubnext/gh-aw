@@ -187,11 +187,29 @@ gh aw logs --format json -o ./exports/
 - Workflow run frequency and scheduling patterns
 - Resource usage and performance trends
 
-## 🔍 MCP Server Inspection
+## 🔍 MCP Server Management
 
-The `mcp inspect` command allows you to analyze and troubleshoot Model Context Protocol (MCP) servers configured in your workflows.
+The `mcp` command provides comprehensive tools for discovering, listing, and inspecting Model Context Protocol (MCP) servers configured in your workflows.
 
 > **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](/gh-aw/guides/mcps/).
+
+### MCP Server Discovery
+
+```bash
+# List all workflows that contain MCP server configurations
+gh aw mcp list
+
+# List all workflows with detailed MCP server information
+gh aw mcp list --verbose
+
+# List MCP servers in a specific workflow
+gh aw mcp list workflow-name
+
+# List MCP servers in a specific workflow with detailed configuration
+gh aw mcp list workflow-name --verbose
+```
+
+### MCP Server Inspection
 
 ```bash
 # List all workflows that contain MCP server configurations
@@ -214,6 +232,8 @@ gh aw mcp inspect workflow-name --inspector
 ```
 
 **Key Features:**
+- **`mcp list`**: Quick overview of MCP servers across workflows with structured table output
+- **`mcp inspect`**: Deep inspection with server connection testing and tool capability analysis
 - Server discovery and connection testing
 - Tool and capability inspection
 - Detailed tool information with `--tool` flag
