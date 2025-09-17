@@ -3511,10 +3511,186 @@ func removeXMLCommentsFromLine(line string, inXMLComment bool) (string, bool, bo
 	return result, wasInComment, inXMLComment
 }
 
-func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Create prompt\n")
+// buildPromptContent constructs the full prompt content as a string
+func (c *Compiler) buildPromptContent(data *WorkflowData) string {
+	var promptBuilder strings.Builder
 
-	// Add environment variables section - always include GITHUB_AW_PROMPT
+	// Add markdown content (removing XML comments)
+	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
+	promptBuilder.WriteString(cleanedMarkdownContent)
+
+	// Add cache folder notification if cache-memory is enabled
+	if data.CacheMemoryConfig != nil && data.CacheMemoryConfig.Enabled {
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("---\n")
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("## Cache Folder Available\n")
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.\n")
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("- **Read/Write Access**: You can freely read from and write to any files in this folder\n")
+		promptBuilder.WriteString("- **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache\n")
+		promptBuilder.WriteString("- **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved\n")
+		promptBuilder.WriteString("- **File Share**: Use this as a simple file share - organize files as you see fit\n")
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("Examples of what you can store:\n")
+		promptBuilder.WriteString("- `/tmp/cache-memory/notes.txt` - general notes and observations\n")
+		promptBuilder.WriteString("- `/tmp/cache-memory/preferences.json` - user preferences and settings\n")
+		promptBuilder.WriteString("- `/tmp/cache-memory/history.log` - activity history and logs\n")
+		promptBuilder.WriteString("- `/tmp/cache-memory/state/` - organized state files in subdirectories\n")
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
+	}
+
+	if data.SafeOutputs != nil {
+		// Add output instructions for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("---\n")
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("## ")
+		written := false
+		if data.SafeOutputs.AddComments != nil {
+			promptBuilder.WriteString("Adding a Comment to an Issue or Pull Request")
+			written = true
+		}
+		if data.SafeOutputs.CreateIssues != nil {
+			if written {
+				promptBuilder.WriteString(", ")
+			}
+			promptBuilder.WriteString("Creating an Issue")
+		}
+		if data.SafeOutputs.CreatePullRequests != nil {
+			if written {
+				promptBuilder.WriteString(", ")
+			}
+			promptBuilder.WriteString("Creating a Pull Request")
+		}
+
+		if data.SafeOutputs.AddLabels != nil {
+			if written {
+				promptBuilder.WriteString(", ")
+			}
+			promptBuilder.WriteString("Adding Labels to Issues or Pull Requests")
+			written = true
+		}
+
+		if data.SafeOutputs.UpdateIssues != nil {
+			if written {
+				promptBuilder.WriteString(", ")
+			}
+			promptBuilder.WriteString("Updating Issues")
+			written = true
+		}
+
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			if written {
+				promptBuilder.WriteString(", ")
+			}
+			promptBuilder.WriteString("Pushing Changes to Branch")
+			written = true
+		}
+
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+			if written {
+				promptBuilder.WriteString(", ")
+			}
+			promptBuilder.WriteString("Creating Code Scanning Alert")
+			written = true
+		}
+
+		// Missing-tool is always available
+		if written {
+			promptBuilder.WriteString(", ")
+		}
+		promptBuilder.WriteString("Reporting Missing Tools or Functionality")
+
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("\n")
+		promptBuilder.WriteString("**IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n")
+		promptBuilder.WriteString("\n")
+
+		if data.SafeOutputs.AddComments != nil {
+			promptBuilder.WriteString("**Adding a Comment to an Issue or Pull Request**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		if data.SafeOutputs.CreateIssues != nil {
+			promptBuilder.WriteString("**Creating an Issue**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To create an issue, use the create-issue tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		if data.SafeOutputs.CreatePullRequests != nil {
+			promptBuilder.WriteString("**Creating a Pull Request**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To create a pull request:\n")
+			promptBuilder.WriteString("1. Make any file changes directly in the working directory\n")
+			promptBuilder.WriteString("2. If you haven't done so already, create a local branch using an appropriate unique name\n")
+			promptBuilder.WriteString("3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			promptBuilder.WriteString("4. Do not push your changes. That will be done by the tool.\n")
+			promptBuilder.WriteString("5. Create the pull request with the create-pull-request tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		if data.SafeOutputs.AddLabels != nil {
+			promptBuilder.WriteString("**Adding Labels to Issues or Pull Requests**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To add labels to an issue or a pull request, use the add-labels tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		if data.SafeOutputs.UpdateIssues != nil {
+			promptBuilder.WriteString("**Updating an Issue**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To udpate an issue, use the update-issue tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			promptBuilder.WriteString("**Pushing Changes to Pull Request Branch**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To push changes to the branch of a pull request:\n")
+			promptBuilder.WriteString("1. Make any file changes directly in the working directory\n")
+			promptBuilder.WriteString("2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
+			promptBuilder.WriteString("3. Push the branch to the repo by using the push-to-pr-branch tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+			promptBuilder.WriteString("**Creating Code Scanning Alert**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To create code scanning alert use the create-code-scanning-alert tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		// Missing-tool instructions are only included when configured
+		if data.SafeOutputs.MissingTool != nil {
+			promptBuilder.WriteString("**Reporting Missing Tools or Functionality**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To report a missing tool use the missing-tool tool from the safe-outputs MCP.\n")
+			promptBuilder.WriteString("\n")
+		}
+
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			promptBuilder.WriteString("**Creating a Pull Request Review Comment**\n")
+			promptBuilder.WriteString("\n")
+			promptBuilder.WriteString("To create a pull request review comment, use the create-pull-request-review-comment tool from the safe-outputs MCP\n")
+			promptBuilder.WriteString("\n")
+		}
+	}
+
+	return promptBuilder.String()
+}
+
+// generatePrompt creates a step that generates and prints the prompt using JavaScript actions
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Create and print prompt\n")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
+
+	// Add environment variables section
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 
@@ -3523,191 +3699,22 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	}
 
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
-	yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
+	// Build the prompt content and pass it as an environment variable
+	promptContent := c.buildPromptContent(data)
+	yaml.WriteString("          GITHUB_AW_PROMPT_CONTENT: ")
+	// Use a JSON-encoded string to handle special characters and newlines properly
+	yamlEscapedContent := strings.ReplaceAll(promptContent, "\n", "\\n")
+	yamlEscapedContent = strings.ReplaceAll(yamlEscapedContent, "\"", "\\\"")
+	yaml.WriteString("\"" + yamlEscapedContent + "\"\n")
 
-	// Add markdown content with proper indentation (removing XML comments)
-	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
-	for _, line := range strings.Split(cleanedMarkdownContent, "\n") {
-		yaml.WriteString("          " + line + "\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Inline the JavaScript directly
+	formattedScript := FormatJavaScriptForYAML(createAndPrintPromptScript)
+	for _, line := range formattedScript {
+		yaml.WriteString(line)
 	}
-
-	// Add cache folder notification if cache-memory is enabled
-	if data.CacheMemoryConfig != nil && data.CacheMemoryConfig.Enabled {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          ---\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          ## Cache Folder Available\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
-		yaml.WriteString("          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache\n")
-		yaml.WriteString("          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved\n")
-		yaml.WriteString("          - **File Share**: Use this as a simple file share - organize files as you see fit\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          Examples of what you can store:\n")
-		yaml.WriteString("          - `/tmp/cache-memory/notes.txt` - general notes and observations\n")
-		yaml.WriteString("          - `/tmp/cache-memory/preferences.json` - user preferences and settings\n")
-		yaml.WriteString("          - `/tmp/cache-memory/history.log` - activity history and logs\n")
-		yaml.WriteString("          - `/tmp/cache-memory/state/` - organized state files in subdirectories\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
-	}
-
-	if data.SafeOutputs != nil {
-		// Add output instructions for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
-		yaml.WriteString("          \n")
-		yaml.WriteString("          ---\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          ## ")
-		written := false
-		if data.SafeOutputs.AddComments != nil {
-			yaml.WriteString("Adding a Comment to an Issue or Pull Request")
-			written = true
-		}
-		if data.SafeOutputs.CreateIssues != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Creating an Issue")
-		}
-		if data.SafeOutputs.CreatePullRequests != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Creating a Pull Request")
-		}
-
-		if data.SafeOutputs.AddLabels != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Adding Labels to Issues or Pull Requests")
-			written = true
-		}
-
-		if data.SafeOutputs.UpdateIssues != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Updating Issues")
-			written = true
-		}
-
-		if data.SafeOutputs.PushToPullRequestBranch != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Pushing Changes to Branch")
-			written = true
-		}
-
-		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-			if written {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("Creating Code Scanning Alert")
-			written = true
-		}
-
-		// Missing-tool is always available
-		if written {
-			yaml.WriteString(", ")
-		}
-		yaml.WriteString("Reporting Missing Tools or Functionality")
-
-		yaml.WriteString("\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n")
-		yaml.WriteString("          \n")
-
-		if data.SafeOutputs.AddComments != nil {
-			yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.CreateIssues != nil {
-			yaml.WriteString("          **Creating an Issue**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create an issue, use the create-issue tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.CreatePullRequests != nil {
-			yaml.WriteString("          **Creating a Pull Request**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create a pull request:\n")
-			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
-			yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
-			yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-			yaml.WriteString("          4. Do not push your changes. That will be done by the tool.\n")
-			yaml.WriteString("          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.AddLabels != nil {
-			yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To add labels to an issue or a pull request, use the add-labels tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.UpdateIssues != nil {
-			yaml.WriteString("          **Updating an Issue**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To udpate an issue, use the update-issue tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.PushToPullRequestBranch != nil {
-			yaml.WriteString("          **Pushing Changes to Pull Request Branch**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To push changes to the branch of a pull request:\n")
-			yaml.WriteString("          1. Make any file changes directly in the working directory\n")
-			yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-			yaml.WriteString("          3. Push the branch to the repo by using the push-to-pr-branch tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-			yaml.WriteString("          **Creating Code Scanning Alert**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create code scanning alert use the create-code-scanning-alert tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-
-		// Missing-tool instructions are only included when configured
-		if data.SafeOutputs.MissingTool != nil {
-			yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To report a missing tool use the missing-tool tool from the safe-outputs MCP.\n")
-			yaml.WriteString("          \n")
-		}
-
-		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-			yaml.WriteString("          **Creating a Pull Request Review Comment**\n")
-			yaml.WriteString("          \n")
-			yaml.WriteString("          To create a pull request review comment, use the create-pull-request-review-comment tool from the safe-outputs MCP\n")
-			yaml.WriteString("          \n")
-		}
-	}
-
-	yaml.WriteString("          EOF\n")
-
-	// Add step to print prompt to GitHub step summary for debugging
-	yaml.WriteString("      - name: Print prompt to step summary\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution

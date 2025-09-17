@@ -227,30 +227,44 @@ should also be removed -->
 Final content.`,
 	}
 
+	// Test the prompt content generation directly
+	promptContent := compiler.buildPromptContent(data)
+
+	// Check that XML comments are not present in the generated prompt content
+	if strings.Contains(promptContent, "<!-- This comment should be removed from the prompt -->") {
+		t.Error("Expected single-line XML comment to be removed from prompt content")
+	}
+
+	if strings.Contains(promptContent, "<!-- Another comment") {
+		t.Error("Expected multi-line XML comment to be removed from prompt content")
+	}
+
+	// Check that regular content is still present
+	if !strings.Contains(promptContent, "# Workflow Title") {
+		t.Error("Expected regular markdown content to be preserved")
+	}
+
+	if !strings.Contains(promptContent, "This is some content.") {
+		t.Error("Expected regular content to be preserved")
+	}
+
+	if !strings.Contains(promptContent, "Final content.") {
+		t.Error("Expected final content to be preserved")
+	}
+
+	// Also test the YAML generation uses JavaScript action
 	var yaml strings.Builder
 	compiler.generatePrompt(&yaml, data)
 
 	output := yaml.String()
 
-	// Check that XML comments are not present in the generated output
-	if strings.Contains(output, "<!-- This comment should be removed from the prompt -->") {
-		t.Error("Expected single-line XML comment to be removed from prompt generation")
+	// Check that it uses JavaScript action
+	if !strings.Contains(output, "uses: actions/github-script@v8") {
+		t.Error("Expected JavaScript action to be used for prompt generation")
 	}
 
-	if strings.Contains(output, "<!-- Another comment") {
-		t.Error("Expected multi-line XML comment to be removed from prompt generation")
-	}
-
-	// Check that regular content is still present
-	if !strings.Contains(output, "# Workflow Title") {
-		t.Error("Expected regular markdown content to be preserved")
-	}
-
-	if !strings.Contains(output, "This is some content.") {
-		t.Error("Expected regular content to be preserved")
-	}
-
-	if !strings.Contains(output, "Final content.") {
-		t.Error("Expected final content to be preserved")
+	// Check that content is passed as environment variable
+	if !strings.Contains(output, "GITHUB_AW_PROMPT_CONTENT:") {
+		t.Error("Expected prompt content to be passed as environment variable")
 	}
 }

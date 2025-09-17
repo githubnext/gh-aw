@@ -737,77 +737,53 @@ jobs:
             }
           }
           EOF
-      - name: Create prompt
+      - name: Create and print prompt
+        uses: actions/github-script@v8
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-        run: |
-          mkdir -p /tmp/aw-prompts
-          cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Development Assistant
-          
-          You are a development assistant that helps with coding tasks and maintains an execution plan.
-          
-          ## Task
-          
-          Try to call a tool, `draw_pelican` that draws a pelican.
-          
-          ## Execution Plan Management
-          
-          - **Check for existing plan**: Look for `/tmp/cache-memory/plan.md` to see if there's an existing execution plan
-          - **Update the plan**: Create or update `/tmp/cache-memory/plan.md` with your execution strategy
-          - **Remember progress**: Store any important findings, decisions, or progress in the cache folder
-          - **Recall previous work**: If a plan exists, reference it and continue from where you left off
-          
-          The plan should include:
-          1. Current objectives
-          2. Steps completed
-          3. Next steps
-          4. Any important discoveries or decisions
-          5. Tools or approaches that worked well
-          
-          Please maintain this execution plan throughout your work to ensure continuity across workflow runs.
-          
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/cache-memory/history.log` - activity history and logs
-          - `/tmp/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          
-          ---
-          
-          ## Reporting Missing Tools or Functionality
-          
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Reporting Missing Tools or Functionality**
-          
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
-          
-          EOF
-      - name: Print prompt to step summary
-        run: |
-          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '``````markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '``````' >> $GITHUB_STEP_SUMMARY
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT_CONTENT: "# Development Assistant\n\nYou are a development assistant that helps with coding tasks and maintains an execution plan.\n\n## Task\n\nTry to call a tool, `draw_pelican` that draws a pelican.\n\n## Execution Plan Management\n\n- **Check for existing plan**: Look for `/tmp/cache-memory/plan.md` to see if there's an existing execution plan\n- **Update the plan**: Create or update `/tmp/cache-memory/plan.md` with your execution strategy\n- **Remember progress**: Store any important findings, decisions, or progress in the cache folder\n- **Recall previous work**: If a plan exists, reference it and continue from where you left off\n\nThe plan should include:\n1. Current objectives\n2. Steps completed\n3. Next steps\n4. Any important discoveries or decisions\n5. Tools or approaches that worked well\n\nPlease maintain this execution plan throughout your work to ensure continuity across workflow runs.\n\n---\n\n## Cache Folder Available\n\nYou have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.\n\n- **Read/Write Access**: You can freely read from and write to any files in this folder\n- **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache\n- **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved\n- **File Share**: Use this as a simple file share - organize files as you see fit\n\nExamples of what you can store:\n- `/tmp/cache-memory/notes.txt` - general notes and observations\n- `/tmp/cache-memory/preferences.json` - user preferences and settings\n- `/tmp/cache-memory/history.log` - activity history and logs\n- `/tmp/cache-memory/state/` - organized state files in subdirectories\n\nFeel free to create, read, update, and organize files in this folder as needed for your tasks.\n\n---\n\n## Reporting Missing Tools or Functionality\n\n**IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n\n**Reporting Missing Tools or Functionality**\n\nTo report a missing tool use the missing-tool tool from the safe-outputs MCP.\n\n"
+        with:
+          script: |
+            /** @type {typeof import("fs")} */
+            const fs = require("fs");
+            async function main() {
+              // Environment validation - fail early if required variables are missing
+              const promptPath = process.env.GITHUB_AW_PROMPT;
+              if (!promptPath) {
+                throw new Error("GITHUB_AW_PROMPT environment variable is required");
+              }
+              const promptContent = process.env.GITHUB_AW_PROMPT_CONTENT;
+              if (!promptContent) {
+                throw new Error("GITHUB_AW_PROMPT_CONTENT environment variable is required");
+              }
+              try {
+                // Create the directory structure if it doesn't exist
+                const promptDir = require("path").dirname(promptPath);
+                fs.mkdirSync(promptDir, { recursive: true });
+                // Write the prompt content to the file
+                fs.writeFileSync(promptPath, promptContent, "utf8");
+                core.info(`Prompt written to: ${promptPath}`);
+                core.debug(`Prompt content length: ${promptContent.length} characters`);
+                // Set the prompt as an environment variable using JSON.stringify for proper escaping
+                const promptContentJson = JSON.stringify(promptContent);
+                core.exportVariable("GITHUB_AW_PROMPT_JSON", promptContentJson);
+                // Also set as step output for reference
+                core.setOutput("prompt_file", promptPath);
+                core.setOutput("prompt_content_json", promptContentJson);
+                // Print prompt to GitHub step summary using core.summary API
+                await core.summary
+                  .addRaw("## Generated Prompt\n\n")
+                  .addRaw("```markdown\n")
+                  .addRaw(promptContent)
+                  .addRaw("\n```")
+                  .write();
+                core.info("Prompt successfully written to step summary");
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error.message : String(error));
+              }
+            }
+            await main();
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:

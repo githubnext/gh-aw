@@ -152,19 +152,32 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 
 	output := yaml.String()
 
-	// Check that missing-tool is mentioned in the header
-	if !strings.Contains(output, "Reporting Missing Tools or Functionality") {
-		t.Error("Expected 'Reporting Missing Tools or Functionality' in prompt header")
-	}
-
 	// Check that GITHUB_AW_SAFE_OUTPUTS environment variable is included when SafeOutputs is configured
 	if !strings.Contains(output, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
 		t.Error("Expected 'GITHUB_AW_SAFE_OUTPUTS' environment variable when SafeOutputs is configured")
 	}
 
-	// Check that the important note about safe-outputs tools is included
-	if !strings.Contains(output, "**IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools") {
-		t.Error("Expected important note about safe-outputs tools")
+	// Check that it uses the JavaScript action
+	if !strings.Contains(output, "uses: actions/github-script@v8") {
+		t.Error("Expected JavaScript action to be used for prompt generation")
+	}
+
+	// Check that prompt content is passed as environment variable
+	if !strings.Contains(output, "GITHUB_AW_PROMPT_CONTENT:") {
+		t.Error("Expected prompt content to be passed as environment variable")
+	}
+
+	// Test the content generation separately using buildPromptContent
+	content := compiler.buildPromptContent(data)
+
+	// Check that missing-tool is mentioned in the prompt content
+	if !strings.Contains(content, "Reporting Missing Tools or Functionality") {
+		t.Error("Expected 'Reporting Missing Tools or Functionality' in prompt content")
+	}
+
+	// Check that the important note about safe-outputs tools is included in prompt content
+	if !strings.Contains(content, "**IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools") {
+		t.Error("Expected important note about safe-outputs tools in prompt content")
 	}
 }
 

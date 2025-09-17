@@ -146,12 +146,12 @@ This is a test workflow.
 				if strings.Contains(lockContent, "mcp-servers.json") {
 					t.Errorf("Expected lock file to NOT contain 'mcp-servers.json' when using codex.\nContent:\n%s", lockContent)
 				}
-				// Check that prompt printing step is present (regardless of engine)
-				if !strings.Contains(lockContent, "Print prompt to step summary") {
-					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
+				// Check that prompt generation step is present (regardless of engine)
+				if !strings.Contains(lockContent, "Create and print prompt") {
+					t.Errorf("Expected lock file to contain 'Create and print prompt' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
-					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "uses: actions/github-script@v8") {
+					t.Errorf("Expected lock file to contain JavaScript action for prompt generation but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Ensure it does NOT contain Claude Code
 				if strings.Contains(lockContent, "Execute Claude Code Action") {
@@ -165,12 +165,12 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code@latest") {
 					t.Errorf("Expected lock file to contain Claude Code npx command but it didn't.\nContent:\n%s", lockContent)
 				}
-				// Check that prompt printing step is present
-				if !strings.Contains(lockContent, "Print prompt to step summary") {
-					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
+				// Check that prompt generation step is present
+				if !strings.Contains(lockContent, "Create and print prompt") {
+					t.Errorf("Expected lock file to contain 'Create and print prompt' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
-					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "uses: actions/github-script@v8") {
+					t.Errorf("Expected lock file to contain JavaScript action for prompt generation but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that mcp-servers.json is generated (not config.toml)
 				if !strings.Contains(lockContent, "cat > /tmp/mcp-config/mcp-servers.json") {
