@@ -413,17 +413,17 @@ func NewMCPAddSubcommand() *cobra.Command {
 	var customToolID string
 
 	cmd := &cobra.Command{
-		Use:   "add <workflow-file> [mcp-server-name]",
+		Use:   "add [workflow-file] [mcp-server-name]",
 		Short: "Add an MCP tool to an agentic workflow",
 		Long: `Add an MCP tool to an agentic workflow by searching the MCP registry.
 
 This command searches the MCP registry for the specified server, adds it to the workflow's tools section,
 and automatically compiles the workflow. If the tool already exists, the command will fail.
 
-When called with only a workflow file, it will show a list of available MCP servers from the registry.
+When called with no arguments, it will show a list of available MCP servers from the registry.
 
 Examples:
-  gh aw mcp add weekly-research                          # List available MCP servers
+  gh aw mcp add                                          # List available MCP servers
   gh aw mcp add weekly-research makenotion/notion-mcp-server  # Add Notion MCP server to weekly-research.md
   gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio  # Prefer stdio transport
   gh aw mcp add weekly-research makenotion/notion-mcp-server --registry https://custom.registry.com/v1  # Use custom registry
@@ -436,7 +436,7 @@ The command will:
 - Automatically compile the workflow to generate the .lock.yml file
 
 Registry URL defaults to: https://api.mcp.github.com/v0`,
-		Args: cobra.RangeArgs(1, 2),
+		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
@@ -454,13 +454,18 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 				}
 			}
 
-			// If only workflow file is provided, show list of available servers
-			if len(args) == 1 {
+			// If no arguments provided, show list of available servers
+			if len(args) == 0 {
 				// Use default registry URL if not provided
 				if registryURL == "" {
 					registryURL = "https://api.mcp.github.com/v0"
 				}
 				return listAvailableServers(registryURL, verbose)
+			}
+
+			// If only workflow file is provided, show error (need both workflow and server)
+			if len(args) == 1 {
+				return fmt.Errorf("both workflow file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers")
 			}
 
 			// If both arguments are provided, add the MCP tool
