@@ -213,33 +213,11 @@ async function main() {
       });
       core.info(`Checked out existing branch from origin: ${branchName}`);
     } catch (originError) {
-      // Branch doesn't exist on origin, check if it exists locally
-      try {
-        execSync(`git rev-parse --verify ${branchName}`, { stdio: "pipe" });
-        // Branch exists locally, check it out
-        execSync(`git checkout ${branchName}`, { stdio: "inherit" });
-        core.info(`Checked out existing local branch: ${branchName}`);
-      } catch (localError) {
-        // Branch doesn't exist locally or on origin, create it from default branch
-        core.info(
-          `Branch does not exist, creating new branch from default branch: ${branchName}`
-        );
-
-        // Get the default branch name
-        const defaultBranch = execSync(
-          "git remote show origin | grep 'HEAD branch' | cut -d' ' -f5",
-          { encoding: "utf8" }
-        ).trim();
-        core.info(`Default branch: ${defaultBranch}`);
-
-        // Ensure we have the latest default branch
-        execSync(`git checkout ${defaultBranch}`, { stdio: "inherit" });
-        execSync(`git pull origin ${defaultBranch}`, { stdio: "inherit" });
-
-        // Create new branch from default branch
-        execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
-        core.info(`Created new branch from default branch: ${branchName}`);
-      }
+      // Give an error if branch doesn't exist on origin
+      core.setFailed(
+        `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
+      );
+      return;
     }
   } catch (error) {
     core.setFailed(

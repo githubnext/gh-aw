@@ -547,7 +547,6 @@ safe-outputs:
     - github.com                      # Default GitHub domains are always included
     - api.github.com                  # Additional trusted domains can be specified
     - trusted-domain.com              # URIs from unlisted domains are replaced with "(redacted)"
-  github-token: ${{ secrets.CUSTOM_PAT }}  # Optional: custom GitHub token for safe output jobs
 ```
 
 ## Global Configuration Options
@@ -558,9 +557,9 @@ By default, safe output jobs use the standard `GITHUB_TOKEN` provided by GitHub 
 
 ```yaml
 safe-outputs:
+  github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
   create-issue:
   add-comment:
-  github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
 ```
 
 This is useful when:
@@ -568,7 +567,15 @@ This is useful when:
 - You want to perform actions across multiple repositories
 - You need to bypass GitHub Actions token restrictions
 
-**Note:** The custom `github-token` is applied to all safe output jobs (create-issue, add-comment, create-pull-request, etc.). Individual safe output types cannot have different tokens.
+The custom `github-token` can also be appleid to a specific output. This is most useful if GitHub organization or repository policy prevents GitHub Actions workflows from creating pull requests, and you only want to use the PAT for that specific case.
+
+```yaml
+safe-outputs:
+  create-issue:
+  add-comment:
+  create-pull-request:
+    github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+```
 
 ## Related Documentation
 

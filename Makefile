@@ -70,7 +70,7 @@ deps:
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: deps copy-copilot-to-claude download-github-actions-schema
+deps-dev: deps download-github-actions-schema
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	npm ci
 
@@ -221,12 +221,7 @@ minor-release:
 			;; \
 	esac
 
-# Copy copilot instructions to Claude instructions file
-.PHONY: copy-copilot-to-claude
-copy-copilot-to-claude:
-	@echo "Copying copilot instructions to Claude instructions file..."
-	@cp .github/copilot-instructions.md CLAUDE.md
-	@echo "✓ Copied .github/copilot-instructions.md to CLAUDE.md"
+
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
@@ -255,7 +250,7 @@ help:
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
 	@echo "  recompile        - Recompile all workflow files (depends on build)"
-	@echo "  copy-copilot-to-claude - Copy copilot instructions to Claude instructions file"
+
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  patch-release    - Create and push patch release (increments patch version)"
 	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"
