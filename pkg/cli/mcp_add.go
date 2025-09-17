@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -29,8 +30,8 @@ func listAvailableServers(registryURL string, verbose bool) error {
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
 		if len(servers) > 0 {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - ID: '%s', Name: '%s', Description: '%s'",
-				servers[0].ID, servers[0].Name, servers[0].Description)))
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - Name: '%s', Description: '%s'",
+				servers[0].Name, servers[0].Description)))
 		}
 	}
 
@@ -47,7 +48,7 @@ func listAvailableServers(registryURL string, verbose bool) error {
 		// Use server name as the primary identifier
 		name := server.Name
 		if name == "" {
-			name = server.ID // fallback to ID if no name
+			name = "<unnamed>" // fallback if no name
 		}
 
 		// Truncate long descriptions for table display
@@ -109,8 +110,8 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		return fmt.Errorf("no MCP servers found matching '%s'", mcpServerID)
 	}
 
-	// Find exact match by name first, then by ID
-	var selectedServer *MCPRegistryServer
+	// Find exact match by name first, then by partial match
+	var selectedServer *MCPRegistryServerForProcessing
 	for i, server := range servers {
 		// Prioritize name matches over ID matches
 		if server.Name == mcpServerID {
@@ -119,10 +120,10 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		}
 	}
 
-	// If no name match, try ID match
+	// If no name match, try partial match
 	if selectedServer == nil {
 		for i, server := range servers {
-			if server.ID == mcpServerID {
+			if strings.Contains(strings.ToLower(server.Name), strings.ToLower(mcpServerID)) {
 				selectedServer = &servers[i]
 				break
 			}
@@ -148,7 +149,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Selected server: %s (ID: %s, Transport: %s)", selectedServer.Name, selectedServer.ID, selectedServer.Transport)))
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Selected server: %s (Transport: %s)", selectedServer.Name, selectedServer.Transport)))
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Will add as tool ID: %s", toolID)))
 	}
 
@@ -230,7 +231,7 @@ func cleanMCPToolID(toolID string) string {
 }
 
 // createMCPToolConfig creates the MCP tool configuration based on registry server info
-func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, registryURL string, verbose bool) (map[string]any, error) {
+func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransport string, registryURL string, verbose bool) (map[string]any, error) {
 	config := make(map[string]any)
 
 	// Determine transport type (use preference if provided and supported)
@@ -250,7 +251,7 @@ func createMCPToolConfig(server *MCPRegistryServer, preferredTransport string, r
 	// Create MCP configuration based on transport type
 	mcpSection := map[string]any{
 		"type":     transport,
-		"registry": fmt.Sprintf("%s/servers/%s", registryURL, server.ID),
+		"registry": fmt.Sprintf("%s/servers?search=%s", registryURL, url.QueryEscape(server.Name)),
 	}
 
 	switch transport {

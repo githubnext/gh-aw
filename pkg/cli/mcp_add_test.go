@@ -57,32 +57,43 @@ This is a test workflow.
 	// Create a mock registry server
 	registryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/servers" {
-			// Return mock search response with new structure
+			// Return mock search response with new structure based on official specification
 			response := `{
 				"servers": [
 					{
-						"server": {
-							"id": "notion-mcp",
-							"name": "Notion MCP Server",
-							"description": "MCP server for Notion integration",
-							"repository": {
-								"url": "https://github.com/example/notion-mcp"
-							},
-							"packages": [
-								{
-									"registry_name": "notion-mcp",
-									"runtime_hint": "node",
-									"runtime_arguments": [
-										{"value": "notion-mcp"}
-									],
-									"environment_variables": [
-										{
-											"NOTION_TOKEN": "${NOTION_TOKEN}"
-										}
-									]
-								}
-							]
-						}
+						"name": "io.github.makenotion/notion-mcp-server",
+						"description": "MCP server for Notion integration",
+						"status": "active",
+						"version": "1.0.0",
+						"repository": {
+							"url": "https://github.com/example/notion-mcp",
+							"source": "github"
+						},
+						"packages": [
+							{
+								"registry_type": "npm",
+								"identifier": "notion-mcp",
+								"version": "1.0.0",
+								"runtime_hint": "node",
+								"transport": {
+									"type": "stdio"
+								},
+								"package_arguments": [
+									{
+										"type": "positional",
+										"value": "notion-mcp"
+									}
+								],
+								"environment_variables": [
+									{
+										"name": "NOTION_TOKEN",
+										"description": "Notion API token",
+										"is_required": true,
+										"is_secret": true
+									}
+								]
+							}
+						]
 					}
 				]
 			}`
@@ -108,9 +119,9 @@ This is a test workflow.
 
 	updatedContentStr := string(updatedContent)
 
-	// Check that the Notion MCP Server tool was added (cleaned from notion-mcp server name)
-	if !strings.Contains(updatedContentStr, "Notion MCP Server:") {
-		t.Error("Expected Notion MCP Server tool to be added to workflow")
+	// Check that the MCP tool was added with the cleaned tool ID
+	if !strings.Contains(updatedContentStr, "notion-mcp-server:") {
+		t.Error("Expected MCP tool (notion-mcp-server) to be added to workflow")
 	}
 
 	// Check that it has MCP configuration
@@ -197,7 +208,7 @@ func TestAddMCPTool_ToolAlreadyExists(t *testing.T) {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 
-	// Create a test workflow file with existing Notion MCP Server tool
+	// Create a test workflow file with existing tool (using the same name since it won't be cleaned)
 	workflowContent := `---
 name: Test Workflow
 on:
@@ -205,7 +216,7 @@ on:
     - cron: "0 9 * * 1"
 tools:
   github:
-  Notion MCP Server:
+  io.github.makenotion/notion-mcp-server:
     mcp:
       type: stdio
       command: notion-mcp
@@ -226,21 +237,32 @@ This is a test workflow.
 		response := `{
 			"servers": [
 				{
-					"server": {
-						"id": "notion-mcp",
-						"name": "Notion MCP Server",
-						"repository": {
-							"url": "https://github.com/example/notion-mcp"
-						},
-						"packages": [
-							{
-								"registry_name": "notion-mcp",
-								"runtime_hint": "node",
-								"runtime_arguments": [],
-								"environment_variables": []
-							}
-						]
-					}
+					"name": "io.github.makenotion/notion-mcp-server",
+					"description": "MCP server for Notion integration",
+					"status": "active",
+					"version": "1.0.0",
+					"repository": {
+						"url": "https://github.com/example/notion-mcp",
+						"source": "github"
+					},
+					"packages": [
+						{
+							"registry_type": "npm",
+							"identifier": "notion-mcp",
+							"version": "1.0.0",
+							"runtime_hint": "node",
+							"transport": {
+								"type": "stdio"
+							},
+							"package_arguments": [
+								{
+									"type": "positional",
+									"value": "notion-mcp"
+								}
+							],
+							"environment_variables": []
+						}
+					]
 				}
 			]
 		}`
@@ -251,13 +273,13 @@ This is a test workflow.
 	}))
 	defer registryServer.Close()
 
-	// Test adding tool that already exists
-	err = AddMCPTool("test-workflow", "notion-mcp", registryServer.URL, "", "", false)
+	// Test adding tool that already exists (search for the full server name)
+	err = AddMCPTool("test-workflow", "io.github.makenotion/notion-mcp-server", registryServer.URL, "", "", false)
 	if err == nil {
 		t.Fatal("Expected error for existing tool, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "tool 'Notion MCP Server' already exists") {
+	if !strings.Contains(err.Error(), "tool 'io.github.makenotion/notion-mcp-server' already exists") {
 		t.Errorf("Expected 'tool already exists' error, got: %v", err)
 	}
 }
@@ -311,23 +333,32 @@ This is a test workflow.
 		response := `{
 			"servers": [
 				{
-					"server": {
-						"id": "notion-mcp",
-						"name": "Notion MCP Server",
-						"repository": {
-							"url": "https://github.com/example/notion-mcp"
-						},
-						"packages": [
-							{
-								"registry_name": "notion-mcp",
-								"runtime_hint": "node",
-								"runtime_arguments": [
-									{"value": "notion-mcp"}
-								],
-								"environment_variables": []
-							}
-						]
-					}
+					"name": "io.github.makenotion/notion-mcp-server",
+					"description": "MCP server for Notion integration",
+					"status": "active",
+					"version": "1.0.0",
+					"repository": {
+						"url": "https://github.com/example/notion-mcp",
+						"source": "github"
+					},
+					"packages": [
+						{
+							"registry_type": "npm",
+							"identifier": "notion-mcp",
+							"version": "1.0.0",
+							"runtime_hint": "node",
+							"transport": {
+								"type": "stdio"
+							},
+							"package_arguments": [
+								{
+									"type": "positional",
+									"value": "notion-mcp"
+								}
+							],
+							"environment_variables": []
+						}
+					]
 				}
 			]
 		}`
@@ -365,9 +396,8 @@ This is a test workflow.
 }
 
 func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
-	server := &MCPRegistryServer{
-		ID:        "test-server",
-		Name:      "Test Server",
+	server := &MCPRegistryServerForProcessing{
+		Name:      "io.github.example/test-server",
 		Transport: "stdio",
 		Command:   "npx",
 		Args:      []string{"test-server"},
@@ -411,16 +441,16 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 		t.Errorf("Expected env TEST_TOKEN to be '${{ secrets.TEST_TOKEN }}', got '%s'", env["TEST_TOKEN"])
 	}
 
-	// Check that registry field contains the full registry URL path
-	if mcpSection["registry"] != "https://api.mcp.github.com/v0/servers/test-server" {
-		t.Errorf("Expected registry to be 'https://api.mcp.github.com/v0/servers/test-server', got '%v'", mcpSection["registry"])
+	// Check that registry field contains the search URL with server name
+	expectedRegistry := "https://api.mcp.github.com/v0/servers?search=io.github.example%2Ftest-server"
+	if mcpSection["registry"] != expectedRegistry {
+		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
 }
 
 func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
-	server := &MCPRegistryServer{
-		ID:        "test-server",
-		Name:      "Test Server",
+	server := &MCPRegistryServerForProcessing{
+		Name:      "io.github.example/test-server",
 		Transport: "stdio",
 		Command:   "npx",
 		Args:      []string{"test-server"},
@@ -444,9 +474,10 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 		t.Errorf("Expected type 'docker', got '%v'", mcpSection["type"])
 	}
 
-	// Check that registry field contains the full registry URL path
-	if mcpSection["registry"] != "https://api.mcp.github.com/v0/servers/test-server" {
-		t.Errorf("Expected registry to be 'https://api.mcp.github.com/v0/servers/test-server', got '%v'", mcpSection["registry"])
+	// Check that registry field contains the search URL with server name
+	expectedRegistry := "https://api.mcp.github.com/v0/servers?search=io.github.example%2Ftest-server"
+	if mcpSection["registry"] != expectedRegistry {
+		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
 }
 
@@ -455,20 +486,16 @@ func TestListAvailableServers(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/servers" {
 			response := MCPRegistryResponse{
-				Servers: []MCPRegistryServerWrapper{
+				Servers: []MCPRegistryServer{
 					{
-						Server: MCPRegistryServerData{
-							ID:          "notion-mcp",
-							Name:        "Notion MCP Server",
-							Description: "Connect to Notion API",
-						},
+						Name:        "io.github.makenotion/notion-mcp-server",
+						Description: "Connect to Notion API",
+						Status:      "active",
 					},
 					{
-						Server: MCPRegistryServerData{
-							ID:          "github-mcp",
-							Name:        "GitHub MCP Server",
-							Description: "Connect to GitHub API",
-						},
+						Name:        "io.github.example/github-mcp-server",
+						Description: "Connect to GitHub API",
+						Status:      "active",
 					},
 				},
 			}
