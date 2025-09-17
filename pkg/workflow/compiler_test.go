@@ -5392,3 +5392,84 @@ This workflow tests that forks array fields are properly commented out in the on
 		})
 	}
 }
+
+func TestExtractMaximumPatchSize(t *testing.T) {
+	compiler := NewCompiler(false, "", "test-version")
+
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expected    int
+	}{
+		{
+			name:        "default value when not specified",
+			frontmatter: map[string]any{},
+			expected:    1024,
+		},
+		{
+			name: "custom value as int",
+			frontmatter: map[string]any{
+				"maximum-patch-size": 512,
+			},
+			expected: 512,
+		},
+		{
+			name: "custom value as float64",
+			frontmatter: map[string]any{
+				"maximum-patch-size": 2048.0,
+			},
+			expected: 2048,
+		},
+		{
+			name: "invalid negative value falls back to default",
+			frontmatter: map[string]any{
+				"maximum-patch-size": -5,
+			},
+			expected: 1024,
+		},
+		{
+			name: "invalid zero value falls back to default",
+			frontmatter: map[string]any{
+				"maximum-patch-size": 0,
+			},
+			expected: 1024,
+		},
+		{
+			name: "invalid string value falls back to default",
+			frontmatter: map[string]any{
+				"maximum-patch-size": "invalid",
+			},
+			expected: 1024,
+		},
+		{
+			name: "large valid value",
+			frontmatter: map[string]any{
+				"maximum-patch-size": 10240,
+			},
+			expected: 10240,
+		},
+		{
+			name: "uint64 value (from YAML parsing)",
+			frontmatter: map[string]any{
+				"maximum-patch-size": uint64(2048),
+			},
+			expected: 2048,
+		},
+		{
+			name: "int64 value",
+			frontmatter: map[string]any{
+				"maximum-patch-size": int64(4096),
+			},
+			expected: 4096,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.extractMaximumPatchSize(tt.frontmatter)
+			if result != tt.expected {
+				t.Errorf("extractMaximumPatchSize() = %d, want %d", result, tt.expected)
+			}
+		})
+	}
+}

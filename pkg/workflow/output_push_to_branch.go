@@ -46,6 +46,8 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 	// Pass the if-no-changes configuration
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
+	// Pass the maximum patch size configuration
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAXIMUM_PATCH_SIZE: %d\n", data.MaximumPatchSize))
 
 	// Add custom environment variables from safe-outputs.env
 	c.addCustomSafeOutputEnvVars(&steps, data)

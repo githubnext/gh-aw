@@ -365,5 +365,132 @@ describe("push_to_pr_branch.cjs", () => {
       // Check that the script has the expected structure
       expect(scriptContent).toMatch(/async function main\(\) \{[\s\S]*\}/);
     });
+
+    it("should validate patch size within limit", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pr-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "10"; // 10 KB limit
+
+      mockFs.existsSync.mockReturnValue(true);
+      // Create patch content under 10 KB (approximately 5 KB)
+      const patchContent =
+        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      mockFs.readFileSync.mockReturnValue(patchContent);
+
+      // Mock the git commands that will be called
+      mockExecSync.mockReturnValue("feature-branch");
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/)
+      );
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Patch size validation passed"
+      );
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail when patch size exceeds limit", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pr-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "1"; // 1 KB limit
+
+      mockFs.existsSync.mockReturnValue(true);
+      // Create patch content over 1 KB (approximately 5 KB)
+      const patchContent =
+        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      mockFs.readFileSync.mockReturnValue(patchContent);
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/)
+      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/
+        )
+      );
+    });
+
+    it("should use default 1024 KB limit when env var not set", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pr-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      delete process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE; // No limit set
+
+      mockFs.existsSync.mockReturnValue(true);
+      const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
+      mockFs.readFileSync.mockReturnValue(patchContent);
+
+      // Mock the git commands that will be called
+      mockExecSync.mockReturnValue("feature-branch");
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/)
+      );
+      expect(mockCore.info).toHaveBeenCalledWith(
+        "Patch size validation passed"
+      );
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should skip patch size validation for empty patches", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pr-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE = "1"; // 1 KB limit
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(""); // Empty patch
+
+      // Mock the git commands that will be called
+      mockExecSync.mockReturnValue("feature-branch");
+
+      // Execute the script
+      await executeScript();
+
+      // Should not check patch size for empty patches
+      expect(mockCore.info).not.toHaveBeenCalledWith(
+        expect.stringMatching(/Patch size:/)
+      );
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
   });
 });

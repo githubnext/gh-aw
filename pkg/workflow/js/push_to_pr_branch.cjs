@@ -52,8 +52,29 @@ async function main() {
     }
   }
 
-  // Empty patch is valid - behavior depends on if-no-changes configuration
+  // Validate patch size (unless empty)
   const isEmpty = !patchContent || !patchContent.trim();
+  if (!isEmpty) {
+    // Get maximum patch size from environment (default: 1MB = 1024 KB)
+    const maxSizeKb = parseInt(
+      process.env.GITHUB_AW_MAXIMUM_PATCH_SIZE || "1024",
+      10
+    );
+    const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+    const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+
+    core.info(
+      `Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`
+    );
+
+    if (patchSizeKb > maxSizeKb) {
+      const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+      core.setFailed(message);
+      return;
+    }
+
+    core.info("Patch size validation passed");
+  }
   if (isEmpty) {
     const message =
       "Patch file is empty - no changes to apply (noop operation)";

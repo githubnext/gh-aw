@@ -1638,6 +1638,13 @@
           "minItems": 1
         }
       ]
+    },
+    "maximum-patch-size": {
+      "type": "integer",
+      "description": "Maximum allowed size for git patches in kilobytes (KB). Defaults to 1024 KB (1 MB). If patch exceeds this size, the job will fail.",
+      "minimum": 1,
+      "maximum": 10240,
+      "default": 1024
     }
   },
   "additionalProperties": false
