@@ -2190,38 +2190,54 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		}
 	}
 
-	steps = append(steps, "      - name: Create Output Issue\n")
-	steps = append(steps, "        id: create_issue\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
+	// Build environment variables map for the create issue script
+	env := make(map[string]string)
+	
 	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	env["GITHUB_AW_AGENT_OUTPUT"] = fmt.Sprintf("${{ needs.%s.outputs.output }}", mainJobName)
+	
 	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
+		env["GITHUB_AW_ISSUE_TITLE_PREFIX"] = fmt.Sprintf("%q", data.SafeOutputs.CreateIssues.TitlePrefix)
 	}
 	if len(data.SafeOutputs.CreateIssues.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.CreateIssues.Labels, ",")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_LABELS: %q\n", labelsStr))
+		env["GITHUB_AW_ISSUE_LABELS"] = fmt.Sprintf("%q", labelsStr)
 	}
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
 	}
 
 	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
+		for key, value := range data.SafeOutputs.Env {
+			env[key] = value
+		}
+	}
 
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
-	steps = append(steps, "          script: |\n")
+	// Get github-token if specified
+	var githubToken string
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
+		githubToken = data.SafeOutputs.GitHubToken
+	}
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createIssueScript)
-	steps = append(steps, formattedScript...)
+	// Create the script step using the utility function
+	var scriptBuilder strings.Builder
+	writeScript(&scriptBuilder, "Create Output Issue", createIssueScript, env, githubToken)
+	
+	// Add id to the step
+	scriptStr := scriptBuilder.String()
+	// Insert id after the name line
+	scriptLines := strings.Split(scriptStr, "\n")
+	var modifiedLines []string
+	for i, line := range scriptLines {
+		modifiedLines = append(modifiedLines, line)
+		if i == 0 { // After the name line
+			modifiedLines = append(modifiedLines, "        id: create_issue")
+		}
+	}
+	steps = append(steps, strings.Join(modifiedLines, "\n"))
 
 	// Create outputs for the job
 	outputs := map[string]string{
