@@ -67,11 +67,11 @@ func listAvailableServers(registryURL string, verbose bool) error {
 
 	// Create and render table
 	tableConfig := console.TableConfig{
-		Title:     "Available MCP Servers",
+		Title:     fmt.Sprintf("MCP registry: %s", registryClient.registryURL),
 		Headers:   headers,
 		Rows:      rows,
 		ShowTotal: true,
-		TotalRow:  []string{fmt.Sprintf("Total: %d servers", len(servers)), "", ""},
+		TotalRow:  []string{fmt.Sprintf("Total: %d servers", len(servers)), ""},
 	}
 
 	fmt.Print(console.RenderTable(tableConfig))
