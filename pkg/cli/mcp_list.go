@@ -193,7 +193,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 			for i, config := range mcpConfigs {
 				serverNames[i] = config.Name
 			}
-			
+
 			workflowData = append(workflowData, struct {
 				name        string
 				serverCount int
@@ -224,7 +224,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 			if len(serverList) > 50 {
 				serverList = serverList[:47] + "..."
 			}
-			
+
 			rows = append(rows, []string{
 				workflow.name,
 				fmt.Sprintf("%d", workflow.serverCount),
