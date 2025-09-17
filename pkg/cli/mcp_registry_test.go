@@ -13,32 +13,43 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 			t.Errorf("Expected path /servers, got %s", r.URL.Path)
 		}
 
-		// Return mock response with new structure
+		// Return mock response with new structure based on official specification
 		response := `{
 			"servers": [
 				{
-					"server": {
-						"id": "notion-mcp",
-						"name": "Notion MCP Server",
-						"description": "MCP server for Notion integration",
-						"repository": {
-							"url": "https://github.com/example/notion-mcp"
-						},
-						"packages": [
-							{
-								"registry_name": "notion-mcp",
-								"runtime_hint": "node",
-								"runtime_arguments": [
-									{"value": "notion-mcp"}
-								],
-								"environment_variables": [
-									{
-										"NOTION_TOKEN": "${NOTION_TOKEN}"
-									}
-								]
-							}
-						]
-					}
+					"name": "io.github.makenotion/notion-mcp-server",
+					"description": "MCP server for Notion integration",
+					"status": "active",
+					"version": "1.0.0",
+					"repository": {
+						"url": "https://github.com/example/notion-mcp",
+						"source": "github"
+					},
+					"packages": [
+						{
+							"registry_type": "npm",
+							"identifier": "notion-mcp",
+							"version": "1.0.0",
+							"runtime_hint": "node",
+							"transport": {
+								"type": "stdio"
+							},
+							"package_arguments": [
+								{
+									"type": "positional",
+									"value": "notion-mcp"
+								}
+							],
+							"environment_variables": [
+								{
+									"name": "NOTION_TOKEN",
+									"description": "Notion API token",
+									"is_required": true,
+									"is_secret": true
+								}
+							]
+						}
+					]
 				}
 			]
 		}`
@@ -63,12 +74,8 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 	}
 
 	mcpServer := servers[0]
-	if mcpServer.ID != "notion-mcp" {
-		t.Errorf("Expected server ID 'notion-mcp', got '%s'", mcpServer.ID)
-	}
-
-	if mcpServer.Name != "Notion MCP Server" {
-		t.Errorf("Expected server name 'Notion MCP Server', got '%s'", mcpServer.Name)
+	if mcpServer.Name != "io.github.makenotion/notion-mcp-server" {
+		t.Errorf("Expected server name 'io.github.makenotion/notion-mcp-server', got '%s'", mcpServer.Name)
 	}
 
 	if mcpServer.Transport != "stdio" {
@@ -87,34 +94,55 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 func TestMCPRegistryClient_GetServer(t *testing.T) {
 	// Create a test server that mocks the MCP registry API
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/servers/notion-mcp" {
-			t.Errorf("Expected path /servers/notion-mcp, got %s", r.URL.Path)
+		expectedPath := "/servers"
+		if r.URL.Path != expectedPath {
+			t.Errorf("Expected path %s, got %s", expectedPath, r.URL.Path)
 		}
 
-		// Return mock response with new structure
+		// Check for search query parameter
+		if search := r.URL.Query().Get("search"); search != "io.github.makenotion/notion-mcp-server" {
+			t.Errorf("Expected search parameter 'io.github.makenotion/notion-mcp-server', got '%s'", search)
+		}
+
+		// Return mock response with new structure based on official specification
 		response := `{
-			"server": {
-				"id": "notion-mcp",
-				"name": "Notion MCP Server",
-				"description": "MCP server for Notion integration",
-				"repository": {
-					"url": "https://github.com/example/notion-mcp"
-				},
-				"packages": [
-					{
-						"registry_name": "notion-mcp",
-						"runtime_hint": "node",
-						"runtime_arguments": [
-							{"value": "notion-mcp"}
-						],
-						"environment_variables": [
-							{
-								"NOTION_TOKEN": "${NOTION_TOKEN}"
-							}
-						]
-					}
-				]
-			}
+			"servers": [
+				{
+					"name": "io.github.makenotion/notion-mcp-server",
+					"description": "MCP server for Notion integration",
+					"status": "active",
+					"version": "1.0.0",
+					"repository": {
+						"url": "https://github.com/example/notion-mcp",
+						"source": "github"
+					},
+					"packages": [
+						{
+							"registry_type": "npm",
+							"identifier": "notion-mcp",
+							"version": "1.0.0",
+							"runtime_hint": "node",
+							"transport": {
+								"type": "stdio"
+							},
+							"package_arguments": [
+								{
+									"type": "positional",
+									"value": "notion-mcp"
+								}
+							],
+							"environment_variables": [
+								{
+									"name": "NOTION_TOKEN",
+									"description": "Notion API token",
+									"is_required": true,
+									"is_secret": true
+								}
+							]
+						}
+					]
+				}
+			]
 		}`
 
 		w.Header().Set("Content-Type", "application/json")
@@ -127,24 +155,25 @@ func TestMCPRegistryClient_GetServer(t *testing.T) {
 	client := NewMCPRegistryClient(testServer.URL)
 
 	// Test get server
-	serverInfo, err := client.GetServer("notion-mcp")
+	serverInfo, err := client.GetServer("io.github.makenotion/notion-mcp-server")
 	if err != nil {
 		t.Fatalf("GetServer failed: %v", err)
 	}
 
-	if serverInfo.ID != "notion-mcp" {
-		t.Errorf("Expected server ID 'notion-mcp', got '%s'", serverInfo.ID)
-	}
-
-	if serverInfo.Name != "Notion MCP Server" {
-		t.Errorf("Expected server name 'Notion MCP Server', got '%s'", serverInfo.Name)
+	if serverInfo.Name != "io.github.makenotion/notion-mcp-server" {
+		t.Errorf("Expected server name 'io.github.makenotion/notion-mcp-server', got '%s'", serverInfo.Name)
 	}
 }
 
 func TestMCPRegistryClient_GetServerNotFound(t *testing.T) {
-	// Create a test server that returns 404
+	// Create a test server that returns empty response (no matching servers)
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+		response := `{
+			"servers": []
+		}`
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(response))
 	}))
 	defer testServer.Close()
 
@@ -165,7 +194,7 @@ func TestMCPRegistryClient_GetServerNotFound(t *testing.T) {
 
 func TestNewMCPRegistryClient_DefaultURL(t *testing.T) {
 	client := NewMCPRegistryClient("")
-	expectedURL := "https://api.mcp.github.com/v0"
+	expectedURL := "https://registry.modelcontextprotocol.io/v0"
 	if client.registryURL != expectedURL {
 		t.Errorf("Expected default registry URL '%s', got '%s'", expectedURL, client.registryURL)
 	}
