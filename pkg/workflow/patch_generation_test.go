@@ -58,14 +58,14 @@ This workflow tests how patches are generated automatically.
 		t.Error("Expected 'Generate git patch' step in workflow")
 	}
 
-	// Check that it uses git add -A to stage files
-	if !strings.Contains(lockStr, "git add -A") {
-		t.Error("Expected 'git add -A' command in git patch step")
+	// Check that it uses git am to apply patches (newer approach)
+	if !strings.Contains(lockStr, "git am /tmp/aw.patch") {
+		t.Error("Expected 'git am /tmp/aw.patch' command in git patch step")
 	}
 
-	// Check that it commits staged files
-	if !strings.Contains(lockStr, "git commit -m \"[agent] staged files\"") {
-		t.Error("Expected git commit command in git patch step")
+	// Check that it pushes to origin branch
+	if !strings.Contains(lockStr, "git push origin") {
+		t.Error("Expected 'git push origin' command in git patch step")
 	}
 
 	// Check that it generates patch from format-patch

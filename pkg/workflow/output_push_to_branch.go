@@ -46,13 +46,23 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 	// Pass the if-no-changes configuration
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
+	// Pass the maximum patch size configuration
+	maxPatchSize := 1024 // Default value
+	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
+		maxPatchSize = data.SafeOutputs.MaximumPatchSize
+	}
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
 	// Add custom environment variables from safe-outputs.env
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	c.addSafeOutputGitHubToken(&steps, data)
+	var token string
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		token = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
+	}
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation

@@ -118,8 +118,8 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Run Codex") {
 					t.Errorf("Expected lock file to contain 'Run Codex' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "codex exec") {
-					t.Errorf("Expected lock file to contain 'codex exec' command but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "codex login") {
+					t.Errorf("Expected lock file to contain 'codex login' command but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "OPENAI_API_KEY") {
 					t.Errorf("Expected lock file to contain 'OPENAI_API_KEY' for codex but it didn't.\nContent:\n%s", lockContent)
@@ -416,8 +416,8 @@ This is a test workflow for MCP configuration with different AI engines.
 
 			// Verify AI type
 			if tt.expectedAI == "codex" {
-				if !strings.Contains(lockContent, "codex exec") {
-					t.Errorf("Expected codex exec command but didn't find it in:\n%s", lockContent)
+				if !strings.Contains(lockContent, "codex login") {
+					t.Errorf("Expected codex login command but didn't find it in:\n%s", lockContent)
 				}
 				if strings.Contains(lockContent, "npx @anthropic-ai/claude-code") {
 					t.Errorf("Expected NO claude CLI but found it in:\n%s", lockContent)

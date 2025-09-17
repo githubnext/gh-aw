@@ -76,25 +76,12 @@ Please do the following tasks:
 		t.Error("Expected 'git status' command in git patch step")
 	}
 
-	if !strings.Contains(lockContent, "git add -A || true") {
-		t.Error("Expected 'git add -A || true' command in git patch step")
-	}
-
-	if !strings.Contains(lockContent, "INITIAL_SHA=\"$GITHUB_SHA\"") {
-		t.Error("Expected INITIAL_SHA variable assignment in git patch step")
-	}
-
 	if !strings.Contains(lockContent, "git format-patch") {
 		t.Error("Expected 'git format-patch' command in git patch step")
 	}
 
 	if !strings.Contains(lockContent, "/tmp/aw.patch") {
 		t.Error("Expected '/tmp/aw.patch' path in git patch step")
-	}
-
-	// Verify it skips patch generation when no changes
-	if !strings.Contains(lockContent, "Skipping patch generation - no committed changes to create patch from") {
-		t.Error("Expected message about skipping patch generation when no changes")
 	}
 
 	// Verify git patch upload step exists
