@@ -152,7 +152,7 @@ install: build
 .PHONY: recompile
 recompile: build
 	./$(BINARY_NAME) compile --validate --instructions
-	./$(BINARY_NAME) compile --workflow-dir pkg/cli/workflows --validate;
+	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate;
 
 # Run development server
 .PHONY: dev

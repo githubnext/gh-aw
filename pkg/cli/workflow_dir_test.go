@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TestCompileWorkflowsWithCustomWorkflowDir tests the --workflow-dir flag functionality
+// TestCompileWorkflowsWithCustomWorkflowDir tests the --workflows-dir flag functionality
 func TestCompileWorkflowsWithCustomWorkflowDir(t *testing.T) {
 	// Save current directory and defer restoration
 	originalWd, err := os.Getwd()
@@ -19,7 +19,7 @@ func TestCompileWorkflowsWithCustomWorkflowDir(t *testing.T) {
 	}()
 
 	// Create a temporary git repository with custom workflow directory
-	tmpDir, err := os.MkdirTemp("", "workflow-dir-test")
+	tmpDir, err := os.MkdirTemp("", "workflows-dir-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
@@ -60,7 +60,7 @@ This is a test workflow in a custom directory.
 	// Test 1: Compile with custom workflow directory should work
 	err = CompileWorkflows([]string{}, false, "", false, false, customDir, false, false, false)
 	if err != nil {
-		t.Errorf("CompileWorkflows with custom workflow-dir should succeed, got error: %v", err)
+		t.Errorf("CompileWorkflows with custom workflows-dir should succeed, got error: %v", err)
 	}
 
 	// Verify the lock file was created
@@ -72,13 +72,13 @@ This is a test workflow in a custom directory.
 	// Test 2: Using absolute path should fail
 	err = CompileWorkflows([]string{}, false, "", false, false, "/absolute/path", false, false, false)
 	if err == nil {
-		t.Error("CompileWorkflows with absolute workflow-dir should fail")
+		t.Error("CompileWorkflows with absolute workflows-dir should fail")
 	}
-	if err != nil && err.Error() != "workflow-dir must be a relative path, got: /absolute/path" {
+	if err != nil && err.Error() != "workflows-dir must be a relative path, got: /absolute/path" {
 		t.Errorf("Expected specific error message for absolute path, got: %v", err)
 	}
 
-	// Test 3: Empty workflow-dir should default to .github/workflows
+	// Test 3: Empty workflows-dir should default to .github/workflows
 	// Create the default directory and a file
 	defaultDir := ".github/workflows"
 	if err := os.MkdirAll(defaultDir, 0755); err != nil {
@@ -91,7 +91,7 @@ This is a test workflow in a custom directory.
 
 	err = CompileWorkflows([]string{}, false, "", false, false, "", false, false, false)
 	if err != nil {
-		t.Errorf("CompileWorkflows with default workflow-dir should succeed, got error: %v", err)
+		t.Errorf("CompileWorkflows with default workflows-dir should succeed, got error: %v", err)
 	}
 
 	// Verify the lock file was created in default location
@@ -123,7 +123,7 @@ func TestCompileWorkflowsCustomDirValidation(t *testing.T) {
 			name:        "absolute path is invalid",
 			workflowDir: "/absolute/path",
 			expectError: true,
-			errorMsg:    "workflow-dir must be a relative path, got: /absolute/path",
+			errorMsg:    "workflows-dir must be a relative path, got: /absolute/path",
 		},
 		{
 			name:        "path with .. is cleaned but valid",
@@ -135,7 +135,7 @@ func TestCompileWorkflowsCustomDirValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary directory for each test
-			tmpDir, err := os.MkdirTemp("", "workflow-dir-validation-test")
+			tmpDir, err := os.MkdirTemp("", "workflows-dir-validation-test")
 			if err != nil {
 				t.Fatalf("Failed to create temp directory: %v", err)
 			}
@@ -187,13 +187,13 @@ on: push
 
 			if tt.expectError {
 				if err == nil {
-					t.Errorf("Expected error for workflow-dir '%s', but got none", tt.workflowDir)
+					t.Errorf("Expected error for workflows-dir '%s', but got none", tt.workflowDir)
 				} else if err.Error() != tt.errorMsg {
 					t.Errorf("Expected error message '%s', got '%s'", tt.errorMsg, err.Error())
 				}
 			} else {
 				if err != nil {
-					t.Errorf("Expected no error for workflow-dir '%s', but got: %v", tt.workflowDir, err)
+					t.Errorf("Expected no error for workflows-dir '%s', but got: %v", tt.workflowDir, err)
 				}
 			}
 		})
