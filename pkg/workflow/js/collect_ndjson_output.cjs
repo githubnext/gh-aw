@@ -432,6 +432,15 @@ async function main() {
             );
             continue;
           }
+          // Validate optional issue_number field
+          if (item.issue_number !== undefined) {
+            if (typeof item.issue_number !== "number") {
+              errors.push(
+                `Line ${i + 1}: add-comment 'issue_number' must be a number`
+              );
+              continue;
+            }
+          }
           // Sanitize text content
           item.body = sanitizeContent(item.body);
           break;
@@ -481,6 +490,15 @@ async function main() {
               `Line ${i + 1}: add-labels labels array must contain only strings`
             );
             continue;
+          }
+          // Validate optional issue_number field
+          if (item.issue_number !== undefined) {
+            if (typeof item.issue_number !== "number") {
+              errors.push(
+                `Line ${i + 1}: add-labels 'issue_number' must be a number`
+              );
+              continue;
+            }
           }
           // Sanitize label strings
           item.labels = item.labels.map(
@@ -547,16 +565,23 @@ async function main() {
           break;
 
         case "push-to-pr-branch":
-          // Validate message if provided (optional)
-          if (item.message !== undefined) {
-            if (typeof item.message !== "string") {
-              errors.push(
-                `Line ${i + 1}: push-to-pr-branch 'message' must be a string`
-              );
-              continue;
-            }
-            item.message = sanitizeContent(item.message);
+          // Validate required branch_name field
+          if (!item.branch_name || typeof item.branch_name !== "string") {
+            errors.push(
+              `Line ${i + 1}: push-to-pr-branch requires a 'branch_name' string field`
+            );
+            continue;
           }
+          // Validate required message field
+          if (!item.message || typeof item.message !== "string") {
+            errors.push(
+              `Line ${i + 1}: push-to-pr-branch requires a 'message' string field`
+            );
+            continue;
+          }
+          // Sanitize text content
+          item.branch_name = sanitizeContent(item.branch_name);
+          item.message = sanitizeContent(item.message);
           // Validate pull_request_number if provided (for target "*")
           if (item.pull_request_number !== undefined) {
             if (
@@ -667,6 +692,16 @@ async function main() {
               `Line ${i + 1}: create-discussion requires a 'body' string field`
             );
             continue;
+          }
+          // Validate optional category field
+          if (item.category !== undefined) {
+            if (typeof item.category !== "string") {
+              errors.push(
+                `Line ${i + 1}: create-discussion 'category' must be a string`
+              );
+              continue;
+            }
+            item.category = sanitizeContent(item.category);
           }
           // Sanitize text content
           item.title = sanitizeContent(item.title);
