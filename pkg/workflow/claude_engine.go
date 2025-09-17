@@ -31,8 +31,8 @@ func NewClaudeEngine() *ClaudeEngine {
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Check if network permissions are configured (only for Claude engine)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+	// Check if network permissions are configured (this method is only called for Claude engine)
+	if ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		// Generate network hook generator and settings generator
 		hookGenerator := &NetworkHookGenerator{}
 		settingsGenerator := &ClaudeSettingsGenerator{}
@@ -109,8 +109,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add output format for structured output
 	claudeArgs = append(claudeArgs, "--output-format", "json")
 
-	// Add network settings if configured
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+	// Add network settings if configured (this method is only called for Claude engine)
+	if ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
 	}
 
