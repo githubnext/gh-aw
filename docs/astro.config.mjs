@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
-import starlightChangelogs from 'starlight-changelogs';
+import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // https://astro.build/config
 export default defineConfig({
@@ -58,6 +58,9 @@ export default defineConfig({
 					label: 'Application Areas',
 					autogenerate: { directory: 'samples' },
 				},
+				...makeChangelogsSidebarLinks([
+					{ type: 'all', base: 'changelog', label: 'Changelog' }
+				]),
 			],
 		}),
 	],
