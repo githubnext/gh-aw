@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
+import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // https://astro.build/config
 export default defineConfig({
@@ -14,6 +15,7 @@ export default defineConfig({
 			title: 'GitHub Agentic Workflows',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' }],
 			plugins: [
+				starlightChangelogs(),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
@@ -56,6 +58,9 @@ export default defineConfig({
 					label: 'Application Areas',
 					autogenerate: { directory: 'samples' },
 				},
+				...makeChangelogsSidebarLinks([
+					{ type: 'all', base: 'changelog', label: 'Changelog' }
+				]),
 			],
 		}),
 	],
