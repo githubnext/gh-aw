@@ -3186,7 +3186,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add git patch generation step only if safe-outputs create-pull-request feature is used
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
-		c.generateGitPatchStep(yaml, data)
+		c.generateGitPatchStep(yaml)
 	}
 
 	// Add post-steps (if any) after AI execution
