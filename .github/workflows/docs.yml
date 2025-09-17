@@ -45,6 +45,8 @@ jobs:
 
       - name: Build documentation
         working-directory: ./docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
 
       - name: Upload build artifacts
