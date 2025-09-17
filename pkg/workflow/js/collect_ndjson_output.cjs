@@ -855,6 +855,20 @@ async function main() {
 
   core.setOutput("output", JSON.stringify(validatedOutput));
   core.setOutput("raw_output", outputContent);
+
+  // Write processed output to step summary using core.summary
+  try {
+    await core.summary
+      .addRaw("## Processed Output\n\n")
+      .addRaw("```json\n")
+      .addRaw(JSON.stringify(validatedOutput))
+      .addRaw("\n```\n")
+      .write();
+    core.info("Successfully wrote processed output to step summary");
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    core.warning(`Failed to write to step summary: ${errorMsg}`);
+  }
 }
 
 // Call the main function

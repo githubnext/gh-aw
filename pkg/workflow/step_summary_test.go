@@ -56,9 +56,9 @@ This workflow tests that the step summary includes both JSONL and processed outp
 
 	lockContent := string(content)
 
-	// Verify that the "Print sanitized agent output" step exists
-	if !strings.Contains(lockContent, "- name: Print sanitized agent output") {
-		t.Error("Expected 'Print sanitized agent output' step")
+	// Verify that the "Print sanitized agent output" step no longer exists (moved to JavaScript)
+	if strings.Contains(lockContent, "- name: Print sanitized agent output") {
+		t.Error("Did not expect 'Print sanitized agent output' step (should be in JavaScript now)")
 	}
 
 	// Verify that the step includes the original JSONL output section
@@ -66,25 +66,19 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Error("Expected '## Agent Output (JSONL)' section in step summary")
 	}
 
-	// Verify that the step includes the new processed output section
+	// Verify that the JavaScript code includes the new processed output section via core.summary
 	if !strings.Contains(lockContent, "## Processed Output") {
-		t.Error("Expected '## Processed Output' section in step summary")
+		t.Error("Expected '## Processed Output' section in JavaScript code")
 	}
 
-	// Verify that the processed output references the collect_output step output
-	if !strings.Contains(lockContent, "${{ steps.collect_output.outputs.output }}") {
-		t.Error("Expected reference to steps.collect_output.outputs.output in step summary")
+	// Verify that the JavaScript code uses core.summary to write processed output
+	if !strings.Contains(lockContent, "core.summary") {
+		t.Error("Expected 'core.summary' usage in JavaScript code")
 	}
 
-	// Verify both outputs are in code blocks
-	jsonlBlockCount := strings.Count(lockContent, "echo '``````json'")
-	if jsonlBlockCount < 2 {
-		t.Errorf("Expected at least 2 JSON code blocks in step summary, got %d", jsonlBlockCount)
-	}
-
-	codeBlockEndCount := strings.Count(lockContent, "echo '``````'")
-	if codeBlockEndCount < 2 {
-		t.Errorf("Expected at least 2 code block end markers in step summary, got %d", codeBlockEndCount)
+	// Verify that the JavaScript uses addRaw to build the summary
+	if strings.Count(lockContent, ".addRaw(") < 2 {
+		t.Error("Expected at least 2 '.addRaw(' calls in JavaScript code for summary building")
 	}
 
 	t.Log("Step summary correctly includes both JSONL and processed output sections")
