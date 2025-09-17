@@ -1,0 +1,227 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/spf13/cobra"
+)
+
+// ListWorkflowMCP lists MCP servers defined in a workflow
+func ListWorkflowMCP(workflowFile string, verbose bool) error {
+	// Determine the workflow directory and file
+	workflowsDir := ".github/workflows"
+	var workflowPath string
+
+	if workflowFile != "" {
+		// If workflowFile is provided, determine the full path
+		if strings.HasSuffix(workflowFile, ".md") {
+			// If it's already a .md file, use it directly if it exists
+			if _, err := os.Stat(workflowFile); err == nil {
+				workflowPath = workflowFile
+			} else {
+				// Try in workflows directory
+				workflowPath = filepath.Join(workflowsDir, workflowFile)
+			}
+		} else {
+			// Add .md extension and look in workflows directory
+			workflowPath = filepath.Join(workflowsDir, workflowFile+".md")
+		}
+
+		// Verify the file exists
+		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
+			return fmt.Errorf("workflow file not found: %s", workflowPath)
+		}
+	} else {
+		// No specific workflow file provided, list all workflows with MCP servers
+		return listWorkflowsWithMCPServers(workflowsDir, verbose)
+	}
+
+	// Parse the specific workflow file
+	content, err := os.ReadFile(workflowPath)
+	if err != nil {
+		return fmt.Errorf("failed to read workflow file: %w", err)
+	}
+
+	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return fmt.Errorf("failed to parse workflow file: %w", err)
+	}
+
+	// Extract MCP configurations (no server filter for listing)
+	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
+	if err != nil {
+		return fmt.Errorf("failed to extract MCP configurations: %w", err)
+	}
+
+	if len(mcpConfigs) == 0 {
+		fmt.Println(console.FormatInfoMessage("No MCP servers found in workflow"))
+		return nil
+	}
+
+	// Display the MCP servers
+	fmt.Println(console.FormatListHeader(fmt.Sprintf("MCP servers in %s:", filepath.Base(workflowPath))))
+
+	for _, config := range mcpConfigs {
+		if verbose {
+			fmt.Printf("  • %s\n", console.FormatInfoMessage(fmt.Sprintf("%s (%s)", config.Name, config.Type)))
+			if config.Command != "" {
+				fmt.Printf("    Command: %s\n", config.Command)
+			}
+			if len(config.Args) > 0 {
+				fmt.Printf("    Args: %s\n", strings.Join(config.Args, " "))
+			}
+			if config.URL != "" {
+				fmt.Printf("    URL: %s\n", config.URL)
+			}
+			if config.Container != "" {
+				fmt.Printf("    Container: %s\n", config.Container)
+			}
+			if len(config.Allowed) > 0 {
+				fmt.Printf("    Allowed tools: %s\n", strings.Join(config.Allowed, ", "))
+			}
+			if len(config.Env) > 0 {
+				fmt.Printf("    Environment variables: %d defined\n", len(config.Env))
+			}
+			fmt.Println()
+		} else {
+			fmt.Println(console.FormatListItem(config.Name))
+		}
+	}
+
+	if !verbose {
+		fmt.Printf("\nRun 'gh aw mcp list %s --verbose' for detailed information\n", workflowFile)
+	}
+
+	return nil
+}
+
+// listWorkflowsWithMCPServers shows available workflow files that contain MCP configurations
+func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
+	// Check if the workflows directory exists
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		return fmt.Errorf("workflows directory not found: %s", workflowsDir)
+	}
+
+	// Find all .md files in the workflows directory
+	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	if err != nil {
+		return fmt.Errorf("failed to search for workflow files: %w", err)
+	}
+
+	var workflowsWithMCP []string
+	var totalMCPCount int
+
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
+			}
+			continue
+		}
+
+		workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
+		if err != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
+			}
+			continue
+		}
+
+		mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
+		if err != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Error extracting MCP from %s: %v", filepath.Base(file), err)))
+			}
+			continue
+		}
+
+		if len(mcpConfigs) > 0 {
+			baseName := strings.TrimSuffix(filepath.Base(file), ".md")
+			if verbose {
+				serverNames := make([]string, len(mcpConfigs))
+				for i, config := range mcpConfigs {
+					serverNames[i] = config.Name
+				}
+				workflowsWithMCP = append(workflowsWithMCP, fmt.Sprintf("%s (%d servers: %s)", baseName, len(mcpConfigs), strings.Join(serverNames, ", ")))
+			} else {
+				workflowsWithMCP = append(workflowsWithMCP, baseName)
+			}
+			totalMCPCount += len(mcpConfigs)
+		}
+	}
+
+	if len(workflowsWithMCP) == 0 {
+		fmt.Println(console.FormatInfoMessage("No workflows with MCP servers found"))
+		return nil
+	}
+
+	fmt.Println(console.FormatListHeader(fmt.Sprintf("Workflows with MCP servers (%d workflows, %d total servers):", len(workflowsWithMCP), totalMCPCount)))
+	for _, workflow := range workflowsWithMCP {
+		fmt.Println(console.FormatListItem(workflow))
+	}
+
+	if !verbose {
+		fmt.Printf("\nRun 'gh aw mcp list --verbose' for detailed information\n")
+	}
+	fmt.Printf("Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow\n")
+
+	return nil
+}
+
+// NewMCPListSubcommand creates the mcp list subcommand
+func NewMCPListSubcommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list [workflow-file]",
+		Short: "List MCP servers defined in agentic workflows",
+		Long: `List MCP servers defined in agentic workflows.
+
+When no workflow file is specified, lists all workflows that contain MCP server configurations.
+When a workflow file is specified, lists the MCP servers configured in that specific workflow.
+
+Examples:
+  gh aw mcp list                     # List all workflows with MCP servers
+  gh aw mcp list weekly-research     # List MCP servers in weekly-research.md
+  gh aw mcp list weekly-research -v  # List with detailed information
+  gh aw mcp list --verbose           # List all workflows with detailed MCP server info
+
+The command will:
+- Parse workflow frontmatter to extract MCP server configurations
+- Display server names and types
+- In verbose mode, show detailed configuration including commands, URLs, and allowed tools`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var workflowFile string
+			if len(args) > 0 {
+				workflowFile = args[0]
+			}
+
+			verbose, _ := cmd.Flags().GetBool("verbose")
+
+			// Inherit verbose from parent commands
+			if !verbose {
+				if cmd.Parent() != nil {
+					if parentVerbose, _ := cmd.Parent().PersistentFlags().GetBool("verbose"); parentVerbose {
+						verbose = true
+					}
+					if cmd.Parent().Parent() != nil {
+						if rootVerbose, _ := cmd.Parent().Parent().PersistentFlags().GetBool("verbose"); rootVerbose {
+							verbose = true
+						}
+					}
+				}
+			}
+
+			return ListWorkflowMCP(workflowFile, verbose)
+		},
+	}
+
+	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed MCP server configuration")
+
+	return cmd
+}
