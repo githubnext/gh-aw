@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -57,16 +56,7 @@ func (c *MCPRegistryClient) createRegistryRequest(method, url string) (*http.Req
 	// Set standard headers
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "gh-aw-cli")
-
-	// Add authentication header if available in environment
-	// This allows users to provide authentication if the registry requires it
-	if token := os.Getenv("MCP_REGISTRY_TOKEN"); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" && strings.Contains(c.registryURL, "api.mcp.github.com") {
-		// Use GitHub token for GitHub's MCP registry if available
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-
+	
 	return req, nil
 }
 
@@ -98,7 +88,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 		// Provide more helpful error messages for common HTTP status codes
 		switch resp.StatusCode {
 		case http.StatusForbidden:
-			return nil, fmt.Errorf("MCP registry access forbidden (403): %s\nThe registry may require authentication or have access restrictions", string(body))
+			return nil, fmt.Errorf("MCP registry access forbidden (403): %s\nThis may be due to network or firewall restrictions", string(body))
 		case http.StatusUnauthorized:
 			return nil, fmt.Errorf("MCP registry access unauthorized (401): %s\nAuthentication may be required", string(body))
 		case http.StatusNotFound:
@@ -275,7 +265,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 		// Provide more helpful error messages for common HTTP status codes
 		switch resp.StatusCode {
 		case http.StatusForbidden:
-			return nil, fmt.Errorf("MCP registry access forbidden (403): %s\nThe registry may require authentication or have access restrictions", string(body))
+			return nil, fmt.Errorf("MCP registry access forbidden (403): %s\nThis may be due to network or firewall restrictions", string(body))
 		case http.StatusUnauthorized:
 			return nil, fmt.Errorf("MCP registry access unauthorized (401): %s\nAuthentication may be required", string(body))
 		case http.StatusNotFound:

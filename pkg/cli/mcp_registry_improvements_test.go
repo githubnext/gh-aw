@@ -18,7 +18,7 @@ func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
 			name:          "403 Forbidden",
 			statusCode:    403,
 			responseBody:  "Access denied",
-			expectedError: "authentication or have access restrictions",
+			expectedError: "network or firewall restrictions",
 		},
 		{
 			name:          "401 Unauthorized",
@@ -68,34 +68,6 @@ func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
 				t.Errorf("Expected error to contain '%s', got: %s", tc.expectedError, err.Error())
 			}
 		})
-	}
-}
-
-// TestMCPRegistryClient_AuthenticationHeaders tests that auth headers are properly sent
-func TestMCPRegistryClient_AuthenticationHeaders(t *testing.T) {
-	authHeaderReceived := ""
-
-	// Create a test server that captures auth headers
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeaderReceived = r.Header.Get("Authorization")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"servers": []}`))
-	}))
-	defer server.Close()
-
-	// Test with MCP_REGISTRY_TOKEN environment variable
-	t.Setenv("MCP_REGISTRY_TOKEN", "test_token_123")
-
-	client := NewMCPRegistryClient(server.URL)
-	_, err := client.SearchServers("")
-	if err != nil {
-		t.Fatalf("SearchServers failed: %v", err)
-	}
-
-	expectedAuth := "Bearer test_token_123"
-	if authHeaderReceived != expectedAuth {
-		t.Errorf("Expected auth header '%s', got '%s'", expectedAuth, authHeaderReceived)
 	}
 }
 
