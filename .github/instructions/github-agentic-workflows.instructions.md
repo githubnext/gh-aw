@@ -49,7 +49,7 @@ The YAML frontmatter supports these fields:
   - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
 
 - **`runs-on:`** - Runner type (string, array, or object)
-- **`timeout_minutes:`** - Workflow timeout (integer)
+- **`timeout_minutes:`** - Workflow timeout (integer, has sensible default and can typically be omitted)
 - **`concurrency:`** - Concurrency control (string or object)
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
@@ -66,10 +66,11 @@ The YAML frontmatter supports these fields:
     ```yaml
     engine:
       id: claude                        # Required: coding agent identifier (claude, codex, custom)
-      version: beta                     # Optional: version of the action
-      model: claude-3-5-sonnet-20241022 # Optional: LLM model to use
-      max-turns: 5                      # Optional: maximum chat iterations per run
+      version: beta                     # Optional: version of the action (has sensible default)
+      model: claude-3-5-sonnet-20241022 # Optional: LLM model to use (has sensible default)
+      max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
     ```
+  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
   - **Custom engine format** (⚠️ experimental):
     ```yaml
     engine:
@@ -377,15 +378,53 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 
 All other expressions are dissallowed.
 
+### Sanitized Context Text (`needs.task.outputs.text`)
+
+**RECOMMENDED**: Use `${{ needs.task.outputs.text }}` instead of individual `github.event` fields for accessing issue/PR content.
+
+The `needs.task.outputs.text` value provides automatically sanitized content based on the triggering event:
+
+- **Issues**: `title + "\n\n" + body`
+- **Pull Requests**: `title + "\n\n" + body`  
+- **Issue Comments**: `comment.body`
+- **PR Review Comments**: `comment.body`
+- **PR Reviews**: `review.body`
+- **Other events**: Empty string
+
+**Security Benefits of Sanitized Context:**
+- **@mention neutralization**: Prevents unintended user notifications (converts `@user` to `` `@user` ``)
+- **Bot trigger protection**: Prevents accidental bot invocations (converts `fixes #123` to `` `fixes #123` ``)
+- **XML tag safety**: Converts XML tags to parentheses format to prevent injection
+- **URI filtering**: Only allows HTTPS URIs from trusted domains; others become "(redacted)"
+- **Content limits**: Automatically truncates excessive content (0.5MB max, 65k lines max)
+- **Control character removal**: Strips ANSI escape sequences and non-printable characters
+
+**Example Usage:**
+```markdown
+# RECOMMENDED: Use sanitized context text
+Analyze this content: "${{ needs.task.outputs.text }}"
+
+# Less secure alternative (use only when specific fields are needed)
+Issue number: ${{ github.event.issue.number }}
+Repository: ${{ github.repository }}
+```
+
+### Accessing Individual Context Fields
+
+While `needs.task.outputs.text` is recommended for content access, you can still use individual context fields for metadata:
+
 ### Security Validation
 
 Expression safety is automatically validated during compilation. If unauthorized expressions are found, compilation will fail with an error listing the prohibited expressions.
 
 ### Example Usage
 ```markdown
-# Valid expressions
+# Valid expressions - RECOMMENDED: Use sanitized context text for security
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
+The issue content is: "${{ needs.task.outputs.text }}"
+
+# Alternative approach using individual fields (less secure)
 The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
 
 Using output from previous task: "${{ needs.task.outputs.text }}"
@@ -873,17 +912,20 @@ Agentic workflows compile to GitHub Actions YAML:
 
 ## Best Practices
 
+**⚠️ IMPORTANT**: Run `gh aw compile` after every workflow change to generate the GitHub Actions YAML file.
+
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
 3. **Include security notices** for workflows processing user content  
 4. **Use @include directives** for common patterns and security boilerplate
-5. **Test with `gh aw compile`** before committing (or `gh aw compile <workflow-id>` for specific workflows)
+5. **ALWAYS run `gh aw compile` after every change** to generate the GitHub Actions workflow (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
 7. **Set `stop-after`** in the `on:` section for cost-sensitive workflows
 8. **Set `max-turns` in engine config** to limit chat iterations and prevent runaway loops
 9. **Use specific tool permissions** rather than broad access
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
+12. **Prefer sanitized context text** - Use `${{ needs.task.outputs.text }}` instead of raw `github.event` fields for security
 
 ## Validation
 
@@ -895,3 +937,33 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 - **Missing required fields** - Some triggers require specific configuration
 
 Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.
+
+## CLI
+
+### Installation
+
+```bash
+gh extension install githubnext/gh-aw
+```
+
+If there are authentication issues, use the standalone installer:
+
+```bash
+curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
+chmod +x install-gh-aw.sh
+./install-gh-aw.sh
+```
+
+### Compile Workflows
+
+```bash
+# Compile all workflows in .github/workflows/
+gh aw compile
+
+# Compile a specific workflow
+gh aw compile <workflow-id>
+```
+
+### Documentation
+
+For complete CLI documentation, see: https://githubnext.github.io/gh-aw/tools/cli/

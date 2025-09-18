@@ -49,7 +49,7 @@ The YAML frontmatter supports these fields:
   - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
 
 - **`runs-on:`** - Runner type (string, array, or object)
-- **`timeout_minutes:`** - Workflow timeout (integer)
+- **`timeout_minutes:`** - Workflow timeout (integer, has sensible default and can typically be omitted)
 - **`concurrency:`** - Concurrency control (string or object)
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
@@ -66,10 +66,11 @@ The YAML frontmatter supports these fields:
     ```yaml
     engine:
       id: claude                        # Required: coding agent identifier (claude, codex, custom)
-      version: beta                     # Optional: version of the action
-      model: claude-3-5-sonnet-20241022 # Optional: LLM model to use
-      max-turns: 5                      # Optional: maximum chat iterations per run
+      version: beta                     # Optional: version of the action (has sensible default)
+      model: claude-3-5-sonnet-20241022 # Optional: LLM model to use (has sensible default)
+      max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
     ```
+  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
   - **Custom engine format** (⚠️ experimental):
     ```yaml
     engine:
@@ -911,11 +912,13 @@ Agentic workflows compile to GitHub Actions YAML:
 
 ## Best Practices
 
+**⚠️ IMPORTANT**: Run `gh aw compile` after every workflow change to generate the GitHub Actions YAML file.
+
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
 3. **Include security notices** for workflows processing user content  
 4. **Use @include directives** for common patterns and security boilerplate
-5. **Test with `gh aw compile`** before committing (or `gh aw compile <workflow-id>` for specific workflows)
+5. **ALWAYS run `gh aw compile` after every change** to generate the GitHub Actions workflow (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
 7. **Set `stop-after`** in the `on:` section for cost-sensitive workflows
 8. **Set `max-turns` in engine config** to limit chat iterations and prevent runaway loops
