@@ -18,7 +18,7 @@ func NewCustomEngine() *CustomEngine {
 			displayName:            "Custom Steps",
 			description:            "Executes user-defined GitHub Actions steps",
 			experimental:           false,
-			supportsToolsWhitelist: false,
+			supportsToolsAllowlist: false,
 			supportsHTTPTransport:  false,
 			supportsMaxTurns:       true, // Custom engine supports max-turns for consistency
 		},

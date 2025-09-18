@@ -602,8 +602,8 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("HTTP transport not supported: %w", err)
 	}
 
-	if !agenticEngine.SupportsToolsWhitelist() {
-		// For engines that don't support tool whitelists (like codex), ignore tools section and provide warnings
+	if !agenticEngine.SupportsToolsAllowlist() {
+		// For engines that don't support tool allowlists (like codex), ignore tools section and provide warnings
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
 		if _, hasTools := result.Frontmatter["tools"]; hasTools {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
@@ -4585,7 +4585,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
 	fmt.Fprintf(yaml, "              experimental: %t,\n", engine.IsExperimental())
-	fmt.Fprintf(yaml, "              supports_tools_whitelist: %t,\n", engine.SupportsToolsWhitelist())
+	fmt.Fprintf(yaml, "              supports_tools_allowlist: %t,\n", engine.SupportsToolsAllowlist())
 	fmt.Fprintf(yaml, "              supports_http_transport: %t,\n", engine.SupportsHTTPTransport())
 
 	// Run metadata

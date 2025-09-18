@@ -26,8 +26,8 @@ type CodingAgentEngine interface {
 	// IsExperimental returns true if this engine is experimental
 	IsExperimental() bool
 
-	// SupportsToolsWhitelist returns true if this engine supports MCP tool allow-listing
-	SupportsToolsWhitelist() bool
+	// SupportsToolsAllowlist returns true if this engine supports MCP tool allow-listing
+	SupportsToolsAllowlist() bool
 
 	// SupportsHTTPTransport returns true if this engine supports HTTP transport for MCP servers
 	SupportsHTTPTransport() bool
@@ -78,7 +78,7 @@ type BaseEngine struct {
 	displayName            string
 	description            string
 	experimental           bool
-	supportsToolsWhitelist bool
+	supportsToolsAllowlist bool
 	supportsHTTPTransport  bool
 	supportsMaxTurns       bool
 }
@@ -99,8 +99,8 @@ func (e *BaseEngine) IsExperimental() bool {
 	return e.experimental
 }
 
-func (e *BaseEngine) SupportsToolsWhitelist() bool {
-	return e.supportsToolsWhitelist
+func (e *BaseEngine) SupportsToolsAllowlist() bool {
+	return e.supportsToolsAllowlist
 }
 
 func (e *BaseEngine) SupportsHTTPTransport() bool {

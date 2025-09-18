@@ -21,7 +21,7 @@ func TestCodexEngine(t *testing.T) {
 		t.Error("Codex engine should be experimental")
 	}
 
-	if !engine.SupportsToolsWhitelist() {
+	if !engine.SupportsToolsAllowlist() {
 		t.Error("Codex engine should support MCP tools")
 	}
 
