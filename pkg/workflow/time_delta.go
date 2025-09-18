@@ -251,35 +251,6 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 	return "", fmt.Errorf("unable to parse date-time: %s. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc", dateTimeStr)
 }
 
-// resolveStopTime resolves a stop-time value to an absolute timestamp
-// If the stop-time is relative (starts with '+'), it calculates the absolute time
-// from the compilation time. Otherwise, it parses the absolute time using various formats.
-func resolveStopTime(stopTime string, compilationTime time.Time) (string, error) {
-	if stopTime == "" {
-		return "", nil
-	}
-
-	if isRelativeStopTime(stopTime) {
-		// Parse the relative time delta
-		delta, err := parseTimeDelta(stopTime)
-		if err != nil {
-			return "", err
-		}
-
-		// Calculate absolute time in UTC using precise calculation
-		// Always use AddDate for months, weeks, and days for maximum precision
-		absoluteTime := compilationTime.UTC()
-		absoluteTime = absoluteTime.AddDate(0, delta.Months, delta.Weeks*7+delta.Days)
-		absoluteTime = absoluteTime.Add(time.Duration(delta.Hours)*time.Hour + time.Duration(delta.Minutes)*time.Minute)
-
-		// Format in the expected format: "YYYY-MM-DD HH:MM:SS"
-		return absoluteTime.Format("2006-01-02 15:04:05"), nil
-	}
-
-	// Parse absolute date-time with flexible format support
-	return parseAbsoluteDateTime(stopTime)
-}
-
 // isRelativeDate checks if a date string is a relative time delta (starts with + or -)
 func isRelativeDate(dateStr string) bool {
 	return strings.HasPrefix(dateStr, "+") || strings.HasPrefix(dateStr, "-")
