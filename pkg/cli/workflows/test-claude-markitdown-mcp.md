@@ -9,7 +9,7 @@ tools:
   markitdown:
     mcp:
       type: stdio
-      registry: https://api.mcp.github.com/v0/servers/microsoft%2Fmarkitdown
+      registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
       command: npx
       args: ["-y", "@microsoft/markitdown"]
 ---
