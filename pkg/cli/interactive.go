@@ -447,15 +447,14 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	}
 
 	// Add TODO sections for customization
-	content.WriteString("<!-- TODO: Customize this workflow -->\n")
+	content.WriteString("<!--\n")
 	content.WriteString("## TODO: Customize this workflow\n\n")
 	content.WriteString("The workflow has been generated based on your selections. Consider adding:\n\n")
 	content.WriteString("- [ ] More specific instructions for the AI\n")
 	content.WriteString("- [ ] Error handling requirements\n")
 	content.WriteString("- [ ] Output format specifications\n")
 	content.WriteString("- [ ] Integration with other workflows\n")
-	content.WriteString("- [ ] Testing and validation steps\n")
-	content.WriteString("<!-- /TODO -->\n\n")
+	content.WriteString("- [ ] Testing and validation steps\n\n")
 
 	content.WriteString("## Configuration Summary\n\n")
 	content.WriteString(fmt.Sprintf("- **Trigger**: %s\n", b.describeTrigger()))
@@ -480,6 +479,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	content.WriteString("2. Remove TODO sections when ready\n")
 	content.WriteString(fmt.Sprintf("3. Run `%s compile` to generate the GitHub Actions workflow\n", constants.CLIExtensionPrefix))
 	content.WriteString("4. Test the workflow with a manual trigger or appropriate event\n")
+	content.WriteString("-->\n")
 
 	return content.String()
 }

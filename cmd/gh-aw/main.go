@@ -59,124 +59,6 @@ var listCmd = &cobra.Command{
 	},
 }
 
-// isRunningInCI checks if we're running in a CI environment
-func isRunningInCI() bool {
-	// Common CI environment variables
-	ciVars := []string{
-		"CI",
-		"CONTINUOUS_INTEGRATION",
-		"GITHUB_ACTIONS",
-		"JENKINS_URL",
-		"TRAVIS",
-		"CIRCLECI",
-		"GITLAB_CI",
-		"BUILDKITE",
-		"DRONE",
-	}
-
-	for _, v := range ciVars {
-		if os.Getenv(v) != "" {
-			return true
-		}
-	}
-	return false
-}
-
-var addCmd = &cobra.Command{
-	Use:   "add <workflow>...",
-	Short: "Add one or more workflows from the components to .github/workflows",
-	Long: `Add one or more workflows from the components to .github/workflows.
-
-Examples:
-  ` + constants.CLIExtensionPrefix + ` add weekly-research
-  ` + constants.CLIExtensionPrefix + ` add ci-doctor daily-perf-improver
-  ` + constants.CLIExtensionPrefix + ` add weekly-research -n my-custom-name
-  ` + constants.CLIExtensionPrefix + ` add weekly-research -r githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` add weekly-research --pr
-  ` + constants.CLIExtensionPrefix + ` add weekly-research daily-plan --force
-  ` + constants.CLIExtensionPrefix + ` add my-workflow --interactive
-
-The -i/--interactive flag creates a new workflow using interactive prompts.
-The -r flag allows you to install and use workflows from a specific repository.
-The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
-The --pr flag automatically creates a pull request with the workflow changes.
-The --force flag overwrites existing workflow files.
-It's a shortcut for:
-  ` + constants.CLIExtensionPrefix + ` install githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` add weekly-research`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		interactive, _ := cmd.Flags().GetBool("interactive")
-
-		// If no arguments provided and not in CI, automatically use interactive mode
-		if len(args) == 0 && !isRunningInCI() && !interactive {
-			// Auto-enable interactive mode
-			cmd.Flags().Set("interactive", "true")
-			interactive = true
-		}
-
-		if interactive {
-			// Interactive mode requires exactly one workflow name or auto-generates one
-			if len(args) == 0 {
-				// This is fine - we'll prompt for the workflow name
-				return nil
-			}
-			if len(args) != 1 {
-				return fmt.Errorf("interactive mode requires exactly one workflow name")
-			}
-		} else {
-			// Normal mode requires at least one workflow
-			if len(args) < 1 {
-				return fmt.Errorf("requires at least 1 arg(s), received %d", len(args))
-			}
-		}
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		workflows := args
-		numberFlag, _ := cmd.Flags().GetInt("number")
-		engineOverride, _ := cmd.Flags().GetString("engine")
-		repoFlag, _ := cmd.Flags().GetString("repo")
-		nameFlag, _ := cmd.Flags().GetString("name")
-		prFlag, _ := cmd.Flags().GetBool("pr")
-		forceFlag, _ := cmd.Flags().GetBool("force")
-		interactive, _ := cmd.Flags().GetBool("interactive")
-
-		if err := validateEngine(engineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
-
-		// Handle interactive mode
-		if interactive {
-			var workflowName string
-			if len(workflows) > 0 {
-				workflowName = workflows[0]
-			} else {
-				// Prompt for workflow name since none was provided
-				workflowName = "my-workflow" // Default name
-			}
-			if err := cli.CreateWorkflowInteractively(workflowName, verbose, forceFlag); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
-			return
-		}
-
-		// Handle normal mode
-		if prFlag {
-			if err := cli.AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, true); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
-		} else {
-			if err := cli.AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, false); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
-		}
-	},
-}
-
 var newCmd = &cobra.Command{
 	Use:   "new <workflow-base-name>",
 	Short: "Create a new workflow markdown file with example configuration",
@@ -401,9 +283,6 @@ func init() {
 
 	// Add force flag to add command
 	addCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
-
-	// Add interactive flag to add command
-	addCmd.Flags().BoolP("interactive", "i", false, "Create workflow using interactive prompts")
 
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
