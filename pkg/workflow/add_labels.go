@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+// AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
+type AddLabelsConfig struct {
+	Allowed     []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	MaxCount    *int     `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
+	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // buildCreateOutputLabelJob creates the add_labels job
 func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil {
