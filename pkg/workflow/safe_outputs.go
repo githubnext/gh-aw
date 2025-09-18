@@ -161,3 +161,193 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          \n")
 	}
 }
+
+// extractSafeOutputsConfig extracts output configuration from frontmatter
+func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
+	var config *SafeOutputsConfig
+
+	if output, exists := frontmatter["safe-outputs"]; exists {
+		if outputMap, ok := output.(map[string]any); ok {
+			config = &SafeOutputsConfig{}
+
+			// Handle create-issue
+			issuesConfig := c.parseIssuesConfig(outputMap)
+			if issuesConfig != nil {
+				config.CreateIssues = issuesConfig
+			}
+
+			// Handle create-discussion
+			discussionsConfig := c.parseDiscussionsConfig(outputMap)
+			if discussionsConfig != nil {
+				config.CreateDiscussions = discussionsConfig
+			}
+
+			// Handle add-comment
+			commentsConfig := c.parseCommentsConfig(outputMap)
+			if commentsConfig != nil {
+				config.AddComments = commentsConfig
+			}
+
+			// Handle create-pull-request
+			pullRequestsConfig := c.parsePullRequestsConfig(outputMap)
+			if pullRequestsConfig != nil {
+				config.CreatePullRequests = pullRequestsConfig
+			}
+
+			// Handle create-pull-request-review-comment
+			prReviewCommentsConfig := c.parsePullRequestReviewCommentsConfig(outputMap)
+			if prReviewCommentsConfig != nil {
+				config.CreatePullRequestReviewComments = prReviewCommentsConfig
+			}
+
+			// Handle create-code-scanning-alert
+			securityReportsConfig := c.parseCodeScanningAlertsConfig(outputMap)
+			if securityReportsConfig != nil {
+				config.CreateCodeScanningAlerts = securityReportsConfig
+			}
+
+			// Parse allowed-domains configuration
+			if allowedDomains, exists := outputMap["allowed-domains"]; exists {
+				if domainsArray, ok := allowedDomains.([]any); ok {
+					var domainStrings []string
+					for _, domain := range domainsArray {
+						if domainStr, ok := domain.(string); ok {
+							domainStrings = append(domainStrings, domainStr)
+						}
+					}
+					config.AllowedDomains = domainStrings
+				}
+			}
+
+			// Parse add-labels configuration
+			if labels, exists := outputMap["add-labels"]; exists {
+				if labelsMap, ok := labels.(map[string]any); ok {
+					labelConfig := &AddLabelsConfig{}
+
+					// Parse allowed labels (optional)
+					if allowed, exists := labelsMap["allowed"]; exists {
+						if allowedArray, ok := allowed.([]any); ok {
+							var allowedStrings []string
+							for _, label := range allowedArray {
+								if labelStr, ok := label.(string); ok {
+									allowedStrings = append(allowedStrings, labelStr)
+								}
+							}
+							labelConfig.Allowed = allowedStrings
+						}
+					}
+
+					// Parse max (optional)
+					if maxCount, exists := labelsMap["max"]; exists {
+						// Handle different numeric types that YAML parsers might return
+						var maxCountInt int
+						var validMaxCount bool
+						switch v := maxCount.(type) {
+						case int:
+							maxCountInt = v
+							validMaxCount = true
+						case int64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case uint64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						case float64:
+							maxCountInt = int(v)
+							validMaxCount = true
+						}
+						if validMaxCount {
+							labelConfig.MaxCount = &maxCountInt
+						}
+					}
+
+					// Parse github-token
+					if githubToken, exists := labelsMap["github-token"]; exists {
+						if githubTokenStr, ok := githubToken.(string); ok {
+							labelConfig.GitHubToken = githubTokenStr
+						}
+					}
+
+					config.AddLabels = labelConfig
+				} else if labels == nil {
+					// Handle null case: create empty config (allows any labels)
+					config.AddLabels = &AddLabelsConfig{}
+				}
+			}
+
+			// Handle update-issue
+			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
+			if updateIssuesConfig != nil {
+				config.UpdateIssues = updateIssuesConfig
+			}
+
+			// Handle push-to-pr-branch
+			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
+			if pushToBranchConfig != nil {
+				config.PushToPullRequestBranch = pushToBranchConfig
+			}
+
+			// Handle missing-tool (parse configuration if present)
+			missingToolConfig := c.parseMissingToolConfig(outputMap)
+			if missingToolConfig != nil {
+				config.MissingTool = missingToolConfig
+			}
+
+			// Handle staged flag
+			if staged, exists := outputMap["staged"]; exists {
+				if stagedBool, ok := staged.(bool); ok {
+					config.Staged = &stagedBool
+				}
+			}
+
+			// Handle env configuration
+			if env, exists := outputMap["env"]; exists {
+				if envMap, ok := env.(map[string]any); ok {
+					config.Env = make(map[string]string)
+					for key, value := range envMap {
+						if valueStr, ok := value.(string); ok {
+							config.Env[key] = valueStr
+						}
+					}
+				}
+			}
+
+			// Handle github-token configuration
+			if githubToken, exists := outputMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					config.GitHubToken = githubTokenStr
+				}
+			}
+
+			// Handle max-patch-size configuration
+			if maxPatchSize, exists := outputMap["max-patch-size"]; exists {
+				switch v := maxPatchSize.(type) {
+				case int:
+					if v >= 1 {
+						config.MaximumPatchSize = v
+					}
+				case int64:
+					if v >= 1 {
+						config.MaximumPatchSize = int(v)
+					}
+				case uint64:
+					if v >= 1 {
+						config.MaximumPatchSize = int(v)
+					}
+				case float64:
+					intVal := int(v)
+					if intVal >= 1 {
+						config.MaximumPatchSize = intVal
+					}
+				}
+			}
+
+			// Set default value if not specified or invalid
+			if config.MaximumPatchSize == 0 {
+				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
+			}
+		}
+	}
+
+	return config
+}

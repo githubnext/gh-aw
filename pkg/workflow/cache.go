@@ -14,6 +14,63 @@ type CacheMemoryConfig struct {
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
 
+// extractCacheMemoryConfig extracts cache-memory configuration from tools section
+func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryConfig {
+	cacheMemoryValue, exists := tools["cache-memory"]
+	if !exists {
+		return nil
+	}
+
+	config := &CacheMemoryConfig{}
+
+	// Handle boolean value (simple enable/disable)
+	if boolValue, ok := cacheMemoryValue.(bool); ok {
+		config.Enabled = boolValue
+		if config.Enabled {
+			// Set defaults
+			config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+		}
+		return config
+	}
+
+	// Handle object configuration
+	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
+		config.Enabled = true
+
+		// Set defaults
+		config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+
+		// Parse custom key
+		if key, exists := configMap["key"]; exists {
+			if keyStr, ok := key.(string); ok {
+				config.Key = keyStr
+				// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+				runIdSuffix := "-${{ github.run_id }}"
+				if !strings.HasSuffix(config.Key, runIdSuffix) {
+					config.Key = config.Key + runIdSuffix
+				}
+			}
+		}
+
+		// Parse retention days
+		if retentionDays, exists := configMap["retention-days"]; exists {
+			if retentionDaysInt, ok := retentionDays.(int); ok {
+				config.RetentionDays = &retentionDaysInt
+			} else if retentionDaysFloat, ok := retentionDays.(float64); ok {
+				retentionDaysIntValue := int(retentionDaysFloat)
+				config.RetentionDays = &retentionDaysIntValue
+			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
+				retentionDaysIntValue := int(retentionDaysUint64)
+				config.RetentionDays = &retentionDaysIntValue
+			}
+		}
+
+		return config
+	}
+
+	return nil
+}
+
 // generateCacheSteps generates cache steps for the workflow based on cache configuration
 func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bool) {
 	if data.Cache == "" {
