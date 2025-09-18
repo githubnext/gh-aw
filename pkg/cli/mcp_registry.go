@@ -40,13 +40,15 @@ type MCPRegistryResponse struct {
 
 // MCPRegistryServerForProcessing represents a flattened server for internal use
 type MCPRegistryServerForProcessing struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Repository  string                 `json:"repository"`
-	Command     string                 `json:"command"`
-	Args        []string               `json:"args"`
-	Transport   string                 `json:"transport"`
-	Config      map[string]interface{} `json:"config"`
+	Name             string                 `json:"name"`
+	Description      string                 `json:"description"`
+	Repository       string                 `json:"repository"`
+	Command          string                 `json:"command"`
+	Args             []string               `json:"args"`
+	RuntimeHint      string                 `json:"runtime_hint"`
+	RuntimeArguments []string               `json:"runtime_arguments"`
+	Transport        string                 `json:"transport"`
+	Config           map[string]interface{} `json:"config"`
 }
 
 // MCPRegistryClient handles communication with MCP registries
@@ -138,6 +140,18 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 
 			// Set command from package identifier
 			processedServer.Command = pkg.Identifier
+
+			// Set runtime hint (used for the actual command execution)
+			processedServer.RuntimeHint = pkg.RunTimeHint
+
+			// Extract runtime arguments
+			runtimeArgs := make([]string, 0)
+			for _, arg := range pkg.RuntimeArguments {
+				if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
+					runtimeArgs = append(runtimeArgs, arg.Value)
+				}
+			}
+			processedServer.RuntimeArguments = runtimeArgs
 
 			// Extract string values from package arguments as command args
 			args := make([]string, 0)
@@ -271,6 +285,18 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 
 				// Set command from package identifier
 				processedServer.Command = pkg.Identifier
+
+				// Set runtime hint (used for the actual command execution)
+				processedServer.RuntimeHint = pkg.RunTimeHint
+
+				// Extract runtime arguments
+				runtimeArgs := make([]string, 0)
+				for _, arg := range pkg.RuntimeArguments {
+					if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
+						runtimeArgs = append(runtimeArgs, arg.Value)
+					}
+				}
+				processedServer.RuntimeArguments = runtimeArgs
 
 				// Extract string values from package arguments as command args
 				args := make([]string, 0)

@@ -134,9 +134,9 @@ This is a test workflow.
 		t.Error("Expected stdio transport type")
 	}
 
-	// Check that it has the correct command (now uses registry_name)
-	if !strings.Contains(updatedContentStr, "command: notion-mcp") {
-		t.Error("Expected notion-mcp command")
+	// Check that it has the correct command (now uses runtime_hint)
+	if !strings.Contains(updatedContentStr, "command: node") {
+		t.Error("Expected node command from runtime_hint")
 	}
 
 	// Check that environment variables use GitHub Actions syntax
