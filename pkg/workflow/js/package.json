@@ -20,7 +20,7 @@
     "test:js": "vitest run",
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
-    "format:cjs": "prettier --write 'pkg/workflow/js/**/*.cjs'",
-    "lint:cjs": "prettier --check 'pkg/workflow/js/**/*.cjs'"
+    "format:cjs": "prettier --write '**/*.cjs'",
+    "lint:cjs": "prettier --check '**/*.cjs'"
   }
 }

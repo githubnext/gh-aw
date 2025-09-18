@@ -24,23 +24,19 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return listWorkflowsWithMCP(workflowsDir, verbose)
 	}
 
-	// Normalize the workflow file path
-	if !strings.HasSuffix(workflowFile, ".md") {
-		workflowFile += ".md"
+	// Resolve the workflow file path
+	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	if err != nil {
+		return err
 	}
 
-	workflowPath := filepath.Join(workflowsDir, workflowFile)
+	// Convert to absolute path if needed
 	if !filepath.IsAbs(workflowPath) {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("failed to get current directory: %w", err)
 		}
 		workflowPath = filepath.Join(cwd, workflowPath)
-	}
-
-	// Check if file exists
-	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-		return fmt.Errorf("workflow file not found: %s", workflowPath)
 	}
 
 	if verbose {

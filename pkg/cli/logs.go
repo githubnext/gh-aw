@@ -1512,7 +1512,6 @@ func displayMissingToolsAnalysis(processedRuns []ProcessedRun, verbose bool) {
 
 	// Display summary header
 	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Missing Tools Summary"))
-	fmt.Printf("%s\n\n", console.FormatListHeader("======================="))
 
 	// Convert map to slice for sorting
 	var summaries []*MissingToolSummary
@@ -1571,7 +1570,6 @@ func displayMissingToolsAnalysis(processedRuns []ProcessedRun, verbose bool) {
 // displayDetailedMissingToolsBreakdown shows missing tools organized by workflow (verbose mode)
 func displayDetailedMissingToolsBreakdown(processedRuns []ProcessedRun) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed Missing Tools Breakdown"))
-	fmt.Printf("%s\n", console.FormatListHeader("===================================="))
 
 	for _, pr := range processedRuns {
 		if len(pr.MissingTools) == 0 {
@@ -1856,7 +1854,6 @@ func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
 // displayDetailedMCPFailuresBreakdown shows MCP failures organized by workflow (verbose mode)
 func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed MCP Failures Breakdown"))
-	fmt.Printf("%s\n", console.FormatListHeader("==================================="))
 
 	for _, pr := range processedRuns {
 		if len(pr.MCPFailures) == 0 {

@@ -42,7 +42,7 @@ test:
 # Test JavaScript files
 .PHONY: test-js
 test-js:
-	npm run test:js
+	cd pkg/workflow/js && npm run test:js
 
 # Test all code (Go and JavaScript)
 .PHONY: test-all
@@ -72,7 +72,7 @@ deps:
 .PHONY: deps-dev
 deps-dev: deps download-github-actions-schema
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	npm ci
+	cd pkg/workflow/js && npm ci
 
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
@@ -111,13 +111,13 @@ fmt:
 # Format JavaScript (.cjs) files
 .PHONY: fmt-cjs
 fmt-cjs:
-	npm run format:cjs
+	cd pkg/workflow/js && npm run format:cjs
 
 # Run TypeScript compiler on JavaScript files
 .PHONY: js
 js:
 	echo "Running TypeScript compiler..."; \
-	npm run typecheck
+	cd pkg/workflow/js && npm run typecheck
 
 # Check formatting
 .PHONY: fmt-check
@@ -130,7 +130,7 @@ fmt-check:
 # Check JavaScript (.cjs) file formatting
 .PHONY: fmt-check-cjs
 fmt-check-cjs:
-	npm run lint:cjs
+	cd pkg/workflow/js && npm run lint:cjs
 
 # Lint JavaScript (.cjs) files 
 .PHONY: lint-cjs

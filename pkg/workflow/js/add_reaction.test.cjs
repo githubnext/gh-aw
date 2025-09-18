@@ -92,10 +92,7 @@ describe("add_reaction.cjs", () => {
     };
 
     // Load the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/add_reaction.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "add_reaction.cjs");
     addReactionScript = fs.readFileSync(scriptPath, "utf8");
   });
 

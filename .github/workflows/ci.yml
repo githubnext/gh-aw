@@ -69,10 +69,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           cache: npm
+          cache-dependency-path: pkg/workflow/js/package-lock.json
       - name: Install npm dependencies
-        run: npm ci
+        run: cd pkg/workflow/js && npm ci
       - name: Run tests
-        run: npm test
+        run: cd pkg/workflow/js && npm test
   lint:
     name: Lint Code
     runs-on: ubuntu-latest

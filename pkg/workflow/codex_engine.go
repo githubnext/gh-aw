@@ -123,9 +123,10 @@ codex login --api-key "$OPENAI_API_KEY"
 codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
-		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
-		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
-		"GITHUB_AW_PROMPT":    "/tmp/aw-prompts/prompt.txt",
+		"OPENAI_API_KEY":       "${{ secrets.OPENAI_API_KEY }}",
+		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
+		"GITHUB_AW_PROMPT":     "/tmp/aw-prompts/prompt.txt",
+		"GITHUB_AW_MCP_CONFIG": "/tmp/mcp-config/config.toml",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed

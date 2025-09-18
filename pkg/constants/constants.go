@@ -9,6 +9,9 @@ const MaxExpressionLineLength = 120
 // ExpressionBreakThreshold is the threshold for breaking long lines at logical points
 const ExpressionBreakThreshold = 100
 
+// DefaultMCPRegistryURL is the default MCP registry URL
+const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
+
 // SafeWorkflowEvents defines events that are considered safe and don't require permission checks
 var SafeWorkflowEvents = []string{"workflow_dispatch", "workflow_run", "schedule"}
 

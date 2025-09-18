@@ -86,15 +86,24 @@ Priority levels:
 ```
 
 #### Reference Context Appropriately
-Use GitHub Actions expressions to provide relevant context from the triggering event.
+Use sanitized context text and GitHub Actions expressions to provide secure, relevant context from the triggering event.
 
 ```markdown
-# Contextual Information
-You are reviewing pull request #${{ github.event.pull_request.number }} 
-in repository ${{ github.repository }}, submitted by ${{ github.actor }}.
+# RECOMMENDED: Use sanitized context text for security
+Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The pull request title is: "${{ github.event.pull_request.title }}"
+The content to analyze: "${{ needs.task.outputs.text }}"
+
+# DISCOURAGED: Raw context fields (security risks from untrusted content)
+The issue title is: "${{ github.event.issue.title }}"
+The issue body is: "${{ github.event.issue.body }}"
 ```
+
+**Why prefer `needs.task.outputs.text`?**
+- Automatically sanitizes @mentions, bot triggers, XML tags, and malicious URIs
+- Prevents prompt injection attacks through user-controlled content
+- Limits content size to prevent DoS through excessive text
+- Removes control characters that could manipulate terminal output
 
 #### Handle Edge Cases
 Anticipate and provide guidance for unusual situations or error conditions.
@@ -272,13 +281,17 @@ allowed: [github.repository, github.actor, github.workflow, ...]
 ## Example Valid Usage
 
 ```markdown
-# Valid expressions
+# RECOMMENDED: Use sanitized context text for user content
 Repository: ${{ github.repository }}
 Triggered by: ${{ github.actor }}  
 Issue number: ${{ github.event.issue.number }}
-Previous output: ${{ needs.task.outputs.text }}
+Content to analyze: "${{ needs.task.outputs.text }}"
 User input: ${{ github.event.inputs.environment }}
 Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}
+
+# DISCOURAGED: Raw user content (security risks)
+Issue title: "${{ github.event.issue.title }}"
+Issue body: "${{ github.event.issue.body }}"
 
 # Invalid expressions (will cause compilation error)
 Token: ${{ secrets.GITHUB_TOKEN }}
@@ -288,8 +301,9 @@ Complex: ${{ toJson(github.workflow) }}
 
 ## Best Practices
 
+- **Use sanitized context text**: Prefer `${{ needs.task.outputs.text }}` over raw `github.event.*` fields for user content
 - **Use allowed expressions**: Stick to the permitted GitHub context expressions
-- **Reference event data**: Use `${{ github.event.* }}` to access trigger-specific information  
+- **Reference event metadata**: Use `${{ github.event.* }}` for IDs, numbers, and other non-user-controlled metadata  
 - **Leverage workflow context**: Use `${{ github.repository }}`, `${{ github.actor }}` for basic context
 - **Pass data via frontmatter**: Use YAML frontmatter for secrets and sensitive configuration
 - **Test compilation**: Always run `gh aw compile` to validate expression usage

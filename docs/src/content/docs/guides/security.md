@@ -238,9 +238,36 @@ Operational guidance:
 
 Protect against model manipulation through layered defenses:
 
+#### Sanitized Context Text Usage
+
+**CRITICAL**: Always use `${{ needs.task.outputs.text }}` instead of raw `github.event` fields when accessing user-controlled content.
+
+Raw context fields like `${{ github.event.issue.title }}`, `${{ github.event.issue.body }}`, and `${{ github.event.comment.body }}` contain unsanitized user input that can:
+- Inject malicious prompts to manipulate AI behavior
+- Trigger unintended @mentions and bot commands  
+- Include XML/HTML content that could affect output processing
+- Contain excessive content leading to resource exhaustion
+
+The `needs.task.outputs.text` provides the same content but with security protections:
+- @mentions are neutralized: `@user` becomes `` `@user` ``
+- Bot triggers are escaped: `fixes #123` becomes `` `fixes #123` ``
+- XML tags converted to safe parentheses format
+- Only HTTPS URIs from trusted domains allowed
+- Content size limited to 0.5MB and 65k lines maximum
+- Control characters and ANSI sequences removed
+
+```markdown
+# SECURE: Use sanitized context
+Analyze this content: "${{ needs.task.outputs.text }}"
+
+# INSECURE: Raw user input (vulnerable to injection)
+Title: "${{ github.event.issue.title }}"
+Body: "${{ github.event.issue.body }}"
+```
+
 #### Policy Enforcement
 
-- **Input sanitization**: Minimize untrusted content exposure; strip embedded commands when not required for functionality
+- **Input sanitization**: Always use sanitized context text for user-controlled content
 - **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
 
 ## Engine Network Permissions
