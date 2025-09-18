@@ -99,10 +99,7 @@ func TestMCPRegistryClient_GetServer(t *testing.T) {
 			t.Errorf("Expected path %s, got %s", expectedPath, r.URL.Path)
 		}
 
-		// Check for search query parameter
-		if search := r.URL.Query().Get("search"); search != "io.github.makenotion/notion-mcp-server" {
-			t.Errorf("Expected search parameter 'io.github.makenotion/notion-mcp-server', got '%s'", search)
-		}
+		// No longer check for search query parameter since we now fetch all servers and filter locally
 
 		// Return mock response with new structure based on official specification
 		response := `{
