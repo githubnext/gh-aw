@@ -59,6 +59,29 @@ var listCmd = &cobra.Command{
 	},
 }
 
+// isRunningInCI checks if we're running in a CI environment
+func isRunningInCI() bool {
+	// Common CI environment variables
+	ciVars := []string{
+		"CI",
+		"CONTINUOUS_INTEGRATION",
+		"GITHUB_ACTIONS",
+		"JENKINS_URL",
+		"TRAVIS",
+		"CIRCLECI",
+		"GITLAB_CI",
+		"BUILDKITE",
+		"DRONE",
+	}
+
+	for _, v := range ciVars {
+		if os.Getenv(v) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 var addCmd = &cobra.Command{
 	Use:   "add <workflow>...",
 	Short: "Add one or more workflows from the components to .github/workflows",
@@ -83,8 +106,20 @@ It's a shortcut for:
   ` + constants.CLIExtensionPrefix + ` add weekly-research`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		interactive, _ := cmd.Flags().GetBool("interactive")
+
+		// If no arguments provided and not in CI, automatically use interactive mode
+		if len(args) == 0 && !isRunningInCI() && !interactive {
+			// Auto-enable interactive mode
+			cmd.Flags().Set("interactive", "true")
+			interactive = true
+		}
+
 		if interactive {
-			// Interactive mode requires exactly one workflow name
+			// Interactive mode requires exactly one workflow name or auto-generates one
+			if len(args) == 0 {
+				// This is fine - we'll prompt for the workflow name
+				return nil
+			}
 			if len(args) != 1 {
 				return fmt.Errorf("interactive mode requires exactly one workflow name")
 			}
@@ -113,7 +148,14 @@ It's a shortcut for:
 
 		// Handle interactive mode
 		if interactive {
-			if err := cli.CreateWorkflowInteractively(workflows[0], verbose, forceFlag); err != nil {
+			var workflowName string
+			if len(workflows) > 0 {
+				workflowName = workflows[0]
+			} else {
+				// Prompt for workflow name since none was provided
+				workflowName = "my-workflow" // Default name
+			}
+			if err := cli.CreateWorkflowInteractively(workflowName, verbose, forceFlag); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -33,6 +34,13 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 
 	builder := &InteractiveWorkflowBuilder{
 		WorkflowName: workflowName,
+	}
+
+	// If using default workflow name, prompt for a better one
+	if workflowName == "my-workflow" {
+		if err := builder.promptForWorkflowName(); err != nil {
+			return fmt.Errorf("failed to get workflow name: %w", err)
+		}
 	}
 
 	// Run through the interactive prompts
@@ -77,6 +85,17 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 	return nil
 }
 
+// promptForWorkflowName asks the user for a workflow name
+func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
+	prompt := &survey.Input{
+		Message: "What should we call this workflow?",
+		Help:    "Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')",
+		Default: b.WorkflowName,
+	}
+
+	return survey.AskOne(prompt, &b.WorkflowName)
+}
+
 // promptForTrigger asks the user to select when the workflow should run
 func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 	triggerOptions := []string{
@@ -88,7 +107,6 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 		"Schedule (daily at 9 AM UTC)",
 		"Schedule (weekly on Monday at 9 AM UTC)",
 		"Command trigger (/bot-name)",
-		"Custom trigger",
 	}
 
 	prompt := &survey.Select{
@@ -120,8 +138,6 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 		b.Trigger = "schedule_weekly"
 	case "Command trigger (/bot-name)":
 		b.Trigger = "command"
-	case "Custom trigger":
-		b.Trigger = "custom"
 	}
 
 	return nil
@@ -322,7 +338,6 @@ func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
 		"defaults - Basic infrastructure only",
 		"ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)",
 		"custom - Specify custom domains",
-		"none - No network access",
 	}
 
 	prompt := &survey.Select{
@@ -344,31 +359,6 @@ func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
 		b.NetworkAccess = "ecosystem"
 	case strings.HasPrefix(selected, "custom"):
 		b.NetworkAccess = "custom"
-		return b.promptForCustomDomains()
-	case strings.HasPrefix(selected, "none"):
-		b.NetworkAccess = "none"
-	}
-
-	return nil
-}
-
-// promptForCustomDomains asks for specific domains when custom network access is selected
-func (b *InteractiveWorkflowBuilder) promptForCustomDomains() error {
-	prompt := &survey.Input{
-		Message: "Enter comma-separated list of allowed domains:",
-		Help:    "Example: api.github.com, example.com, *.trusted-domain.com",
-	}
-
-	var domains string
-	if err := survey.AskOne(prompt, &domains); err != nil {
-		return err
-	}
-
-	if domains != "" {
-		b.CustomDomains = strings.Split(domains, ",")
-		for i, domain := range b.CustomDomains {
-			b.CustomDomains[i] = strings.TrimSpace(domain)
-		}
 	}
 
 	return nil
@@ -418,11 +408,6 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(verbose bool, force bool) 
 	return nil
 }
 
-// GenerateWorkflowContent creates the workflow markdown content (exported for testing)
-func (b *InteractiveWorkflowBuilder) GenerateWorkflowContent() string {
-	return b.generateWorkflowContent()
-}
-
 // generateWorkflowContent creates the workflow markdown content
 func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	var content strings.Builder
@@ -439,10 +424,8 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	// Add engine configuration
 	content.WriteString(fmt.Sprintf("engine: %s\n", b.Engine))
 
-	// Add network configuration if needed
-	if b.NetworkAccess != "defaults" {
-		content.WriteString(b.generateNetworkConfig())
-	}
+	// Add network configuration
+	content.WriteString(b.generateNetworkConfig())
 
 	// Add tools configuration
 	if len(b.Tools) > 0 || len(b.MCPTools) > 0 {
@@ -464,13 +447,15 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	}
 
 	// Add TODO sections for customization
+	content.WriteString("<!-- TODO: Customize this workflow -->\n")
 	content.WriteString("## TODO: Customize this workflow\n\n")
 	content.WriteString("The workflow has been generated based on your selections. Consider adding:\n\n")
 	content.WriteString("- [ ] More specific instructions for the AI\n")
 	content.WriteString("- [ ] Error handling requirements\n")
 	content.WriteString("- [ ] Output format specifications\n")
 	content.WriteString("- [ ] Integration with other workflows\n")
-	content.WriteString("- [ ] Testing and validation steps\n\n")
+	content.WriteString("- [ ] Testing and validation steps\n")
+	content.WriteString("<!-- /TODO -->\n\n")
 
 	content.WriteString("## Configuration Summary\n\n")
 	content.WriteString(fmt.Sprintf("- **Trigger**: %s\n", b.describeTrigger()))
@@ -519,8 +504,6 @@ func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
 		return "on:\n  schedule:\n    - cron: \"0 9 * * 1\"  # Weekly on Monday at 9 AM UTC\n"
 	case "command":
 		return "on:\n  command:\n    name: bot-name  # TODO: Replace with your bot name\n"
-	case "custom":
-		return "# TODO: Add your custom trigger configuration\non:\n  workflow_dispatch:\n"
 	default:
 		return "on:\n  workflow_dispatch:\n"
 	}
@@ -529,26 +512,8 @@ func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
 func (b *InteractiveWorkflowBuilder) generatePermissionsConfig() string {
 	permissions := []string{"contents: read"}
 
-	// Add permissions based on safe outputs
-	for _, output := range b.SafeOutputs {
-		switch output {
-		case "create-issue", "update-issue", "add-comment":
-			if !containsString(permissions, "issues: write") {
-				permissions = append(permissions, "issues: write")
-			}
-		case "create-pull-request":
-			if !containsString(permissions, "pull-requests: write") {
-				permissions = append(permissions, "pull-requests: write")
-			}
-		case "create-discussion":
-			if !containsString(permissions, "discussions: write") {
-				permissions = append(permissions, "discussions: write")
-			}
-		}
-	}
-
 	// Always add actions: read for safe outputs
-	if len(b.SafeOutputs) > 0 && !containsString(permissions, "actions: read") {
+	if len(b.SafeOutputs) > 0 && !slices.Contains(permissions, "actions: read") {
 		permissions = append(permissions, "actions: read")
 	}
 
@@ -566,19 +531,9 @@ func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {
 	case "ecosystem":
 		return "network:\n  allowed:\n    - defaults\n    - python\n    - node\n    - go\n    - java\n"
 	case "custom":
-		if len(b.CustomDomains) > 0 {
-			var config strings.Builder
-			config.WriteString("network:\n  allowed:\n")
-			for _, domain := range b.CustomDomains {
-				config.WriteString(fmt.Sprintf("    - \"%s\"\n", domain))
-			}
-			return config.String()
-		}
 		return "network:\n  allowed: []  # TODO: Add your custom domains\n"
-	case "none":
-		return "network: {}\n"
 	default:
-		return ""
+		return "network: defaults\n"
 	}
 }
 
@@ -656,14 +611,4 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 
 	// Use the existing compile functionality
 	return CompileWorkflows([]string{b.WorkflowName}, verbose, "", true, false, "", false, false, false)
-}
-
-// Helper function to check if a slice contains a string
-func containsString(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

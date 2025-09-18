@@ -41,7 +41,7 @@ func TestInteractiveWorkflowBuilder_Validation(t *testing.T) {
 	}
 
 	// Test content generation
-	content := builder.GenerateWorkflowContent()
+	content := builder.generateWorkflowContent()
 	if content == "" {
 		t.Error("Generated content should not be empty")
 	}
