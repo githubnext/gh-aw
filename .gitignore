@@ -50,5 +50,4 @@ coverage.html
 coverage/
 logs/
 
-.github/instructions/github-agentic-workflows.instructions.md
 node_modules/
