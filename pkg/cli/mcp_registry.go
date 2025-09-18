@@ -14,15 +14,16 @@ import (
 
 // MCPRegistryServerForProcessing represents a flattened server for internal use
 type MCPRegistryServerForProcessing struct {
-	Name             string                 `json:"name"`
-	Description      string                 `json:"description"`
-	Repository       string                 `json:"repository"`
-	Command          string                 `json:"command"`
-	Args             []string               `json:"args"`
-	RuntimeHint      string                 `json:"runtime_hint"`
-	RuntimeArguments []string               `json:"runtime_arguments"`
-	Transport        string                 `json:"transport"`
-	Config           map[string]interface{} `json:"config"`
+	Name                 string                 `json:"name"`
+	Description          string                 `json:"description"`
+	Repository           string                 `json:"repository"`
+	Command              string                 `json:"command"`
+	Args                 []string               `json:"args"`
+	RuntimeHint          string                 `json:"runtime_hint"`
+	RuntimeArguments     []string               `json:"runtime_arguments"`
+	Transport            string                 `json:"transport"`
+	Config               map[string]interface{} `json:"config"`
+	EnvironmentVariables []EnvironmentVariable  `json:"environment_variables"`
 }
 
 // MCPRegistryClient handles communication with MCP registries
@@ -146,6 +147,9 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 					}
 				}
 				processedServer.Config["env"] = envVars
+
+				// Preserve environment variable metadata for proper GitHub Actions conversion
+				processedServer.EnvironmentVariables = pkg.EnvironmentVariables
 			}
 		} else if len(server.Remotes) > 0 {
 			// Handle remote servers
@@ -296,6 +300,9 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 						}
 					}
 					processedServer.Config["env"] = envVars
+
+					// Preserve environment variable metadata for proper GitHub Actions conversion
+					processedServer.EnvironmentVariables = pkg.EnvironmentVariables
 				}
 			} else if len(server.Remotes) > 0 {
 				// Handle remote servers

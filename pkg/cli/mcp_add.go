@@ -176,7 +176,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 
 					// Add environment variables for Docker container
 					if env, hasEnv := server.Config["env"]; hasEnv {
-						mcpSection["env"] = convertToGitHubActionsEnv(env)
+						mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
 					}
 				}
 			} else {
@@ -198,7 +198,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 
 				// Add environment variables if present
 				if env, hasEnv := server.Config["env"]; hasEnv {
-					mcpSection["env"] = convertToGitHubActionsEnv(env)
+					mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
 				}
 			}
 		} else {
@@ -247,7 +247,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 
 			// Add environment variables if present
 			if env, hasEnv := server.Config["env"]; hasEnv {
-				mcpSection["env"] = convertToGitHubActionsEnv(env)
+				mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
 			}
 		} else {
 			return nil, fmt.Errorf("docker transport requires configuration")
