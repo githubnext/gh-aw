@@ -96,6 +96,10 @@ engine:
 - Execute user-defined GitHub Actions steps
 - No AI interpretation - direct step execution
 - Useful for deterministic workflows or hybrid approaches
+- Access to workflow content via environment variables
+- Full support for safe outputs and MCP servers
+
+For complete documentation including examples and environment variables, see [Custom Engine Guide](/gh-aw/reference/custom-engine/).
 
 ## Engine-Specific Configuration
 
