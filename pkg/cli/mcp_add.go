@@ -270,11 +270,19 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 				}
 			} else {
 				// Handle regular command and args
-				if server.Command != "" {
+				// Use runtime_hint for command if available, otherwise fall back to Command
+				if server.RuntimeHint != "" {
+					mcpSection["command"] = server.RuntimeHint
+				} else if server.Command != "" {
 					mcpSection["command"] = server.Command
 				}
-				if len(server.Args) > 0 {
-					mcpSection["args"] = server.Args
+
+				// Combine runtime_arguments and package arguments for args
+				var allArgs []string
+				allArgs = append(allArgs, server.RuntimeArguments...)
+				allArgs = append(allArgs, server.Args...)
+				if len(allArgs) > 0 {
+					mcpSection["args"] = allArgs
 				}
 
 				// Add environment variables if present
@@ -284,11 +292,19 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 			}
 		} else {
 			// Handle command and args when no config
-			if server.Command != "" {
+			// Use runtime_hint for command if available, otherwise fall back to Command
+			if server.RuntimeHint != "" {
+				mcpSection["command"] = server.RuntimeHint
+			} else if server.Command != "" {
 				mcpSection["command"] = server.Command
 			}
-			if len(server.Args) > 0 {
-				mcpSection["args"] = server.Args
+
+			// Combine runtime_arguments and package arguments for args
+			var allArgs []string
+			allArgs = append(allArgs, server.RuntimeArguments...)
+			allArgs = append(allArgs, server.Args...)
+			if len(allArgs) > 0 {
+				mcpSection["args"] = allArgs
 			}
 		}
 
