@@ -60,6 +60,10 @@ type CodingAgentEngine interface {
 	// ValidateNetworkPermissions validates network permissions for this engine
 	// Returns an error if the network configuration is not supported by this engine
 	ValidateNetworkPermissions(networkPermissions *NetworkPermissions) error
+
+	// GetDefaultNetworkPermissions returns the default network permissions for this engine
+	// when no network configuration is specified in the workflow
+	GetDefaultNetworkPermissions() *NetworkPermissions
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -128,6 +132,13 @@ func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 // ValidateNetworkPermissions returns nil by default (engines can override for custom validation)
 func (e *BaseEngine) ValidateNetworkPermissions(networkPermissions *NetworkPermissions) error {
 	return nil
+}
+
+func (e *BaseEngine) GetDefaultNetworkPermissions() *NetworkPermissions {
+	// Default behavior: use "defaults" mode for most engines
+	return &NetworkPermissions{
+		Mode: "defaults",
+	}
 }
 
 // EngineRegistry manages available agentic engines

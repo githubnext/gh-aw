@@ -547,17 +547,12 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Set default network permissions based on the final engine
 	if networkPermissions == nil {
-		if engineSetting == "codex" {
-			// Default to no network access for Codex
-			networkPermissions = &NetworkPermissions{
-				Allowed: []string{}, // Empty allowed list means no network access
-			}
-		} else {
-			// Default to 'defaults' network access for other engines
-			networkPermissions = &NetworkPermissions{
-				Mode: "defaults",
-			}
+		// Get the agentic engine to determine default network permissions
+		agenticEngine, err := c.getAgenticEngine(engineSetting)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get agentic engine: %w", err)
 		}
+		networkPermissions = agenticEngine.GetDefaultNetworkPermissions()
 	}
 
 	// Validate the engine setting
@@ -565,7 +560,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("invalid engine setting '%s': %w", engineSetting, err)
 	}
 
-	// Get the agentic engine instance
+	// Get the agentic engine instance (reuse if already fetched for defaults)
 	agenticEngine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
@@ -579,11 +574,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatInfoMessage("Processing tools and includes..."))
 	}
 
-	// Validate Codex-specific network permissions early
-	if agenticEngine.GetID() == "codex" {
-		if err := agenticEngine.ValidateNetworkPermissions(networkPermissions); err != nil {
-			return nil, fmt.Errorf("invalid network configuration for Codex engine: %w", err)
-		}
+	// Validate network permissions for any engine
+	if err := agenticEngine.ValidateNetworkPermissions(networkPermissions); err != nil {
+		return nil, fmt.Errorf("invalid network configuration for %s engine: %w", agenticEngine.GetDisplayName(), err)
 	}
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools

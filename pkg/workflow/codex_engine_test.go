@@ -685,3 +685,21 @@ func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
 		}
 	})
 }
+
+func TestCodexEngineGetDefaultNetworkPermissions(t *testing.T) {
+	engine := NewCodexEngine()
+	
+	defaults := engine.GetDefaultNetworkPermissions()
+	if defaults == nil {
+		t.Error("Expected default network permissions to be non-nil")
+		return
+	}
+	
+	if len(defaults.Allowed) != 0 {
+		t.Errorf("Expected Codex default to have empty allowed list (no network), got: %v", defaults.Allowed)
+	}
+	
+	if defaults.Mode != "" {
+		t.Errorf("Expected Codex default to have empty mode, got: %s", defaults.Mode)
+	}
+}

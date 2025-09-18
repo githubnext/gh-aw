@@ -597,6 +597,14 @@ func (e *CodexEngine) ValidateNetworkPermissions(networkPermissions *NetworkPerm
 	return fmt.Errorf("specific network domains are not supported by Codex engine. Use network: {} for no network access or network: { allowed: [\"*\"] } for full network access")
 }
 
+// GetDefaultNetworkPermissions returns default network permissions for Codex engine
+func (e *CodexEngine) GetDefaultNetworkPermissions() *NetworkPermissions {
+	// Codex defaults to no network access (secure by default)
+	return &NetworkPermissions{
+		Allowed: []string{}, // Empty allowed list means no network access
+	}
+}
+
 // renderNetworkConfig generates network configuration for codex config.toml
 func (e *CodexEngine) renderNetworkConfig(yaml *strings.Builder, networkPermissions *NetworkPermissions) {
 	yaml.WriteString("          \n")
