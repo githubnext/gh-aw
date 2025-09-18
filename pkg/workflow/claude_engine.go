@@ -183,6 +183,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Always add GITHUB_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
 
+	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
+	stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+
 	if workflowData.SafeOutputs != nil {
 		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
 

@@ -155,6 +155,9 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		if !strings.Contains(firstStepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
 			t.Errorf("Expected first step to contain 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt', got:\n%s", firstStepContent)
 		}
+		if !strings.Contains(firstStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected first step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json', got:\n%s", firstStepContent)
+		}
 	}
 
 	// Check the second step content
@@ -168,6 +171,9 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		}
 		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
 			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
+		}
+		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
 		}
 	}
 }
@@ -227,6 +233,9 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		}
 		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
 			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
+		}
+		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
 		}
 	}
 }
