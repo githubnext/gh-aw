@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -216,13 +215,13 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 
 // GetServer gets a specific server by name from the registry
 func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForProcessing, error) {
-	// Build server URL - we'll search by name since the new API doesn't use server IDs for direct access
-	searchURL := fmt.Sprintf("%s/servers?search=%s", c.registryURL, url.QueryEscape(serverName))
+	// Use the servers endpoint and filter locally, just like SearchServers
+	serversURL := fmt.Sprintf("%s/servers", c.registryURL)
 
 	// Make HTTP request with spinner
 	spinner := console.NewSpinner(fmt.Sprintf("Fetching MCP server '%s'...", serverName))
 	spinner.Start()
-	resp, err := c.httpClient.Get(searchURL)
+	resp, err := c.httpClient.Get(serversURL)
 	spinner.Stop()
 
 	if err != nil {
@@ -246,7 +245,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 		return nil, fmt.Errorf("failed to parse server response: %w", err)
 	}
 
-	// Find exact match by name
+	// Find exact match by name, filtering locally
 	for _, server := range response.Servers {
 		if server.Name == serverName && server.Status == model.StatusActive {
 			// Convert to flattened format similar to SearchServers
