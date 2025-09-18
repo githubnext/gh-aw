@@ -44,7 +44,7 @@ func NewCodexEngine() *CodexEngine {
 			displayName:            "Codex",
 			description:            "Uses OpenAI Codex CLI with MCP server support",
 			experimental:           true,
-			supportsToolsWhitelist: true,
+			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  false, // Codex only supports stdio transport
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 		},

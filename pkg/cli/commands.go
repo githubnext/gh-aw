@@ -110,7 +110,7 @@ func listAgenticEngines(verbose bool) error {
 
 		// MCP support
 		mcpSupport := "No"
-		if engine.SupportsToolsWhitelist() {
+		if engine.SupportsToolsAllowlist() {
 			mcpSupport = "Yes"
 		}
 

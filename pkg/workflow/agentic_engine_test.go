@@ -93,7 +93,7 @@ func TestEngineRegistryCustomEngine(t *testing.T) {
 			displayName:            "Test Custom Engine",
 			description:            "A test custom engine",
 			experimental:           true,
-			supportsToolsWhitelist: false,
+			supportsToolsAllowlist: false,
 		},
 	}
 
