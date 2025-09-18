@@ -57,7 +57,7 @@ The current context text is: "${{ needs.task.outputs.text }}"
 
 ## Context Text (`needs.task.outputs.text`)
 
-All workflows have access to a special computed `needs.task.outputs.text` value that provides context based on the triggering event:
+All workflows have access to a special computed `needs.task.outputs.text` value that provides **sanitized** context based on the triggering event:
 
 ```markdown
 # Analyze this content: "${{ needs.task.outputs.text }}"
@@ -70,6 +70,27 @@ All workflows have access to a special computed `needs.task.outputs.text` value 
 - **PR Review Comments**: `comment.body`
 - **PR Reviews**: `review.body`
 - **Other events**: Empty string
+
+**Why use sanitized context text instead of raw `github.event` values?**
+
+The `needs.task.outputs.text` provides critical security protections that raw context values lack:
+
+- **@mention neutralization**: Prevents unintended notifications by converting `@user` to `` `@user` ``
+- **Bot trigger safety**: Protects against accidental bot commands by converting `fixes #123` to `` `fixes #123` ``
+- **XML injection protection**: Converts XML tags to safe parentheses format
+- **URI security**: Only allows HTTPS URIs from trusted domains; others become "(redacted)"
+- **Content safety**: Limits size (0.5MB max, 65k lines) and removes control characters
+- **ANSI sanitization**: Strips escape sequences that could manipulate terminal output
+
+**Comparison:**
+```markdown
+# RECOMMENDED: Secure sanitized context
+Analyze this issue: "${{ needs.task.outputs.text }}"
+
+# DISCOURAGED: Raw context values (security risks)
+Title: "${{ github.event.issue.title }}"
+Body: "${{ github.event.issue.body }}"
+```
 
 **Note**: Using this feature results in the addition of `.github/actions/compute-text/action.yml` file to the repository when the workflow is compiled.
 
