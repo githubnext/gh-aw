@@ -934,3 +934,33 @@ The workflow frontmatter is validated against JSON Schema during compilation. Co
 - **Missing required fields** - Some triggers require specific configuration
 
 Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw compile <workflow-id> --verbose` to validate a specific workflow.
+
+## CLI
+
+### Installation
+
+```bash
+gh extension install githubnext/gh-aw
+```
+
+If there are authentication issues, use the standalone installer:
+
+```bash
+curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
+chmod +x install-gh-aw.sh
+./install-gh-aw.sh
+```
+
+### Compile Workflows
+
+```bash
+# Compile all workflows in .github/workflows/
+gh aw compile
+
+# Compile a specific workflow
+gh aw compile <workflow-id>
+```
+
+### Documentation
+
+For complete CLI documentation, see: https://githubnext.github.io/gh-aw/tools/cli/
