@@ -150,13 +150,6 @@ type WorkflowData struct {
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 }
 
-// CacheMemoryConfig holds configuration for cache-memory functionality
-type CacheMemoryConfig struct {
-	Enabled       bool   `yaml:"enabled,omitempty"`        // whether cache-memory is enabled
-	Key           string `yaml:"key,omitempty"`            // custom cache key
-	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
-}
-
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
@@ -1793,52 +1786,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	return job, nil
 }
 
-// generateSafetyChecks generates safety checks for stop-time before executing agentic tools
-func (c *Compiler) generateSafetyChecks(yaml *strings.Builder, data *WorkflowData) {
-	// If no safety settings, skip generating safety checks
-	if data.StopTime == "" {
-		return
-	}
-
-	yaml.WriteString("      - name: Safety checks\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          set -e\n")
-	yaml.WriteString("          echo \"Performing safety checks before executing agentic tools...\"\n")
-
-	// Extract workflow name for gh workflow commands
-	workflowName := data.Name
-	fmt.Fprintf(yaml, "          WORKFLOW_NAME=\"%s\"\n", workflowName)
-
-	// Add stop-time check
-	if data.StopTime != "" {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Check stop-time limit\n")
-		fmt.Fprintf(yaml, "          STOP_TIME=\"%s\"\n", data.StopTime)
-		yaml.WriteString("          echo \"Checking stop-time limit: $STOP_TIME\"\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Convert stop time to epoch seconds\n")
-		yaml.WriteString("          STOP_EPOCH=$(date -d \"$STOP_TIME\" +%s 2>/dev/null || echo \"invalid\")\n")
-		yaml.WriteString("          if [ \"$STOP_EPOCH\" = \"invalid\" ]; then\n")
-		yaml.WriteString("            echo \"Warning: Invalid stop-time format: $STOP_TIME. Expected format: YYYY-MM-DD HH:MM:SS\"\n")
-		yaml.WriteString("          else\n")
-		yaml.WriteString("            CURRENT_EPOCH=$(date +%s)\n")
-		yaml.WriteString("            echo \"Current time: $(date)\"\n")
-		yaml.WriteString("            echo \"Stop time: $STOP_TIME\"\n")
-		yaml.WriteString("            \n")
-		yaml.WriteString("            if [ \"$CURRENT_EPOCH\" -ge \"$STOP_EPOCH\" ]; then\n")
-		yaml.WriteString("              echo \"Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting.\"\n")
-		yaml.WriteString("              gh workflow disable \"$WORKFLOW_NAME\"\n")
-		yaml.WriteString("              echo \"Workflow disabled. No future runs will be triggered.\"\n")
-		yaml.WriteString("              exit 1\n")
-		yaml.WriteString("            fi\n")
-		yaml.WriteString("          fi\n")
-	}
-
-	yaml.WriteString("          echo \"All safety checks passed. Proceeding with agentic tool execution.\"\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
-}
-
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Add custom steps or default checkout step
@@ -1897,7 +1844,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
 
 	// Add safety checks before executing agentic tools
-	c.generateSafetyChecks(yaml, data)
+	c.generateStopTimeChecks(yaml, data)
 
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
