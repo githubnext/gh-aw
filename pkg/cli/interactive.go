@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -19,7 +18,6 @@ type InteractiveWorkflowBuilder struct {
 	Trigger       string
 	Engine        string
 	Tools         []string
-	MCPTools      []string
 	SafeOutputs   []string
 	Intent        string
 	NetworkAccess string
@@ -54,10 +52,6 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 
 	if err := builder.promptForTools(); err != nil {
 		return fmt.Errorf("failed to get tools selection: %w", err)
-	}
-
-	if err := builder.promptForMCPTools(verbose); err != nil {
-		return fmt.Errorf("failed to get MCP tools selection: %w", err)
 	}
 
 	if err := builder.promptForSafeOutputs(); err != nil {
@@ -207,108 +201,18 @@ func (b *InteractiveWorkflowBuilder) promptForTools() error {
 	return nil
 }
 
-// promptForMCPTools asks the user to select MCP tools from the registry
-func (b *InteractiveWorkflowBuilder) promptForMCPTools(verbose bool) error {
-	// Ask if they want to add MCP tools
-	var wantsMCP bool
-	mcpPrompt := &survey.Confirm{
-		Message: "Do you want to add MCP (Model Context Protocol) tools?",
-		Help:    "MCP tools provide additional capabilities like database access, API integrations, etc.",
-		Default: false,
-	}
-
-	if err := survey.AskOne(mcpPrompt, &wantsMCP); err != nil {
-		return err
-	}
-
-	if !wantsMCP {
-		return nil
-	}
-
-	// Fetch available MCP servers
-	if verbose {
-		fmt.Println(console.FormatInfoMessage("Fetching MCP servers from registry..."))
-	}
-
-	registryClient := NewMCPRegistryClient("") // Use default registry
-	servers, err := registryClient.SearchServers("")
-	if err != nil {
-		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to fetch MCP servers: %v", err)))
-		fmt.Println(console.FormatInfoMessage("Skipping MCP tools selection - you can add them manually later"))
-		return nil // Don't fail the whole process
-	}
-
-	if len(servers) == 0 {
-		fmt.Println(console.FormatWarningMessage("No MCP servers found in registry"))
-		return nil
-	}
-
-	// Create options list - limit to first 20 for better UX
-	maxOptions := 20
-	if len(servers) > maxOptions {
-		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Showing first %d out of %d available MCP servers", maxOptions, len(servers))))
-		}
-		servers = servers[:maxOptions]
-	}
-
-	// Create options list
-	options := make([]string, 0, len(servers))
-	for _, server := range servers {
-		name := server.Name
-		if name == "" {
-			continue // Skip servers without names
-		}
-
-		desc := server.Description
-		if len(desc) > 60 {
-			desc = desc[:57] + "..."
-		}
-		if desc != "" {
-			options = append(options, fmt.Sprintf("%s - %s", name, desc))
-		} else {
-			options = append(options, name)
-		}
-	}
-
-	if len(options) == 0 {
-		fmt.Println(console.FormatWarningMessage("No valid MCP servers found"))
-		return nil
-	}
-
-	// Sort options for better UX
-	sort.Strings(options)
-
-	prompt := &survey.MultiSelect{
-		Message:  "Select MCP tools to include:",
-		Options:  options,
-		Help:     "Choose external tools and services your workflow needs",
-		PageSize: 10,
-	}
-
-	var selected []string
-	if err := survey.AskOne(prompt, &selected); err != nil {
-		return err
-	}
-
-	// Extract server names
-	b.MCPTools = make([]string, 0, len(selected))
-	for _, option := range selected {
-		serverName := strings.Split(option, " ")[0]
-		b.MCPTools = append(b.MCPTools, serverName)
-	}
-
-	return nil
-}
-
 // promptForSafeOutputs asks the user to select safe output options
 func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
 	outputOptions := []string{
 		"create-issue - Create GitHub issues",
 		"add-comment - Add comments to issues/PRs",
 		"create-pull-request - Create pull requests",
+		"create-pull-request-review-comment - Add code review comments to PRs",
 		"update-issue - Update existing issues",
 		"create-discussion - Create repository discussions",
+		"create-code-scanning-alert - Create security scanning alerts",
+		"add-labels - Add labels to issues/PRs",
+		"push-to-pr-branch - Push changes to PR branches",
 	}
 
 	prompt := &survey.MultiSelect{
@@ -428,7 +332,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	content.WriteString(b.generateNetworkConfig())
 
 	// Add tools configuration
-	if len(b.Tools) > 0 || len(b.MCPTools) > 0 {
+	if len(b.Tools) > 0 {
 		content.WriteString(b.generateToolsConfig())
 	}
 
@@ -462,10 +366,6 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 
 	if len(b.Tools) > 0 {
 		content.WriteString(fmt.Sprintf("- **Tools**: %s\n", strings.Join(b.Tools, ", ")))
-	}
-
-	if len(b.MCPTools) > 0 {
-		content.WriteString(fmt.Sprintf("- **MCP Tools**: %s\n", strings.Join(b.MCPTools, ", ")))
 	}
 
 	if len(b.SafeOutputs) > 0 {
@@ -538,7 +438,7 @@ func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {
 }
 
 func (b *InteractiveWorkflowBuilder) generateToolsConfig() string {
-	if len(b.Tools) == 0 && len(b.MCPTools) == 0 {
+	if len(b.Tools) == 0 {
 		return ""
 	}
 
@@ -555,11 +455,6 @@ func (b *InteractiveWorkflowBuilder) generateToolsConfig() string {
 		default:
 			config.WriteString(fmt.Sprintf("  %s:\n", tool))
 		}
-	}
-
-	// Add MCP tools
-	for _, mcpTool := range b.MCPTools {
-		config.WriteString(fmt.Sprintf("  %s:\n    # TODO: Configure MCP server settings\n", mcpTool))
 	}
 
 	return config.String()
