@@ -90,10 +90,7 @@ describe("add_comment.cjs", () => {
     global.context.payload.issue = { number: 123 };
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/add_comment.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "add_comment.cjs");
     createCommentScript = fs.readFileSync(scriptPath, "utf8");
   });
 

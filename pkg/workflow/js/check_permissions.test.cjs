@@ -89,10 +89,7 @@ describe("check_permissions.cjs", () => {
     };
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/check_permissions.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "check_permissions.cjs");
     checkPermissionsScript = fs.readFileSync(scriptPath, "utf8");
   });
 

@@ -84,10 +84,7 @@ describe("compute_text.cjs", () => {
     delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/compute_text.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "compute_text.cjs");
     computeTextScript = fs.readFileSync(scriptPath, "utf8");
 
     // Extract sanitizeContent function for unit testing
