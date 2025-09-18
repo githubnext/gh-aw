@@ -69,7 +69,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	var steps []string
 
 	// Add permission checks if no task job was created but permission checks are needed
-	if !taskJobCreated && c.needsPermissionChecks(data) {
+	if !taskJobCreated && c.needsRoleCheck(data, frontmatter) {
 		// Add team member check step
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 		steps = append(steps, "        id: check-team-member\n")
@@ -83,7 +83,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		steps = append(steps, "          script: |\n")
 
 		// Generate the JavaScript code for the permission check
-		scriptContent := c.generatePermissionCheckScript(data.Roles)
+		scriptContent := c.generateRoleCheckScript(data.Roles)
 		scriptLines := strings.Split(scriptContent, "\n")
 		for _, line := range scriptLines {
 			if strings.TrimSpace(line) != "" {
@@ -152,7 +152,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	// Add actions: write permission if team member checks are present for command workflows
 	_, hasExplicitRoles := frontmatter["roles"]
 	requiresWorkflowCancellation := data.Command != "" ||
-		(!taskJobCreated && c.needsPermissionChecks(data) && hasExplicitRoles)
+		(!taskJobCreated && c.needsRoleCheck(data, frontmatter) && hasExplicitRoles)
 
 	if requiresWorkflowCancellation {
 		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read\n      issues: write"

@@ -1,6 +1,23 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+// extractStringValue extracts a string value from the frontmatter map
+func extractStringValue(frontmatter map[string]any, key string) string {
+	value, exists := frontmatter[key]
+	if !exists {
+		return ""
+	}
+
+	if strValue, ok := value.(string); ok {
+		return strValue
+	}
+
+	return ""
+}
 
 // parseIntValue safely parses various numeric types to int
 // This is a common utility used across multiple parsing functions
@@ -44,4 +61,66 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 	if token != "" {
 		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", token))
 	}
+}
+
+// filterMapKeys creates a new map excluding the specified keys
+func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
+	excludeSet := make(map[string]bool)
+	for _, key := range excludeKeys {
+		excludeSet[key] = true
+	}
+
+	result := make(map[string]any)
+	for key, value := range original {
+		if !excludeSet[key] {
+			result[key] = value
+		}
+	}
+	return result
+}
+
+// extractYAMLValue extracts a scalar value from the frontmatter map
+func (c *Compiler) extractYAMLValue(frontmatter map[string]any, key string) string {
+	if value, exists := frontmatter[key]; exists {
+		if str, ok := value.(string); ok {
+			return str
+		}
+		if num, ok := value.(int); ok {
+			return fmt.Sprintf("%d", num)
+		}
+		if num, ok := value.(int64); ok {
+			return fmt.Sprintf("%d", num)
+		}
+		if num, ok := value.(uint64); ok {
+			return fmt.Sprintf("%d", num)
+		}
+		if float, ok := value.(float64); ok {
+			return fmt.Sprintf("%.0f", float)
+		}
+	}
+	return ""
+}
+
+// indentYAMLLines adds indentation to all lines of a multi-line YAML string except the first
+func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
+	if yamlContent == "" {
+		return yamlContent
+	}
+
+	lines := strings.Split(yamlContent, "\n")
+	if len(lines) <= 1 {
+		return yamlContent
+	}
+
+	// First line doesn't get additional indentation
+	result := lines[0]
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "" {
+			result += "\n" + indent + lines[i]
+		} else {
+			result += "\n" + lines[i]
+		}
+	}
+
+	return result
 }
