@@ -52,14 +52,8 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	// Always use servers endpoint for listing all servers
 	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
 
-	var spinnerMessage string
-	if query == "" {
-		spinnerMessage = "Fetching all MCP servers..."
-	} else {
-		spinnerMessage = fmt.Sprintf("Fetching MCP servers and filtering for '%s'...", query)
-	}
-
 	// Make HTTP request with spinner
+	spinnerMessage := fmt.Sprintf("Fetching servers from %s...", searchURL)
 	spinner := console.NewSpinner(spinnerMessage)
 	spinner.Start()
 	resp, err := c.httpClient.Get(searchURL)
