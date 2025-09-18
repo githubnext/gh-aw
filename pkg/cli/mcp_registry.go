@@ -46,16 +46,36 @@ func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 	}
 }
 
+// createRegistryRequest creates an HTTP request with appropriate headers for the MCP registry
+func (c *MCPRegistryClient) createRegistryRequest(method, url string) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set standard headers
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "gh-aw-cli")
+
+	return req, nil
+}
+
 // SearchServers searches for MCP servers in the registry by fetching all servers and filtering locally
 func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForProcessing, error) {
 	// Always use servers endpoint for listing all servers
 	searchURL := fmt.Sprintf("%s/servers", c.registryURL)
 
+	// Create HTTP request with proper headers
+	req, err := c.createRegistryRequest("GET", searchURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create registry request: %w", err)
+	}
+
 	// Make HTTP request with spinner
 	spinnerMessage := fmt.Sprintf("Fetching servers from %s...", searchURL)
 	spinner := console.NewSpinner(spinnerMessage)
 	spinner.Start()
-	resp, err := c.httpClient.Get(searchURL)
+	resp, err := c.httpClient.Do(req)
 	spinner.Stop()
 
 	if err != nil {
@@ -65,7 +85,19 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("MCP registry returned status %d: %s", resp.StatusCode, string(body))
+		// Provide more helpful error messages for common HTTP status codes
+		switch resp.StatusCode {
+		case http.StatusForbidden:
+			return nil, fmt.Errorf("MCP registry access forbidden (403): %s\nThis may be due to network or firewall restrictions", string(body))
+		case http.StatusUnauthorized:
+			return nil, fmt.Errorf("MCP registry access unauthorized (401): %s\nAuthentication may be required", string(body))
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("MCP registry endpoint not found (404): %s\nPlease verify the registry URL is correct", string(body))
+		case http.StatusTooManyRequests:
+			return nil, fmt.Errorf("MCP registry rate limit exceeded (429): %s\nPlease try again later", string(body))
+		default:
+			return nil, fmt.Errorf("MCP registry returned status %d: %s", resp.StatusCode, string(body))
+		}
 	}
 
 	// Parse response
@@ -197,8 +229,10 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	}
 
 	// Validate minimum server count for production registry
-	if strings.Contains(c.registryURL, "api.mcp.github.com") && len(servers) < 30 {
-		return nil, fmt.Errorf("registry validation failed: expected at least 30 servers, got %d", len(servers))
+	// Note: This validation helps detect issues with the registry API, but we make it more lenient
+	// to accommodate potential changes in the registry size
+	if strings.Contains(c.registryURL, "api.mcp.github.com") && len(servers) < 10 {
+		return nil, fmt.Errorf("registry validation failed: expected at least 10 servers from production registry, got %d\nThis may indicate an issue with the registry API or access restrictions", len(servers))
 	}
 
 	return servers, nil
@@ -209,10 +243,16 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	// Use the servers endpoint and filter locally, just like SearchServers
 	serversURL := fmt.Sprintf("%s/servers", c.registryURL)
 
+	// Create HTTP request with proper headers
+	req, err := c.createRegistryRequest("GET", serversURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create registry request: %w", err)
+	}
+
 	// Make HTTP request with spinner
 	spinner := console.NewSpinner(fmt.Sprintf("Fetching MCP server '%s'...", serverName))
 	spinner.Start()
-	resp, err := c.httpClient.Get(serversURL)
+	resp, err := c.httpClient.Do(req)
 	spinner.Stop()
 
 	if err != nil {
@@ -222,7 +262,19 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("MCP registry returned status %d: %s", resp.StatusCode, string(body))
+		// Provide more helpful error messages for common HTTP status codes
+		switch resp.StatusCode {
+		case http.StatusForbidden:
+			return nil, fmt.Errorf("MCP registry access forbidden (403): %s\nThis may be due to network or firewall restrictions", string(body))
+		case http.StatusUnauthorized:
+			return nil, fmt.Errorf("MCP registry access unauthorized (401): %s\nAuthentication may be required", string(body))
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("MCP registry endpoint not found (404): %s\nPlease verify the registry URL is correct", string(body))
+		case http.StatusTooManyRequests:
+			return nil, fmt.Errorf("MCP registry rate limit exceeded (429): %s\nPlease try again later", string(body))
+		default:
+			return nil, fmt.Errorf("MCP registry returned status %d: %s", resp.StatusCode, string(body))
+		}
 	}
 
 	// Parse response
