@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -404,7 +405,7 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 			if len(args) == 0 {
 				// Use default registry URL if not provided
 				if registryURL == "" {
-					registryURL = "https://api.mcp.github.com/v0"
+					registryURL = constants.DefaultMCPRegistryURL
 				}
 				return listAvailableServers(registryURL, verbose)
 			}
