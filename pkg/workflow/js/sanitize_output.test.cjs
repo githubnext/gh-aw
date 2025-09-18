@@ -61,10 +61,7 @@ describe("sanitize_output.cjs", () => {
     delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/sanitize_output.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "sanitize_output.cjs");
     sanitizeScript = fs.readFileSync(scriptPath, "utf8");
 
     // Extract sanitizeContent function for unit testing

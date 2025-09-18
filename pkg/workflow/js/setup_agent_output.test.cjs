@@ -56,10 +56,7 @@ describe("setup_agent_output.cjs", () => {
     vi.clearAllMocks();
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/setup_agent_output.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "setup_agent_output.cjs");
     setupScript = fs.readFileSync(scriptPath, "utf8");
 
     // Make fs available globally for the evaluated script

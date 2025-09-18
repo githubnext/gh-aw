@@ -87,10 +87,7 @@ describe("create_discussion.cjs", () => {
     delete process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID;
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/create_discussion.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "create_discussion.cjs");
     createDiscussionScript = fs.readFileSync(scriptPath, "utf8");
   });
 

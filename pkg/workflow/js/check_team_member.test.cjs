@@ -81,10 +81,7 @@ describe("check_team_member.cjs", () => {
     };
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/check_team_member.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "check_team_member.cjs");
     checkTeamMemberScript = fs.readFileSync(scriptPath, "utf8");
   });
 

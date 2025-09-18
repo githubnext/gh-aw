@@ -100,10 +100,7 @@ describe("push_to_pr_branch.cjs", () => {
     mockCore.error.mockReset();
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/push_to_pr_branch.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "push_to_pr_branch.cjs");
     pushToPrBranchScript = fs.readFileSync(scriptPath, "utf8");
 
     // Modify the script to inject our mocks and make core available
