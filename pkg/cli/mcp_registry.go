@@ -10,8 +10,6 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
-	v0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
-	"github.com/modelcontextprotocol/registry/pkg/model"
 )
 
 // MCPRegistryServerForProcessing represents a flattened server for internal use
@@ -75,7 +73,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 		return nil, fmt.Errorf("failed to read registry response: %w", err)
 	}
 
-	var response v0.ServerListResponse
+	var response ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse registry response: %w", err)
 	}
@@ -84,7 +82,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	servers := make([]MCPRegistryServerForProcessing, 0, len(response.Servers))
 	for _, server := range response.Servers {
 		// Only include active servers
-		if server.Status != model.StatusActive {
+		if server.Status != StatusActive {
 			continue
 		}
 
@@ -112,12 +110,12 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			processedServer.Command = pkg.Identifier
 
 			// Set runtime hint (used for the actual command execution)
-			processedServer.RuntimeHint = pkg.RunTimeHint
+			processedServer.RuntimeHint = pkg.RuntimeHint
 
 			// Extract runtime arguments
 			runtimeArgs := make([]string, 0)
 			for _, arg := range pkg.RuntimeArguments {
-				if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
+				if arg.Type == ArgumentTypePositional && arg.Value != "" {
 					runtimeArgs = append(runtimeArgs, arg.Value)
 				}
 			}
@@ -126,7 +124,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			// Extract string values from package arguments as command args
 			args := make([]string, 0)
 			for _, arg := range pkg.PackageArguments {
-				if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
+				if arg.Type == ArgumentTypePositional && arg.Value != "" {
 					args = append(args, arg.Value)
 				}
 			}
@@ -194,6 +192,11 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 		return filteredServers, nil
 	}
 
+	// Validate minimum server count for production registry
+	if strings.Contains(c.registryURL, "api.mcp.github.com") && len(servers) < 30 {
+		return nil, fmt.Errorf("registry validation failed: expected at least 30 servers, got %d", len(servers))
+	}
+
 	return servers, nil
 }
 
@@ -224,14 +227,14 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 		return nil, fmt.Errorf("failed to read registry response: %w", err)
 	}
 
-	var response v0.ServerListResponse
+	var response ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse server response: %w", err)
 	}
 
 	// Find exact match by name, filtering locally
 	for _, server := range response.Servers {
-		if server.Name == serverName && server.Status == model.StatusActive {
+		if server.Name == serverName && server.Status == StatusActive {
 			// Convert to flattened format similar to SearchServers
 			processedServer := MCPRegistryServerForProcessing{
 				Name:        server.Name,
@@ -257,12 +260,12 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				processedServer.Command = pkg.Identifier
 
 				// Set runtime hint (used for the actual command execution)
-				processedServer.RuntimeHint = pkg.RunTimeHint
+				processedServer.RuntimeHint = pkg.RuntimeHint
 
 				// Extract runtime arguments
 				runtimeArgs := make([]string, 0)
 				for _, arg := range pkg.RuntimeArguments {
-					if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
+					if arg.Type == ArgumentTypePositional && arg.Value != "" {
 						runtimeArgs = append(runtimeArgs, arg.Value)
 					}
 				}
@@ -271,7 +274,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				// Extract string values from package arguments as command args
 				args := make([]string, 0)
 				for _, arg := range pkg.PackageArguments {
-					if arg.Type == model.ArgumentTypePositional && arg.Value != "" {
+					if arg.Type == ArgumentTypePositional && arg.Value != "" {
 						args = append(args, arg.Value)
 					}
 				}
