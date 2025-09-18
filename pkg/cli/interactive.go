@@ -210,18 +210,30 @@ func (b *InteractiveWorkflowBuilder) promptForMCPTools(verbose bool) error {
 	}
 
 	// Fetch available MCP servers
+	if verbose {
+		fmt.Println(console.FormatInfoMessage("Fetching MCP servers from registry..."))
+	}
+
 	registryClient := NewMCPRegistryClient("") // Use default registry
 	servers, err := registryClient.SearchServers("")
 	if err != nil {
-		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to fetch MCP servers: %v", err)))
-		}
+		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to fetch MCP servers: %v", err)))
+		fmt.Println(console.FormatInfoMessage("Skipping MCP tools selection - you can add them manually later"))
 		return nil // Don't fail the whole process
 	}
 
 	if len(servers) == 0 {
 		fmt.Println(console.FormatWarningMessage("No MCP servers found in registry"))
 		return nil
+	}
+
+	// Create options list - limit to first 20 for better UX
+	maxOptions := 20
+	if len(servers) > maxOptions {
+		if verbose {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Showing first %d out of %d available MCP servers", maxOptions, len(servers))))
+		}
+		servers = servers[:maxOptions]
 	}
 
 	// Create options list
@@ -404,6 +416,11 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(verbose bool, force bool) 
 
 	fmt.Printf("Created new workflow: %s\n", destFile)
 	return nil
+}
+
+// GenerateWorkflowContent creates the workflow markdown content (exported for testing)
+func (b *InteractiveWorkflowBuilder) GenerateWorkflowContent() string {
+	return b.generateWorkflowContent()
 }
 
 // generateWorkflowContent creates the workflow markdown content
