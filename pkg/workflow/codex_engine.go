@@ -120,7 +120,7 @@ codex --version
 codex login --api-key "$OPENAI_API_KEY"
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
-codex %s%s--full-auto exec%s "$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
+codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
 		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
