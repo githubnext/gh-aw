@@ -3124,6 +3124,33 @@ func generatePlaywrightDockerArgs(playwrightTool any, networkPermissions *Networ
 	}
 }
 
+// hasContentsPermission checks if the given permissions string includes contents access
+// Returns true if permissions include contents: read, contents: write, read-all, write-all, read, or write
+func (c *Compiler) hasContentsPermission(permissions string) bool {
+	if permissions == "" {
+		return false
+	}
+
+	// Convert to lowercase for case-insensitive matching
+	permsLower := strings.ToLower(permissions)
+
+	// Check for global permission levels that include contents access
+	if strings.Contains(permsLower, "read-all") ||
+		strings.Contains(permsLower, "write-all") ||
+		strings.Contains(permsLower, "permissions: read") ||
+		strings.Contains(permsLower, "permissions: write") {
+		return true
+	}
+
+	// Check for explicit contents permissions
+	if strings.Contains(permsLower, "contents: read") ||
+		strings.Contains(permsLower, "contents: write") {
+		return true
+	}
+
+	return false
+}
+
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Add custom steps or default checkout step
@@ -3143,8 +3170,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 	} else {
-		yaml.WriteString("      - name: Checkout repository\n")
-		yaml.WriteString("        uses: actions/checkout@v5\n")
+		// Only add checkout step if permissions include contents access
+		if c.hasContentsPermission(data.Permissions) {
+			yaml.WriteString("      - name: Checkout repository\n")
+			yaml.WriteString("        uses: actions/checkout@v5\n")
+		}
 	}
 
 	// Add cache steps if cache configuration is present
