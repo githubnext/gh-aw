@@ -223,6 +223,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          [history]\n")
 	yaml.WriteString("          persistence = \"none\"\n")
 
+	// Add network configuration based on network permissions
+	e.renderNetworkConfig(yaml, workflowData.NetworkPermissions)
+
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexTools(tools)
 
@@ -564,4 +567,34 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Codex warning messages with timestamp",
 		},
 	}
+}
+
+// renderNetworkConfig generates network configuration for codex config.toml
+func (e *CodexEngine) renderNetworkConfig(yaml *strings.Builder, networkPermissions *NetworkPermissions) {
+	yaml.WriteString("          \n")
+	
+	// Default network setting if no permissions specified (equivalent to network: defaults for other engines)
+	if networkPermissions == nil {
+		yaml.WriteString("          # Network access enabled by default\n")
+		yaml.WriteString("          network = true\n")
+		return
+	}
+
+	// Handle empty allowed list - means no network access
+	if len(networkPermissions.Allowed) == 0 {
+		yaml.WriteString("          # Network access disabled\n")
+		yaml.WriteString("          network = false\n")
+		return
+	}
+
+	// Handle wildcard - means full network access
+	if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "*" {
+		yaml.WriteString("          # Network access enabled\n")
+		yaml.WriteString("          network = true\n")
+		return
+	}
+
+	// This should not happen due to validation, but handle gracefully
+	yaml.WriteString("          # Network access enabled (fallback)\n")
+	yaml.WriteString("          network = true\n")
 }
