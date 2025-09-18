@@ -4,6 +4,16 @@ import (
 	"fmt"
 )
 
+// UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
+type UpdateIssuesConfig struct {
+	Status      *bool  `yaml:"status,omitempty"`       // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Target      string `yaml:"target,omitempty"`       // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
+	Title       *bool  `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
+	Body        *bool  `yaml:"body,omitempty"`         // Allow updating issue body - presence indicates field can be updated
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of issues to update (default: 1)
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // buildCreateOutputUpdateIssueJob creates the update_issue job
 func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UpdateIssues == nil {
@@ -97,4 +107,55 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	}
 
 	return job, nil
+}
+
+// parseUpdateIssuesConfig handles update-issue configuration
+func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
+	if configData, exists := outputMap["update-issue"]; exists {
+		updateIssuesConfig := &UpdateIssuesConfig{Max: 1} // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := parseIntValue(max); ok {
+					updateIssuesConfig.Max = maxInt
+				}
+			}
+
+			// Parse target
+			if target, exists := configMap["target"]; exists {
+				if targetStr, ok := target.(string); ok {
+					updateIssuesConfig.Target = targetStr
+				}
+			}
+
+			// Parse status - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["status"]; exists {
+				// If the key exists, it means we can update the status
+				// We don't care about the value - just that the key is present
+				updateIssuesConfig.Status = new(bool) // Allocate a new bool pointer (defaults to false)
+			}
+
+			// Parse title - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["title"]; exists {
+				updateIssuesConfig.Title = new(bool)
+			}
+
+			// Parse body - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["body"]; exists {
+				updateIssuesConfig.Body = new(bool)
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					updateIssuesConfig.GitHubToken = githubTokenStr
+				}
+			}
+		}
+
+		return updateIssuesConfig
+	}
+
+	return nil
 }
