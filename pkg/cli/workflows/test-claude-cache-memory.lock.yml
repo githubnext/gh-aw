@@ -264,7 +264,7 @@ jobs:
               version: "",
               workflow_name: "Test Claude with Cache Memory File Share",
               experimental: false,
-              supports_tools_whitelist: true,
+              supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
               run_number: context.runNumber,

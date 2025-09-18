@@ -44,7 +44,7 @@ func NewCodexEngine() *CodexEngine {
 			displayName:            "Codex",
 			description:            "Uses OpenAI Codex CLI with MCP server support",
 			experimental:           true,
-			supportsToolsWhitelist: true,
+			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  false, // Codex only supports stdio transport
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 		},
@@ -120,7 +120,7 @@ codex --version
 codex login --api-key "$OPENAI_API_KEY"
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
-codex %s%s--full-auto exec%s "$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
+codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
 		"OPENAI_API_KEY":      "${{ secrets.OPENAI_API_KEY }}",
@@ -245,6 +245,21 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
 					}
 				}
+			}
+		}
+	}
+
+	// Append custom config if provided
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Custom configuration\n")
+		// Write the custom config line by line with proper indentation
+		configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
+		for _, line := range configLines {
+			if strings.TrimSpace(line) != "" {
+				yaml.WriteString("          " + line + "\n")
+			} else {
+				yaml.WriteString("          \n")
 			}
 		}
 	}

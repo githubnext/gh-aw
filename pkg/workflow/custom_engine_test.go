@@ -70,8 +70,8 @@ func TestCustomEngine(t *testing.T) {
 		t.Error("Expected custom engine to not be experimental")
 	}
 
-	if engine.SupportsToolsWhitelist() {
-		t.Error("Expected custom engine to not support tools whitelist")
+	if engine.SupportsToolsAllowlist() {
+		t.Error("Expected custom engine to not support tools allowlist")
 	}
 
 	if engine.SupportsHTTPTransport() {

@@ -158,6 +158,8 @@ engine: codex   # Experimental: OpenAI Codex CLI with MCP support
 engine: custom  # Custom: Execute user-defined GitHub Actions steps
 ```
 
+For complete engine documentation including advanced configuration options, see [AI Engines](/gh-aw/reference/engines/).
+
 Extended format:
 
 ```yaml
@@ -170,6 +172,10 @@ engine:
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com
     DEBUG_MODE: "true"
+  config: |                         # Optional: additional TOML configuration (codex only)
+    [custom_section]
+    key1 = "value1"
+    key2 = "value2"
 ```
 
 **Fields:**
@@ -178,6 +184,7 @@ engine:
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
 - **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
+- **`config`** (optional): Additional TOML configuration text appended to generated config.toml (codex engine only)
 
 ### Environment Variables and Secret Overrides
 
@@ -206,6 +213,59 @@ engine:
 ```
 
 This configuration overrides the default `OPENAI_API_KEY` secret with your custom secret, allowing you to use organization-specific API keys without duplicating secrets.
+
+### Codex Engine Custom Configuration
+
+The Codex engine supports an additional `config` field that allows you to append custom TOML configuration to the generated `config.toml` file:
+
+```yaml
+engine:
+  id: codex
+  config: |
+    [custom_section]
+    key1 = "value1"
+    key2 = "value2"
+    
+    [server_settings]
+    timeout = 60
+    retries = 3
+    
+    [logging]
+    level = "debug"
+    file = "/tmp/custom.log"
+```
+
+**Key Features:**
+- **Optional**: The `config` field is completely optional and only applies to the codex engine
+- **Raw TOML**: Accepts any valid TOML configuration text
+- **Proper Formatting**: Automatically indented and formatted in the generated workflow
+- **Appended**: Added after all standard MCP server configurations in the config.toml file
+
+**Generated config.toml structure:**
+```toml
+[history]
+persistence = "none"
+
+[mcp_servers.github]
+user_agent = "workflow-name"
+command = "docker"
+# ... standard MCP server config ...
+
+# Custom configuration
+[custom_section]
+key1 = "value1"
+key2 = "value2"
+
+[server_settings]
+timeout = 60
+retries = 3
+
+[logging]
+level = "debug"
+file = "/tmp/custom.log"
+```
+
+This feature enables advanced customization scenarios not covered by the standard engine configuration options.
 
 ### Turn Limiting
 
@@ -345,6 +405,7 @@ cache:
 
 ## Related Documentation
 
+- [AI Engines](/gh-aw/reference/engines/) - Complete guide to Claude, Codex, and custom engines
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Network Permissions](/gh-aw/reference/network/) - Network access control configuration

@@ -15,6 +15,7 @@ type EngineConfig struct {
 	Env           map[string]string
 	Steps         []map[string]any
 	ErrorPatterns []ErrorPattern
+	Config        string
 }
 
 // NetworkPermissions represents network access permissions
@@ -145,6 +146,13 @@ func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *Eng
 							config.ErrorPatterns = append(config.ErrorPatterns, pattern)
 						}
 					}
+				}
+			}
+
+			// Extract optional 'config' field (additional TOML configuration)
+			if config_field, hasConfig := engineObj["config"]; hasConfig {
+				if configStr, ok := config_field.(string); ok {
+					config.Config = configStr
 				}
 			}
 

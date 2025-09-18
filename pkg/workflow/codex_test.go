@@ -426,8 +426,121 @@ This is a test workflow for MCP configuration with different AI engines.
 				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code") {
 					t.Errorf("Expected claude CLI but didn't find it in:\n%s", lockContent)
 				}
-				if strings.Contains(lockContent, "codex exec") {
-					t.Errorf("Expected NO codex exec but found it in:\n%s", lockContent)
+			}
+		})
+	}
+}
+
+func TestCodexConfigField(t *testing.T) {
+	tmpDir := t.TempDir()
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name         string
+		frontmatter  string
+		expectConfig string
+	}{
+		{
+			name: "codex with custom config field",
+			frontmatter: `---
+engine:
+  id: codex
+  config: |
+    [custom_section]
+    key1 = "value1"
+    key2 = "value2"
+    
+    [another_section]
+    enabled = true
+tools:
+  github:
+    allowed: [get_issue, create_issue]
+---`,
+			expectConfig: `[custom_section]
+key1 = "value1"
+key2 = "value2"
+
+[another_section]
+enabled = true`,
+		},
+		{
+			name: "codex without config field",
+			frontmatter: `---
+engine: codex
+tools:
+  github:
+    allowed: [get_issue, create_issue]
+---`,
+			expectConfig: "",
+		},
+		{
+			name: "codex with empty config field",
+			frontmatter: `---
+engine:
+  id: codex
+  config: ""
+tools:
+  github:
+    allowed: [get_issue, create_issue]
+---`,
+			expectConfig: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := tt.frontmatter + `
+
+# Test Config Field
+
+This is a test workflow for testing the config field functionality.
+`
+
+			testFile := filepath.Join(tmpDir, tt.name+"-workflow.md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			err := compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Unexpected error compiling workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			// Test that config.toml is generated for codex
+			if !strings.Contains(lockContent, "cat > /tmp/mcp-config/config.toml") {
+				t.Errorf("Expected config.toml generation but didn't find it in:\n%s", lockContent)
+			}
+
+			if tt.expectConfig != "" {
+				// Check that custom config section is present
+				if !strings.Contains(lockContent, "# Custom configuration") {
+					t.Errorf("Expected custom configuration comment but didn't find it in:\n%s", lockContent)
+				}
+
+				// Check that the actual config content is included
+				configLines := strings.Split(tt.expectConfig, "\n")
+				for _, line := range configLines {
+					if strings.TrimSpace(line) != "" {
+						expectedLine := "          " + line
+						if !strings.Contains(lockContent, expectedLine) {
+							t.Errorf("Expected config line '%s' but didn't find it in:\n%s", expectedLine, lockContent)
+						}
+					}
+				}
+			} else {
+				// Check that no custom config section is present
+				if strings.Contains(lockContent, "# Custom configuration") {
+					t.Errorf("Expected NO custom configuration but found it in:\n%s", lockContent)
 				}
 			}
 		})

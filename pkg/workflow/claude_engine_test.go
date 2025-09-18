@@ -25,7 +25,7 @@ func TestClaudeEngine(t *testing.T) {
 		t.Error("Claude engine should not be experimental")
 	}
 
-	if !engine.SupportsToolsWhitelist() {
+	if !engine.SupportsToolsAllowlist() {
 		t.Error("Claude engine should support MCP tools")
 	}
 
