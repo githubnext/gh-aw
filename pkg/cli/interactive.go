@@ -344,7 +344,7 @@ func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
 		Message: "What network access does the workflow need?",
 		Options: networkOptions,
 		Help:    "Network permissions control what external sites the AI can access",
-		Default: "defaults",
+		Default: "defaults - Basic infrastructure only",
 	}
 
 	var selected string
