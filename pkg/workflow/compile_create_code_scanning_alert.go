@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+// CreateCodeScanningAlertsConfig holds configuration for creating repository security advisories (SARIF format) from agent output
+type CreateCodeScanningAlertsConfig struct {
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of security findings to include (default: unlimited)
+	Driver      string `yaml:"driver,omitempty"`       // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // buildCreateOutputCodeScanningAlertJob creates the create_code_scanning_alert job
 func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mainJobName string, workflowFilename string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateCodeScanningAlerts == nil {

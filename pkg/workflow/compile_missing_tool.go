@@ -4,6 +4,12 @@ import (
 	"fmt"
 )
 
+// MissingToolConfig holds configuration for reporting missing tools or functionality
+type MissingToolConfig struct {
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of missing tool reports (default: unlimited)
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // buildCreateOutputMissingToolJob creates the missing_tool job
 func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.MissingTool == nil {

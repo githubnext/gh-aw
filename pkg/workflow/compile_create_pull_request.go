@@ -5,6 +5,16 @@ import (
 	"strings"
 )
 
+// CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
+type CreatePullRequestsConfig struct {
+	TitlePrefix string   `yaml:"title-prefix,omitempty"`
+	Labels      []string `yaml:"labels,omitempty"`
+	Draft       *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
+	Max         int      `yaml:"max,omitempty"`           // Maximum number of pull requests to create
+	IfNoChanges string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
+	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
+}
+
 // buildCreateOutputPullRequestJob creates the create_pull_request job
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil {

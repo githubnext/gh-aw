@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+// CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
+type CreatePullRequestReviewCommentsConfig struct {
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of review comments to create (default: 1)
+	Side        string `yaml:"side,omitempty"`         // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
 func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequestReviewComments == nil {

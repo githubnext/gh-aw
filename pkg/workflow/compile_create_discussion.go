@@ -4,6 +4,14 @@ import (
 	"fmt"
 )
 
+// CreateDiscussionsConfig holds configuration for creating GitHub discussions from agent output
+type CreateDiscussionsConfig struct {
+	TitlePrefix string `yaml:"title-prefix,omitempty"`
+	CategoryId  string `yaml:"category-id,omitempty"`  // Discussion category ID
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of discussions to create
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // parseDiscussionsConfig handles create-discussion configuration
 func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
 	if configData, exists := outputMap["create-discussion"]; exists {

@@ -4,6 +4,16 @@ import (
 	"fmt"
 )
 
+// UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
+type UpdateIssuesConfig struct {
+	Status      *bool  `yaml:"status,omitempty"`       // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Target      string `yaml:"target,omitempty"`       // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
+	Title       *bool  `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
+	Body        *bool  `yaml:"body,omitempty"`         // Allow updating issue body - presence indicates field can be updated
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of issues to update (default: 1)
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // buildCreateOutputUpdateIssueJob creates the update_issue job
 func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UpdateIssues == nil {

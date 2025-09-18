@@ -4,6 +4,18 @@ import (
 	"fmt"
 )
 
+// AddCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddCommentsConfig)
+type AddCommentConfig struct {
+	// Empty struct for now, as per requirements, but structured for future expansion
+}
+
+// AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
+type AddCommentsConfig struct {
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of comments to create
+	Target      string `yaml:"target,omitempty"`       // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // buildCreateOutputAddCommentJob creates the create_issue_comment job
 func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {

@@ -178,87 +178,25 @@ type SafeOutputsConfig struct {
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 }
 
-// CreateIssuesConfig holds configuration for creating GitHub issues from agent output
-type CreateIssuesConfig struct {
-	TitlePrefix string   `yaml:"title-prefix,omitempty"`
-	Labels      []string `yaml:"labels,omitempty"`
-	Max         int      `yaml:"max,omitempty"`          // Maximum number of issues to create
-	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
 
-// CreateDiscussionsConfig holds configuration for creating GitHub discussions from agent output
-type CreateDiscussionsConfig struct {
-	TitlePrefix string `yaml:"title-prefix,omitempty"`
-	CategoryId  string `yaml:"category-id,omitempty"`  // Discussion category ID
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of discussions to create
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
 
-// AddCommentConfig holds configuration for creating GitHub issue/PR comments from agent output (deprecated, use AddCommentsConfig)
-type AddCommentConfig struct {
-	// Empty struct for now, as per requirements, but structured for future expansion
-}
 
-// AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
-type AddCommentsConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of comments to create
-	Target      string `yaml:"target,omitempty"`       // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
 
-// CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
-type CreatePullRequestsConfig struct {
-	TitlePrefix string   `yaml:"title-prefix,omitempty"`
-	Labels      []string `yaml:"labels,omitempty"`
-	Draft       *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
-	Max         int      `yaml:"max,omitempty"`           // Maximum number of pull requests to create
-	IfNoChanges string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
-	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
-}
 
-// CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
-type CreatePullRequestReviewCommentsConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of review comments to create (default: 1)
-	Side        string `yaml:"side,omitempty"`         // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
 
-// CreateCodeScanningAlertsConfig holds configuration for creating repository security advisories (SARIF format) from agent output
-type CreateCodeScanningAlertsConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of security findings to include (default: unlimited)
-	Driver      string `yaml:"driver,omitempty"`       // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
 
-// AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
-type AddLabelsConfig struct {
-	Allowed     []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	MaxCount    *int     `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
-	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
 
-// UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
-type UpdateIssuesConfig struct {
-	Status      *bool  `yaml:"status,omitempty"`       // Allow updating issue status (open/closed) - presence indicates field can be updated
-	Target      string `yaml:"target,omitempty"`       // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
-	Title       *bool  `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
-	Body        *bool  `yaml:"body,omitempty"`         // Allow updating issue body - presence indicates field can be updated
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of issues to update (default: 1)
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
 
-// PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
-type PushToPullRequestBranchConfig struct {
-	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-comment but for pull requests
-	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
-	GitHubToken string `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
-}
 
-// MissingToolConfig holds configuration for reporting missing tools or functionality
-type MissingToolConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of missing tool reports (default: unlimited)
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-}
+
+
+
+
+
+
+
+
+
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {

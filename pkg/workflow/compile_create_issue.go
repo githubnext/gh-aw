@@ -5,6 +5,14 @@ import (
 	"strings"
 )
 
+// CreateIssuesConfig holds configuration for creating GitHub issues from agent output
+type CreateIssuesConfig struct {
+	TitlePrefix string   `yaml:"title-prefix,omitempty"`
+	Labels      []string `yaml:"labels,omitempty"`
+	Max         int      `yaml:"max,omitempty"`          // Maximum number of issues to create
+	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // parseIssuesConfig handles create-issue configuration
 func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
 	if configData, exists := outputMap["create-issue"]; exists {

@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+// PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
+type PushToPullRequestBranchConfig struct {
+	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-comment but for pull requests
+	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	GitHubToken string `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
+}
+
 // buildCreateOutputPushToPullRequestBranchJob creates the push_to_pr_branch job
 func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.PushToPullRequestBranch == nil {
