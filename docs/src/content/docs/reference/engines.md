@@ -1,103 +1,157 @@
 ---
 title: AI Engines
-description: Complete guide to AI engines available in GitHub Agentic Workflows, including Claude, Codex, and custom engines with their specific configuration options.
+description: Overview of AI engines available in GitHub Agentic Workflows, including Claude, Codex, and custom engines with links to detailed configuration guides.
 sidebar:
   order: 1
 ---
 
-GitHub Agentic Workflows support multiple AI engines to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
+GitHub Agentic Workflows support multiple engines to interpret and execute natural language instructions or run custom GitHub Actions steps. Each engine has unique capabilities, configuration options, and use cases.
+
+## Quick Engine Reference
+
+| Engine | Type | Status | Best For | Documentation |
+|--------|------|--------|----------|---------------|
+| [Claude](/gh-aw/reference/engines/claude/) | AI | Stable ✅ | Reasoning, code analysis, general workflows | [View Guide →](/gh-aw/reference/engines/claude/) |
+| [Codex](/gh-aw/reference/engines/codex/) | AI | Experimental ⚠️ | Code generation, specialized integrations | [View Guide →](/gh-aw/reference/engines/codex/) |
+| [Custom](/gh-aw/reference/engines/custom/) | Traditional | Stable ✅ | Deterministic steps, hybrid workflows | [View Guide →](/gh-aw/reference/engines/custom/) |
+
+## Engine Types
+
+### AI Engines
+
+AI engines interpret natural language instructions and execute them using various tools and capabilities:
+
+- **Claude**: Uses Anthropic's Claude Code CLI with excellent reasoning capabilities
+- **Codex**: Uses OpenAI Codex CLI with specialized code generation features
+
+### Traditional Engines
+
+Traditional engines execute predefined GitHub Actions steps without AI interpretation:
+
+- **Custom**: Executes user-defined GitHub Actions steps for deterministic workflows
+
+## Quick Start Examples
+
+### Claude Engine (Recommended)
+```yaml
+---
+engine: claude
+---
+
+# Analyze Code Quality
+
+Review the code in this repository and suggest improvements for performance and maintainability.
+```
+
+### Codex Engine
+```yaml
+---
+engine: codex
+---
+
+# Generate API Tests
+
+Create comprehensive test cases for the REST API endpoints in this project.
+```
+
+### Custom Engine
+```yaml
+---
+engine:
+  id: custom
+  steps:
+    - name: Run tests
+      run: npm test
+    - name: Deploy
+      uses: actions/deploy@v1
+---
+
+# Traditional GitHub Actions Steps
+
+This workflow runs predefined steps without AI interpretation.
+```
 
 ## Available Engines
 
-### Claude (Default)
+### [Claude Engine](/gh-aw/reference/engines/claude/) (Default)
 
-Claude Code is the default and recommended AI engine for most workflows. It excels at reasoning, code analysis, and understanding complex contexts.
+The recommended AI engine for most workflows with excellent reasoning and code analysis capabilities.
 
-```yaml
-engine: claude
-```
+- **Type**: AI Engine
+- **Status**: Stable ✅
+- **Network Isolation**: ✅ Python hooks with domain allow-lists
+- **Version Control**: ✅ npm package versions
+- **Max Turns**: ✅ Cost control support
 
-**Extended configuration:**
+**Quick Config:**
 ```yaml
 engine:
   id: claude
-  version: beta
-  model: claude-3-5-sonnet-20241022
+  version: latest
   max-turns: 5
-  env:
-    AWS_REGION: us-west-2
-    DEBUG_MODE: "true"
 ```
 
-**Features:**
-- Excellent reasoning and code analysis capabilities
-- Supports max-turns for cost control
-- Uses MCP servers for tool integration
-- Generates `mcp-servers.json` configuration
+[**→ View Complete Claude Documentation**](/gh-aw/reference/engines/claude/)
 
-### Codex (Experimental)
+### [Codex Engine](/gh-aw/reference/engines/codex/) (Experimental)
 
-OpenAI Codex CLI with MCP server support. Designed for code-focused tasks and integration scenarios.
+AI engine optimized for code generation and specialized development tasks.
 
-```yaml
-engine: codex
-```
+- **Type**: AI Engine  
+- **Status**: Experimental ⚠️
+- **Network Isolation**: ⚠️ Limited to specific tools
+- **Version Control**: ✅ npm package versions
+- **Custom Config**: ✅ TOML configuration support
 
-**Extended configuration:**
+**Quick Config:**
 ```yaml
 engine:
   id: codex
   model: gpt-4
-  user-agent: custom-workflow-name
-  env:
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_CI }}
   config: |
-    [custom_section]
-    key1 = "value1"
-    key2 = "value2"
-    
-    [server_settings]
-    timeout = 60
-    retries = 3
+    [custom]
+    setting = "value"
 ```
 
-**Features:**
-- Code-focused AI engine
-- Generates `config.toml` for MCP server configuration
-- Supports custom TOML configuration via `config` field
-- Configurable user agent for GitHub MCP server
-- Requires `OPENAI_API_KEY` secret
+[**→ View Complete Codex Documentation**](/gh-aw/reference/engines/codex/)
 
-**Codex-specific fields:**
-- **`user-agent`** (optional): Custom user agent string for GitHub MCP server configuration
-- **`config`** (optional): Additional TOML configuration text appended to generated config.toml
+### [Custom Engine](/gh-aw/reference/engines/custom/)
 
-### Custom Engine
+Execute traditional GitHub Actions steps without AI interpretation.
 
-For advanced users who want to define completely custom GitHub Actions steps instead of using AI interpretation.
+- **Type**: Traditional Engine
+- **Status**: Stable ✅  
+- **Network Isolation**: ❌ Manual implementation required
+- **Version Control**: ✅ Action version pinning
+- **Direct Control**: ✅ Exact step execution
 
-```yaml
-engine: custom
-```
-
-**Extended configuration:**
+**Quick Config:**
 ```yaml
 engine:
   id: custom
   steps:
-    - name: Custom step
-      run: echo "Custom logic here"
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '18'
+    - name: Build
+      run: make build
+    - uses: actions/deploy@v1
 ```
 
-**Features:**
-- Execute user-defined GitHub Actions steps
-- No AI interpretation - direct step execution
-- Useful for deterministic workflows or hybrid approaches
+[**→ View Complete Custom Documentation**](/gh-aw/reference/engines/custom/)**
 
-## Engine-Specific Configuration
+## Feature Comparison
+
+| Feature | Claude | Codex | Custom |
+|---------|--------|--------|--------|
+| **AI Interpretation** | ✅ | ✅ | ❌ |
+| **Network Isolation** | ✅ Full | ⚠️ Limited | ❌ Manual |
+| **Version Control** | ✅ npm | ✅ npm | ✅ Actions |
+| **Max Turns** | ✅ | ❌ | ⚠️ No effect |
+| **Tools Whitelist** | ✅ | ✅ | ❌ |
+| **HTTP Transport** | ✅ | ❌ | ❌ |
+| **Custom Config** | ❌ | ✅ TOML | ❌ |
+| **Environment Variables** | ✅ | ✅ | ✅ |
+| **Experimental** | ❌ | ✅ | ❌ |
+
+## Common Configuration
 
 ### Environment Variables
 
@@ -105,138 +159,134 @@ All engines support custom environment variables through the `env` field:
 
 ```yaml
 engine:
-  id: claude
+  id: claude  # or codex, custom
   env:
     DEBUG_MODE: "true"
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com
 ```
 
-**Common use cases:**
-- Override default API keys (e.g., `OPENAI_API_KEY` for Codex)
-- Set region-specific configuration
-- Enable debug modes
-- Configure custom endpoints
+### Version Control
 
-### Error Patterns
-
-Both Claude and Codex engines support custom error pattern recognition for enhanced log validation:
+Engines support version specification for their underlying tools:
 
 ```yaml
+# Claude: Controls @anthropic-ai/claude-code version
+engine:
+  id: claude
+  version: latest  # or beta, v1.2.3
+
+# Codex: Controls @openai/codex version  
 engine:
   id: codex
-  error_patterns:
-    - pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)"
-      level_group: 2
-      message_group: 3
-      description: "Custom error format with timestamp"
-```
+  version: latest  # or beta, v2.1.0
 
-## Codex Engine Advanced Configuration
-
-The Codex engine supports additional customization through the `config` field, which allows you to append raw TOML configuration to the generated `config.toml` file.
-
-### Custom Configuration Example
-
-```yaml
+# Custom: Control action versions in steps
 engine:
-  id: codex
-  config: |
-    # Custom logging configuration
-    [logging]
-    level = "debug"
-    file = "/tmp/codex-debug.log"
-    
-    # Server timeout settings
-    [server]
-    timeout = 120
-    max_connections = 10
-    
-    # Custom tool configurations
-    [tools.custom_analyzer]
-    enabled = true
-    mode = "strict"
+  id: custom
+  steps:
+    - uses: actions/setup-node@v4  # Pin to v4
 ```
-
-### Generated Output
-
-This configuration generates a `config.toml` file with the structure:
-
-```toml
-[history]
-persistence = "none"
-
-[mcp_servers.github]
-user_agent = "workflow-name"
-command = "docker"
-args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server:sha-09deac4"]
-env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
-
-# Custom configuration
-[logging]
-level = "debug"
-file = "/tmp/codex-debug.log"
-
-[server]
-timeout = 120
-max_connections = 10
-
-[tools.custom_analyzer]
-enabled = true
-mode = "strict"
-```
-
-### Best Practices for Custom Config
-
-1. **Validate TOML**: Ensure your configuration is valid TOML syntax
-2. **Avoid conflicts**: Don't override standard sections like `[history]` or `[mcp_servers.*]`
-3. **Use descriptive sections**: Name your configuration sections clearly
-4. **Document purpose**: Include comments in your TOML to explain custom settings
-5. **Test thoroughly**: Validate that your custom configuration works as expected
 
 ## Engine Selection Guidelines
 
-**Choose Claude when:**
+**Choose [Claude](/gh-aw/reference/engines/claude/) when:**
 - You need strong reasoning and analysis capabilities
 - Working with complex code review or documentation tasks
 - Performing multi-step reasoning workflows
 - You want the most stable and well-tested engine
+- Network security is important
 
-**Choose Codex when:**
+**Choose [Codex](/gh-aw/reference/engines/codex/) when:**
 - You need code-specific AI capabilities
 - Working with specialized MCP server configurations
 - Requiring custom TOML configuration for advanced scenarios
 - You're comfortable with experimental features
 
-**Choose Custom when:**
+**Choose [Custom](/gh-aw/reference/engines/custom/) when:**
 - You need deterministic, traditional GitHub Actions behavior
 - Building hybrid workflows with some AI and some traditional steps
 - You have specific requirements that AI engines can't meet
 - Testing or prototyping workflow components
+- Maximum control over execution is required
 
 ## Migration Between Engines
 
-Switching between engines is straightforward - just change the `engine` field in your frontmatter:
+Switching between engines requires updating the `engine` field and potentially adjusting configuration:
+
+### Claude ↔ Codex Migration
 
 ```yaml
 # From Claude to Codex
-engine: claude  # Old
-engine: codex   # New
+engine: claude                    # Remove
+engine: codex                     # Add
+# Plus: change ANTHROPIC_API_KEY to OPENAI_API_KEY
 
-# With configuration preservation
-engine:
-  id: codex     # Changed from claude
-  model: gpt-4  # Add codex-specific options
-  config: |     # Codex-only feature
-    [custom]
-    setting = "value"
+# From Codex to Claude  
+engine: codex                     # Remove
+engine: claude                    # Add
+# Plus: change OPENAI_API_KEY to ANTHROPIC_API_KEY
 ```
 
-Note that engine-specific features (like `config` for Codex or `max-turns` for Claude) may not be available when switching engines.
+### AI → Custom Migration
+
+```yaml
+# From AI engine
+engine: claude
+# Instruction: "Run tests and deploy"
+
+# To Custom engine
+engine:
+  id: custom
+  steps:
+    - name: Run tests
+      run: npm test
+    - name: Deploy
+      run: ./deploy.sh
+```
+
+### Custom → AI Migration
+
+```yaml
+# From Custom engine
+engine:
+  id: custom
+  steps:
+    - name: Complex deployment
+      run: ./complex-deploy.sh
+
+# To AI engine
+engine: claude
+# Instruction: "Deploy the application using the deployment script"
+```
+
+## Network Security
+
+### Claude Engine Network Isolation
+
+- **Implementation**: Python hooks with domain validation
+- **Configuration**: `network.allowed` with domain patterns
+- **Ecosystem Bundles**: Predefined domain sets (`bundle:node`, `bundle:python`, etc.)
+- **Coverage**: System-wide network interception
+
+### Codex Engine Network Limitations  
+
+- **Implementation**: Tool-specific restrictions
+- **Configuration**: Per-tool domain settings
+- **Coverage**: Limited to specific tools (e.g., Playwright)
+- **Manual Setup**: Requires explicit tool configuration
+
+### Custom Engine Network Control
+
+- **Implementation**: Manual setup in steps
+- **Configuration**: User-defined network restrictions
+- **Coverage**: Depends on user implementation
+- **Examples**: iptables, proxy configuration
 
 ## Related Documentation
 
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete configuration reference
-- [Tools Configuration](/gh-aw/reference/tools/) - Available tools and MCP servers
+- [Tools Configuration](/gh-aw/reference/tools/) - Available tools and MCP servers  
+- [Network Configuration](/gh-aw/reference/network/) - Network isolation and domain management
 - [Security Guide](/gh-aw/guides/security/) - Security considerations for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
