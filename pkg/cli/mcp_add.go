@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -11,75 +12,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
-
-// listAvailableServers shows a list of available MCP servers from the registry
-func listAvailableServers(registryURL string, verbose bool) error {
-	// Create registry client
-	registryClient := NewMCPRegistryClient(registryURL)
-
-	// Search for all servers (empty query)
-	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Fetching available MCP servers from registry: %s", registryClient.registryURL)))
-	}
-
-	servers, err := registryClient.SearchServers("")
-	if err != nil {
-		return fmt.Errorf("failed to fetch MCP servers: %w", err)
-	}
-
-	if verbose {
-		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
-		if len(servers) > 0 {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - Name: '%s', Description: '%s'",
-				servers[0].Name, servers[0].Description)))
-		}
-	}
-
-	if len(servers) == 0 {
-		fmt.Println(console.FormatWarningMessage("No MCP servers found in the registry"))
-		return nil
-	}
-
-	// Prepare table data
-	headers := []string{"Name", "Description"}
-	rows := make([][]string, 0, len(servers))
-
-	for _, server := range servers {
-		// Use server name as the primary identifier
-		name := server.Name
-		if name == "" {
-			name = "<unnamed>" // fallback if no name
-		}
-
-		// Truncate long descriptions for table display
-		description := server.Description
-		if len(description) > 80 {
-			description = description[:77] + "..."
-		}
-		if description == "" {
-			description = "-"
-		}
-
-		rows = append(rows, []string{
-			name,
-			description,
-		})
-	}
-
-	// Create and render table
-	tableConfig := console.TableConfig{
-		Title:     fmt.Sprintf("MCP registry: %s", registryClient.registryURL),
-		Headers:   headers,
-		Rows:      rows,
-		ShowTotal: true,
-		TotalRow:  []string{fmt.Sprintf("Total: %d servers", len(servers)), ""},
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-	fmt.Println(console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-name>"))
-
-	return nil
-}
 
 // AddMCPTool adds an MCP tool to an agentic workflow
 func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error {
@@ -211,25 +143,6 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	return nil
 }
 
-// cleanMCPToolID removes common MCP prefixes and suffixes from tool IDs
-// Examples: "notion-mcp" -> "notion", "mcp-notion" -> "notion", "some-mcp-server" -> "some-server"
-func cleanMCPToolID(toolID string) string {
-	cleaned := toolID
-
-	// Remove "mcp-" prefix
-	cleaned = strings.TrimPrefix(cleaned, "mcp-")
-
-	// Remove "-mcp" suffix
-	cleaned = strings.TrimSuffix(cleaned, "-mcp")
-
-	// If the result is empty, use the original
-	if cleaned == "" {
-		return toolID
-	}
-
-	return cleaned
-}
-
 // createMCPToolConfig creates the MCP tool configuration based on registry server info
 func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransport string, registryURL string, verbose bool) (map[string]any, error) {
 	config := make(map[string]any)
@@ -251,7 +164,7 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 	// Create MCP configuration based on transport type
 	mcpSection := map[string]any{
 		"type":     transport,
-		"registry": fmt.Sprintf("%s/servers/%s", registryURL, server.Name),
+		"registry": fmt.Sprintf("%s/servers/%s", registryURL, url.PathEscape(server.Name)),
 	}
 
 	switch transport {

@@ -10,33 +10,9 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	v0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 	"github.com/modelcontextprotocol/registry/pkg/model"
 )
-
-// MCPRegistryServer represents a server from the MCP registry API
-type MCPRegistryServer struct {
-	Name        string              `json:"name"`
-	Description string              `json:"description"`
-	Status      model.Status        `json:"status"`
-	Version     string              `json:"version"`
-	Repository  *model.Repository   `json:"repository,omitempty"`
-	Packages    []model.Package     `json:"packages,omitempty"`
-	Remotes     []MCPRegistryRemote `json:"remotes,omitempty"`
-	WebsiteURL  string              `json:"website_url,omitempty"`
-}
-
-// MCPRegistryRemote represents a remote server configuration
-type MCPRegistryRemote struct {
-	Type    string                `json:"type"`
-	URL     string                `json:"url"`
-	Headers []model.KeyValueInput `json:"headers,omitempty"`
-}
-
-// MCPRegistryResponse represents the response from the MCP registry API
-type MCPRegistryResponse struct {
-	Servers  []MCPRegistryServer    `json:"servers"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
-}
 
 // MCPRegistryServerForProcessing represents a flattened server for internal use
 type MCPRegistryServerForProcessing struct {
@@ -105,7 +81,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 		return nil, fmt.Errorf("failed to read registry response: %w", err)
 	}
 
-	var response MCPRegistryResponse
+	var response v0.ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse registry response: %w", err)
 	}
@@ -124,7 +100,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 		}
 
 		// Set repository URL if available
-		if server.Repository != nil {
+		if server.Repository.URL != "" {
 			processedServer.Repository = server.Repository.URL
 		}
 
@@ -254,7 +230,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 		return nil, fmt.Errorf("failed to read registry response: %w", err)
 	}
 
-	var response MCPRegistryResponse
+	var response v0.ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse server response: %w", err)
 	}
@@ -269,7 +245,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 			}
 
 			// Set repository URL if available
-			if server.Repository != nil {
+			if server.Repository.URL != "" {
 				processedServer.Repository = server.Repository.URL
 			}
 
@@ -355,4 +331,23 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	}
 
 	return nil, fmt.Errorf("MCP server '%s' not found in registry", serverName)
+}
+
+// cleanMCPToolID removes common MCP prefixes and suffixes from tool IDs
+// Examples: "notion-mcp" -> "notion", "mcp-notion" -> "notion", "some-mcp-server" -> "some-server"
+func cleanMCPToolID(toolID string) string {
+	cleaned := toolID
+
+	// Remove "mcp-" prefix
+	cleaned = strings.TrimPrefix(cleaned, "mcp-")
+
+	// Remove "-mcp" suffix
+	cleaned = strings.TrimSuffix(cleaned, "-mcp")
+
+	// If the result is empty, use the original
+	if cleaned == "" {
+		return toolID
+	}
+
+	return cleaned
 }
