@@ -1,2 +1,3 @@
 .github/workflows/*.lock.yml linguist-generated=true merge=ours
+.github/instructions/github-agentic-workflows.instructions.md linguist-generated=true merge=ours
 pkg/cli/workflows/*.lock.yml linguist-generated=true merge=ours
