@@ -71,7 +71,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` add weekly-research -r githubnext/agentics
   ` + constants.CLIExtensionPrefix + ` add weekly-research --pr
   ` + constants.CLIExtensionPrefix + ` add weekly-research daily-plan --force
+  ` + constants.CLIExtensionPrefix + ` add my-workflow --interactive
 
+The -i/--interactive flag creates a new workflow using interactive prompts.
 The -r flag allows you to install and use workflows from a specific repository.
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --pr flag automatically creates a pull request with the workflow changes.
@@ -79,7 +81,21 @@ The --force flag overwrites existing workflow files.
 It's a shortcut for:
   ` + constants.CLIExtensionPrefix + ` install githubnext/agentics
   ` + constants.CLIExtensionPrefix + ` add weekly-research`,
-	Args: cobra.MinimumNArgs(1),
+	Args: func(cmd *cobra.Command, args []string) error {
+		interactive, _ := cmd.Flags().GetBool("interactive")
+		if interactive {
+			// Interactive mode requires exactly one workflow name
+			if len(args) != 1 {
+				return fmt.Errorf("interactive mode requires exactly one workflow name")
+			}
+		} else {
+			// Normal mode requires at least one workflow
+			if len(args) < 1 {
+				return fmt.Errorf("requires at least 1 arg(s), received %d", len(args))
+			}
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		workflows := args
 		numberFlag, _ := cmd.Flags().GetInt("number")
@@ -88,11 +104,23 @@ It's a shortcut for:
 		nameFlag, _ := cmd.Flags().GetString("name")
 		prFlag, _ := cmd.Flags().GetBool("pr")
 		forceFlag, _ := cmd.Flags().GetBool("force")
+		interactive, _ := cmd.Flags().GetBool("interactive")
+
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
 
+		// Handle interactive mode
+		if interactive {
+			if err := cli.CreateWorkflowInteractively(workflows[0], verbose, forceFlag); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+				os.Exit(1)
+			}
+			return
+		}
+
+		// Handle normal mode
 		if prFlag {
 			if err := cli.AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, true); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -331,6 +359,9 @@ func init() {
 
 	// Add force flag to add command
 	addCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
+
+	// Add interactive flag to add command
+	addCmd.Flags().BoolP("interactive", "i", false, "Create workflow using interactive prompts")
 
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
