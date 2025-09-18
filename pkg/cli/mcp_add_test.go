@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	v0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 )
 
 func TestAddMCPTool_BasicFunctionality(t *testing.T) {
@@ -442,7 +444,7 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 	}
 
 	// Check that registry field contains the direct server URL with server name
-	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example%2Ftest-server"
+	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example/test-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
@@ -475,7 +477,7 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 	}
 
 	// Check that registry field contains the direct server URL with server name
-	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example%2Ftest-server"
+	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example/test-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
@@ -485,8 +487,8 @@ func TestListAvailableServers(t *testing.T) {
 	// Create a test HTTP server
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/servers" {
-			response := MCPRegistryResponse{
-				Servers: []MCPRegistryServer{
+			response := v0.ServerListResponse{
+				Servers: []v0.ServerJSON{
 					{
 						Name:        "io.github.makenotion/notion-mcp-server",
 						Description: "Connect to Notion API",
