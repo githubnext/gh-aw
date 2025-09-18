@@ -7,6 +7,70 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// CacheMemoryConfig holds configuration for cache-memory functionality
+type CacheMemoryConfig struct {
+	Enabled       bool   `yaml:"enabled,omitempty"`        // whether cache-memory is enabled
+	Key           string `yaml:"key,omitempty"`            // custom cache key
+	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
+}
+
+// extractCacheMemoryConfig extracts cache-memory configuration from tools section
+func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryConfig {
+	cacheMemoryValue, exists := tools["cache-memory"]
+	if !exists {
+		return nil
+	}
+
+	config := &CacheMemoryConfig{}
+
+	// Handle boolean value (simple enable/disable)
+	if boolValue, ok := cacheMemoryValue.(bool); ok {
+		config.Enabled = boolValue
+		if config.Enabled {
+			// Set defaults
+			config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+		}
+		return config
+	}
+
+	// Handle object configuration
+	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
+		config.Enabled = true
+
+		// Set defaults
+		config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+
+		// Parse custom key
+		if key, exists := configMap["key"]; exists {
+			if keyStr, ok := key.(string); ok {
+				config.Key = keyStr
+				// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+				runIdSuffix := "-${{ github.run_id }}"
+				if !strings.HasSuffix(config.Key, runIdSuffix) {
+					config.Key = config.Key + runIdSuffix
+				}
+			}
+		}
+
+		// Parse retention days
+		if retentionDays, exists := configMap["retention-days"]; exists {
+			if retentionDaysInt, ok := retentionDays.(int); ok {
+				config.RetentionDays = &retentionDaysInt
+			} else if retentionDaysFloat, ok := retentionDays.(float64); ok {
+				retentionDaysIntValue := int(retentionDaysFloat)
+				config.RetentionDays = &retentionDaysIntValue
+			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
+				retentionDaysIntValue := int(retentionDaysUint64)
+				config.RetentionDays = &retentionDaysIntValue
+			}
+		}
+
+		return config
+	}
+
+	return nil
+}
+
 // generateCacheSteps generates cache steps for the workflow based on cache configuration
 func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bool) {
 	if data.Cache == "" {
@@ -163,4 +227,32 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 	if data.CacheMemoryConfig.RetentionDays != nil {
 		fmt.Fprintf(builder, "          retention-days: %d\n", *data.CacheMemoryConfig.RetentionDays)
 	}
+}
+
+// generateCacheMemoryPromptSection generates the cache folder notification section for prompts
+// when cache-memory is enabled, informing the agent about persistent storage capabilities
+func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemoryConfig) {
+	if config == nil || !config.Enabled {
+		return
+	}
+
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ---\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          ## Cache Folder Available\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
+	yaml.WriteString("          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache\n")
+	yaml.WriteString("          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved\n")
+	yaml.WriteString("          - **File Share**: Use this as a simple file share - organize files as you see fit\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          Examples of what you can store:\n")
+	yaml.WriteString("          - `/tmp/cache-memory/notes.txt` - general notes and observations\n")
+	yaml.WriteString("          - `/tmp/cache-memory/preferences.json` - user preferences and settings\n")
+	yaml.WriteString("          - `/tmp/cache-memory/history.log` - activity history and logs\n")
+	yaml.WriteString("          - `/tmp/cache-memory/state/` - organized state files in subdirectories\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
 }

@@ -1,0 +1,273 @@
+package workflow
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+// generateGitConfiguration generates standardized git credential setup
+func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *WorkflowData) {
+	steps := c.generateGitConfigurationSteps()
+	for _, step := range steps {
+		yaml.WriteString(step)
+	}
+}
+
+// generateGitConfigurationSteps generates standardized git credential setup as string steps
+func (c *Compiler) generateGitConfigurationSteps() []string {
+	return []string{
+		"      - name: Configure Git credentials\n",
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"${{ github.workflow }}\"\n",
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	}
+}
+
+// generateMCPSetup generates the MCP server configuration setup
+func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
+	// Collect tools that need MCP server configuration
+	var mcpTools []string
+	var proxyTools []string
+
+	// Check if workflowData is valid before accessing its fields
+	if workflowData == nil {
+		return
+	}
+
+	workflowTools := workflowData.Tools
+
+	for toolName, toolValue := range workflowTools {
+		// Standard MCP tools
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" {
+			mcpTools = append(mcpTools, toolName)
+		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
+			// Check if it's explicitly marked as MCP type in the new format
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+				mcpTools = append(mcpTools, toolName)
+
+				// Check if this tool needs proxy
+				if needsProxySetup, _ := needsProxy(mcpConfig); needsProxySetup {
+					proxyTools = append(proxyTools, toolName)
+				}
+			}
+		}
+	}
+
+	// Check if safe-outputs is enabled and add to MCP tools
+	if workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		mcpTools = append(mcpTools, "safe-outputs")
+	}
+
+	// Sort tools to ensure stable code generation
+	sort.Strings(mcpTools)
+	sort.Strings(proxyTools)
+
+	// Generate proxy configuration files inline for proxy-enabled tools
+	// These files will be used automatically by docker compose when MCP tools run
+	if len(proxyTools) > 0 {
+		yaml.WriteString("      - name: Setup Proxy Configuration for MCP Network Restrictions\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          echo \"Generating proxy configuration files for MCP tools with network restrictions...\"\n")
+		yaml.WriteString("          \n")
+
+		// Generate proxy configurations inline for each proxy-enabled tool
+		for _, toolName := range proxyTools {
+			if toolConfig, ok := tools[toolName].(map[string]any); ok {
+				c.generateInlineProxyConfig(yaml, toolName, toolConfig)
+			}
+		}
+
+		yaml.WriteString("          echo \"Proxy configuration files generated.\"\n")
+
+		// Pre-pull images and start squid proxy ahead of time to avoid timeouts
+		yaml.WriteString("      - name: Pre-pull images and start Squid proxy\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          set -e\n")
+		yaml.WriteString("          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'\n")
+		yaml.WriteString("          docker pull ubuntu/squid:latest\n")
+
+		// Pull each tool's container image if specified, and bring up squid service
+		for _, toolName := range proxyTools {
+			if toolConfig, ok := tools[toolName].(map[string]any); ok {
+				if mcpConf, err := getMCPConfig(toolConfig, toolName); err == nil {
+					if containerVal, hasContainer := mcpConf["container"]; hasContainer {
+						if containerStr, ok := containerVal.(string); ok && containerStr != "" {
+							fmt.Fprintf(yaml, "          echo 'Pulling %s for tool %s'\n", containerStr, toolName)
+							fmt.Fprintf(yaml, "          docker pull %s\n", containerStr)
+						}
+					}
+				}
+				fmt.Fprintf(yaml, "          echo 'Starting squid-proxy service for %s'\n", toolName)
+				fmt.Fprintf(yaml, "          docker compose -f docker-compose-%s.yml up -d squid-proxy\n", toolName)
+
+				// Enforce that egress from this tool's network can only reach the Squid proxy
+				subnetCIDR, squidIP, _ := computeProxyNetworkParams(toolName)
+				fmt.Fprintf(yaml, "          echo 'Enforcing egress to proxy for %s (subnet %s, squid %s)'\n", toolName, subnetCIDR, squidIP)
+				yaml.WriteString("          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi\n")
+				// Accept established/related connections first (position 1)
+				yaml.WriteString("          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT\n")
+				// Accept all egress from Squid IP (position 2)
+				fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 2 -s %s -j ACCEPT\n", squidIP, squidIP)
+				// Allow traffic to squid:3128 from the subnet (position 3)
+				fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -d %s -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 3 -s %s -d %s -p tcp --dport 3128 -j ACCEPT\n", subnetCIDR, squidIP, subnetCIDR, squidIP)
+				// Then reject all other egress from that subnet (append to end)
+				fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s %s -j REJECT\n", subnetCIDR, subnetCIDR)
+			}
+		}
+	}
+
+	// If no MCP tools, no configuration needed
+	if len(mcpTools) == 0 {
+		return
+	}
+
+	// Write safe-outputs MCP server if enabled
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	if hasSafeOutputs {
+		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
+		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
+		if safeOutputConfig != "" {
+			// Add environment variables for JSONL validation
+			yaml.WriteString("        env:\n")
+			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+		}
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
+		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
+		// Embed the safe-outputs MCP server script
+		for _, line := range FormatJavaScriptForYAML(safeOutputsMCPServerScript) {
+			yaml.WriteString(line)
+		}
+		yaml.WriteString("          EOF\n")
+		yaml.WriteString("          chmod +x /tmp/safe-outputs/mcp-server.cjs\n")
+		yaml.WriteString("          \n")
+	}
+
+	// Use the engine's RenderMCPConfig method
+	yaml.WriteString("      - name: Setup MCPs\n")
+	if hasSafeOutputs {
+		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
+		if safeOutputConfig != "" {
+			// Add environment variables for JSONL validation
+			yaml.WriteString("        env:\n")
+			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+		}
+	}
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          mkdir -p /tmp/mcp-config\n")
+	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+}
+
+func getGitHubDockerImageVersion(githubTool any) string {
+	githubDockerImageVersion := "sha-09deac4" // Default Docker image version
+	// Extract docker_image_version setting from tool properties
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+			if stringValue, ok := versionSetting.(string); ok {
+				githubDockerImageVersion = stringValue
+			}
+		}
+	}
+	return githubDockerImageVersion
+}
+
+func getPlaywrightDockerImageVersion(playwrightTool any) string {
+	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
+	// Extract docker_image_version setting from tool properties
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+			if stringValue, ok := versionSetting.(string); ok {
+				playwrightDockerImageVersion = stringValue
+			}
+		}
+	}
+	return playwrightDockerImageVersion
+}
+
+// ensureLocalhostDomainsWorkflow ensures that localhost and 127.0.0.1 are always included
+// in the allowed domains list for Playwright, even when custom domains are specified
+func ensureLocalhostDomainsWorkflow(domains []string) []string {
+	hasLocalhost := false
+	hasLoopback := false
+
+	for _, domain := range domains {
+		if domain == "localhost" {
+			hasLocalhost = true
+		}
+		if domain == "127.0.0.1" {
+			hasLoopback = true
+		}
+	}
+
+	result := make([]string, 0, len(domains)+2)
+
+	// Always add localhost domains first
+	if !hasLocalhost {
+		result = append(result, "localhost")
+	}
+	if !hasLoopback {
+		result = append(result, "127.0.0.1")
+	}
+
+	// Add the rest of the domains
+	result = append(result, domains...)
+
+	return result
+}
+
+// generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
+// Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
+func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
+	// Default to localhost only (same as Copilot agent default)
+	allowedDomains := []string{"localhost", "127.0.0.1"}
+
+	// Extract allowed_domains from Playwright tool configuration
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
+			// Create a mock NetworkPermissions structure to use the same domain resolution logic
+			playwrightNetwork := &NetworkPermissions{}
+
+			switch domains := domainsConfig.(type) {
+			case []string:
+				playwrightNetwork.Allowed = domains
+			case []any:
+				// Convert []any to []string
+				allowedDomainsSlice := make([]string, len(domains))
+				for i, domain := range domains {
+					if domainStr, ok := domain.(string); ok {
+						allowedDomainsSlice[i] = domainStr
+					}
+				}
+				playwrightNetwork.Allowed = allowedDomainsSlice
+			case string:
+				// Single domain as string
+				playwrightNetwork.Allowed = []string{domains}
+			}
+
+			// Use the same domain bundle resolution as the top-level network configuration
+			resolvedDomains := GetAllowedDomains(playwrightNetwork)
+
+			// Ensure localhost domains are always included
+			allowedDomains = ensureLocalhostDomainsWorkflow(resolvedDomains)
+		}
+	}
+
+	return allowedDomains
+}
+
+// PlaywrightDockerArgs represents the common Docker arguments for Playwright container
+type PlaywrightDockerArgs struct {
+	ImageVersion   string
+	AllowedDomains []string
+}
+
+// generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
+func generatePlaywrightDockerArgs(playwrightTool any, networkPermissions *NetworkPermissions) PlaywrightDockerArgs {
+	return PlaywrightDockerArgs{
+		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),
+		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool, networkPermissions),
+	}
+}
