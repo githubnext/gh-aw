@@ -608,6 +608,7 @@ func (e *CodexEngine) GetDefaultNetworkPermissions() *NetworkPermissions {
 // renderNetworkConfig generates network configuration for codex config.toml
 func (e *CodexEngine) renderNetworkConfig(yaml *strings.Builder, networkPermissions *NetworkPermissions) {
 	yaml.WriteString("          \n")
+	yaml.WriteString("          [sandbox]\n")
 
 	// Default network setting if no permissions specified (equivalent to network: defaults for other engines)
 	if networkPermissions == nil {

@@ -283,6 +283,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"[history]",
 				"persistence = \"none\"",
 				"",
+				"[sandbox]",
 				"# Network access enabled by default",
 				"network = true",
 				"",
@@ -651,6 +652,9 @@ func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
 		if !strings.Contains(output, "Network access enabled by default") {
 			t.Error("Expected comment about default access")
 		}
+		if !strings.Contains(output, "[sandbox]") {
+			t.Error("Expected config.toml to contain '[sandbox]' section")
+		}
 	})
 
 	t.Run("renderNetworkConfig - empty allowed list", func(t *testing.T) {
@@ -667,6 +671,9 @@ func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
 		if !strings.Contains(output, "Network access disabled") {
 			t.Error("Expected comment about disabled access")
 		}
+		if !strings.Contains(output, "[sandbox]") {
+			t.Error("Expected config.toml to contain '[sandbox]' section")
+		}
 	})
 
 	t.Run("renderNetworkConfig - wildcard allowed", func(t *testing.T) {
@@ -682,6 +689,9 @@ func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
 		}
 		if !strings.Contains(output, "Network access enabled") {
 			t.Error("Expected comment about enabled access")
+		}
+		if !strings.Contains(output, "[sandbox]") {
+			t.Error("Expected config.toml to contain '[sandbox]' section")
 		}
 	})
 }
