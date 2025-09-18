@@ -4,6 +4,47 @@ import (
 	"fmt"
 )
 
+// parseDiscussionsConfig handles create-discussion configuration
+func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
+	if configData, exists := outputMap["create-discussion"]; exists {
+		discussionsConfig := &CreateDiscussionsConfig{Max: 1} // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse title-prefix
+			if titlePrefix, exists := configMap["title-prefix"]; exists {
+				if titlePrefixStr, ok := titlePrefix.(string); ok {
+					discussionsConfig.TitlePrefix = titlePrefixStr
+				}
+			}
+
+			// Parse category-id
+			if categoryId, exists := configMap["category-id"]; exists {
+				if categoryIdStr, ok := categoryId.(string); ok {
+					discussionsConfig.CategoryId = categoryIdStr
+				}
+			}
+
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := parseIntValue(max); ok {
+					discussionsConfig.Max = maxInt
+				}
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					discussionsConfig.GitHubToken = githubTokenStr
+				}
+			}
+		}
+
+		return discussionsConfig
+	}
+
+	return nil
+}
+
 // buildCreateOutputDiscussionJob creates the create_discussion job
 func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {

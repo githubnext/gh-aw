@@ -61,3 +61,52 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 
 	return job, nil
 }
+
+// parseMissingToolConfig handles missing-tool configuration
+func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
+	if configData, exists := outputMap["missing-tool"]; exists {
+		missingToolConfig := &MissingToolConfig{} // Default: no max limit
+
+		// Handle the case where configData is nil (missing-tool: with no value)
+		if configData == nil {
+			return missingToolConfig
+		}
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max (optional)
+			if max, exists := configMap["max"]; exists {
+				// Handle different numeric types that YAML parsers might return
+				var maxInt int
+				var validMax bool
+				switch v := max.(type) {
+				case int:
+					maxInt = v
+					validMax = true
+				case int64:
+					maxInt = int(v)
+					validMax = true
+				case uint64:
+					maxInt = int(v)
+					validMax = true
+				case float64:
+					maxInt = int(v)
+					validMax = true
+				}
+				if validMax {
+					missingToolConfig.Max = maxInt
+				}
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					missingToolConfig.GitHubToken = githubTokenStr
+				}
+			}
+		}
+
+		return missingToolConfig
+	}
+
+	return nil
+}

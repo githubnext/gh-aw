@@ -98,3 +98,54 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 
 	return job, nil
 }
+
+// parseUpdateIssuesConfig handles update-issue configuration
+func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
+	if configData, exists := outputMap["update-issue"]; exists {
+		updateIssuesConfig := &UpdateIssuesConfig{Max: 1} // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := parseIntValue(max); ok {
+					updateIssuesConfig.Max = maxInt
+				}
+			}
+
+			// Parse target
+			if target, exists := configMap["target"]; exists {
+				if targetStr, ok := target.(string); ok {
+					updateIssuesConfig.Target = targetStr
+				}
+			}
+
+			// Parse status - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["status"]; exists {
+				// If the key exists, it means we can update the status
+				// We don't care about the value - just that the key is present
+				updateIssuesConfig.Status = new(bool) // Allocate a new bool pointer (defaults to false)
+			}
+
+			// Parse title - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["title"]; exists {
+				updateIssuesConfig.Title = new(bool)
+			}
+
+			// Parse body - presence of the key (even if nil/empty) indicates field can be updated
+			if _, exists := configMap["body"]; exists {
+				updateIssuesConfig.Body = new(bool)
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					updateIssuesConfig.GitHubToken = githubTokenStr
+				}
+			}
+		}
+
+		return updateIssuesConfig
+	}
+
+	return nil
+}

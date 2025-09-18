@@ -119,3 +119,62 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	return job, nil
 }
+
+// parsePullRequestsConfig handles only create-pull-request (singular) configuration
+func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePullRequestsConfig {
+	// Check for singular form only
+	if _, exists := outputMap["create-pull-request"]; !exists {
+		return nil
+	}
+
+	configData := outputMap["create-pull-request"]
+	pullRequestsConfig := &CreatePullRequestsConfig{Max: 1} // Always max 1 for pull requests
+
+	if configMap, ok := configData.(map[string]any); ok {
+		// Parse title-prefix
+		if titlePrefix, exists := configMap["title-prefix"]; exists {
+			if titlePrefixStr, ok := titlePrefix.(string); ok {
+				pullRequestsConfig.TitlePrefix = titlePrefixStr
+			}
+		}
+
+		// Parse labels
+		if labels, exists := configMap["labels"]; exists {
+			if labelsArray, ok := labels.([]any); ok {
+				var labelStrings []string
+				for _, label := range labelsArray {
+					if labelStr, ok := label.(string); ok {
+						labelStrings = append(labelStrings, labelStr)
+					}
+				}
+				pullRequestsConfig.Labels = labelStrings
+			}
+		}
+
+		// Parse draft
+		if draft, exists := configMap["draft"]; exists {
+			if draftBool, ok := draft.(bool); ok {
+				pullRequestsConfig.Draft = &draftBool
+			}
+		}
+
+		// Parse if-no-changes
+		if ifNoChanges, exists := configMap["if-no-changes"]; exists {
+			if ifNoChangesStr, ok := ifNoChanges.(string); ok {
+				pullRequestsConfig.IfNoChanges = ifNoChangesStr
+			}
+		}
+
+		// Parse github-token
+		if githubToken, exists := configMap["github-token"]; exists {
+			if githubTokenStr, ok := githubToken.(string); ok {
+				pullRequestsConfig.GitHubToken = githubTokenStr
+			}
+		}
+
+		// Note: max parameter is not supported for pull requests (always limited to 1)
+		// If max is specified, it will be ignored as pull requests are singular only
+	}
+
+	return pullRequestsConfig
+}

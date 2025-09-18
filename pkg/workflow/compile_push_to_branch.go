@@ -119,3 +119,54 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	return job, nil
 }
+
+// parsePushToPullRequestBranchConfig handles push-to-pr-branch configuration
+func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) *PushToPullRequestBranchConfig {
+	if configData, exists := outputMap["push-to-pr-branch"]; exists {
+		pushToBranchConfig := &PushToPullRequestBranchConfig{
+			IfNoChanges: "warn", // Default behavior: warn when no changes
+		}
+
+		// Handle the case where configData is nil (push-to-pr-branch: with no value)
+		if configData == nil {
+			return pushToBranchConfig
+		}
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse target (optional, similar to add-comment)
+			if target, exists := configMap["target"]; exists {
+				if targetStr, ok := target.(string); ok {
+					pushToBranchConfig.Target = targetStr
+				}
+			}
+
+			// Parse if-no-changes (optional, defaults to "warn")
+			if ifNoChanges, exists := configMap["if-no-changes"]; exists {
+				if ifNoChangesStr, ok := ifNoChanges.(string); ok {
+					// Validate the value
+					switch ifNoChangesStr {
+					case "warn", "error", "ignore":
+						pushToBranchConfig.IfNoChanges = ifNoChangesStr
+					default:
+						// Invalid value, use default and log warning
+						if c.verbose {
+							fmt.Printf("Warning: invalid if-no-changes value '%s', using default 'warn'\n", ifNoChangesStr)
+						}
+						pushToBranchConfig.IfNoChanges = "warn"
+					}
+				}
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					pushToBranchConfig.GitHubToken = githubTokenStr
+				}
+			}
+		}
+
+		return pushToBranchConfig
+	}
+
+	return nil
+}

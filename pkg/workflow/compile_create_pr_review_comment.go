@@ -76,3 +76,41 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 
 	return job, nil
 }
+
+// parsePullRequestReviewCommentsConfig handles create-pull-request-review-comment configuration
+func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any) *CreatePullRequestReviewCommentsConfig {
+	if _, exists := outputMap["create-pull-request-review-comment"]; !exists {
+		return nil
+	}
+
+	configData := outputMap["create-pull-request-review-comment"]
+	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Max: 10, Side: "RIGHT"} // Default max is 10, side is RIGHT
+
+	if configMap, ok := configData.(map[string]any); ok {
+		// Parse max
+		if max, exists := configMap["max"]; exists {
+			if maxInt, ok := parseIntValue(max); ok {
+				prReviewCommentsConfig.Max = maxInt
+			}
+		}
+
+		// Parse side
+		if side, exists := configMap["side"]; exists {
+			if sideStr, ok := side.(string); ok {
+				// Validate side value
+				if sideStr == "LEFT" || sideStr == "RIGHT" {
+					prReviewCommentsConfig.Side = sideStr
+				}
+			}
+		}
+
+		// Parse github-token
+		if githubToken, exists := configMap["github-token"]; exists {
+			if githubTokenStr, ok := githubToken.(string); ok {
+				prReviewCommentsConfig.GitHubToken = githubTokenStr
+			}
+		}
+	}
+
+	return prReviewCommentsConfig
+}

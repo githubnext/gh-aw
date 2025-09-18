@@ -89,3 +89,37 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 
 	return job, nil
 }
+
+// parseCommentsConfig handles add-comment configuration
+func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsConfig {
+	if configData, exists := outputMap["add-comment"]; exists {
+		commentsConfig := &AddCommentsConfig{Max: 1} // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := parseIntValue(max); ok {
+					commentsConfig.Max = maxInt
+				}
+			}
+
+			// Parse target
+			if target, exists := configMap["target"]; exists {
+				if targetStr, ok := target.(string); ok {
+					commentsConfig.Target = targetStr
+				}
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					commentsConfig.GitHubToken = githubTokenStr
+				}
+			}
+		}
+
+		return commentsConfig
+	}
+
+	return nil
+}

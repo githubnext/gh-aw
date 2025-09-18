@@ -5,6 +5,53 @@ import (
 	"strings"
 )
 
+// parseIssuesConfig handles create-issue configuration
+func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
+	if configData, exists := outputMap["create-issue"]; exists {
+		issuesConfig := &CreateIssuesConfig{Max: 1} // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse title-prefix
+			if titlePrefix, exists := configMap["title-prefix"]; exists {
+				if titlePrefixStr, ok := titlePrefix.(string); ok {
+					issuesConfig.TitlePrefix = titlePrefixStr
+				}
+			}
+
+			// Parse labels
+			if labels, exists := configMap["labels"]; exists {
+				if labelsArray, ok := labels.([]any); ok {
+					var labelStrings []string
+					for _, label := range labelsArray {
+						if labelStr, ok := label.(string); ok {
+							labelStrings = append(labelStrings, labelStr)
+						}
+					}
+					issuesConfig.Labels = labelStrings
+				}
+			}
+
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := parseIntValue(max); ok {
+					issuesConfig.Max = maxInt
+				}
+			}
+
+			// Parse github-token
+			if githubToken, exists := configMap["github-token"]; exists {
+				if githubTokenStr, ok := githubToken.(string); ok {
+					issuesConfig.GitHubToken = githubTokenStr
+				}
+			}
+		}
+
+		return issuesConfig
+	}
+
+	return nil
+}
+
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
