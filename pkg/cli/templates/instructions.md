@@ -904,6 +904,14 @@ Use `gh aw compile --verbose` to see detailed validation messages, or `gh aw com
 gh extension install githubnext/gh-aw
 ```
 
+If there are authentication issues, use the standalone installer:
+
+```bash
+curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
+chmod +x install-gh-aw.sh
+./install-gh-aw.sh
+```
+
 ### Compile Workflows
 
 ```bash
