@@ -194,7 +194,7 @@ func joinStrings(strs []string, sep string) string {
 func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 	// This test verifies that the production GitHub MCP registry is accessible
 	// It checks basic HTTP connectivity to the /servers endpoint
-	
+
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -204,16 +204,16 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 	}
 
 	registryURL := constants.DefaultMCPRegistryURL + "/servers"
-	
+
 	req, err := http.NewRequest("GET", registryURL, nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
-	
+
 	// Set standard headers that our MCP client uses
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "gh-aw-cli")
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Logf("Network request failed: %v", err)
@@ -222,7 +222,7 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	// We expect either 200 (success) or 403 (firewall/network restriction)
 	// Both indicate the endpoint exists and is reachable
 	if resp.StatusCode == http.StatusOK {
@@ -232,7 +232,7 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 	} else {
 		t.Errorf("GitHub MCP registry returned unexpected status: %d", resp.StatusCode)
 	}
-	
+
 	// Verify the Content-Type header indicates this is a JSON API
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "" && !containsSubstring(contentType, "application/json") {

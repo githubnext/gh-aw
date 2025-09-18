@@ -56,7 +56,7 @@ func (c *MCPRegistryClient) createRegistryRequest(method, url string) (*http.Req
 	// Set standard headers
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "gh-aw-cli")
-	
+
 	return req, nil
 }
 
