@@ -2345,8 +2345,94 @@ This is a test workflow with explicit network permissions.
 		}
 	})
 
-	t.Run("network permissions with non-claude engine should be ignored", func(t *testing.T) {
-		testContent := `---
+	t.Run("network permissions with codex engine - valid configurations", func(t *testing.T) {
+		// Test empty object - should succeed and set network = false
+		testContentEmpty := `---
+on: push
+engine: codex
+network: {}
+---
+
+# Test Workflow
+
+This is a test workflow with empty network permissions and codex engine.
+`
+		testFileEmpty := filepath.Join(tmpDir, "codex-network-empty.md")
+		if err := os.WriteFile(testFileEmpty, []byte(testContentEmpty), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Test wildcard - should succeed and set network = true
+		testContentWildcard := `---
+on: push
+engine: codex
+network:
+  allowed: ["*"]
+---
+
+# Test Workflow
+
+This is a test workflow with wildcard network permissions and codex engine.
+`
+		testFileWildcard := filepath.Join(tmpDir, "codex-network-wildcard.md")
+		if err := os.WriteFile(testFileWildcard, []byte(testContentWildcard), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Compile the empty network workflow
+		err := compiler.CompileWorkflow(testFileEmpty)
+		if err != nil {
+			t.Fatalf("Unexpected compilation error for empty network: %v", err)
+		}
+
+		// Check that network = false is in the config
+		lockFileEmpty := filepath.Join(tmpDir, "codex-network-empty.lock.yml")
+		lockContentEmpty, err := os.ReadFile(lockFileEmpty)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		if !strings.Contains(string(lockContentEmpty), "network = false") {
+			t.Error("Should contain 'network = false' for empty network permissions")
+		}
+
+		// Compile the wildcard network workflow
+		err = compiler.CompileWorkflow(testFileWildcard)
+		if err != nil {
+			t.Fatalf("Unexpected compilation error for wildcard network: %v", err)
+		}
+
+		// Check that network = true is in the config
+		lockFileWildcard := filepath.Join(tmpDir, "codex-network-wildcard.lock.yml")
+		lockContentWildcard, err := os.ReadFile(lockFileWildcard)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
+		}
+
+		if !strings.Contains(string(lockContentWildcard), "network = true") {
+			t.Error("Should contain 'network = true' for wildcard network permissions")
+		}
+	})
+
+	t.Run("network permissions with codex engine - invalid configurations", func(t *testing.T) {
+		// Test defaults - should fail
+		testContentDefaults := `---
+on: push
+engine: codex
+network: defaults
+---
+
+# Test Workflow
+
+This should fail compilation.
+`
+		testFileDefaults := filepath.Join(tmpDir, "codex-network-defaults.md")
+		if err := os.WriteFile(testFileDefaults, []byte(testContentDefaults), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Test specific domains - should fail
+		testContentSpecific := `---
 on: push
 engine: codex
 network:
@@ -2355,9 +2441,43 @@ network:
 
 # Test Workflow
 
-This is a test workflow with network permissions and codex engine.
+This should fail compilation.
 `
-		testFile := filepath.Join(tmpDir, "codex-network-workflow.md")
+		testFileSpecific := filepath.Join(tmpDir, "codex-network-specific.md")
+		if err := os.WriteFile(testFileSpecific, []byte(testContentSpecific), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Compile the defaults workflow - should fail
+		err := compiler.CompileWorkflow(testFileDefaults)
+		if err == nil {
+			t.Error("Expected compilation to fail for network: defaults with Codex engine")
+		} else if !strings.Contains(err.Error(), "network: defaults is not supported") {
+			t.Errorf("Expected specific error about defaults, got: %v", err)
+		}
+
+		// Compile the specific domains workflow - should fail
+		err = compiler.CompileWorkflow(testFileSpecific)
+		if err == nil {
+			t.Error("Expected compilation to fail for specific domains with Codex engine")
+		} else if !strings.Contains(err.Error(), "specific network domains are not supported") {
+			t.Errorf("Expected specific error about domains, got: %v", err)
+		}
+	})
+
+	t.Run("network permissions with claude engine - should continue to work", func(t *testing.T) {
+		testContent := `---
+on: push
+engine: claude
+network:
+  allowed: ["example.com"]
+---
+
+# Test Workflow
+
+This is a test workflow with network permissions and claude engine.
+`
+		testFile := filepath.Join(tmpDir, "claude-network-workflow.md")
 		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -2369,15 +2489,15 @@ This is a test workflow with network permissions and codex engine.
 		}
 
 		// Read the compiled output
-		lockFile := filepath.Join(tmpDir, "codex-network-workflow.lock.yml")
+		lockFile := filepath.Join(tmpDir, "claude-network-workflow.lock.yml")
 		lockContent, err := os.ReadFile(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should not contain claude-specific network hook setup
-		if strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should not contain network hook setup for non-claude engines")
+		// Should contain claude-specific network hook setup
+		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
+			t.Error("Should contain network hook setup for Claude engines")
 		}
 	})
 }

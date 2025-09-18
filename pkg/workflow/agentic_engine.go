@@ -56,6 +56,10 @@ type CodingAgentEngine interface {
 
 	// GetErrorPatterns returns regex patterns for extracting error messages from logs
 	GetErrorPatterns() []ErrorPattern
+
+	// ValidateNetworkPermissions validates network permissions for this engine
+	// Returns an error if the network configuration is not supported by this engine
+	ValidateNetworkPermissions(networkPermissions *NetworkPermissions) error
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -119,6 +123,11 @@ func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 // GetErrorPatterns returns an empty list by default (engines can override)
 func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{}
+}
+
+// ValidateNetworkPermissions returns nil by default (engines can override for custom validation)
+func (e *BaseEngine) ValidateNetworkPermissions(networkPermissions *NetworkPermissions) error {
+	return nil
 }
 
 // EngineRegistry manages available agentic engines

@@ -134,6 +134,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: codex
+network: {}
 safe-outputs:
   add-labels:
     allowed: ["bug", "enhancement"]

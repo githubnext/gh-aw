@@ -569,10 +569,38 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	}
 }
 
+// ValidateNetworkPermissions validates network permissions for Codex engine
+func (e *CodexEngine) ValidateNetworkPermissions(networkPermissions *NetworkPermissions) error {
+	// If no network permissions specified, that's fine for Codex
+	if networkPermissions == nil {
+		return nil
+	}
+
+	// Check for "defaults" mode - not supported by Codex
+	if networkPermissions.Mode == "defaults" {
+		return fmt.Errorf("network: defaults is not supported by Codex engine. Use network: {} for no network access or network: { allowed: [\"*\"] } for full network access")
+	}
+
+	// Check for allowed domains
+	if len(networkPermissions.Allowed) == 0 {
+		// Empty allowed list {} is valid - means no network access
+		return nil
+	}
+
+	// Check if it's the wildcard for full network access
+	if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "*" {
+		// This is valid - means full network access
+		return nil
+	}
+
+	// Any other specific domains or patterns are not supported by Codex
+	return fmt.Errorf("specific network domains are not supported by Codex engine. Use network: {} for no network access or network: { allowed: [\"*\"] } for full network access")
+}
+
 // renderNetworkConfig generates network configuration for codex config.toml
 func (e *CodexEngine) renderNetworkConfig(yaml *strings.Builder, networkPermissions *NetworkPermissions) {
 	yaml.WriteString("          \n")
-	
+
 	// Default network setting if no permissions specified (equivalent to network: defaults for other engines)
 	if networkPermissions == nil {
 		yaml.WriteString("          # Network access enabled by default\n")

@@ -25,6 +25,7 @@ permissions:
 engine:
   id: codex
   max-turns: 5
+network: {}
 ---
 
 # Test Workflow
@@ -60,6 +61,7 @@ on:
 permissions:
   contents: read
 engine: codex
+network: {}
 ---
 
 # Test Workflow

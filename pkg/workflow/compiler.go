@@ -512,13 +512,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 
-	// Default to 'defaults' network access if no network permissions specified
-	if networkPermissions == nil {
-		networkPermissions = &NetworkPermissions{
-			Mode: "defaults",
-		}
-	}
-
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting
@@ -552,6 +545,21 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Set default network permissions based on the final engine
+	if networkPermissions == nil {
+		if engineSetting == "codex" {
+			// Default to no network access for Codex
+			networkPermissions = &NetworkPermissions{
+				Allowed: []string{}, // Empty allowed list means no network access
+			}
+		} else {
+			// Default to 'defaults' network access for other engines
+			networkPermissions = &NetworkPermissions{
+				Mode: "defaults",
+			}
+		}
+	}
+
 	// Validate the engine setting
 	if err := c.validateEngine(engineSetting); err != nil {
 		return nil, fmt.Errorf("invalid engine setting '%s': %w", engineSetting, err)
@@ -573,7 +581,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Validate Codex-specific network permissions early
 	if agenticEngine.GetID() == "codex" {
-		if err := c.validateCodexNetworkPermissions(networkPermissions); err != nil {
+		if err := agenticEngine.ValidateNetworkPermissions(networkPermissions); err != nil {
 			return nil, fmt.Errorf("invalid network configuration for Codex engine: %w", err)
 		}
 	}
@@ -615,7 +623,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if _, hasTools := result.Frontmatter["tools"]; hasTools {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
 		}
-		
+
 		tools = map[string]any{}
 		// For now, we'll add a basic github tool (always uses docker MCP)
 		githubConfig := map[string]any{}
@@ -4816,32 +4824,4 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 	// For now, we rely on JSON schema validation for format checking
 
 	return nil
-}
-
-// validateCodexNetworkPermissions validates network permissions for Codex engine
-func (c *Compiler) validateCodexNetworkPermissions(networkPermissions *NetworkPermissions) error {
-	// If no network permissions specified, that's fine for Codex
-	if networkPermissions == nil {
-		return nil
-	}
-
-	// Check for "defaults" mode - not supported by Codex
-	if networkPermissions.Mode == "defaults" {
-		return fmt.Errorf("network: defaults is not supported by Codex engine. Use network: {} for no network access or network: { allowed: [\"*\"] } for full network access")
-	}
-
-	// Check for allowed domains
-	if len(networkPermissions.Allowed) == 0 {
-		// Empty allowed list {} is valid - means no network access
-		return nil
-	}
-
-	// Check if it's the wildcard for full network access
-	if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "*" {
-		// This is valid - means full network access
-		return nil
-	}
-
-	// Any other specific domains or patterns are not supported by Codex
-	return fmt.Errorf("specific network domains are not supported by Codex engine. Use network: {} for no network access or network: { allowed: [\"*\"] } for full network access")
 }

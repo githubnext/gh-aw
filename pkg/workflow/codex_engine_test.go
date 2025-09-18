@@ -283,6 +283,9 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"[history]",
 				"persistence = \"none\"",
 				"",
+				"# Network access enabled by default",
+				"network = true",
+				"",
 				"[mcp_servers.github]",
 				"user_agent = \"test-workflow\"",
 				"command = \"docker\"",
@@ -575,4 +578,110 @@ func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCodexEngineNetworkValidation(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("network permissions validation - nil permissions", func(t *testing.T) {
+		err := engine.ValidateNetworkPermissions(nil)
+		if err != nil {
+			t.Errorf("Expected nil permissions to be valid, got error: %v", err)
+		}
+	})
+
+	t.Run("network permissions validation - empty allowed list", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{},
+		}
+		err := engine.ValidateNetworkPermissions(permissions)
+		if err != nil {
+			t.Errorf("Expected empty allowed list to be valid, got error: %v", err)
+		}
+	})
+
+	t.Run("network permissions validation - wildcard allowed", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"*"},
+		}
+		err := engine.ValidateNetworkPermissions(permissions)
+		if err != nil {
+			t.Errorf("Expected wildcard to be valid, got error: %v", err)
+		}
+	})
+
+	t.Run("network permissions validation - defaults mode not supported", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Mode: "defaults",
+		}
+		err := engine.ValidateNetworkPermissions(permissions)
+		if err == nil {
+			t.Error("Expected defaults mode to be invalid for Codex")
+		}
+		if !strings.Contains(err.Error(), "network: defaults is not supported") {
+			t.Errorf("Expected specific error message about defaults, got: %v", err)
+		}
+	})
+
+	t.Run("network permissions validation - specific domains not supported", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"example.com", "api.github.com"},
+		}
+		err := engine.ValidateNetworkPermissions(permissions)
+		if err == nil {
+			t.Error("Expected specific domains to be invalid for Codex")
+		}
+		if !strings.Contains(err.Error(), "specific network domains are not supported") {
+			t.Errorf("Expected specific error message about domains, got: %v", err)
+		}
+	})
+}
+
+func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("renderNetworkConfig - nil permissions", func(t *testing.T) {
+		var yaml strings.Builder
+		engine.renderNetworkConfig(&yaml, nil)
+		output := yaml.String()
+
+		if !strings.Contains(output, "network = true") {
+			t.Error("Expected config.toml to contain 'network = true' for nil permissions")
+		}
+		if !strings.Contains(output, "Network access enabled by default") {
+			t.Error("Expected comment about default access")
+		}
+	})
+
+	t.Run("renderNetworkConfig - empty allowed list", func(t *testing.T) {
+		var yaml strings.Builder
+		permissions := &NetworkPermissions{
+			Allowed: []string{},
+		}
+		engine.renderNetworkConfig(&yaml, permissions)
+		output := yaml.String()
+
+		if !strings.Contains(output, "network = false") {
+			t.Error("Expected config.toml to contain 'network = false' for empty allowed list")
+		}
+		if !strings.Contains(output, "Network access disabled") {
+			t.Error("Expected comment about disabled access")
+		}
+	})
+
+	t.Run("renderNetworkConfig - wildcard allowed", func(t *testing.T) {
+		var yaml strings.Builder
+		permissions := &NetworkPermissions{
+			Allowed: []string{"*"},
+		}
+		engine.renderNetworkConfig(&yaml, permissions)
+		output := yaml.String()
+
+		if !strings.Contains(output, "network = true") {
+			t.Error("Expected config.toml to contain 'network = true' for wildcard")
+		}
+		if !strings.Contains(output, "Network access enabled") {
+			t.Error("Expected comment about enabled access")
+		}
+	})
 }
