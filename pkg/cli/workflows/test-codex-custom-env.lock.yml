@@ -31,6 +31,13 @@ jobs:
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/config.toml << EOF
+          sandbox_mode = "workspace-write"
+          
+          [sandbox_workspace_write]
+          exclude_tmpdir_env_var = false
+          exclude_slash_tmp = false
+          network_access = false
+          
           [history]
           persistence = "none"
           
@@ -135,7 +142,7 @@ jobs:
           codex login --api-key "$OPENAI_API_KEY"
           
           # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex exec --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-custom-environment-variable.log
+          codex --full-auto exec--dangerously-bypass-approvals-and-sandbox  "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-custom-environment-variable.log
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

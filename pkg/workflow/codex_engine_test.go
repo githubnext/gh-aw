@@ -280,6 +280,13 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 			mcpTools: []string{"github"},
 			expected: []string{
 				"cat > /tmp/mcp-config/config.toml << EOF",
+				"sandbox_mode = \"workspace-write\"",
+				"",
+				"[sandbox_workspace_write]",
+				"exclude_tmpdir_env_var = false",
+				"exclude_slash_tmp = false",
+				"network_access = false",
+				"",
 				"[history]",
 				"persistence = \"none\"",
 				"",

@@ -331,9 +331,34 @@ Different agentic engines have distinct defaults and operational surfaces.
 - Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
 - Use engine network permissions with ecosystem identifiers to grant access to only required development tools
 
+#### `engine: codex`
+
+Codex uses workspace sandboxing for enhanced security:
+
+- **Sandboxing Mode**: Automatically configured with `sandbox_mode = "workspace-write"` 
+- **Network Access Control**: Determined by your network configuration:
+  - No network config or `network: defaults` → Network access disabled (localhost only)
+  - `network: { allowed: ["*"] }` → Network access enabled (all domains)
+  - Specific domain lists → **Compilation error** (not supported)
+- **File System Access**: Limited to workspace directory, `/tmp`, and `$TMPDIR` with configurable exclusions
+- **Dependency Pinning**: Tool configurations are locked in compiled `.lock.yml` for review
+
+Example Codex network configurations:
+
+```yaml
+# Disable network access (recommended)
+engine: codex
+network: defaults  # or omit network section entirely
+
+# Enable full network access (use with caution)
+engine: codex
+network:
+  allowed: ["*"]
+```
+
 #### Security posture differences with Codex
 
-Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors. In both cases, tool allow-lists, network restrictions, and pinned dependencies are your primary controls.
+Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors with additional sandboxing. In both cases, tool allow-lists, network restrictions, and pinned dependencies are your primary controls.
 
 ## See also
 

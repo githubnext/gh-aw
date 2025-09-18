@@ -219,6 +219,27 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
 
+	// Add sandbox configuration
+	yaml.WriteString("          sandbox_mode = \"workspace-write\"\n")
+	yaml.WriteString("          \n")
+
+	// Add sandbox workspace-write configuration
+	yaml.WriteString("          [sandbox_workspace_write]\n")
+	yaml.WriteString("          exclude_tmpdir_env_var = false\n")
+	yaml.WriteString("          exclude_slash_tmp = false\n")
+
+	// Determine network access based on network permissions
+	networkAccess, err := e.evaluateNetworkAccessForCodex(workflowData.NetworkPermissions)
+	if err != nil {
+		// This will cause compilation to fail
+		yaml.WriteString(fmt.Sprintf("          # ERROR: %s\n", err.Error()))
+		yaml.WriteString("          network_access = false  # Failed to evaluate\n")
+	} else {
+		yaml.WriteString(fmt.Sprintf("          network_access = %t\n", networkAccess))
+	}
+
+	yaml.WriteString("          \n")
+
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")
 	yaml.WriteString("          persistence = \"none\"\n")
@@ -520,6 +541,38 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 		yaml.WriteString("          ]\n")
 		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
 	}
+}
+
+// evaluateNetworkAccessForCodex determines the network_access setting for Codex sandboxing
+// based on the network permissions configuration
+func (e *CodexEngine) evaluateNetworkAccessForCodex(networkPermissions *NetworkPermissions) (bool, error) {
+	if networkPermissions == nil {
+		// Default case (nil permissions) means defaults/localhost only -> network_access = false
+		return false, nil
+	}
+
+	// Handle Mode field (for "defaults" case)
+	if networkPermissions.Mode == "defaults" {
+		// Default network permissions (localhost) -> network_access = false
+		return false, nil
+	}
+
+	// Handle Allowed field
+	if len(networkPermissions.Allowed) == 0 {
+		// Empty allowed list (network: {}) means no network access -> network_access = false
+		return false, nil
+	}
+
+	// Check if it contains "*" (allow all)
+	for _, domain := range networkPermissions.Allowed {
+		if domain == "*" {
+			// Allow all -> network_access = true
+			return true, nil
+		}
+	}
+
+	// Anything else (specific domains) should cause compilation error
+	return false, fmt.Errorf("Codex sandboxing does not support specific domain allowlists. Use 'defaults' for localhost access or '*' to allow all network access")
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs
