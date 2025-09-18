@@ -88,10 +88,7 @@ describe("create_issue.cjs", () => {
     delete global.context.payload.issue;
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/create_issue.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "create_issue.cjs");
     createIssueScript = fs.readFileSync(scriptPath, "utf8");
   });
 

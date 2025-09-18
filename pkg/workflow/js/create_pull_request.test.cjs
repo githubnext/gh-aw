@@ -30,10 +30,7 @@ describe("create_pull_request.cjs", () => {
 
   beforeEach(() => {
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/create_pull_request.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "create_pull_request.cjs");
     const scriptContent = readFileSync(scriptPath, "utf8");
 
     // Create testable function

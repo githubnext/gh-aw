@@ -89,10 +89,7 @@ describe("add_labels.cjs", () => {
     delete global.context.payload.pull_request;
 
     // Read the script content
-    const scriptPath = path.join(
-      process.cwd(),
-      "pkg/workflow/js/add_labels.cjs"
-    );
+    const scriptPath = path.join(process.cwd(), "add_labels.cjs");
     addLabelsScript = fs.readFileSync(scriptPath, "utf8");
   });
 

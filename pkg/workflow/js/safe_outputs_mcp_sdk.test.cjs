@@ -6,7 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client";
 // Import from the actual file path since the package exports seem to have issues
 const {
   StdioClientTransport,
-} = require("../../../node_modules/@modelcontextprotocol/sdk/dist/cjs/client/stdio.js");
+} = require("./node_modules/@modelcontextprotocol/sdk/dist/cjs/client/stdio.js");
 
 // Mock environment for isolated testing
 const originalEnv = process.env;

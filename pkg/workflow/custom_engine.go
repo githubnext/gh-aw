@@ -49,6 +49,9 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// Always add GITHUB_AW_PROMPT for agentic workflows
 			envVars["GITHUB_AW_PROMPT"] = "/tmp/aw-prompts/prompt.txt"
 
+			// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
+			envVars["GITHUB_AW_MCP_CONFIG"] = "/tmp/mcp-config/mcp-servers.json"
+
 			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
 			if workflowData.SafeOutputs != nil {
 				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
