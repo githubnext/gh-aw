@@ -1,6 +1,38 @@
 package workflow
 
-import "github.com/githubnext/gh-aw/pkg/constants"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+)
+
+func (c *Compiler) generateRoleCheck(data *WorkflowData, steps []string) []string {
+	if data.Command != "" {
+		steps = append(steps, "      - name: Check team membership for command workflow\n")
+	} else {
+		steps = append(steps, "      - name: Check team membership for workflow\n")
+	}
+	steps = append(steps, "        id: check-team-member\n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
+
+	// Add environment variables for permission check
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Generate the JavaScript code for the permission check
+	scriptContent := c.generateRoleCheckScript(data.Roles)
+	scriptLines := strings.Split(scriptContent, "\n")
+	for _, line := range scriptLines {
+		if strings.TrimSpace(line) != "" {
+			steps = append(steps, fmt.Sprintf("            %s\n", line))
+		}
+	}
+	return steps
+}
 
 // generateRoleCheckScript generates JavaScript code to check user permissions
 func (c *Compiler) generateRoleCheckScript(requiredPermissions []string) string {
