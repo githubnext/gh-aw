@@ -444,7 +444,7 @@ func TestCreateMCPToolConfig_StdioTransport(t *testing.T) {
 	}
 
 	// Check that registry field contains the direct server URL with server name
-	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example%2Ftest-server"
+	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example/test-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
@@ -477,7 +477,7 @@ func TestCreateMCPToolConfig_PreferredTransport(t *testing.T) {
 	}
 
 	// Check that registry field contains the direct server URL with server name
-	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example%2Ftest-server"
+	expectedRegistry := "https://api.mcp.github.com/v0/servers/io.github.example/test-server"
 	if mcpSection["registry"] != expectedRegistry {
 		t.Errorf("Expected registry to be '%s', got '%v'", expectedRegistry, mcpSection["registry"])
 	}
