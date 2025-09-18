@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	v0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 )
 
 func TestAddMCPTool_BasicFunctionality(t *testing.T) {
@@ -487,8 +485,8 @@ func TestListAvailableServers(t *testing.T) {
 	// Create a test HTTP server
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/servers" {
-			response := v0.ServerListResponse{
-				Servers: []v0.ServerJSON{
+			response := ServerListResponse{
+				Servers: []Server{
 					{
 						Name:        "io.github.makenotion/notion-mcp-server",
 						Description: "Connect to Notion API",
