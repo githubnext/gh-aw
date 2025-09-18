@@ -45,7 +45,7 @@ Agentic workflows use an AI engine. For Claude add this repository secret:
 gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
 ```
 
-For Codex (experimental), add:
+For Codex (experimental, see [Codex CLI documentation](https://github.com/openai/codex/)), add:
 
 ```bash
 gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"

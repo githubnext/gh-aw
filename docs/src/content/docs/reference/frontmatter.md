@@ -195,7 +195,7 @@ engine:
 
 **Secret Override Example:**
 
-You can override default secrets used by engines. This is particularly useful for Codex workflows when you need to use a different OpenAI API key:
+You can override default secrets used by engines. This is particularly useful for Codex workflows when you need to use a different OpenAI API key (see [Codex CLI documentation](https://github.com/openai/codex/) for more details):
 
 ```yaml
 engine:

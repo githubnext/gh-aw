@@ -333,7 +333,7 @@ Different agentic engines have distinct defaults and operational surfaces.
 
 #### `engine: codex`
 
-Codex uses workspace sandboxing for enhanced security:
+Codex uses workspace sandboxing for enhanced security (see [Codex Configuration Documentation](https://github.com/openai/codex/blob/main/docs/config.md)):
 
 - **Sandboxing Mode**: Automatically configured with `sandbox_mode = "workspace-write"` 
 - **Network Access Control**: Determined by your network configuration:
@@ -355,6 +355,8 @@ engine: codex
 network:
   allowed: ["*"]
 ```
+
+For more details on Codex CLI usage, see the [official Codex CLI documentation](https://github.com/openai/codex/).
 
 #### Security posture differences with Codex
 
