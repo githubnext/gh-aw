@@ -27,7 +27,9 @@ make build       # ~1.5s
 ```bash
 make fmt         # Format code (run before linting)
 make lint        # ~5.5s
-make test        # ~4s
+make test-unit   # Unit tests only (~2.5s, recommended for development)
+make test        # All tests (~4s)
+make test-integration # Integration tests only (~3.5s)
 make recompile   # Recompile workflows
 make agent-finish # Complete validation
 ```
@@ -127,10 +129,13 @@ tools:
 - Multi-browser support (Chromium, Firefox, Safari)
 
 ## Testing Strategy
-- Unit tests: All packages have coverage
-- CLI integration tests: Command behavior
-- Workflow compilation tests: Markdown to YAML conversion
-- Manual validation after changes
+- **Unit tests**: All packages have coverage - run with `make test-unit` for fast feedback during development
+- **Integration tests**: Command behavior and binary compilation - run with `make test-integration`
+- **Combined testing**: Use `make test` to run all tests (unit + integration)
+- **Workflow compilation tests**: Markdown to YAML conversion
+- **Manual validation**: Always test after changes
+
+**Recommended workflow**: Run `make test-unit` first for quick validation, then `make test-integration` or `make test` for complete coverage.
 
 ## Release Process
 ```bash
@@ -140,6 +145,7 @@ make minor-release  # Automated via GitHub Actions
 ## Quick Reference for AI Agents
 - Go project with Makefile-managed build/test/lint
 - Always run `make agent-finish` before commits
+- Use `make test-unit` for fast development testing, `make test` for full coverage
 - Use console formatting for user output
 - Repository: `githubnext/gh-aw`
 - Include issue numbers in PR titles when fixing issues
