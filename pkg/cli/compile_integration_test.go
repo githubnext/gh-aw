@@ -40,7 +40,7 @@ type integrationTestSetup struct {
 	cleanup      func()
 }
 
-// setupIntegrationTest creates a temporary directory and builds the gh-aw binary
+// setupIntegrationTest creates a temporary directory and reuses or builds the gh-aw binary
 // This is the equivalent of @Before in Java - common setup for all integration tests
 func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 	t.Helper()
@@ -60,18 +60,23 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Build the gh-aw binary
+	// Check if binary already exists in project root, otherwise build it
 	binaryPath := filepath.Join(tempDir, "gh-aw")
 	projectRoot := filepath.Join(originalWd, "..", "..")
-	buildCmd := exec.Command("make", "build")
-	buildCmd.Dir = projectRoot
-	buildCmd.Stderr = os.Stderr
-	if err := buildCmd.Run(); err != nil {
-		t.Fatalf("Failed to build gh-aw binary: %v", err)
-	}
-
-	// Copy binary to temp directory (use copy instead of move to avoid cross-device link issues)
 	srcBinary := filepath.Join(projectRoot, "gh-aw")
+	
+	// Check if source binary exists, otherwise build
+	if _, err := os.Stat(srcBinary); os.IsNotExist(err) {
+		// Binary doesn't exist, build it
+		buildCmd := exec.Command("make", "build")
+		buildCmd.Dir = projectRoot
+		buildCmd.Stderr = os.Stderr
+		if err := buildCmd.Run(); err != nil {
+			t.Fatalf("Failed to build gh-aw binary: %v", err)
+		}
+	}
+	
+	// Copy binary to temp directory
 	if err := copyFile(srcBinary, binaryPath); err != nil {
 		t.Fatalf("Failed to copy gh-aw binary to temp directory: %v", err)
 	}
@@ -229,10 +234,12 @@ Please check the repository for any open issues and create a summary.
 	// Wait for the process to finish
 	err = cmd.Wait()
 
-	// Ensure reader goroutine drains remaining output
+	// Give minimal time for goroutine to finish reading, but don't wait unnecessarily long
 	select {
 	case <-done:
-	case <-time.After(750 * time.Millisecond):
+		// Reader finished, we're good
+	case <-time.After(100 * time.Millisecond):
+		// Fallback timeout - much shorter than original 750ms
 	}
 
 	output := buf.String()
