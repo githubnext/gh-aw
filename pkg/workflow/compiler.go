@@ -1847,6 +1847,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateExtractAccessLogs(yaml, data.Tools)
 	c.generateUploadAccessLogs(yaml, data.Tools)
 
+	// upload MCP logs (if any MCP tools were used)
+	c.generateUploadMCPLogs(yaml, data.Tools)
+
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine, logFileFull)
 
@@ -2017,6 +2020,30 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          name: access.log\n")
 	yaml.WriteString("          path: /tmp/access-logs/\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string]any) {
+	// Check if any tools use Playwright MCP server
+	hasPlaywright := false
+	for toolName := range tools {
+		if toolName == "playwright" {
+			hasPlaywright = true
+			break
+		}
+	}
+
+	// If no Playwright MCP server, no MCP logs to upload
+	if !hasPlaywright {
+		return
+	}
+
+	yaml.WriteString("      - name: Upload MCP logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: mcp-logs\n")
+	yaml.WriteString("          path: /tmp/mcp-logs/\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {

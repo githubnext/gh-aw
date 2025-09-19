@@ -208,10 +208,14 @@ func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                \"command\": \"npx\",\n")
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("                  \"--output-dir\",\n")
+	yaml.WriteString("                  \"/tmp/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
+		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"--allowed-origins\",\n")
-		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ",") + "\"\n")
+		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ",") + "\"")
 	}
+	yaml.WriteString("\n")
 	yaml.WriteString("                ]\n")
 
 	if isLast {
