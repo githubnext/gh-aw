@@ -404,3 +404,58 @@ func deepEqual(a, b any) bool {
 	}
 	return bytes.Equal(aBytes, bBytes)
 }
+
+func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
+	tempFile := createTempOutputFile(t)
+	defer os.Remove(tempFile)
+
+	config := map[string]any{
+		"publish-asset": map[string]any{
+			"enabled": true,
+		},
+	}
+
+	client := NewMCPTestClient(t, tempFile, config)
+	defer client.Close()
+
+	// Create a test file to publish
+	testFilePath := "/tmp/test-asset.txt"
+	testContent := "This is a test asset file."
+
+	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	defer os.Remove(testFilePath)
+
+	// Call publish-asset tool
+	ctx := context.Background()
+	result, err := client.CallTool(ctx, "publish-asset", map[string]any{
+		"path": testFilePath,
+	})
+	if err != nil {
+		t.Fatalf("Failed to call publish-asset: %v", err)
+	}
+
+	// Check response structure
+	if len(result.Content) == 0 {
+		t.Fatalf("Expected at least one content item")
+	}
+
+	// Type assert to text content (should be safe since we're generating text content)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("Expected first content item to be text content, got %T", result.Content[0])
+	}
+
+	if !strings.Contains(textContent.Text, "Asset published successfully") {
+		t.Errorf("Expected response to mention asset publishing, got: %s", textContent.Text)
+	}
+
+	// Verify the output file contains the expected entry
+	if err := verifyOutputFile(t, tempFile, "publish-asset", map[string]any{
+		"path": testFilePath,
+		"type": "publish-asset",
+	}); err != nil {
+		t.Fatalf("Output file verification failed: %v", err)
+	}
+}

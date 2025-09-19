@@ -4,6 +4,9 @@ import "strings"
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.AddComments != nil ||
@@ -13,6 +16,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
+		safeOutputs.PublishAssets != nil ||
 		safeOutputs.MissingTool != nil
 }
 
@@ -75,6 +79,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Creating Code Scanning Alert")
+		written = true
+	}
+
+	if safeOutputs.PublishAssets != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Publishing Assets")
 		written = true
 	}
 
@@ -143,6 +155,19 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Creating Code Scanning Alert**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To create code scanning alert use the create-code-scanning-alert tool from the safe-outputs MCP\n")
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.PublishAssets != nil {
+		yaml.WriteString("          **Publishing Assets**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To publish files as URL-addressable assets:\n")
+		yaml.WriteString("          1. Use the publish-asset tool from the safe-outputs MCP\n")
+		yaml.WriteString("          2. Provide the path to the file you want to publish\n")
+		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
+		yaml.WriteString("          4. Assets are published to an orphaned git branch after workflow completion\n")
+		yaml.WriteString("          5. Only safe file types are allowed (no executables)\n")
+		yaml.WriteString("          6. Maximum file size is limited (default: 10MB)\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -285,6 +310,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
 			if pushToBranchConfig != nil {
 				config.PushToPullRequestBranch = pushToBranchConfig
+			}
+
+			// Handle publish-asset
+			publishAssetsConfig := c.parsePublishAssetsConfig(outputMap)
+			if publishAssetsConfig != nil {
+				config.PublishAssets = publishAssetsConfig
 			}
 
 			// Handle missing-tool (parse configuration if present)

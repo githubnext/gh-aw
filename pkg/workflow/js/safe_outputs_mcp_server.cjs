@@ -127,6 +127,141 @@ const defaultHandler = type => args => {
   };
 };
 
+const publishAssetHandler = args => {
+  const path = require("path");
+  const crypto = require("crypto");
+
+  const { path: filePath } = args;
+
+  // Validate file exists
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+
+  // Get file stats
+  const stats = fs.statSync(filePath);
+  const sizeBytes = stats.size;
+  const sizeKB = Math.ceil(sizeBytes / 1024);
+
+  // Check file size (default max 10MB = 10240 KB)
+  const maxSizeKB = 10240;
+  if (sizeKB > maxSizeKB) {
+    throw new Error(
+      `File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`
+    );
+  }
+
+  // Check file extension
+  const ext = path.extname(filePath).toLowerCase();
+  const allowedExts = [
+    // Images
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".svg",
+    ".webp",
+    ".bmp",
+    ".ico",
+    // Documents
+    ".pdf",
+    ".txt",
+    ".md",
+    ".rtf",
+    ".doc",
+    ".docx",
+    // Data formats
+    ".json",
+    ".yaml",
+    ".yml",
+    ".xml",
+    ".csv",
+    ".tsv",
+    // Web assets
+    ".css",
+    ".js",
+    ".html",
+    ".htm",
+    // Archives (non-executable)
+    ".zip",
+    ".tar",
+    ".gz",
+    ".bz2",
+    // Audio/Video
+    ".mp3",
+    ".mp4",
+    ".avi",
+    ".mov",
+    ".wmv",
+    ".flv",
+    ".webm",
+    ".ogg",
+    // Fonts
+    ".ttf",
+    ".otf",
+    ".woff",
+    ".woff2",
+    ".eot",
+    // Other safe formats
+    ".log",
+    ".conf",
+    ".cfg",
+    ".ini",
+  ];
+
+  if (!allowedExts.includes(ext)) {
+    throw new Error(
+      `File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`
+    );
+  }
+
+  // Create assets directory
+  const assetsDir = "/tmp/safe-outputs/assets";
+  if (!fs.existsSync(assetsDir)) {
+    fs.mkdirSync(assetsDir, { recursive: true });
+  }
+
+  // Read file and compute hash
+  const fileContent = fs.readFileSync(filePath);
+  const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
+
+  // Extract filename
+  const fileName = path.basename(filePath);
+
+  // Copy file to assets directory
+  const targetPath = path.join(assetsDir, fileName);
+  fs.copyFileSync(filePath, targetPath);
+
+  // Generate URL (will be available after the publish-assets job runs)
+  // Using placeholder values that will be replaced by the actual branch
+  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
+  const branchPrefix = "assets"; // This will match the default or configured prefix
+  const targetFileName = `${sha.substring(0, 8)}-${fileName}`;
+  const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchPrefix}-TIMESTAMP/${targetFileName}`;
+
+  // Create entry for safe outputs
+  const entry = {
+    type: "publish-asset",
+    path: filePath,
+    fileName: fileName,
+    sha: sha,
+    size: sizeBytes,
+    url: url,
+  };
+
+  appendSafeOutput(entry);
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: `Asset published successfully. File: ${fileName}, Size: ${sizeBytes} bytes, SHA: ${sha.substring(0, 16)}...\nURL will be available after workflow completion: ${url}`,
+      },
+    ],
+  };
+};
+
 const TOOLS = Object.fromEntries(
   [
     {
@@ -328,6 +463,23 @@ const TOOLS = Object.fromEntries(
         },
         additionalProperties: false,
       },
+    },
+    {
+      name: "publish-asset",
+      description:
+        "Publish a file as a URL-addressable asset to an orphaned git branch",
+      inputSchema: {
+        type: "object",
+        required: ["path"],
+        properties: {
+          path: {
+            type: "string",
+            description: "Path to the file to publish as an asset",
+          },
+        },
+        additionalProperties: false,
+      },
+      handler: publishAssetHandler,
     },
     {
       name: "missing-tool",
