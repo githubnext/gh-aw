@@ -370,6 +370,7 @@ jobs:
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
       - name: Ensure log file exists
         if: always()
         run: |
