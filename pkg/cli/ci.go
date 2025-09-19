@@ -1,9 +1,9 @@
-package main
+package cli
 
 import "os"
 
-// isRunningInCI checks if we're running in a CI environment
-func isRunningInCI() bool {
+// IsRunningInCI checks if we're running in a CI environment
+func IsRunningInCI() bool {
 	// Common CI environment variables
 	ciVars := []string{
 		"CI",

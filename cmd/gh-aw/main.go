@@ -266,6 +266,10 @@ func init() {
 		originalHelpFunc(cmd, args)
 	})
 
+	// Create and setup add command
+	addCmd := cli.NewAddCommand(verbose, validateEngine)
+	cli.SetupAddCommand(addCmd)
+
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
 
@@ -295,6 +299,7 @@ func init() {
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
 
 	// Add all commands to root
+	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(installCmd)
