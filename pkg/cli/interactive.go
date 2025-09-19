@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/huh"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
@@ -81,201 +81,162 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 
 // promptForWorkflowName asks the user for a workflow name
 func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
-	prompt := &survey.Input{
-		Message: "What should we call this workflow?",
-		Help:    "Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')",
-		Default: b.WorkflowName,
-	}
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("What should we call this workflow?").
+				Description("Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')").
+				Value(&b.WorkflowName),
+		),
+	)
 
-	return survey.AskOne(prompt, &b.WorkflowName)
+	return form.Run()
 }
 
 // promptForTrigger asks the user to select when the workflow should run
 func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
-	triggerOptions := []string{
-		"Manual trigger (workflow_dispatch)",
-		"Issue opened or reopened",
-		"Pull request opened or synchronized",
-		"Push to main branch",
-		"Issue comment created",
-		"Schedule (daily at 9 AM UTC)",
-		"Schedule (weekly on Monday at 9 AM UTC)",
-		"Command trigger (/bot-name)",
+	triggerOptions := []huh.Option[string]{
+		huh.NewOption("Manual trigger (workflow_dispatch)", "workflow_dispatch"),
+		huh.NewOption("Issue opened or reopened", "issues"),
+		huh.NewOption("Pull request opened or synchronized", "pull_request"),
+		huh.NewOption("Push to main branch", "push"),
+		huh.NewOption("Issue comment created", "issue_comment"),
+		huh.NewOption("Schedule (daily at 9 AM UTC)", "schedule_daily"),
+		huh.NewOption("Schedule (weekly on Monday at 9 AM UTC)", "schedule_weekly"),
+		huh.NewOption("Command trigger (/bot-name)", "command"),
 	}
 
-	prompt := &survey.Select{
-		Message: "When should this workflow run?",
-		Options: triggerOptions,
-		Help:    "Select the event that should trigger your agentic workflow",
-	}
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("When should this workflow run?").
+				Description("Select the event that should trigger your agentic workflow").
+				Options(triggerOptions...).
+				Value(&b.Trigger),
+		),
+	)
 
-	var selected string
-	if err := survey.AskOne(prompt, &selected); err != nil {
-		return err
-	}
-
-	// Map selection to YAML config
-	switch selected {
-	case "Manual trigger (workflow_dispatch)":
-		b.Trigger = "workflow_dispatch"
-	case "Issue opened or reopened":
-		b.Trigger = "issues"
-	case "Pull request opened or synchronized":
-		b.Trigger = "pull_request"
-	case "Push to main branch":
-		b.Trigger = "push"
-	case "Issue comment created":
-		b.Trigger = "issue_comment"
-	case "Schedule (daily at 9 AM UTC)":
-		b.Trigger = "schedule_daily"
-	case "Schedule (weekly on Monday at 9 AM UTC)":
-		b.Trigger = "schedule_weekly"
-	case "Command trigger (/bot-name)":
-		b.Trigger = "command"
-	}
-
-	return nil
+	return form.Run()
 }
 
 // promptForEngine asks the user to select the AI engine
 func (b *InteractiveWorkflowBuilder) promptForEngine() error {
-	engineOptions := []string{
-		"claude (default) - Claude coding agent",
-		"codex - GitHub Codex engine",
-		"custom - Custom engine configuration",
+	engineOptions := []huh.Option[string]{
+		huh.NewOption("claude (default) - Claude coding agent", "claude"),
+		huh.NewOption("codex - GitHub Codex engine", "codex"),
+		huh.NewOption("custom - Custom engine configuration", "custom"),
 	}
 
-	prompt := &survey.Select{
-		Message: "Which AI engine should process this workflow?",
-		Options: engineOptions,
-		Help:    "Claude is recommended for most use cases",
-	}
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Which AI engine should process this workflow?").
+				Description("Claude is recommended for most use cases").
+				Options(engineOptions...).
+				Value(&b.Engine),
+		),
+	)
 
-	var selected string
-	if err := survey.AskOne(prompt, &selected); err != nil {
-		return err
-	}
-
-	// Extract engine ID
-	switch {
-	case strings.HasPrefix(selected, "claude"):
-		b.Engine = "claude"
-	case strings.HasPrefix(selected, "codex"):
-		b.Engine = "codex"
-	case strings.HasPrefix(selected, "custom"):
-		b.Engine = "custom"
-	}
-
-	return nil
+	return form.Run()
 }
 
 // promptForTools asks the user to select which tools the AI can use
 func (b *InteractiveWorkflowBuilder) promptForTools() error {
-	toolOptions := []string{
-		"github - GitHub API tools (issues, PRs, comments)",
-		"edit - File editing tools",
-		"bash - Shell command tools",
-		"web-fetch - Web content fetching tools",
-		"web-search - Web search tools",
-		"playwright - Browser automation tools",
-	}
-
-	prompt := &survey.MultiSelect{
-		Message: "Which tools should the AI have access to?",
-		Options: toolOptions,
-		Help:    "Select all tools that your workflow might need. You can always modify these later.",
+	toolOptions := []huh.Option[string]{
+		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
+		huh.NewOption("edit - File editing tools", "edit"),
+		huh.NewOption("bash - Shell command tools", "bash"),
+		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
+		huh.NewOption("web-search - Web search tools", "web-search"),
+		huh.NewOption("playwright - Browser automation tools", "playwright"),
 	}
 
 	var selected []string
-	if err := survey.AskOne(prompt, &selected); err != nil {
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Which tools should the AI have access to?").
+				Description("Select all tools that your workflow might need. You can always modify these later.").
+				Options(toolOptions...).
+				Value(&selected),
+		),
+	)
+
+	if err := form.Run(); err != nil {
 		return err
 	}
 
-	// Extract tool names
-	b.Tools = make([]string, 0, len(selected))
-	for _, tool := range selected {
-		toolName := strings.Split(tool, " ")[0]
-		b.Tools = append(b.Tools, toolName)
-	}
-
+	b.Tools = selected
 	return nil
 }
 
 // promptForSafeOutputs asks the user to select safe output options
 func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
-	outputOptions := []string{
-		"create-issue - Create GitHub issues",
-		"add-comment - Add comments to issues/PRs",
-		"create-pull-request - Create pull requests",
-		"create-pull-request-review-comment - Add code review comments to PRs",
-		"update-issue - Update existing issues",
-		"create-discussion - Create repository discussions",
-		"create-code-scanning-alert - Create security scanning alerts",
-		"add-labels - Add labels to issues/PRs",
-		"push-to-pr-branch - Push changes to PR branches",
-	}
-
-	prompt := &survey.MultiSelect{
-		Message: "What outputs should the AI be able to create?",
-		Options: outputOptions,
-		Help:    "Safe outputs provide secure ways for AI to interact with GitHub. Select what your workflow needs to do.",
+	outputOptions := []huh.Option[string]{
+		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
+		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
+		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
+		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),
+		huh.NewOption("update-issue - Update existing issues", "update-issue"),
+		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
+		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
+		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
+		huh.NewOption("push-to-pr-branch - Push changes to PR branches", "push-to-pr-branch"),
 	}
 
 	var selected []string
-	if err := survey.AskOne(prompt, &selected); err != nil {
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("What outputs should the AI be able to create?").
+				Description("Safe outputs provide secure ways for AI to interact with GitHub. Select what your workflow needs to do.").
+				Options(outputOptions...).
+				Value(&selected),
+		),
+	)
+
+	if err := form.Run(); err != nil {
 		return err
 	}
 
-	// Extract output names
-	b.SafeOutputs = make([]string, 0, len(selected))
-	for _, output := range selected {
-		outputName := strings.Split(output, " ")[0]
-		b.SafeOutputs = append(b.SafeOutputs, outputName)
-	}
-
+	b.SafeOutputs = selected
 	return nil
 }
 
 // promptForNetworkAccess asks about network access requirements
 func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
-	networkOptions := []string{
-		"defaults - Basic infrastructure only",
-		"ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)",
-		"custom - Specify custom domains",
+	networkOptions := []huh.Option[string]{
+		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
+		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
+		huh.NewOption("custom - Specify custom domains", "custom"),
 	}
 
-	prompt := &survey.Select{
-		Message: "What network access does the workflow need?",
-		Options: networkOptions,
-		Help:    "Network permissions control what external sites the AI can access",
-		Default: "defaults - Basic infrastructure only",
-	}
+	b.NetworkAccess = "defaults" // Set default value
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("What network access does the workflow need?").
+				Description("Network permissions control what external sites the AI can access").
+				Options(networkOptions...).
+				Value(&b.NetworkAccess),
+		),
+	)
 
-	var selected string
-	if err := survey.AskOne(prompt, &selected); err != nil {
-		return err
-	}
-
-	switch {
-	case strings.HasPrefix(selected, "defaults"):
-		b.NetworkAccess = "defaults"
-	case strings.HasPrefix(selected, "ecosystem"):
-		b.NetworkAccess = "ecosystem"
-	case strings.HasPrefix(selected, "custom"):
-		b.NetworkAccess = "custom"
-	}
-
-	return nil
+	return form.Run()
 }
 
 // promptForIntent asks the user to describe what the workflow should do
 func (b *InteractiveWorkflowBuilder) promptForIntent() error {
-	prompt := &survey.Multiline{
-		Message: "Describe what this workflow should do:",
-		Help:    "Provide a clear description of the workflow's purpose and what the AI should accomplish. This will be the main prompt for the AI.",
-	}
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewText().
+				Title("Describe what this workflow should do:").
+				Description("Provide a clear description of the workflow's purpose and what the AI should accomplish. This will be the main prompt for the AI.").
+				Value(&b.Intent),
+		),
+	)
 
-	return survey.AskOne(prompt, &b.Intent)
+	return form.Run()
 }
 
 // generateWorkflow creates the markdown workflow file based on user selections
