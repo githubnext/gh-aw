@@ -478,7 +478,7 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	defer os.Remove(testFilePath)
 
 	ctx := context.Background()
-	
+
 	// This should succeed (file in /tmp)
 	_, err := client.CallTool(ctx, "publish_asset", map[string]any{
 		"path": testFilePath,

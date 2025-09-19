@@ -7,10 +7,10 @@ import (
 
 // PublishAssetsConfig holds configuration for publishing assets to an orphaned git branch
 type PublishAssetsConfig struct {
-	BranchName  string   `yaml:"branch,omitempty"`   // Branch name (default: "assets/${{ github.workflow }}")
-	MaxSizeKB   int      `yaml:"max-size-kb,omitempty"`   // Maximum file size in KB (default: 10240 = 10MB)
-	AllowedExts []string `yaml:"allowed-exts,omitempty"`  // Allowed file extensions (default: common non-executable types)
-	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
+	BranchName  string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
+	MaxSizeKB   int      `yaml:"max-size-kb,omitempty"`  // Maximum file size in KB (default: 10240 = 10MB)
+	AllowedExts []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
+	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
 // parsePublishAssetsConfig handles publish-assets configuration

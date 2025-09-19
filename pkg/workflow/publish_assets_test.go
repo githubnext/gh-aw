@@ -27,10 +27,10 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 			name: "publish-assets config with custom values",
 			input: map[string]any{
 				"publish-assets": map[string]any{
-					"branch":   "my-assets/${{ github.event.repository.name }}",
-					"max-size-kb":   5120,
-					"allowed-exts":  []any{".jpg", ".png", ".txt"},
-					"github-token":  "${{ secrets.CUSTOM_TOKEN }}",
+					"branch":       "my-assets/${{ github.event.repository.name }}",
+					"max-size-kb":  5120,
+					"allowed-exts": []any{".jpg", ".png", ".txt"},
+					"github-token": "${{ secrets.CUSTOM_TOKEN }}",
 				},
 			},
 			expected: &PublishAssetsConfig{
