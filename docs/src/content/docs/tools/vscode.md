@@ -7,11 +7,11 @@ The `gh aw` cli provides a few tools to improve your developer experience in VS 
 
 ## Copilot instructions <a id="copilot-instructions"></a>
 
-If you add the `--instructions` flag to the compile command, it will also
-write a [custom Copilot intructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
+If you want to skip generating the GitHub Copilot instructions file, you can add the `--no-instructions` flag to the compile command. By default, the compiler will create a [custom Copilot intructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
 
 ```sh
-gh aw compile --instructions
+gh aw compile                   # Creates instructions file by default
+gh aw compile --no-instructions # Skip creating instructions file
 ```
 
 The instructions will automatically be imported by Copilot when authoring markdown

@@ -127,6 +127,55 @@ func TestEnsureCopilotInstructions_WithWriteInstructionsFalse(t *testing.T) {
 	}
 }
 
+func TestEnsureCopilotInstructions_WithWriteInstructionsTrue(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Change to temp directory and initialize git repo for findGitRoot to work
+	oldWd, _ := os.Getwd()
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err := os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	copilotDir := filepath.Join(tempDir, ".github", "instructions")
+	copilotInstructionsPath := filepath.Join(copilotDir, "github-agentic-workflows.instructions.md")
+
+	// Call the function with writeInstructions=true (new default behavior)
+	err = ensureCopilotInstructions(false, true)
+	if err != nil {
+		t.Fatalf("ensureCopilotInstructions() returned error: %v", err)
+	}
+
+	// Check that file exists (should be created by default)
+	if _, err := os.Stat(copilotInstructionsPath); os.IsNotExist(err) {
+		t.Fatalf("Expected copilot instructions file to exist when writeInstructions=true")
+	}
+
+	// Check content
+	content, err := os.ReadFile(copilotInstructionsPath)
+	if err != nil {
+		t.Fatalf("Failed to read copilot instructions: %v", err)
+	}
+
+	contentStr := strings.TrimSpace(string(content))
+	expectedStr := strings.TrimSpace(copilotInstructionsTemplate)
+
+	if contentStr != expectedStr {
+		t.Errorf("Expected content does not match.\nExpected first 100 chars: %q\nActual first 100 chars: %q",
+			expectedStr[:min(100, len(expectedStr))],
+			contentStr[:min(100, len(contentStr))])
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
