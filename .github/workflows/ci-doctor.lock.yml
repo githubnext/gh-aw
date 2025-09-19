@@ -82,12 +82,22 @@ jobs:
             const encoder = new TextEncoder();
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
+            /** @type {Object.<string, any>} */
             const safeOutputsConfig = JSON.parse(configEnv);
             const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
             if (!outputFile)
               throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
+            /** @type {{name: string, version: string}} */
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            /**
+             * Debug logging function
+             * @param {string} msg - The message to log
+             */
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            /**
+             * Write a message to stdout in JSON-RPC format
+             * @param {Object} obj - The object to write as JSON
+             */
             function writeMessage(obj) {
               const json = JSON.stringify(obj);
               debug(`send: ${json}`);
@@ -95,10 +105,26 @@ jobs:
               const bytes = encoder.encode(message);
               fs.writeSync(1, bytes);
             }
+            /**
+             * Buffer for reading JSON-RPC messages from stdin
+             */
             class ReadBuffer {
+              constructor() {
+                /** @type {Buffer|undefined} */
+                this._buffer = undefined;
+              }
+              /**
+               * Append data to the buffer
+               * @param {Buffer} chunk - The data chunk to append
+               */
               append(chunk) {
                 this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
               }
+              /**
+               * Read a complete JSON message from the buffer
+               * @returns {Object|null} The parsed JSON message or null if no complete message is available
+               * @throws {Error} If JSON parsing fails
+               */
               readMessage() {
                 if (!this._buffer) {
                   return null;
@@ -122,10 +148,17 @@ jobs:
               }
             }
             const readBuffer = new ReadBuffer();
+            /**
+             * Handle incoming data from stdin
+             * @param {Buffer} chunk - The data chunk received
+             */
             function onData(chunk) {
               readBuffer.append(chunk);
               processReadBuffer();
             }
+            /**
+             * Process all available messages in the read buffer
+             */
             function processReadBuffer() {
               while (true) {
                 try {
@@ -144,11 +177,23 @@ jobs:
                 }
               }
             }
+            /**
+             * Send a successful JSON-RPC response
+             * @param {string|number|undefined} id - The request ID
+             * @param {any} result - The result data to send
+             */
             function replyResult(id, result) {
               if (id === undefined || id === null) return; // notification
               const res = { jsonrpc: "2.0", id, result };
               writeMessage(res);
             }
+            /**
+             * Send an error JSON-RPC response
+             * @param {string|number|undefined} id - The request ID
+             * @param {number} code - The error code
+             * @param {string} message - The error message
+             * @param {any} [data] - Optional error data
+             */
             function replyError(id, code, message, data) {
               // Don't send error responses for notifications (id is null/undefined)
               if (id === undefined || id === null) {
@@ -166,9 +211,19 @@ jobs:
               };
               writeMessage(res);
             }
+            /**
+             * Check if a tool is enabled in the configuration
+             * @param {string} name - The name of the tool to check
+             * @returns {boolean} True if the tool is enabled
+             */
             function isToolEnabled(name) {
               return safeOutputsConfig[name];
             }
+            /**
+             * Append a safe output entry to the output file
+             * @param {Object} entry - The safe output entry to append
+             * @throws {Error} If no output file is configured or writing fails
+             */
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
               const jsonLine = JSON.stringify(entry) + "\n";
@@ -180,7 +235,13 @@ jobs:
                 );
               }
             }
+            /**
+             * Default handler function that creates safe output entries
+             * @param {string} type - The type of safe output action
+             * @returns {function(Object): {content: Array<{type: string, text: string}>}} Handler function that takes arguments and returns success response
+             */
             const defaultHandler = type => args => {
+              /** @type {Object} */
               const entry = { ...(args || {}), type };
               appendSafeOutput(entry);
               return {
@@ -192,6 +253,21 @@ jobs:
                 ],
               };
             };
+            /**
+             * Map of available MCP tools, filtered by configuration
+             * Each tool maps to its corresponding safe output type:
+             * - create-issue -> CreateIssueItem
+             * - create-discussion -> CreateDiscussionItem
+             * - add-comment -> AddCommentItem
+             * - create-pull-request -> CreatePullRequestItem
+             * - create-pull-request-review-comment -> CreatePullRequestReviewCommentItem
+             * - create-code-scanning-alert -> CreateCodeScanningAlertItem
+             * - add-labels -> AddLabelsItem
+             * - update-issue -> UpdateIssueItem
+             * - push-to-pr-branch -> PushToPrBranchItem
+             * - missing-tool -> MissingToolItem
+             * @type {Object.<string, {name: string, description: string, inputSchema: Object, handler?: Function}>}
+             */
             const TOOLS = Object.fromEntries(
               [
                 {
@@ -422,6 +498,14 @@ jobs:
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length)
               throw new Error("No tools enabled in configuration");
+            /**
+             * Handle incoming JSON-RPC messages
+             * @param {Object} req - The JSON-RPC request object
+             * @param {string} req.jsonrpc - The JSON-RPC version (should be "2.0")
+             * @param {string|number} [req.id] - The request ID (optional for notifications)
+             * @param {string} req.method - The method name to call
+             * @param {Object} [req.params] - The method parameters
+             */
             function handleMessage(req) {
               // Validate basic JSON-RPC structure
               if (!req || typeof req !== "object") {
@@ -462,7 +546,9 @@ jobs:
                   });
                   replyResult(id, { tools: list });
                 } else if (method === "tools/call") {
+                  /** @type {string} */
                   const name = params?.name;
+                  /** @type {Object} */
                   const args = params?.arguments ?? {};
                   if (!name || typeof name !== "string") {
                     replyError(id, -32602, "Invalid params: 'name' must be a string");
@@ -474,6 +560,7 @@ jobs:
                     return;
                   }
                   const handler = tool.handler || defaultHandler(tool.name);
+                  /** @type {string[]} */
                   const requiredFields =
                     tool.inputSchema && Array.isArray(tool.inputSchema.required)
                       ? tool.inputSchema.required
