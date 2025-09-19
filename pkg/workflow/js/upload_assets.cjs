@@ -6,11 +6,13 @@ const { execSync } = require("child_process");
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-  
+
   // Get the branch name from environment variable (required)
   const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
   if (!branchName) {
-    core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+    core.setFailed(
+      "GITHUB_AW_ASSETS_BRANCH environment variable is required but not set"
+    );
     return;
   }
 
@@ -71,13 +73,14 @@ async function main() {
   // If in staged mode, process files but don't push
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Asset Publishing Preview\n\n";
-    summaryContent += "The following assets would be published if staged mode was disabled:\n\n";
-    
+    summaryContent +=
+      "The following assets would be published if staged mode was disabled:\n\n";
+
     let processedCount = 0;
     for (const asset of publishAssetItems) {
       try {
         const { fileName, filePath, sha, size, targetFileName } = asset;
-        
+
         if (!fileName || !filePath || !sha || !targetFileName) {
           core.warning(
             `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
@@ -94,8 +97,11 @@ async function main() {
 
         // Verify SHA matches
         const fileContent = fs.readFileSync(assetSourcePath);
-        const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-        
+        const computedSha = crypto
+          .createHash("sha256")
+          .update(fileContent)
+          .digest("hex");
+
         if (computedSha !== sha) {
           core.warning(
             `SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`
@@ -105,17 +111,16 @@ async function main() {
 
         summaryContent += `- **${fileName}** → \`${targetFileName}\` (${size} bytes, SHA: ${sha.substring(0, 16)}...)\n`;
         processedCount++;
-        
       } catch (error) {
         core.warning(
           `Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
-    
+
     summaryContent += `\n**Total assets staged for publishing:** ${processedCount}\n`;
     summaryContent += `**Target branch:** ${branchName}\n`;
-    
+
     core.summary.addRaw(summaryContent).write();
     core.setOutput("published_count", processedCount.toString());
     core.setOutput("branch_name", branchName);

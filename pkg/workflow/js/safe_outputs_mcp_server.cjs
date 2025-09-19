@@ -137,14 +137,14 @@ const publishAssetHandler = args => {
   const absolutePath = path.resolve(filePath);
   const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
   const tmpDir = "/tmp";
-  
+
   const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
   const isInTmp = absolutePath.startsWith(tmpDir);
-  
+
   if (!isInWorkspace && !isInTmp) {
     throw new Error(
       `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-      `Provided path: ${filePath} (resolved to: ${absolutePath})`
+        `Provided path: ${filePath} (resolved to: ${absolutePath})`
     );
   }
 
@@ -220,20 +220,22 @@ const publishAssetHandler = args => {
   // Extract filename and extension
   const fileName = path.basename(filePath);
   const fileExt = path.extname(fileName).toLowerCase();
-  
+
   // Copy file to assets directory with original name
   const targetPath = path.join(assetsDir, fileName);
   fs.copyFileSync(filePath, targetPath);
-  
+
   // Generate target filename as sha + extension (lowercased)
   const targetFileName = (sha + fileExt).toLowerCase();
-  
+
   // Generate URL (will be available after the upload_asset job runs)
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
+  const branchName =
+    process.env.GITHUB_AW_ASSETS_BRANCH ||
+    `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
   const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
-  
+
   // Create entry for safe outputs
   const entry = {
     type: "upload_asset",
@@ -242,22 +244,23 @@ const publishAssetHandler = args => {
     sha: sha,
     size: sizeBytes,
     url: url,
-    targetFileName: targetFileName
+    targetFileName: targetFileName,
   };
-  
+
   appendSafeOutput(entry);
-  
+
   return {
     content: [
       {
         type: "text",
-        text: `Asset "${fileName}" published successfully!\n\n` +
-              `• File size: ${sizeBytes} bytes\n` +
-              `• SHA256: ${sha}\n` +
-              `• Target filename: ${targetFileName}\n` +
-              `• Staged for publication to: ${branchName}\n` +
-              `• Will be available at: ${url}\n\n` +
-              `The asset will be published to the orphaned branch after workflow completion.`,
+        text:
+          `Asset "${fileName}" published successfully!\n\n` +
+          `• File size: ${sizeBytes} bytes\n` +
+          `• SHA256: ${sha}\n` +
+          `• Target filename: ${targetFileName}\n` +
+          `• Staged for publication to: ${branchName}\n` +
+          `• Will be available at: ${url}\n\n` +
+          `The asset will be published to the orphaned branch after workflow completion.`,
       },
     ],
   };

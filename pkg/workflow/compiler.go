@@ -161,7 +161,7 @@ type SafeOutputsConfig struct {
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
-	UploadAsset                   *UploadAssetConfig                   `yaml:"publish-asset,omitempty"`
+	UploadAsset                     *UploadAssetConfig                     `yaml:"publish-asset,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
