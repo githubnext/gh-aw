@@ -123,7 +123,8 @@ type WorkflowData struct {
 	Name               string
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	On                 string
-	Permissions        string
+	Permissions        string      // Legacy string-based permissions (deprecated)
+	PermissionsStruct  *Permissions // New structured permissions
 	Network            string // top-level network permissions configuration
 	Concurrency        string
 	RunName            string
@@ -574,6 +575,14 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
 	workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
 	workflowData.Permissions = c.extractTopLevelYAMLSection(result.Frontmatter, "permissions")
+	
+	// Parse structured permissions
+	permissionsStruct, err := ParsePermissions(result.Frontmatter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse permissions: %w", err)
+	}
+	workflowData.PermissionsStruct = permissionsStruct
+	
 	workflowData.Network = c.extractTopLevelYAMLSection(result.Frontmatter, "network")
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
@@ -982,6 +991,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	if data.Permissions == "" {
 		// Default behavior: use read-all permissions
 		data.Permissions = `permissions: read-all`
+		// Also set the structured permissions
+		data.PermissionsStruct = &Permissions{GlobalReadAll: true}
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
@@ -1736,7 +1747,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		Name:        jobName,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
-		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Permissions: c.getJobPermissions(data),
 		Steps:       steps,
 		Needs:       depends,
 		Outputs:     outputs,
@@ -1745,9 +1756,19 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	return job, nil
 }
 
-// hasContentsPermission checks if the given permissions string includes contents access
-// Returns true if permissions include contents: read, contents: write, read-all, write-all, read, or write
-func (c *Compiler) hasContentsPermission(permissions string) bool {
+// hasContentsPermission checks if the given permissions include contents access
+// Now uses structured permissions instead of string parsing
+func (c *Compiler) hasContentsPermission(data *WorkflowData) bool {
+	if data.PermissionsStruct != nil {
+		return data.PermissionsStruct.HasContentsAccess()
+	}
+
+	// Fallback to legacy string-based checking for backwards compatibility
+	return c.hasContentsPermissionLegacy(data.Permissions)
+}
+
+// hasContentsPermissionLegacy is the old string-based permission checking (kept for backwards compatibility)
+func (c *Compiler) hasContentsPermissionLegacy(permissions string) bool {
 	if permissions == "" {
 		return false
 	}
@@ -1772,6 +1793,15 @@ func (c *Compiler) hasContentsPermission(permissions string) bool {
 	return false
 }
 
+// getJobPermissions returns the formatted permissions string for a job
+func (c *Compiler) getJobPermissions(data *WorkflowData) string {
+	if data.PermissionsStruct != nil {
+		return c.indentYAMLLines(data.PermissionsStruct.ToYAML(), "    ")
+	}
+	// Fallback to legacy string-based permissions
+	return c.indentYAMLLines(data.Permissions, "    ")
+}
+
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Add custom steps or default checkout step
@@ -1792,7 +1822,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	} else {
 		// Only add checkout step if permissions include contents access
-		if c.hasContentsPermission(data.Permissions) {
+		if c.hasContentsPermission(data) {
 			yaml.WriteString("      - name: Checkout repository\n")
 			yaml.WriteString("        uses: actions/checkout@v5\n")
 		}
