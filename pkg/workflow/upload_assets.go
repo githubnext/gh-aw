@@ -5,18 +5,18 @@ import (
 	"strings"
 )
 
-// PublishAssetsConfig holds configuration for publishing assets to an orphaned git branch
-type PublishAssetsConfig struct {
+// UploadAssetConfig holds configuration for publishing assets to an orphaned git branch
+type UploadAssetConfig struct {
 	BranchName  string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
 	MaxSizeKB   int      `yaml:"max-size-kb,omitempty"`  // Maximum file size in KB (default: 10240 = 10MB)
 	AllowedExts []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
-// parsePublishAssetsConfig handles publish-assets configuration
-func (c *Compiler) parsePublishAssetsConfig(outputMap map[string]any) *PublishAssetsConfig {
-	if configData, exists := outputMap["publish-assets"]; exists {
-		config := &PublishAssetsConfig{
+// parseUploadAssetConfig handles upload-asset configuration
+func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetConfig {
+	if configData, exists := outputMap["upload-asset"]; exists {
+		config := &UploadAssetConfig{
 			BranchName:  "assets/${{ github.workflow }}", // Default branch name
 			MaxSizeKB:   10240,                           // Default 10MB
 			AllowedExts: getDefaultAllowedExtensions(),   // Default safe extensions
@@ -91,9 +91,9 @@ func getDefaultAllowedExtensions() []string {
 	}
 }
 
-// buildPublishAssetsJob creates the publish_assets job
-func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.PublishAssets == nil {
+// buildUploadAssetJob creates the upload_assets job
+func (c *Compiler) buildUploadAssetJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.UploadAsset == nil {
 		return nil, fmt.Errorf("safe-outputs.publish-asset configuration is required")
 	}
 
@@ -139,12 +139,12 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 
 	steps = append(steps, "      - name: Publish Assets to Orphaned Branch\n")
-	steps = append(steps, "        id: publish_assets\n")
+	steps = append(steps, "        id: upload_assets\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.PublishAssets.BranchName))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAsset.BranchName))
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
@@ -157,8 +157,8 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
 	var token string
-	if data.SafeOutputs.PublishAssets != nil {
-		token = data.SafeOutputs.PublishAssets.GitHubToken
+	if data.SafeOutputs.UploadAsset != nil {
+		token = data.SafeOutputs.UploadAsset.GitHubToken
 	}
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
@@ -169,8 +169,8 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"published_count": "${{ steps.publish_assets.outputs.published_count }}",
-		"branch_name":     "${{ steps.publish_assets.outputs.branch_name }}",
+		"published_count": "${{ steps.upload_assets.outputs.published_count }}",
+		"branch_name":     "${{ steps.upload_assets.outputs.branch_name }}",
 	}
 
 	// Determine the job condition for command workflows
@@ -197,7 +197,7 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 	}
 
 	job := &Job{
-		Name:           "publish_assets",
+		Name:           "upload_assets",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    permissions,

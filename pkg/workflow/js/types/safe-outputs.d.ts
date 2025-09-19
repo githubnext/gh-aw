@@ -144,6 +144,17 @@ interface MissingToolItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for uploading an asset file
+ */
+interface UploadAssetItem extends BaseSafeOutputItem {
+  type: "upload-asset";
+  /** File path to upload */
+  file_path: string;
+  /** Optional custom filename (will use SHA + extension if not provided) */
+  filename?: string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -156,7 +167,8 @@ type SafeOutputItem =
   | AddLabelsItem
   | UpdateIssueItem
   | PushToPrBranchItem
-  | MissingToolItem;
+  | MissingToolItem
+  | UploadAssetItem;
 
 
 
@@ -174,5 +186,6 @@ export {
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,
+  UploadAssetItem,
   SafeOutputItem,
 };

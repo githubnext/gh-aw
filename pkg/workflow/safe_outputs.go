@@ -16,7 +16,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
-		safeOutputs.PublishAssets != nil ||
+		safeOutputs.UploadAsset != nil ||
 		safeOutputs.MissingTool != nil
 }
 
@@ -82,11 +82,11 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		written = true
 	}
 
-	if safeOutputs.PublishAssets != nil {
+	if safeOutputs.UploadAsset != nil {
 		if written {
 			yaml.WriteString(", ")
 		}
-		yaml.WriteString("Publishing Assets")
+		yaml.WriteString("Uploading Assets")
 		written = true
 	}
 
@@ -158,14 +158,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          \n")
 	}
 
-	if safeOutputs.PublishAssets != nil {
-		yaml.WriteString("          **Publishing Assets**\n")
+	if safeOutputs.UploadAsset != nil {
+		yaml.WriteString("          **Uploading Assets**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To publish files as URL-addressable assets:\n")
-		yaml.WriteString("          1. Use the publish_asset tool from the safe-outputs MCP\n")
-		yaml.WriteString("          2. Provide the path to the file you want to publish\n")
+		yaml.WriteString("          To upload files as URL-addressable assets:\n")
+		yaml.WriteString("          1. Use the upload_asset tool from the safe-outputs MCP\n")
+		yaml.WriteString("          2. Provide the path to the file you want to upload\n")
 		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
-		yaml.WriteString("          4. Assets are published to an orphaned git branch after workflow completion\n")
+		yaml.WriteString("          4. Assets are uploaded to an orphaned git branch after workflow completion\n")
 		yaml.WriteString("          5. Only safe file types are allowed (no executables)\n")
 		yaml.WriteString("          6. Maximum file size is limited (default: 10MB)\n")
 		yaml.WriteString("          \n")
@@ -312,10 +312,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.PushToPullRequestBranch = pushToBranchConfig
 			}
 
-			// Handle publish-assets
-			publishAssetsConfig := c.parsePublishAssetsConfig(outputMap)
+			// Handle upload-asset
+			publishAssetsConfig := c.parseUploadAssetConfig(outputMap)
 			if publishAssetsConfig != nil {
-				config.PublishAssets = publishAssetsConfig
+				config.UploadAsset = publishAssetsConfig
 			}
 
 			// Handle missing-tool (parse configuration if present)

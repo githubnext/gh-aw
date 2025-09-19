@@ -195,8 +195,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 
 		// Add branch name if publish assets is configured
-		if workflowData.SafeOutputs.PublishAssets != nil {
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.PublishAssets.BranchName))
+		if workflowData.SafeOutputs.UploadAsset != nil {
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAsset.BranchName))
 		}
 	}
 

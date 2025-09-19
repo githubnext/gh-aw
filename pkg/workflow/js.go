@@ -39,7 +39,7 @@ var updateIssueScript string
 //go:embed js/push_to_pr_branch.cjs
 var pushToBranchScript string
 
-//go:embed js/publish_assets.cjs
+//go:embed js/upload_assets.cjs
 var publishAssetsScript string
 
 //go:embed js/setup_agent_output.cjs

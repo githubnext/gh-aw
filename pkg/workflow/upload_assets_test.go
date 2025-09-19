@@ -4,36 +4,36 @@ import (
 	"testing"
 )
 
-func TestParsePublishAssetsConfig(t *testing.T) {
+func TestParseUploadAssetConfig(t *testing.T) {
 	c := &Compiler{}
 
 	tests := []struct {
 		name     string
 		input    map[string]any
-		expected *PublishAssetsConfig
+		expected *UploadAssetConfig
 	}{
 		{
-			name: "basic publish-assets config",
+			name: "basic upload-asset config",
 			input: map[string]any{
-				"publish-assets": nil,
+				"upload-asset": nil,
 			},
-			expected: &PublishAssetsConfig{
+			expected: &UploadAssetConfig{
 				BranchName:  "assets/${{ github.workflow }}",
 				MaxSizeKB:   10240,
 				AllowedExts: getDefaultAllowedExtensions(),
 			},
 		},
 		{
-			name: "publish-assets config with custom values",
+			name: "upload-asset config with custom values",
 			input: map[string]any{
-				"publish-assets": map[string]any{
+				"upload-asset": map[string]any{
 					"branch":       "my-assets/${{ github.event.repository.name }}",
 					"max-size-kb":  5120,
 					"allowed-exts": []any{".jpg", ".png", ".txt"},
 					"github-token": "${{ secrets.CUSTOM_TOKEN }}",
 				},
 			},
-			expected: &PublishAssetsConfig{
+			expected: &UploadAssetConfig{
 				BranchName:  "my-assets/${{ github.event.repository.name }}",
 				MaxSizeKB:   5120,
 				AllowedExts: []string{".jpg", ".png", ".txt"},
@@ -41,7 +41,7 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 			},
 		},
 		{
-			name:     "no publish-assets config",
+			name:     "no upload-asset config",
 			input:    map[string]any{},
 			expected: nil,
 		},
@@ -49,7 +49,7 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := c.parsePublishAssetsConfig(tt.input)
+			result := c.parseUploadAssetConfig(tt.input)
 
 			if tt.expected == nil {
 				if result != nil {
@@ -116,14 +116,14 @@ func TestGetDefaultAllowedExtensions(t *testing.T) {
 	}
 }
 
-func TestHasSafeOutputsEnabledWithPublishAssets(t *testing.T) {
-	// Test that PublishAssets is properly detected
+func TestHasSafeOutputsEnabledWithUploadAsset(t *testing.T) {
+	// Test that UploadAsset is properly detected
 	config := &SafeOutputsConfig{
-		PublishAssets: &PublishAssetsConfig{},
+		UploadAsset: &UploadAssetConfig{},
 	}
 
 	if !HasSafeOutputsEnabled(config) {
-		t.Error("Expected PublishAssets to be detected as enabled safe output")
+		t.Error("Expected UploadAsset to be detected as enabled safe output")
 	}
 
 	// Test with nil config

@@ -62,8 +62,8 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				}
 
 				// Add branch name if publish assets is configured
-				if workflowData.SafeOutputs.PublishAssets != nil {
-					envVars["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.PublishAssets.BranchName
+				if workflowData.SafeOutputs.UploadAsset != nil {
+					envVars["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAsset.BranchName
 				}
 			}
 

@@ -9,7 +9,7 @@ on:
 tools:
   cache-memory: true
 safe-outputs:
-  publish-assets:
+  upload-asset:
     branch: "dev-assets/${{ github.run_id }}"
     max-size-kb: 1024
   staged: true
@@ -26,7 +26,7 @@ You are a development assistant that helps with coding tasks and maintains an ex
 ## Task
 
 1. Generate a creative poem about AI development and save it as a text file.
-2. Use the publish_asset tool to upload the poem file as a URL-addressable asset.
+2. Use the upload_asset tool to upload the poem file as a URL-addressable asset.
 
 ## Execution Plan Management
 
@@ -44,14 +44,14 @@ The plan should include:
 
 ## Asset Publishing Demo
 
-After completing the main task, create a demonstration of the new publish_asset functionality:
+After completing the main task, create a demonstration of the new upload_asset functionality:
 
 1. **Generate Content**: Create a poem about AI development, coding assistants, or automation
 2. **Save to File**: Write the poem to a text file (e.g., `/tmp/ai-development-poem.txt`)
-3. **Publish Asset**: Use the `publish_asset` tool to upload the file
+3. **Publish Asset**: Use the `upload_asset` tool to upload the file
 4. **Document URL**: Note the generated URL where the asset will be accessible
 
-The publish_asset tool will:
+The upload_asset tool will:
 - Validate the file is within allowed directories (workspace or /tmp)
 - Copy the file to staging area
 - Generate a SHA-based filename for deduplication

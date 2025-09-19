@@ -51,18 +51,18 @@ async function main() {
     return;
   }
 
-  // Find all publish_asset items
+  // Find all upload_asset items
   const publishAssetItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "publish_asset"
+    /** @param {any} item */ item => item.type === "upload_asset"
   );
   if (publishAssetItems.length === 0) {
-    core.info("No publish_asset items found in agent output");
+    core.info("No upload_asset items found in agent output");
     core.setOutput("published_count", "0");
     core.setOutput("branch_name", branchName);
     return;
   }
 
-  core.info(`Found ${publishAssetItems.length} publish_asset item(s)`);
+  core.info(`Found ${publishAssetItems.length} upload_asset item(s)`);
 
   // Process each asset and validate integrity
   let hasChanges = false;

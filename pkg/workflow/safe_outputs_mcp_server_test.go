@@ -410,7 +410,7 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]any{
-		"publish_asset": true,
+		"upload_asset": true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -425,13 +425,13 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	}
 	defer os.Remove(testFilePath)
 
-	// Call publish_asset tool
+	// Call upload_asset tool
 	ctx := context.Background()
-	result, err := client.CallTool(ctx, "publish_asset", map[string]any{
+	result, err := client.CallTool(ctx, "upload_asset", map[string]any{
 		"path": testFilePath,
 	})
 	if err != nil {
-		t.Fatalf("Failed to call publish_asset: %v", err)
+		t.Fatalf("Failed to call upload_asset: %v", err)
 	}
 
 	// Check response structure
@@ -450,8 +450,8 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	}
 
 	// Verify the output file contains the expected entry
-	if err := verifyOutputFile(t, tempFile, "publish_asset", map[string]any{
-		"type": "publish_asset",
+	if err := verifyOutputFile(t, tempFile, "upload_asset", map[string]any{
+		"type": "upload_asset",
 	}); err != nil {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
@@ -462,7 +462,7 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]any{
-		"publish_asset": true,
+		"upload_asset": true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -480,7 +480,7 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	ctx := context.Background()
 
 	// This should succeed (file in /tmp)
-	_, err := client.CallTool(ctx, "publish_asset", map[string]any{
+	_, err := client.CallTool(ctx, "upload_asset", map[string]any{
 		"path": testFilePath,
 	})
 	if err != nil {
@@ -489,7 +489,7 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 
 	// Test invalid path - should be rejected
 	invalidPath := "/etc/passwd"
-	_, err = client.CallTool(ctx, "publish_asset", map[string]any{
+	_, err = client.CallTool(ctx, "upload_asset", map[string]any{
 		"path": invalidPath,
 	})
 	if err == nil {

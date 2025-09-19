@@ -140,8 +140,8 @@ codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearc
 		}
 
 		// Add branch name if publish assets is configured
-		if workflowData.SafeOutputs.PublishAssets != nil {
-			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.PublishAssets.BranchName
+		if workflowData.SafeOutputs.UploadAsset != nil {
+			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAsset.BranchName
 		}
 	}
 

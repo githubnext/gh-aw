@@ -161,7 +161,7 @@ type SafeOutputsConfig struct {
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
-	PublishAssets                   *PublishAssetsConfig                   `yaml:"publish-asset,omitempty"`
+	UploadAsset                   *UploadAssetConfig                   `yaml:"publish-asset,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
@@ -1627,14 +1627,14 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build publish_assets job if output.publish-asset is configured
-	if data.SafeOutputs.PublishAssets != nil {
-		publishAssetsJob, err := c.buildPublishAssetsJob(data, jobName, taskJobCreated, frontmatter)
+	// Build upload_assets job if output.publish-asset is configured
+	if data.SafeOutputs.UploadAsset != nil {
+		publishAssetsJob, err := c.buildUploadAssetJob(data, jobName, taskJobCreated, frontmatter)
 		if err != nil {
-			return fmt.Errorf("failed to build publish_assets job: %w", err)
+			return fmt.Errorf("failed to build upload_assets job: %w", err)
 		}
 		if err := c.jobManager.AddJob(publishAssetsJob); err != nil {
-			return fmt.Errorf("failed to add publish_assets job: %w", err)
+			return fmt.Errorf("failed to add upload_assets job: %w", err)
 		}
 	}
 
@@ -1853,7 +1853,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
 	// upload assets if publish-asset is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.PublishAssets != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadAsset != nil {
 		c.generateUploadAssets(yaml)
 	}
 
@@ -2322,8 +2322,8 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
 	}
-	if data.SafeOutputs.PublishAssets != nil {
-		safeOutputsConfig["publish_asset"] = map[string]any{}
+	if data.SafeOutputs.UploadAsset != nil {
+		safeOutputsConfig["upload_asset"] = map[string]any{}
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		missingToolConfig := map[string]any{}
