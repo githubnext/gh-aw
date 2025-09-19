@@ -9,12 +9,6 @@ func isRunningInCI() bool {
 		"CI",
 		"CONTINUOUS_INTEGRATION",
 		"GITHUB_ACTIONS",
-		"JENKINS_URL",
-		"TRAVIS",
-		"CIRCLECI",
-		"GITLAB_CI",
-		"BUILDKITE",
-		"DRONE",
 	}
 
 	for _, v := range ciVars {
