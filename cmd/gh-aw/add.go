@@ -76,3 +76,26 @@ It's a shortcut for:
 		}
 	},
 }
+
+func init() {
+	// Add the command to root
+	rootCmd.AddCommand(addCmd)
+
+	// Add number flag to add command
+	addCmd.Flags().IntP("number", "c", 1, "Create multiple numbered copies")
+
+	// Add name flag to add command
+	addCmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
+
+	// Add AI flag to add command
+	addCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex)")
+
+	// Add repository flag to add command
+	addCmd.Flags().StringP("repo", "r", "", "Install and use workflows from specified repository (org/repo)")
+
+	// Add PR flag to add command
+	addCmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
+
+	// Add force flag to add command
+	addCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
+}
