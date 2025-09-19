@@ -191,21 +191,9 @@ const publishAssetHandler = args => {
     ".yml",
     ".xml",
     ".csv",
-    // Audio/Video
-    ".mp3",
+    // Video
     ".mp4",
-    ".avi",
-    ".mov",
-    ".wmv",
-    ".flv",
     ".webm",
-    ".ogg",
-    // Fonts
-    ".ttf",
-    ".otf",
-    ".woff",
-    ".woff2",
-    ".eot",
     // Other safe formats
     ".log",
     ".conf",
