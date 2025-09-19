@@ -7,7 +7,7 @@ import (
 
 // PublishAssetsConfig holds configuration for publishing assets to an orphaned git branch
 type PublishAssetsConfig struct {
-	BranchName  string   `yaml:"branch-name,omitempty"`   // Branch name (default: "assets/${{ github.workflow }}")
+	BranchName  string   `yaml:"branch,omitempty"`   // Branch name (default: "assets/${{ github.workflow }}")
 	MaxSizeKB   int      `yaml:"max-size-kb,omitempty"`   // Maximum file size in KB (default: 10240 = 10MB)
 	AllowedExts []string `yaml:"allowed-exts,omitempty"`  // Allowed file extensions (default: common non-executable types)
 	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
@@ -23,8 +23,8 @@ func (c *Compiler) parsePublishAssetsConfig(outputMap map[string]any) *PublishAs
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse branch-name
-			if branchName, exists := configMap["branch-name"]; exists {
+			// Parse branch
+			if branchName, exists := configMap["branch"]; exists {
 				if branchNameStr, ok := branchName.(string); ok {
 					config.BranchName = branchNameStr
 				}
@@ -144,7 +144,7 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_BRANCH_NAME: %q\n", data.SafeOutputs.PublishAssets.BranchName))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.PublishAssets.BranchName))
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {

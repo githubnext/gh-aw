@@ -196,7 +196,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 		// Add branch name if publish assets is configured
 		if workflowData.SafeOutputs.PublishAssets != nil {
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_BRANCH_NAME: %q", workflowData.SafeOutputs.PublishAssets.BranchName))
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.PublishAssets.BranchName))
 		}
 	}
 
@@ -691,7 +691,7 @@ func (e *ClaudeEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast 
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
-	yaml.WriteString("                  \"GITHUB_AW_BRANCH_NAME\": \"${{ env.GITHUB_AW_BRANCH_NAME }}\"\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

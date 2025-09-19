@@ -8,9 +8,9 @@ async function main() {
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
   
   // Get the branch name from environment variable (required)
-  const branchName = process.env.GITHUB_AW_BRANCH_NAME;
+  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
   if (!branchName) {
-    core.setFailed("GITHUB_AW_BRANCH_NAME environment variable is required but not set");
+    core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
     return;
   }
 

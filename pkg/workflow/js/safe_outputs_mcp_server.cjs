@@ -239,7 +239,7 @@ const publishAssetHandler = args => {
   // Generate URL (will be available after the publish-assets job runs)
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-  const branchName = process.env.GITHUB_AW_BRANCH_NAME || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
+  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
   const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
   
   // Create entry for safe outputs

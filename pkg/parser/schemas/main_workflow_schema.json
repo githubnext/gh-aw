@@ -1647,7 +1647,7 @@
               "type": "object",
               "description": "Configuration for publishing assets to an orphaned git branch",
               "properties": {
-                "branch-name": {
+                "branch": {
                   "type": "string",
                   "description": "Branch name (default: 'assets/${{ github.workflow }}')",
                   "default": "assets/${{ github.workflow }}"
