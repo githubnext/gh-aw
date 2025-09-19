@@ -2023,20 +2023,6 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 }
 
 func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string]any) {
-	// Check if any tools use Playwright MCP server
-	hasPlaywright := false
-	for toolName := range tools {
-		if toolName == "playwright" {
-			hasPlaywright = true
-			break
-		}
-	}
-
-	// If no Playwright MCP server, no MCP logs to upload
-	if !hasPlaywright {
-		return
-	}
-
 	yaml.WriteString("      - name: Upload MCP logs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")

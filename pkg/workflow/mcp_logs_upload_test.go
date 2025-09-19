@@ -141,7 +141,7 @@ engine: claude
 
 # Test Without Playwright
 
-This workflow does not use Playwright and should not have MCP logs upload.
+This workflow does not use Playwright but should still have MCP logs upload.
 `
 
 	// Write the test file
@@ -168,12 +168,26 @@ This workflow does not use Playwright and should not have MCP logs upload.
 
 	lockContentStr := string(lockContent)
 
-	// Verify MCP logs upload step does NOT exist when no Playwright is used
-	if strings.Contains(lockContentStr, "- name: Upload MCP logs") {
-		t.Error("Expected NO 'Upload MCP logs' step when Playwright is not used")
+	// Verify MCP logs upload step EXISTS even when no Playwright is used (always emit)
+	if !strings.Contains(lockContentStr, "- name: Upload MCP logs") {
+		t.Error("Expected 'Upload MCP logs' step to be present even when Playwright is not used")
 	}
 
-	if strings.Contains(lockContentStr, "name: mcp-logs") {
-		t.Error("Expected NO 'mcp-logs' artifact when Playwright is not used")
+	if !strings.Contains(lockContentStr, "name: mcp-logs") {
+		t.Error("Expected 'mcp-logs' artifact even when Playwright is not used")
+	}
+
+	// Verify the upload step uses actions/upload-artifact@v4
+	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@v4") {
+		t.Error("Expected upload-artifact action to be used for MCP logs upload step")
+	}
+
+	// Verify the artifact upload configuration
+	if !strings.Contains(lockContentStr, "path: /tmp/mcp-logs/") {
+		t.Error("Expected artifact path '/tmp/mcp-logs/' in upload step")
+	}
+
+	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {
+		t.Error("Expected 'if-no-files-found: ignore' in upload step")
 	}
 }
