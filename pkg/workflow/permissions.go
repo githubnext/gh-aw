@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -81,6 +80,11 @@ func (p *Permissions) setPermission(key, value string) error {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if value != "read" && value != "write" && value != "none" {
 		return fmt.Errorf("invalid permission value: %s (must be read, write, or none)", value)
+	}
+
+	// Normalize "none" to empty string
+	if value == "none" {
+		value = ""
 	}
 
 	// Set the appropriate field
@@ -210,32 +214,9 @@ func (p *Permissions) ToYAML() string {
 
 	bytes, err := yaml.Marshal(yamlData)
 	if err != nil {
-		// Fallback to manual formatting if YAML marshal fails
-		return p.toYAMLManual(perms)
-	}
-
-	return strings.TrimSpace(string(bytes))
-}
-
-// toYAMLManual creates YAML manually as a fallback
-func (p *Permissions) toYAMLManual(perms map[string]string) string {
-	if len(perms) == 0 {
+		// If YAML marshal fails, return a basic error format
 		return "permissions: {}"
 	}
 
-	var lines []string
-	lines = append(lines, "permissions:")
-
-	// Sort keys for consistent output
-	keys := make([]string, 0, len(perms))
-	for k := range perms {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		lines = append(lines, fmt.Sprintf("  %s: %s", key, perms[key]))
-	}
-
-	return strings.Join(lines, "\n")
+	return strings.TrimSpace(string(bytes))
 }

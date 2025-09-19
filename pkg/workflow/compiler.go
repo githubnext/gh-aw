@@ -123,7 +123,7 @@ type WorkflowData struct {
 	Name               string
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	On                 string
-	PermissionsStruct  *Permissions // Structured permissions
+	Permissions  *Permissions // Structured permissions
 	Network            string // top-level network permissions configuration
 	Concurrency        string
 	RunName            string
@@ -579,7 +579,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse permissions: %w", err)
 	}
-	workflowData.PermissionsStruct = permissionsStruct
+	workflowData.Permissions = permissionsStruct
 	
 	workflowData.Network = c.extractTopLevelYAMLSection(result.Frontmatter, "network")
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
@@ -987,10 +987,10 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	// Set default permissions if none specified (but not if explicitly empty)
-	if data.PermissionsStruct == nil {
+	if data.Permissions == nil {
 		// No permissions section in frontmatter at all - use default read-all
-		data.PermissionsStruct = &Permissions{Global: "read-all"}
-	} else if data.PermissionsStruct.IsEmpty() {
+		data.Permissions = &Permissions{Global: "read-all"}
+	} else if data.Permissions.IsEmpty() {
 		// Permissions explicitly set to empty (permissions: {}) - keep empty
 		// Do nothing, leave as is
 	}
@@ -1759,8 +1759,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 // hasContentsPermission checks if the given permissions include contents access
 // Uses structured permissions for reliable permission checking
 func (c *Compiler) hasContentsPermission(data *WorkflowData) bool {
-	if data.PermissionsStruct != nil {
-		return data.PermissionsStruct.HasContentsAccess()
+	if data.Permissions != nil {
+		return data.Permissions.HasContentsAccess()
 	}
 
 	// No permissions specified, should not happen since we set defaults
@@ -1769,8 +1769,8 @@ func (c *Compiler) hasContentsPermission(data *WorkflowData) bool {
 
 // getJobPermissions returns the formatted permissions string for a job
 func (c *Compiler) getJobPermissions(data *WorkflowData) string {
-	if data.PermissionsStruct != nil {
-		return c.indentYAMLLines(data.PermissionsStruct.ToYAML(), "    ")
+	if data.Permissions != nil {
+		return c.indentYAMLLines(data.Permissions.ToYAML(), "    ")
 	}
 	// No permissions specified, return empty (should not happen since we set defaults)
 	return ""

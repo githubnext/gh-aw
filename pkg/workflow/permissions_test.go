@@ -143,6 +143,20 @@ func TestParsePermissions(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "none_permission_normalized_to_empty",
+			frontmatter: map[string]any{
+				"permissions": map[string]any{
+					"contents": "none",
+					"issues":   "write",
+				},
+			},
+			expected: &Permissions{
+				Contents: "", // "none" should be normalized to empty string
+				Issues:   "write",
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
