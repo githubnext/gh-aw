@@ -175,8 +175,8 @@ install: build
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build
-	./$(BINARY_NAME) compile --validate --instructions
-	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate;
+	./$(BINARY_NAME) compile --validate --instructions --verbose
+	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose;
 
 # Run development server
 .PHONY: dev
