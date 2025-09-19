@@ -37,7 +37,31 @@ build-windows:
 # Test the code
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v -timeout=3m ./...
+
+# Test unit tests only (excludes integration tests)
+.PHONY: test-unit
+test-unit:
+	go test -v -timeout=3m -tags '!integration' ./...
+
+# Test integration tests only
+.PHONY: test-integration
+test-integration:
+	go test -v -timeout=3m -tags 'integration' ./...
+
+.PHONY: test-perf
+test-perf:
+	go test -v -timeout=3m ./... | tee /tmp/test-output.log; \
+	EXIT_CODE=$$?; \
+	echo ""; \
+	echo "=== SLOWEST TESTS ==="; \
+	grep -E "^\s*--- (PASS|FAIL):" /tmp/test-output.log | \
+	grep -E "\([0-9]+\.[0-9]+s\)" | \
+	sed 's/.*\(Test[^ ]*\).* (\([0-9]*\.[0-9]*s\)).*/\2 \1/' | \
+	sort -nr | \
+	head -10; \
+	rm -f /tmp/test-output.log; \
+	exit $$EXIT_CODE
 
 # Test JavaScript files
 .PHONY: test-js
@@ -51,7 +75,7 @@ test-all: test test-js
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
-	go test -v -coverprofile=coverage.out ./...
+	go test -v -timeout=3m -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 # Clean build artifacts
@@ -234,7 +258,9 @@ help:
 	@echo "Available targets:"
 	@echo "  build            - Build the binary for current platform"
 	@echo "  build-all        - Build binaries for all platforms"
-	@echo "  test             - Run Go tests"
+	@echo "  test             - Run Go tests (unit + integration)"
+	@echo "  test-unit        - Run Go unit tests only (fast)"
+	@echo "  test-integration - Run Go integration tests only"
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"

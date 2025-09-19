@@ -59,54 +59,6 @@ var listCmd = &cobra.Command{
 	},
 }
 
-var addCmd = &cobra.Command{
-	Use:   "add <workflow>...",
-	Short: "Add one or more workflows from the components to .github/workflows",
-	Long: `Add one or more workflows from the components to .github/workflows.
-
-Examples:
-  ` + constants.CLIExtensionPrefix + ` add weekly-research
-  ` + constants.CLIExtensionPrefix + ` add ci-doctor daily-perf-improver
-  ` + constants.CLIExtensionPrefix + ` add weekly-research -n my-custom-name
-  ` + constants.CLIExtensionPrefix + ` add weekly-research -r githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` add weekly-research --pr
-  ` + constants.CLIExtensionPrefix + ` add weekly-research daily-plan --force
-
-The -r flag allows you to install and use workflows from a specific repository.
-The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
-The --pr flag automatically creates a pull request with the workflow changes.
-The --force flag overwrites existing workflow files.
-It's a shortcut for:
-  ` + constants.CLIExtensionPrefix + ` install githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` add weekly-research`,
-	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		workflows := args
-		numberFlag, _ := cmd.Flags().GetInt("number")
-		engineOverride, _ := cmd.Flags().GetString("engine")
-		repoFlag, _ := cmd.Flags().GetString("repo")
-		nameFlag, _ := cmd.Flags().GetString("name")
-		prFlag, _ := cmd.Flags().GetBool("pr")
-		forceFlag, _ := cmd.Flags().GetBool("force")
-		if err := validateEngine(engineOverride); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
-
-		if prFlag {
-			if err := cli.AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, true); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
-		} else {
-			if err := cli.AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, false); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
-		}
-	},
-}
-
 var newCmd = &cobra.Command{
 	Use:   "new <workflow-base-name>",
 	Short: "Create a new workflow markdown file with example configuration",
@@ -314,23 +266,8 @@ func init() {
 		originalHelpFunc(cmd, args)
 	})
 
-	// Add number flag to add command
-	addCmd.Flags().IntP("number", "c", 1, "Create multiple numbered copies")
-
-	// Add name flag to add command
-	addCmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
-
-	// Add AI flag to add command
-	addCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex)")
-
-	// Add repository flag to add command
-	addCmd.Flags().StringP("repo", "r", "", "Install and use workflows from specified repository (org/repo)")
-
-	// Add PR flag to add command
-	addCmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
-
-	// Add force flag to add command
-	addCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
+	// Create and setup add command
+	addCmd := cli.NewAddCommand(verbose, validateEngine)
 
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
@@ -361,8 +298,8 @@ func init() {
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
 
 	// Add all commands to root
-	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(installCmd)
 	rootCmd.AddCommand(uninstallCmd)
