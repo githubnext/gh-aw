@@ -150,8 +150,6 @@ interface UploadAssetItem extends BaseSafeOutputItem {
   type: "upload-asset";
   /** File path to upload */
   file_path: string;
-  /** Optional custom filename (will use SHA + extension if not provided) */
-  filename?: string;
 }
 
 /**

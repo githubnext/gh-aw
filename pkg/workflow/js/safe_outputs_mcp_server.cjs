@@ -194,11 +194,6 @@ const publishAssetHandler = args => {
     // Video
     ".mp4",
     ".webm",
-    // Other safe formats
-    ".log",
-    ".conf",
-    ".cfg",
-    ".ini",
   ];
 
   if (!allowedExts.includes(ext)) {

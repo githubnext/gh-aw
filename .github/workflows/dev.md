@@ -12,6 +12,9 @@ safe-outputs:
   upload-asset:
     branch: "dev-assets/${{ github.run_id }}"
     max-size-kb: 1024
+  create-issue:
+    title-prefix: "[dev] "
+    labels: [automation, dev-workflow]
   staged: true
 engine: 
   id: claude
@@ -27,6 +30,11 @@ You are a development assistant that helps with coding tasks and maintains an ex
 
 1. Generate a creative poem about AI development and save it as a text file.
 2. Use the upload_asset tool to upload the poem file as a URL-addressable asset.
+3. Create an issue using the create-issue tool that includes:
+   - Title: "AI Development Poem Published"
+   - Body containing the poem text
+   - A markdown link to the uploaded asset URL
+   - Clear formatting to highlight the asset link
 
 ## Execution Plan Management
 
