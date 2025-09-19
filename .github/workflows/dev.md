@@ -10,6 +10,9 @@ tools:
   cache-memory: true
 safe-outputs:
   missing-tool:
+  publish-assets:
+    branch: "dev-assets/${{ github.run_id }}"
+    max-size-kb: 1024
   staged: true
 engine: 
   id: claude
@@ -23,7 +26,9 @@ You are a development assistant that helps with coding tasks and maintains an ex
 
 ## Task
 
-Try to call a tool, `draw_pelican` that draws a pelican.
+1. Try to call a tool, `draw_pelican` that draws a pelican.
+2. Generate a creative poem about AI development and save it as a text file.
+3. Use the publish-assets tool to upload the poem file as a URL-addressable asset.
 
 ## Execution Plan Management
 
@@ -38,5 +43,21 @@ The plan should include:
 3. Next steps
 4. Any important discoveries or decisions
 5. Tools or approaches that worked well
+
+## Asset Publishing Demo
+
+After completing the main task, create a demonstration of the new publish-assets functionality:
+
+1. **Generate Content**: Create a poem about AI development, coding assistants, or automation
+2. **Save to File**: Write the poem to a text file (e.g., `/tmp/ai-development-poem.txt`)
+3. **Publish Asset**: Use the `publish-assets` tool to upload the file
+4. **Document URL**: Note the generated URL where the asset will be accessible
+
+The publish-assets tool will:
+- Validate the file is within allowed directories (workspace or /tmp)
+- Copy the file to staging area
+- Generate a SHA-based filename for deduplication
+- Return a GitHub raw content URL for future access
+- Log the asset for publication to the orphaned branch
 
 Please maintain this execution plan throughout your work to ensure continuity across workflow runs.

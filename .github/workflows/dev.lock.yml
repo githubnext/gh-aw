@@ -273,7 +273,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"publish-assets\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -395,6 +395,18 @@ jobs:
               const path = require("path");
               const crypto = require("crypto");
               const { path: filePath } = args;
+              // Validate file path is within allowed directories
+              const absolutePath = path.resolve(filePath);
+              const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+              const tmpDir = "/tmp";
+              const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
+              const isInTmp = absolutePath.startsWith(tmpDir);
+              if (!isInWorkspace && !isInTmp) {
+                throw new Error(
+                  `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
+                  `Provided path: ${filePath} (resolved to: ${absolutePath})`
+                );
+              }
               // Validate file exists
               if (!fs.existsSync(filePath)) {
                 throw new Error(`File not found: ${filePath}`);
@@ -480,33 +492,41 @@ jobs:
               // Read file and compute hash
               const fileContent = fs.readFileSync(filePath);
               const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
-              // Extract filename
+              // Extract filename and extension
               const fileName = path.basename(filePath);
-              // Copy file to assets directory
+              const fileExt = path.extname(fileName).toLowerCase();
+              // Copy file to assets directory with original name
               const targetPath = path.join(assetsDir, fileName);
               fs.copyFileSync(filePath, targetPath);
+              // Generate target filename as sha + extension (lowercased)
+              const targetFileName = (sha + fileExt).toLowerCase();
               // Generate URL (will be available after the publish-assets job runs)
-              // Using placeholder values that will be replaced by the actual branch
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const branchPrefix = "assets"; // This will match the default or configured prefix
-              const targetFileName = `${sha.substring(0, 8)}-${fileName}`;
-              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchPrefix}-TIMESTAMP/${targetFileName}`;
+              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
+              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
               // Create entry for safe outputs
               const entry = {
-                type: "publish-asset",
-                path: filePath,
+                type: "publish-assets",
+                path: path.relative(process.env.GITHUB_WORKSPACE || ".", filePath),
                 fileName: fileName,
                 sha: sha,
                 size: sizeBytes,
                 url: url,
+                targetFileName: targetFileName
               };
               appendSafeOutput(entry);
               return {
                 content: [
                   {
                     type: "text",
-                    text: `Asset published successfully. File: ${fileName}, Size: ${sizeBytes} bytes, SHA: ${sha.substring(0, 16)}...\nURL will be available after workflow completion: ${url}`,
+                    text: `Asset "${fileName}" published successfully!\n\n` +
+                          `• File size: ${sizeBytes} bytes\n` +
+                          `• SHA256: ${sha}\n` +
+                          `• Target filename: ${targetFileName}\n` +
+                          `• Staged for publication to: ${branchName}\n` +
+                          `• Will be available at: ${url}\n\n` +
+                          `The asset will be published to the orphaned branch after workflow completion.`,
                   },
                 ],
               };
@@ -714,7 +734,7 @@ jobs:
                   },
                 },
                 {
-                  name: "publish-asset",
+                  name: "publish-assets",
                   description:
                     "Publish a file as a URL-addressable asset to an orphaned git branch",
                   inputSchema: {
@@ -856,7 +876,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"publish-assets\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -881,7 +901,8 @@ jobs:
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
+                  "GITHUB_AW_ASSETS_BRANCH": "${{ env.GITHUB_AW_ASSETS_BRANCH }}"
                 }
               }
             }
@@ -900,7 +921,9 @@ jobs:
           
           ## Task
           
-          Try to call a tool, `draw_pelican` that draws a pelican.
+          1. Try to call a tool, `draw_pelican` that draws a pelican.
+          2. Generate a creative poem about AI development and save it as a text file.
+          3. Use the publish-assets tool to upload the poem file as a URL-addressable asset.
           
           ## Execution Plan Management
           
@@ -915,6 +938,22 @@ jobs:
           3. Next steps
           4. Any important discoveries or decisions
           5. Tools or approaches that worked well
+          
+          ## Asset Publishing Demo
+          
+          After completing the main task, create a demonstration of the new publish-assets functionality:
+          
+          1. **Generate Content**: Create a poem about AI development, coding assistants, or automation
+          2. **Save to File**: Write the poem to a text file (e.g., `/tmp/ai-development-poem.txt`)
+          3. **Publish Asset**: Use the `publish-assets` tool to upload the file
+          4. **Document URL**: Note the generated URL where the asset will be accessible
+          
+          The publish-assets tool will:
+          - Validate the file is within allowed directories (workspace or /tmp)
+          - Copy the file to staging area
+          - Generate a SHA-based filename for deduplication
+          - Return a GitHub raw content URL for future access
+          - Log the asset for publication to the orphaned branch
           
           Please maintain this execution plan throughout your work to ensure continuity across workflow runs.
           
@@ -940,9 +979,19 @@ jobs:
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Publishing Assets, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Publishing Assets**
+          
+          To publish files as URL-addressable assets:
+          1. Use the publish-assets tool from the safe-outputs MCP
+          2. Provide the path to the file you want to publish
+          3. The tool will copy the file to a staging area and return a GitHub raw content URL
+          4. Assets are published to an orphaned git branch after workflow completion
+          5. Only safe file types are allowed (no executables)
+          6. Maximum file size is limited (default: 10MB)
           
           **Reporting Missing Tools or Functionality**
           
@@ -1079,6 +1128,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GITHUB_AW_ASSETS_BRANCH: "dev-assets/${{ github.run_id }}"
           GITHUB_AW_MAX_TURNS: 5
       - name: Ensure log file exists
         if: always()
@@ -1118,7 +1168,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"publish-assets\":{}}"
         with:
           script: |
             async function main() {
@@ -2598,6 +2648,13 @@ jobs:
           name: dev.log
           path: /tmp/dev.log
           if-no-files-found: warn
+      - name: Upload safe outputs assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe-outputs-assets
+          path: /tmp/safe-outputs/assets/
+          if-no-files-found: ignore
 
   missing_tool:
     needs: dev
@@ -2731,4 +2788,237 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  publish_assets:
+    needs: dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating orphaned branch and pushing assets
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.publish_assets.outputs.branch_name }}
+      published_count: ${{ steps.publish_assets.outputs.published_count }}
+    steps:
+      - name: Download safe outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: safe_output.jsonl
+          path: /tmp/safe-outputs/
+      - name: Download assets
+        uses: actions/download-artifact@v4
+        with:
+          name: safe-outputs-assets
+          path: /tmp/safe-outputs/assets/
+        continue-on-error: true
+      - name: Publish Assets to Orphaned Branch
+        id: publish_assets
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_ASSETS_BRANCH: "dev-assets/${{ github.run_id }}"
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const { execSync } = require("child_process");
+            async function main() {
+              // Check if we're in staged mode
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              // Get the branch name from environment variable (required)
+              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              if (!branchName) {
+                core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              core.info("Starting asset publishing process");
+              // Read the validated output content from environment variable
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.setOutput("published_count", "0");
+                core.setOutput("branch_name", branchName);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                core.setOutput("published_count", "0");
+                core.setOutput("branch_name", branchName);
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              // Parse the validated output JSON
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.setOutput("published_count", "0");
+                core.setOutput("branch_name", branchName);
+                return;
+              }
+              // Find all publish-assets items
+              const publishAssetItems = validatedOutput.items.filter(
+                /** @param {any} item */ item => item.type === "publish-assets"
+              );
+              if (publishAssetItems.length === 0) {
+                core.info("No publish-assets items found in agent output");
+                core.setOutput("published_count", "0");
+                core.setOutput("branch_name", branchName);
+                return;
+              }
+              core.info(`Found ${publishAssetItems.length} publish-assets item(s)`);
+              // If in staged mode, process files but don't push
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Asset Publishing Preview\n\n";
+                summaryContent += "The following assets would be published if staged mode was disabled:\n\n";
+                let processedCount = 0;
+                for (const asset of publishAssetItems) {
+                  try {
+                    const { fileName, filePath, sha, size, targetFileName } = asset;
+                    if (!fileName || !filePath || !sha || !targetFileName) {
+                      core.warning(
+                        `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
+                      );
+                      continue;
+                    }
+                    // Check if file exists in artifacts
+                    const assetSourcePath = path.join("/tmp/safe-outputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    // Verify SHA matches
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(
+                        `SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`
+                      );
+                      continue;
+                    }
+                    summaryContent += `- **${fileName}** → \`${targetFileName}\` (${size} bytes, SHA: ${sha.substring(0, 16)}...)\n`;
+                    processedCount++;
+                  } catch (error) {
+                    core.warning(
+                      `Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`
+                    );
+                  }
+                }
+                summaryContent += `\n**Total assets staged for publishing:** ${processedCount}\n`;
+                summaryContent += `**Target branch:** ${branchName}\n`;
+                core.summary.addRaw(summaryContent).write();
+                core.setOutput("published_count", processedCount.toString());
+                core.setOutput("branch_name", branchName);
+                return;
+              }
+              let publishedCount = 0;
+              let hasChanges = false;
+              try {
+                // Check if orphaned branch already exists, if not create it
+                let branchExists = false;
+                try {
+                  execSync(`git ls-remote --heads origin ${branchName}`, { stdio: "pipe" });
+                  branchExists = true;
+                } catch {
+                  // Branch doesn't exist, will create it
+                }
+                if (branchExists) {
+                  core.info(`Checking out existing orphaned branch: ${branchName}`);
+                  execSync(`git fetch origin ${branchName}`, { stdio: "inherit" });
+                  execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+                } else {
+                  core.info(`Creating new orphaned branch: ${branchName}`);
+                  execSync(`git checkout --orphan ${branchName}`, { stdio: "inherit" });
+                }
+                // Process each asset
+                for (const asset of publishAssetItems) {
+                  try {
+                    const { fileName, filePath, sha, size, targetFileName } = asset;
+                    if (!fileName || !filePath || !sha || !targetFileName) {
+                      core.warning(
+                        `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
+                      );
+                      continue;
+                    }
+                    // Check if file exists in artifacts
+                    const assetSourcePath = path.join("/tmp/safe-outputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    // Verify SHA matches
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto
+                      .createHash("sha256")
+                      .update(fileContent)
+                      .digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(
+                        `SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`
+                      );
+                      continue;
+                    }
+                    // Check if file already exists in the branch
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    // Copy file to branch with target filename
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    // Add to git
+                    execSync(`git add "${targetFileName}"`, { stdio: "inherit" });
+                    publishedCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(
+                      `Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`
+                    );
+                  }
+                }
+                // Commit and push if there are changes
+                if (hasChanges) {
+                  const commitMessage = `Add ${publishedCount} asset(s) via GitHub Actions`;
+                  execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+                  execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+                  core.info(
+                    `Successfully published ${publishedCount} assets to branch ${branchName}`
+                  );
+                  // Add summary
+                  core.summary
+                    .addRaw("## Assets Published")
+                    .addRaw(
+                      `Successfully published **${publishedCount}** assets to branch \`${branchName}\``
+                    )
+                    .addRaw("")
+                    .addRaw("### Published Assets:")
+                    .addRaw("");
+                  for (const asset of publishAssetItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(
+                        `- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`
+                      );
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to publish");
+                }
+              } catch (error) {
+                core.setFailed(
+                  `Failed to publish assets: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
+              }
+              core.setOutput("published_count", publishedCount.toString());
+              core.setOutput("branch_name", branchName);
+            }
+            await main();
 
