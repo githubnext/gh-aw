@@ -268,7 +268,6 @@ func init() {
 
 	// Create and setup add command
 	addCmd := cli.NewAddCommand(verbose, validateEngine)
-	cli.SetupAddCommand(addCmd)
 
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")

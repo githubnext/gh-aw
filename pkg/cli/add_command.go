@@ -11,7 +11,7 @@ import (
 
 // NewAddCommand creates the add command
 func NewAddCommand(verbose bool, validateEngine func(string) error) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "add <workflow>...",
 		Short: "Add one or more workflows from the components to .github/workflows",
 		Long: `Add one or more workflows from the components to .github/workflows.
@@ -77,10 +77,7 @@ It's a shortcut for:
 			}
 		},
 	}
-}
 
-// SetupAddCommand sets up the add command with flags
-func SetupAddCommand(cmd *cobra.Command) {
 	// Add number flag to add command
 	cmd.Flags().IntP("number", "c", 1, "Create multiple numbered copies")
 
@@ -98,4 +95,6 @@ func SetupAddCommand(cmd *cobra.Command) {
 
 	// Add force flag to add command
 	cmd.Flags().Bool("force", false, "Overwrite existing workflow files")
+
+	return cmd
 }

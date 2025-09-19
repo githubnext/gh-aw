@@ -26,6 +26,11 @@ type InteractiveWorkflowBuilder struct {
 
 // CreateWorkflowInteractively prompts the user to build a workflow interactively
 func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) error {
+	// Assert this function is not running in automated unit tests
+	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
+		return fmt.Errorf("interactive workflow creation cannot be used in automated tests or CI environments")
+	}
+
 	if verbose {
 		fmt.Println(console.FormatInfoMessage("Starting interactive workflow creation..."))
 	}
