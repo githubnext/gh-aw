@@ -1641,16 +1641,16 @@
             }
           ]
         },
-        "publish-asset": {
+        "publish-assets": {
           "oneOf": [
             {
               "type": "object",
               "description": "Configuration for publishing assets to an orphaned git branch",
               "properties": {
-                "branch-prefix": {
+                "branch-name": {
                   "type": "string",
-                  "description": "Prefix for orphaned branch name (default: 'assets')",
-                  "default": "assets"
+                  "description": "Branch name (default: 'assets/${{ github.workflow }}')",
+                  "default": "assets/${{ github.workflow }}"
                 },
                 "max-size-kb": {
                   "type": "integer",

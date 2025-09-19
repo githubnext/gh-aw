@@ -162,7 +162,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Publishing Assets**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To publish files as URL-addressable assets:\n")
-		yaml.WriteString("          1. Use the publish-asset tool from the safe-outputs MCP\n")
+		yaml.WriteString("          1. Use the publish-assets tool from the safe-outputs MCP\n")
 		yaml.WriteString("          2. Provide the path to the file you want to publish\n")
 		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
 		yaml.WriteString("          4. Assets are published to an orphaned git branch after workflow completion\n")
@@ -312,7 +312,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.PushToPullRequestBranch = pushToBranchConfig
 			}
 
-			// Handle publish-asset
+			// Handle publish-assets
 			publishAssetsConfig := c.parsePublishAssetsConfig(outputMap)
 			if publishAssetsConfig != nil {
 				config.PublishAssets = publishAssetsConfig

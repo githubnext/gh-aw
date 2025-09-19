@@ -7,26 +7,26 @@ import (
 
 // PublishAssetsConfig holds configuration for publishing assets to an orphaned git branch
 type PublishAssetsConfig struct {
-	BranchPrefix string   `yaml:"branch-prefix,omitempty"` // Prefix for orphaned branch name (default: "assets")
-	MaxSizeKB    int      `yaml:"max-size-kb,omitempty"`   // Maximum file size in KB (default: 10240 = 10MB)
-	AllowedExts  []string `yaml:"allowed-exts,omitempty"`  // Allowed file extensions (default: common non-executable types)
-	GitHubToken  string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
+	BranchName  string   `yaml:"branch-name,omitempty"`   // Branch name (default: "assets/${{ github.workflow }}")
+	MaxSizeKB   int      `yaml:"max-size-kb,omitempty"`   // Maximum file size in KB (default: 10240 = 10MB)
+	AllowedExts []string `yaml:"allowed-exts,omitempty"`  // Allowed file extensions (default: common non-executable types)
+	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
 }
 
-// parsePublishAssetsConfig handles publish-asset configuration
+// parsePublishAssetsConfig handles publish-assets configuration
 func (c *Compiler) parsePublishAssetsConfig(outputMap map[string]any) *PublishAssetsConfig {
-	if configData, exists := outputMap["publish-asset"]; exists {
+	if configData, exists := outputMap["publish-assets"]; exists {
 		config := &PublishAssetsConfig{
-			BranchPrefix: "assets",                      // Default branch prefix
-			MaxSizeKB:    10240,                         // Default 10MB
-			AllowedExts:  getDefaultAllowedExtensions(), // Default safe extensions
+			BranchName:  "assets/${{ github.workflow }}", // Default branch name
+			MaxSizeKB:   10240,                           // Default 10MB
+			AllowedExts: getDefaultAllowedExtensions(),   // Default safe extensions
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse branch-prefix
-			if branchPrefix, exists := configMap["branch-prefix"]; exists {
-				if branchPrefixStr, ok := branchPrefix.(string); ok {
-					config.BranchPrefix = branchPrefixStr
+			// Parse branch-name
+			if branchName, exists := configMap["branch-name"]; exists {
+				if branchNameStr, ok := branchName.(string); ok {
+					config.BranchName = branchNameStr
 				}
 			}
 
@@ -144,7 +144,7 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_BRANCH_PREFIX: %q\n", data.SafeOutputs.PublishAssets.BranchPrefix))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_BRANCH_NAME: %q\n", data.SafeOutputs.PublishAssets.BranchName))
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {

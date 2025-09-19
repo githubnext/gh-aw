@@ -225,38 +225,47 @@ const publishAssetHandler = args => {
   const fileContent = fs.readFileSync(filePath);
   const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
-  // Extract filename
+  // Extract filename and extension
   const fileName = path.basename(filePath);
-
-  // Copy file to assets directory
+  const fileExt = path.extname(fileName).toLowerCase();
+  
+  // Copy file to assets directory with original name
   const targetPath = path.join(assetsDir, fileName);
   fs.copyFileSync(filePath, targetPath);
-
+  
+  // Generate target filename as sha + extension (lowercased)
+  const targetFileName = (sha + fileExt).toLowerCase();
+  
   // Generate URL (will be available after the publish-assets job runs)
-  // Using placeholder values that will be replaced by the actual branch
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-  const branchPrefix = "assets"; // This will match the default or configured prefix
-  const targetFileName = `${sha.substring(0, 8)}-${fileName}`;
-  const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchPrefix}-TIMESTAMP/${targetFileName}`;
-
+  const branchName = process.env.GITHUB_AW_BRANCH_NAME || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
+  const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
+  
   // Create entry for safe outputs
   const entry = {
-    type: "publish-asset",
-    path: filePath,
+    type: "publish-assets",
+    path: path.relative(process.env.GITHUB_WORKSPACE || ".", filePath),
     fileName: fileName,
     sha: sha,
     size: sizeBytes,
     url: url,
+    targetFileName: targetFileName
   };
-
+  
   appendSafeOutput(entry);
-
+  
   return {
     content: [
       {
         type: "text",
-        text: `Asset published successfully. File: ${fileName}, Size: ${sizeBytes} bytes, SHA: ${sha.substring(0, 16)}...\nURL will be available after workflow completion: ${url}`,
+        text: `Asset "${fileName}" published successfully!\n\n` +
+              `• File size: ${sizeBytes} bytes\n` +
+              `• SHA256: ${sha}\n` +
+              `• Target filename: ${targetFileName}\n` +
+              `• Staged for publication to: ${branchName}\n` +
+              `• Will be available at: ${url}\n\n` +
+              `The asset will be published to the orphaned branch after workflow completion.`,
       },
     ],
   };
@@ -465,7 +474,7 @@ const TOOLS = Object.fromEntries(
       },
     },
     {
-      name: "publish-asset",
+      name: "publish-assets",
       description:
         "Publish a file as a URL-addressable asset to an orphaned git branch",
       inputSchema: {

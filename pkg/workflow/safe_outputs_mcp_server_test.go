@@ -410,9 +410,7 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]any{
-		"publish-asset": map[string]any{
-			"enabled": true,
-		},
+		"publish-assets": true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -427,13 +425,13 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	}
 	defer os.Remove(testFilePath)
 
-	// Call publish-asset tool
+	// Call publish-assets tool
 	ctx := context.Background()
-	result, err := client.CallTool(ctx, "publish-asset", map[string]any{
+	result, err := client.CallTool(ctx, "publish-assets", map[string]any{
 		"path": testFilePath,
 	})
 	if err != nil {
-		t.Fatalf("Failed to call publish-asset: %v", err)
+		t.Fatalf("Failed to call publish-assets: %v", err)
 	}
 
 	// Check response structure
@@ -447,14 +445,13 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 		t.Fatalf("Expected first content item to be text content, got %T", result.Content[0])
 	}
 
-	if !strings.Contains(textContent.Text, "Asset published successfully") {
+	if !strings.Contains(textContent.Text, "published successfully") {
 		t.Errorf("Expected response to mention asset publishing, got: %s", textContent.Text)
 	}
 
 	// Verify the output file contains the expected entry
-	if err := verifyOutputFile(t, tempFile, "publish-asset", map[string]any{
-		"path": testFilePath,
-		"type": "publish-asset",
+	if err := verifyOutputFile(t, tempFile, "publish-assets", map[string]any{
+		"type": "publish-assets",
 	}); err != nil {
 		t.Fatalf("Output file verification failed: %v", err)
 	}

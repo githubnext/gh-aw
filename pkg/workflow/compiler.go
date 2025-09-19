@@ -1880,7 +1880,7 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string
 }
 
 func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
-	yaml.WriteString("      - name: Upload assets\n")
+	yaml.WriteString("      - name: Upload safe outputs assets\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
@@ -2321,6 +2321,9 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 		}
 		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
+	}
+	if data.SafeOutputs.PublishAssets != nil {
+		safeOutputsConfig["publish-assets"] = map[string]any{}
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		missingToolConfig := map[string]any{}

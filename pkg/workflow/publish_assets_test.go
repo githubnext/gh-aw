@@ -13,35 +13,35 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 		expected *PublishAssetsConfig
 	}{
 		{
-			name: "basic publish-asset config",
+			name: "basic publish-assets config",
 			input: map[string]any{
-				"publish-asset": nil,
+				"publish-assets": nil,
 			},
 			expected: &PublishAssetsConfig{
-				BranchPrefix: "assets",
-				MaxSizeKB:    10240,
-				AllowedExts:  getDefaultAllowedExtensions(),
+				BranchName:  "assets/${{ github.workflow }}",
+				MaxSizeKB:   10240,
+				AllowedExts: getDefaultAllowedExtensions(),
 			},
 		},
 		{
-			name: "publish-asset config with custom values",
+			name: "publish-assets config with custom values",
 			input: map[string]any{
-				"publish-asset": map[string]any{
-					"branch-prefix": "my-assets",
+				"publish-assets": map[string]any{
+					"branch-name":   "my-assets/${{ github.event.repository.name }}",
 					"max-size-kb":   5120,
 					"allowed-exts":  []any{".jpg", ".png", ".txt"},
 					"github-token":  "${{ secrets.CUSTOM_TOKEN }}",
 				},
 			},
 			expected: &PublishAssetsConfig{
-				BranchPrefix: "my-assets",
-				MaxSizeKB:    5120,
-				AllowedExts:  []string{".jpg", ".png", ".txt"},
-				GitHubToken:  "${{ secrets.CUSTOM_TOKEN }}",
+				BranchName:  "my-assets/${{ github.event.repository.name }}",
+				MaxSizeKB:   5120,
+				AllowedExts: []string{".jpg", ".png", ".txt"},
+				GitHubToken: "${{ secrets.CUSTOM_TOKEN }}",
 			},
 		},
 		{
-			name:     "no publish-asset config",
+			name:     "no publish-assets config",
 			input:    map[string]any{},
 			expected: nil,
 		},
@@ -63,8 +63,8 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 				return
 			}
 
-			if result.BranchPrefix != tt.expected.BranchPrefix {
-				t.Errorf("BranchPrefix: expected %s, got %s", tt.expected.BranchPrefix, result.BranchPrefix)
+			if result.BranchName != tt.expected.BranchName {
+				t.Errorf("BranchName: expected %s, got %s", tt.expected.BranchName, result.BranchName)
 			}
 
 			if result.MaxSizeKB != tt.expected.MaxSizeKB {

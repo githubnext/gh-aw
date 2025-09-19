@@ -138,6 +138,11 @@ codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearc
 		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
 			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 		}
+
+		// Add branch name if publish assets is configured
+		if workflowData.SafeOutputs.PublishAssets != nil {
+			env["GITHUB_AW_BRANCH_NAME"] = workflowData.SafeOutputs.PublishAssets.BranchName
+		}
 	}
 
 	// Add custom environment variables from engine config
@@ -534,7 +539,7 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 		yaml.WriteString("          args = [\n")
 		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
 		yaml.WriteString("          ]\n")
-		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
+		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, \"GITHUB_AW_BRANCH_NAME\" = \"${{ env.GITHUB_AW_BRANCH_NAME }}\" }\n")
 	}
 }
 

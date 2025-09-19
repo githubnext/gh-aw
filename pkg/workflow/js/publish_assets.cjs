@@ -4,77 +4,119 @@ const crypto = require("crypto");
 const { execSync } = require("child_process");
 
 async function main() {
-  const branchPrefix = process.env.GITHUB_AW_BRANCH_PREFIX || "assets";
-  const staged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  // Check if we're in staged mode
+  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  
+  // Get the branch name from environment variable (required)
+  const branchName = process.env.GITHUB_AW_BRANCH_NAME;
+  if (!branchName) {
+    core.setFailed("GITHUB_AW_BRANCH_NAME environment variable is required but not set");
+    return;
+  }
 
   core.info("Starting asset publishing process");
 
-  if (staged) {
-    core.summary
-      .addRaw("## Asset Publishing (Staged Mode)")
-      .addRaw(
-        "**Note**: Running in staged mode - no actual publishing performed"
-      )
-      .addRaw(
-        "Assets would be published to orphaned branch with prefix: `" +
-          branchPrefix +
-          "`"
-      )
-      .write();
-
+  // Read the validated output content from environment variable
+  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+  if (!outputContent) {
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     core.setOutput("published_count", "0");
-    core.setOutput("branch_name", branchPrefix + "-staged");
+    core.setOutput("branch_name", branchName);
+    return;
+  }
+  if (outputContent.trim() === "") {
+    core.info("Agent output content is empty");
+    core.setOutput("published_count", "0");
+    core.setOutput("branch_name", branchName);
     return;
   }
 
-  // Read safe outputs to find assets to publish
-  const safeOutputsFile = "/tmp/safe-outputs/safe-outputs.jsonl";
-  let assetsToPublish = [];
+  core.info(`Agent output content length: ${outputContent.length}`);
 
-  if (fs.existsSync(safeOutputsFile)) {
-    const lines = fs.readFileSync(safeOutputsFile, "utf8").trim().split("\n");
-    for (const line of lines) {
-      if (line.trim()) {
-        try {
-          const entry = JSON.parse(line);
-          if (entry.type === "publish-asset") {
-            assetsToPublish.push(entry);
-          }
-        } catch (error) {
-          core.warning(`Failed to parse JSONL line: ${line}`);
-        }
-      }
-    }
-  }
-
-  if (assetsToPublish.length === 0) {
-    core.info("No assets found to publish");
-    core.setOutput("published_count", "0");
-    core.setOutput("branch_name", "");
-    return;
-  }
-
-  core.info(`Found ${assetsToPublish.length} assets to publish`);
-
-  // Configure git
+  // Parse the validated output JSON
+  let validatedOutput;
   try {
-    execSync("git config user.name 'github-actions[bot]'", {
-      stdio: "inherit",
-    });
-    execSync(
-      "git config user.email '41898282+github-actions[bot]@users.noreply.github.com'",
-      { stdio: "inherit" }
-    );
+    validatedOutput = JSON.parse(outputContent);
   } catch (error) {
     core.setFailed(
-      `Failed to configure git: ${error instanceof Error ? error.message : String(error)}`
+      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
-  // Generate unique branch name
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
-  const branchName = `${branchPrefix}-${timestamp}`;
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    core.info("No valid items found in agent output");
+    core.setOutput("published_count", "0");
+    core.setOutput("branch_name", branchName);
+    return;
+  }
+
+  // Find all publish-assets items
+  const publishAssetItems = validatedOutput.items.filter(
+    /** @param {any} item */ item => item.type === "publish-assets"
+  );
+  if (publishAssetItems.length === 0) {
+    core.info("No publish-assets items found in agent output");
+    core.setOutput("published_count", "0");
+    core.setOutput("branch_name", branchName);
+    return;
+  }
+
+  core.info(`Found ${publishAssetItems.length} publish-assets item(s)`);
+
+  // If in staged mode, process files but don't push
+  if (isStaged) {
+    let summaryContent = "## 🎭 Staged Mode: Asset Publishing Preview\n\n";
+    summaryContent += "The following assets would be published if staged mode was disabled:\n\n";
+    
+    let processedCount = 0;
+    for (const asset of publishAssetItems) {
+      try {
+        const { fileName, filePath, sha, size, targetFileName } = asset;
+        
+        if (!fileName || !filePath || !sha || !targetFileName) {
+          core.warning(
+            `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
+          );
+          continue;
+        }
+
+        // Check if file exists in artifacts
+        const assetSourcePath = path.join("/tmp/safe-outputs/assets", fileName);
+        if (!fs.existsSync(assetSourcePath)) {
+          core.warning(`Asset file not found: ${assetSourcePath}`);
+          continue;
+        }
+
+        // Verify SHA matches
+        const fileContent = fs.readFileSync(assetSourcePath);
+        const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+        
+        if (computedSha !== sha) {
+          core.warning(
+            `SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`
+          );
+          continue;
+        }
+
+        summaryContent += `- **${fileName}** → \`${targetFileName}\` (${size} bytes, SHA: ${sha.substring(0, 16)}...)\n`;
+        processedCount++;
+        
+      } catch (error) {
+        core.warning(
+          `Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    
+    summaryContent += `\n**Total assets staged for publishing:** ${processedCount}\n`;
+    summaryContent += `**Target branch:** ${branchName}\n`;
+    
+    core.summary.addRaw(summaryContent).write();
+    core.setOutput("published_count", processedCount.toString());
+    core.setOutput("branch_name", branchName);
+    return;
+  }
 
   let publishedCount = 0;
   let hasChanges = false;
@@ -96,20 +138,14 @@ async function main() {
     } else {
       core.info(`Creating new orphaned branch: ${branchName}`);
       execSync(`git checkout --orphan ${branchName}`, { stdio: "inherit" });
-      // Remove all files from the working directory to start clean
-      try {
-        execSync("git rm -rf .", { stdio: "pipe" });
-      } catch {
-        // Ignore errors if there are no files to remove
-      }
     }
 
     // Process each asset
-    for (const asset of assetsToPublish) {
+    for (const asset of publishAssetItems) {
       try {
-        const { fileName, filePath, sha, size } = asset;
+        const { fileName, filePath, sha, size, targetFileName } = asset;
 
-        if (!fileName || !filePath || !sha) {
+        if (!fileName || !filePath || !sha || !targetFileName) {
           core.warning(
             `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
           );
@@ -137,21 +173,17 @@ async function main() {
           continue;
         }
 
-        // Use SHA as filename to avoid conflicts
-        const targetFileName = `${sha.substring(0, 8)}-${fileName}`;
-        const targetPath = targetFileName;
-
         // Check if file already exists in the branch
-        if (fs.existsSync(targetPath)) {
+        if (fs.existsSync(targetFileName)) {
           core.info(`Asset ${targetFileName} already exists, skipping`);
           continue;
         }
 
-        // Copy file to branch
-        fs.copyFileSync(assetSourcePath, targetPath);
+        // Copy file to branch with target filename
+        fs.copyFileSync(assetSourcePath, targetFileName);
 
         // Add to git
-        execSync(`git add "${targetPath}"`, { stdio: "inherit" });
+        execSync(`git add "${targetFileName}"`, { stdio: "inherit" });
 
         publishedCount++;
         hasChanges = true;
@@ -184,12 +216,10 @@ async function main() {
         .addRaw("### Published Assets:")
         .addRaw("");
 
-      for (const asset of assetsToPublish) {
-        if (asset.fileName && asset.sha && asset.size) {
-          const targetFileName = `${asset.sha.substring(0, 8)}-${asset.fileName}`;
-          const rawUrl = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/${branchName}/${targetFileName}`;
+      for (const asset of publishAssetItems) {
+        if (asset.fileName && asset.sha && asset.size && asset.url) {
           core.summary.addRaw(
-            `- [\`${asset.fileName}\`](${rawUrl}) (${asset.size} bytes)`
+            `- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`
           );
         }
       }
