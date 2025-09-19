@@ -10,11 +10,8 @@ import (
 
 // Permissions represents GitHub Actions workflow permissions
 type Permissions struct {
-	// Global permission modes
-	GlobalRead     bool // permissions: read
-	GlobalWrite    bool // permissions: write  
-	GlobalReadAll  bool // permissions: read-all
-	GlobalWriteAll bool // permissions: write-all
+	// Global permission mode (if any)
+	Global string // "read", "write", "read-all", "write-all", or "" for individual permissions
 
 	// Individual permissions
 	Actions         string // read, write, none
@@ -39,8 +36,8 @@ func ParsePermissions(frontmatter map[string]any) (*Permissions, error) {
 
 	permissionsValue, exists := frontmatter["permissions"]
 	if !exists {
-		// No permissions specified, will get default read-all
-		return perms, nil
+		// No permissions specified, return nil so we can set defaults
+		return nil, nil
 	}
 
 	switch v := permissionsValue.(type) {
@@ -48,13 +45,13 @@ func ParsePermissions(frontmatter map[string]any) (*Permissions, error) {
 		// Handle global permission strings
 		switch strings.TrimSpace(v) {
 		case "read":
-			perms.GlobalRead = true
+			perms.Global = "read"
 		case "write":
-			perms.GlobalWrite = true
+			perms.Global = "write"
 		case "read-all":
-			perms.GlobalReadAll = true
+			perms.Global = "read-all"
 		case "write-all":
-			perms.GlobalWriteAll = true
+			perms.Global = "write-all"
 		default:
 			return nil, fmt.Errorf("invalid global permission: %s", v)
 		}
@@ -126,7 +123,7 @@ func (p *Permissions) setPermission(key, value string) error {
 // HasContentsAccess returns true if permissions include contents access
 func (p *Permissions) HasContentsAccess() bool {
 	// Check global permissions that include contents access
-	if p.GlobalRead || p.GlobalWrite || p.GlobalReadAll || p.GlobalWriteAll {
+	if p.Global == "read" || p.Global == "write" || p.Global == "read-all" || p.Global == "write-all" {
 		return true
 	}
 
@@ -140,8 +137,8 @@ func (p *Permissions) HasContentsAccess() bool {
 
 // IsEmpty returns true if no permissions are set (equivalent to permissions: {})
 func (p *Permissions) IsEmpty() bool {
-	// Check if all global flags are false and all individual permissions are empty
-	return !p.GlobalRead && !p.GlobalWrite && !p.GlobalReadAll && !p.GlobalWriteAll &&
+	// Check if global permission is empty and all individual permissions are empty
+	return p.Global == "" &&
 		p.Actions == "" && p.Checks == "" && p.Contents == "" && p.Deployments == "" &&
 		p.Discussions == "" && p.Issues == "" && p.Metadata == "" && p.Models == "" &&
 		p.Packages == "" && p.Pages == "" && p.PullRequests == "" && p.RepositoryProjects == "" &&
@@ -151,17 +148,8 @@ func (p *Permissions) IsEmpty() bool {
 // ToYAML serializes permissions back to YAML string format for GitHub Actions
 func (p *Permissions) ToYAML() string {
 	// Handle global permissions first
-	if p.GlobalRead {
-		return "permissions: read"
-	}
-	if p.GlobalWrite {
-		return "permissions: write"
-	}
-	if p.GlobalReadAll {
-		return "permissions: read-all"
-	}
-	if p.GlobalWriteAll {
-		return "permissions: write-all"
+	if p.Global != "" {
+		return fmt.Sprintf("permissions: %s", p.Global)
 	}
 
 	// Handle individual permissions

@@ -123,8 +123,7 @@ type WorkflowData struct {
 	Name               string
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	On                 string
-	Permissions        string      // Legacy string-based permissions (deprecated)
-	PermissionsStruct  *Permissions // New structured permissions
+	PermissionsStruct  *Permissions // Structured permissions
 	Network            string // top-level network permissions configuration
 	Concurrency        string
 	RunName            string
@@ -574,7 +573,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
 	workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
-	workflowData.Permissions = c.extractTopLevelYAMLSection(result.Frontmatter, "permissions")
 	
 	// Parse structured permissions
 	permissionsStruct, err := ParsePermissions(result.Frontmatter)
@@ -988,11 +986,13 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		}
 	}
 
-	if data.Permissions == "" {
-		// Default behavior: use read-all permissions
-		data.Permissions = `permissions: read-all`
-		// Also set the structured permissions
-		data.PermissionsStruct = &Permissions{GlobalReadAll: true}
+	// Set default permissions if none specified (but not if explicitly empty)
+	if data.PermissionsStruct == nil {
+		// No permissions section in frontmatter at all - use default read-all
+		data.PermissionsStruct = &Permissions{Global: "read-all"}
+	} else if data.PermissionsStruct.IsEmpty() {
+		// Permissions explicitly set to empty (permissions: {}) - keep empty
+		// Do nothing, leave as is
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
@@ -1757,39 +1757,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 }
 
 // hasContentsPermission checks if the given permissions include contents access
-// Now uses structured permissions instead of string parsing
+// Uses structured permissions for reliable permission checking
 func (c *Compiler) hasContentsPermission(data *WorkflowData) bool {
 	if data.PermissionsStruct != nil {
 		return data.PermissionsStruct.HasContentsAccess()
 	}
 
-	// Fallback to legacy string-based checking for backwards compatibility
-	return c.hasContentsPermissionLegacy(data.Permissions)
-}
-
-// hasContentsPermissionLegacy is the old string-based permission checking (kept for backwards compatibility)
-func (c *Compiler) hasContentsPermissionLegacy(permissions string) bool {
-	if permissions == "" {
-		return false
-	}
-
-	// Convert to lowercase for case-insensitive matching
-	permsLower := strings.ToLower(permissions)
-
-	// Check for global permission levels that include contents access
-	if strings.Contains(permsLower, "read-all") ||
-		strings.Contains(permsLower, "write-all") ||
-		strings.Contains(permsLower, "permissions: read") ||
-		strings.Contains(permsLower, "permissions: write") {
-		return true
-	}
-
-	// Check for explicit contents permissions
-	if strings.Contains(permsLower, "contents: read") ||
-		strings.Contains(permsLower, "contents: write") {
-		return true
-	}
-
+	// No permissions specified, should not happen since we set defaults
 	return false
 }
 
@@ -1798,8 +1772,8 @@ func (c *Compiler) getJobPermissions(data *WorkflowData) string {
 	if data.PermissionsStruct != nil {
 		return c.indentYAMLLines(data.PermissionsStruct.ToYAML(), "    ")
 	}
-	// Fallback to legacy string-based permissions
-	return c.indentYAMLLines(data.Permissions, "    ")
+	// No permissions specified, return empty (should not happen since we set defaults)
+	return ""
 }
 
 // generateMainJobSteps generates the steps section for the main job

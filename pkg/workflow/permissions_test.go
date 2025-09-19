@@ -14,7 +14,7 @@ func TestParsePermissions(t *testing.T) {
 		{
 			name:        "no_permissions",
 			frontmatter: map[string]any{},
-			expected:    &Permissions{},
+			expected:    nil, // No permissions section returns nil
 			expectError: false,
 		},
 		{
@@ -23,7 +23,7 @@ func TestParsePermissions(t *testing.T) {
 				"permissions": "read",
 			},
 			expected: &Permissions{
-				GlobalRead: true,
+				Global: "read",
 			},
 			expectError: false,
 		},
@@ -33,7 +33,7 @@ func TestParsePermissions(t *testing.T) {
 				"permissions": "write",
 			},
 			expected: &Permissions{
-				GlobalWrite: true,
+				Global: "write",
 			},
 			expectError: false,
 		},
@@ -43,7 +43,7 @@ func TestParsePermissions(t *testing.T) {
 				"permissions": "read-all",
 			},
 			expected: &Permissions{
-				GlobalReadAll: true,
+				Global: "read-all",
 			},
 			expectError: false,
 		},
@@ -53,7 +53,7 @@ func TestParsePermissions(t *testing.T) {
 				"permissions": "write-all",
 			},
 			expected: &Permissions{
-				GlobalWriteAll: true,
+				Global: "write-all",
 			},
 			expectError: false,
 		},
@@ -182,28 +182,28 @@ func TestPermissions_HasContentsAccess(t *testing.T) {
 		{
 			name: "global_read",
 			permissions: &Permissions{
-				GlobalRead: true,
+				Global: "read",
 			},
 			expected: true,
 		},
 		{
 			name: "global_write",
 			permissions: &Permissions{
-				GlobalWrite: true,
+				Global: "write",
 			},
 			expected: true,
 		},
 		{
 			name: "global_read_all",
 			permissions: &Permissions{
-				GlobalReadAll: true,
+				Global: "read-all",
 			},
 			expected: true,
 		},
 		{
 			name: "global_write_all",
 			permissions: &Permissions{
-				GlobalWriteAll: true,
+				Global: "write-all",
 			},
 			expected: true,
 		},
@@ -270,7 +270,7 @@ func TestPermissions_IsEmpty(t *testing.T) {
 		{
 			name: "global_read",
 			permissions: &Permissions{
-				GlobalRead: true,
+				Global: "read",
 			},
 			expected: false,
 		},
@@ -314,28 +314,28 @@ func TestPermissions_ToYAML(t *testing.T) {
 		{
 			name: "global_read",
 			permissions: &Permissions{
-				GlobalRead: true,
+				Global: "read",
 			},
 			expected: []string{"permissions: read"},
 		},
 		{
 			name: "global_write",
 			permissions: &Permissions{
-				GlobalWrite: true,
+				Global: "write",
 			},
 			expected: []string{"permissions: write"},
 		},
 		{
 			name: "global_read_all",
 			permissions: &Permissions{
-				GlobalReadAll: true,
+				Global: "read-all",
 			},
 			expected: []string{"permissions: read-all"},
 		},
 		{
 			name: "global_write_all",
 			permissions: &Permissions{
-				GlobalWriteAll: true,
+				Global: "write-all",
 			},
 			expected: []string{"permissions: write-all"},
 		},
@@ -388,10 +388,7 @@ func permissionsEqual(a, b *Permissions) bool {
 		return false
 	}
 
-	return a.GlobalRead == b.GlobalRead &&
-		a.GlobalWrite == b.GlobalWrite &&
-		a.GlobalReadAll == b.GlobalReadAll &&
-		a.GlobalWriteAll == b.GlobalWriteAll &&
+	return a.Global == b.Global &&
 		a.Actions == b.Actions &&
 		a.Checks == b.Checks &&
 		a.Contents == b.Contents &&
