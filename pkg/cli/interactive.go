@@ -127,8 +127,8 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 // promptForEngine asks the user to select the AI engine
 func (b *InteractiveWorkflowBuilder) promptForEngine() error {
 	engineOptions := []huh.Option[string]{
-		huh.NewOption("claude (default) - Claude coding agent", "claude"),
-		huh.NewOption("codex - GitHub Codex engine", "codex"),
+		huh.NewOption("claude - Anthropic Claude Code coding agent", "claude"),
+		huh.NewOption("codex - OpenAI Codex engine", "codex"),
 		huh.NewOption("custom - Custom engine configuration", "custom"),
 	}
 
@@ -213,7 +213,6 @@ func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
 	networkOptions := []huh.Option[string]{
 		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
 		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
-		huh.NewOption("custom - Specify custom domains", "custom"),
 	}
 
 	b.NetworkAccess = "defaults" // Set default value
@@ -396,8 +395,6 @@ func (b *InteractiveWorkflowBuilder) generateNetworkConfig() string {
 	switch b.NetworkAccess {
 	case "ecosystem":
 		return "network:\n  allowed:\n    - defaults\n    - python\n    - node\n    - go\n    - java\n"
-	case "custom":
-		return "network:\n  allowed: []  # TODO: Add your custom domains\n"
 	default:
 		return "network: defaults\n"
 	}
