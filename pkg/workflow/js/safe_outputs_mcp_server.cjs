@@ -251,7 +251,7 @@ const publishAssetHandler = args => {
   // Generate target filename as sha + extension (lowercased)
   const targetFileName = (sha + fileExt).toLowerCase();
   
-  // Generate URL (will be available after the publish-assets job runs)
+  // Generate URL (will be available after the publish_asset job runs)
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
   const branchName = process.env.GITHUB_AW_ASSETS_BRANCH || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
@@ -259,7 +259,7 @@ const publishAssetHandler = args => {
   
   // Create entry for safe outputs
   const entry = {
-    type: "publish-assets",
+    type: "publish_asset",
     path: path.relative(process.env.GITHUB_WORKSPACE || ".", filePath),
     fileName: fileName,
     sha: sha,
@@ -489,7 +489,7 @@ const TOOLS = Object.fromEntries(
       },
     },
     {
-      name: "publish-assets",
+      name: "publish_asset",
       description:
         "Publish a file as a URL-addressable asset to an orphaned git branch",
       inputSchema: {

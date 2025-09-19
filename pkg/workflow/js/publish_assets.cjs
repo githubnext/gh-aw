@@ -51,18 +51,18 @@ async function main() {
     return;
   }
 
-  // Find all publish-assets items
+  // Find all publish_asset items
   const publishAssetItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "publish-assets"
+    /** @param {any} item */ item => item.type === "publish_asset"
   );
   if (publishAssetItems.length === 0) {
-    core.info("No publish-assets items found in agent output");
+    core.info("No publish_asset items found in agent output");
     core.setOutput("published_count", "0");
     core.setOutput("branch_name", branchName);
     return;
   }
 
-  core.info(`Found ${publishAssetItems.length} publish-assets item(s)`);
+  core.info(`Found ${publishAssetItems.length} publish_asset item(s)`);
 
   // If in staged mode, process files but don't push
   if (isStaged) {

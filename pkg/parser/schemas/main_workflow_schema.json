@@ -1641,7 +1641,7 @@
             }
           ]
         },
-        "publish-assets": {
+        "publish_asset": {
           "oneOf": [
             {
               "type": "object",

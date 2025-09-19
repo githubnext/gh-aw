@@ -273,7 +273,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"publish-assets\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish_asset\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -500,14 +500,14 @@ jobs:
               fs.copyFileSync(filePath, targetPath);
               // Generate target filename as sha + extension (lowercased)
               const targetFileName = (sha + fileExt).toLowerCase();
-              // Generate URL (will be available after the publish-assets job runs)
+              // Generate URL (will be available after the publish_asset job runs)
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
               const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
               // Create entry for safe outputs
               const entry = {
-                type: "publish-assets",
+                type: "publish_asset",
                 path: path.relative(process.env.GITHUB_WORKSPACE || ".", filePath),
                 fileName: fileName,
                 sha: sha,
@@ -734,7 +734,7 @@ jobs:
                   },
                 },
                 {
-                  name: "publish-assets",
+                  name: "publish_asset",
                   description:
                     "Publish a file as a URL-addressable asset to an orphaned git branch",
                   inputSchema: {
@@ -876,7 +876,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"publish-assets\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish_asset\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -921,9 +921,8 @@ jobs:
           
           ## Task
           
-          1. Try to call a tool, `draw_pelican` that draws a pelican.
-          2. Generate a creative poem about AI development and save it as a text file.
-          3. Use the publish-assets tool to upload the poem file as a URL-addressable asset.
+          1. Generate a creative poem about AI development and save it as a text file.
+          2. Use the publish_asset tool to upload the poem file as a URL-addressable asset.
           
           ## Execution Plan Management
           
@@ -941,14 +940,14 @@ jobs:
           
           ## Asset Publishing Demo
           
-          After completing the main task, create a demonstration of the new publish-assets functionality:
+          After completing the main task, create a demonstration of the new publish_asset functionality:
           
           1. **Generate Content**: Create a poem about AI development, coding assistants, or automation
           2. **Save to File**: Write the poem to a text file (e.g., `/tmp/ai-development-poem.txt`)
-          3. **Publish Asset**: Use the `publish-assets` tool to upload the file
+          3. **Publish Asset**: Use the `publish_asset` tool to upload the file
           4. **Document URL**: Note the generated URL where the asset will be accessible
           
-          The publish-assets tool will:
+          The publish_asset tool will:
           - Validate the file is within allowed directories (workspace or /tmp)
           - Copy the file to staging area
           - Generate a SHA-based filename for deduplication
@@ -986,16 +985,12 @@ jobs:
           **Publishing Assets**
           
           To publish files as URL-addressable assets:
-          1. Use the publish-assets tool from the safe-outputs MCP
+          1. Use the publish_asset tool from the safe-outputs MCP
           2. Provide the path to the file you want to publish
           3. The tool will copy the file to a staging area and return a GitHub raw content URL
           4. Assets are published to an orphaned git branch after workflow completion
           5. Only safe file types are allowed (no executables)
           6. Maximum file size is limited (default: 10MB)
-          
-          **Reporting Missing Tools or Functionality**
-          
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
       - name: Print prompt to step summary
@@ -1168,7 +1163,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"publish-assets\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -2656,139 +2651,6 @@ jobs:
           path: /tmp/safe-outputs/assets/
           if-no-files-found: ignore
 
-  missing_tool:
-    needs: dev
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 5
-    outputs:
-      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
-      total_count: ${{ steps.missing_tool.outputs.total_count }}
-    steps:
-      - name: Record Missing Tool
-        id: missing_tool
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
-        with:
-          script: |
-            async function main() {
-              const fs = require("fs");
-              // Get environment variables
-              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX
-                ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX)
-                : null;
-              core.info("Processing missing-tool reports...");
-              core.info(`Agent output length: ${agentOutput.length}`);
-              if (maxReports) {
-                core.info(`Maximum reports allowed: ${maxReports}`);
-              }
-              /** @type {any[]} */
-              const missingTools = [];
-              // Return early if no agent output
-              if (!agentOutput.trim()) {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              // Parse the validated output JSON
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(agentOutput);
-              } catch (error) {
-                core.setFailed(
-                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-                );
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-              // Process all parsed entries
-              for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
-                  // Validate required fields
-                  if (!entry.tool) {
-                    core.warning(
-                      `missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`
-                    );
-                    continue;
-                  }
-                  if (!entry.reason) {
-                    core.warning(
-                      `missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`
-                    );
-                    continue;
-                  }
-                  const missingTool = {
-                    tool: entry.tool,
-                    reason: entry.reason,
-                    alternatives: entry.alternatives || null,
-                    timestamp: new Date().toISOString(),
-                  };
-                  missingTools.push(missingTool);
-                  core.info(`Recorded missing tool: ${missingTool.tool}`);
-                  // Check max limit
-                  if (maxReports && missingTools.length >= maxReports) {
-                    core.info(
-                      `Reached maximum number of missing tool reports (${maxReports})`
-                    );
-                    break;
-                  }
-                }
-              }
-              core.info(`Total missing tools reported: ${missingTools.length}`);
-              // Output results
-              core.setOutput("tools_reported", JSON.stringify(missingTools));
-              core.setOutput("total_count", missingTools.length.toString());
-              // Log details for debugging and create step summary
-              if (missingTools.length > 0) {
-                core.info("Missing tools summary:");
-                // Create structured summary for GitHub Actions step summary
-                core.summary
-                  .addHeading("Missing Tools Report", 2)
-                  .addRaw(
-                    `Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`
-                  );
-                missingTools.forEach((tool, index) => {
-                  core.info(`${index + 1}. Tool: ${tool.tool}`);
-                  core.info(`   Reason: ${tool.reason}`);
-                  if (tool.alternatives) {
-                    core.info(`   Alternatives: ${tool.alternatives}`);
-                  }
-                  core.info(`   Reported at: ${tool.timestamp}`);
-                  core.info("");
-                  // Add to summary with structured formatting
-                  core.summary
-                    .addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`)
-                    .addRaw(`**Reason:** ${tool.reason}\n\n`);
-                  if (tool.alternatives) {
-                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-                  }
-                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-                });
-                core.summary.write();
-              } else {
-                core.info("No missing tools reported in this workflow execution.");
-                core.summary
-                  .addHeading("Missing Tools Report", 2)
-                  .addRaw("✅ No missing tools reported in this workflow execution.")
-                  .write();
-              }
-            }
-            main().catch(error => {
-              core.error(`Error processing missing-tool reports: ${error}`);
-              core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
-
   publish_assets:
     needs: dev
     runs-on: ubuntu-latest
@@ -2863,17 +2725,17 @@ jobs:
                 core.setOutput("branch_name", branchName);
                 return;
               }
-              // Find all publish-assets items
+              // Find all publish_asset items
               const publishAssetItems = validatedOutput.items.filter(
-                /** @param {any} item */ item => item.type === "publish-assets"
+                /** @param {any} item */ item => item.type === "publish_asset"
               );
               if (publishAssetItems.length === 0) {
-                core.info("No publish-assets items found in agent output");
+                core.info("No publish_asset items found in agent output");
                 core.setOutput("published_count", "0");
                 core.setOutput("branch_name", branchName);
                 return;
               }
-              core.info(`Found ${publishAssetItems.length} publish-assets item(s)`);
+              core.info(`Found ${publishAssetItems.length} publish_asset item(s)`);
               // If in staged mode, process files but don't push
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Asset Publishing Preview\n\n";
