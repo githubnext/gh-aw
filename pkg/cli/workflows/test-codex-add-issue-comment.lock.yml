@@ -138,6 +138,7 @@ jobs:
           # Run codex with log capture - pipefail ensures codex exit code is preserved
           codex --full-auto exec --dangerously-bypass-approvals-and-sandbox "$INSTRUCTION" 2>&1 | tee /tmp/test-codex-add-issue-comment.log
         env:
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
