@@ -410,7 +410,7 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]any{
-		"publish-assets": true,
+		"publish_asset": true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)
@@ -462,7 +462,7 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	config := map[string]any{
-		"publish-assets": true,
+		"publish_asset": true,
 	}
 
 	client := NewMCPTestClient(t, tempFile, config)

@@ -64,6 +64,10 @@ async function main() {
 
   core.info(`Found ${publishAssetItems.length} publish_asset item(s)`);
 
+  // Process each asset and validate integrity
+  let hasChanges = false;
+  let publishedCount = 0;
+
   // If in staged mode, process files but don't push
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Asset Publishing Preview\n\n";
@@ -196,8 +200,8 @@ async function main() {
       }
     }
 
-    // Commit and push if there are changes
-    if (hasChanges) {
+    // Commit and push if there are changes (skip if staged)
+    if (hasChanges && !isStaged) {
       const commitMessage = `Add ${publishedCount} asset(s) via GitHub Actions`;
       execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
       execSync(`git push origin ${branchName}`, { stdio: "inherit" });

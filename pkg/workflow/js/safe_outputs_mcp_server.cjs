@@ -99,13 +99,7 @@ function replyError(id, code, message, data) {
 }
 
 function isToolEnabled(name) {
-  // Map tool names to configuration keys
-  const configKeyMap = {
-    "publish_asset": "publish-assets",
-  };
-  
-  const configKey = configKeyMap[name] || name;
-  return safeOutputsConfig[configKey];
+  return safeOutputsConfig[name];
 }
 
 function appendSafeOutput(entry) {
@@ -184,30 +178,19 @@ const publishAssetHandler = args => {
     ".webp",
     ".bmp",
     ".ico",
-    // Documents
-    ".pdf",
+    // Video
+    ".mp4",
+    ".webm",
+    ".avi",
+    ".mov",
+    // Text
     ".txt",
     ".md",
-    ".rtf",
-    ".doc",
-    ".docx",
-    // Data formats
     ".json",
     ".yaml",
     ".yml",
     ".xml",
     ".csv",
-    ".tsv",
-    // Web assets
-    ".css",
-    ".js",
-    ".html",
-    ".htm",
-    // Archives (non-executable)
-    ".zip",
-    ".tar",
-    ".gz",
-    ".bz2",
     // Audio/Video
     ".mp3",
     ".mp4",
