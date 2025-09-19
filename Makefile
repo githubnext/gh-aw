@@ -37,7 +37,7 @@ build-windows:
 # Test the code
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v -timeout=3m ./...
 
 # Test JavaScript files
 .PHONY: test-js
@@ -51,7 +51,7 @@ test-all: test test-js
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
-	go test -v -coverprofile=coverage.out ./...
+	go test -v -timeout=3m -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 # Clean build artifacts
