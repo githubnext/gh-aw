@@ -16,6 +16,32 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
+// formatFileSize formats file sizes in a human-readable way (e.g., "1.2 KB", "3.4 MB")
+func formatFileSize(size int64) string {
+	if size == 0 {
+		return "0 B"
+	}
+
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	units := []string{"KB", "MB", "GB", "TB"}
+	if exp >= len(units) {
+		exp = len(units) - 1
+		div = int64(1) << (10 * (exp + 1))
+	}
+
+	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
+}
+
 const (
 	// OutputArtifactName is the standard name for GITHUB_AW_SAFE_OUTPUTS artifact
 	OutputArtifactName = "safe_output.jsonl"
@@ -312,7 +338,19 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 	}
 
-	fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+	// Display success message with file size if we generated a lock file
+	if c.noEmit {
+		fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+	} else {
+		// Get the size of the generated lock file for display
+		if lockFileInfo, err := os.Stat(lockFile); err == nil {
+			lockSize := formatFileSize(lockFileInfo.Size())
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
+		} else {
+			// Fallback to original display if we can't get file info
+			fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+		}
+	}
 	return nil
 }
 
@@ -473,7 +511,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)))
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("🤖 Engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)))
 		if agenticEngine.IsExperimental() {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
 		}
