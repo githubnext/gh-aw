@@ -1,0 +1,116 @@
+---
+import fs from 'fs';
+import path from 'path';
+
+// Read the instructions.md content at build time
+const instructionsPath = path.join(process.cwd(), '..', 'pkg', 'cli', 'templates', 'instructions.md');
+let instructionsContent = '';
+
+try {
+  instructionsContent = fs.readFileSync(instructionsPath, 'utf-8');
+} catch (error) {
+  console.warn('Could not read instructions.md:', error.message);
+  instructionsContent = 'Error: Could not load instructions content';
+}
+---
+
+<div class="copy-instructions-container">
+  <button 
+    id="copy-instructions-btn" 
+    class="copy-instructions-button"
+    title="Copy GitHub Agentic Workflows instructions to clipboard"
+  >
+    <svg class="copy-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+      <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+    </svg>
+    Copy Instructions (.github/instructions)
+    <span class="feedback-text" id="feedback-text" style="display: none;"></span>
+  </button>
+</div>
+
+<style>
+  .copy-instructions-container {
+    margin: 1rem 0 2rem 0;
+    text-align: center;
+  }
+
+  .copy-instructions-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--sl-color-accent);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-family: var(--sl-font);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .copy-instructions-button:hover {
+    background: var(--sl-color-accent-high);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .copy-instructions-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .copy-icon {
+    flex-shrink: 0;
+  }
+
+  .feedback-text {
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+  }
+
+  .feedback-text.success {
+    color: #28a745;
+  }
+
+  .feedback-text.error {
+    color: #dc3545;
+  }
+</style>
+
+<script define:vars={{ instructionsContent }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const button = document.getElementById('copy-instructions-btn');
+    const feedback = document.getElementById('feedback-text');
+    
+    if (button && feedback) {
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(instructionsContent);
+          
+          feedback.textContent = '✓ Copied!';
+          feedback.className = 'feedback-text success';
+          feedback.style.display = 'inline';
+          
+          setTimeout(() => {
+            feedback.style.display = 'none';
+          }, 2000);
+        } catch (err) {
+          console.error('Failed to copy instructions:', err);
+          
+          feedback.textContent = '✗ Copy failed';
+          feedback.className = 'feedback-text error';
+          feedback.style.display = 'inline';
+          
+          setTimeout(() => {
+            feedback.style.display = 'none';
+          }, 2000);
+        }
+      });
+    }
+  });
+</script>
