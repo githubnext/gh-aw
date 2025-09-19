@@ -456,3 +456,47 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
 }
+
+func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
+	tempFile := createTempOutputFile(t)
+	defer os.Remove(tempFile)
+
+	config := map[string]any{
+		"publish-assets": true,
+	}
+
+	client := NewMCPTestClient(t, tempFile, config)
+	defer client.Close()
+
+	// Test valid paths first - /tmp should be allowed
+	testFilePath := "/tmp/test-asset-validation.txt"
+	testContent := "This is a test file for path validation."
+
+	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	defer os.Remove(testFilePath)
+
+	ctx := context.Background()
+	
+	// This should succeed (file in /tmp)
+	_, err := client.CallTool(ctx, "publish-assets", map[string]any{
+		"path": testFilePath,
+	})
+	if err != nil {
+		t.Fatalf("Expected /tmp file to be allowed, but got error: %v", err)
+	}
+
+	// Test invalid path - should be rejected
+	invalidPath := "/etc/passwd"
+	_, err = client.CallTool(ctx, "publish-assets", map[string]any{
+		"path": invalidPath,
+	})
+	if err == nil {
+		t.Fatalf("Expected file outside workspace/tmp to be rejected, but it was allowed")
+	}
+
+	// Check that the error mentions it's an error (could be wrapped)
+	t.Logf("Got expected error for invalid path: %v", err)
+	// Just verify that an error occurred - the exact message might be wrapped
+}

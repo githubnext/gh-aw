@@ -133,6 +133,21 @@ const publishAssetHandler = args => {
 
   const { path: filePath } = args;
 
+  // Validate file path is within allowed directories
+  const absolutePath = path.resolve(filePath);
+  const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+  const tmpDir = "/tmp";
+  
+  const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
+  const isInTmp = absolutePath.startsWith(tmpDir);
+  
+  if (!isInWorkspace && !isInTmp) {
+    throw new Error(
+      `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
+      `Provided path: ${filePath} (resolved to: ${absolutePath})`
+    );
+  }
+
   // Validate file exists
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
