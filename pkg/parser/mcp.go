@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// ensureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
+// EnsureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
 // in the allowed domains list for Playwright, even when custom domains are specified
 // Includes port variations to allow all ports on localhost and 127.0.0.1
-func ensureLocalhostDomains(domains []string) []string {
+func EnsureLocalhostDomains(domains []string) []string {
 	hasLocalhost := false
 	hasLocalhostPorts := false
 	hasLoopback := false
@@ -208,7 +209,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 				}
 
 				// Set default allowed domains to localhost with all port variations (matches implementation)
-				allowedDomains := []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
+				allowedDomains := constants.DefaultAllowedDomains
 
 				// Check for custom Playwright configuration
 				if toolConfig, ok := toolValue.(map[string]any); ok {
@@ -232,7 +233,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						}
 
 						// Ensure localhost domains are always included
-						allowedDomains = ensureLocalhostDomains(customDomains)
+						allowedDomains = EnsureLocalhostDomains(customDomains)
 					}
 
 					// Check for custom Docker image version

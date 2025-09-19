@@ -4,9 +4,11 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-// TestEnsureLocalhostDomainsWorkflow tests the helper function that ensures localhost domains are always included
+// TestEnsureLocalhostDomainsWorkflow tests the parser.ensureLocalhostDomains function integration
 func TestEnsureLocalhostDomainsWorkflow(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -52,9 +54,9 @@ func TestEnsureLocalhostDomainsWorkflow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ensureLocalhostDomainsWorkflow(tt.input)
+			result := parser.EnsureLocalhostDomains(tt.input)
 			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("ensureLocalhostDomainsWorkflow(%v) = %v, want %v", tt.input, result, tt.expected)
+				t.Errorf("parser.EnsureLocalhostDomains(%v) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
 	}

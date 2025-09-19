@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // generateGitConfiguration generates standardized git credential setup
@@ -187,55 +190,11 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	return playwrightDockerImageVersion
 }
 
-// ensureLocalhostDomainsWorkflow ensures that localhost and 127.0.0.1 are always included
-// in the allowed domains list for Playwright, even when custom domains are specified
-// Includes port variations to allow all ports on localhost and 127.0.0.1
-func ensureLocalhostDomainsWorkflow(domains []string) []string {
-	hasLocalhost := false
-	hasLocalhostPorts := false
-	hasLoopback := false
-	hasLoopbackPorts := false
-
-	for _, domain := range domains {
-		switch domain {
-		case "localhost":
-			hasLocalhost = true
-		case "localhost:*":
-			hasLocalhostPorts = true
-		case "127.0.0.1":
-			hasLoopback = true
-		case "127.0.0.1:*":
-			hasLoopbackPorts = true
-		}
-	}
-
-	result := make([]string, 0, len(domains)+4)
-
-	// Always add localhost domains first (with and without port specifications)
-	if !hasLocalhost {
-		result = append(result, "localhost")
-	}
-	if !hasLocalhostPorts {
-		result = append(result, "localhost:*")
-	}
-	if !hasLoopback {
-		result = append(result, "127.0.0.1")
-	}
-	if !hasLoopbackPorts {
-		result = append(result, "127.0.0.1:*")
-	}
-
-	// Add the rest of the domains
-	result = append(result, domains...)
-
-	return result
-}
-
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
 	// Default to localhost with all port variations (same as Copilot agent default)
-	allowedDomains := []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
+	allowedDomains := constants.DefaultAllowedDomains
 
 	// Extract allowed_domains from Playwright tool configuration
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
@@ -264,7 +223,7 @@ func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *Ne
 			resolvedDomains := GetAllowedDomains(playwrightNetwork)
 
 			// Ensure localhost domains are always included
-			allowedDomains = ensureLocalhostDomainsWorkflow(resolvedDomains)
+			allowedDomains = parser.EnsureLocalhostDomains(resolvedDomains)
 		}
 	}
 
