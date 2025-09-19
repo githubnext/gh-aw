@@ -74,14 +74,14 @@ async function main() {
   } catch (repoError) {
     const errorMessage =
       repoError instanceof Error ? repoError.message : String(repoError);
-    core.error(`Repository permission check failed: ${errorMessage}`);
+    core.warning(`Repository permission check failed: ${errorMessage}`);
     await setCancelled(`Repository permission check failed: ${errorMessage}`);
     return;
   }
 
   // Cancel the workflow when permission check fails
   core.warning(
-    `❌ Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+    `Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
   await setCancelled(
     `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
