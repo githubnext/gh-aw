@@ -9,7 +9,7 @@ on:
 tools:
   cache-memory: true
 safe-outputs:
-  publish_asset:
+  publish-assets:
     branch: "dev-assets/${{ github.run_id }}"
     max-size-kb: 1024
   staged: true

@@ -273,7 +273,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish-assets\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -876,7 +876,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish-assets\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -1163,7 +1163,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"publish-assets\":{}}"
         with:
           script: |
             async function main() {

@@ -13,9 +13,9 @@ type PublishAssetsConfig struct {
 	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
 }
 
-// parsePublishAssetsConfig handles publish_asset configuration
+// parsePublishAssetsConfig handles publish-assets configuration
 func (c *Compiler) parsePublishAssetsConfig(outputMap map[string]any) *PublishAssetsConfig {
-	if configData, exists := outputMap["publish_asset"]; exists {
+	if configData, exists := outputMap["publish-assets"]; exists {
 		config := &PublishAssetsConfig{
 			BranchName:  "assets/${{ github.workflow }}", // Default branch name
 			MaxSizeKB:   10240,                           // Default 10MB

@@ -99,7 +99,13 @@ function replyError(id, code, message, data) {
 }
 
 function isToolEnabled(name) {
-  return safeOutputsConfig[name];
+  // Map tool names to configuration keys
+  const configKeyMap = {
+    "publish_asset": "publish-assets",
+  };
+  
+  const configKey = configKeyMap[name] || name;
+  return safeOutputsConfig[configKey];
 }
 
 function appendSafeOutput(entry) {

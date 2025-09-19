@@ -312,7 +312,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.PushToPullRequestBranch = pushToBranchConfig
 			}
 
-			// Handle publish_asset
+			// Handle publish-assets
 			publishAssetsConfig := c.parsePublishAssetsConfig(outputMap)
 			if publishAssetsConfig != nil {
 				config.PublishAssets = publishAssetsConfig

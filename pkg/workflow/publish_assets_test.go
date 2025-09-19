@@ -13,9 +13,9 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 		expected *PublishAssetsConfig
 	}{
 		{
-			name: "basic publish_asset config",
+			name: "basic publish-assets config",
 			input: map[string]any{
-				"publish_asset": nil,
+				"publish-assets": nil,
 			},
 			expected: &PublishAssetsConfig{
 				BranchName:  "assets/${{ github.workflow }}",
@@ -24,9 +24,9 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "publish_asset config with custom values",
+			name: "publish-assets config with custom values",
 			input: map[string]any{
-				"publish_asset": map[string]any{
+				"publish-assets": map[string]any{
 					"branch":   "my-assets/${{ github.event.repository.name }}",
 					"max-size-kb":   5120,
 					"allowed-exts":  []any{".jpg", ".png", ".txt"},
@@ -41,7 +41,7 @@ func TestParsePublishAssetsConfig(t *testing.T) {
 			},
 		},
 		{
-			name:     "no publish_asset config",
+			name:     "no publish-assets config",
 			input:    map[string]any{},
 			expected: nil,
 		},
