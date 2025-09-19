@@ -39,6 +39,16 @@ build-windows:
 test:
 	go test -v -timeout=3m ./...
 
+# Test unit tests only (excludes integration tests)
+.PHONY: test-unit
+test-unit:
+	go test -v -timeout=3m -tags '!integration' ./...
+
+# Test integration tests only
+.PHONY: test-integration
+test-integration:
+	go test -v -timeout=3m -tags 'integration' ./...
+
 .PHONY: test-perf
 test-perf:
 	go test -v -timeout=3m ./... | tee /tmp/test-output.log; \
@@ -248,7 +258,9 @@ help:
 	@echo "Available targets:"
 	@echo "  build            - Build the binary for current platform"
 	@echo "  build-all        - Build binaries for all platforms"
-	@echo "  test             - Run Go tests"
+	@echo "  test             - Run Go tests (unit + integration)"
+	@echo "  test-unit        - Run Go unit tests only (fast)"
+	@echo "  test-integration - Run Go integration tests only"
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
