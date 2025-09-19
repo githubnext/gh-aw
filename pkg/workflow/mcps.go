@@ -189,27 +189,40 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 
 // ensureLocalhostDomainsWorkflow ensures that localhost and 127.0.0.1 are always included
 // in the allowed domains list for Playwright, even when custom domains are specified
+// Includes port variations to allow all ports on localhost and 127.0.0.1
 func ensureLocalhostDomainsWorkflow(domains []string) []string {
 	hasLocalhost := false
+	hasLocalhostPorts := false
 	hasLoopback := false
+	hasLoopbackPorts := false
 
 	for _, domain := range domains {
-		if domain == "localhost" {
+		switch domain {
+		case "localhost":
 			hasLocalhost = true
-		}
-		if domain == "127.0.0.1" {
+		case "localhost:*":
+			hasLocalhostPorts = true
+		case "127.0.0.1":
 			hasLoopback = true
+		case "127.0.0.1:*":
+			hasLoopbackPorts = true
 		}
 	}
 
-	result := make([]string, 0, len(domains)+2)
+	result := make([]string, 0, len(domains)+4)
 
-	// Always add localhost domains first
+	// Always add localhost domains first (with and without port specifications)
 	if !hasLocalhost {
 		result = append(result, "localhost")
 	}
+	if !hasLocalhostPorts {
+		result = append(result, "localhost:*")
+	}
 	if !hasLoopback {
 		result = append(result, "127.0.0.1")
+	}
+	if !hasLoopbackPorts {
+		result = append(result, "127.0.0.1:*")
 	}
 
 	// Add the rest of the domains
@@ -221,8 +234,8 @@ func ensureLocalhostDomainsWorkflow(domains []string) []string {
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
-	// Default to localhost only (same as Copilot agent default)
-	allowedDomains := []string{"localhost", "127.0.0.1"}
+	// Default to localhost with all port variations (same as Copilot agent default)
+	allowedDomains := []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
 
 	// Extract allowed_domains from Playwright tool configuration
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {

@@ -14,29 +14,39 @@ func TestEnsureLocalhostDomainsWorkflow(t *testing.T) {
 		expected []string
 	}{
 		{
-			name:     "Empty input should add both localhost domains",
+			name:     "Empty input should add all localhost domains with ports",
 			input:    []string{},
-			expected: []string{"localhost", "127.0.0.1"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"},
 		},
 		{
-			name:     "Custom domains without localhost should add localhost domains",
+			name:     "Custom domains without localhost should add localhost domains with ports",
 			input:    []string{"github.com", "*.github.com"},
-			expected: []string{"localhost", "127.0.0.1", "github.com", "*.github.com"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "github.com", "*.github.com"},
 		},
 		{
-			name:     "Input with localhost but no 127.0.0.1 should add 127.0.0.1",
+			name:     "Input with localhost but no 127.0.0.1 should add missing domains",
 			input:    []string{"localhost", "example.com"},
-			expected: []string{"127.0.0.1", "localhost", "example.com"},
+			expected: []string{"localhost:*", "127.0.0.1", "127.0.0.1:*", "localhost", "example.com"},
 		},
 		{
-			name:     "Input with 127.0.0.1 but no localhost should add localhost",
+			name:     "Input with 127.0.0.1 but no localhost should add missing domains",
 			input:    []string{"127.0.0.1", "example.com"},
-			expected: []string{"localhost", "127.0.0.1", "example.com"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1:*", "127.0.0.1", "example.com"},
 		},
 		{
-			name:     "Input with both localhost domains should remain unchanged",
+			name:     "Input with both localhost domains should add port variants",
 			input:    []string{"localhost", "127.0.0.1", "example.com"},
-			expected: []string{"localhost", "127.0.0.1", "example.com"},
+			expected: []string{"localhost:*", "127.0.0.1:*", "localhost", "127.0.0.1", "example.com"},
+		},
+		{
+			name:     "Input with all localhost variants should remain unchanged",
+			input:    []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "example.com"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "example.com"},
+		},
+		{
+			name:     "Input with some localhost variants should add missing ones",
+			input:    []string{"localhost:*", "127.0.0.1", "example.com"},
+			expected: []string{"localhost", "127.0.0.1:*", "localhost:*", "127.0.0.1", "example.com"},
 		},
 	}
 
@@ -298,9 +308,9 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 		t.Errorf("Expected --allowed-origins flag in npx args")
 	}
 
-	// Check that it contains the specified domains AND localhost domains
-	if !strings.Contains(output, "localhost,127.0.0.1,example.com,*.github.com") {
-		t.Errorf("Expected configured domains with localhost in --allowed-origins value")
+	// Check that it contains the specified domains AND localhost domains with port variations
+	if !strings.Contains(output, "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com,*.github.com") {
+		t.Errorf("Expected configured domains with localhost and port variations in --allowed-origins value")
 	}
 
 	// Check that it does NOT contain the old format environment variables
@@ -349,9 +359,9 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 		t.Errorf("Expected --allowed-origins flag in npx args")
 	}
 
-	// Check that it contains default domains (localhost, 127.0.0.1)
-	if !strings.Contains(output, "localhost,127.0.0.1") {
-		t.Errorf("Expected default domains in --allowed-origins value")
+	// Check that it contains default domains with port variations (localhost, localhost:*, 127.0.0.1, 127.0.0.1:*)
+	if !strings.Contains(output, "localhost,localhost:*,127.0.0.1,127.0.0.1:*") {
+		t.Errorf("Expected default domains with port variations in --allowed-origins value")
 	}
 
 	// Check that it does NOT contain the old format environment variables

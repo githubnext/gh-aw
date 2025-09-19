@@ -14,34 +14,44 @@ func TestEnsureLocalhostDomains(t *testing.T) {
 		expected []string
 	}{
 		{
-			name:     "Empty input should add both localhost domains",
+			name:     "Empty input should add all localhost domains with ports",
 			input:    []string{},
-			expected: []string{"localhost", "127.0.0.1"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"},
 		},
 		{
-			name:     "Custom domains without localhost should add localhost domains",
+			name:     "Custom domains without localhost should add localhost domains with ports",
 			input:    []string{"github.com", "*.github.com"},
-			expected: []string{"localhost", "127.0.0.1", "github.com", "*.github.com"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "github.com", "*.github.com"},
 		},
 		{
-			name:     "Input with localhost but no 127.0.0.1 should add 127.0.0.1",
+			name:     "Input with localhost but no 127.0.0.1 should add missing domains",
 			input:    []string{"localhost", "example.com"},
-			expected: []string{"127.0.0.1", "localhost", "example.com"},
+			expected: []string{"localhost:*", "127.0.0.1", "127.0.0.1:*", "localhost", "example.com"},
 		},
 		{
-			name:     "Input with 127.0.0.1 but no localhost should add localhost",
+			name:     "Input with 127.0.0.1 but no localhost should add missing domains",
 			input:    []string{"127.0.0.1", "example.com"},
-			expected: []string{"localhost", "127.0.0.1", "example.com"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1:*", "127.0.0.1", "example.com"},
 		},
 		{
-			name:     "Input with both localhost domains should remain unchanged",
+			name:     "Input with both localhost domains should add port variants",
 			input:    []string{"localhost", "127.0.0.1", "example.com"},
-			expected: []string{"localhost", "127.0.0.1", "example.com"},
+			expected: []string{"localhost:*", "127.0.0.1:*", "localhost", "127.0.0.1", "example.com"},
 		},
 		{
-			name:     "Input with both in different order should just add what's missing",
+			name:     "Input with both in different order should add port variants",
 			input:    []string{"example.com", "127.0.0.1", "localhost"},
-			expected: []string{"example.com", "127.0.0.1", "localhost"},
+			expected: []string{"localhost:*", "127.0.0.1:*", "example.com", "127.0.0.1", "localhost"},
+		},
+		{
+			name:     "Input with all localhost variants should remain unchanged",
+			input:    []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "example.com"},
+			expected: []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*", "example.com"},
+		},
+		{
+			name:     "Input with some localhost variants should add missing ones",
+			input:    []string{"localhost:*", "127.0.0.1", "example.com"},
+			expected: []string{"localhost", "127.0.0.1:*", "localhost:*", "127.0.0.1", "example.com"},
 		},
 	}
 
@@ -140,7 +150,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:latest",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,127.0.0.1,github.com,*.github.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"},
 				},
 			},
 		},
@@ -164,7 +174,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:v1.41.0",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,127.0.0.1,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
 				},
 			},
 		},
@@ -185,7 +195,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:latest",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,127.0.0.1"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"},
 				},
 			},
 		},
