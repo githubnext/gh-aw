@@ -5,32 +5,46 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// ensureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
+// EnsureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
 // in the allowed domains list for Playwright, even when custom domains are specified
-func ensureLocalhostDomains(domains []string) []string {
+// Includes port variations to allow all ports on localhost and 127.0.0.1
+func EnsureLocalhostDomains(domains []string) []string {
 	hasLocalhost := false
+	hasLocalhostPorts := false
 	hasLoopback := false
+	hasLoopbackPorts := false
 
 	for _, domain := range domains {
-		if domain == "localhost" {
+		switch domain {
+		case "localhost":
 			hasLocalhost = true
-		}
-		if domain == "127.0.0.1" {
+		case "localhost:*":
+			hasLocalhostPorts = true
+		case "127.0.0.1":
 			hasLoopback = true
+		case "127.0.0.1:*":
+			hasLoopbackPorts = true
 		}
 	}
 
-	result := make([]string, 0, len(domains)+2)
+	result := make([]string, 0, len(domains)+4)
 
-	// Always add localhost domains first
+	// Always add localhost domains first (with and without port specifications)
 	if !hasLocalhost {
 		result = append(result, "localhost")
 	}
+	if !hasLocalhostPorts {
+		result = append(result, "localhost:*")
+	}
 	if !hasLoopback {
 		result = append(result, "127.0.0.1")
+	}
+	if !hasLoopbackPorts {
+		result = append(result, "127.0.0.1:*")
 	}
 
 	// Add the rest of the domains
@@ -194,8 +208,8 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					Env: make(map[string]string),
 				}
 
-				// Set default allowed domains to localhost only (matches implementation)
-				allowedDomains := []string{"localhost", "127.0.0.1"}
+				// Set default allowed domains to localhost with all port variations (matches implementation)
+				allowedDomains := constants.DefaultAllowedDomains
 
 				// Check for custom Playwright configuration
 				if toolConfig, ok := toolValue.(map[string]any); ok {
@@ -219,7 +233,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						}
 
 						// Ensure localhost domains are always included
-						allowedDomains = ensureLocalhostDomains(customDomains)
+						allowedDomains = EnsureLocalhostDomains(customDomains)
 					}
 
 					// Check for custom Docker image version

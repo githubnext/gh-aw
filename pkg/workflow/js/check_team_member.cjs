@@ -46,7 +46,7 @@ async function main() {
 
   // Cancel the workflow when team membership check fails
   core.warning(
-    `❌ Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`
+    `Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`
   );
   await setCancelled(
     `Access denied: User '${actor}' is not authorized for this workflow`
