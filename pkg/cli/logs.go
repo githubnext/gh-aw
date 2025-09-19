@@ -16,6 +16,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 )
@@ -781,7 +782,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Report that the agentic output file was found
 			fileInfo, statErr := os.Stat(awOutputPath)
 			if statErr == nil {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: safe_output.jsonl (%s)", formatFileSize(fileInfo.Size()))))
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: safe_output.jsonl (%s)", pretty.FormatFileSize(fileInfo.Size()))))
 			}
 		}
 	}
@@ -793,7 +794,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Report that the git patch file was found
 			fileInfo, statErr := os.Stat(awPatchPath)
 			if statErr == nil {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", formatFileSize(fileInfo.Size()))))
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", pretty.FormatFileSize(fileInfo.Size()))))
 			}
 		}
 	}
@@ -804,7 +805,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 		if verbose {
 			fileInfo, statErr := os.Stat(agentOutputPath)
 			if statErr == nil {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent output file: %s (%s)", filepath.Base(agentOutputPath), formatFileSize(fileInfo.Size()))))
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent output file: %s (%s)", filepath.Base(agentOutputPath), pretty.FormatFileSize(fileInfo.Size()))))
 			}
 		}
 		// If the file is not already in the logDir root, copy it for convenience
@@ -1239,32 +1240,6 @@ func formatNumber(n int) string {
 			return fmt.Sprintf("%.2fB", b)
 		}
 	}
-}
-
-// formatFileSize formats file sizes in a human-readable way (e.g., "1.2 KB", "3.4 MB")
-func formatFileSize(size int64) string {
-	if size == 0 {
-		return "0 B"
-	}
-
-	const unit = 1024
-	if size < unit {
-		return fmt.Sprintf("%d B", size)
-	}
-
-	div, exp := int64(unit), 0
-	for n := size / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-
-	units := []string{"KB", "MB", "GB", "TB"}
-	if exp >= len(units) {
-		exp = len(units) - 1
-		div = int64(1) << (10 * (exp + 1))
-	}
-
-	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
 // findAgentOutputFile searches for a file named agent_output.json within the logDir tree.

@@ -12,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -312,7 +313,19 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 	}
 
-	fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+	// Display success message with file size if we generated a lock file
+	if c.noEmit {
+		fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+	} else {
+		// Get the size of the generated lock file for display
+		if lockFileInfo, err := os.Stat(lockFile); err == nil {
+			lockSize := pretty.FormatFileSize(lockFileInfo.Size())
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
+		} else {
+			// Fallback to original display if we can't get file info
+			fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+		}
+	}
 	return nil
 }
 
