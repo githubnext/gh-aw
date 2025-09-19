@@ -44,7 +44,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createPRReviewCommentScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(createPRReviewCommentScript)
 	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job

@@ -56,7 +56,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createCodeScanningAlertScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(createCodeScanningAlertScript)
 	steps = append(steps, formattedScript...)
 
 	// Add step to upload SARIF artifact

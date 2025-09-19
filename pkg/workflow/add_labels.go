@@ -62,7 +62,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(addLabelsScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(addLabelsScript)
 	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job

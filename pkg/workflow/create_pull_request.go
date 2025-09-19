@@ -95,7 +95,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createPullRequestScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(createPullRequestScript)
 	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job

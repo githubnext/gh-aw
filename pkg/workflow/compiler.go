@@ -1650,7 +1650,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 		steps = append(steps, "          script: |\n")
 
 		// Inline the JavaScript directly instead of using shared action
-		steps = append(steps, FormatJavaScriptForYAML(computeTextScript)...)
+		steps = append(steps, FormatJavaScriptForYAMLWithoutComments(computeTextScript)...)
 
 		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
@@ -1884,7 +1884,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("          script: |\n")
 
 	// Inline the JavaScript code with proper indentation
-	steps := FormatJavaScriptForYAML(logParserScript)
+	steps := FormatJavaScriptForYAMLWithoutComments(logParserScript)
 	for _, step := range steps {
 		yaml.WriteString(step)
 	}
@@ -1932,7 +1932,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("          script: |\n")
 
 	// Inline the JavaScript code with proper indentation
-	steps := FormatJavaScriptForYAML(errorValidationScript)
+	steps := FormatJavaScriptForYAMLWithoutComments(errorValidationScript)
 	for _, step := range steps {
 		yaml.WriteString(step)
 	}
@@ -2237,7 +2237,7 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 	yaml.WriteString("          script: |\n")
 
 	// Use the embedded setup agent output script
-	WriteJavaScriptToYAML(yaml, setupAgentOutputScript)
+	WriteJavaScriptToYAMLWithoutComments(yaml, setupAgentOutputScript)
 }
 
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
@@ -2359,7 +2359,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          script: |\n")
 
 	// Add each line of the script with proper indentation
-	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
+	WriteJavaScriptToYAMLWithoutComments(yaml, collectJSONLOutputScript)
 
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GITHUB_AW_AGENT_OUTPUT\n")

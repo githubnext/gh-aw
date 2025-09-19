@@ -93,7 +93,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createDiscussionScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(createDiscussionScript)
 	steps = append(steps, formattedScript...)
 
 	outputs := map[string]string{

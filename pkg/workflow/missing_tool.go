@@ -44,7 +44,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(missingToolScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(missingToolScript)
 	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job

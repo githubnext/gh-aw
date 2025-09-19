@@ -49,7 +49,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createCommentScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(createCommentScript)
 	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job

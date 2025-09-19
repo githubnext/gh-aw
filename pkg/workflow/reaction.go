@@ -50,7 +50,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(addReactionAndEditCommentScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(addReactionAndEditCommentScript)
 	steps = append(steps, formattedScript...)
 
 	outputs := map[string]string{

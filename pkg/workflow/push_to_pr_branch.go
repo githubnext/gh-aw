@@ -73,7 +73,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(pushToBranchScript)
+	formattedScript := FormatJavaScriptForYAMLWithoutComments(pushToBranchScript)
 	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job

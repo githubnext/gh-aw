@@ -79,6 +79,21 @@ func FormatJavaScriptForYAML(script string) []string {
 	return formattedLines
 }
 
+// FormatJavaScriptForYAMLWithoutComments formats a JavaScript script with proper indentation
+// for embedding in YAML while removing single-line comments
+func FormatJavaScriptForYAMLWithoutComments(script string) []string {
+	var formattedLines []string
+	scriptLines := strings.Split(script, "\n")
+	for _, line := range scriptLines {
+		processedLine := removeSingleLineComment(line)
+		// Skip empty lines when inlining to YAML
+		if strings.TrimSpace(processedLine) != "" {
+			formattedLines = append(formattedLines, fmt.Sprintf("            %s\n", processedLine))
+		}
+	}
+	return formattedLines
+}
+
 // WriteJavaScriptToYAML writes a JavaScript script with proper indentation to a strings.Builder
 func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 	scriptLines := strings.Split(script, "\n")
@@ -88,6 +103,62 @@ func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 			fmt.Fprintf(yaml, "            %s\n", line)
 		}
 	}
+}
+
+// WriteJavaScriptToYAMLWithoutComments writes a JavaScript script with proper indentation
+// to a strings.Builder while removing single-line comments
+func WriteJavaScriptToYAMLWithoutComments(yaml *strings.Builder, script string) {
+	scriptLines := strings.Split(script, "\n")
+	for _, line := range scriptLines {
+		processedLine := removeSingleLineComment(line)
+		// Skip empty lines when inlining to YAML
+		if strings.TrimSpace(processedLine) != "" {
+			fmt.Fprintf(yaml, "            %s\n", processedLine)
+		}
+	}
+}
+
+// removeSingleLineComment removes single-line JavaScript comments (// comment) from a line
+// while preserving // that appear inside string literals
+func removeSingleLineComment(line string) string {
+	inString := false
+	stringChar := byte(0)
+	escaped := false
+
+	for i := 0; i < len(line); i++ {
+		char := line[i]
+
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if char == '\\' && inString {
+			escaped = true
+			continue
+		}
+
+		if !inString && (char == '"' || char == '\'' || char == '`') {
+			inString = true
+			stringChar = char
+			continue
+		}
+
+		if inString && char == stringChar {
+			inString = false
+			stringChar = 0
+			continue
+		}
+
+		// Check for single-line comment outside of string
+		if !inString && i < len(line)-1 && char == '/' && line[i+1] == '/' {
+			// Found comment, return everything before it (trimmed of trailing whitespace)
+			return strings.TrimRight(line[:i], " \t")
+		}
+	}
+
+	// No comment found, return original line
+	return line
 }
 
 // GetLogParserScript returns the JavaScript content for a log parser by name
