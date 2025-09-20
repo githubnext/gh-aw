@@ -60,6 +60,11 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
 					envVars["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 				}
+
+				// Add branch name if upload assets is configured
+				if workflowData.SafeOutputs.UploadAssets != nil {
+					envVars["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
+				}
 			}
 
 			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
@@ -267,7 +272,8 @@ func (e *CustomEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast 
 	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

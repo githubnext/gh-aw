@@ -193,6 +193,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
 			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
 		}
+
+		// Add branch name if upload assets is configured
+		if workflowData.SafeOutputs.UploadAssets != nil {
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
+		}
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
@@ -689,7 +694,8 @@ func (e *ClaudeEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast 
 	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

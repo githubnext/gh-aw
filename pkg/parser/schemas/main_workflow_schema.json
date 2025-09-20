@@ -1641,6 +1641,45 @@
             }
           ]
         },
+        "upload-assets": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for publishing assets to an orphaned git branch",
+              "properties": {
+                "branch": {
+                  "type": "string",
+                  "description": "Branch name (default: 'assets/${{ github.workflow }}')",
+                  "default": "assets/${{ github.workflow }}"
+                },
+                "max-size": {
+                  "type": "integer",
+                  "description": "Maximum file size in KB (default: 10240 = 10MB)",
+                  "minimum": 1,
+                  "maximum": 51200,
+                  "default": 10240
+                },
+                "allowed-exts": {
+                  "type": "array",
+                  "description": "Allowed file extensions (default: common non-executable types)",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\.[a-zA-Z0-9]+$"
+                  }
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable asset publishing with default configuration"
+            }
+          ]
+        },
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"

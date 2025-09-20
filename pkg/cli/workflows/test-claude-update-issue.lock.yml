@@ -300,6 +300,13 @@ jobs:
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
           tail -10 /tmp/test-claude-update-issue.log || echo "No log content available"
+      - name: Upload MCP logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-logs
+          path: /tmp/mcp-logs/
+          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
