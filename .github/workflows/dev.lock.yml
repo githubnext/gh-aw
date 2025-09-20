@@ -672,7 +672,7 @@ jobs:
                   properties: {
                     path: {
                       type: "string",
-                      description: "Path to the file to publish as an asset",
+                      description: "Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. Images (.jpg, .png, .webp), videos (.mp4, .webm), and text files (.txt, .md) are allowed.",
                     },
                   },
                   additionalProperties: false,
@@ -2752,12 +2752,6 @@ jobs:
       branch_name: ${{ steps.upload_assets.outputs.branch_name }}
       published_count: ${{ steps.upload_assets.outputs.published_count }}
     steps:
-      - name: Download safe outputs
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: safe_output.jsonl
-          path: /tmp/safe-outputs/
       - name: Download assets
         continue-on-error: true
         uses: actions/download-artifact@v5
@@ -2768,6 +2762,7 @@ jobs:
         id: upload_assets
         uses: actions/github-script@v8
         env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
           GITHUB_AW_ASSETS_BRANCH: "dev-assets/${{ github.run_id }}"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:

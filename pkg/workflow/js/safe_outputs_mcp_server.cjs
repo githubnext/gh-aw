@@ -446,7 +446,7 @@ const ALL_TOOLS = [
       properties: {
         path: {
           type: "string",
-          description: "Path to the file to publish as an asset",
+          description: "Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. Images (.jpg, .png, .webp), videos (.mp4, .webm), and text files (.txt, .md) are allowed.",
         },
       },
       additionalProperties: false,
