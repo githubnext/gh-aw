@@ -162,12 +162,10 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Uploading Assets**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To upload files as URL-addressable assets:\n")
-		yaml.WriteString("          1. Use the `upload assert` tool from the safe-outputs MCP\n")
+		yaml.WriteString("          1. Use the `upload asset` tool from the safe-outputs MCP\n")
 		yaml.WriteString("          2. Provide the path to the file you want to upload\n")
 		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
 		yaml.WriteString("          4. Assets are uploaded to an orphaned git branch after workflow completion\n")
-		yaml.WriteString("          5. Only safe file types are allowed (no executables)\n")
-		yaml.WriteString("          6. Maximum file size is limited (default: 10MB)\n")
 		yaml.WriteString("          \n")
 	}
 

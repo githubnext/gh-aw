@@ -6,8 +6,6 @@ on:
     branches:
       - copilot/*
       - pelikhan/*
-tools:
-  cache-memory: true
 safe-outputs:
   upload-asset:
     branch: "dev-assets/${{ github.run_id }}"
