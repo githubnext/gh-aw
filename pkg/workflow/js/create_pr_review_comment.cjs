@@ -18,9 +18,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -31,26 +29,19 @@ async function main() {
 
   // Find all create-pull-request-review-comment items
   const reviewCommentItems = validatedOutput.items.filter(
-    /** @param {any} item */ item =>
-      item.type === "create-pull-request-review-comment"
+    /** @param {any} item */ item => item.type === "create-pull-request-review-comment"
   );
   if (reviewCommentItems.length === 0) {
-    core.info(
-      "No create-pull-request-review-comment items found in agent output"
-    );
+    core.info("No create-pull-request-review-comment items found in agent output");
     return;
   }
 
-  core.info(
-    `Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`
-  );
+  core.info(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
 
   // If in staged mode, emit step summary instead of creating review comments
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent =
-      "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
-    summaryContent +=
-      "The following review comments would be created if staged mode was disabled:\n\n";
+    let summaryContent = "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
+    summaryContent += "The following review comments would be created if staged mode was disabled:\n\n";
 
     for (let i = 0; i < reviewCommentItems.length; i++) {
       const item = reviewCommentItems[i];
@@ -80,14 +71,10 @@ async function main() {
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment" ||
-    (context.eventName === "issue_comment" &&
-      context.payload.issue &&
-      context.payload.issue.pull_request);
+    (context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request);
 
   if (!isPRContext) {
-    core.info(
-      "Not running in pull request context, skipping review comment creation"
-    );
+    core.info("Not running in pull request context, skipping review comment creation");
     return;
   }
   let pullRequest = context.payload.pull_request;
@@ -114,18 +101,14 @@ async function main() {
         return;
       }
     } else {
-      core.info(
-        "Pull request data not found in payload - cannot create review comments"
-      );
+      core.info("Pull request data not found in payload - cannot create review comments");
       return;
     }
   }
 
   // Check if we have the commit SHA needed for creating review comments
   if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
-    core.info(
-      "Pull request head commit SHA not found in payload - cannot create review comments"
-    );
+    core.info("Pull request head commit SHA not found in payload - cannot create review comments");
     return;
   }
 
@@ -147,21 +130,13 @@ async function main() {
       continue;
     }
 
-    if (
-      !commentItem.line ||
-      (typeof commentItem.line !== "number" &&
-        typeof commentItem.line !== "string")
-    ) {
-      core.info(
-        'Missing or invalid required field "line" in review comment item'
-      );
+    if (!commentItem.line || (typeof commentItem.line !== "number" && typeof commentItem.line !== "string")) {
+      core.info('Missing or invalid required field "line" in review comment item');
       continue;
     }
 
     if (!commentItem.body || typeof commentItem.body !== "string") {
-      core.info(
-        'Missing or invalid required field "body" in review comment item'
-      );
+      core.info('Missing or invalid required field "body" in review comment item');
       continue;
     }
 
@@ -176,9 +151,7 @@ async function main() {
     if (commentItem.start_line) {
       startLine = parseInt(commentItem.start_line, 10);
       if (isNaN(startLine) || startLine <= 0 || startLine > line) {
-        core.info(
-          `Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`
-        );
+        core.info(`Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`);
         continue;
       }
     }
@@ -226,12 +199,9 @@ async function main() {
       }
 
       // Create the review comment using GitHub API
-      const { data: comment } =
-        await github.rest.pulls.createReviewComment(requestParams);
+      const { data: comment } = await github.rest.pulls.createReviewComment(requestParams);
 
-      core.info(
-        "Created review comment #" + comment.id + ": " + comment.html_url
-      );
+      core.info("Created review comment #" + comment.id + ": " + comment.html_url);
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)
@@ -240,9 +210,7 @@ async function main() {
         core.setOutput("review_comment_url", comment.html_url);
       }
     } catch (error) {
-      core.error(
-        `✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`
-      );
+      core.error(`✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

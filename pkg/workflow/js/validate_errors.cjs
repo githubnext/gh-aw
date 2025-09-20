@@ -4,9 +4,7 @@ function main() {
   try {
     const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!logFile) {
-      throw new Error(
-        "GITHUB_AW_AGENT_OUTPUT environment variable is required"
-      );
+      throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
     }
 
     if (!fs.existsSync(logFile)) {
@@ -31,18 +29,14 @@ function main() {
     }
   } catch (error) {
     console.debug(error);
-    core.setFailed(
-      `Error validating log: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 function getErrorPatternsFromEnv() {
   const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
   if (!patternsEnv) {
-    throw new Error(
-      "GITHUB_AW_ERROR_PATTERNS environment variable is required"
-    );
+    throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
   }
 
   try {
@@ -52,9 +46,7 @@ function getErrorPatternsFromEnv() {
     }
     return patterns;
   } catch (e) {
-    throw new Error(
-      `Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`
-    );
+    throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -99,11 +91,7 @@ function validateErrors(logContent, patterns) {
  * @returns {string}
  */
 function extractLevel(match, pattern) {
-  if (
-    pattern.level_group &&
-    pattern.level_group > 0 &&
-    match[pattern.level_group]
-  ) {
+  if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
     return match[pattern.level_group];
   }
 
@@ -125,11 +113,7 @@ function extractLevel(match, pattern) {
  * @returns {string}
  */
 function extractMessage(match, pattern, fullLine) {
-  if (
-    pattern.message_group &&
-    pattern.message_group > 0 &&
-    match[pattern.message_group]
-  ) {
+  if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
     return match[pattern.message_group].trim();
   }
 

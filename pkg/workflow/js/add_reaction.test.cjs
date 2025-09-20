@@ -118,16 +118,7 @@ describe("add_reaction.cjs", () => {
     });
 
     it("should accept all valid reaction types", async () => {
-      const validReactions = [
-        "+1",
-        "-1",
-        "laugh",
-        "confused",
-        "heart",
-        "hooray",
-        "rocket",
-        "eyes",
-      ];
+      const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
 
       for (const reaction of validReactions) {
         vi.clearAllMocks();
@@ -156,16 +147,11 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        `API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`
-      );
-      expect(mockGithub.request).toHaveBeenCalledWith(
-        "POST /repos/testowner/testrepo/issues/123/reactions",
-        {
-          content: "eyes",
-          headers: { Accept: "application/vnd.github+json" },
-        }
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`);
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/123/reactions", {
+        content: "eyes",
+        headers: { Accept: "application/vnd.github+json" },
+      });
     });
 
     it("should handle issue_comment event", async () => {
@@ -181,13 +167,10 @@ describe("add_reaction.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(
         `API endpoint: ${"/repos/testowner/testrepo/issues/comments/789/reactions"}`
       );
-      expect(mockGithub.request).toHaveBeenCalledWith(
-        "POST /repos/testowner/testrepo/issues/comments/789/reactions",
-        {
-          content: "eyes",
-          headers: { Accept: "application/vnd.github+json" },
-        }
-      );
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/comments/789/reactions", {
+        content: "eyes",
+        headers: { Accept: "application/vnd.github+json" },
+      });
     });
 
     it("should handle pull_request event", async () => {
@@ -200,16 +183,11 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        `API endpoint: ${"/repos/testowner/testrepo/issues/456/reactions"}`
-      );
-      expect(mockGithub.request).toHaveBeenCalledWith(
-        "POST /repos/testowner/testrepo/issues/456/reactions",
-        {
-          content: "eyes",
-          headers: { Accept: "application/vnd.github+json" },
-        }
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/456/reactions"}`);
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/456/reactions", {
+        content: "eyes",
+        headers: { Accept: "application/vnd.github+json" },
+      });
     });
 
     it("should handle pull_request_review_comment event", async () => {
@@ -225,13 +203,10 @@ describe("add_reaction.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(
         `API endpoint: ${"/repos/testowner/testrepo/pulls/comments/321/reactions"}`
       );
-      expect(mockGithub.request).toHaveBeenCalledWith(
-        "POST /repos/testowner/testrepo/pulls/comments/321/reactions",
-        {
-          content: "eyes",
-          headers: { Accept: "application/vnd.github+json" },
-        }
-      );
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/pulls/comments/321/reactions", {
+        content: "eyes",
+        headers: { Accept: "application/vnd.github+json" },
+      });
     });
 
     it("should fail on unsupported event type", async () => {
@@ -239,9 +214,7 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Unsupported event type: unsupported"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Unsupported event type: unsupported");
     });
 
     it("should fail when issue number is missing", async () => {
@@ -250,9 +223,7 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Issue number not found in event payload"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Issue number not found in event payload");
     });
 
     it("should fail when comment ID is missing", async () => {
@@ -261,9 +232,7 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Comment ID not found in event payload"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Comment ID not found in event payload");
     });
   });
 
@@ -277,9 +246,7 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Successfully added reaction: heart (id: 123)"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Successfully added reaction: heart (id: 123)");
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "123");
     });
 
@@ -292,9 +259,7 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Successfully added reaction: rocket"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Successfully added reaction: rocket");
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "");
     });
   });
@@ -304,36 +269,24 @@ describe("add_reaction.cjs", () => {
       // Mock the GitHub request to fail
       mockGithub.request.mockRejectedValue(new Error("API Error"));
 
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.error).toHaveBeenCalledWith(
-        "Failed to add reaction: API Error"
-      );
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Failed to add reaction: API Error"
-      );
+      expect(mockCore.error).toHaveBeenCalledWith("Failed to add reaction: API Error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to add reaction: API Error");
     });
 
     it("should handle non-Error objects in catch block", async () => {
       // Mock the GitHub request to fail with string error
       mockGithub.request.mockRejectedValue("String error");
 
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.error).toHaveBeenCalledWith(
-        "Failed to add reaction: String error"
-      );
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Failed to add reaction: String error"
-      );
+      expect(mockCore.error).toHaveBeenCalledWith("Failed to add reaction: String error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to add reaction: String error");
     });
   });
 
@@ -357,9 +310,7 @@ describe("add_reaction.cjs", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        `API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/123/reactions"}`);
     });
   });
 });

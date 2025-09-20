@@ -21,9 +21,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -33,9 +31,7 @@ async function main() {
   }
 
   // Find all add-comment items
-  const commentItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "add-comment"
-  );
+  const commentItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "add-comment");
   if (commentItems.length === 0) {
     core.info("No add-comment items found in agent output");
     return;
@@ -46,8 +42,7 @@ async function main() {
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-    summaryContent +=
-      "The following comments would be added if staged mode was disabled:\n\n";
+    summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
 
     for (let i = 0; i < commentItems.length; i++) {
       const item = commentItems[i];
@@ -72,8 +67,7 @@ async function main() {
   core.info(`Comment target configuration: ${commentTarget}`);
 
   // Check if we're in an issue or pull request context
-  const isIssueContext =
-    context.eventName === "issues" || context.eventName === "issue_comment";
+  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
   const isPRContext =
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
@@ -81,9 +75,7 @@ async function main() {
 
   // Validate context based on target configuration
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-    core.info(
-      'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
-    );
+    core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
     return;
   }
 
@@ -92,9 +84,7 @@ async function main() {
   // Process each comment item
   for (let i = 0; i < commentItems.length; i++) {
     const commentItem = commentItems[i];
-    core.info(
-      `Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
-    );
+    core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
 
     // Determine the issue/PR number and comment endpoint for this comment
     let issueNumber;
@@ -105,25 +95,19 @@ async function main() {
       if (commentItem.issue_number) {
         issueNumber = parseInt(commentItem.issue_number, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          core.info(
-            `Invalid issue number specified: ${commentItem.issue_number}`
-          );
+          core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
           continue;
         }
         commentEndpoint = "issues";
       } else {
-        core.info(
-          'Target is "*" but no issue_number specified in comment item'
-        );
+        core.info('Target is "*" but no issue_number specified in comment item');
         continue;
       }
     } else if (commentTarget && commentTarget !== "triggering") {
       // Explicit issue number specified in target
       issueNumber = parseInt(commentTarget, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        core.info(
-          `Invalid issue number in target configuration: ${commentTarget}`
-        );
+        core.info(`Invalid issue number in target configuration: ${commentTarget}`);
         continue;
       }
       commentEndpoint = "issues";
@@ -142,9 +126,7 @@ async function main() {
           issueNumber = context.payload.pull_request.number;
           commentEndpoint = "issues"; // PR comments use the issues API endpoint
         } else {
-          core.info(
-            "Pull request context detected but no pull request found in payload"
-          );
+          core.info("Pull request context detected but no pull request found in payload");
           continue;
         }
       }
@@ -185,9 +167,7 @@ async function main() {
         core.setOutput("comment_url", comment.html_url);
       }
     } catch (error) {
-      core.error(
-        `✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`
-      );
+      core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

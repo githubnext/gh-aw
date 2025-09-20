@@ -119,9 +119,7 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "2");
-      const toolsReportedCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "tools_reported"
-      );
+      const toolsReportedCall = mockCore.setOutput.mock.calls.find(call => call[0] === "tools_reported");
       expect(toolsReportedCall).toBeDefined();
 
       const reportedTools = JSON.parse(toolsReportedCall[1]);
@@ -130,9 +128,7 @@ describe("missing_tool.cjs", () => {
       expect(reportedTools[0].reason).toBe("Need containerization support");
       expect(reportedTools[0].alternatives).toBe("Use VM or manual setup");
       expect(reportedTools[1].tool).toBe("kubectl");
-      expect(reportedTools[1].reason).toBe(
-        "Kubernetes cluster management required"
-      );
+      expect(reportedTools[1].reason).toBe("Kubernetes cluster management required");
       expect(reportedTools[1].alternatives).toBe(null);
     });
 
@@ -162,9 +158,7 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "2");
-      const toolsReportedCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "tools_reported"
-      );
+      const toolsReportedCall = mockCore.setOutput.mock.calls.find(call => call[0] === "tools_reported");
       const reportedTools = JSON.parse(toolsReportedCall[1]);
       expect(reportedTools).toHaveLength(2);
       expect(reportedTools[0].tool).toBe("docker");
@@ -244,13 +238,9 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "2");
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Reached maximum number of missing tool reports (2)"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Reached maximum number of missing tool reports (2)");
 
-      const toolsReportedCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "tools_reported"
-      );
+      const toolsReportedCall = mockCore.setOutput.mock.calls.find(call => call[0] === "tools_reported");
       const reportedTools = JSON.parse(toolsReportedCall[1]);
       expect(reportedTools).toHaveLength(2);
       expect(reportedTools[0].tool).toBe("tool1");
@@ -297,9 +287,7 @@ describe("missing_tool.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "0");
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Parsed agent output with 0 entries"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Parsed agent output with 0 entries");
     });
 
     it("should handle missing environment variables", async () => {
@@ -328,9 +316,7 @@ describe("missing_tool.cjs", () => {
       await runScript();
       const afterTime = new Date();
 
-      const toolsReportedCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "tools_reported"
-      );
+      const toolsReportedCall = mockCore.setOutput.mock.calls.find(call => call[0] === "tools_reported");
       const reportedTools = JSON.parse(toolsReportedCall[1]);
       expect(reportedTools).toHaveLength(1);
 

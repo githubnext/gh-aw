@@ -50,17 +50,11 @@ function handleMessage(msg) {
     console.error("<- notification", msg.method, msg.params || "");
     return;
   }
-  if (
-    msg.id !== undefined &&
-    (msg.result !== undefined || msg.error !== undefined)
-  ) {
+  if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
     const waiter = pending.get(msg.id);
     if (waiter) {
       pending.delete(msg.id);
-      if (msg.error)
-        waiter.reject(
-          new Error(msg.error.message || JSON.stringify(msg.error))
-        );
+      if (msg.error) waiter.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
       else waiter.resolve(msg.result);
     } else {
       console.error("<- response with unknown id", msg.id);
@@ -76,10 +70,7 @@ child.stdout.on("data", chunk => {
     const newlineIndex = stdoutBuffer.indexOf("\n");
     if (newlineIndex === -1) break;
 
-    const line = stdoutBuffer
-      .slice(0, newlineIndex)
-      .toString("utf8")
-      .replace(/\r$/, "");
+    const line = stdoutBuffer.slice(0, newlineIndex).toString("utf8").replace(/\r$/, "");
     stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
 
     if (line.trim() === "") continue; // Skip empty lines

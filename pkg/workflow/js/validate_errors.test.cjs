@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const { validateErrors, extractLevel, extractMessage, truncateString } =
-  await import("./validate_errors.cjs");
+const { validateErrors, extractLevel, extractMessage, truncateString } = await import("./validate_errors.cjs");
 
 // Mock global objects for testing
 global.console = {
@@ -65,22 +64,19 @@ Some normal log content
 
     const patterns = [
       {
-        pattern:
-          "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+stream\\s+(error):\\s+(.+)",
+        pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+stream\\s+(error):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex stream errors with timestamp",
       },
       {
-        pattern:
-          "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)",
+        pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex ERROR messages with timestamp",
       },
       {
-        pattern:
-          "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(WARN|WARNING):\\s+(.+)",
+        pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(WARN|WARNING):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex warning messages with timestamp",
@@ -94,15 +90,11 @@ Some normal log content
 
     // Should call core.error for errors
     expect(global.core.error).toHaveBeenCalledTimes(2);
-    expect(global.core.error).toHaveBeenCalledWith(
-      expect.stringContaining("exceeded retry limit")
-    );
+    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("exceeded retry limit"));
 
     // Should call core.warning for warnings
     expect(global.core.warning).toHaveBeenCalledTimes(1);
-    expect(global.core.warning).toHaveBeenCalledWith(
-      expect.stringContaining("This is a warning message")
-    );
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("This is a warning message"));
   });
 
   test("should handle empty log content", () => {
@@ -172,15 +164,13 @@ Some normal log content
 
     const patterns = [
       {
-        pattern:
-          "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+stream\\s+(error):\\s+(.+)",
+        pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+stream\\s+(error):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex stream errors with timestamp",
       },
       {
-        pattern:
-          "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)",
+        pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex ERROR messages with timestamp",
@@ -196,12 +186,8 @@ Some normal log content
     expect(global.core.error).toHaveBeenCalledTimes(6);
 
     // Verify calls contain the expected content
-    expect(global.core.error).toHaveBeenCalledWith(
-      expect.stringContaining("401 Unauthorized")
-    );
-    expect(global.core.error).toHaveBeenCalledWith(
-      expect.stringContaining("exceeded retry limit")
-    );
+    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("401 Unauthorized"));
+    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("exceeded retry limit"));
   });
 });
 
@@ -316,14 +302,10 @@ describe("main function behavior", () => {
 
     // Simulate what main() would do
     if (hasErrors) {
-      global.core.setFailed(
-        "Errors detected in agent logs - failing workflow step"
-      );
+      global.core.setFailed("Errors detected in agent logs - failing workflow step");
     }
 
-    expect(global.core.setFailed).toHaveBeenCalledWith(
-      "Errors detected in agent logs - failing workflow step"
-    );
+    expect(global.core.setFailed).toHaveBeenCalledWith("Errors detected in agent logs - failing workflow step");
 
     // Restore
     process.env = originalProcessEnv;
@@ -345,9 +327,7 @@ describe("main function behavior", () => {
 
     // Simulate what main() would do
     if (hasErrors) {
-      global.core.setFailed(
-        "Errors detected in agent logs - failing workflow step"
-      );
+      global.core.setFailed("Errors detected in agent logs - failing workflow step");
     }
 
     expect(global.core.setFailed).not.toHaveBeenCalled();

@@ -27,22 +27,18 @@ async function main() {
 
   // Check if patch file exists and has valid content
   if (!fs.existsSync("/tmp/aw.patch")) {
-    const message =
-      "No patch file found - cannot create pull request without changes";
+    const message = "No patch file found - cannot create pull request without changes";
 
     // If in staged mode, still show preview
     if (isStaged) {
       let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent +=
-        "The following pull request would be created if staged mode was disabled:\n\n";
+      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
       summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
       summaryContent += `**Message:** ${message}\n\n`;
 
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
-      core.info(
-        "📝 Pull request creation preview written to step summary (no patch file)"
-      );
+      core.info("📝 Pull request creation preview written to step summary (no patch file)");
       return;
     }
 
@@ -63,22 +59,18 @@ async function main() {
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
-    const message =
-      "Patch file contains error message - cannot create pull request without changes";
+    const message = "Patch file contains error message - cannot create pull request without changes";
 
     // If in staged mode, still show preview
     if (isStaged) {
       let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent +=
-        "The following pull request would be created if staged mode was disabled:\n\n";
+      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
       summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
       summaryContent += `**Message:** ${message}\n\n`;
 
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
-      core.info(
-        "📝 Pull request creation preview written to step summary (patch error)"
-      );
+      core.info("📝 Pull request creation preview written to step summary (patch error)");
       return;
     }
 
@@ -99,34 +91,25 @@ async function main() {
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
-    const maxSizeKb = parseInt(
-      process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024",
-      10
-    );
+    const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-    core.info(
-      `Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`
-    );
+    core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
 
     if (patchSizeKb > maxSizeKb) {
       const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
 
       // If in staged mode, still show preview with error
       if (isStaged) {
-        let summaryContent =
-          "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-        summaryContent +=
-          "The following pull request would be created if staged mode was disabled:\n\n";
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
         summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
         summaryContent += `**Message:** ${message}\n\n`;
 
         // Write to step summary
         await core.summary.addRaw(summaryContent).write();
-        core.info(
-          "📝 Pull request creation preview written to step summary (patch size error)"
-        );
+        core.info("📝 Pull request creation preview written to step summary (patch size error)");
         return;
       }
 
@@ -136,14 +119,11 @@ async function main() {
     core.info("Patch size validation passed");
   }
   if (isEmpty && !isStaged) {
-    const message =
-      "Patch file is empty - no changes to apply (noop operation)";
+    const message = "Patch file is empty - no changes to apply (noop operation)";
 
     switch (ifNoChanges) {
       case "error":
-        throw new Error(
-          "No changes to push - failing as configured by if-no-changes: error"
-        );
+        throw new Error("No changes to push - failing as configured by if-no-changes: error");
       case "ignore":
         // Silent success - no console output
         return;
@@ -166,9 +146,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -193,8 +171,7 @@ async function main() {
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-    summaryContent +=
-      "The following pull request would be created if staged mode was disabled:\n\n";
+    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
 
     summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
     summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
@@ -223,9 +200,7 @@ async function main() {
   // Extract title, body, and branch from the JSON item
   let title = pullRequestItem.title.trim();
   let bodyLines = pullRequestItem.body.split("\n");
-  let branchName = pullRequestItem.branch
-    ? pullRequestItem.branch.trim()
-    : null;
+  let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
 
   // If no title was found, use a default
   if (!title) {
@@ -243,12 +218,7 @@ async function main() {
   const runUrl = context.payload.repository
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
     : `https://github.com/actions/runs/${runId}`;
-  bodyLines.push(
-    ``,
-    ``,
-    `> Generated by Agentic Workflow [Run](${runUrl})`,
-    ""
-  );
+  bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
 
   // Prepare the body content
   const body = bodyLines.join("\n").trim();
@@ -274,9 +244,7 @@ async function main() {
   const randomHex = crypto.randomBytes(8).toString("hex");
   // Use branch name from JSONL if provided, otherwise generate unique branch name
   if (!branchName) {
-    core.debug(
-      "No branch name provided in JSONL, generating unique branch name"
-    );
+    core.debug("No branch name provided in JSONL, generating unique branch name");
     // Generate unique branch name using cryptographic random hex
     branchName = `${workflowId}-${randomHex}`;
   } else {
@@ -290,16 +258,12 @@ async function main() {
   // Create a new branch using git CLI, ensuring it's based on the correct base branch
 
   // First, fetch latest changes and checkout the base branch
-  core.debug(
-    `Fetching latest changes and checking out base branch: ${baseBranch}`
-  );
+  core.debug(`Fetching latest changes and checking out base branch: ${baseBranch}`);
   await exec.exec("git fetch origin");
   await exec.exec(`git checkout ${baseBranch}`);
 
   // Handle branch creation/checkout
-  core.debug(
-    `Branch should not exist locally, creating new branch from base: ${branchName}`
-  );
+  core.debug(`Branch should not exist locally, creating new branch from base: ${branchName}`);
   await exec.exec(`git checkout -b ${branchName}`);
   core.info(`Created new branch from base: ${branchName}`);
 
@@ -317,14 +281,11 @@ async function main() {
     core.info("Skipping patch application (empty patch)");
 
     // For empty patches, handle if-no-changes configuration
-    const message =
-      "No changes to apply - noop operation completed successfully";
+    const message = "No changes to apply - noop operation completed successfully";
 
     switch (ifNoChanges) {
       case "error":
-        throw new Error(
-          "No changes to apply - failing as configured by if-no-changes: error"
-        );
+        throw new Error("No changes to apply - failing as configured by if-no-changes: error");
       case "ignore":
         // Silent success - no console output
         return;
@@ -346,9 +307,7 @@ async function main() {
     draft: draft,
   });
 
-  core.info(
-    `Created pull request #${pullRequest.number}: ${pullRequest.html_url}`
-  );
+  core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
 
   // Add labels if specified
   if (labels.length > 0) {

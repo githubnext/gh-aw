@@ -144,9 +144,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Agent output content is empty"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -156,9 +154,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Agent output content is empty"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -172,9 +168,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "No patch file found - cannot push without changes"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No patch file found - cannot push without changes");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -189,9 +183,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "No patch file found - cannot push without changes"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("No patch file found - cannot push without changes");
     });
 
     it("should silently succeed when patch file missing and if-no-changes is 'ignore'", async () => {
@@ -215,16 +207,12 @@ const exec = global.exec;`
       });
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue(
-        "Failed to generate patch: some error"
-      );
+      mockFs.readFileSync.mockReturnValue("Failed to generate patch: some error");
 
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Patch file contains error message - cannot push without changes"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Patch file contains error message - cannot push without changes");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -241,12 +229,8 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Patch file is empty - no changes to apply (noop operation)"
-      );
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Agent output content length: \d+/)
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Agent output content length: \d+/));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -280,24 +264,16 @@ const exec = global.exec;`
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue(
-        "diff --git a/file.txt b/file.txt\n+new content"
-      );
+      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the git commands that will be called
 
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Agent output content length: \d+/)
-      );
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Patch content validation passed"
-      );
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Target configuration: triggering"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Agent output content length: \d+/));
+      expect(mockCore.info).toHaveBeenCalledWith("Patch content validation passed");
+      expect(mockCore.info).toHaveBeenCalledWith("Target configuration: triggering");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -310,9 +286,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringMatching(/Error parsing agent output JSON:/)
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/));
     });
 
     it("should handle agent output without valid items array", async () => {
@@ -326,9 +300,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "No valid items found in agent output"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -346,9 +318,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        `Target configuration: ${"custom-target"}`
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`Target configuration: ${"custom-target"}`);
     });
   });
 
@@ -387,8 +357,7 @@ const exec = global.exec;`
 
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
-      const patchContent =
-        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
       mockFs.readFileSync.mockReturnValue(patchContent);
 
       // Mock the git commands that will be called
@@ -399,9 +368,7 @@ const exec = global.exec;`
       expect(mockCore.info).toHaveBeenCalledWith(
         expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/)
       );
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Patch size validation passed"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -420,20 +387,15 @@ const exec = global.exec;`
 
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
-      const patchContent =
-        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
       mockFs.readFileSync.mockReturnValue(patchContent);
 
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/)
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/));
       expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/
-        )
+        expect.stringMatching(/Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/)
       );
     });
 
@@ -462,9 +424,7 @@ const exec = global.exec;`
       expect(mockCore.info).toHaveBeenCalledWith(
         expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/)
       );
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Patch size validation passed"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -490,9 +450,7 @@ const exec = global.exec;`
       await executeScript();
 
       // Should not check patch size for empty patches
-      expect(mockCore.info).not.toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size:/)
-      );
+      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringMatching(/Patch size:/));
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });

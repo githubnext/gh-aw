@@ -9,9 +9,7 @@ async function main() {
   // Get the branch name from environment variable (required)
   const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
   if (!branchName || typeof branchName !== "string") {
-    core.setFailed(
-      "GITHUB_AW_ASSETS_BRANCH environment variable is required but not set"
-    );
+    core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
     return;
   }
   core.info(`Using assets branch: ${branchName}`);
@@ -38,9 +36,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -52,9 +48,7 @@ async function main() {
   }
 
   // Find all upload-asset items
-  const uploadAssetItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "upload-asset"
-  );
+  const uploadAssetItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "upload-asset");
   if (uploadAssetItems.length === 0) {
     core.info("No upload-asset items found in agent output");
     core.setOutput("upload_count", "0");
@@ -87,9 +81,7 @@ async function main() {
         const { fileName, sha, size, targetFileName } = asset;
 
         if (!fileName || !sha || !targetFileName) {
-          core.error(
-            `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
-          );
+          core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
           continue;
         }
 
@@ -102,15 +94,10 @@ async function main() {
 
         // Verify SHA matches
         const fileContent = fs.readFileSync(assetSourcePath);
-        const computedSha = crypto
-          .createHash("sha256")
-          .update(fileContent)
-          .digest("hex");
+        const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
         if (computedSha !== sha) {
-          core.warning(
-            `SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`
-          );
+          core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
           continue;
         }
 
@@ -147,13 +134,9 @@ async function main() {
         await exec.exec(`git push origin ${branchName}`);
         core.summary
           .addRaw("## Assets")
-          .addRaw(
-            `Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``
-          )
+          .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``)
           .addRaw("");
-        core.info(
-          `Successfully uploaded ${uploadCount} assets to branch ${branchName}`
-        );
+        core.info(`Successfully uploaded ${uploadCount} assets to branch ${branchName}`);
       }
 
       for (const asset of uploadAssetItems) {
@@ -168,9 +151,7 @@ async function main() {
       core.info("No new assets to upload");
     }
   } catch (error) {
-    core.setFailed(
-      `Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
