@@ -363,7 +363,7 @@ describe("collect_ndjson_output.cjs", () => {
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -390,7 +390,7 @@ describe("collect_ndjson_output.cjs", () => {
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 

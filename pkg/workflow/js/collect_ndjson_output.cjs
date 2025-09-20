@@ -159,27 +159,27 @@ async function main() {
 
     // Use default limits for plural-supported types
     switch (itemType) {
-      case "create_issue":
+      case "create-issue":
         return 1; // Only one issue allowed
-      case "add_comment":
+      case "add-comment":
         return 1; // Only one comment allowed
-      case "create_pull_request":
+      case "create-pull-request":
         return 1; // Only one pull request allowed
-      case "create_pull_request_review_comment":
-        return 10; // Default to 10 review comments allowed
-      case "add_labels":
+      case "create-pull-request-review-comment":
+        return 1; // Default to 1 review comment allowed
+      case "add-labels":
         return 5; // Only one labels operation allowed
-      case "update_issue":
+      case "update-issue":
         return 1; // Only one issue update allowed
-      case "push_to_pr_branch":
+      case "push-to-pr-branch":
         return 1; // Only one push to branch allowed
-      case "create_discussion":
+      case "create-discussion":
         return 1; // Only one discussion allowed
-      case "missing_tool":
+      case "missing-tool":
         return 1000; // Allow many missing tool reports (default: unlimited)
-      case "create_code_scanning_alert":
+      case "create-code-scanning-alert":
         return 1000; // Allow many repository security advisories (default: unlimited)
-      case "upload_asset":
+      case "upload-asset":
         return 10; // Default to 10 assets allowed
       default:
         return 1; // Default to single item for unknown types
@@ -666,11 +666,11 @@ async function main() {
         case "create-pull-request-review-comment":
           // Validate required path field
           if (!item.path || typeof item.path !== "string") {
-            errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'path' string field`);
+            errors.push(`Line ${i + 1}: create-pull-request-review-comment requires a 'path' string field`);
             continue;
           }
           // Validate required line field
-          const lineValidation = validatePositiveInteger(item.line, "create_pull_request_review_comment 'line'", i + 1);
+          const lineValidation = validatePositiveInteger(item.line, "create-pull-request-review-comment 'line'", i + 1);
           if (!lineValidation.isValid) {
             errors.push(lineValidation.error);
             continue;
@@ -679,7 +679,7 @@ async function main() {
           const lineNumber = lineValidation.normalizedValue;
           // Validate required body field
           if (!item.body || typeof item.body !== "string") {
-            errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`);
+            errors.push(`Line ${i + 1}: create-pull-request-review-comment requires a 'body' string field`);
             continue;
           }
           // Sanitize required text content
@@ -700,14 +700,14 @@ async function main() {
             startLineValidation.normalizedValue > lineNumber
           ) {
             errors.push(
-              `Line ${i + 1}: create_pull_request_review_comment 'start_line' must be less than or equal to 'line'`
+              `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`
             );
             continue;
           }
           // Validate optional side field
           if (item.side !== undefined) {
             if (typeof item.side !== "string" || (item.side !== "LEFT" && item.side !== "RIGHT")) {
-              errors.push(`Line ${i + 1}: create_pull_request_review_comment 'side' must be 'LEFT' or 'RIGHT'`);
+              errors.push(`Line ${i + 1}: create-pull-request-review-comment 'side' must be 'LEFT' or 'RIGHT'`);
               continue;
             }
           }
@@ -767,20 +767,20 @@ async function main() {
         case "create-code-scanning-alert":
           // Validate required fields
           if (!item.file || typeof item.file !== "string") {
-            errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'file' field (string)`);
+            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`);
             continue;
           }
-          const alertLineValidation = validatePositiveInteger(item.line, "create_code_scanning_alert 'line'", i + 1);
+          const alertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
           if (!alertLineValidation.isValid) {
             errors.push(alertLineValidation.error);
             continue;
           }
           if (!item.severity || typeof item.severity !== "string") {
-            errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'severity' field (string)`);
+            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`);
             continue;
           }
           if (!item.message || typeof item.message !== "string") {
-            errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'message' field (string)`);
+            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`);
             continue;
           }
 
@@ -788,7 +788,7 @@ async function main() {
           const allowedSeverities = ["error", "warning", "info", "note"];
           if (!allowedSeverities.includes(item.severity.toLowerCase())) {
             errors.push(
-              `Line ${i + 1}: create_code_scanning_alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
+              `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
             );
             continue;
           }
@@ -796,7 +796,7 @@ async function main() {
           // Validate optional column field
           const columnValidation = validateOptionalPositiveInteger(
             item.column,
-            "create_code_scanning_alert 'column'",
+            "create-code-scanning-alert 'column'",
             i + 1
           );
           if (!columnValidation.isValid) {
@@ -807,12 +807,12 @@ async function main() {
           // Validate optional ruleIdSuffix field
           if (item.ruleIdSuffix !== undefined) {
             if (typeof item.ruleIdSuffix !== "string") {
-              errors.push(`Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must be a string`);
+              errors.push(`Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`);
               continue;
             }
             if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
               errors.push(
-                `Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
+                `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
               );
               continue;
             }
