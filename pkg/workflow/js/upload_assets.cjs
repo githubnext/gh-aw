@@ -82,10 +82,10 @@ async function main() {
     // Process each asset
     for (const asset of uploadAssetItems) {
       try {
-        const { fileName, filePath, sha, size, targetFileName } = asset;
+        const { fileName, sha, size, targetFileName } = asset;
 
-        if (!fileName || !filePath || !sha || !targetFileName) {
-          core.warning(
+        if (!fileName || !sha || !targetFileName) {
+          core.error(
             `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
           );
           continue;

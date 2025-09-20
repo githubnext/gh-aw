@@ -130,6 +130,13 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	steps = append(steps, "          name: safe-outputs-assets\n")
 	steps = append(steps, "          path: /tmp/safe-outputs/assets/\n")
 
+	// list files
+	steps = append(steps, "      - name: List downloaded asset files\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          echo \"Downloaded asset files:\"\n")
+	steps = append(steps, "          ls -la /tmp/safe-outputs/assets/\n")
+
+	// Step 4: Upload assets to orphaned branch using custom script
 	steps = append(steps, "      - name: Upload Assets to Orphaned Branch\n")
 	steps = append(steps, "        id: upload_assets\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")

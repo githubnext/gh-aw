@@ -1,4 +1,7 @@
 const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+
 const encoder = new TextEncoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
@@ -122,8 +125,8 @@ const defaultHandler = type => args => {
 };
 
 const uploadAssetHandler = args => {
-  const path = require("path");
-  const crypto = require("crypto");
+  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH
+  if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
 
   const { path: filePath } = args;
 
@@ -205,15 +208,12 @@ const uploadAssetHandler = args => {
 
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-  const branchName =
-    process.env.GITHUB_AW_ASSETS_BRANCH ||
-    `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
   const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
 
   // Create entry for safe outputs
   const entry = {
     type: "upload_asset",
-    path: path.relative(process.env.GITHUB_WORKSPACE || ".", filePath),
+    path: filePath,    
     fileName: fileName,
     sha: sha,
     size: sizeBytes,
