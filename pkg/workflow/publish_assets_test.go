@@ -15,7 +15,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 		{
 			name: "upload-asset config with custom values",
 			input: map[string]any{
-				"upload-asset": map[string]any{
+				"upload-assets": map[string]any{
 					"branch":       "my-assets/${{ github.event.repository.name }}",
 					"max-size":     5120,
 					"allowed-exts": []any{".jpg", ".png", ".txt"},
@@ -27,6 +27,18 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				MaxSizeKB:   5120,
 				AllowedExts: []string{".jpg", ".png", ".txt"},
 				GitHubToken: "${{ secrets.CUSTOM_TOKEN }}",
+			},
+		},
+		{
+			name: "upload-asset config with defaults",
+			input: map[string]any{
+				"upload-assets": map[string]any{},
+			},
+			expected: &UploadAssetsConfig{
+				BranchName:  "assets/${{ github.workflow }}",
+				MaxSizeKB:   10240,
+				AllowedExts: []string{".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".txt", ".md"},
+				GitHubToken: "",
 			},
 		},
 		{

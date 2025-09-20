@@ -413,6 +413,17 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 		"upload_asset": true,
 	}
 
+	// Set up environment variable required for upload asset tests
+	originalEnv := os.Getenv("GITHUB_AW_ASSETS_BRANCH")
+	os.Setenv("GITHUB_AW_ASSETS_BRANCH", "test-assets-branch")
+	defer func() {
+		if originalEnv == "" {
+			os.Unsetenv("GITHUB_AW_ASSETS_BRANCH")
+		} else {
+			os.Setenv("GITHUB_AW_ASSETS_BRANCH", originalEnv)
+		}
+	}()
+
 	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
@@ -445,13 +456,13 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 		t.Fatalf("Expected first content item to be text content, got %T", result.Content[0])
 	}
 
-	if !strings.Contains(textContent.Text, "published successfully") {
-		t.Errorf("Expected response to mention asset publishing, got: %s", textContent.Text)
+	if !strings.Contains(textContent.Text, "raw.githubusercontent.com") {
+		t.Errorf("Expected response to contain GitHub raw URL, got: %s", textContent.Text)
 	}
 
 	// Verify the output file contains the expected entry
-	if err := verifyOutputFile(t, tempFile, "upload_asset", map[string]any{
-		"type": "upload_asset",
+	if err := verifyOutputFile(t, tempFile, "upload-asset", map[string]any{
+		"type": "upload-asset",
 	}); err != nil {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
@@ -464,6 +475,17 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	config := map[string]any{
 		"upload_asset": true,
 	}
+
+	// Set up environment variable required for upload asset tests
+	originalEnv := os.Getenv("GITHUB_AW_ASSETS_BRANCH")
+	os.Setenv("GITHUB_AW_ASSETS_BRANCH", "test-assets-branch")
+	defer func() {
+		if originalEnv == "" {
+			os.Unsetenv("GITHUB_AW_ASSETS_BRANCH")
+		} else {
+			os.Setenv("GITHUB_AW_ASSETS_BRANCH", originalEnv)
+		}
+	}()
 
 	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()

@@ -162,6 +162,15 @@ The YAML frontmatter supports these fields:
         side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
     ```
     When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
+  - `upload-assets:` - Safe file upload to orphaned git branch
+    ```yaml
+    safe-outputs:
+      upload-assets:
+        branch: "assets/${{ github.workflow }}"  # Optional: branch name (default shown)
+        max-size: 10240                         # Optional: max file size in KB (default: 10240 = 10MB)
+        allowed-exts: [".jpg", ".png", ".txt"]  # Optional: allowed extensions (has defaults)
+    ```
+    When using `safe-outputs.upload-assets`, files are uploaded to an orphaned git branch and accessible via `raw.githubusercontent.com` URLs. The main job does **not** need `contents: write` permission since file upload is handled by a separate job with appropriate permissions.
   - `update-issue:` - Safe issue updates 
     ```yaml
     safe-outputs:

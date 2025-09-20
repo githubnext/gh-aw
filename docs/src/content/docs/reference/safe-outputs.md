@@ -34,6 +34,7 @@ This declares that the workflow should create at most one new issue.
 | **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 |
 | **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
 | **Push to Pull Request Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
+| **Upload Assets** | `upload-assets:` | Upload files as URL-addressable assets to an orphaned git branch | unlimited |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
 
@@ -421,16 +422,128 @@ Similar to GitHub's `actions/upload-artifact` action, you can configure how the 
 - **`error`**: Fails the workflow with an error message when no changes are detected. Useful when you always expect changes to be made.
 - **`ignore`**: Silent success with no console output. The workflow completes successfully but quietly.
 
+### Upload Assets (`upload-assets:`)
+
+Adding `upload-assets:` to the `safe-outputs:` section declares that the workflow should conclude with uploading files as URL-addressable assets to an orphaned git branch. This allows AI workflows to publish generated files (images, documents, data files) that can be accessed via stable URLs.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  upload-assets:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  upload-assets:
+    branch: "assets/${{ github.workflow }}"      # Optional: branch name for assets (default: "assets/${{ github.workflow }}")
+    max-size: 10240                              # Optional: maximum file size in KB (default: 10240 = 10MB)
+    allowed-exts: [".jpg", ".png", ".txt"]       # Optional: allowed file extensions (has sensible defaults)
+    github-token: "${{ secrets.CUSTOM_PAT }}"    # Optional: custom GitHub token for this output type
+```
+
+**Default Allowed Extensions:**
+- **Images**: `.jpg`, `.jpeg`, `.png`, `.webp`
+- **Videos**: `.mp4`, `.webm`
+- **Text**: `.txt`, `.md`
+
+The agentic part of your workflow should describe the files it wants to upload as assets.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Content Generation Agent
+
+Generate a data visualization chart and documentation.
+
+1. Create a chart image (PNG format) showing the analysis results
+2. Write a summary report as a markdown file
+3. Upload both files as assets using the `upload asset` tool from safe-outputs MCP
+4. Include the generated URLs in your response for easy access
+```
+
+**How It Works:**
+
+1. During workflow execution, the AI uses the `upload_asset` tool to register files for publishing
+2. Files are validated for size, extension, and path security
+3. Files are copied to a staging area with original filenames
+4. After workflow completion, files are uploaded to the orphaned git branch using SHA-based filenames
+5. The tool returns GitHub raw content URLs pointing to `raw.githubusercontent.com`
+
+**Example Usage in Workflow:**
+
+```yaml
+---
+on: workflow_dispatch
+permissions:
+  contents: read
+  actions: read
+safe-outputs:
+  upload-assets:
+    branch: "my-assets/${{ github.run_id }}"
+    max-size: 5120  # 5MB limit
+engine: claude
+---
+
+# Asset Generator
+
+Create a sample image and text file, then upload them as assets.
+
+1. Generate or create files you want to share
+2. Use the upload asset tool to publish them
+3. The tool will return URLs you can share with users
+```
+
 **Safety Features:**
 
-- Empty lines in coding agent output are ignored
-- Lines starting with `-` are rejected (no removal operations allowed)
-- Duplicate labels are automatically removed
-- If `allowed` is provided, all requested labels must be in the `allowed` list or the job fails with a clear error message. If `allowed` is not provided then any labels are allowed (including creating new labels).
-- Label count is limited by `max` setting (default: 3) - exceeding this limit causes job failure
-- Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
+- **Path Validation**: Files must be within the workspace directory or `/tmp` directory
+- **File Size Limits**: Configurable maximum file size (default: 10MB) prevents repository bloat
+- **Extension Restrictions**: Only safe, non-executable file types are allowed by default
+- **Branch Isolation**: Assets are uploaded to orphaned branches separate from code
+- **SHA-based Naming**: Files are renamed using content hash to prevent conflicts and ensure uniqueness
+- **URL Generation**: Returns stable `raw.githubusercontent.com` URLs for immediate access
 
-When `create-pull-request` or `push-to-pr-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
+**Generated URLs:**
+
+Files are accessible via GitHub's raw content service:
+```
+https://raw.githubusercontent.com/owner/repo/branch-name/sha256-hash.ext
+```
+
+For example: `https://raw.githubusercontent.com/owner/repo/assets-workflow/a1b2c3d4e5f6.png`
+
+**Security Considerations:**
+
+- Files are validated to ensure they're within allowed directories
+- Content is served through GitHub's infrastructure with standard security policies
+- Orphaned branches keep assets separate from main codebase
+- File extensions are restricted to prevent executable content upload
+- All uploads require workflow execution context and cannot be triggered directly
+
+**Configuration Examples:**
+
+```yaml
+# Basic asset upload with defaults
+safe-outputs:
+  upload-assets:
+```
+
+```yaml
+# Custom configuration for specific use case
+safe-outputs:
+  upload-assets:
+    branch: "reports/${{ github.event.issue.number }}"  # Issue-specific assets
+    max-size: 2048                                       # 2MB limit
+    allowed-exts: [".pdf", ".jpg", ".png"]              # Documents and images only
+```
+
+```yaml
+# Large file support with custom token
+safe-outputs:
+  upload-assets:
+    max-size: 20480                                      # 20MB limit  
+    github-token: "${{ secrets.UPLOAD_PAT }}"           # Custom token with broader permissions
+```
 
 ### Missing Tool Reporting (`missing-tool:`)
 
