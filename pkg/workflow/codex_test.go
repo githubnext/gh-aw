@@ -51,6 +51,7 @@ tools:
 			name: "codex ai",
 			frontmatter: `---
 engine: codex
+network: {}
 tools:
   github:
     allowed: [list_issues]
@@ -63,6 +64,7 @@ tools:
 			name: "codex ai without tools",
 			frontmatter: `---
 engine: codex
+network: {}
 ---`,
 			expectedAI:    "codex",
 			expectCodex:   true,
@@ -218,6 +220,7 @@ func TestCodexMCPConfigGeneration(t *testing.T) {
 			name: "codex with github tools generates config.toml",
 			frontmatter: `---
 engine: codex
+network: {}
 tools:
   github:
     allowed: [get_issue, create_issue]
@@ -244,6 +247,7 @@ tools:
 			name: "codex with docker github tools generates config.toml",
 			frontmatter: `---
 engine: codex
+network: {}
 tools:
   github:
     allowed: [get_issue, create_issue]
@@ -270,6 +274,7 @@ tools:
 			name: "codex with services github tools generates config.toml",
 			frontmatter: `---
 engine: codex
+network: {}
 tools:
   github:
     allowed: [get_issue, create_issue]
@@ -296,6 +301,7 @@ tools:
 			name: "codex with custom MCP tools generates config.toml",
 			frontmatter: `---
 engine: codex
+network: {}
 tools:
   github:
     allowed: [get_issue, create_issue]
@@ -452,6 +458,7 @@ engine:
     
     [another_section]
     enabled = true
+network: {}
 tools:
   github:
     allowed: [get_issue, create_issue]
@@ -467,6 +474,7 @@ enabled = true`,
 			name: "codex without config field",
 			frontmatter: `---
 engine: codex
+network: {}
 tools:
   github:
     allowed: [get_issue, create_issue]
@@ -479,6 +487,7 @@ tools:
 engine:
   id: codex
   config: ""
+network: {}
 tools:
   github:
     allowed: [get_issue, create_issue]

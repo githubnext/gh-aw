@@ -231,6 +231,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("          [history]\n")
 	yaml.WriteString("          persistence = \"none\"\n")
 
+	// Add network configuration based on network permissions
+	e.renderNetworkConfig(yaml, workflowData.NetworkPermissions)
+
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexTools(tools)
 
@@ -574,4 +577,71 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Codex warning messages with timestamp",
 		},
 	}
+}
+
+// ValidateNetworkPermissions validates network permissions for Codex engine
+func (e *CodexEngine) ValidateNetworkPermissions(networkPermissions *NetworkPermissions) error {
+	// If no network permissions specified, that's fine for Codex
+	if networkPermissions == nil {
+		return nil
+	}
+
+	// Check for "defaults" mode - not supported by Codex
+	if networkPermissions.Mode == "defaults" {
+		return fmt.Errorf("network: defaults is not supported by Codex engine. Use network: {} for no network access or network: { allowed: [\"*\"] } for full network access")
+	}
+
+	// Check for allowed domains
+	if len(networkPermissions.Allowed) == 0 {
+		// Empty allowed list {} is valid - means no network access
+		return nil
+	}
+
+	// Check if it's the wildcard for full network access
+	if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "*" {
+		// This is valid - means full network access
+		return nil
+	}
+
+	// Any other specific domains or patterns are not supported by Codex
+	return fmt.Errorf("specific network domains are not supported by Codex engine. Use network: {} for no network access or network: { allowed: [\"*\"] } for full network access")
+}
+
+// GetDefaultNetworkPermissions returns default network permissions for Codex engine
+func (e *CodexEngine) GetDefaultNetworkPermissions() *NetworkPermissions {
+	// Codex defaults to no network access (secure by default)
+	return &NetworkPermissions{
+		Allowed: []string{}, // Empty allowed list means no network access
+	}
+}
+
+// renderNetworkConfig generates network configuration for codex config.toml
+func (e *CodexEngine) renderNetworkConfig(yaml *strings.Builder, networkPermissions *NetworkPermissions) {
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [sandbox]\n")
+
+	// Default network setting if no permissions specified (equivalent to network: defaults for other engines)
+	if networkPermissions == nil {
+		yaml.WriteString("          # Network access enabled by default\n")
+		yaml.WriteString("          network = true\n")
+		return
+	}
+
+	// Handle empty allowed list - means no network access
+	if len(networkPermissions.Allowed) == 0 {
+		yaml.WriteString("          # Network access disabled\n")
+		yaml.WriteString("          network = false\n")
+		return
+	}
+
+	// Handle wildcard - means full network access
+	if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "*" {
+		yaml.WriteString("          # Network access enabled\n")
+		yaml.WriteString("          network = true\n")
+		return
+	}
+
+	// This should not happen due to validation, but handle gracefully
+	yaml.WriteString("          # Network access enabled (fallback)\n")
+	yaml.WriteString("          network = true\n")
 }

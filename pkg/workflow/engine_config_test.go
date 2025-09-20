@@ -354,6 +354,7 @@ permissions:
 engine:
   id: codex
   model: gpt-4o
+network: {}
 ---
 
 # Test Workflow

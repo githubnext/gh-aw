@@ -138,6 +138,7 @@ func TestSafeOutputsMCPServerCodex(t *testing.T) {
 	testContent := `---
 name: Test Safe Outputs MCP with Codex
 engine: codex
+network: {}
 safe-outputs:
   create-issue: {}
   missing-tool: {}

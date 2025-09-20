@@ -435,13 +435,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 
-	// Default to 'defaults' network access if no network permissions specified
-	if networkPermissions == nil {
-		networkPermissions = &NetworkPermissions{
-			Mode: "defaults",
-		}
-	}
-
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting
@@ -475,12 +468,22 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Set default network permissions based on the final engine
+	if networkPermissions == nil {
+		// Get the agentic engine to determine default network permissions
+		agenticEngine, err := c.getAgenticEngine(engineSetting)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get agentic engine: %w", err)
+		}
+		networkPermissions = agenticEngine.GetDefaultNetworkPermissions()
+	}
+
 	// Validate the engine setting
 	if err := c.validateEngine(engineSetting); err != nil {
 		return nil, fmt.Errorf("invalid engine setting '%s': %w", engineSetting, err)
 	}
 
-	// Get the agentic engine instance
+	// Get the agentic engine instance (reuse if already fetched for defaults)
 	agenticEngine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
@@ -492,6 +495,11 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
 		}
 		fmt.Println(console.FormatInfoMessage("Processing tools and includes..."))
+	}
+
+	// Validate network permissions for any engine
+	if err := agenticEngine.ValidateNetworkPermissions(networkPermissions); err != nil {
+		return nil, fmt.Errorf("invalid network configuration for %s engine: %w", agenticEngine.GetDisplayName(), err)
 	}
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
@@ -531,6 +539,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if _, hasTools := result.Frontmatter["tools"]; hasTools {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
 		}
+
 		tools = map[string]any{}
 		// For now, we'll add a basic github tool (always uses docker MCP)
 		githubConfig := map[string]any{}
