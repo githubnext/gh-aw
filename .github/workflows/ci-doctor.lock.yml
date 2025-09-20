@@ -2066,8 +2066,6 @@ jobs:
           GITHUB_AW_ISSUE_TITLE_PREFIX: "${{ github.workflow }}"
         with:
           script: |
-            "use strict";
-            Object.defineProperty(exports, "__esModule", { value: true });
             async function main() {
                 const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
                 const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;

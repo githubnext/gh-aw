@@ -1,5 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 async function main() {
     // Check if we're in staged mode
     const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
