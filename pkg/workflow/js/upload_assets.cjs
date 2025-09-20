@@ -69,25 +69,14 @@ async function main() {
 
   try {
     // Check if orphaned branch already exists, if not create it
-    let branchExists = false;
     try {
-      await exec.exec(`git ls-remote --heads origin ${branchName}`, {
-        stdio: "pipe",
-      });
-      branchExists = true;
-    } catch {
-      // Branch doesn't exist, will create it
-    }
-
-    if (branchExists) {
-      core.info(`Checking out existing orphaned branch: ${branchName}`);
-      await exec.exec(`git fetch origin ${branchName}`, { stdio: "inherit" });
-      await exec.exec(`git checkout ${branchName}`, { stdio: "inherit" });
-    } else {
+      await exec.exec(`git rev-parse --verify origin/${branchName}`);
+      await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
+      core.info(`Checked out existing branch from origin: ${branchName}`);
+    } catch (originError) {
+      // Give an error if branch doesn't exist on origin
       core.info(`Creating new orphaned branch: ${branchName}`);
-      await exec.exec(`git checkout --orphan ${branchName}`, {
-        stdio: "inherit",
-      });
+      await exec.exec(`git checkout --orphan ${branchName}`);
     }
 
     // Process each asset
@@ -133,7 +122,7 @@ async function main() {
         fs.copyFileSync(assetSourcePath, targetFileName);
 
         // Add to git
-        await exec.exec(`git add "${targetFileName}"`, { stdio: "inherit" });
+        await exec.exec(`git add "${targetFileName}"`);
 
         uploadCount++;
         hasChanges = true;
@@ -148,8 +137,8 @@ async function main() {
 
     // Commit and push if there are changes (skip if staged)
     if (hasChanges) {
-      const commitMessage = `Add ${uploadCount} asset(s) via GitHub Actions`;
-      await exec.exec(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+      const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+      await exec.exec(`git`, [`commit`, `-m`, `"${commitMessage}"`]);
       if (isStaged) {
         core.addRaw("## Staged Asset Publication");
       } else {
@@ -159,7 +148,7 @@ async function main() {
             `Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``
           )
           .addRaw("");
-        await exec.exec(`git push origin ${branchName}`, { stdio: "inherit" });
+        await exec.exec(`git push origin ${branchName}`);
         core.info(
           `Successfully uploaded ${uploadCount} assets to branch ${branchName}`
         );
