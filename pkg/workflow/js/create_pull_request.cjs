@@ -2,7 +2,6 @@
 const fs = require("fs");
 /** @type {typeof import("crypto")} */
 const crypto = require("crypto");
-const { execSync } = require("child_process");
 
 async function main() {
   // Check if we're in staged mode
@@ -294,25 +293,25 @@ async function main() {
   core.debug(
     `Fetching latest changes and checking out base branch: ${baseBranch}`
   );
-  execSync("git fetch origin", { stdio: "inherit" });
-  execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
+  await exec.exec("git fetch origin", { stdio: "inherit" });
+  await exec.exec(`git checkout ${baseBranch}`, { stdio: "inherit" });
 
   // Handle branch creation/checkout
   core.debug(
     `Branch should not exist locally, creating new branch from base: ${branchName}`
   );
-  execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+  await exec.exec(`git checkout -b ${branchName}`, { stdio: "inherit" });
   core.info(`Created new branch from base: ${branchName}`);
 
   // Apply the patch using git CLI (skip if empty)
   if (!isEmpty) {
     core.info("Applying patch...");
     // Patches are created with git format-patch, so use git am to apply them
-    execSync("git am /tmp/aw.patch", { stdio: "inherit" });
+    await exec.exec("git am /tmp/aw.patch", { stdio: "inherit" });
     core.info("Patch applied successfully");
 
     // Push the applied commits to the branch
-    execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+    await exec.exec(`git push origin ${branchName}`, { stdio: "inherit" });
     core.info("Changes pushed to branch");
   } else {
     core.info("Skipping patch application (empty patch)");

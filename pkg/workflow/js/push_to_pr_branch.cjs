@@ -1,8 +1,7 @@
-async function main() {
-  /** @type {typeof import("fs")} */
-  const fs = require("fs");
-  const { execSync } = require("child_process");
+/** @type {typeof import("fs")} */
+const fs = require("fs");
 
+async function main() {
   // Environment validation - fail early if required variables are missing
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   if (outputContent.trim() === "") {
@@ -193,12 +192,11 @@ async function main() {
   let branchName;
   // Fetch the specific PR to get its head branch
   try {
-    const prInfo = execSync(
-      `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
-      {
+    const prInfo = await exec
+      .exec(`gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`, {
         encoding: "utf8",
-      }
-    ).trim();
+      })
+      .trim();
 
     if (prInfo) {
       branchName = prInfo;
@@ -223,15 +221,15 @@ async function main() {
   core.info(`Switching to branch: ${branchName}`);
   try {
     // Try to checkout existing branch first
-    execSync("git fetch origin", { stdio: "inherit" });
+    await exec.exec("git fetch origin", { stdio: "inherit" });
 
     // Check if branch exists on origin
     try {
-      execSync(`git rev-parse --verify origin/${branchName}`, {
+      await exec.exec(`git rev-parse --verify origin/${branchName}`, {
         stdio: "pipe",
       });
       // Branch exists on origin, check it out
-      execSync(`git checkout -B ${branchName} origin/${branchName}`, {
+      await exec.exec(`git checkout -B ${branchName} origin/${branchName}`, {
         stdio: "inherit",
       });
       core.info(`Checked out existing branch from origin: ${branchName}`);
@@ -254,11 +252,11 @@ async function main() {
     core.info("Applying patch...");
     try {
       // Patches are created with git format-patch, so use git am to apply them
-      execSync("git am /tmp/aw.patch", { stdio: "inherit" });
+      await exec.exec("git am /tmp/aw.patch", { stdio: "inherit" });
       core.info("Patch applied successfully");
 
       // Push the applied commits to the branch
-      execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+      await exec.exec(`git push origin ${branchName}`, { stdio: "inherit" });
       core.info(`Changes committed and pushed to branch: ${branchName}`);
     } catch (error) {
       core.error(
@@ -291,7 +289,9 @@ async function main() {
   }
 
   // Get commit SHA and push URL
-  const commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  const commitSha = await exec
+    .exec("git rev-parse HEAD", { encoding: "utf8" })
+    .trim();
 
   // Get commit SHA and push URL
   const pushUrl = context.payload.repository

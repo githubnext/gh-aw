@@ -878,7 +878,7 @@ async function main() {
               `Line ${i + 1}: upload_asset requires a 'path' string field`
             );
             continue;
-          } 
+          }
           break;
         case "create_code_scanning_alert":
           // Validate required fields

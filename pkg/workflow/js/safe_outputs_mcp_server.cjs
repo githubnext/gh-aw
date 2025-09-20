@@ -138,7 +138,7 @@ const publishAssetHandler = args => {
   if (!isInWorkspace && !isInTmp) {
     throw new Error(
       `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-      `Provided path: ${filePath} (resolved to: ${absolutePath})`
+        `Provided path: ${filePath} (resolved to: ${absolutePath})`
     );
   }
 
@@ -227,13 +227,14 @@ const publishAssetHandler = args => {
     content: [
       {
         type: "text",
-        text: url
+        text: url,
       },
     ],
   };
 };
 
-const normTool = (toolName) => toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined;
+const normTool = toolName =>
+  toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined;
 const ALL_TOOLS = [
   {
     name: "create_issue",
@@ -445,7 +446,8 @@ const ALL_TOOLS = [
       properties: {
         path: {
           type: "string",
-          description: "Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. Images (.jpg, .png, .webp), videos (.mp4, .webm), and text files (.txt, .md) are allowed.",
+          description:
+            "Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. Images (.jpg, .png, .webp), videos (.mp4, .webm), and text files (.txt, .md) are allowed.",
         },
       },
       additionalProperties: false,
@@ -470,8 +472,7 @@ const ALL_TOOLS = [
       additionalProperties: false,
     },
   },
-]
-
+];
 
 debug(`v${SERVER_INFO.version} ready on stdio`);
 debug(`  output file: ${outputFile}`);
@@ -481,9 +482,10 @@ const unknownTools = Object.keys(safeOutputsConfig).filter(
 );
 if (unknownTools.length)
   throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
-const TOOLS = Object.fromEntries(ALL_TOOLS
-  .filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name))
-  .map(tool => [tool.name, tool])
+const TOOLS = Object.fromEntries(
+  ALL_TOOLS.filter(({ name }) =>
+    Object.keys(safeOutputsConfig).find(config => normTool(config) === name)
+  ).map(tool => [tool.name, tool])
 );
 debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
 if (!Object.keys(TOOLS).length)
