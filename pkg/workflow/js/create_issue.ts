@@ -1,4 +1,12 @@
-async function main() {
+import type { SafeOutputItems } from "./types/safe-outputs";
+
+interface CreatedIssue {
+  number: number;
+  title: string;
+  html_url: string;
+}
+
+async function main(): Promise<void> {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -16,7 +24,7 @@ async function main() {
   core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
@@ -30,7 +38,9 @@ async function main() {
   }
 
   // Find all create-issue items
-  const createIssueItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "create-issue");
+  const createIssueItems = validatedOutput.items.filter(
+    item => item.type === "create-issue"
+  );
   if (createIssueItems.length === 0) {
     core.info("No create-issue items found in agent output");
     return;
@@ -67,14 +77,14 @@ async function main() {
 
   // Parse labels from environment variable (comma-separated string)
   const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-  let envLabels = labelsEnv
+  let envLabels: string[] = labelsEnv
     ? labelsEnv
-        .split(",")
-        .map(/** @param {string} label */ label => label.trim())
-        .filter(/** @param {string} label */ label => label)
+      .split(",")
+      .map((label: string) => label.trim())
+      .filter((label: string) => label)
     : [];
 
-  const createdIssues = [];
+  const createdIssues: CreatedIssue[] = [];
 
   // Process each create-issue item
   for (let i = 0; i < createIssueItems.length; i++) {
@@ -187,4 +197,7 @@ async function main() {
 
   core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }
-await main();
+
+(async () => {
+  await main();
+})();
