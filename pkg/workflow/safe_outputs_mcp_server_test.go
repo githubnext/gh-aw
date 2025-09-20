@@ -29,7 +29,7 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 	// Set up environment
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", outputFile))
-	
+
 	// Add required environment variables for upload_asset tool
 	env = append(env, "GITHUB_AW_ASSETS_BRANCH=test-assets")
 	env = append(env, "GITHUB_SERVER_URL=https://github.com")
