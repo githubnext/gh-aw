@@ -1652,7 +1652,7 @@
                   "description": "Branch name (default: 'assets/${{ github.workflow }}')",
                   "default": "assets/${{ github.workflow }}"
                 },
-                "max-size-kb": {
+                "max-size": {
                   "type": "integer",
                   "description": "Maximum file size in KB (default: 10240 = 10MB)",
                   "minimum": 1,

@@ -8,7 +8,7 @@ import (
 // UploadAssetConfig holds configuration for publishing assets to an orphaned git branch
 type UploadAssetConfig struct {
 	BranchName  string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
-	MaxSizeKB   int      `yaml:"max-size-kb,omitempty"`  // Maximum file size in KB (default: 10240 = 10MB)
+	MaxSizeKB   int      `yaml:"max-size,omitempty"`     // Maximum file size in KB (default: 10240 = 10MB)
 	AllowedExts []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
@@ -42,8 +42,8 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 				}
 			}
 
-			// Parse max-size-kb
-			if maxSize, exists := configMap["max-size-kb"]; exists {
+			// Parse max-size
+			if maxSize, exists := configMap["max-size"]; exists {
 				if maxSizeInt, ok := parseIntValue(maxSize); ok && maxSizeInt > 0 {
 					config.MaxSizeKB = maxSizeInt
 				}
