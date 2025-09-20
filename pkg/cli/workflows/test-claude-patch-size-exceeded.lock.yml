@@ -152,8 +152,6 @@ jobs:
             }
             main();
       - name: Setup Safe Outputs Collector MCP
-        env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push_to_pr_branch\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'

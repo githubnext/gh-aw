@@ -119,12 +119,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
-		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
-		if safeOutputConfig != "" {
-			// Add environment variables for JSONL validation
-			yaml.WriteString("        env:\n")
-			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-		}
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
@@ -146,6 +140,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("        env:\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+			if workflowData.SafeOutputs.UploadAssets != nil {
+				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
+			}
 		}
 	}
 	yaml.WriteString("        run: |\n")

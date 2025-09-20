@@ -152,8 +152,6 @@ jobs:
             }
             main();
       - name: Setup Safe Outputs Collector MCP
-        env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'

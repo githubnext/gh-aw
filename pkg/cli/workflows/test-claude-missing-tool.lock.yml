@@ -170,8 +170,6 @@ jobs:
             }
             main();
       - name: Setup Safe Outputs Collector MCP
-        env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{\"max\":5}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'

@@ -64,8 +64,6 @@ jobs:
             }
             main();
       - name: Setup Safe Outputs Collector MCP
-        env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{},\"create_issue\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
