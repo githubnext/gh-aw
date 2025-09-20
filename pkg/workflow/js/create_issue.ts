@@ -1,4 +1,4 @@
-import type { CreateIssueItem } from './types/safe-outputs';
+import type { CreateIssueItem } from "./types/safe-outputs";
 
 interface ValidatedOutput {
   items: CreateIssueItem[];
@@ -42,7 +42,9 @@ async function main(): Promise<void> {
   }
 
   // Find all create-issue items
-  const createIssueItems = validatedOutput.items.filter((item: any): item is CreateIssueItem => item.type === "create-issue");
+  const createIssueItems = validatedOutput.items.filter(
+    (item: any): item is CreateIssueItem => item.type === "create-issue"
+  );
   if (createIssueItems.length === 0) {
     core.info("No create-issue items found in agent output");
     return;
