@@ -77,6 +77,7 @@ async function main() {
       // Give an error if branch doesn't exist on origin
       core.info(`Creating new orphaned branch: ${branchName}`);
       await exec.exec(`git checkout --orphan ${branchName}`);
+      await exec.exec(`git clean -fdx`);
     }
 
     // Process each asset
@@ -140,15 +141,15 @@ async function main() {
       const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
       await exec.exec(`git`, [`commit`, `-m`, `"${commitMessage}"`]);
       if (isStaged) {
-        core.addRaw("## Staged Asset Publication");
+        core.summary.addRaw("## Staged Asset Publication");
       } else {
+        await exec.exec(`git push origin ${branchName}`);
         core.summary
           .addRaw("## Assets")
           .addRaw(
             `Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``
           )
           .addRaw("");
-        await exec.exec(`git push origin ${branchName}`);
         core.info(
           `Successfully uploaded ${uploadCount} assets to branch ${branchName}`
         );
