@@ -2212,6 +2212,7 @@ jobs:
             (async () => {
                 await main();
             })();
+            export {};
 
   upload_assets:
     needs: dev

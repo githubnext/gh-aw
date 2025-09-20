@@ -1,9 +1,4 @@
-interface CreateIssueItem {
-  type: "create-issue";
-  title: string;
-  body: string;
-  labels?: string[];
-}
+import type { CreateIssueItem } from './types/safe-outputs';
 
 interface ValidatedOutput {
   items: CreateIssueItem[];

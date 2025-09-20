@@ -2205,6 +2205,7 @@ jobs:
             (async () => {
                 await main();
             })();
+            export {};
 
   create_issue_comment:
     needs: ci-failure-doctor
