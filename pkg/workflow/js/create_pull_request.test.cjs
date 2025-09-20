@@ -16,7 +16,7 @@ const createTestableFunction = scriptContent => {
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, exec, github, core, context, process, console } = arguments[0];
+    const { fs, crypto, github, core, context, process, console } = arguments[0];
     
     return async function main() {
       ${mainFunctionBody}
@@ -36,6 +36,11 @@ describe("create_pull_request.cjs", () => {
     // Create testable function
     createMainFunction = createTestableFunction(scriptContent);
 
+    // Set up global exec mock
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0), // Return exit code directly
+    };
+
     // Set up mock dependencies
     mockDependencies = {
       fs: {
@@ -50,9 +55,6 @@ describe("create_pull_request.cjs", () => {
           .mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
       },
       execSync: vi.fn(),
-      exec: {
-        exec: vi.fn().mockResolvedValue({ exitCode: 0 }),
-      },
       github: {
         rest: {
           pulls: {
@@ -123,6 +125,13 @@ describe("create_pull_request.cjs", () => {
         log: vi.fn(),
       },
     };
+  });
+
+  afterEach(() => {
+    // Clean up global exec mock
+    if (typeof global !== "undefined") {
+      delete global.exec;
+    }
   });
 
   it("should throw error when GITHUB_AW_WORKFLOW_ID is missing", async () => {
@@ -215,13 +224,13 @@ describe("create_pull_request.cjs", () => {
     await mainFunction();
 
     // Verify git operations (excluding git config which is handled by workflow)
-    expect(mockDependencies.exec.exec).toHaveBeenCalledWith("git fetch origin");
-    expect(mockDependencies.exec.exec).toHaveBeenCalledWith("git checkout main");
-    expect(mockDependencies.exec.exec).toHaveBeenCalledWith(
+    expect(global.exec.exec).toHaveBeenCalledWith("git fetch origin");
+    expect(global.exec.exec).toHaveBeenCalledWith("git checkout main");
+    expect(global.exec.exec).toHaveBeenCalledWith(
       "git checkout -b test-workflow-1234567890abcdef"
     );
-    expect(mockDependencies.exec.exec).toHaveBeenCalledWith("git am /tmp/aw.patch");
-    expect(mockDependencies.exec.exec).toHaveBeenCalledWith(
+    expect(global.exec.exec).toHaveBeenCalledWith("git am /tmp/aw.patch");
+    expect(global.exec.exec).toHaveBeenCalledWith(
       "git push origin test-workflow-1234567890abcdef"
     );
 

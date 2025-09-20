@@ -1,7 +1,5 @@
 /** @type {typeof import("fs")} */
 const fs = require("fs");
-/** @type {typeof import("@actions/exec")} */
-const exec = require("@actions/exec");
 
 async function main() {
   // Environment validation - fail early if required variables are missing

@@ -69,7 +69,7 @@ describe("push_to_pr_branch.cjs", () => {
     global.core = mockCore;
     global.context = mockContext;
     global.mockFs = mockFs;
-    global.mockExec = mockExec;
+    global.exec = mockExec;
 
     // Execute the script
     return await eval(`(async () => { ${pushToPrBranchScript} })()`);
@@ -118,11 +118,11 @@ describe("push_to_pr_branch.cjs", () => {
 
     // Modify the script to inject our mocks and make core available
     pushToPrBranchScript = pushToPrBranchScript.replace(
-      /\/\*\* @type \{typeof import\("fs"\)\} \*\/\nconst fs = require\("fs"\);\n\/\*\* @type \{typeof import\("@actions\/exec"\)\} \*\/\nconst exec = require\("@actions\/exec"\);/,
+      /\/\*\* @type \{typeof import\("fs"\)\} \*\/\nconst fs = require\("fs"\);/,
       `const core = global.core;
 const context = global.context || {};
 const fs = global.mockFs;
-const exec = global.mockExec;`
+const exec = global.exec;`
     );
   });
 
@@ -132,7 +132,7 @@ const exec = global.mockExec;`
       delete global.core;
       delete global.context;
       delete global.mockFs;
-      delete global.mockExec;
+      delete global.exec;
     }
   });
 

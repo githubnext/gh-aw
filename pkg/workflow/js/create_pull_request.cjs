@@ -2,8 +2,6 @@
 const fs = require("fs");
 /** @type {typeof import("crypto")} */
 const crypto = require("crypto");
-/** @type {typeof import("@actions/exec")} */
-const exec = require("@actions/exec");
 
 async function main() {
   // Check if we're in staged mode
