@@ -5,7 +5,8 @@ const crypto = require("crypto");
 const encoder = new TextEncoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
-const safeOutputsConfig = JSON.parse(configEnv);
+const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
+const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile)
   throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
@@ -142,7 +143,7 @@ const uploadAssetHandler = args => {
   if (!isInWorkspace && !isInTmp) {
     throw new Error(
       `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-        `Provided path: ${filePath} (resolved to: ${absolutePath})`
+      `Provided path: ${filePath} (resolved to: ${absolutePath})`
     );
   }
 
