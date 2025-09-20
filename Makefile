@@ -147,7 +147,7 @@ js:
 .PHONY: compile-ts
 compile-ts:
 	echo "Compiling TypeScript files..."; \
-	cd pkg/workflow/js && npm run compile && npm run format:cjs
+	cd pkg/workflow/js && npm run compile
 
 # Check formatting
 .PHONY: fmt-check
@@ -275,7 +275,7 @@ help:
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-cjs          - Format JavaScript (.cjs) files"
-	@echo "  compile-ts       - Compile TypeScript files to CommonJS (.cjs)"
+	@echo "  compile-ts       - Compile TypeScript files to JavaScript (.js)"
 	@echo "  fmt-check        - Check code formatting"
 	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"

@@ -9,7 +9,7 @@ import (
 //go:embed js/create_pull_request.cjs
 var createPullRequestScript string
 
-//go:embed js/create_issue.cjs
+//go:embed js/create_issue.js
 var createIssueScript string
 
 //go:embed js/create_discussion.cjs

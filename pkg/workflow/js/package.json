@@ -16,7 +16,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "compile": "tsc --project tsconfig.build.json && mv create_issue.js create_issue.cjs",
+    "compile": "tsc --project tsconfig.build.json",
     "test": "npm run typecheck && vitest run",
     "test:js": "vitest run",
     "test:js-watch": "vitest",
