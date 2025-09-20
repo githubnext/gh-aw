@@ -192,14 +192,13 @@ async function main() {
   let branchName;
   // Fetch the specific PR to get its head branch
   try {
-    const prInfo = await exec
-      .exec(`gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`, {
-        encoding: "utf8",
+    let prInfo = "";
+    const prInfoRes = await exec
+      .exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `'.headRefName'`], {
+        listeners: { stdout: data => prInfo += data.toString() }
       })
-      .trim();
-
-    if (prInfo) {
-      branchName = prInfo;
+    if (!prInfoRes) {
+      branchName = prInfo.trim();
     } else {
       throw new Error("No head branch found for PR");
     }
@@ -289,9 +288,14 @@ async function main() {
   }
 
   // Get commit SHA and push URL
-  const commitSha = await exec
-    .exec("git rev-parse HEAD", { encoding: "utf8" })
-    .trim();
+  let commitSha = "";
+  const commitShaRes = await exec
+    .exec("git", ["rev-parse", "HEAD"], {
+      listeners: { stdout: data => commitSha += data.toString() }
+    })
+  if (commitShaRes)
+    throw new Error("Failed to get commit SHA");
+  commitSha = commitSha.trim();
 
   // Get commit SHA and push URL
   const pushUrl = context.payload.repository
