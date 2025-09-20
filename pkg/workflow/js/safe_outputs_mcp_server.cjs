@@ -121,7 +121,7 @@ const defaultHandler = type => args => {
   };
 };
 
-const publishAssetHandler = args => {
+const uploadAssetHandler = args => {
   const path = require("path");
   const crypto = require("crypto");
 
@@ -452,7 +452,7 @@ const ALL_TOOLS = [
       },
       additionalProperties: false,
     },
-    handler: publishAssetHandler,
+    handler: uploadAssetHandler,
   },
   {
     name: "missing_tool",

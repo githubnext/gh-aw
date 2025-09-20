@@ -295,7 +295,7 @@ jobs:
                 ],
               };
             };
-            const publishAssetHandler = args => {
+            const uploadAssetHandler = args => {
               const path = require("path");
               const crypto = require("crypto");
               const { path: filePath } = args;
@@ -607,7 +607,7 @@ jobs:
                   },
                   additionalProperties: false,
                 },
-                handler: publishAssetHandler,
+                handler: uploadAssetHandler,
               },
               {
                 name: "missing_tool",

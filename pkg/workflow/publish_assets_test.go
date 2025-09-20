@@ -10,7 +10,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    map[string]any
-		expected *UploadAssetConfig
+		expected *UploadAssetsConfig
 	}{
 		{
 			name: "upload-asset config with custom values",
@@ -22,7 +22,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 					"github-token": "${{ secrets.CUSTOM_TOKEN }}",
 				},
 			},
-			expected: &UploadAssetConfig{
+			expected: &UploadAssetsConfig{
 				BranchName:  "my-assets/${{ github.event.repository.name }}",
 				MaxSizeKB:   5120,
 				AllowedExts: []string{".jpg", ".png", ".txt"},
@@ -71,44 +71,10 @@ func TestParseUploadAssetConfig(t *testing.T) {
 	}
 }
 
-func TestGetDefaultAllowedExtensions(t *testing.T) {
-	exts := getDefaultAllowedExtensions()
-
-	// Check that we have some reasonable defaults
-	if len(exts) == 0 {
-		t.Error("Expected default extensions, got empty list")
-	}
-
-	// Check for some expected extensions
-	expectedExts := []string{".jpg", ".png", ".pdf", ".txt", ".json"}
-	for _, expected := range expectedExts {
-		found := false
-		for _, ext := range exts {
-			if ext == expected {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected default extension %s not found in %v", expected, exts)
-		}
-	}
-
-	// Check that executable extensions are not included
-	forbiddenExts := []string{".exe", ".bat", ".sh", ".bin"}
-	for _, forbidden := range forbiddenExts {
-		for _, ext := range exts {
-			if ext == forbidden {
-				t.Errorf("Forbidden extension %s found in default extensions", forbidden)
-			}
-		}
-	}
-}
-
 func TestHasSafeOutputsEnabledWithUploadAsset(t *testing.T) {
 	// Test that UploadAsset is properly detected
 	config := &SafeOutputsConfig{
-		UploadAsset: &UploadAssetConfig{},
+		UploadAssets: &UploadAssetsConfig{},
 	}
 
 	if !HasSafeOutputsEnabled(config) {

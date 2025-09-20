@@ -194,9 +194,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
 		}
 
-		// Add branch name if publish assets is configured
-		if workflowData.SafeOutputs.UploadAsset != nil {
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAsset.BranchName))
+		// Add branch name if upload assets is configured
+		if workflowData.SafeOutputs.UploadAssets != nil {
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
 		}
 	}
 

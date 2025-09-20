@@ -40,7 +40,7 @@ var updateIssueScript string
 var pushToBranchScript string
 
 //go:embed js/upload_assets.cjs
-var publishAssetsScript string
+var uploadAssetsScript string
 
 //go:embed js/setup_agent_output.cjs
 var setupAgentOutputScript string

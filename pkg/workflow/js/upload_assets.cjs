@@ -8,24 +8,25 @@ async function main() {
 
   // Get the branch name from environment variable (required)
   const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-  if (!branchName) {
+  if (!branchName || typeof branchName !== "string") {
     core.setFailed(
       "GITHUB_AW_ASSETS_BRANCH environment variable is required but not set"
     );
     return;
   }
+  core.info(`Using assets branch: ${branchName}`);
 
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-    core.setOutput("published_count", "0");
+    core.setOutput("upload_count", "0");
     core.setOutput("branch_name", branchName);
     return;
   }
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
-    core.setOutput("published_count", "0");
+    core.setOutput("upload_count", "0");
     core.setOutput("branch_name", branchName);
     return;
   }
@@ -45,25 +46,25 @@ async function main() {
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
     core.info("No valid items found in agent output");
-    core.setOutput("published_count", "0");
+    core.setOutput("upload_count", "0");
     core.setOutput("branch_name", branchName);
     return;
   }
 
   // Find all upload_asset items
-  const publishAssetItems = validatedOutput.items.filter(
+  const uploadAssetItems = validatedOutput.items.filter(
     /** @param {any} item */ item => item.type === "upload_asset"
   );
-  if (publishAssetItems.length === 0) {
+  if (uploadAssetItems.length === 0) {
     core.info("No upload_asset items found in agent output");
-    core.setOutput("published_count", "0");
+    core.setOutput("upload_count", "0");
     core.setOutput("branch_name", branchName);
     return;
   }
 
-  core.info(`Found ${publishAssetItems.length} upload_asset item(s)`);
+  core.info(`Found ${uploadAssetItems.length} upload_asset item(s)`);
 
-  let publishedCount = 0;
+  let uploadCount = 0;
   let hasChanges = false;
 
   try {
@@ -90,7 +91,7 @@ async function main() {
     }
 
     // Process each asset
-    for (const asset of publishAssetItems) {
+    for (const asset of uploadAssetItems) {
       try {
         const { fileName, filePath, sha, size, targetFileName } = asset;
 
@@ -134,7 +135,7 @@ async function main() {
         // Add to git
         await exec.exec(`git add "${targetFileName}"`, { stdio: "inherit" });
 
-        publishedCount++;
+        uploadCount++;
         hasChanges = true;
 
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
@@ -147,27 +148,24 @@ async function main() {
 
     // Commit and push if there are changes (skip if staged)
     if (hasChanges) {
-      const commitMessage = `Add ${publishedCount} asset(s) via GitHub Actions`;
+      const commitMessage = `Add ${uploadCount} asset(s) via GitHub Actions`;
       await exec.exec(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
       if (isStaged) {
         core.addRaw("## Staged Asset Publication");
       } else {
         core.summary
-          .addRaw("## Assets Published")
+          .addRaw("## Assets")
           .addRaw(
-            `Successfully published **${publishedCount}** assets to branch \`${branchName}\``
+            `Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``
           )
           .addRaw("");
         await exec.exec(`git push origin ${branchName}`, { stdio: "inherit" });
         core.info(
-          `Successfully published ${publishedCount} assets to branch ${branchName}`
+          `Successfully uploaded ${uploadCount} assets to branch ${branchName}`
         );
       }
 
-      // Add summary
-      core.summary.addRaw("### Published Assets:").addRaw("");
-
-      for (const asset of publishAssetItems) {
+      for (const asset of uploadAssetItems) {
         if (asset.fileName && asset.sha && asset.size && asset.url) {
           core.summary.addRaw(
             `- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`
@@ -176,16 +174,16 @@ async function main() {
       }
       core.summary.write();
     } else {
-      core.info("No new assets to publish");
+      core.info("No new assets to upload");
     }
   } catch (error) {
     core.setFailed(
-      `Failed to publish assets: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`
     );
     return;
   }
 
-  core.setOutput("published_count", publishedCount.toString());
+  core.setOutput("upload_count", uploadCount.toString());
   core.setOutput("branch_name", branchName);
 }
 

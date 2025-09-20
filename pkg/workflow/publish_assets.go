@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// UploadAssetConfig holds configuration for publishing assets to an orphaned git branch
-type UploadAssetConfig struct {
+// UploadAssetsConfig holds configuration for publishing assets to an orphaned git branch
+type UploadAssetsConfig struct {
 	BranchName  string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
 	MaxSizeKB   int      `yaml:"max-size,omitempty"`     // Maximum file size in KB (default: 10240 = 10MB)
 	AllowedExts []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
@@ -14,9 +14,9 @@ type UploadAssetConfig struct {
 }
 
 // parseUploadAssetConfig handles upload-asset configuration
-func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetConfig {
-	if configData, exists := outputMap["upload-asset"]; exists {
-		config := &UploadAssetConfig{
+func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
+	if configData, exists := outputMap["upload-assets"]; exists {
+		config := &UploadAssetsConfig{
 			BranchName: "assets/${{ github.workflow }}", // Default branch name
 			MaxSizeKB:  10240,                           // Default 10MB
 			AllowedExts: []string{
@@ -81,10 +81,10 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 	return nil
 }
 
-// buildPublishAssetsJob creates the publish_assets job
-func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.UploadAsset == nil {
-		return nil, fmt.Errorf("safe-outputs.publish-asset configuration is required")
+// buildUploadAssetsJob creates the publish_assets job
+func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
+		return nil, fmt.Errorf("safe-outputs.upload-asset configuration is required")
 	}
 
 	var steps []string
@@ -130,14 +130,14 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 	steps = append(steps, "          name: safe-outputs-assets\n")
 	steps = append(steps, "          path: /tmp/safe-outputs/assets/\n")
 
-	steps = append(steps, "      - name: Publish Assets to Orphaned Branch\n")
+	steps = append(steps, "      - name: Upload Assets to Orphaned Branch\n")
 	steps = append(steps, "        id: upload_assets\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAsset.BranchName))
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
@@ -150,14 +150,14 @@ func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string,
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
 	var token string
-	if data.SafeOutputs.UploadAsset != nil {
-		token = data.SafeOutputs.UploadAsset.GitHubToken
+	if data.SafeOutputs.UploadAssets != nil {
+		token = data.SafeOutputs.UploadAssets.GitHubToken
 	}
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(publishAssetsScript)
+	formattedScript := FormatJavaScriptForYAML(uploadAssetsScript)
 	steps = append(steps, formattedScript...)
 
 	// Create outputs for the job

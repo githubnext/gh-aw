@@ -16,7 +16,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
-		safeOutputs.UploadAsset != nil ||
+		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil
 }
 
@@ -82,7 +82,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		written = true
 	}
 
-	if safeOutputs.UploadAsset != nil {
+	if safeOutputs.UploadAssets != nil {
 		if written {
 			yaml.WriteString(", ")
 		}
@@ -158,7 +158,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          \n")
 	}
 
-	if safeOutputs.UploadAsset != nil {
+	if safeOutputs.UploadAssets != nil {
 		yaml.WriteString("          **Uploading Assets**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To upload files as URL-addressable assets:\n")
@@ -311,9 +311,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			}
 
 			// Handle upload-asset
-			publishAssetsConfig := c.parseUploadAssetConfig(outputMap)
-			if publishAssetsConfig != nil {
-				config.UploadAsset = publishAssetsConfig
+			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
+			if uploadAssetsConfig != nil {
+				config.UploadAssets = uploadAssetsConfig
 			}
 
 			// Handle missing-tool (parse configuration if present)

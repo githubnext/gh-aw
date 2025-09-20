@@ -152,16 +152,16 @@ type WorkflowData struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
-	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
-	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
-	AddComments                     *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
-	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
-	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
-	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alert,omitempty"`
+	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
+	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
+	AddComments                     *AddCommentsConfig                     `yaml:"add-comments,omitempty"`
+	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
+	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comments,omitempty"`
+	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
-	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
+	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
-	UploadAsset                     *UploadAssetConfig                     `yaml:"publish-asset,omitempty"`
+	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
@@ -1627,13 +1627,13 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build upload_assets job if output.publish-asset is configured
-	if data.SafeOutputs.UploadAsset != nil {
-		publishAssetsJob, err := c.buildPublishAssetsJob(data, jobName, taskJobCreated, frontmatter)
+	// Build upload_assets job if output.upload-asset is configured
+	if data.SafeOutputs.UploadAssets != nil {
+		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName, taskJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build upload_assets job: %w", err)
 		}
-		if err := c.jobManager.AddJob(publishAssetsJob); err != nil {
+		if err := c.jobManager.AddJob(uploadAssetsJob); err != nil {
 			return fmt.Errorf("failed to add upload_assets job: %w", err)
 		}
 	}
@@ -1852,8 +1852,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
 
-	// upload assets if publish-asset is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.UploadAsset != nil {
+	// upload assets if upload-asset is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
 		c.generateUploadAssets(yaml)
 	}
 
@@ -2322,7 +2322,7 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		safeOutputsConfig["push_to_pr_branch"] = pushToBranchConfig
 	}
-	if data.SafeOutputs.UploadAsset != nil {
+	if data.SafeOutputs.UploadAssets != nil {
 		safeOutputsConfig["upload_asset"] = map[string]any{}
 	}
 	if data.SafeOutputs.MissingTool != nil {

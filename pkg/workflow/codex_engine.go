@@ -139,9 +139,9 @@ codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearc
 			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 		}
 
-		// Add branch name if publish assets is configured
-		if workflowData.SafeOutputs.UploadAsset != nil {
-			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAsset.BranchName
+		// Add branch name if upload assets is configured
+		if workflowData.SafeOutputs.UploadAssets != nil {
+			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
 		}
 	}
 
