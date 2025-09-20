@@ -17,9 +17,21 @@ type UploadAssetConfig struct {
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetConfig {
 	if configData, exists := outputMap["upload-asset"]; exists {
 		config := &UploadAssetConfig{
-			BranchName:  "assets/${{ github.workflow }}", // Default branch name
-			MaxSizeKB:   10240,                           // Default 10MB
-			AllowedExts: getDefaultAllowedExtensions(),   // Default safe extensions
+			BranchName: "assets/${{ github.workflow }}", // Default branch name
+			MaxSizeKB:  10240,                           // Default 10MB
+			AllowedExts: []string{
+				// Images
+				".jpg",
+				".jpeg",
+				".png",
+				".webp",
+				// Video
+				".mp4",
+				".webm",
+				// Text
+				".txt",
+				".md",
+			},
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
@@ -67,28 +79,6 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 	}
 
 	return nil
-}
-
-// getDefaultAllowedExtensions returns a list of safe file extensions for asset publishing
-func getDefaultAllowedExtensions() []string {
-	return []string{
-		// Images
-		".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp", ".ico",
-		// Documents
-		".pdf", ".txt", ".md", ".rtf", ".doc", ".docx",
-		// Data formats
-		".json", ".yaml", ".yml", ".xml", ".csv", ".tsv",
-		// Web assets
-		".css", ".js", ".html", ".htm",
-		// Archives (non-executable)
-		".zip", ".tar", ".gz", ".bz2",
-		// Audio/Video
-		".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".ogg",
-		// Fonts
-		".ttf", ".otf", ".woff", ".woff2", ".eot",
-		// Other safe formats
-		".log", ".conf", ".cfg", ".ini",
-	}
 }
 
 // buildUploadAssetJob creates the upload_assets job

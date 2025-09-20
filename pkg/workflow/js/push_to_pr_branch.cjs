@@ -195,7 +195,9 @@ async function main() {
   try {
     const prInfo = execSync(
       `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
-      { encoding: "utf8" }
+      {
+        encoding: "utf8",
+      }
     ).trim();
 
     if (prInfo) {

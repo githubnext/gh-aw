@@ -173,27 +173,13 @@ const publishAssetHandler = args => {
     ".jpg",
     ".jpeg",
     ".png",
-    ".gif",
-    ".svg",
     ".webp",
-    ".bmp",
-    ".ico",
     // Video
     ".mp4",
     ".webm",
-    ".avi",
-    ".mov",
     // Text
     ".txt",
     ".md",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".xml",
-    ".csv",
-    // Video
-    ".mp4",
-    ".webm",
   ];
 
   if (!allowedExts.includes(ext)) {

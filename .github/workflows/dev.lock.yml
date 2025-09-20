@@ -429,27 +429,13 @@ jobs:
                 ".jpg",
                 ".jpeg",
                 ".png",
-                ".gif",
-                ".svg",
                 ".webp",
-                ".bmp",
-                ".ico",
                 // Video
                 ".mp4",
                 ".webm",
-                ".avi",
-                ".mov",
                 // Text
                 ".txt",
                 ".md",
-                ".json",
-                ".yaml",
-                ".yml",
-                ".xml",
-                ".csv",
-                // Video
-                ".mp4",
-                ".webm",
               ];
               if (!allowedExts.includes(ext)) {
                 throw new Error(
@@ -709,7 +695,7 @@ jobs:
                   },
                 },
                 {
-                  name: "upload_asset",
+                  name: "upload-asset",
                   description:
                     "Publish a file as a URL-addressable asset to an orphaned git branch",
                   inputSchema: {
@@ -897,7 +883,7 @@ jobs:
           ## Task
           
           1. Generate a creative poem about AI development and save it as a text file.
-          2. Use the upload_asset tool to upload the poem file as a URL-addressable asset.
+          2. Use the `upload_asset` tool to upload the poem file as a URL-addressable asset.
           3. Create an issue using the create-issue tool that includes:
              - Title: "AI Development Poem Published"
              - Body containing the poem text

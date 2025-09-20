@@ -214,7 +214,9 @@ describe("create_pull_request.cjs", () => {
     // Verify git operations (excluding git config which is handled by workflow)
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
       "git checkout -b test-workflow-1234567890abcdef",
-      { stdio: "inherit" }
+      {
+        stdio: "inherit",
+      }
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
       "git am /tmp/aw.patch",
@@ -222,7 +224,9 @@ describe("create_pull_request.cjs", () => {
     );
     expect(mockDependencies.execSync).toHaveBeenCalledWith(
       "git push origin test-workflow-1234567890abcdef",
-      { stdio: "inherit" }
+      {
+        stdio: "inherit",
+      }
     );
 
     // Verify PR creation
