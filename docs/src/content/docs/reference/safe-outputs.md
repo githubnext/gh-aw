@@ -35,6 +35,7 @@ This declares that the workflow should create at most one new issue.
 | **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
 | **Push to Pull Request Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
+| **Upload Assets** | `upload-assets:` | Publish files as URL-addressable assets to an orphaned git branch | unlimited |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
 
 ### New Issue Creation (`create-issue:`)
@@ -431,6 +432,77 @@ Similar to GitHub's `actions/upload-artifact` action, you can configure how the 
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
 
 When `create-pull-request` or `push-to-pr-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
+
+### Asset Upload (`upload-assets:`)
+
+Adding `upload-assets:` to the `safe-outputs:` section declares that the workflow should conclude with publishing files as URL-addressable assets to an orphaned git branch. This is useful for storing and sharing generated content like images, reports, or data files that can be accessed via direct URLs.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  upload-assets:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  upload-assets:
+    branch: "assets/${{ github.workflow }}"  # Optional: branch name (default: "assets/${{ github.workflow }}")
+    max-size: 10240                          # Optional: maximum file size in KB (default: 10240 = 10MB)
+    allowed-exts: [".png", ".jpg", ".jpeg"]  # Optional: allowed file extensions (default: [".png", ".jpg", ".jpeg"])
+    github-token: ${{ secrets.CUSTOM_PAT }}  # Optional: custom GitHub token for this specific output type
+```
+
+The agentic part of your workflow should describe the assets it wants to upload with specific file paths.
+
+**Example natural language to generate the output:**
+
+```markdown
+# Asset Generation Agent
+
+Generate a visualization or report based on the repository data.
+
+1. Create a chart or image file in the /tmp directory
+2. Upload the file as an asset using the upload asset tool
+3. The asset will be accessible via a direct URL for sharing
+```
+
+The compiled workflow will have additional prompting describing that, to upload assets, it should use the `upload_asset` tool available in the safe outputs MCP server.
+
+**Key Features:**
+
+- **Orphaned Branch Storage**: Assets are stored in git branches separate from code history
+- **URL Addressability**: Each uploaded asset gets a direct URL for easy sharing
+- **Security Controls**: File extension and size validation prevent misuse
+- **Branch Organization**: Default branch naming includes workflow name for organization
+- **Version Management**: Each upload gets a unique filename to prevent conflicts
+
+**Default Security Settings:**
+- **Maximum File Size**: 10 MB (10,240 KB)
+- **Allowed Extensions**: `.png`, `.jpg`, `.jpeg` (images only by default)
+- **Path Restrictions**: Files must be in workspace or `/tmp` directory
+- **Unique Naming**: Files get SHA-based names to prevent conflicts
+
+**Asset URL Format:**
+Assets are accessible at URLs like:
+```
+https://raw.githubusercontent.com/{owner}/{repo}/{branch-name}/{file-name}
+```
+
+**Configuration Options:**
+
+- **`branch:`** - Custom branch name for asset storage (supports GitHub expressions)
+- **`max-size:`** - Maximum file size in KB (range: 1-10240 KB)
+- **`allowed-exts:`** - Array of allowed file extensions (must include the dot, e.g., `[".txt", ".pdf"]`)
+- **`github-token:`** - Custom GitHub token if additional permissions are needed
+
+**Safety Features:**
+
+- Files are validated against extension and size limits before upload
+- Asset branches are orphaned (no code history) to keep repository clean
+- SHA-256 hashing ensures unique filenames and prevents overwrites
+- Only files in allowed directories can be uploaded
+- Git operations are isolated to asset branches only
 
 ### Missing Tool Reporting (`missing-tool:`)
 

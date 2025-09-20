@@ -173,6 +173,16 @@ The YAML frontmatter supports these fields:
         max: 3                          # Optional: maximum number of issues to update (default: 1)
     ```
     When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
+  - `upload-assets:` - Safe asset upload to orphaned git branches
+    ```yaml
+    safe-outputs:
+      upload-assets:
+        branch: "assets/${{ github.workflow }}"  # Optional: branch name (default: "assets/${{ github.workflow }}")
+        max-size: 10240                          # Optional: maximum file size in KB (default: 10240 = 10MB)
+        allowed-exts: [".png", ".jpg", ".jpeg"]  # Optional: allowed file extensions (default: [".png", ".jpg", ".jpeg"])
+        github-token: ${{ secrets.CUSTOM_PAT }}  # Optional: custom GitHub token for this specific output type
+    ```
+    When using `safe-outputs.upload-assets`, the main job does **not** need `contents: write` permission since asset upload is handled by a separate job with appropriate permissions. Assets are stored in orphaned git branches and accessible via direct URLs.
 
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs
