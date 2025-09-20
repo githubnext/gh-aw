@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".",
+    "declaration": false
+  },
+  "include": [
+    "create_issue.ts",
+    "types/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "*.test.cjs",
+    "*.test.ts"
+  ]
+}

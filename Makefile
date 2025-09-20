@@ -143,6 +143,12 @@ js:
 	echo "Running TypeScript compiler..."; \
 	cd pkg/workflow/js && npm run typecheck
 
+# Compile TypeScript files to CommonJS
+.PHONY: compile-ts
+compile-ts:
+	echo "Compiling TypeScript files..."; \
+	cd pkg/workflow/js && npm run compile
+
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
@@ -249,7 +255,7 @@ minor-release:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint js build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint js compile-ts build test-all recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -269,6 +275,7 @@ help:
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-cjs          - Format JavaScript (.cjs) files"
+	@echo "  compile-ts       - Compile TypeScript files to CommonJS (.cjs)"
 	@echo "  fmt-check        - Check code formatting"
 	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"
