@@ -15,7 +15,7 @@ type UploadAssetsConfig struct {
 
 // parseUploadAssetConfig handles upload-asset configuration
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
-	if configData, exists := outputMap["upload-assets"]; exists {
+	if configData, exists := outputMap["upload-asset"]; exists {
 		config := &UploadAssetsConfig{
 			BranchName: "assets/${{ github.workflow }}", // Default branch name
 			MaxSizeKB:  10240,                           // Default 10MB
