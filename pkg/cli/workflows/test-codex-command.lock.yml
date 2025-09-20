@@ -142,6 +142,13 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Upload MCP logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-logs
+          path: /tmp/mcp-logs/
+          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8

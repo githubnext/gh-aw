@@ -556,7 +556,7 @@ async function main() {
 
       // Basic validation based on type
       switch (itemType) {
-        case "create_issue":
+        case "create-issue":
           if (!item.title || typeof item.title !== "string") {
             errors.push(
               `Line ${i + 1}: create_issue requires a 'title' string field`
@@ -581,7 +581,7 @@ async function main() {
           }
           break;
 
-        case "add_comment":
+        case "add-comment":
           if (!item.body || typeof item.body !== "string") {
             errors.push(
               `Line ${i + 1}: add_comment requires a 'body' string field`
@@ -602,7 +602,7 @@ async function main() {
           item.body = sanitizeContent(item.body);
           break;
 
-        case "create_pull_request":
+        case "create-pull-request":
           if (!item.title || typeof item.title !== "string") {
             errors.push(
               `Line ${i + 1}: create_pull_request requires a 'title' string field`
@@ -634,7 +634,7 @@ async function main() {
           }
           break;
 
-        case "add_labels":
+        case "add-labels":
           if (!item.labels || !Array.isArray(item.labels)) {
             errors.push(
               `Line ${i + 1}: add_labels requires a 'labels' array field`
@@ -667,7 +667,7 @@ async function main() {
           );
           break;
 
-        case "update_issue":
+        case "update-issue":
           // Check that at least one updateable field is provided
           const hasValidField =
             item.status !== undefined ||
@@ -723,7 +723,7 @@ async function main() {
           }
           break;
 
-        case "push_to_pr_branch":
+        case "push-to-pr-branch":
           // Validate required branch field
           if (!item.branch || typeof item.branch !== "string") {
             errors.push(
@@ -814,7 +814,7 @@ async function main() {
             }
           }
           break;
-        case "create_discussion":
+        case "create-discussion":
           if (!item.title || typeof item.title !== "string") {
             errors.push(
               `Line ${i + 1}: create_discussion requires a 'title' string field`
@@ -842,7 +842,7 @@ async function main() {
           item.body = sanitizeContent(item.body);
           break;
 
-        case "missing_tool":
+        case "missing-tool":
           // Validate required tool field
           if (!item.tool || typeof item.tool !== "string") {
             errors.push(
@@ -872,7 +872,7 @@ async function main() {
           }
           break;
 
-        case "upload_asset":
+        case "upload-asset":
           if (!item.path || typeof item.path !== "string") {
             errors.push(
               `Line ${i + 1}: upload_asset requires a 'path' string field`
@@ -880,7 +880,7 @@ async function main() {
             continue;
           }
           break;
-        case "create_code_scanning_alert":
+        case "create-code-scanning-alert":
           // Validate required fields
           if (!item.file || typeof item.file !== "string") {
             errors.push(
