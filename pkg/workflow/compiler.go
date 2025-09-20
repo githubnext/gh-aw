@@ -2349,7 +2349,7 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
 	}
 	if data.SafeOutputs.UploadAssets != nil {
-	safeOutputsConfig["upload-asset"] = map[string]any{}
+		safeOutputsConfig["upload-asset"] = map[string]any{}
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		missingToolConfig := map[string]any{}

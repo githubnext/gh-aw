@@ -142,6 +142,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
 			if workflowData.SafeOutputs.UploadAssets != nil {
 				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
+				// Add custom repository if specified
+				if workflowData.SafeOutputs.UploadAssets.Repository != "" {
+					fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_REPOSITORY: %q\n", workflowData.SafeOutputs.UploadAssets.Repository)
+				}
 			}
 		}
 	}

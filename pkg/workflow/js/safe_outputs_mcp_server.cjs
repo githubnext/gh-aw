@@ -209,7 +209,8 @@ const uploadAssetHandler = args => {
   const targetFileName = (sha + fileExt).toLowerCase();
 
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
+  // Use custom repository if specified via GITHUB_AW_ASSETS_REPOSITORY, otherwise use current repository
+  const repo = process.env.GITHUB_AW_ASSETS_REPOSITORY || process.env.GITHUB_REPOSITORY || "owner/repo";
   const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
 
   // Create entry for safe outputs

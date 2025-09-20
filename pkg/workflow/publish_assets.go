@@ -11,6 +11,7 @@ type UploadAssetsConfig struct {
 	MaxSizeKB   int      `yaml:"max-size,omitempty"`     // Maximum file size in KB (default: 10240 = 10MB)
 	AllowedExts []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	Repository  string   `yaml:"repository,omitempty"`   // Target repository (default: current repository)
 }
 
 // parseUploadAssetConfig handles upload-asset configuration
@@ -68,6 +69,13 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 			if githubToken, exists := configMap["github-token"]; exists {
 				if githubTokenStr, ok := githubToken.(string); ok {
 					config.GitHubToken = githubTokenStr
+				}
+			}
+
+			// Parse repository
+			if repository, exists := configMap["repository"]; exists {
+				if repositoryStr, ok := repository.(string); ok {
+					config.Repository = repositoryStr
 				}
 			}
 		} else if configData == nil {
@@ -145,6 +153,11 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
+
+	// Add custom repository if specified
+	if data.SafeOutputs.UploadAssets.Repository != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_REPOSITORY: %q\n", data.SafeOutputs.UploadAssets.Repository))
+	}
 
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {

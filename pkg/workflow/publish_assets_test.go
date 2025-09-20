@@ -15,7 +15,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 		{
 			name: "upload-asset config with custom values",
 			input: map[string]any{
-				"upload-asset": map[string]any{
+				"upload-assets": map[string]any{
 					"branch":       "my-assets/${{ github.event.repository.name }}",
 					"max-size":     5120,
 					"allowed-exts": []any{".jpg", ".png", ".txt"},
@@ -27,6 +27,23 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				MaxSizeKB:   5120,
 				AllowedExts: []string{".jpg", ".png", ".txt"},
 				GitHubToken: "${{ secrets.CUSTOM_TOKEN }}",
+			},
+		},
+		{
+			name: "upload-assets config with custom repository",
+			input: map[string]any{
+				"upload-assets": map[string]any{
+					"branch":       "assets",
+					"repository":   "owner/other-repo",
+					"github-token": "${{ secrets.OTHER_TOKEN }}",
+				},
+			},
+			expected: &UploadAssetsConfig{
+				BranchName:  "assets",
+				MaxSizeKB:   10240,                                                                      // default
+				AllowedExts: []string{".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm", ".txt", ".md"}, // default
+				GitHubToken: "${{ secrets.OTHER_TOKEN }}",
+				Repository:  "owner/other-repo",
 			},
 		},
 		{
@@ -62,6 +79,10 @@ func TestParseUploadAssetConfig(t *testing.T) {
 
 			if result.GitHubToken != tt.expected.GitHubToken {
 				t.Errorf("GitHubToken: expected %s, got %s", tt.expected.GitHubToken, result.GitHubToken)
+			}
+
+			if result.Repository != tt.expected.Repository {
+				t.Errorf("Repository: expected %s, got %s", tt.expected.Repository, result.Repository)
 			}
 
 			if len(result.AllowedExts) != len(tt.expected.AllowedExts) {

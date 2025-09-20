@@ -16,6 +16,17 @@ async function main() {
   }
   core.info(`Using assets branch: ${branchName}`);
 
+  // Get custom repository if specified
+  const customRepository = process.env.GITHUB_AW_ASSETS_REPOSITORY;
+  const targetRepository = customRepository || process.env.GITHUB_REPOSITORY;
+  const isCustomRepository = !!customRepository;
+  
+  if (isCustomRepository) {
+    core.info(`Using custom target repository: ${customRepository}`);
+  } else {
+    core.info(`Using current repository: ${targetRepository}`);
+  }
+
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
@@ -68,11 +79,30 @@ async function main() {
   let hasChanges = false;
 
   try {
+    // Setup remote for custom repository if needed
+    let remoteName = "origin";
+    if (isCustomRepository) {
+      remoteName = "assets-target";
+      const githubToken = process.env.GITHUB_TOKEN;
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const repoUrl = `${githubServer}/${customRepository}.git`;
+      
+      if (githubToken) {
+        // Use token authentication for the custom repository
+        const authenticatedUrl = repoUrl.replace("https://", `https://x-access-token:${githubToken}@`);
+        await exec.exec(`git remote add ${remoteName} ${authenticatedUrl}`);
+      } else {
+        // Fallback to regular URL (may fail if private repo)
+        await exec.exec(`git remote add ${remoteName} ${repoUrl}`);
+      }
+      core.info(`Added remote '${remoteName}' for custom repository: ${customRepository}`);
+    }
+
     // Check if orphaned branch already exists, if not create it
     try {
-      await exec.exec(`git rev-parse --verify origin/${branchName}`);
-      await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-      core.info(`Checked out existing branch from origin: ${branchName}`);
+      await exec.exec(`git rev-parse --verify ${remoteName}/${branchName}`);
+      await exec.exec(`git checkout -B ${branchName} ${remoteName}/${branchName}`);
+      core.info(`Checked out existing branch from ${remoteName}: ${branchName}`);
     } catch (originError) {
       // Give an error if branch doesn't exist on origin
       core.info(`Creating new orphaned branch: ${branchName}`);
@@ -144,15 +174,15 @@ async function main() {
       if (isStaged) {
         core.summary.addRaw("## Staged Asset Publication");
       } else {
-        await exec.exec(`git push origin ${branchName}`);
+        await exec.exec(`git push ${remoteName} ${branchName}`);
         core.summary
           .addRaw("## Assets")
           .addRaw(
-            `Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``
+            `Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\` in repository \`${targetRepository}\``
           )
           .addRaw("");
         core.info(
-          `Successfully uploaded ${uploadCount} assets to branch ${branchName}`
+          `Successfully uploaded ${uploadCount} assets to branch ${branchName} in repository ${targetRepository}`
         );
       }
 

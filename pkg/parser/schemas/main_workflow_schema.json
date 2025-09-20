@@ -1670,6 +1670,11 @@
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "repository": {
+                  "type": "string",
+                  "description": "Target repository for assets in owner/repo format (default: current repository)",
+                  "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
                 }
               },
               "additionalProperties": false
