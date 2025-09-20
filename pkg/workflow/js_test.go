@@ -69,12 +69,42 @@ func TestFormatJavaScriptForYAML(t *testing.T) {
 			name:   "complex script with mixed content",
 			script: "// Comment\nconst github = require('@actions/github');\n\nconst token = process.env.GITHUB_TOKEN;\n\n// Another comment\nif (token) {\n  console.log('Token found');\n}\n",
 			expected: []string{
-				"            // Comment\n",
 				"            const github = require('@actions/github');\n",
 				"            const token = process.env.GITHUB_TOKEN;\n",
-				"            // Another comment\n",
 				"            if (token) {\n",
 				"              console.log('Token found');\n",
+				"            }\n",
+			},
+		},
+		{
+			name:     "script with only single-line comments should produce empty result",
+			script:   "// First comment\n// Second comment\n//Third comment",
+			expected: []string{},
+		},
+		{
+			name:   "script with block comments",
+			script: "/* Block comment */\nconst x = 1;\n/* Another\n   multiline\n   comment */\nreturn x;",
+			expected: []string{
+				"            const x = 1;\n",
+				"            return x;\n",
+			},
+		},
+		{
+			name:   "script with comments inside strings should preserve them",
+			script: "const url = \"https://example.com// not a comment\";\nconst msg = 'This /* is not */ a comment';\n// This is a real comment\nconst template = `// this ${variable} /* should */ stay`;",
+			expected: []string{
+				"            const url = \"https://example.com// not a comment\";\n",
+				"            const msg = 'This /* is not */ a comment';\n",
+				"            const template = `// this ${variable} /* should */ stay`;\n",
+			},
+		},
+		{
+			name:   "script with mixed comments and strings",
+			script: "// Initial comment\nconst str = \"This // looks like comment\";\n/* Block comment */\nif (str.includes('//')) {\n  // Line comment\n  console.log('Found //');\n}\n/* Final comment */",
+			expected: []string{
+				"            const str = \"This // looks like comment\";\n",
+				"            if (str.includes('//')) {\n",
+				"              console.log('Found //');\n",
 				"            }\n",
 			},
 		},
@@ -144,7 +174,27 @@ func TestWriteJavaScriptToYAML(t *testing.T) {
 		{
 			name:     "complex script with mixed content",
 			script:   "// Comment\nconst github = require('@actions/github');\n\nconst token = process.env.GITHUB_TOKEN;\n\n// Another comment\nif (token) {\n  console.log('Token found');\n}\n",
-			expected: "            // Comment\n            const github = require('@actions/github');\n            const token = process.env.GITHUB_TOKEN;\n            // Another comment\n            if (token) {\n              console.log('Token found');\n            }\n",
+			expected: "            const github = require('@actions/github');\n            const token = process.env.GITHUB_TOKEN;\n            if (token) {\n              console.log('Token found');\n            }\n",
+		},
+		{
+			name:     "script with only single-line comments should produce empty result",
+			script:   "// First comment\n// Second comment\n//Third comment",
+			expected: "",
+		},
+		{
+			name:     "script with block comments",
+			script:   "/* Block comment */\nconst x = 1;\n/* Another\n   multiline\n   comment */\nreturn x;",
+			expected: "            const x = 1;\n            return x;\n",
+		},
+		{
+			name:     "script with comments inside strings should preserve them",
+			script:   "const url = \"https://example.com// not a comment\";\nconst msg = 'This /* is not */ a comment';\n// This is a real comment\nconst template = `// this ${variable} /* should */ stay`;",
+			expected: "            const url = \"https://example.com// not a comment\";\n            const msg = 'This /* is not */ a comment';\n            const template = `// this ${variable} /* should */ stay`;\n",
+		},
+		{
+			name:     "script with mixed comments and strings",
+			script:   "// Initial comment\nconst str = \"This // looks like comment\";\n/* Block comment */\nif (str.includes('//')) {\n  // Line comment\n  console.log('Found //');\n}\n/* Final comment */",
+			expected: "            const str = \"This // looks like comment\";\n            if (str.includes('//')) {\n              console.log('Found //');\n            }\n",
 		},
 	}
 
