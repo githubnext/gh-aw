@@ -33,6 +33,8 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
   title: string;
   /** Discussion body content */
   body: string;
+  /** Optional category ID for the discussion */
+  category_id?: number | string;
 }
 
 /**

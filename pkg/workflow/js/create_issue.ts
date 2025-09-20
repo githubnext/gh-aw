@@ -1,4 +1,4 @@
-import type { CreateIssueItem, SafeOutputItems } from "./types/safe-outputs";
+import type { SafeOutputItems } from "./types/safe-outputs";
 
 interface CreatedIssue {
   number: number;

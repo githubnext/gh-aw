@@ -13,7 +13,7 @@ all: build
 
 # Build the binary
 .PHONY: build
-build:
+build: js
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -141,7 +141,7 @@ fmt-cjs:
 .PHONY: js
 js:
 	echo "Running TypeScript compiler..."; \
-	cd pkg/workflow/js && npm run typecheck
+	cd pkg/workflow/js && npm run compile
 
 # Compile TypeScript files to CommonJS
 .PHONY: compile-ts

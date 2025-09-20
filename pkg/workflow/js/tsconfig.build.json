@@ -31,6 +31,7 @@
     "alwaysStrict": false
   },
   "include": [
+    "create_discussion.ts",
     "create_issue.ts",
     "types/*.d.ts"
   ],
