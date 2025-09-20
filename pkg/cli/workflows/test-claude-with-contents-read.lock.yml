@@ -3,7 +3,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Test Claude Create Pull Request Review Comment"
+name: "Test Claude With Contents Read Permission"
 on:
   workflow_dispatch: null
 
@@ -12,14 +12,17 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Claude Create Pull Request Review Comment"
+run-name: "Test Claude With Contents Read Permission"
 
 jobs:
-  test-claude-create-pull-request-review-comment:
+  test-claude-with-contents-read-permission:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      contents: read
+      issues: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -157,11 +160,21 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Claude Create Pull Request Review Comment
+          # Test Claude With Contents Read Permission
           
-          This is a test workflow to verify that Claude can create review comments on pull requests.
+          This workflow tests that Claude works correctly when given contents read permission. This workflow SHOULD include a checkout step in the generated lock file.
           
-          Please add a review comment to the latest pull request saying "This is a test review comment from Claude."
+          Please:
+          1. Check out the repository (this should happen automatically via checkout step)
+          2. Read and analyze the README.md file 
+          3. List any other interesting files in the repository root
+          4. Create a new issue with title "Test Issue - With Contents Access" and include a summary of what you found in the repository files
+          
+          This test validates that:
+          - Workflows with contents: read permission include the checkout step
+          - The workflow can access and read repository files
+          - File editing tools are available when contents permission is granted
+          - Both file operations and GitHub API operations work together
           
           EOF
       - name: Print prompt to step summary
@@ -184,7 +197,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Claude Create Pull Request Review Comment",
+              workflow_name: "Test Claude With Contents Read Permission",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -223,14 +236,19 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Edit
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - LS
+        # - MultiEdit
+        # - NotebookEdit
         # - NotebookRead
         # - Read
         # - Task
         # - TodoWrite
+        # - Write
+        # - mcp__github__create_issue
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -279,7 +297,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-claude-create-pull-request-review-comment.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Edit,ExitPlanMode,Glob,Grep,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__create_issue,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-claude-with-contents-read-permission.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -291,22 +309,15 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/test-claude-create-pull-request-review-comment.log
+          touch /tmp/test-claude-with-contents-read-permission.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/test-claude-create-pull-request-review-comment.log || echo "No log content available"
-      - name: Upload MCP logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcp-logs
-          path: /tmp/mcp-logs/
-          if-no-files-found: ignore
+          tail -10 /tmp/test-claude-with-contents-read-permission.log || echo "No log content available"
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-claude-create-pull-request-review-comment.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-claude-with-contents-read-permission.log
         with:
           script: |
             function main() {
@@ -333,22 +344,30 @@ jobs:
                 core.setFailed(errorMessage);
               }
             }
+            /**
+             * Parses Claude log content and converts it to markdown format
+             * @param {string} logContent - The raw log content as a string
+             * @returns {{markdown: string, mcpFailures: string[]}} Result with formatted markdown content and MCP failure list
+             */
             function parseClaudeLog(logContent) {
               try {
                 let logEntries;
+                // First, try to parse as JSON array (old format)
                 try {
                   logEntries = JSON.parse(logContent);
                   if (!Array.isArray(logEntries)) {
                     throw new Error("Not a JSON array");
                   }
                 } catch (jsonArrayError) {
+                  // If that fails, try to parse as mixed format (debug logs + JSONL)
                   logEntries = [];
                   const lines = logContent.split("\n");
                   for (const line of lines) {
                     const trimmedLine = line.trim();
                     if (trimmedLine === "") {
-                      continue; 
+                      continue; // Skip empty lines
                     }
+                    // Handle lines that start with [ (JSON array format)
                     if (trimmedLine.startsWith("[{")) {
                       try {
                         const arrayEntries = JSON.parse(trimmedLine);
@@ -357,29 +376,38 @@ jobs:
                           continue;
                         }
                       } catch (arrayParseError) {
+                        // Skip invalid array lines
                         continue;
                       }
                     }
+                    // Skip debug log lines that don't start with {
+                    // (these are typically timestamped debug messages)
                     if (!trimmedLine.startsWith("{")) {
                       continue;
                     }
+                    // Try to parse each line as JSON
                     try {
                       const jsonEntry = JSON.parse(trimmedLine);
                       logEntries.push(jsonEntry);
                     } catch (jsonLineError) {
+                      // Skip invalid JSON lines (could be partial debug output)
                       continue;
                     }
                   }
                 }
                 if (!Array.isArray(logEntries) || logEntries.length === 0) {
                   return {
-                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
+                    markdown:
+                      "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
                     mcpFailures: [],
                   };
                 }
                 let markdown = "";
                 const mcpFailures = [];
-                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                // Check for initialization data first
+                const initEntry = logEntries.find(
+                  entry => entry.type === "system" && entry.subtype === "init"
+                );
                 if (initEntry) {
                   markdown += "## 🚀 Initialization\n\n";
                   const initResult = formatInitializationSummary(initEntry);
@@ -388,8 +416,9 @@ jobs:
                   markdown += "\n";
                 }
                 markdown += "## 🤖 Commands and Tools\n\n";
-                const toolUsePairs = new Map(); 
-                const commandSummary = []; 
+                const toolUsePairs = new Map(); // Map tool_use_id to tool_result
+                const commandSummary = []; // For the succinct summary
+                // First pass: collect tool results by tool_use_id
                 for (const entry of logEntries) {
                   if (entry.type === "user" && entry.message?.content) {
                     for (const content of entry.message.content) {
@@ -399,20 +428,35 @@ jobs:
                     }
                   }
                 }
+                // Collect all tool uses for summary
                 for (const entry of logEntries) {
                   if (entry.type === "assistant" && entry.message?.content) {
                     for (const content of entry.message.content) {
                       if (content.type === "tool_use") {
                         const toolName = content.name;
                         const input = content.input || {};
-                        if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-                          continue; 
+                        // Skip internal tools - only show external commands and API calls
+                        if (
+                          [
+                            "Read",
+                            "Write",
+                            "Edit",
+                            "MultiEdit",
+                            "LS",
+                            "Grep",
+                            "Glob",
+                            "TodoWrite",
+                          ].includes(toolName)
+                        ) {
+                          continue; // Skip internal file operations and searches
                         }
+                        // Find the corresponding tool result to get status
                         const toolResult = toolUsePairs.get(content.id);
                         let statusIcon = "❓";
                         if (toolResult) {
                           statusIcon = toolResult.is_error === true ? "❌" : "✅";
                         }
+                        // Add to command summary (only external tools)
                         if (toolName === "Bash") {
                           const formattedCommand = formatBashCommand(input.command || "");
                           commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
@@ -420,12 +464,14 @@ jobs:
                           const mcpName = formatMcpName(toolName);
                           commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
                         } else {
+                          // Handle other external tools (if any)
                           commandSummary.push(`* ${statusIcon} ${toolName}`);
                         }
                       }
                     }
                   }
                 }
+                // Add command summary
                 if (commandSummary.length > 0) {
                   for (const cmd of commandSummary) {
                     markdown += `${cmd}\n`;
@@ -433,9 +479,17 @@ jobs:
                 } else {
                   markdown += "No commands or tools used.\n";
                 }
+                // Add Information section from the last entry with result metadata
                 markdown += "\n## 📊 Information\n\n";
+                // Find the last entry with metadata
                 const lastEntry = logEntries[logEntries.length - 1];
-                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
+                if (
+                  lastEntry &&
+                  (lastEntry.num_turns ||
+                    lastEntry.duration_ms ||
+                    lastEntry.total_cost_usd ||
+                    lastEntry.usage)
+                ) {
                   if (lastEntry.num_turns) {
                     markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
                   }
@@ -452,29 +506,37 @@ jobs:
                     const usage = lastEntry.usage;
                     if (usage.input_tokens || usage.output_tokens) {
                       markdown += `**Token Usage:**\n`;
-                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                      if (usage.input_tokens)
+                        markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
                       if (usage.cache_creation_input_tokens)
                         markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
                       if (usage.cache_read_input_tokens)
                         markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                      if (usage.output_tokens)
+                        markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
                       markdown += "\n";
                     }
                   }
-                  if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
+                  if (
+                    lastEntry.permission_denials &&
+                    lastEntry.permission_denials.length > 0
+                  ) {
                     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
                   }
                 }
                 markdown += "\n## 🤖 Reasoning\n\n";
+                // Second pass: process assistant messages in sequence
                 for (const entry of logEntries) {
                   if (entry.type === "assistant" && entry.message?.content) {
                     for (const content of entry.message.content) {
                       if (content.type === "text" && content.text) {
+                        // Add reasoning text directly (no header)
                         const text = content.text.trim();
                         if (text && text.length > 0) {
                           markdown += text + "\n\n";
                         }
                       } else if (content.type === "tool_use") {
+                        // Process tool use with its result
                         const toolResult = toolUsePairs.get(content.id);
                         const toolMarkdown = formatToolUse(content, toolResult);
                         if (toolMarkdown) {
@@ -493,9 +555,15 @@ jobs:
                 };
               }
             }
+            /**
+             * Formats initialization information from system init entry
+             * @param {any} initEntry - The system init entry containing tools, mcp_servers, etc.
+             * @returns {{markdown: string, mcpFailures: string[]}} Result with formatted markdown string and MCP failure list
+             */
             function formatInitializationSummary(initEntry) {
               let markdown = "";
               const mcpFailures = [];
+              // Display model and session info
               if (initEntry.model) {
                 markdown += `**Model:** ${initEntry.model}\n\n`;
               }
@@ -503,22 +571,36 @@ jobs:
                 markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
               }
               if (initEntry.cwd) {
-                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
+                // Show a cleaner path by removing common prefixes
+                const cleanCwd = initEntry.cwd.replace(
+                  /^\/home\/runner\/work\/[^\/]+\/[^\/]+/,
+                  "."
+                );
                 markdown += `**Working Directory:** ${cleanCwd}\n\n`;
               }
+              // Display MCP servers status
               if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
                 markdown += "**MCP Servers:**\n";
                 for (const server of initEntry.mcp_servers) {
-                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
+                  const statusIcon =
+                    server.status === "connected"
+                      ? "✅"
+                      : server.status === "failed"
+                        ? "❌"
+                        : "❓";
                   markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
+                  // Track failed MCP servers
                   if (server.status === "failed") {
                     mcpFailures.push(server.name);
                   }
                 }
                 markdown += "\n";
               }
+              // Display tools by category
               if (initEntry.tools && Array.isArray(initEntry.tools)) {
                 markdown += "**Available Tools:**\n";
+                // Categorize tools
+                /** @type {{ [key: string]: string[] }} */
                 const categories = {
                   Core: [],
                   "File Operations": [],
@@ -527,30 +609,54 @@ jobs:
                   Other: [],
                 };
                 for (const tool of initEntry.tools) {
-                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
+                  if (
+                    ["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(
+                      tool
+                    )
+                  ) {
                     categories["Core"].push(tool);
-                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
+                  } else if (
+                    [
+                      "Read",
+                      "Edit",
+                      "MultiEdit",
+                      "Write",
+                      "LS",
+                      "Grep",
+                      "Glob",
+                      "NotebookEdit",
+                    ].includes(tool)
+                  ) {
                     categories["File Operations"].push(tool);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
-                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else if (
+                    tool.startsWith("mcp__") ||
+                    ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)
+                  ) {
+                    categories["MCP"].push(
+                      tool.startsWith("mcp__") ? formatMcpName(tool) : tool
+                    );
                   } else {
                     categories["Other"].push(tool);
                   }
                 }
+                // Display categories with tools
                 for (const [category, tools] of Object.entries(categories)) {
                   if (tools.length > 0) {
                     markdown += `- **${category}:** ${tools.length} tools\n`;
                     if (tools.length <= 5) {
+                      // Show all tools if 5 or fewer
                       markdown += `  - ${tools.join(", ")}\n`;
                     } else {
+                      // Show first few and count
                       markdown += `  - ${tools.slice(0, 3).join(", ")}, and ${tools.length - 3} more\n`;
                     }
                   }
                 }
                 markdown += "\n";
               }
+              // Display slash commands if available
               if (initEntry.slash_commands && Array.isArray(initEntry.slash_commands)) {
                 const commandCount = initEntry.slash_commands.length;
                 markdown += `**Slash Commands:** ${commandCount} available\n`;
@@ -563,17 +669,25 @@ jobs:
               }
               return { markdown, mcpFailures };
             }
+            /**
+             * Formats a tool use entry with its result into markdown
+             * @param {any} toolUse - The tool use object containing name, input, etc.
+             * @param {any} toolResult - The corresponding tool result object
+             * @returns {string} Formatted markdown string
+             */
             function formatToolUse(toolUse, toolResult) {
               const toolName = toolUse.name;
               const input = toolUse.input || {};
+              // Skip TodoWrite except the very last one (we'll handle this separately)
               if (toolName === "TodoWrite") {
-                return ""; 
+                return ""; // Skip for now, would need global context to find the last one
               }
+              // Helper function to determine status icon
               function getStatusIcon() {
                 if (toolResult) {
                   return toolResult.is_error === true ? "❌" : "✅";
                 }
-                return "❓"; 
+                return "❓"; // Unknown by default
               }
               let markdown = "";
               const statusIcon = getStatusIcon();
@@ -581,6 +695,7 @@ jobs:
                 case "Bash":
                   const command = input.command || "";
                   const description = input.description || "";
+                  // Format the command to be single line
                   const formattedCommand = formatBashCommand(command);
                   if (description) {
                     markdown += `${description}:\n\n`;
@@ -589,14 +704,20 @@ jobs:
                   break;
                 case "Read":
                   const filePath = input.file_path || input.path || "";
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\
+                  const relativePath = filePath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  ); // Remove /home/runner/work/repo/repo/ prefix
                   markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
                   break;
                 case "Write":
                 case "Edit":
                 case "MultiEdit":
                   const writeFilePath = input.file_path || input.path || "";
-                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\
+                  const writeRelativePath = writeFilePath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  );
                   markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
                   break;
                 case "Grep":
@@ -606,18 +727,27 @@ jobs:
                   break;
                 case "LS":
                   const lsPath = input.path || "";
-                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\
+                  const lsRelativePath = lsPath.replace(
+                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
+                    ""
+                  );
                   markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
                   break;
                 default:
+                  // Handle MCP calls and other tools
                   if (toolName.startsWith("mcp__")) {
                     const mcpName = formatMcpName(toolName);
                     const params = formatMcpParameters(input);
                     markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
                   } else {
+                    // Generic tool formatting - show the tool name and main parameters
                     const keys = Object.keys(input);
                     if (keys.length > 0) {
-                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
+                      // Try to find the most important parameter
+                      const mainParam =
+                        keys.find(k =>
+                          ["query", "command", "path", "file_path", "content"].includes(k)
+                        ) || keys[0];
                       const value = String(input[mainParam] || "");
                       if (value) {
                         markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
@@ -631,22 +761,34 @@ jobs:
               }
               return markdown;
             }
+            /**
+             * Formats MCP tool name from internal format to display format
+             * @param {string} toolName - The raw tool name (e.g., mcp__github__search_issues)
+             * @returns {string} Formatted tool name (e.g., github::search_issues)
+             */
             function formatMcpName(toolName) {
+              // Convert mcp__github__search_issues to github::search_issues
               if (toolName.startsWith("mcp__")) {
                 const parts = toolName.split("__");
                 if (parts.length >= 3) {
-                  const provider = parts[1]; 
-                  const method = parts.slice(2).join("_"); 
+                  const provider = parts[1]; // github, etc.
+                  const method = parts.slice(2).join("_"); // search_issues, etc.
                   return `${provider}::${method}`;
                 }
               }
               return toolName;
             }
+            /**
+             * Formats MCP parameters into a human-readable string
+             * @param {Record<string, any>} input - The input object containing parameters
+             * @returns {string} Formatted parameters string
+             */
             function formatMcpParameters(input) {
               const keys = Object.keys(input);
               if (keys.length === 0) return "";
               const paramStrs = [];
               for (const key of keys.slice(0, 4)) {
+                // Show up to 4 parameters
                 const value = String(input[key] || "");
                 paramStrs.push(`${key}: ${truncateString(value, 40)}`);
               }
@@ -655,26 +797,42 @@ jobs:
               }
               return paramStrs.join(", ");
             }
+            /**
+             * Formats a bash command by normalizing whitespace and escaping
+             * @param {string} command - The raw bash command string
+             * @returns {string} Formatted and escaped command string
+             */
             function formatBashCommand(command) {
               if (!command) return "";
+              // Convert multi-line commands to single line by replacing newlines with spaces
+              // and collapsing multiple spaces
               let formatted = command
-                .replace(/\n/g, " ") 
-                .replace(/\r/g, " ") 
-                .replace(/\t/g, " ") 
-                .replace(/\s+/g, " ") 
-                .trim(); 
+                .replace(/\n/g, " ") // Replace newlines with spaces
+                .replace(/\r/g, " ") // Replace carriage returns with spaces
+                .replace(/\t/g, " ") // Replace tabs with spaces
+                .replace(/\s+/g, " ") // Collapse multiple spaces into one
+                .trim(); // Remove leading/trailing whitespace
+              // Escape backticks to prevent markdown issues
               formatted = formatted.replace(/`/g, "\\`");
+              // Truncate if too long (keep reasonable length for summary)
               const maxLength = 80;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
               }
               return formatted;
             }
+            /**
+             * Truncates a string to a maximum length with ellipsis
+             * @param {string} str - The string to truncate
+             * @param {number} maxLength - Maximum allowed length
+             * @returns {string} Truncated string with ellipsis if needed
+             */
             function truncateString(str, maxLength) {
               if (!str) return "";
               if (str.length <= maxLength) return str;
               return str.substring(0, maxLength) + "...";
             }
+            // Export for testing
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 parseClaudeLog,
@@ -689,7 +847,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-claude-create-pull-request-review-comment.log
-          path: /tmp/test-claude-create-pull-request-review-comment.log
+          name: test-claude-with-contents-read-permission.log
+          path: /tmp/test-claude-with-contents-read-permission.log
           if-no-files-found: warn
 

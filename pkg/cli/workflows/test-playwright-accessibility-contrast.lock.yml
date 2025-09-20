@@ -22,8 +22,6 @@ jobs:
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude

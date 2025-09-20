@@ -124,7 +124,7 @@ type WorkflowData struct {
 	Name               string
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	On                 string
-	Permissions        string
+	Permissions  *Permissions // Structured permissions
 	Network            string // top-level network permissions configuration
 	Concurrency        string
 	RunName            string
@@ -587,7 +587,14 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
 	workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
-	workflowData.Permissions = c.extractTopLevelYAMLSection(result.Frontmatter, "permissions")
+	
+	// Parse structured permissions
+	permissionsStruct, err := ParsePermissions(result.Frontmatter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse permissions: %w", err)
+	}
+	workflowData.Permissions = permissionsStruct
+	
 	workflowData.Network = c.extractTopLevelYAMLSection(result.Frontmatter, "network")
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
@@ -993,9 +1000,13 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		}
 	}
 
-	if data.Permissions == "" {
-		// Default behavior: use read-all permissions
-		data.Permissions = `permissions: read-all`
+	// Set default permissions if none specified (but not if explicitly empty)
+	if data.Permissions == nil {
+		// No permissions section in frontmatter at all - use default read-all
+		data.Permissions = &Permissions{Global: "read-all"}
+	} else if data.Permissions.IsEmpty() {
+		// Permissions explicitly set to empty (permissions: {}) - keep empty
+		// Do nothing, leave as is
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
@@ -1761,13 +1772,33 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		Name:        jobName,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
-		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Permissions: c.getJobPermissions(data),
 		Steps:       steps,
 		Needs:       depends,
 		Outputs:     outputs,
 	}
 
 	return job, nil
+}
+
+// hasContentsPermission checks if the given permissions include contents access
+// Uses structured permissions for reliable permission checking
+func (c *Compiler) hasContentsPermission(data *WorkflowData) bool {
+	if data.Permissions != nil {
+		return data.Permissions.HasContentsAccess()
+	}
+
+	// No permissions specified, should not happen since we set defaults
+	return false
+}
+
+// getJobPermissions returns the formatted permissions string for a job
+func (c *Compiler) getJobPermissions(data *WorkflowData) string {
+	if data.Permissions != nil {
+		return c.indentYAMLLines(data.Permissions.ToYAML(), "    ")
+	}
+	// No permissions specified, return empty (should not happen since we set defaults)
+	return ""
 }
 
 // generateMainJobSteps generates the steps section for the main job
@@ -1789,8 +1820,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 	} else {
-		yaml.WriteString("      - name: Checkout repository\n")
-		yaml.WriteString("        uses: actions/checkout@v5\n")
+		// Only add checkout step if permissions include contents access
+		if c.hasContentsPermission(data) {
+			yaml.WriteString("      - name: Checkout repository\n")
+			yaml.WriteString("        uses: actions/checkout@v5\n")
+		}
 	}
 
 	// Add cache steps if cache configuration is present
