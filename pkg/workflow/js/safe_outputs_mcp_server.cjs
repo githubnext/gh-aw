@@ -101,6 +101,7 @@ function replyError(id, code, message, data) {
 
 function appendSafeOutput(entry) {
   if (!outputFile) throw new Error("No output file configured");
+  entry.type = entry.type.replace(/_/g, "-");
   const jsonLine = JSON.stringify(entry) + "\n";
   try {
     fs.appendFileSync(outputFile, jsonLine);
@@ -125,7 +126,7 @@ const defaultHandler = type => args => {
 };
 
 const uploadAssetHandler = args => {
-  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH
+  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
   if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
 
   const { path: filePath } = args;
@@ -213,7 +214,7 @@ const uploadAssetHandler = args => {
   // Create entry for safe outputs
   const entry = {
     type: "upload_asset",
-    path: filePath,    
+    path: filePath,
     fileName: fileName,
     sha: sha,
     size: sizeBytes,

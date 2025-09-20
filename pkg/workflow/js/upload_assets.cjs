@@ -51,18 +51,18 @@ async function main() {
     return;
   }
 
-  // Find all upload_asset items
+  // Find all upload-asset items
   const uploadAssetItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "upload_asset"
+    /** @param {any} item */ item => item.type === "upload-asset"
   );
   if (uploadAssetItems.length === 0) {
-    core.info("No upload_asset items found in agent output");
+    core.info("No upload-asset items found in agent output");
     core.setOutput("upload_count", "0");
     core.setOutput("branch_name", branchName);
     return;
   }
 
-  core.info(`Found ${uploadAssetItems.length} upload_asset item(s)`);
+  core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
 
   let uploadCount = 0;
   let hasChanges = false;
