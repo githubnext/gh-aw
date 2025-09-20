@@ -6,7 +6,7 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 > This extension is a research demonstrator. It is in early development and may change significantly. Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
 > [!NOTE]
-> **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/instructions/github-agentic-workflows.instructions.md](https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md)
+> **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/instructions/github-agentic-workflows.instructions.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md)
 
 ## 🚀 Quick Start
 

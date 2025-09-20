@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
 
 func TestDownloadWorkflowLogs(t *testing.T) {
@@ -888,9 +889,9 @@ func TestFormatFileSize(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := formatFileSize(tt.size)
+		result := pretty.FormatFileSize(tt.size)
 		if result != tt.expected {
-			t.Errorf("formatFileSize(%d) = %q, expected %q", tt.size, result, tt.expected)
+			t.Errorf("pretty.FormatFileSize(%d) = %q, expected %q", tt.size, result, tt.expected)
 		}
 	}
 }
