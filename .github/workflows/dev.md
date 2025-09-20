@@ -16,7 +16,7 @@ safe-outputs:
   staged: true
 engine: 
   id: claude
-  max-turns: 5
+  max-turns: 10
 permissions: read-all
 ---
 
