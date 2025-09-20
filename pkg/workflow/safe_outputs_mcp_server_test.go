@@ -29,6 +29,11 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 	// Set up environment
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", outputFile))
+	
+	// Add required environment variables for upload_asset tool
+	env = append(env, "GITHUB_AW_ASSETS_BRANCH=test-assets")
+	env = append(env, "GITHUB_SERVER_URL=https://github.com")
+	env = append(env, "GITHUB_REPOSITORY=test/repo")
 
 	if config != nil {
 		configJSON, err := json.Marshal(config)
@@ -133,7 +138,7 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 		toolNames[i] = tool.Name
 	}
 
-	expectedTools := []string{"create-issue", "create-discussion", "missing-tool"}
+	expectedTools := []string{"create_issue", "create_discussion", "missing_tool"}
 	for _, expected := range expectedTools {
 		found := false
 		for _, actual := range toolNames {
@@ -445,13 +450,13 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 		t.Fatalf("Expected first content item to be text content, got %T", result.Content[0])
 	}
 
-	if !strings.Contains(textContent.Text, "published successfully") {
-		t.Errorf("Expected response to mention asset publishing, got: %s", textContent.Text)
+	if !strings.Contains(textContent.Text, "raw.githubusercontent.com") {
+		t.Errorf("Expected response to contain URL with raw.githubusercontent.com, got: %s", textContent.Text)
 	}
 
 	// Verify the output file contains the expected entry
-	if err := verifyOutputFile(t, tempFile, "upload_asset", map[string]any{
-		"type": "upload_asset",
+	if err := verifyOutputFile(t, tempFile, "upload-asset", map[string]any{
+		"type": "upload-asset",
 	}); err != nil {
 		t.Fatalf("Output file verification failed: %v", err)
 	}

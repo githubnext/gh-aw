@@ -2325,7 +2325,7 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
 			prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
 		}
-		safeOutputsConfig["create-pull-request-review0comment"] = prReviewCommentConfig
+		safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
 	}
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		// Security reports typically have unlimited max, but check if configured
