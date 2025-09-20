@@ -132,7 +132,7 @@ validate-workflows:
 fmt:
 	go fmt ./...
 
-# Format JavaScript (.cjs) files
+# Format JavaScript (.cjs and .js) files
 .PHONY: fmt-cjs
 fmt-cjs:
 	cd pkg/workflow/js && npm run format:cjs
@@ -147,7 +147,7 @@ js:
 .PHONY: compile-ts
 compile-ts:
 	echo "Compiling TypeScript files..."; \
-	cd pkg/workflow/js && npm run compile
+	cd pkg/workflow/js && npm run compile && npm run format:cjs
 
 # Check formatting
 .PHONY: fmt-check
@@ -274,7 +274,7 @@ help:
 	@echo "  deps             - Install dependencies"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
-	@echo "  fmt-cjs          - Format JavaScript (.cjs) files"
+	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) files"
 	@echo "  compile-ts       - Compile TypeScript files to JavaScript (.js)"
 	@echo "  fmt-check        - Check code formatting"
 	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
