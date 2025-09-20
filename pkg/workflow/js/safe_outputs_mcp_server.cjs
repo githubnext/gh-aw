@@ -482,7 +482,7 @@ const unknownTools = Object.keys(safeOutputsConfig).filter(
 if (unknownTools.length)
   throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
 const TOOLS = Object.fromEntries(ALL_TOOLS
-  .filter(({ name }) => safeOutputsConfig[normTool(name)])
+  .filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name))
   .map(tool => [tool.name, tool])
 );
 debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
