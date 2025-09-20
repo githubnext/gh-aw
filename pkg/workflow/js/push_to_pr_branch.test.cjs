@@ -94,7 +94,12 @@ describe("push_to_pr_branch.cjs", () => {
     mockExec = {
       exec: vi.fn().mockImplementation((command, args, options) => {
         // Handle the gh pr view command specifically
-        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+        if (
+          command === "gh" &&
+          args &&
+          args[0] === "pr" &&
+          args[1] === "view"
+        ) {
           // Simulate the stdout listener being called with branch name
           if (options && options.listeners && options.listeners.stdout) {
             options.listeners.stdout(Buffer.from("feature-branch\n"));

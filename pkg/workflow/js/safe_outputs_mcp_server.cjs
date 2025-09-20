@@ -6,7 +6,12 @@ const encoder = new TextEncoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
 const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+const safeOutputsConfig = Object.fromEntries(
+  Object.entries(safeOutputsConfigRaw).map(([k, v]) => [
+    k.replace(/-/g, "_"),
+    v,
+  ])
+);
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile)
   throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
@@ -143,7 +148,7 @@ const uploadAssetHandler = args => {
   if (!isInWorkspace && !isInTmp) {
     throw new Error(
       `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-      `Provided path: ${filePath} (resolved to: ${absolutePath})`
+        `Provided path: ${filePath} (resolved to: ${absolutePath})`
     );
   }
 
@@ -158,9 +163,9 @@ const uploadAssetHandler = args => {
   const sizeKB = Math.ceil(sizeBytes / 1024);
 
   // Check file size - read from environment variable if available
-  const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? 
-    parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 
-    10240; // Default 10MB
+  const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB
+    ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10)
+    : 10240; // Default 10MB
   if (sizeKB > maxSizeKB) {
     throw new Error(
       `File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`
@@ -169,14 +174,16 @@ const uploadAssetHandler = args => {
 
   // Check file extension - read from environment variable if available
   const ext = path.extname(filePath).toLowerCase();
-  const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS ?
-    process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim()) :
-    [
-      // Default set as specified in problem statement
-      ".png",
-      ".jpg", 
-      ".jpeg",
-    ];
+  const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
+    ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext =>
+        ext.trim()
+      )
+    : [
+        // Default set as specified in problem statement
+        ".png",
+        ".jpg",
+        ".jpeg",
+      ];
 
   if (!allowedExts.includes(ext)) {
     throw new Error(
