@@ -519,7 +519,7 @@ function handleMessage(req) {
   try {
     if (method === "initialize") {
       const clientInfo = params?.clientInfo ?? {};
-      console.error(`client initialized:`, clientInfo);
+      console.error(`initialize:`, clientInfo);
       const protocolVersion = params?.protocolVersion ?? undefined;
       const result = {
         serverInfo: SERVER_INFO,
@@ -530,6 +530,7 @@ function handleMessage(req) {
       };
       replyResult(id, result);
     } else if (method === "tools/list") {
+      console.error(`tools/list`);
       const list = [];
       Object.values(TOOLS).forEach(tool => {
         list.push({
@@ -542,6 +543,7 @@ function handleMessage(req) {
     } else if (method === "tools/call") {
       const name = params?.name;
       const args = params?.arguments ?? {};
+      console.error(`tools/call: ${name}`, args);
       if (!name || typeof name !== "string") {
         replyError(id, -32602, "Invalid params: 'name' must be a string");
         return;
