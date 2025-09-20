@@ -65,9 +65,7 @@ describe("setup_agent_output.cjs", () => {
 
   afterEach(() => {
     // Clean up any test files
-    const files = fs
-      .readdirSync("/tmp")
-      .filter(file => file.startsWith("aw_output_"));
+    const files = fs.readdirSync("/tmp").filter(file => file.startsWith("aw_output_"));
     files.forEach(file => {
       try {
         fs.unlinkSync(path.join("/tmp", file));

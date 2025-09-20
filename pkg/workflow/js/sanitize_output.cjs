@@ -48,17 +48,14 @@ function sanitizeContent(content) {
   // Limit total length to prevent DoS (0.5MB max)
   const maxLength = 524288;
   if (sanitized.length > maxLength) {
-    sanitized =
-      sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+    sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
   }
 
   // Limit number of lines to prevent log flooding (65k max)
   const lines = sanitized.split("\n");
   const maxLines = 65000;
   if (lines.length > maxLines) {
-    sanitized =
-      lines.slice(0, maxLines).join("\n") +
-      "\n[Content truncated due to line count]";
+    sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
   }
 
   // Remove ANSI escape sequences
@@ -118,24 +115,18 @@ function sanitizeContent(content) {
    * @returns {string} The string with unknown domains redacted
    */
   function sanitizeUrlDomains(s) {
-    s = s.replace(
-      /\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi,
-      (match, domain) => {
-        // Extract the hostname part (before first slash, colon, or other delimiter)
-        const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+    s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
+      // Extract the hostname part (before first slash, colon, or other delimiter)
+      const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
 
-        // Check if this domain or any parent domain is in the allowlist
-        const isAllowed = allowedDomains.some(allowedDomain => {
-          const normalizedAllowed = allowedDomain.toLowerCase();
-          return (
-            hostname === normalizedAllowed ||
-            hostname.endsWith("." + normalizedAllowed)
-          );
-        });
+      // Check if this domain or any parent domain is in the allowlist
+      const isAllowed = allowedDomains.some(allowedDomain => {
+        const normalizedAllowed = allowedDomain.toLowerCase();
+        return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+      });
 
-        return isAllowed ? match : "(redacted)";
-      }
-    );
+      return isAllowed ? match : "(redacted)";
+    });
 
     return s;
   }
@@ -148,13 +139,10 @@ function sanitizeContent(content) {
   function sanitizeUrlProtocols(s) {
     // Match both protocol:// and protocol: patterns
     // This covers URLs like https://example.com, javascript:alert(), mailto:user@domain.com, etc.
-    return s.replace(
-      /\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi,
-      (match, protocol) => {
-        // Allow https (case insensitive), redact everything else
-        return protocol.toLowerCase() === "https" ? match : "(redacted)";
-      }
-    );
+    return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+      // Allow https (case insensitive), redact everything else
+      return protocol.toLowerCase() === "https" ? match : "(redacted)";
+    });
   }
 
   /**

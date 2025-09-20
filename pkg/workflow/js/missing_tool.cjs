@@ -3,9 +3,7 @@ async function main() {
 
   // Get environment variables
   const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-  const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX
-    ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX)
-    : null;
+  const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
 
   core.info("Processing missing-tool reports...");
   core.info(`Agent output length: ${agentOutput.length}`);
@@ -29,9 +27,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(agentOutput);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -49,15 +45,11 @@ async function main() {
     if (entry.type === "missing-tool") {
       // Validate required fields
       if (!entry.tool) {
-        core.warning(
-          `missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`
-        );
+        core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
         continue;
       }
       if (!entry.reason) {
-        core.warning(
-          `missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`
-        );
+        core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
         continue;
       }
 
@@ -73,9 +65,7 @@ async function main() {
 
       // Check max limit
       if (maxReports && missingTools.length >= maxReports) {
-        core.info(
-          `Reached maximum number of missing tool reports (${maxReports})`
-        );
+        core.info(`Reached maximum number of missing tool reports (${maxReports})`);
         break;
       }
     }
@@ -108,9 +98,7 @@ async function main() {
       core.info("");
 
       // Add to summary with structured formatting
-      core.summary
-        .addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`)
-        .addRaw(`**Reason:** ${tool.reason}\n\n`);
+      core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
 
       if (tool.alternatives) {
         core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);

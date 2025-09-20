@@ -21,9 +21,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -33,9 +31,7 @@ async function main() {
   }
 
   // Find all update-issue items
-  const updateItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "update-issue"
-  );
+  const updateItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "update-issue");
   if (updateItems.length === 0) {
     core.info("No update-issue items found in agent output");
     return;
@@ -46,8 +42,7 @@ async function main() {
   // If in staged mode, emit step summary instead of updating issues
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Update Issues Preview\n\n";
-    summaryContent +=
-      "The following issue updates would be applied if staged mode was disabled:\n\n";
+    summaryContent += "The following issue updates would be applied if staged mode was disabled:\n\n";
 
     for (let i = 0; i < updateItems.length; i++) {
       const item = updateItems[i];
@@ -83,19 +78,14 @@ async function main() {
   const canUpdateBody = process.env.GITHUB_AW_UPDATE_BODY === "true";
 
   core.info(`Update target configuration: ${updateTarget}`);
-  core.info(
-    `Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`
-  );
+  core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
 
   // Check if we're in an issue context
-  const isIssueContext =
-    context.eventName === "issues" || context.eventName === "issue_comment";
+  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
 
   // Validate context based on target configuration
   if (updateTarget === "triggering" && !isIssueContext) {
-    core.info(
-      'Target is "triggering" but not running in issue context, skipping issue update'
-    );
+    core.info('Target is "triggering" but not running in issue context, skipping issue update');
     return;
   }
 
@@ -114,9 +104,7 @@ async function main() {
       if (updateItem.issue_number) {
         issueNumber = parseInt(updateItem.issue_number, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          core.info(
-            `Invalid issue number specified: ${updateItem.issue_number}`
-          );
+          core.info(`Invalid issue number specified: ${updateItem.issue_number}`);
           continue;
         }
       } else {
@@ -127,9 +115,7 @@ async function main() {
       // Explicit issue number specified in target
       issueNumber = parseInt(updateTarget, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        core.info(
-          `Invalid issue number in target configuration: ${updateTarget}`
-        );
+        core.info(`Invalid issue number in target configuration: ${updateTarget}`);
         continue;
       }
     } else {
@@ -166,17 +152,12 @@ async function main() {
         hasUpdates = true;
         core.info(`Will update status to: ${updateItem.status}`);
       } else {
-        core.info(
-          `Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`
-        );
+        core.info(`Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`);
       }
     }
 
     if (canUpdateTitle && updateItem.title !== undefined) {
-      if (
-        typeof updateItem.title === "string" &&
-        updateItem.title.trim().length > 0
-      ) {
+      if (typeof updateItem.title === "string" && updateItem.title.trim().length > 0) {
         updateData.title = updateItem.title.trim();
         hasUpdates = true;
         core.info(`Will update title to: ${updateItem.title.trim()}`);
@@ -218,9 +199,7 @@ async function main() {
         core.setOutput("issue_url", issue.html_url);
       }
     } catch (error) {
-      core.error(
-        `✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`
-      );
+      core.error(`✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

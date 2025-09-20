@@ -52,18 +52,14 @@ async function main() {
     // Limit total length to prevent DoS (0.5MB max)
     const maxLength = 524288;
     if (sanitized.length > maxLength) {
-      sanitized =
-        sanitized.substring(0, maxLength) +
-        "\n[Content truncated due to length]";
+      sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
     }
 
     // Limit number of lines to prevent log flooding (65k max)
     const lines = sanitized.split("\n");
     const maxLines = 65000;
     if (lines.length > maxLines) {
-      sanitized =
-        lines.slice(0, maxLines).join("\n") +
-        "\n[Content truncated due to line count]";
+      sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
     }
 
     // ANSI escape sequences already removed earlier in the function
@@ -90,10 +86,7 @@ async function main() {
         // Check if this domain or any parent domain is in the allowlist
         const isAllowed = allowedDomains.some(allowedDomain => {
           const normalizedAllowed = allowedDomain.toLowerCase();
-          return (
-            hostname === normalizedAllowed ||
-            hostname.endsWith("." + normalizedAllowed)
-          );
+          return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
         });
 
         return isAllowed ? match : "(redacted)";
@@ -108,13 +101,10 @@ async function main() {
     function sanitizeUrlProtocols(s) {
       // Match protocol:// patterns (URLs) and standalone protocol: patterns that look like URLs
       // Avoid matching command line flags like -v:10 or z3 -memory:high
-      return s.replace(
-        /\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi,
-        (match, protocol) => {
-          // Allow https (case insensitive), redact everything else
-          return protocol.toLowerCase() === "https" ? match : "(redacted)";
-        }
-      );
+      return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+        // Allow https (case insensitive), redact everything else
+        return protocol.toLowerCase() === "https" ? match : "(redacted)";
+      });
     }
 
     /**
@@ -163,12 +153,7 @@ async function main() {
    */
   function getMaxAllowedForType(itemType, config) {
     // Check if max is explicitly specified in config
-    if (
-      config &&
-      config[itemType] &&
-      typeof config[itemType] === "object" &&
-      config[itemType].max
-    ) {
+    if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
       return config[itemType].max;
     }
 
@@ -224,18 +209,11 @@ async function main() {
     repaired = repaired.replace(/'/g, '"');
 
     // Fix missing quotes around object keys
-    repaired = repaired.replace(
-      /([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g,
-      '$1"$2":'
-    );
+    repaired = repaired.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
 
     // Fix newlines and tabs inside strings by escaping them
     repaired = repaired.replace(/"([^"\\]*)"/g, (match, content) => {
-      if (
-        content.includes("\n") ||
-        content.includes("\r") ||
-        content.includes("\t")
-      ) {
+      if (content.includes("\n") || content.includes("\r") || content.includes("\t")) {
         const escaped = content
           .replace(/\\/g, "\\\\")
           .replace(/\n/g, "\\n")
@@ -253,10 +231,7 @@ async function main() {
     );
 
     // Fix wrong bracket/brace types - arrays should end with ] not }
-    repaired = repaired.replace(
-      /(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g,
-      "$1]"
-    );
+    repaired = repaired.replace(/(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g, "$1]");
 
     // Fix missing closing braces/brackets
     const openBraces = (repaired.match(/\{/g) || []).length;
@@ -370,9 +345,7 @@ async function main() {
 
     if (typeof value !== "number" && typeof value !== "string") {
       // Match the original error format for specific field types
-      if (
-        fieldName.includes("create-pull-request-review-comment 'start_line'")
-      ) {
+      if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
         return {
           isValid: false,
           error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a number or string`,
@@ -393,9 +366,7 @@ async function main() {
     const parsed = typeof value === "string" ? parseInt(value, 10) : value;
     if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
       // Match the original error format for different field types
-      if (
-        fieldName.includes("create-pull-request-review-comment 'start_line'")
-      ) {
+      if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
         return {
           isValid: false,
           error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a positive integer`,
@@ -455,17 +426,9 @@ async function main() {
       } catch (repairError) {
         // If repair also fails, throw the error
         core.info(`invalid input json: ${jsonStr}`);
-        const originalMsg =
-          originalError instanceof Error
-            ? originalError.message
-            : String(originalError);
-        const repairMsg =
-          repairError instanceof Error
-            ? repairError.message
-            : String(repairError);
-        throw new Error(
-          `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
-        );
+        const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
+        const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
+        throw new Error(`JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
       }
     }
   }
@@ -500,9 +463,7 @@ async function main() {
   if (safeOutputsConfig) {
     try {
       expectedOutputTypes = JSON.parse(safeOutputsConfig);
-      core.info(
-        `Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-      );
+      core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
@@ -543,14 +504,10 @@ async function main() {
       }
 
       // Check for too many items of the same type
-      const typeCount = parsedItems.filter(
-        existing => existing.type === itemType
-      ).length;
+      const typeCount = parsedItems.filter(existing => existing.type === itemType).length;
       const maxAllowed = getMaxAllowedForType(itemType, expectedOutputTypes);
       if (typeCount >= maxAllowed) {
-        errors.push(
-          `Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`
-        );
+        errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
         continue;
       }
 
@@ -558,15 +515,11 @@ async function main() {
       switch (itemType) {
         case "create-issue":
           if (!item.title || typeof item.title !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_issue requires a 'title' string field`
-            );
+            errors.push(`Line ${i + 1}: create_issue requires a 'title' string field`);
             continue;
           }
           if (!item.body || typeof item.body !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_issue requires a 'body' string field`
-            );
+            errors.push(`Line ${i + 1}: create_issue requires a 'body' string field`);
             continue;
           }
           // Sanitize text content
@@ -575,25 +528,18 @@ async function main() {
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(
-              /** @param {any} label */ label =>
-                typeof label === "string" ? sanitizeContent(label) : label
+              /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
             );
           }
           break;
 
         case "add-comment":
           if (!item.body || typeof item.body !== "string") {
-            errors.push(
-              `Line ${i + 1}: add_comment requires a 'body' string field`
-            );
+            errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
             continue;
           }
           // Validate optional issue_number field
-          const issueNumValidation = validateIssueOrPRNumber(
-            item.issue_number,
-            "add_comment 'issue_number'",
-            i + 1
-          );
+          const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
           if (!issueNumValidation.isValid) {
             errors.push(issueNumValidation.error);
             continue;
@@ -604,21 +550,15 @@ async function main() {
 
         case "create-pull-request":
           if (!item.title || typeof item.title !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_pull_request requires a 'title' string field`
-            );
+            errors.push(`Line ${i + 1}: create_pull_request requires a 'title' string field`);
             continue;
           }
           if (!item.body || typeof item.body !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_pull_request requires a 'body' string field`
-            );
+            errors.push(`Line ${i + 1}: create_pull_request requires a 'body' string field`);
             continue;
           }
           if (!item.branch || typeof item.branch !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_pull_request requires a 'branch' string field`
-            );
+            errors.push(`Line ${i + 1}: create_pull_request requires a 'branch' string field`);
             continue;
           }
           // Sanitize text content
@@ -628,27 +568,18 @@ async function main() {
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(
-              /** @param {any} label */ label =>
-                typeof label === "string" ? sanitizeContent(label) : label
+              /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
             );
           }
           break;
 
         case "add-labels":
           if (!item.labels || !Array.isArray(item.labels)) {
-            errors.push(
-              `Line ${i + 1}: add_labels requires a 'labels' array field`
-            );
+            errors.push(`Line ${i + 1}: add_labels requires a 'labels' array field`);
             continue;
           }
-          if (
-            item.labels.some(
-              /** @param {any} label */ label => typeof label !== "string"
-            )
-          ) {
-            errors.push(
-              `Line ${i + 1}: add_labels labels array must contain only strings`
-            );
+          if (item.labels.some(/** @param {any} label */ label => typeof label !== "string")) {
+            errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
             continue;
           }
           // Validate optional issue_number field
@@ -662,41 +593,27 @@ async function main() {
             continue;
           }
           // Sanitize label strings
-          item.labels = item.labels.map(
-            /** @param {any} label */ label => sanitizeContent(label)
-          );
+          item.labels = item.labels.map(/** @param {any} label */ label => sanitizeContent(label));
           break;
 
         case "update-issue":
           // Check that at least one updateable field is provided
-          const hasValidField =
-            item.status !== undefined ||
-            item.title !== undefined ||
-            item.body !== undefined;
+          const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
           if (!hasValidField) {
-            errors.push(
-              `Line ${i + 1}: update_issue requires at least one of: 'status', 'title', or 'body' fields`
-            );
+            errors.push(`Line ${i + 1}: update_issue requires at least one of: 'status', 'title', or 'body' fields`);
             continue;
           }
           // Validate status if provided
           if (item.status !== undefined) {
-            if (
-              typeof item.status !== "string" ||
-              (item.status !== "open" && item.status !== "closed")
-            ) {
-              errors.push(
-                `Line ${i + 1}: update_issue 'status' must be 'open' or 'closed'`
-              );
+            if (typeof item.status !== "string" || (item.status !== "open" && item.status !== "closed")) {
+              errors.push(`Line ${i + 1}: update_issue 'status' must be 'open' or 'closed'`);
               continue;
             }
           }
           // Validate title if provided
           if (item.title !== undefined) {
             if (typeof item.title !== "string") {
-              errors.push(
-                `Line ${i + 1}: update-issue 'title' must be a string`
-              );
+              errors.push(`Line ${i + 1}: update-issue 'title' must be a string`);
               continue;
             }
             item.title = sanitizeContent(item.title);
@@ -704,9 +621,7 @@ async function main() {
           // Validate body if provided
           if (item.body !== undefined) {
             if (typeof item.body !== "string") {
-              errors.push(
-                `Line ${i + 1}: update-issue 'body' must be a string`
-              );
+              errors.push(`Line ${i + 1}: update-issue 'body' must be a string`);
               continue;
             }
             item.body = sanitizeContent(item.body);
@@ -726,16 +641,12 @@ async function main() {
         case "push-to-pr-branch":
           // Validate required branch field
           if (!item.branch || typeof item.branch !== "string") {
-            errors.push(
-              `Line ${i + 1}: push_to_pr_branch requires a 'branch' string field`
-            );
+            errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'branch' string field`);
             continue;
           }
           // Validate required message field
           if (!item.message || typeof item.message !== "string") {
-            errors.push(
-              `Line ${i + 1}: push_to_pr_branch requires a 'message' string field`
-            );
+            errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'message' string field`);
             continue;
           }
           // Sanitize text content
@@ -755,17 +666,11 @@ async function main() {
         case "create-pull-request-review-comment":
           // Validate required path field
           if (!item.path || typeof item.path !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_pull_request_review_comment requires a 'path' string field`
-            );
+            errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'path' string field`);
             continue;
           }
           // Validate required line field
-          const lineValidation = validatePositiveInteger(
-            item.line,
-            "create_pull_request_review_comment 'line'",
-            i + 1
-          );
+          const lineValidation = validatePositiveInteger(item.line, "create_pull_request_review_comment 'line'", i + 1);
           if (!lineValidation.isValid) {
             errors.push(lineValidation.error);
             continue;
@@ -774,9 +679,7 @@ async function main() {
           const lineNumber = lineValidation.normalizedValue;
           // Validate required body field
           if (!item.body || typeof item.body !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`
-            );
+            errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`);
             continue;
           }
           // Sanitize required text content
@@ -803,36 +706,25 @@ async function main() {
           }
           // Validate optional side field
           if (item.side !== undefined) {
-            if (
-              typeof item.side !== "string" ||
-              (item.side !== "LEFT" && item.side !== "RIGHT")
-            ) {
-              errors.push(
-                `Line ${i + 1}: create_pull_request_review_comment 'side' must be 'LEFT' or 'RIGHT'`
-              );
+            if (typeof item.side !== "string" || (item.side !== "LEFT" && item.side !== "RIGHT")) {
+              errors.push(`Line ${i + 1}: create_pull_request_review_comment 'side' must be 'LEFT' or 'RIGHT'`);
               continue;
             }
           }
           break;
         case "create-discussion":
           if (!item.title || typeof item.title !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_discussion requires a 'title' string field`
-            );
+            errors.push(`Line ${i + 1}: create_discussion requires a 'title' string field`);
             continue;
           }
           if (!item.body || typeof item.body !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_discussion requires a 'body' string field`
-            );
+            errors.push(`Line ${i + 1}: create_discussion requires a 'body' string field`);
             continue;
           }
           // Validate optional category field
           if (item.category !== undefined) {
             if (typeof item.category !== "string") {
-              errors.push(
-                `Line ${i + 1}: create_discussion 'category' must be a string`
-              );
+              errors.push(`Line ${i + 1}: create_discussion 'category' must be a string`);
               continue;
             }
             item.category = sanitizeContent(item.category);
@@ -845,16 +737,12 @@ async function main() {
         case "missing-tool":
           // Validate required tool field
           if (!item.tool || typeof item.tool !== "string") {
-            errors.push(
-              `Line ${i + 1}: missing_tool requires a 'tool' string field`
-            );
+            errors.push(`Line ${i + 1}: missing_tool requires a 'tool' string field`);
             continue;
           }
           // Validate required reason field
           if (!item.reason || typeof item.reason !== "string") {
-            errors.push(
-              `Line ${i + 1}: missing_tool requires a 'reason' string field`
-            );
+            errors.push(`Line ${i + 1}: missing_tool requires a 'reason' string field`);
             continue;
           }
           // Sanitize text content
@@ -863,9 +751,7 @@ async function main() {
           // Validate optional alternatives field
           if (item.alternatives !== undefined) {
             if (typeof item.alternatives !== "string") {
-              errors.push(
-                `Line ${i + 1}: missing-tool 'alternatives' must be a string`
-              );
+              errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
               continue;
             }
             item.alternatives = sanitizeContent(item.alternatives);
@@ -874,39 +760,27 @@ async function main() {
 
         case "upload-asset":
           if (!item.path || typeof item.path !== "string") {
-            errors.push(
-              `Line ${i + 1}: upload_asset requires a 'path' string field`
-            );
+            errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
             continue;
           }
           break;
         case "create-code-scanning-alert":
           // Validate required fields
           if (!item.file || typeof item.file !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_code_scanning_alert requires a 'file' field (string)`
-            );
+            errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'file' field (string)`);
             continue;
           }
-          const alertLineValidation = validatePositiveInteger(
-            item.line,
-            "create_code_scanning_alert 'line'",
-            i + 1
-          );
+          const alertLineValidation = validatePositiveInteger(item.line, "create_code_scanning_alert 'line'", i + 1);
           if (!alertLineValidation.isValid) {
             errors.push(alertLineValidation.error);
             continue;
           }
           if (!item.severity || typeof item.severity !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_code_scanning_alert requires a 'severity' field (string)`
-            );
+            errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'severity' field (string)`);
             continue;
           }
           if (!item.message || typeof item.message !== "string") {
-            errors.push(
-              `Line ${i + 1}: create_code_scanning_alert requires a 'message' field (string)`
-            );
+            errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'message' field (string)`);
             continue;
           }
 
@@ -933,9 +807,7 @@ async function main() {
           // Validate optional ruleIdSuffix field
           if (item.ruleIdSuffix !== undefined) {
             if (typeof item.ruleIdSuffix !== "string") {
-              errors.push(
-                `Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must be a string`
-              );
+              errors.push(`Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must be a string`);
               continue;
             }
             if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {

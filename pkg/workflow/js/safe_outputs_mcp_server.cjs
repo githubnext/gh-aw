@@ -7,14 +7,10 @@ const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
 const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
 const safeOutputsConfig = Object.fromEntries(
-  Object.entries(safeOutputsConfigRaw).map(([k, v]) => [
-    k.replace(/-/g, "_"),
-    v,
-  ])
+  Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])
 );
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-if (!outputFile)
-  throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
+if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
 const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
 function writeMessage(obj) {
@@ -50,9 +46,7 @@ class ReadBuffer {
     try {
       return JSON.parse(line);
     } catch (error) {
-      throw new Error(
-        `Parse error: ${error instanceof Error ? error.message : String(error)}`
-      );
+      throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
@@ -74,9 +68,7 @@ function processReadBuffer() {
     } catch (error) {
       // For parse errors, we can't know the request id, so we shouldn't send a response
       // according to JSON-RPC spec. Just log the error.
-      debug(
-        `Parse error: ${error instanceof Error ? error.message : String(error)}`
-      );
+      debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
@@ -112,9 +104,7 @@ function appendSafeOutput(entry) {
   try {
     fs.appendFileSync(outputFile, jsonLine);
   } catch (error) {
-    throw new Error(
-      `Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`
-    );
+    throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -167,17 +157,13 @@ const uploadAssetHandler = args => {
     ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10)
     : 10240; // Default 10MB
   if (sizeKB > maxSizeKB) {
-    throw new Error(
-      `File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`
-    );
+    throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
   }
 
   // Check file extension - read from environment variable if available
   const ext = path.extname(filePath).toLowerCase();
   const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
-    ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext =>
-        ext.trim()
-      )
+    ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
     : [
         // Default set as specified in problem statement
         ".png",
@@ -186,9 +172,7 @@ const uploadAssetHandler = args => {
       ];
 
   if (!allowedExts.includes(ext)) {
-    throw new Error(
-      `File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`
-    );
+    throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
   }
 
   // Create assets directory
@@ -239,8 +223,7 @@ const uploadAssetHandler = args => {
   };
 };
 
-const normTool = toolName =>
-  toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined;
+const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
 const ALL_TOOLS = [
   {
     name: "create_issue",
@@ -430,8 +413,7 @@ const ALL_TOOLS = [
       properties: {
         branch: {
           type: "string",
-          description:
-            "The name of the branch to push to, should be the branch name associated with the pull request",
+          description: "The name of the branch to push to, should be the branch name associated with the pull request",
         },
         message: { type: "string", description: "Commit message" },
         pull_request_number: {
@@ -444,8 +426,7 @@ const ALL_TOOLS = [
   },
   {
     name: "upload_asset",
-    description:
-      "Publish a file as a URL-addressable asset to an orphaned git branch",
+    description: "Publish a file as a URL-addressable asset to an orphaned git branch",
     inputSchema: {
       type: "object",
       required: ["path"],
@@ -462,8 +443,7 @@ const ALL_TOOLS = [
   },
   {
     name: "missing_tool",
-    description:
-      "Report a missing tool or functionality needed to complete tasks",
+    description: "Report a missing tool or functionality needed to complete tasks",
     inputSchema: {
       type: "object",
       required: ["tool", "reason"],
@@ -483,19 +463,16 @@ const ALL_TOOLS = [
 debug(`v${SERVER_INFO.version} ready on stdio`);
 debug(`  output file: ${outputFile}`);
 debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-const unknownTools = Object.keys(safeOutputsConfig).filter(
-  name => !ALL_TOOLS.find(t => t.name === normTool(name))
-);
-if (unknownTools.length)
-  throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
+const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
+if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
 const TOOLS = Object.fromEntries(
-  ALL_TOOLS.filter(({ name }) =>
-    Object.keys(safeOutputsConfig).find(config => normTool(config) === name)
-  ).map(tool => [tool.name, tool])
+  ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [
+    tool.name,
+    tool,
+  ])
 );
 debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
-if (!Object.keys(TOOLS).length)
-  throw new Error("No tools enabled in configuration");
+if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
 
 function handleMessage(req) {
   // Validate basic JSON-RPC structure
@@ -554,24 +531,14 @@ function handleMessage(req) {
       }
       const handler = tool.handler || defaultHandler(tool.name);
       const requiredFields =
-        tool.inputSchema && Array.isArray(tool.inputSchema.required)
-          ? tool.inputSchema.required
-          : [];
+        tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
       if (requiredFields.length) {
         const missing = requiredFields.filter(f => {
           const value = args[f];
-          return (
-            value === undefined ||
-            value === null ||
-            (typeof value === "string" && value.trim() === "")
-          );
+          return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
         });
         if (missing.length) {
-          replyError(
-            id,
-            -32602,
-            `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`
-          );
+          replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
           return;
         }
       }

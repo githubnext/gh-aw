@@ -34,8 +34,7 @@ async function main() {
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
-    const message =
-      "Patch file contains error message - cannot push without changes";
+    const message = "Patch file contains error message - cannot push without changes";
 
     switch (ifNoChanges) {
       case "error":
@@ -55,16 +54,11 @@ async function main() {
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
-    const maxSizeKb = parseInt(
-      process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024",
-      10
-    );
+    const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-    core.info(
-      `Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`
-    );
+    core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
 
     if (patchSizeKb > maxSizeKb) {
       const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
@@ -75,14 +69,11 @@ async function main() {
     core.info("Patch size validation passed");
   }
   if (isEmpty) {
-    const message =
-      "Patch file is empty - no changes to apply (noop operation)";
+    const message = "Patch file is empty - no changes to apply (noop operation)";
 
     switch (ifNoChanges) {
       case "error":
-        core.setFailed(
-          "No changes to push - failing as configured by if-no-changes: error"
-        );
+        core.setFailed("No changes to push - failing as configured by if-no-changes: error");
         return;
       case "ignore":
         // Silent success - no console output
@@ -105,9 +96,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -117,9 +106,7 @@ async function main() {
   }
 
   // Find the push-to-pr-branch item
-  const pushItem = validatedOutput.items.find(
-    /** @param {any} item */ item => item.type === "push-to-pr-branch"
-  );
+  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push-to-pr-branch");
   if (!pushItem) {
     core.info("No push-to-pr-branch item found in agent output");
     return;
@@ -130,8 +117,7 @@ async function main() {
   // If in staged mode, emit step summary instead of pushing changes
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-    summaryContent +=
-      "The following changes would be pushed if staged mode was disabled:\n\n";
+    summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
 
     summaryContent += `**Target:** ${target}\n\n`;
 
@@ -160,9 +146,7 @@ async function main() {
     // If target is a specific number, validate it's a valid pull request number
     const pullNumber = parseInt(target, 10);
     if (isNaN(pullNumber)) {
-      core.setFailed(
-        'Invalid target configuration: must be "triggering", "*", or a valid pull request number'
-      );
+      core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
       return;
     }
   }
@@ -171,14 +155,11 @@ async function main() {
   let pullNumber;
   if (target === "triggering") {
     // Use the number of the triggering pull request
-    pullNumber =
-      context.payload?.pull_request?.number || context.payload?.issue?.number;
+    pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
 
     // Check if we're in a pull request context when required
     if (!pullNumber) {
-      core.setFailed(
-        'push-to-pr-branch with target "triggering" requires pull request context'
-      );
+      core.setFailed('push-to-pr-branch with target "triggering" requires pull request context');
       return;
     }
   } else if (target === "*") {
@@ -195,15 +176,7 @@ async function main() {
     let prInfo = "";
     const prInfoRes = await exec.exec(
       `gh`,
-      [
-        `pr`,
-        `view`,
-        `${pullNumber}`,
-        `--json`,
-        `headRefName`,
-        `--jq`,
-        `'.headRefName'`,
-      ],
+      [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `'.headRefName'`],
       {
         listeners: { stdout: data => (prInfo += data.toString()) },
       }
@@ -264,9 +237,7 @@ async function main() {
       await exec.exec(`git push origin ${branchName}`);
       core.info(`Changes committed and pushed to branch: ${branchName}`);
     } catch (error) {
-      core.error(
-        `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
-      );
+      core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
       core.setFailed("Failed to apply patch");
       return;
     }
@@ -274,14 +245,11 @@ async function main() {
     core.info("Skipping patch application (empty patch)");
 
     // Handle if-no-changes configuration for empty patches
-    const message =
-      "No changes to apply - noop operation completed successfully";
+    const message = "No changes to apply - noop operation completed successfully";
 
     switch (ifNoChanges) {
       case "error":
-        core.setFailed(
-          "No changes to apply - failing as configured by if-no-changes: error"
-        );
+        core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
         return;
       case "ignore":
         // Silent success - no console output
@@ -312,9 +280,7 @@ async function main() {
   core.setOutput("push_url", pushUrl);
 
   // Write summary to GitHub Actions summary
-  const summaryTitle = hasChanges
-    ? "Push to Branch"
-    : "Push to Branch (No Changes)";
+  const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
   const summaryContent = hasChanges
     ? `
 ## ${summaryTitle}

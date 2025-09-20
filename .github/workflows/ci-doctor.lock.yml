@@ -77,10 +77,11 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
             const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-            const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+            const safeOutputsConfig = Object.fromEntries(
+              Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])
+            );
             const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-            if (!outputFile)
-              throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
+            if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function writeMessage(obj) {
@@ -110,9 +111,7 @@ jobs:
                 try {
                   return JSON.parse(line);
                 } catch (error) {
-                  throw new Error(
-                    `Parse error: ${error instanceof Error ? error.message : String(error)}`
-                  );
+                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
             }
@@ -133,9 +132,7 @@ jobs:
                 } catch (error) {
                   // For parse errors, we can't know the request id, so we shouldn't send a response
                   // according to JSON-RPC spec. Just log the error.
-                  debug(
-                    `Parse error: ${error instanceof Error ? error.message : String(error)}`
-                  );
+                  debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
                 }
               }
             }
@@ -168,9 +165,7 @@ jobs:
               try {
                 fs.appendFileSync(outputFile, jsonLine);
               } catch (error) {
-                throw new Error(
-                  `Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`
-                );
+                throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             const defaultHandler = type => args => {
@@ -198,7 +193,7 @@ jobs:
               if (!isInWorkspace && !isInTmp) {
                 throw new Error(
                   `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                  `Provided path: ${filePath} (resolved to: ${absolutePath})`
+                    `Provided path: ${filePath} (resolved to: ${absolutePath})`
                 );
               }
               // Validate file exists
@@ -210,28 +205,24 @@ jobs:
               const sizeBytes = stats.size;
               const sizeKB = Math.ceil(sizeBytes / 1024);
               // Check file size - read from environment variable if available
-              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? 
-                parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 
-                10240; // Default 10MB
+              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB
+                ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10)
+                : 10240; // Default 10MB
               if (sizeKB > maxSizeKB) {
-                throw new Error(
-                  `File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`
-                );
+                throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
               }
               // Check file extension - read from environment variable if available
               const ext = path.extname(filePath).toLowerCase();
-              const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS ?
-                process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim()) :
-                [
-                  // Default set as specified in problem statement
-                  ".png",
-                  ".jpg", 
-                  ".jpeg",
-                ];
+              const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
+                ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+                : [
+                    // Default set as specified in problem statement
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                  ];
               if (!allowedExts.includes(ext)) {
-                throw new Error(
-                  `File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`
-                );
+                throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
               // Create assets directory
               const assetsDir = "/tmp/safe-outputs/assets";
@@ -272,8 +263,7 @@ jobs:
                 ],
               };
             };
-            const normTool = toolName =>
-              toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined;
+            const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
             const ALL_TOOLS = [
               {
                 name: "create_issue",
@@ -463,8 +453,7 @@ jobs:
                   properties: {
                     branch: {
                       type: "string",
-                      description:
-                        "The name of the branch to push to, should be the branch name associated with the pull request",
+                      description: "The name of the branch to push to, should be the branch name associated with the pull request",
                     },
                     message: { type: "string", description: "Commit message" },
                     pull_request_number: {
@@ -477,8 +466,7 @@ jobs:
               },
               {
                 name: "upload_asset",
-                description:
-                  "Publish a file as a URL-addressable asset to an orphaned git branch",
+                description: "Publish a file as a URL-addressable asset to an orphaned git branch",
                 inputSchema: {
                   type: "object",
                   required: ["path"],
@@ -495,8 +483,7 @@ jobs:
               },
               {
                 name: "missing_tool",
-                description:
-                  "Report a missing tool or functionality needed to complete tasks",
+                description: "Report a missing tool or functionality needed to complete tasks",
                 inputSchema: {
                   type: "object",
                   required: ["tool", "reason"],
@@ -515,19 +502,16 @@ jobs:
             debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);
             debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-            const unknownTools = Object.keys(safeOutputsConfig).filter(
-              name => !ALL_TOOLS.find(t => t.name === normTool(name))
-            );
-            if (unknownTools.length)
-              throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
+            const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
+            if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
             const TOOLS = Object.fromEntries(
-              ALL_TOOLS.filter(({ name }) =>
-                Object.keys(safeOutputsConfig).find(config => normTool(config) === name)
-              ).map(tool => [tool.name, tool])
+              ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [
+                tool.name,
+                tool,
+              ])
             );
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
-            if (!Object.keys(TOOLS).length)
-              throw new Error("No tools enabled in configuration");
+            if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
             function handleMessage(req) {
               // Validate basic JSON-RPC structure
               if (!req || typeof req !== "object") {
@@ -581,24 +565,14 @@ jobs:
                   }
                   const handler = tool.handler || defaultHandler(tool.name);
                   const requiredFields =
-                    tool.inputSchema && Array.isArray(tool.inputSchema.required)
-                      ? tool.inputSchema.required
-                      : [];
+                    tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
                   if (requiredFields.length) {
                     const missing = requiredFields.filter(f => {
                       const value = args[f];
-                      return (
-                        value === undefined ||
-                        value === null ||
-                        (typeof value === "string" && value.trim() === "")
-                      );
+                      return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
                     });
                     if (missing.length) {
-                      replyError(
-                        id,
-                        -32602,
-                        `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`
-                      );
+                      replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
                       return;
                     }
                   }
@@ -1079,17 +1053,13 @@ jobs:
                 // Limit total length to prevent DoS (0.5MB max)
                 const maxLength = 524288;
                 if (sanitized.length > maxLength) {
-                  sanitized =
-                    sanitized.substring(0, maxLength) +
-                    "\n[Content truncated due to length]";
+                  sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
                 }
                 // Limit number of lines to prevent log flooding (65k max)
                 const lines = sanitized.split("\n");
                 const maxLines = 65000;
                 if (lines.length > maxLines) {
-                  sanitized =
-                    lines.slice(0, maxLines).join("\n") +
-                    "\n[Content truncated due to line count]";
+                  sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
                 }
                 // ANSI escape sequences already removed earlier in the function
                 // Neutralize common bot trigger phrases
@@ -1110,10 +1080,7 @@ jobs:
                     // Check if this domain or any parent domain is in the allowlist
                     const isAllowed = allowedDomains.some(allowedDomain => {
                       const normalizedAllowed = allowedDomain.toLowerCase();
-                      return (
-                        hostname === normalizedAllowed ||
-                        hostname.endsWith("." + normalizedAllowed)
-                      );
+                      return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
                     });
                     return isAllowed ? match : "(redacted)";
                   });
@@ -1126,13 +1093,10 @@ jobs:
                 function sanitizeUrlProtocols(s) {
                   // Match protocol:// patterns (URLs) and standalone protocol: patterns that look like URLs
                   // Avoid matching command line flags like -v:10 or z3 -memory:high
-                  return s.replace(
-                    /\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi,
-                    (match, protocol) => {
-                      // Allow https (case insensitive), redact everything else
-                      return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                    }
-                  );
+                  return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+                    // Allow https (case insensitive), redact everything else
+                    return protocol.toLowerCase() === "https" ? match : "(redacted)";
+                  });
                 }
                 /**
                  * Neutralizes @mentions by wrapping them in backticks
@@ -1177,12 +1141,7 @@ jobs:
                */
               function getMaxAllowedForType(itemType, config) {
                 // Check if max is explicitly specified in config
-                if (
-                  config &&
-                  config[itemType] &&
-                  typeof config[itemType] === "object" &&
-                  config[itemType].max
-                ) {
+                if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
                   return config[itemType].max;
                 }
                 // Use default limits for plural-supported types
@@ -1233,17 +1192,10 @@ jobs:
                 // Fix single quotes to double quotes (must be done first)
                 repaired = repaired.replace(/'/g, '"');
                 // Fix missing quotes around object keys
-                repaired = repaired.replace(
-                  /([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g,
-                  '$1"$2":'
-                );
+                repaired = repaired.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
                 // Fix newlines and tabs inside strings by escaping them
                 repaired = repaired.replace(/"([^"\\]*)"/g, (match, content) => {
-                  if (
-                    content.includes("\n") ||
-                    content.includes("\r") ||
-                    content.includes("\t")
-                  ) {
+                  if (content.includes("\n") || content.includes("\r") || content.includes("\t")) {
                     const escaped = content
                       .replace(/\\/g, "\\\\")
                       .replace(/\n/g, "\\n")
@@ -1259,10 +1211,7 @@ jobs:
                   (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`
                 );
                 // Fix wrong bracket/brace types - arrays should end with ] not }
-                repaired = repaired.replace(
-                  /(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g,
-                  "$1]"
-                );
+                repaired = repaired.replace(/(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g, "$1]");
                 // Fix missing closing braces/brackets
                 const openBraces = (repaired.match(/\{/g) || []).length;
                 const closeBraces = (repaired.match(/\}/g) || []).length;
@@ -1364,9 +1313,7 @@ jobs:
                 }
                 if (typeof value !== "number" && typeof value !== "string") {
                   // Match the original error format for specific field types
-                  if (
-                    fieldName.includes("create-pull-request-review-comment 'start_line'")
-                  ) {
+                  if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
                     return {
                       isValid: false,
                       error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a number or string`,
@@ -1386,9 +1333,7 @@ jobs:
                 const parsed = typeof value === "string" ? parseInt(value, 10) : value;
                 if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
                   // Match the original error format for different field types
-                  if (
-                    fieldName.includes("create-pull-request-review-comment 'start_line'")
-                  ) {
+                  if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
                     return {
                       isValid: false,
                       error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a positive integer`,
@@ -1443,17 +1388,9 @@ jobs:
                   } catch (repairError) {
                     // If repair also fails, throw the error
                     core.info(`invalid input json: ${jsonStr}`);
-                    const originalMsg =
-                      originalError instanceof Error
-                        ? originalError.message
-                        : String(originalError);
-                    const repairMsg =
-                      repairError instanceof Error
-                        ? repairError.message
-                        : String(repairError);
-                    throw new Error(
-                      `JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`
-                    );
+                    const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
+                    const repairMsg = repairError instanceof Error ? repairError.message : String(repairError);
+                    throw new Error(`JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
                   }
                 }
               }
@@ -1482,9 +1419,7 @@ jobs:
               if (safeOutputsConfig) {
                 try {
                   expectedOutputTypes = JSON.parse(safeOutputsConfig);
-                  core.info(
-                    `Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                  );
+                  core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
                   core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
@@ -1519,29 +1454,21 @@ jobs:
                     continue;
                   }
                   // Check for too many items of the same type
-                  const typeCount = parsedItems.filter(
-                    existing => existing.type === itemType
-                  ).length;
+                  const typeCount = parsedItems.filter(existing => existing.type === itemType).length;
                   const maxAllowed = getMaxAllowedForType(itemType, expectedOutputTypes);
                   if (typeCount >= maxAllowed) {
-                    errors.push(
-                      `Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`
-                    );
+                    errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
                     continue;
                   }
                   // Basic validation based on type
                   switch (itemType) {
                     case "create-issue":
                       if (!item.title || typeof item.title !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_issue requires a 'title' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_issue requires a 'title' string field`);
                         continue;
                       }
                       if (!item.body || typeof item.body !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_issue requires a 'body' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_issue requires a 'body' string field`);
                         continue;
                       }
                       // Sanitize text content
@@ -1550,24 +1477,17 @@ jobs:
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
                         item.labels = item.labels.map(
-                          /** @param {any} label */ label =>
-                            typeof label === "string" ? sanitizeContent(label) : label
+                          /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
                         );
                       }
                       break;
                     case "add-comment":
                       if (!item.body || typeof item.body !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: add_comment requires a 'body' string field`
-                        );
+                        errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
                         continue;
                       }
                       // Validate optional issue_number field
-                      const issueNumValidation = validateIssueOrPRNumber(
-                        item.issue_number,
-                        "add_comment 'issue_number'",
-                        i + 1
-                      );
+                      const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
                       if (!issueNumValidation.isValid) {
                         errors.push(issueNumValidation.error);
                         continue;
@@ -1577,21 +1497,15 @@ jobs:
                       break;
                     case "create-pull-request":
                       if (!item.title || typeof item.title !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_pull_request requires a 'title' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_pull_request requires a 'title' string field`);
                         continue;
                       }
                       if (!item.body || typeof item.body !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_pull_request requires a 'body' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_pull_request requires a 'body' string field`);
                         continue;
                       }
                       if (!item.branch || typeof item.branch !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_pull_request requires a 'branch' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_pull_request requires a 'branch' string field`);
                         continue;
                       }
                       // Sanitize text content
@@ -1601,26 +1515,17 @@ jobs:
                       // Sanitize labels if present
                       if (item.labels && Array.isArray(item.labels)) {
                         item.labels = item.labels.map(
-                          /** @param {any} label */ label =>
-                            typeof label === "string" ? sanitizeContent(label) : label
+                          /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
                         );
                       }
                       break;
                     case "add-labels":
                       if (!item.labels || !Array.isArray(item.labels)) {
-                        errors.push(
-                          `Line ${i + 1}: add_labels requires a 'labels' array field`
-                        );
+                        errors.push(`Line ${i + 1}: add_labels requires a 'labels' array field`);
                         continue;
                       }
-                      if (
-                        item.labels.some(
-                          /** @param {any} label */ label => typeof label !== "string"
-                        )
-                      ) {
-                        errors.push(
-                          `Line ${i + 1}: add_labels labels array must contain only strings`
-                        );
+                      if (item.labels.some(/** @param {any} label */ label => typeof label !== "string")) {
+                        errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                       }
                       // Validate optional issue_number field
@@ -1634,40 +1539,26 @@ jobs:
                         continue;
                       }
                       // Sanitize label strings
-                      item.labels = item.labels.map(
-                        /** @param {any} label */ label => sanitizeContent(label)
-                      );
+                      item.labels = item.labels.map(/** @param {any} label */ label => sanitizeContent(label));
                       break;
                     case "update-issue":
                       // Check that at least one updateable field is provided
-                      const hasValidField =
-                        item.status !== undefined ||
-                        item.title !== undefined ||
-                        item.body !== undefined;
+                      const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
                       if (!hasValidField) {
-                        errors.push(
-                          `Line ${i + 1}: update_issue requires at least one of: 'status', 'title', or 'body' fields`
-                        );
+                        errors.push(`Line ${i + 1}: update_issue requires at least one of: 'status', 'title', or 'body' fields`);
                         continue;
                       }
                       // Validate status if provided
                       if (item.status !== undefined) {
-                        if (
-                          typeof item.status !== "string" ||
-                          (item.status !== "open" && item.status !== "closed")
-                        ) {
-                          errors.push(
-                            `Line ${i + 1}: update_issue 'status' must be 'open' or 'closed'`
-                          );
+                        if (typeof item.status !== "string" || (item.status !== "open" && item.status !== "closed")) {
+                          errors.push(`Line ${i + 1}: update_issue 'status' must be 'open' or 'closed'`);
                           continue;
                         }
                       }
                       // Validate title if provided
                       if (item.title !== undefined) {
                         if (typeof item.title !== "string") {
-                          errors.push(
-                            `Line ${i + 1}: update-issue 'title' must be a string`
-                          );
+                          errors.push(`Line ${i + 1}: update-issue 'title' must be a string`);
                           continue;
                         }
                         item.title = sanitizeContent(item.title);
@@ -1675,9 +1566,7 @@ jobs:
                       // Validate body if provided
                       if (item.body !== undefined) {
                         if (typeof item.body !== "string") {
-                          errors.push(
-                            `Line ${i + 1}: update-issue 'body' must be a string`
-                          );
+                          errors.push(`Line ${i + 1}: update-issue 'body' must be a string`);
                           continue;
                         }
                         item.body = sanitizeContent(item.body);
@@ -1696,16 +1585,12 @@ jobs:
                     case "push-to-pr-branch":
                       // Validate required branch field
                       if (!item.branch || typeof item.branch !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: push_to_pr_branch requires a 'branch' string field`
-                        );
+                        errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'branch' string field`);
                         continue;
                       }
                       // Validate required message field
                       if (!item.message || typeof item.message !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: push_to_pr_branch requires a 'message' string field`
-                        );
+                        errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'message' string field`);
                         continue;
                       }
                       // Sanitize text content
@@ -1725,17 +1610,11 @@ jobs:
                     case "create-pull-request-review-comment":
                       // Validate required path field
                       if (!item.path || typeof item.path !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_pull_request_review_comment requires a 'path' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'path' string field`);
                         continue;
                       }
                       // Validate required line field
-                      const lineValidation = validatePositiveInteger(
-                        item.line,
-                        "create_pull_request_review_comment 'line'",
-                        i + 1
-                      );
+                      const lineValidation = validatePositiveInteger(item.line, "create_pull_request_review_comment 'line'", i + 1);
                       if (!lineValidation.isValid) {
                         errors.push(lineValidation.error);
                         continue;
@@ -1744,9 +1623,7 @@ jobs:
                       const lineNumber = lineValidation.normalizedValue;
                       // Validate required body field
                       if (!item.body || typeof item.body !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`);
                         continue;
                       }
                       // Sanitize required text content
@@ -1773,36 +1650,25 @@ jobs:
                       }
                       // Validate optional side field
                       if (item.side !== undefined) {
-                        if (
-                          typeof item.side !== "string" ||
-                          (item.side !== "LEFT" && item.side !== "RIGHT")
-                        ) {
-                          errors.push(
-                            `Line ${i + 1}: create_pull_request_review_comment 'side' must be 'LEFT' or 'RIGHT'`
-                          );
+                        if (typeof item.side !== "string" || (item.side !== "LEFT" && item.side !== "RIGHT")) {
+                          errors.push(`Line ${i + 1}: create_pull_request_review_comment 'side' must be 'LEFT' or 'RIGHT'`);
                           continue;
                         }
                       }
                       break;
                     case "create-discussion":
                       if (!item.title || typeof item.title !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_discussion requires a 'title' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_discussion requires a 'title' string field`);
                         continue;
                       }
                       if (!item.body || typeof item.body !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_discussion requires a 'body' string field`
-                        );
+                        errors.push(`Line ${i + 1}: create_discussion requires a 'body' string field`);
                         continue;
                       }
                       // Validate optional category field
                       if (item.category !== undefined) {
                         if (typeof item.category !== "string") {
-                          errors.push(
-                            `Line ${i + 1}: create_discussion 'category' must be a string`
-                          );
+                          errors.push(`Line ${i + 1}: create_discussion 'category' must be a string`);
                           continue;
                         }
                         item.category = sanitizeContent(item.category);
@@ -1814,16 +1680,12 @@ jobs:
                     case "missing-tool":
                       // Validate required tool field
                       if (!item.tool || typeof item.tool !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: missing_tool requires a 'tool' string field`
-                        );
+                        errors.push(`Line ${i + 1}: missing_tool requires a 'tool' string field`);
                         continue;
                       }
                       // Validate required reason field
                       if (!item.reason || typeof item.reason !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: missing_tool requires a 'reason' string field`
-                        );
+                        errors.push(`Line ${i + 1}: missing_tool requires a 'reason' string field`);
                         continue;
                       }
                       // Sanitize text content
@@ -1832,9 +1694,7 @@ jobs:
                       // Validate optional alternatives field
                       if (item.alternatives !== undefined) {
                         if (typeof item.alternatives !== "string") {
-                          errors.push(
-                            `Line ${i + 1}: missing-tool 'alternatives' must be a string`
-                          );
+                          errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
                           continue;
                         }
                         item.alternatives = sanitizeContent(item.alternatives);
@@ -1842,39 +1702,27 @@ jobs:
                       break;
                     case "upload-asset":
                       if (!item.path || typeof item.path !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: upload_asset requires a 'path' string field`
-                        );
+                        errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
                         continue;
                       }
                       break;
                     case "create-code-scanning-alert":
                       // Validate required fields
                       if (!item.file || typeof item.file !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_code_scanning_alert requires a 'file' field (string)`
-                        );
+                        errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'file' field (string)`);
                         continue;
                       }
-                      const alertLineValidation = validatePositiveInteger(
-                        item.line,
-                        "create_code_scanning_alert 'line'",
-                        i + 1
-                      );
+                      const alertLineValidation = validatePositiveInteger(item.line, "create_code_scanning_alert 'line'", i + 1);
                       if (!alertLineValidation.isValid) {
                         errors.push(alertLineValidation.error);
                         continue;
                       }
                       if (!item.severity || typeof item.severity !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_code_scanning_alert requires a 'severity' field (string)`
-                        );
+                        errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'severity' field (string)`);
                         continue;
                       }
                       if (!item.message || typeof item.message !== "string") {
-                        errors.push(
-                          `Line ${i + 1}: create_code_scanning_alert requires a 'message' field (string)`
-                        );
+                        errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'message' field (string)`);
                         continue;
                       }
                       // Validate severity level
@@ -1898,9 +1746,7 @@ jobs:
                       // Validate optional ruleIdSuffix field
                       if (item.ruleIdSuffix !== undefined) {
                         if (typeof item.ruleIdSuffix !== "string") {
-                          errors.push(
-                            `Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must be a string`
-                          );
+                          errors.push(`Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must be a string`);
                           continue;
                         }
                         if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
@@ -2077,17 +1923,14 @@ jobs:
                 }
                 if (!Array.isArray(logEntries) || logEntries.length === 0) {
                   return {
-                    markdown:
-                      "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
+                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
                     mcpFailures: [],
                   };
                 }
                 let markdown = "";
                 const mcpFailures = [];
                 // Check for initialization data first
-                const initEntry = logEntries.find(
-                  entry => entry.type === "system" && entry.subtype === "init"
-                );
+                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 if (initEntry) {
                   markdown += "## 🚀 Initialization\n\n";
                   const initResult = formatInitializationSummary(initEntry);
@@ -2116,18 +1959,7 @@ jobs:
                         const toolName = content.name;
                         const input = content.input || {};
                         // Skip internal tools - only show external commands and API calls
-                        if (
-                          [
-                            "Read",
-                            "Write",
-                            "Edit",
-                            "MultiEdit",
-                            "LS",
-                            "Grep",
-                            "Glob",
-                            "TodoWrite",
-                          ].includes(toolName)
-                        ) {
+                        if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
                           continue; // Skip internal file operations and searches
                         }
                         // Find the corresponding tool result to get status
@@ -2163,13 +1995,7 @@ jobs:
                 markdown += "\n## 📊 Information\n\n";
                 // Find the last entry with metadata
                 const lastEntry = logEntries[logEntries.length - 1];
-                if (
-                  lastEntry &&
-                  (lastEntry.num_turns ||
-                    lastEntry.duration_ms ||
-                    lastEntry.total_cost_usd ||
-                    lastEntry.usage)
-                ) {
+                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
                   if (lastEntry.num_turns) {
                     markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
                   }
@@ -2186,21 +2012,16 @@ jobs:
                     const usage = lastEntry.usage;
                     if (usage.input_tokens || usage.output_tokens) {
                       markdown += `**Token Usage:**\n`;
-                      if (usage.input_tokens)
-                        markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
                       if (usage.cache_creation_input_tokens)
                         markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
                       if (usage.cache_read_input_tokens)
                         markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-                      if (usage.output_tokens)
-                        markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
                       markdown += "\n";
                     }
                   }
-                  if (
-                    lastEntry.permission_denials &&
-                    lastEntry.permission_denials.length > 0
-                  ) {
+                  if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
                     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
                   }
                 }
@@ -2252,22 +2073,14 @@ jobs:
               }
               if (initEntry.cwd) {
                 // Show a cleaner path by removing common prefixes
-                const cleanCwd = initEntry.cwd.replace(
-                  /^\/home\/runner\/work\/[^\/]+\/[^\/]+/,
-                  "."
-                );
+                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
                 markdown += `**Working Directory:** ${cleanCwd}\n\n`;
               }
               // Display MCP servers status
               if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
                 markdown += "**MCP Servers:**\n";
                 for (const server of initEntry.mcp_servers) {
-                  const statusIcon =
-                    server.status === "connected"
-                      ? "✅"
-                      : server.status === "failed"
-                        ? "❌"
-                        : "❓";
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
                   markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
                   // Track failed MCP servers
                   if (server.status === "failed") {
@@ -2289,34 +2102,14 @@ jobs:
                   Other: [],
                 };
                 for (const tool of initEntry.tools) {
-                  if (
-                    ["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(
-                      tool
-                    )
-                  ) {
+                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
                     categories["Core"].push(tool);
-                  } else if (
-                    [
-                      "Read",
-                      "Edit",
-                      "MultiEdit",
-                      "Write",
-                      "LS",
-                      "Grep",
-                      "Glob",
-                      "NotebookEdit",
-                    ].includes(tool)
-                  ) {
+                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
                     categories["File Operations"].push(tool);
                   } else if (tool.startsWith("mcp__github__")) {
                     categories["Git/GitHub"].push(formatMcpName(tool));
-                  } else if (
-                    tool.startsWith("mcp__") ||
-                    ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)
-                  ) {
-                    categories["MCP"].push(
-                      tool.startsWith("mcp__") ? formatMcpName(tool) : tool
-                    );
+                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
                   } else {
                     categories["Other"].push(tool);
                   }
@@ -2384,20 +2177,14 @@ jobs:
                   break;
                 case "Read":
                   const filePath = input.file_path || input.path || "";
-                  const relativePath = filePath.replace(
-                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
-                    ""
-                  ); // Remove /home/runner/work/repo/repo/ prefix
+                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); // Remove /home/runner/work/repo/repo/ prefix
                   markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
                   break;
                 case "Write":
                 case "Edit":
                 case "MultiEdit":
                   const writeFilePath = input.file_path || input.path || "";
-                  const writeRelativePath = writeFilePath.replace(
-                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
-                    ""
-                  );
+                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
                   markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
                   break;
                 case "Grep":
@@ -2407,10 +2194,7 @@ jobs:
                   break;
                 case "LS":
                   const lsPath = input.path || "";
-                  const lsRelativePath = lsPath.replace(
-                    /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
-                    ""
-                  );
+                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
                   markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
                   break;
                 default:
@@ -2424,10 +2208,7 @@ jobs:
                     const keys = Object.keys(input);
                     if (keys.length > 0) {
                       // Try to find the most important parameter
-                      const mainParam =
-                        keys.find(k =>
-                          ["query", "command", "path", "file_path", "content"].includes(k)
-                        ) || keys[0];
+                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
                       const value = String(input[mainParam] || "");
                       if (value) {
                         markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
@@ -2569,9 +2350,7 @@ jobs:
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.setFailed(
-                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
@@ -2579,9 +2358,7 @@ jobs:
                 return;
               }
               // Find all create-issue items
-              const createIssueItems = validatedOutput.items.filter(
-                /** @param {any} item */ item => item.type === "create-issue"
-              );
+              const createIssueItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "create-issue");
               if (createIssueItems.length === 0) {
                 core.info("No create-issue items found in agent output");
                 return;
@@ -2590,8 +2367,7 @@ jobs:
               // If in staged mode, emit step summary instead of creating issues
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent +=
-                  "The following issues would be created if staged mode was disabled:\n\n";
+                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
                 for (let i = 0; i < createIssueItems.length; i++) {
                   const item = createIssueItems[i];
                   summaryContent += `### Issue ${i + 1}\n`;
@@ -2654,12 +2430,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `https://github.com/actions/runs/${runId}`;
-                bodyLines.push(
-                  ``,
-                  ``,
-                  `> Generated by Agentic Workflow [Run](${runUrl})`,
-                  ""
-                );
+                bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
                 // Prepare the body content
                 const body = bodyLines.join("\n").trim();
                 core.info(`Creating issue with title: ${title}`);
@@ -2698,18 +2469,11 @@ jobs:
                     core.setOutput("issue_url", issue.html_url);
                   }
                 } catch (error) {
-                  const errorMessage =
-                    error instanceof Error ? error.message : String(error);
+                  const errorMessage = error instanceof Error ? error.message : String(error);
                   // Special handling for disabled issues repository
-                  if (
-                    errorMessage.includes("Issues has been disabled in this repository")
-                  ) {
-                    core.info(
-                      `⚠ Cannot create issue "${title}": Issues are disabled for this repository`
-                    );
-                    core.info(
-                      "Consider enabling issues in repository settings if you want to create issues automatically"
-                    );
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
                     continue; // Skip this issue but continue processing others
                   }
                   core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
@@ -2767,9 +2531,7 @@ jobs:
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.setFailed(
-                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
@@ -2777,9 +2539,7 @@ jobs:
                 return;
               }
               // Find all add-comment items
-              const commentItems = validatedOutput.items.filter(
-                /** @param {any} item */ item => item.type === "add-comment"
-              );
+              const commentItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "add-comment");
               if (commentItems.length === 0) {
                 core.info("No add-comment items found in agent output");
                 return;
@@ -2788,8 +2548,7 @@ jobs:
               // If in staged mode, emit step summary instead of creating comments
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent +=
-                  "The following comments would be added if staged mode was disabled:\n\n";
+                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
                 for (let i = 0; i < commentItems.length; i++) {
                   const item = commentItems[i];
                   summaryContent += `### Comment ${i + 1}\n`;
@@ -2810,26 +2569,21 @@ jobs:
               const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
               core.info(`Comment target configuration: ${commentTarget}`);
               // Check if we're in an issue or pull request context
-              const isIssueContext =
-                context.eventName === "issues" || context.eventName === "issue_comment";
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
               const isPRContext =
                 context.eventName === "pull_request" ||
                 context.eventName === "pull_request_review" ||
                 context.eventName === "pull_request_review_comment";
               // Validate context based on target configuration
               if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-                core.info(
-                  'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
-                );
+                core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
                 return;
               }
               const createdComments = [];
               // Process each comment item
               for (let i = 0; i < commentItems.length; i++) {
                 const commentItem = commentItems[i];
-                core.info(
-                  `Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`
-                );
+                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
                 // Determine the issue/PR number and comment endpoint for this comment
                 let issueNumber;
                 let commentEndpoint;
@@ -2838,25 +2592,19 @@ jobs:
                   if (commentItem.issue_number) {
                     issueNumber = parseInt(commentItem.issue_number, 10);
                     if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(
-                        `Invalid issue number specified: ${commentItem.issue_number}`
-                      );
+                      core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
                       continue;
                     }
                     commentEndpoint = "issues";
                   } else {
-                    core.info(
-                      'Target is "*" but no issue_number specified in comment item'
-                    );
+                    core.info('Target is "*" but no issue_number specified in comment item');
                     continue;
                   }
                 } else if (commentTarget && commentTarget !== "triggering") {
                   // Explicit issue number specified in target
                   issueNumber = parseInt(commentTarget, 10);
                   if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(
-                      `Invalid issue number in target configuration: ${commentTarget}`
-                    );
+                    core.info(`Invalid issue number in target configuration: ${commentTarget}`);
                     continue;
                   }
                   commentEndpoint = "issues";
@@ -2875,9 +2623,7 @@ jobs:
                       issueNumber = context.payload.pull_request.number;
                       commentEndpoint = "issues"; // PR comments use the issues API endpoint
                     } else {
-                      core.info(
-                        "Pull request context detected but no pull request found in payload"
-                      );
+                      core.info("Pull request context detected but no pull request found in payload");
                       continue;
                     }
                   }
@@ -2912,9 +2658,7 @@ jobs:
                     core.setOutput("comment_url", comment.html_url);
                   }
                 } catch (error) {
-                  core.error(
-                    `✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`
-                  );
+                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
                 }
               }

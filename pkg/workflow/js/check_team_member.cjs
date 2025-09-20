@@ -19,16 +19,13 @@ async function main() {
 
   // Check if the actor has repository access (admin, maintain permissions)
   try {
-    core.info(
-      `Checking if user '${actor}' is admin or maintainer of ${owner}/${repo}`
-    );
+    core.info(`Checking if user '${actor}' is admin or maintainer of ${owner}/${repo}`);
 
-    const repoPermission =
-      await github.rest.repos.getCollaboratorPermissionLevel({
-        owner: owner,
-        repo: repo,
-        username: actor,
-      });
+    const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+      owner: owner,
+      repo: repo,
+      username: actor,
+    });
 
     const permission = repoPermission.data.permission;
     core.info(`Repository permission level: ${permission}`);
@@ -39,8 +36,7 @@ async function main() {
       return;
     }
   } catch (repoError) {
-    const errorMessage =
-      repoError instanceof Error ? repoError.message : String(repoError);
+    const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
@@ -48,9 +44,7 @@ async function main() {
   core.warning(
     `Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`
   );
-  await setCancelled(
-    `Access denied: User '${actor}' is not authorized for this workflow`
-  );
+  await setCancelled(`Access denied: User '${actor}' is not authorized for this workflow`);
   core.setOutput("is_team_member", "false");
 }
 await main();

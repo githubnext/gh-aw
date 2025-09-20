@@ -101,9 +101,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "No GITHUB_AW_AGENT_OUTPUT environment variable found"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -114,9 +112,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Agent output content is empty"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -136,9 +132,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        "No label restrictions - any labels are allowed"
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith("No label restrictions - any labels are allowed");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -163,9 +157,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        "No label restrictions - any labels are allowed"
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith("No label restrictions - any labels are allowed");
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -190,9 +182,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        `Allowed labels: ${JSON.stringify(["bug", "enhancement"])}`
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement"])}`);
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",
@@ -216,9 +206,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Invalid max value: invalid. Must be a positive integer"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid max value: invalid. Must be a positive integer");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -237,9 +225,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Invalid max value: 0. Must be a positive integer"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid max value: 0. Must be a positive integer");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -252,8 +238,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED =
-        "bug,enhancement,feature,documentation";
+      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature,documentation";
       delete process.env.GITHUB_AW_LABELS_MAX_COUNT;
 
       // Execute the script
@@ -375,9 +360,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Issue context detected but no issue found in payload"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Issue context detected but no issue found in payload");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -427,10 +410,7 @@ describe("add_labels.cjs", () => {
         labels: ["bug", "enhancement"], // 'documentation' not in allowed list
       });
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "labels_added",
-        "bug\nenhancement"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("labels_added", "bug\nenhancement");
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
@@ -504,18 +484,11 @@ describe("add_labels.cjs", () => {
         items: [
           {
             type: "add-labels",
-            labels: [
-              "bug",
-              "enhancement",
-              "feature",
-              "documentation",
-              "question",
-            ],
+            labels: ["bug", "enhancement", "feature", "documentation", "question"],
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED =
-        "bug,enhancement,feature,documentation,question";
+      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature,documentation,question";
       process.env.GITHUB_AW_LABELS_MAX_COUNT = "2";
 
       // Execute the script
@@ -546,9 +519,7 @@ describe("add_labels.cjs", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith("No labels to add");
       expect(mockCore.setOutput).toHaveBeenCalledWith("labels_added", "");
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(
-        expect.stringContaining("No labels were added")
-      );
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("No labels were added"));
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
   });
@@ -577,13 +548,8 @@ describe("add_labels.cjs", () => {
         labels: ["bug", "enhancement"],
       });
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Successfully added 2 labels to issue #123"
-      );
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "labels_added",
-        "bug\nenhancement"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Successfully added 2 labels to issue #123");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("labels_added", "bug\nenhancement");
 
       const summaryCall = mockCore.summary.addRaw.mock.calls.find(call =>
         call[0].includes("Successfully added 2 label(s) to issue #123")
@@ -612,9 +578,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Successfully added 1 labels to pull request #456"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Successfully added 1 labels to pull request #456");
 
       const summaryCall = mockCore.summary.addRaw.mock.calls.find(call =>
         call[0].includes("Successfully added 1 label(s) to pull request #456")
@@ -636,19 +600,13 @@ describe("add_labels.cjs", () => {
       const apiError = new Error("Label does not exist");
       mockGithub.rest.issues.addLabels.mockRejectedValue(apiError);
 
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.error).toHaveBeenCalledWith(
-        "Failed to add labels: Label does not exist"
-      );
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Failed to add labels: Label does not exist"
-      );
+      expect(mockCore.error).toHaveBeenCalledWith("Failed to add labels: Label does not exist");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to add labels: Label does not exist");
     });
 
     it("should handle non-Error objects in catch block", async () => {
@@ -665,19 +623,13 @@ describe("add_labels.cjs", () => {
       const stringError = "Something went wrong";
       mockGithub.rest.issues.addLabels.mockRejectedValue(stringError);
 
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.error).toHaveBeenCalledWith(
-        "Failed to add labels: Something went wrong"
-      );
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Failed to add labels: Something went wrong"
-      );
+      expect(mockCore.error).toHaveBeenCalledWith("Failed to add labels: Something went wrong");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to add labels: Something went wrong");
     });
   });
 
@@ -696,9 +648,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        "Agent output content length: 64"
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith("Agent output content length: 64");
     });
 
     it("should log allowed labels and max count", async () => {
@@ -801,9 +751,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        `Allowed labels: ${JSON.stringify(["bug", "enhancement"])}`
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement"])}`);
     });
 
     it("should handle single label output", async () => {

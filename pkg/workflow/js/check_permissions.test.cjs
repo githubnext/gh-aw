@@ -111,9 +111,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).toHaveBeenCalledWith(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    expect(
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-    ).not.toHaveBeenCalled();
+    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
   });
 
   it("should fail job when permissions are empty", async () => {
@@ -125,9 +123,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.error).toHaveBeenCalledWith(
       "❌ Configuration error: Required permissions not specified. Contact repository administrator."
     );
-    expect(
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-    ).not.toHaveBeenCalled();
+    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
   });
 
   it("should skip validation for safe events", async () => {
@@ -137,12 +133,8 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ Event workflow_dispatch does not require validation"
-    );
-    expect(
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-    ).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_dispatch does not require validation");
+    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.warning).not.toHaveBeenCalled();
   });
@@ -156,9 +148,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-    ).toHaveBeenCalledWith({
+    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
       username: "testuser",
@@ -167,15 +157,9 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.debug).toHaveBeenCalledWith(
       "Checking if user 'testuser' has required permissions for testowner/testrepo"
     );
-    expect(mockCore.debug).toHaveBeenCalledWith(
-      "Required permissions: admin, maintainer, write"
-    );
-    expect(mockCore.debug).toHaveBeenCalledWith(
-      "Repository permission level: admin"
-    );
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ User has admin access to repository"
-    );
+    expect(mockCore.debug).toHaveBeenCalledWith("Required permissions: admin, maintainer, write");
+    expect(mockCore.debug).toHaveBeenCalledWith("Repository permission level: admin");
+    expect(mockCore.info).toHaveBeenCalledWith("✅ User has admin access to repository");
 
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
@@ -192,9 +176,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ User has maintain access to repository"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("✅ User has maintain access to repository");
 
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
@@ -211,9 +193,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ User has write access to repository"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("✅ User has write access to repository");
 
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
@@ -230,9 +210,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.debug).toHaveBeenCalledWith(
-      "Repository permission level: write"
-    );
+    expect(mockCore.debug).toHaveBeenCalledWith("Repository permission level: write");
     expect(mockCore.warning).toHaveBeenCalledWith(
       "User permission 'write' does not meet requirements: admin, maintainer"
     );
@@ -251,12 +229,8 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.debug).toHaveBeenCalledWith(
-      "Repository permission level: read"
-    );
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      "User permission 'read' does not meet requirements: admin, write"
-    );
+    expect(mockCore.debug).toHaveBeenCalledWith("Repository permission level: read");
+    expect(mockCore.warning).toHaveBeenCalledWith("User permission 'read' does not meet requirements: admin, write");
     expect(mockCore.warning).toHaveBeenCalledWith(
       "Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"
     );
@@ -266,16 +240,12 @@ describe("check_permissions.cjs", () => {
     process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
 
     const apiError = new Error("API Error: Not Found");
-    mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(
-      apiError
-    );
+    mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(apiError);
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      "Repository permission check failed: API Error: Not Found"
-    );
+    expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: API Error: Not Found");
   });
 
   it("should handle different actor names correctly", async () => {
@@ -289,9 +259,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-    ).toHaveBeenCalledWith({
+    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
       username: "different-user",
@@ -316,9 +284,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ User has triage access to repository"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("✅ User has triage access to repository");
 
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
@@ -336,9 +302,7 @@ describe("check_permissions.cjs", () => {
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
     expect(mockCore.debug).toHaveBeenCalledWith("Required permissions: write");
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ User has write access to repository"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("✅ User has write access to repository");
 
     // Should not call any error or warning methods
     expect(mockCore.error).not.toHaveBeenCalled();
@@ -352,12 +316,8 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ Event workflow_run does not require validation"
-    );
-    expect(
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-    ).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_run does not require validation");
+    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
   });
 
   it("should skip validation for schedule events", async () => {
@@ -367,11 +327,7 @@ describe("check_permissions.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "✅ Event schedule does not require validation"
-    );
-    expect(
-      mockGithub.rest.repos.getCollaboratorPermissionLevel
-    ).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith("✅ Event schedule does not require validation");
+    expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
   });
 });
