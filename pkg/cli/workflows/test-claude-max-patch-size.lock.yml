@@ -1770,6 +1770,14 @@ jobs:
                         item.alternatives = sanitizeContent(item.alternatives);
                       }
                       break;
+                    case "upload-asset":
+                      if (!item.path || typeof item.path !== "string") {
+                        errors.push(
+                          `Line ${i + 1}: upload-assert requires a 'path' string field`
+                        );
+                        continue;
+                      } 
+                      break;
                     case "create-code-scanning-alert":
                       // Validate required fields
                       if (!item.file || typeof item.file !== "string") {
