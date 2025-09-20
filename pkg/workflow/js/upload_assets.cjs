@@ -77,6 +77,7 @@ async function main() {
       // Give an error if branch doesn't exist on origin
       core.info(`Creating new orphaned branch: ${branchName}`);
       await exec.exec(`git checkout --orphan ${branchName}`);
+      await exec.exec(`rm -Rf . || true`);
       await exec.exec(`git clean -fdx`);
     }
 
