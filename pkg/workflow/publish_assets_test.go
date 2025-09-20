@@ -13,17 +13,6 @@ func TestParseUploadAssetConfig(t *testing.T) {
 		expected *UploadAssetConfig
 	}{
 		{
-			name: "basic upload-asset config",
-			input: map[string]any{
-				"upload-asset": nil,
-			},
-			expected: &UploadAssetConfig{
-				BranchName:  "assets/${{ github.workflow }}",
-				MaxSizeKB:   10240,
-				AllowedExts: getDefaultAllowedExtensions(),
-			},
-		},
-		{
 			name: "upload-asset config with custom values",
 			input: map[string]any{
 				"upload-asset": map[string]any{

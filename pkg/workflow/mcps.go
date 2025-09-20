@@ -17,17 +17,6 @@ func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *Workflo
 	}
 }
 
-// generateGitConfigurationSteps generates standardized git credential setup as string steps
-func (c *Compiler) generateGitConfigurationSteps() []string {
-	return []string{
-		"      - name: Configure Git credentials\n",
-		"        run: |\n",
-		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
-		"          git config --global user.name \"${{ github.workflow }}\"\n",
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
-	}
-}
-
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration

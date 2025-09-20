@@ -1629,7 +1629,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build upload_assets job if output.publish-asset is configured
 	if data.SafeOutputs.UploadAsset != nil {
-		publishAssetsJob, err := c.buildUploadAssetJob(data, jobName, taskJobCreated, frontmatter)
+		publishAssetsJob, err := c.buildPublishAssetsJob(data, jobName, taskJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build upload_assets job: %w", err)
 		}

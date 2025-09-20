@@ -2844,22 +2844,22 @@ jobs:
               core.debug(
                 `Fetching latest changes and checking out base branch: ${baseBranch}`
               );
-              await exec.exec("git fetch origin", { stdio: "inherit" });
-              await exec.exec(`git checkout ${baseBranch}`, { stdio: "inherit" });
+              await exec.exec("git fetch origin");
+              await exec.exec(`git checkout ${baseBranch}`);
               // Handle branch creation/checkout
               core.debug(
                 `Branch should not exist locally, creating new branch from base: ${branchName}`
               );
-              await exec.exec(`git checkout -b ${branchName}`, { stdio: "inherit" });
+              await exec.exec(`git checkout -b ${branchName}`);
               core.info(`Created new branch from base: ${branchName}`);
               // Apply the patch using git CLI (skip if empty)
               if (!isEmpty) {
                 core.info("Applying patch...");
                 // Patches are created with git format-patch, so use git am to apply them
-                await exec.exec("git am /tmp/aw.patch", { stdio: "inherit" });
+                await exec.exec("git am /tmp/aw.patch");
                 core.info("Patch applied successfully");
                 // Push the applied commits to the branch
-                await exec.exec(`git push origin ${branchName}`, { stdio: "inherit" });
+                await exec.exec(`git push origin ${branchName}`);
                 core.info("Changes pushed to branch");
               } else {
                 core.info("Skipping patch application (empty patch)");

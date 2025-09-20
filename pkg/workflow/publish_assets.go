@@ -81,8 +81,8 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 	return nil
 }
 
-// buildUploadAssetJob creates the upload_assets job
-func (c *Compiler) buildUploadAssetJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
+// buildPublishAssetsJob creates the publish_assets job
+func (c *Compiler) buildPublishAssetsJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAsset == nil {
 		return nil, fmt.Errorf("safe-outputs.publish-asset configuration is required")
 	}
@@ -112,6 +112,15 @@ func (c *Compiler) buildUploadAssetJob(data *WorkflowData, mainJobName string, t
 			}
 		}
 	}
+
+	// Step 2: Checkout repository
+	steps = append(steps, "      - name: Checkout repository\n")
+	steps = append(steps, "        uses: actions/checkout@v5\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          fetch-depth: 0\n")
+
+	// Step 3: Configure Git credentials
+	steps = append(steps, c.generateGitConfigurationSteps()...)
 
 	// Add step to download assets artifact if it exists
 	steps = append(steps, "      - name: Download assets\n")
