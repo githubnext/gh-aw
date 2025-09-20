@@ -499,7 +499,9 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	yaml.WriteString("          [mcp_servers.playwright]\n")
 	yaml.WriteString("          command = \"npx\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@latest\"")
+	yaml.WriteString("            \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("            \"--output-dir\",\n")
+	yaml.WriteString("            \"/tmp/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-origins\",\n")

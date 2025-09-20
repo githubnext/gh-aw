@@ -1990,6 +1990,13 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload MCP logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-logs
+          path: /tmp/mcp-logs/
+          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
