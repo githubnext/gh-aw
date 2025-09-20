@@ -273,7 +273,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -365,9 +365,6 @@ jobs:
               };
               writeMessage(res);
             }
-            function isToolEnabled(name) {
-              return safeOutputsConfig[name];
-            }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
               const jsonLine = JSON.stringify(entry) + "\n";
@@ -404,7 +401,7 @@ jobs:
               if (!isInWorkspace && !isInTmp) {
                 throw new Error(
                   `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                    `Provided path: ${filePath} (resolved to: ${absolutePath})`
+                  `Provided path: ${filePath} (resolved to: ${absolutePath})`
                 );
               }
               // Validate file exists
@@ -458,7 +455,6 @@ jobs:
               fs.copyFileSync(filePath, targetPath);
               // Generate target filename as sha + extension (lowercased)
               const targetFileName = (sha + fileExt).toLowerCase();
-              // Generate URL (will be available after the upload_asset job runs)
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
               const branchName =
@@ -480,262 +476,260 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text:
-                      `Asset "${fileName}" published successfully!\n\n` +
-                      `• File size: ${sizeBytes} bytes\n` +
-                      `• SHA256: ${sha}\n` +
-                      `• Target filename: ${targetFileName}\n` +
-                      `• Staged for publication to: ${branchName}\n` +
-                      `• Will be available at: ${url}\n\n` +
-                      `The asset will be published to the orphaned branch after workflow completion.`,
+                    text: url
                   },
                 ],
               };
             };
-            const TOOLS = Object.fromEntries(
-              [
-                {
-                  name: "create-issue",
-                  description: "Create a new GitHub issue",
-                  inputSchema: {
-                    type: "object",
-                    required: ["title", "body"],
-                    properties: {
-                      title: { type: "string", description: "Issue title" },
-                      body: { type: "string", description: "Issue body/description" },
-                      labels: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Issue labels",
-                      },
+            const ALL_TOOLS = [
+              {
+                name: "create-issue",
+                description: "Create a new GitHub issue",
+                inputSchema: {
+                  type: "object",
+                  required: ["title", "body"],
+                  properties: {
+                    title: { type: "string", description: "Issue title" },
+                    body: { type: "string", description: "Issue body/description" },
+                    labels: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Issue labels",
                     },
-                    additionalProperties: false,
                   },
+                  additionalProperties: false,
                 },
-                {
-                  name: "create-discussion",
-                  description: "Create a new GitHub discussion",
-                  inputSchema: {
-                    type: "object",
-                    required: ["title", "body"],
-                    properties: {
-                      title: { type: "string", description: "Discussion title" },
-                      body: { type: "string", description: "Discussion body/content" },
-                      category: { type: "string", description: "Discussion category" },
+              },
+              {
+                name: "create-discussion",
+                description: "Create a new GitHub discussion",
+                inputSchema: {
+                  type: "object",
+                  required: ["title", "body"],
+                  properties: {
+                    title: { type: "string", description: "Discussion title" },
+                    body: { type: "string", description: "Discussion body/content" },
+                    category: { type: "string", description: "Discussion category" },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
+                name: "add-comment",
+                description: "Add a comment to a GitHub issue or pull request",
+                inputSchema: {
+                  type: "object",
+                  required: ["body"],
+                  properties: {
+                    body: { type: "string", description: "Comment body/content" },
+                    issue_number: {
+                      type: "number",
+                      description: "Issue or PR number (optional for current context)",
                     },
-                    additionalProperties: false,
                   },
+                  additionalProperties: false,
                 },
-                {
-                  name: "add-comment",
-                  description: "Add a comment to a GitHub issue or pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["body"],
-                    properties: {
-                      body: { type: "string", description: "Comment body/content" },
-                      issue_number: {
-                        type: "number",
-                        description: "Issue or PR number (optional for current context)",
-                      },
+              },
+              {
+                name: "create-pull-request",
+                description: "Create a new GitHub pull request",
+                inputSchema: {
+                  type: "object",
+                  required: ["title", "body", "branch"],
+                  properties: {
+                    title: { type: "string", description: "Pull request title" },
+                    body: {
+                      type: "string",
+                      description: "Pull request body/description",
                     },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "create-pull-request",
-                  description: "Create a new GitHub pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["title", "body", "branch"],
-                    properties: {
-                      title: { type: "string", description: "Pull request title" },
-                      body: {
-                        type: "string",
-                        description: "Pull request body/description",
-                      },
-                      branch: {
-                        type: "string",
-                        description: "Required branch name",
-                      },
-                      labels: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Optional labels to add to the PR",
-                      },
+                    branch: {
+                      type: "string",
+                      description: "Required branch name",
                     },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "create-pull-request-review-comment",
-                  description: "Create a review comment on a GitHub pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["path", "line", "body"],
-                    properties: {
-                      path: {
-                        type: "string",
-                        description: "File path for the review comment",
-                      },
-                      line: {
-                        type: ["number", "string"],
-                        description: "Line number for the comment",
-                      },
-                      body: { type: "string", description: "Comment body content" },
-                      start_line: {
-                        type: ["number", "string"],
-                        description: "Optional start line for multi-line comments",
-                      },
-                      side: {
-                        type: "string",
-                        enum: ["LEFT", "RIGHT"],
-                        description: "Optional side of the diff: LEFT or RIGHT",
-                      },
+                    labels: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Optional labels to add to the PR",
                     },
-                    additionalProperties: false,
                   },
+                  additionalProperties: false,
                 },
-                {
-                  name: "create-code-scanning-alert",
-                  description: "Create a code scanning alert",
-                  inputSchema: {
-                    type: "object",
-                    required: ["file", "line", "severity", "message"],
-                    properties: {
-                      file: {
-                        type: "string",
-                        description: "File path where the issue was found",
-                      },
-                      line: {
-                        type: ["number", "string"],
-                        description: "Line number where the issue was found",
-                      },
-                      severity: {
-                        type: "string",
-                        enum: ["error", "warning", "info", "note"],
-                        description: "Severity level",
-                      },
-                      message: {
-                        type: "string",
-                        description: "Alert message describing the issue",
-                      },
-                      column: {
-                        type: ["number", "string"],
-                        description: "Optional column number",
-                      },
-                      ruleIdSuffix: {
-                        type: "string",
-                        description: "Optional rule ID suffix for uniqueness",
-                      },
+              },
+              {
+                name: "create-pull-request-review-comment",
+                description: "Create a review comment on a GitHub pull request",
+                inputSchema: {
+                  type: "object",
+                  required: ["path", "line", "body"],
+                  properties: {
+                    path: {
+                      type: "string",
+                      description: "File path for the review comment",
                     },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "add-labels",
-                  description: "Add labels to a GitHub issue or pull request",
-                  inputSchema: {
-                    type: "object",
-                    required: ["labels"],
-                    properties: {
-                      labels: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Labels to add",
-                      },
-                      issue_number: {
-                        type: "number",
-                        description: "Issue or PR number (optional for current context)",
-                      },
+                    line: {
+                      type: ["number", "string"],
+                      description: "Line number for the comment",
                     },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "update-issue",
-                  description: "Update a GitHub issue",
-                  inputSchema: {
-                    type: "object",
-                    properties: {
-                      status: {
-                        type: "string",
-                        enum: ["open", "closed"],
-                        description: "Optional new issue status",
-                      },
-                      title: { type: "string", description: "Optional new issue title" },
-                      body: { type: "string", description: "Optional new issue body" },
-                      issue_number: {
-                        type: ["number", "string"],
-                        description: "Optional issue number for target '*'",
-                      },
+                    body: { type: "string", description: "Comment body content" },
+                    start_line: {
+                      type: ["number", "string"],
+                      description: "Optional start line for multi-line comments",
                     },
-                    additionalProperties: false,
-                  },
-                },
-                {
-                  name: "push-to-pr-branch",
-                  description: "Push changes to a pull request branch",
-                  inputSchema: {
-                    type: "object",
-                    required: ["branch", "message"],
-                    properties: {
-                      branch: {
-                        type: "string",
-                        description:
-                          "The name of the branch to push to, should be the branch name associated with the pull request",
-                      },
-                      message: { type: "string", description: "Commit message" },
-                      pull_request_number: {
-                        type: ["number", "string"],
-                        description: "Optional pull request number for target '*'",
-                      },
+                    side: {
+                      type: "string",
+                      enum: ["LEFT", "RIGHT"],
+                      description: "Optional side of the diff: LEFT or RIGHT",
                     },
-                    additionalProperties: false,
                   },
+                  additionalProperties: false,
                 },
-                {
-                  name: "upload-asset",
-                  description:
-                    "Publish a file as a URL-addressable asset to an orphaned git branch",
-                  inputSchema: {
-                    type: "object",
-                    required: ["path"],
-                    properties: {
-                      path: {
-                        type: "string",
-                        description: "Path to the file to publish as an asset",
-                      },
+              },
+              {
+                name: "create-code-scanning-alert",
+                description: "Create a code scanning alert",
+                inputSchema: {
+                  type: "object",
+                  required: ["file", "line", "severity", "message"],
+                  properties: {
+                    file: {
+                      type: "string",
+                      description: "File path where the issue was found",
                     },
-                    additionalProperties: false,
-                  },
-                  handler: publishAssetHandler,
-                },
-                {
-                  name: "missing-tool",
-                  description:
-                    "Report a missing tool or functionality needed to complete tasks",
-                  inputSchema: {
-                    type: "object",
-                    required: ["tool", "reason"],
-                    properties: {
-                      tool: { type: "string", description: "Name of the missing tool" },
-                      reason: { type: "string", description: "Why this tool is needed" },
-                      alternatives: {
-                        type: "string",
-                        description: "Possible alternatives or workarounds",
-                      },
+                    line: {
+                      type: ["number", "string"],
+                      description: "Line number where the issue was found",
                     },
-                    additionalProperties: false,
+                    severity: {
+                      type: "string",
+                      enum: ["error", "warning", "info", "note"],
+                      description: "Severity level",
+                    },
+                    message: {
+                      type: "string",
+                      description: "Alert message describing the issue",
+                    },
+                    column: {
+                      type: ["number", "string"],
+                      description: "Optional column number",
+                    },
+                    ruleIdSuffix: {
+                      type: "string",
+                      description: "Optional rule ID suffix for uniqueness",
+                    },
                   },
+                  additionalProperties: false,
                 },
-              ]
-                .filter(({ name }) => isToolEnabled(name))
-                .map(tool => [tool.name, tool])
-            );
+              },
+              {
+                name: "add-labels",
+                description: "Add labels to a GitHub issue or pull request",
+                inputSchema: {
+                  type: "object",
+                  required: ["labels"],
+                  properties: {
+                    labels: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Labels to add",
+                    },
+                    issue_number: {
+                      type: "number",
+                      description: "Issue or PR number (optional for current context)",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
+                name: "update-issue",
+                description: "Update a GitHub issue",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    status: {
+                      type: "string",
+                      enum: ["open", "closed"],
+                      description: "Optional new issue status",
+                    },
+                    title: { type: "string", description: "Optional new issue title" },
+                    body: { type: "string", description: "Optional new issue body" },
+                    issue_number: {
+                      type: ["number", "string"],
+                      description: "Optional issue number for target '*'",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
+                name: "push-to-pr-branch",
+                description: "Push changes to a pull request branch",
+                inputSchema: {
+                  type: "object",
+                  required: ["branch", "message"],
+                  properties: {
+                    branch: {
+                      type: "string",
+                      description:
+                        "The name of the branch to push to, should be the branch name associated with the pull request",
+                    },
+                    message: { type: "string", description: "Commit message" },
+                    pull_request_number: {
+                      type: ["number", "string"],
+                      description: "Optional pull request number for target '*'",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
+                name: "upload-asset",
+                description:
+                  "Publish a file as a URL-addressable asset to an orphaned git branch",
+                inputSchema: {
+                  type: "object",
+                  required: ["path"],
+                  properties: {
+                    path: {
+                      type: "string",
+                      description: "Path to the file to publish as an asset",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+                handler: publishAssetHandler,
+              },
+              {
+                name: "missing-tool",
+                description:
+                  "Report a missing tool or functionality needed to complete tasks",
+                inputSchema: {
+                  type: "object",
+                  required: ["tool", "reason"],
+                  properties: {
+                    tool: { type: "string", description: "Name of the missing tool" },
+                    reason: { type: "string", description: "Why this tool is needed" },
+                    alternatives: {
+                      type: "string",
+                      description: "Possible alternatives or workarounds",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            ]
             debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);
             debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
+            const unknownTools = Object.keys(safeOutputsConfig).filter(
+              name => !ALL_TOOLS.find(t => t.name === name)
+            );
+            if (unknownTools.length)
+              throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
+            const TOOLS = Object.fromEntries(ALL_TOOLS
+              .filter(({ name }) => safeOutputsConfig[name])
+              .map(tool => [tool.name, tool])
+            );
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length)
               throw new Error("No tools enabled in configuration");
@@ -839,7 +833,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -880,47 +874,10 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Development Assistant
           
-          You are a development assistant that helps with coding tasks and maintains an execution plan.
-          
-          ## Task
-          
-          1. Generate a creative poem about AI development and save it as a text file.
-          2. Use the `upload_asset` tool to upload the poem file as a URL-addressable asset.
-          3. Create an issue using the create-issue tool that includes:
-             - Title: "AI Development Poem Published"
-             - Body containing the poem text
-             - A markdown link to the uploaded asset URL
-             - Clear formatting to highlight the asset link
-          
-          ## Execution Plan Management
-          
-          - **Check for existing plan**: Look for `/tmp/cache-memory/plan.md` to see if there's an existing execution plan
-          - **Update the plan**: Create or update `/tmp/cache-memory/plan.md` with your execution strategy
-          - **Remember progress**: Store any important findings, decisions, or progress in the cache folder
-          - **Recall previous work**: If a plan exists, reference it and continue from where you left off
-          
-          The plan should include:
-          1. Current objectives
-          2. Steps completed
-          3. Next steps
-          4. Any important discoveries or decisions
-          5. Tools or approaches that worked well
-          
-          ## Asset Publishing Demo
-          
-          After completing the main task, create a demonstration of the new upload_asset functionality:
-          
           1. **Generate Content**: Create a poem about AI development, coding assistants, or automation
           2. **Save to File**: Write the poem to a text file (e.g., `/tmp/ai-development-poem.txt`)
-          3. **Publish Asset**: Use the `upload_asset` tool to upload the file
+          3. **Publish Asset**: Use the `upload asset` tool to upload the file
           4. **Document URL**: Note the generated URL where the asset will be accessible
-          
-          The upload_asset tool will:
-          - Validate the file is within allowed directories (workspace or /tmp)
-          - Copy the file to staging area
-          - Generate a SHA-based filename for deduplication
-          - Return a GitHub raw content URL for future access
-          - Log the asset for publication to the orphaned branch
           
           Please maintain this execution plan throughout your work to ensure continuity across workflow runs.
           
@@ -957,7 +914,7 @@ jobs:
           **Uploading Assets**
           
           To upload files as URL-addressable assets:
-          1. Use the upload_asset tool from the safe-outputs MCP
+          1. Use the `upload assert` tool from the safe-outputs MCP
           2. Provide the path to the file you want to upload
           3. The tool will copy the file to a staging area and return a GitHub raw content URL
           4. Assets are uploaded to an orphaned git branch after workflow completion
@@ -1135,7 +1092,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
         with:
           script: |
             async function main() {
