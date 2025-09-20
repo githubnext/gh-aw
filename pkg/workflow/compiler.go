@@ -2275,31 +2275,31 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	// Create a simplified config object for validation
 	safeOutputsConfig := make(map[string]any)
 	if data.SafeOutputs.CreateIssues != nil {
-		safeOutputsConfig["create-issue"] = map[string]any{}
+		safeOutputsConfig["create_issue"] = map[string]any{}
 	}
 	if data.SafeOutputs.AddComments != nil {
 		commentConfig := map[string]any{}
 		if data.SafeOutputs.AddComments.Target != "" {
 			commentConfig["target"] = data.SafeOutputs.AddComments.Target
 		}
-		safeOutputsConfig["add-comment"] = commentConfig
+		safeOutputsConfig["add_comment"] = commentConfig
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
 		discussionConfig := map[string]any{}
 		if data.SafeOutputs.CreateDiscussions.Max > 0 {
 			discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
 		}
-		safeOutputsConfig["create-discussion"] = discussionConfig
+		safeOutputsConfig["create_discussion"] = discussionConfig
 	}
 	if data.SafeOutputs.CreatePullRequests != nil {
-		safeOutputsConfig["create-pull-request"] = map[string]any{}
+		safeOutputsConfig["create_pull_request"] = map[string]any{}
 	}
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 		prReviewCommentConfig := map[string]any{}
 		if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
 			prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
 		}
-		safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
+		safeOutputsConfig["create_pull_request_review_comment"] = prReviewCommentConfig
 	}
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		// Security reports typically have unlimited max, but check if configured
@@ -2307,30 +2307,30 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
 			securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
 		}
-		safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
+		safeOutputsConfig["create_code_scanning_alert"] = securityReportConfig
 	}
 	if data.SafeOutputs.AddLabels != nil {
-		safeOutputsConfig["add-labels"] = map[string]any{}
+		safeOutputsConfig["add_labels"] = map[string]any{}
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
-		safeOutputsConfig["update-issue"] = map[string]any{}
+		safeOutputsConfig["update_issue"] = map[string]any{}
 	}
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		pushToBranchConfig := map[string]any{}
 		if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
 			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 		}
-		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
+		safeOutputsConfig["push_to_pr_branch"] = pushToBranchConfig
 	}
 	if data.SafeOutputs.UploadAsset != nil {
-		safeOutputsConfig["upload-asset"] = map[string]any{}
+		safeOutputsConfig["upload_asset"] = map[string]any{}
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		missingToolConfig := map[string]any{}
 		if data.SafeOutputs.MissingTool.Max > 0 {
 			missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
 		}
-		safeOutputsConfig["missing-tool"] = missingToolConfig
+		safeOutputsConfig["missing_tool"] = missingToolConfig
 	}
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	return string(configJSON)
