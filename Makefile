@@ -147,7 +147,7 @@ js:
 .PHONY: compile-ts
 compile-ts:
 	echo "Compiling TypeScript files..."; \
-	cd pkg/workflow/js && npm run compile
+	cd pkg/workflow/js && npm run compile && npm run format:cjs
 
 # Check formatting
 .PHONY: fmt-check
