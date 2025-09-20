@@ -1,8 +1,4 @@
-import type { CreateIssueItem } from "./types/safe-outputs";
-
-interface ValidatedOutput {
-  items: CreateIssueItem[];
-}
+import type { CreateIssueItem, SafeOutputItems } from "./types/safe-outputs";
 
 interface CreatedIssue {
   number: number;
@@ -28,7 +24,7 @@ async function main(): Promise<void> {
   core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput: ValidatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
@@ -43,7 +39,7 @@ async function main(): Promise<void> {
 
   // Find all create-issue items
   const createIssueItems = validatedOutput.items.filter(
-    (item: any): item is CreateIssueItem => item.type === "create-issue"
+    item => item.type === "create-issue"
   );
   if (createIssueItems.length === 0) {
     core.info("No create-issue items found in agent output");
@@ -83,9 +79,9 @@ async function main(): Promise<void> {
   const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
   let envLabels: string[] = labelsEnv
     ? labelsEnv
-        .split(",")
-        .map((label: string) => label.trim())
-        .filter((label: string) => label)
+      .split(",")
+      .map((label: string) => label.trim())
+      .filter((label: string) => label)
     : [];
 
   const createdIssues: CreatedIssue[] = [];

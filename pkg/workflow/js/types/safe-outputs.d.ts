@@ -168,7 +168,12 @@ type SafeOutputItem =
   | MissingToolItem
   | UploadAssetItem;
 
-
+/**
+ * Sanitized safe output items
+ */
+interface SafeOutputItems {
+  items: SafeOutputItem[];
+}
 
 // === Export JSONL types ===
 export {
@@ -186,4 +191,5 @@ export {
   MissingToolItem,
   UploadAssetItem,
   SafeOutputItem,
+  SafeOutputItems
 };
