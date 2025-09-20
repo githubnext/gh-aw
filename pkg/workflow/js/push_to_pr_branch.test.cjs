@@ -61,7 +61,7 @@ global.context = mockContext;
 describe("push_to_pr_branch.cjs", () => {
   let pushToPrBranchScript;
   let mockFs;
-  let mockExecSync;
+  let mockExec;
 
   // Helper function to execute the script with proper globals
   const executeScript = async () => {
@@ -69,7 +69,7 @@ describe("push_to_pr_branch.cjs", () => {
     global.core = mockCore;
     global.context = mockContext;
     global.mockFs = mockFs;
-    global.mockExecSync = mockExecSync;
+    global.mockExec = mockExec;
 
     // Execute the script
     return await eval(`(async () => { ${pushToPrBranchScript} })()`);
@@ -90,8 +90,21 @@ describe("push_to_pr_branch.cjs", () => {
       readFileSync: vi.fn(),
     };
 
-    // Create fresh mock for execSync
-    mockExecSync = vi.fn();
+    // Create fresh mock for exec
+    mockExec = {
+      exec: vi.fn().mockImplementation((command, args, options) => {
+        // Handle the gh pr view command specifically
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          // Simulate the stdout listener being called with branch name
+          if (options && options.listeners && options.listeners.stdout) {
+            options.listeners.stdout(Buffer.from("feature-branch\n"));
+          }
+          return Promise.resolve(0); // Return exit code directly, not an object
+        }
+        // For other commands, just return success
+        return Promise.resolve(0);
+      }),
+    };
 
     // Reset mockCore calls
     mockCore.setFailed.mockReset();
@@ -105,12 +118,11 @@ describe("push_to_pr_branch.cjs", () => {
 
     // Modify the script to inject our mocks and make core available
     pushToPrBranchScript = pushToPrBranchScript.replace(
-      'async function main() {\n  /** @type {typeof import("fs")} */\n  const fs = require("fs");\n  const { execSync } = require("child_process");',
-      `async function main() {
-  const core = global.core;
-  const context = global.context || {};
-  const fs = global.mockFs;
-  const execSync = global.mockExecSync;`
+      /\/\*\* @type \{typeof import\("fs"\)\} \*\/\nconst fs = require\("fs"\);\n\/\*\* @type \{typeof import\("@actions\/exec"\)\} \*\/\nconst exec = require\("@actions\/exec"\);/,
+      `const core = global.core;
+const context = global.context || {};
+const fs = global.mockFs;
+const exec = global.mockExec;`
     );
   });
 
@@ -120,7 +132,7 @@ describe("push_to_pr_branch.cjs", () => {
       delete global.core;
       delete global.context;
       delete global.mockFs;
-      delete global.mockExecSync;
+      delete global.mockExec;
     }
   });
 
@@ -225,7 +237,6 @@ describe("push_to_pr_branch.cjs", () => {
       mockFs.readFileSync.mockReturnValue("");
 
       // Mock the git command to return a branch name
-      mockExecSync.mockReturnValue("feature-branch");
 
       // Execute the script
       await executeScript();
@@ -274,7 +285,6 @@ describe("push_to_pr_branch.cjs", () => {
       );
 
       // Mock the git commands that will be called
-      mockExecSync.mockReturnValue("feature-branch");
 
       // Execute the script
       await executeScript();
@@ -332,7 +342,6 @@ describe("push_to_pr_branch.cjs", () => {
       mockFs.readFileSync.mockReturnValue("some patch content");
 
       // Mock the git commands
-      mockExecSync.mockReturnValue("feature-branch");
 
       // Execute the script
       await executeScript();
@@ -383,7 +392,6 @@ describe("push_to_pr_branch.cjs", () => {
       mockFs.readFileSync.mockReturnValue(patchContent);
 
       // Mock the git commands that will be called
-      mockExecSync.mockReturnValue("feature-branch");
 
       // Execute the script
       await executeScript();
@@ -447,7 +455,6 @@ describe("push_to_pr_branch.cjs", () => {
       mockFs.readFileSync.mockReturnValue(patchContent);
 
       // Mock the git commands that will be called
-      mockExecSync.mockReturnValue("feature-branch");
 
       // Execute the script
       await executeScript();
@@ -478,7 +485,6 @@ describe("push_to_pr_branch.cjs", () => {
       mockFs.readFileSync.mockReturnValue(""); // Empty patch
 
       // Mock the git commands that will be called
-      mockExecSync.mockReturnValue("feature-branch");
 
       // Execute the script
       await executeScript();

@@ -16,7 +16,7 @@ const createTestableFunction = scriptContent => {
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, execSync, github, core, context, process, console } = arguments[0];
+    const { fs, crypto, exec, github, core, context, process, console } = arguments[0];
     
     return async function main() {
       ${mainFunctionBody}
@@ -50,6 +50,9 @@ describe("create_pull_request.cjs", () => {
           .mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
       },
       execSync: vi.fn(),
+      exec: {
+        exec: vi.fn().mockResolvedValue({ exitCode: 0 }),
+      },
       github: {
         rest: {
           pulls: {
@@ -212,21 +215,14 @@ describe("create_pull_request.cjs", () => {
     await mainFunction();
 
     // Verify git operations (excluding git config which is handled by workflow)
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git checkout -b test-workflow-1234567890abcdef",
-      {
-        stdio: "inherit",
-      }
+    expect(mockDependencies.exec.exec).toHaveBeenCalledWith("git fetch origin");
+    expect(mockDependencies.exec.exec).toHaveBeenCalledWith("git checkout main");
+    expect(mockDependencies.exec.exec).toHaveBeenCalledWith(
+      "git checkout -b test-workflow-1234567890abcdef"
     );
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git am /tmp/aw.patch",
-      { stdio: "inherit" }
-    );
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git push origin test-workflow-1234567890abcdef",
-      {
-        stdio: "inherit",
-      }
+    expect(mockDependencies.exec.exec).toHaveBeenCalledWith("git am /tmp/aw.patch");
+    expect(mockDependencies.exec.exec).toHaveBeenCalledWith(
+      "git push origin test-workflow-1234567890abcdef"
     );
 
     // Verify PR creation
