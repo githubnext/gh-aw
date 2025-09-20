@@ -29,9 +29,11 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 	// Set up environment
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", outputFile))
-	
+
 	// Add required environment variables for upload_asset tool
 	env = append(env, "GITHUB_AW_ASSETS_BRANCH=test-assets")
+	env = append(env, "GITHUB_AW_ASSETS_MAX_SIZE_KB=10240")
+	env = append(env, "GITHUB_AW_ASSETS_ALLOWED_EXTS=.png,.jpg,.jpeg")
 	env = append(env, "GITHUB_SERVER_URL=https://github.com")
 	env = append(env, "GITHUB_REPOSITORY=test/repo")
 
@@ -421,8 +423,8 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	client := NewMCPTestClient(t, tempFile, config)
 	defer client.Close()
 
-	// Create a test file to publish
-	testFilePath := "/tmp/test-asset.txt"
+	// Create a test file to publish (using allowed extension)
+	testFilePath := "/tmp/test-asset.png"
 	testContent := "This is a test asset file."
 
 	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {
@@ -474,7 +476,7 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	defer client.Close()
 
 	// Test valid paths first - /tmp should be allowed
-	testFilePath := "/tmp/test-asset-validation.txt"
+	testFilePath := "/tmp/test-asset-validation.png"
 	testContent := "This is a test file for path validation."
 
 	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {

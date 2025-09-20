@@ -10,6 +10,7 @@ safe-outputs:
   upload-assets:
     branch: "dev-assets/${{ github.run_id }}"
     max-size: 1024
+    allowed-exts: [".txt"]
   create-issue:
     title-prefix: "[dev] "
     labels: [automation, dev-workflow]

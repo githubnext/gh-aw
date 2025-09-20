@@ -157,29 +157,26 @@ const uploadAssetHandler = args => {
   const sizeBytes = stats.size;
   const sizeKB = Math.ceil(sizeBytes / 1024);
 
-  // Check file size (default max 10MB = 10240 KB)
-  const maxSizeKB = 10240;
+  // Check file size - read from environment variable if available
+  const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? 
+    parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 
+    10240; // Default 10MB
   if (sizeKB > maxSizeKB) {
     throw new Error(
       `File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`
     );
   }
 
-  // Check file extension
+  // Check file extension - read from environment variable if available
   const ext = path.extname(filePath).toLowerCase();
-  const allowedExts = [
-    // Images
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".webp",
-    // Video
-    ".mp4",
-    ".webm",
-    // Text
-    ".txt",
-    ".md",
-  ];
+  const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS ?
+    process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim()) :
+    [
+      // Default set as specified in problem statement
+      ".png",
+      ".jpg", 
+      ".jpeg",
+    ];
 
   if (!allowedExts.includes(ext)) {
     throw new Error(
@@ -449,7 +446,7 @@ const ALL_TOOLS = [
         path: {
           type: "string",
           description:
-            "Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. Images (.jpg, .png, .webp), videos (.mp4, .webm), and text files (.txt, .md) are allowed.",
+            "Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. By default, images (.png, .jpg, .jpeg) are allowed, but can be configured via workflow settings.",
         },
       },
       additionalProperties: false,
