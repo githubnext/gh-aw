@@ -114,10 +114,10 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	}
 
 	// Step 2: Checkout repository
-	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, "        uses: actions/checkout@v5\n")
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          fetch-depth: 0\n")
+	//	steps = append(steps, "      - name: Checkout repository\n")
+	//	steps = append(steps, "        uses: actions/checkout@v5\n")
+	//	steps = append(steps, "        with:\n")
+	//	steps = append(steps, "          fetch-depth: 0\n")
 
 	// Step 3: Configure Git credentials
 	steps = append(steps, c.generateGitConfigurationSteps()...)
