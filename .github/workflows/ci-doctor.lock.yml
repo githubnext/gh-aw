@@ -205,7 +205,7 @@ jobs:
               if (!isInWorkspace && !isInTmp) {
                 throw new Error(
                   `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                  `Provided path: ${filePath} (resolved to: ${absolutePath})`
+                    `Provided path: ${filePath} (resolved to: ${absolutePath})`
                 );
               }
               // Validate file exists
@@ -251,11 +251,6 @@ jobs:
                 // Video
                 ".mp4",
                 ".webm",
-                // Other safe formats
-                ".log",
-                ".conf",
-                ".cfg",
-                ".ini",
               ];
               if (!allowedExts.includes(ext)) {
                 throw new Error(
@@ -281,7 +276,9 @@ jobs:
               // Generate URL (will be available after the upload_asset job runs)
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
+              const branchName =
+                process.env.GITHUB_AW_ASSETS_BRANCH ||
+                `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
               const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
               // Create entry for safe outputs
               const entry = {
@@ -291,20 +288,21 @@ jobs:
                 sha: sha,
                 size: sizeBytes,
                 url: url,
-                targetFileName: targetFileName
+                targetFileName: targetFileName,
               };
               appendSafeOutput(entry);
               return {
                 content: [
                   {
                     type: "text",
-                    text: `Asset "${fileName}" published successfully!\n\n` +
-                          `• File size: ${sizeBytes} bytes\n` +
-                          `• SHA256: ${sha}\n` +
-                          `• Target filename: ${targetFileName}\n` +
-                          `• Staged for publication to: ${branchName}\n` +
-                          `• Will be available at: ${url}\n\n` +
-                          `The asset will be published to the orphaned branch after workflow completion.`,
+                    text:
+                      `Asset "${fileName}" published successfully!\n\n` +
+                      `• File size: ${sizeBytes} bytes\n` +
+                      `• SHA256: ${sha}\n` +
+                      `• Target filename: ${targetFileName}\n` +
+                      `• Staged for publication to: ${branchName}\n` +
+                      `• Will be available at: ${url}\n\n` +
+                      `The asset will be published to the orphaned branch after workflow completion.`,
                   },
                 ],
               };

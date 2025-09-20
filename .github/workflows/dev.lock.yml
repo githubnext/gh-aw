@@ -273,7 +273,7 @@ jobs:
             main();
       - name: Setup Safe Outputs Collector MCP
         env:
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload_asset\":{}}"
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
@@ -404,7 +404,7 @@ jobs:
               if (!isInWorkspace && !isInTmp) {
                 throw new Error(
                   `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                  `Provided path: ${filePath} (resolved to: ${absolutePath})`
+                    `Provided path: ${filePath} (resolved to: ${absolutePath})`
                 );
               }
               // Validate file exists
@@ -450,11 +450,6 @@ jobs:
                 // Video
                 ".mp4",
                 ".webm",
-                // Other safe formats
-                ".log",
-                ".conf",
-                ".cfg",
-                ".ini",
               ];
               if (!allowedExts.includes(ext)) {
                 throw new Error(
@@ -480,7 +475,9 @@ jobs:
               // Generate URL (will be available after the upload_asset job runs)
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH || `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
+              const branchName =
+                process.env.GITHUB_AW_ASSETS_BRANCH ||
+                `assets/${process.env.GITHUB_WORKFLOW || "workflow"}`;
               const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
               // Create entry for safe outputs
               const entry = {
@@ -490,20 +487,21 @@ jobs:
                 sha: sha,
                 size: sizeBytes,
                 url: url,
-                targetFileName: targetFileName
+                targetFileName: targetFileName,
               };
               appendSafeOutput(entry);
               return {
                 content: [
                   {
                     type: "text",
-                    text: `Asset "${fileName}" published successfully!\n\n` +
-                          `• File size: ${sizeBytes} bytes\n` +
-                          `• SHA256: ${sha}\n` +
-                          `• Target filename: ${targetFileName}\n` +
-                          `• Staged for publication to: ${branchName}\n` +
-                          `• Will be available at: ${url}\n\n` +
-                          `The asset will be published to the orphaned branch after workflow completion.`,
+                    text:
+                      `Asset "${fileName}" published successfully!\n\n` +
+                      `• File size: ${sizeBytes} bytes\n` +
+                      `• SHA256: ${sha}\n` +
+                      `• Target filename: ${targetFileName}\n` +
+                      `• Staged for publication to: ${branchName}\n` +
+                      `• Will be available at: ${url}\n\n` +
+                      `The asset will be published to the orphaned branch after workflow completion.`,
                   },
                 ],
               };
@@ -853,7 +851,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload_asset\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -900,6 +898,11 @@ jobs:
           
           1. Generate a creative poem about AI development and save it as a text file.
           2. Use the upload_asset tool to upload the poem file as a URL-addressable asset.
+          3. Create an issue using the create-issue tool that includes:
+             - Title: "AI Development Poem Published"
+             - Body containing the poem text
+             - A markdown link to the uploaded asset URL
+             - Clear formatting to highlight the asset link
           
           ## Execution Plan Management
           
@@ -955,9 +958,13 @@ jobs:
           
           ---
           
-          ## Uploading Assets, Reporting Missing Tools or Functionality
+          ## Creating an IssueUploading Assets, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Creating an Issue**
+          
+          To create an issue, use the create-issue tool from the safe-outputs MCP
           
           **Uploading Assets**
           
@@ -1140,7 +1147,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -2628,6 +2635,205 @@ jobs:
           path: /tmp/safe-outputs/assets/
           if-no-files-found: ignore
 
+  create_issue:
+    needs: dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+    steps:
+      - name: Create Output Issue
+        id: create_issue
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
+          GITHUB_AW_ISSUE_TITLE_PREFIX: "[dev] "
+          GITHUB_AW_ISSUE_LABELS: "automation,dev-workflow"
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          script: |
+            async function main() {
+              // Check if we're in staged mode
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              // Read the validated output content from environment variable
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              // Parse the validated output JSON
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(
+                  `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
+                );
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              // Find all create-issue items
+              const createIssueItems = validatedOutput.items.filter(
+                /** @param {any} item */ item => item.type === "create-issue"
+              );
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              // If in staged mode, emit step summary instead of creating issues
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent +=
+                  "The following issues would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createIssueItems.length; i++) {
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                // Write to step summary
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Issue creation preview written to step summary");
+                return;
+              }
+              // Check if we're in an issue context (triggered by an issue event)
+              const parentIssueNumber = context.payload?.issue?.number;
+              // Parse labels from environment variable (comma-separated string)
+              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(/** @param {string} label */ label => label.trim())
+                    .filter(/** @param {string} label */ label => label)
+                : [];
+              const createdIssues = [];
+              // Process each create-issue item
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                );
+                // Merge environment labels with item-specific labels
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
+                }
+                // Extract title and body from the JSON item
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let bodyLines = createIssueItem.body.split("\n");
+                // If no title was found, use the body content as title (or a default)
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                // Apply title prefix if provided via environment variable
+                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (parentIssueNumber) {
+                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
+                  // Add reference to parent issue in the child issue body
+                  bodyLines.push(`Related to #${parentIssueNumber}`);
+                }
+                // Add AI disclaimer with run id, run htmlurl
+                // Add AI disclaimer with workflow run information
+                const runId = context.runId;
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `https://github.com/actions/runs/${runId}`;
+                bodyLines.push(
+                  ``,
+                  ``,
+                  `> Generated by Agentic Workflow [Run](${runUrl})`,
+                  ""
+                );
+                // Prepare the body content
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  // Create the issue using GitHub API
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: body,
+                    labels: labels,
+                  });
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  createdIssues.push(issue);
+                  // If we have a parent issue, add a comment to it referencing the new child issue
+                  if (parentIssueNumber) {
+                    try {
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: parentIssueNumber,
+                        body: `Created related issue: #${issue.number}`,
+                      });
+                      core.info("Added comment to parent issue #" + parentIssueNumber);
+                    } catch (error) {
+                      core.info(
+                        `Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`
+                      );
+                    }
+                  }
+                  // Set output for the last created issue (for backward compatibility)
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage =
+                    error instanceof Error ? error.message : String(error);
+                  // Special handling for disabled issues repository
+                  if (
+                    errorMessage.includes("Issues has been disabled in this repository")
+                  ) {
+                    core.info(
+                      `⚠ Cannot create issue "${title}": Issues are disabled for this repository`
+                    );
+                    core.info(
+                      "Consider enabling issues in repository settings if you want to create issues automatically"
+                    );
+                    continue; // Skip this issue but continue processing others
+                  }
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  throw error;
+                }
+              }
+              // Write summary for all created issues
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+            }
+            await main();
+
   upload_assets:
     needs: dev
     runs-on: ubuntu-latest
@@ -2639,16 +2845,17 @@ jobs:
       published_count: ${{ steps.upload_assets.outputs.published_count }}
     steps:
       - name: Download safe outputs
-        uses: actions/download-artifact@v4
+        continue-on-error: true
+        uses: actions/download-artifact@v5
         with:
           name: safe_output.jsonl
           path: /tmp/safe-outputs/
       - name: Download assets
-        uses: actions/download-artifact@v4
+        continue-on-error: true
+        uses: actions/download-artifact@v5
         with:
           name: safe-outputs-assets
           path: /tmp/safe-outputs/assets/
-        continue-on-error: true
       - name: Publish Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@v8
@@ -2660,17 +2867,17 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
-            const { execSync } = require("child_process");
             async function main() {
               // Check if we're in staged mode
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               // Get the branch name from environment variable (required)
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
               if (!branchName) {
-                core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+                core.setFailed(
+                  "GITHUB_AW_ASSETS_BRANCH environment variable is required but not set"
+                );
                 return;
               }
-              core.info("Starting asset publishing process");
               // Read the validated output content from environment variable
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
@@ -2713,71 +2920,28 @@ jobs:
                 return;
               }
               core.info(`Found ${publishAssetItems.length} upload_asset item(s)`);
-              // Process each asset and validate integrity
-              let hasChanges = false;
-              let publishedCount = 0;
-              // If in staged mode, process files but don't push
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Asset Publishing Preview\n\n";
-                summaryContent += "The following assets would be published if staged mode was disabled:\n\n";
-                let processedCount = 0;
-                for (const asset of publishAssetItems) {
-                  try {
-                    const { fileName, filePath, sha, size, targetFileName } = asset;
-                    if (!fileName || !filePath || !sha || !targetFileName) {
-                      core.warning(
-                        `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
-                      );
-                      continue;
-                    }
-                    // Check if file exists in artifacts
-                    const assetSourcePath = path.join("/tmp/safe-outputs/assets", fileName);
-                    if (!fs.existsSync(assetSourcePath)) {
-                      core.warning(`Asset file not found: ${assetSourcePath}`);
-                      continue;
-                    }
-                    // Verify SHA matches
-                    const fileContent = fs.readFileSync(assetSourcePath);
-                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-                    if (computedSha !== sha) {
-                      core.warning(
-                        `SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`
-                      );
-                      continue;
-                    }
-                    summaryContent += `- **${fileName}** → \`${targetFileName}\` (${size} bytes, SHA: ${sha.substring(0, 16)}...)\n`;
-                    processedCount++;
-                  } catch (error) {
-                    core.warning(
-                      `Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`
-                    );
-                  }
-                }
-                summaryContent += `\n**Total assets staged for publishing:** ${processedCount}\n`;
-                summaryContent += `**Target branch:** ${branchName}\n`;
-                core.summary.addRaw(summaryContent).write();
-                core.setOutput("published_count", processedCount.toString());
-                core.setOutput("branch_name", branchName);
-                return;
-              }
               let publishedCount = 0;
               let hasChanges = false;
               try {
                 // Check if orphaned branch already exists, if not create it
                 let branchExists = false;
                 try {
-                  execSync(`git ls-remote --heads origin ${branchName}`, { stdio: "pipe" });
+                  await exec.exec(`git ls-remote --heads origin ${branchName}`, {
+                    stdio: "pipe",
+                  });
                   branchExists = true;
                 } catch {
                   // Branch doesn't exist, will create it
                 }
                 if (branchExists) {
                   core.info(`Checking out existing orphaned branch: ${branchName}`);
-                  execSync(`git fetch origin ${branchName}`, { stdio: "inherit" });
-                  execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+                  await exec.exec(`git fetch origin ${branchName}`, { stdio: "inherit" });
+                  await exec.exec(`git checkout ${branchName}`, { stdio: "inherit" });
                 } else {
                   core.info(`Creating new orphaned branch: ${branchName}`);
-                  execSync(`git checkout --orphan ${branchName}`, { stdio: "inherit" });
+                  await exec.exec(`git checkout --orphan ${branchName}`, {
+                    stdio: "inherit",
+                  });
                 }
                 // Process each asset
                 for (const asset of publishAssetItems) {
@@ -2815,7 +2979,7 @@ jobs:
                     // Copy file to branch with target filename
                     fs.copyFileSync(assetSourcePath, targetFileName);
                     // Add to git
-                    execSync(`git add "${targetFileName}"`, { stdio: "inherit" });
+                    await exec.exec(`git add "${targetFileName}"`, { stdio: "inherit" });
                     publishedCount++;
                     hasChanges = true;
                     core.info(`Added asset: ${targetFileName} (${size} bytes)`);
@@ -2826,22 +2990,25 @@ jobs:
                   }
                 }
                 // Commit and push if there are changes (skip if staged)
-                if (hasChanges && !isStaged) {
+                if (hasChanges) {
                   const commitMessage = `Add ${publishedCount} asset(s) via GitHub Actions`;
-                  execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
-                  execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-                  core.info(
-                    `Successfully published ${publishedCount} assets to branch ${branchName}`
-                  );
+                  await exec.exec(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+                  if (isStaged) {
+                    core.addRaw("## Staged Asset Publication");
+                  } else {
+                    core.summary
+                      .addRaw("## Assets Published")
+                      .addRaw(
+                        `Successfully published **${publishedCount}** assets to branch \`${branchName}\``
+                      )
+                      .addRaw("");
+                    await exec.exec(`git push origin ${branchName}`, { stdio: "inherit" });
+                    core.info(
+                      `Successfully published ${publishedCount} assets to branch ${branchName}`
+                    );
+                  }
                   // Add summary
-                  core.summary
-                    .addRaw("## Assets Published")
-                    .addRaw(
-                      `Successfully published **${publishedCount}** assets to branch \`${branchName}\``
-                    )
-                    .addRaw("")
-                    .addRaw("### Published Assets:")
-                    .addRaw("");
+                  core.summary.addRaw("### Published Assets:").addRaw("");
                   for (const asset of publishAssetItems) {
                     if (asset.fileName && asset.sha && asset.size && asset.url) {
                       core.summary.addRaw(

@@ -464,7 +464,7 @@ const TOOLS = Object.fromEntries(
       },
     },
     {
-      name: "upload_asset",
+      name: "upload-asset",
       description:
         "Publish a file as a URL-addressable asset to an orphaned git branch",
       inputSchema: {

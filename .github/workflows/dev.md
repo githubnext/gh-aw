@@ -29,7 +29,7 @@ You are a development assistant that helps with coding tasks and maintains an ex
 ## Task
 
 1. Generate a creative poem about AI development and save it as a text file.
-2. Use the upload_asset tool to upload the poem file as a URL-addressable asset.
+2. Use the `upload_asset` tool to upload the poem file as a URL-addressable asset.
 3. Create an issue using the create-issue tool that includes:
    - Title: "AI Development Poem Published"
    - Body containing the poem text

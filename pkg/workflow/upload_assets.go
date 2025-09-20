@@ -125,18 +125,19 @@ func (c *Compiler) buildUploadAssetJob(data *WorkflowData, mainJobName string, t
 
 	// Add step to download safe outputs from the main job
 	steps = append(steps, "      - name: Download safe outputs\n")
-	steps = append(steps, "        uses: actions/download-artifact@v4\n")
+	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
+	steps = append(steps, "        uses: actions/download-artifact@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          name: %s\n", OutputArtifactName))
 	steps = append(steps, "          path: /tmp/safe-outputs/\n")
 
 	// Add step to download assets artifact if it exists
 	steps = append(steps, "      - name: Download assets\n")
-	steps = append(steps, "        uses: actions/download-artifact@v4\n")
+	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
+	steps = append(steps, "        uses: actions/download-artifact@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: safe-outputs-assets\n")
 	steps = append(steps, "          path: /tmp/safe-outputs/assets/\n")
-	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 
 	steps = append(steps, "      - name: Publish Assets to Orphaned Branch\n")
 	steps = append(steps, "        id: upload_assets\n")

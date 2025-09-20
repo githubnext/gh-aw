@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { execSync } = require("child_process");
 
 async function main() {
   // Check if we're in staged mode
@@ -15,8 +14,6 @@ async function main() {
     );
     return;
   }
-
-  core.info("Starting asset publishing process");
 
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -66,67 +63,6 @@ async function main() {
 
   core.info(`Found ${publishAssetItems.length} upload_asset item(s)`);
 
-  // Process each asset and validate integrity
-  let hasChanges = false;
-  let publishedCount = 0;
-
-  // If in staged mode, process files but don't push
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Asset Publishing Preview\n\n";
-    summaryContent +=
-      "The following assets would be published if staged mode was disabled:\n\n";
-
-    let processedCount = 0;
-    for (const asset of publishAssetItems) {
-      try {
-        const { fileName, filePath, sha, size, targetFileName } = asset;
-
-        if (!fileName || !filePath || !sha || !targetFileName) {
-          core.warning(
-            `Invalid asset entry missing required fields: ${JSON.stringify(asset)}`
-          );
-          continue;
-        }
-
-        // Check if file exists in artifacts
-        const assetSourcePath = path.join("/tmp/safe-outputs/assets", fileName);
-        if (!fs.existsSync(assetSourcePath)) {
-          core.warning(`Asset file not found: ${assetSourcePath}`);
-          continue;
-        }
-
-        // Verify SHA matches
-        const fileContent = fs.readFileSync(assetSourcePath);
-        const computedSha = crypto
-          .createHash("sha256")
-          .update(fileContent)
-          .digest("hex");
-
-        if (computedSha !== sha) {
-          core.warning(
-            `SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`
-          );
-          continue;
-        }
-
-        summaryContent += `- **${fileName}** → \`${targetFileName}\` (${size} bytes, SHA: ${sha.substring(0, 16)}...)\n`;
-        processedCount++;
-      } catch (error) {
-        core.warning(
-          `Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-
-    summaryContent += `\n**Total assets staged for publishing:** ${processedCount}\n`;
-    summaryContent += `**Target branch:** ${branchName}\n`;
-
-    core.summary.addRaw(summaryContent).write();
-    core.setOutput("published_count", processedCount.toString());
-    core.setOutput("branch_name", branchName);
-    return;
-  }
-
   let publishedCount = 0;
   let hasChanges = false;
 
@@ -134,7 +70,9 @@ async function main() {
     // Check if orphaned branch already exists, if not create it
     let branchExists = false;
     try {
-      execSync(`git ls-remote --heads origin ${branchName}`, { stdio: "pipe" });
+      await exec.exec(`git ls-remote --heads origin ${branchName}`, {
+        stdio: "pipe",
+      });
       branchExists = true;
     } catch {
       // Branch doesn't exist, will create it
@@ -142,11 +80,13 @@ async function main() {
 
     if (branchExists) {
       core.info(`Checking out existing orphaned branch: ${branchName}`);
-      execSync(`git fetch origin ${branchName}`, { stdio: "inherit" });
-      execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+      await exec.exec(`git fetch origin ${branchName}`, { stdio: "inherit" });
+      await exec.exec(`git checkout ${branchName}`, { stdio: "inherit" });
     } else {
       core.info(`Creating new orphaned branch: ${branchName}`);
-      execSync(`git checkout --orphan ${branchName}`, { stdio: "inherit" });
+      await exec.exec(`git checkout --orphan ${branchName}`, {
+        stdio: "inherit",
+      });
     }
 
     // Process each asset
@@ -192,7 +132,7 @@ async function main() {
         fs.copyFileSync(assetSourcePath, targetFileName);
 
         // Add to git
-        execSync(`git add "${targetFileName}"`, { stdio: "inherit" });
+        await exec.exec(`git add "${targetFileName}"`, { stdio: "inherit" });
 
         publishedCount++;
         hasChanges = true;
@@ -206,24 +146,26 @@ async function main() {
     }
 
     // Commit and push if there are changes (skip if staged)
-    if (hasChanges && !isStaged) {
+    if (hasChanges) {
       const commitMessage = `Add ${publishedCount} asset(s) via GitHub Actions`;
-      execSync(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
-      execSync(`git push origin ${branchName}`, { stdio: "inherit" });
-
-      core.info(
-        `Successfully published ${publishedCount} assets to branch ${branchName}`
-      );
+      await exec.exec(`git commit -m "${commitMessage}"`, { stdio: "inherit" });
+      if (isStaged) {
+        core.addRaw("## Staged Asset Publication");
+      } else {
+        core.summary
+          .addRaw("## Assets Published")
+          .addRaw(
+            `Successfully published **${publishedCount}** assets to branch \`${branchName}\``
+          )
+          .addRaw("");
+        await exec.exec(`git push origin ${branchName}`, { stdio: "inherit" });
+        core.info(
+          `Successfully published ${publishedCount} assets to branch ${branchName}`
+        );
+      }
 
       // Add summary
-      core.summary
-        .addRaw("## Assets Published")
-        .addRaw(
-          `Successfully published **${publishedCount}** assets to branch \`${branchName}\``
-        )
-        .addRaw("")
-        .addRaw("### Published Assets:")
-        .addRaw("");
+      core.summary.addRaw("### Published Assets:").addRaw("");
 
       for (const asset of publishAssetItems) {
         if (asset.fileName && asset.sha && asset.size && asset.url) {
@@ -232,7 +174,6 @@ async function main() {
           );
         }
       }
-
       core.summary.write();
     } else {
       core.info("No new assets to publish");
