@@ -854,11 +854,9 @@ jobs:
           # Development Assistant
           
           1. **Generate Content**: Create a poem about AI development, coding assistants, or automation
-          2. **Save to File**: Write the poem to a text file (e.g., `/tmp/ai-development-poem.txt`)
-          3. **Publish Asset**: Use the `upload asset` tool to upload the file
-          4. **Create issue**: Use `create issue` to create a GitHub issue with a link to the uploaded asset
-          
-          Please maintain this execution plan throughout your work to ensure continuity across workflow runs.
+          2. **Save to File**: Write the poem to a text file (e.g., `/tmp/ai-development-poem.txt`).
+          3. **Publish Asset**: Use the `safe outputs upload asset` tool to upload the file
+          4. **Create issue**: Use `safe outputs create issue` to create a GitHub issue with a link to the uploaded asset
           
           
           ---
