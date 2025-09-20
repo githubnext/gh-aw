@@ -49,12 +49,10 @@ class ReadBuffer {
 }
 
 const readBuffer = new ReadBuffer();
-
 function onData(chunk) {
   readBuffer.append(chunk);
   processReadBuffer();
 }
-
 function processReadBuffer() {
   while (true) {
     try {
@@ -235,9 +233,10 @@ const publishAssetHandler = args => {
   };
 };
 
+const normTool = (toolName) => toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined;
 const ALL_TOOLS = [
   {
-    name: "create-issue",
+    name: "create_issue",
     description: "Create a new GitHub issue",
     inputSchema: {
       type: "object",
@@ -255,7 +254,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "create-discussion",
+    name: "create_discussion",
     description: "Create a new GitHub discussion",
     inputSchema: {
       type: "object",
@@ -269,7 +268,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "add-comment",
+    name: "add_comment",
     description: "Add a comment to a GitHub issue or pull request",
     inputSchema: {
       type: "object",
@@ -285,7 +284,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "create-pull-request",
+    name: "create_pull-request",
     description: "Create a new GitHub pull request",
     inputSchema: {
       type: "object",
@@ -310,7 +309,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "create-pull-request-review-comment",
+    name: "create_pull_request_review_comment",
     description: "Create a review comment on a GitHub pull request",
     inputSchema: {
       type: "object",
@@ -339,7 +338,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "create-code-scanning-alert",
+    name: "create_code_scanning_alert",
     description: "Create a code scanning alert",
     inputSchema: {
       type: "object",
@@ -375,7 +374,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "add-labels",
+    name: "add_labels",
     description: "Add labels to a GitHub issue or pull request",
     inputSchema: {
       type: "object",
@@ -395,7 +394,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "update-issue",
+    name: "update_issue",
     description: "Update a GitHub issue",
     inputSchema: {
       type: "object",
@@ -416,7 +415,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "push-to-pr-branch",
+    name: "push_to_pr_branch",
     description: "Push changes to a pull request branch",
     inputSchema: {
       type: "object",
@@ -437,7 +436,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "upload-asset",
+    name: "upload_asset",
     description:
       "Publish a file as a URL-addressable asset to an orphaned git branch",
     inputSchema: {
@@ -454,7 +453,7 @@ const ALL_TOOLS = [
     handler: publishAssetHandler,
   },
   {
-    name: "missing-tool",
+    name: "missing_tool",
     description:
       "Report a missing tool or functionality needed to complete tasks",
     inputSchema: {
@@ -478,12 +477,12 @@ debug(`v${SERVER_INFO.version} ready on stdio`);
 debug(`  output file: ${outputFile}`);
 debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
 const unknownTools = Object.keys(safeOutputsConfig).filter(
-  name => !ALL_TOOLS.find(t => t.name === name)
+  name => !ALL_TOOLS.find(t => t.name === normTool(name))
 );
 if (unknownTools.length)
   throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
 const TOOLS = Object.fromEntries(ALL_TOOLS
-  .filter(({ name }) => safeOutputsConfig[name])
+  .filter(({ name }) => safeOutputsConfig[normTool(name)])
   .map(tool => [tool.name, tool])
 );
 debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
@@ -513,7 +512,7 @@ function handleMessage(req) {
   try {
     if (method === "initialize") {
       const clientInfo = params?.clientInfo ?? {};
-      console.error(`initialize:`, clientInfo);
+      console.error(`client info:`, clientInfo);
       const protocolVersion = params?.protocolVersion ?? undefined;
       const result = {
         serverInfo: SERVER_INFO,
@@ -524,7 +523,6 @@ function handleMessage(req) {
       };
       replyResult(id, result);
     } else if (method === "tools/list") {
-      console.error(`tools/list`);
       const list = [];
       Object.values(TOOLS).forEach(tool => {
         list.push({
@@ -537,14 +535,13 @@ function handleMessage(req) {
     } else if (method === "tools/call") {
       const name = params?.name;
       const args = params?.arguments ?? {};
-      console.error(`tools/call: ${name}`, args);
       if (!name || typeof name !== "string") {
         replyError(id, -32602, "Invalid params: 'name' must be a string");
         return;
       }
-      const tool = TOOLS[name];
+      const tool = TOOLS[normTool(name)];
       if (!tool) {
-        replyError(id, -32601, `Tool not found: ${name}`);
+        replyError(id, -32601, `Tool not found: ${name} (${normTool(name)})`);
         return;
       }
       const handler = tool.handler || defaultHandler(tool.name);
