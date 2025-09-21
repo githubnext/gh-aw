@@ -28,7 +28,8 @@
     "isolatedModules": false,
     "allowUmdGlobalAccess": true,
     "typeRoots": ["./node_modules/@types", "./types"],
-    "alwaysStrict": false
+    "alwaysStrict": false,
+    "removeComments": true
   },
   "include": [
     "create_discussion.ts",

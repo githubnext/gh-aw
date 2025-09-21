@@ -1,5 +1,4 @@
 async function main() {
-    // Read the validated output content from environment variable
     const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!outputContent) {
         core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
@@ -10,7 +9,6 @@ async function main() {
         return;
     }
     core.debug(`Agent output content length: ${outputContent.length}`);
-    // Parse the validated output JSON
     let validatedOutput;
     try {
         validatedOutput = JSON.parse(outputContent);
@@ -23,15 +21,12 @@ async function main() {
         core.warning("No valid items found in agent output");
         return;
     }
-    // Find all create-discussion items
-    const createDiscussionItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "create-discussion");
+    const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create-discussion");
     if (createDiscussionItems.length === 0) {
         core.warning("No create-discussion items found in agent output");
         return;
     }
     core.debug(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-    // If in staged mode, emit step summary instead of creating discussions
     if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
         let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
         summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
@@ -47,12 +42,10 @@ async function main() {
             }
             summaryContent += "---\n\n";
         }
-        // Write to step summary
         await core.summary.addRaw(summaryContent).write();
         core.info("📝 Discussion creation preview written to step summary");
         return;
     }
-    // Get repository ID and discussion categories using GraphQL API
     let discussionCategories = [];
     let repositoryId = undefined;
     try {
@@ -79,25 +72,22 @@ async function main() {
             throw new Error("Failed to fetch repository information via GraphQL");
         repositoryId = queryResult.repository.id;
         discussionCategories = queryResult.repository.discussionCategories.nodes || [];
-        core.info(`Available categories: ${JSON.stringify(discussionCategories.map(/** @param {any} cat */ /** @param {any} cat */ cat => ({ name: cat.name, id: cat.id })))}`);
+        core.info(`Available categories: ${JSON.stringify(discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        // Special handling for repositories without discussions enabled or GraphQL errors
         if (errorMessage.includes("Not Found") ||
             errorMessage.includes("not found") ||
             errorMessage.includes("Could not resolve to a Repository")) {
             core.info("⚠ Cannot create discussions: Discussions are not enabled for this repository");
             core.info("Consider enabling discussions in repository settings if you want to create discussions automatically");
-            return; // Exit gracefully without creating discussions
+            return;
         }
         core.error(`Failed to get discussion categories: ${errorMessage}`);
         throw error;
     }
-    // Determine category ID
     let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID;
     if (!categoryId && discussionCategories.length > 0) {
-        // Default to the first category if none specified
         categoryId = discussionCategories[0].id;
         core.info(`No category-id specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
     }
@@ -110,35 +100,28 @@ async function main() {
         throw new Error("Repository ID is required but not available");
     }
     const createdDiscussions = [];
-    // Process each create-discussion item
     for (let i = 0; i < createDiscussionItems.length; i++) {
         const createDiscussionItem = createDiscussionItems[i];
         core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`);
-        // Extract title and body from the JSON item
         let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
         let bodyLines = createDiscussionItem.body.split("\n");
-        // If no title was found, use the body content as title (or a default)
         if (!title) {
             title = createDiscussionItem.body || "Agent Output";
         }
-        // Apply title prefix if provided via environment variable
         const titlePrefix = process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
         if (titlePrefix && !title.startsWith(titlePrefix)) {
             title = titlePrefix + title;
         }
-        // Add AI disclaimer with workflow run information
         const runId = context.runId;
         const runUrl = context.payload.repository
             ? `${context.payload.repository.html_url}/actions/runs/${runId}`
             : `https://github.com/actions/runs/${runId}`;
         bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
-        // Prepare the body content
         const body = bodyLines.join("\n").trim();
         core.info(`Creating discussion with title: ${title}`);
         core.info(`Category ID: ${categoryId}`);
         core.info(`Body length: ${body.length}`);
         try {
-            // Create the discussion using GraphQL API with parameterized mutation
             const createDiscussionMutation = `
         mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
           createDiscussion(input: {
@@ -169,7 +152,6 @@ async function main() {
             }
             core.info("Created discussion #" + discussion.number + ": " + discussion.url);
             createdDiscussions.push(discussion);
-            // Set output for the last created discussion (for backward compatibility)
             if (i === createDiscussionItems.length - 1) {
                 core.setOutput("discussion_number", discussion.number);
                 core.setOutput("discussion_url", discussion.url);
@@ -180,7 +162,6 @@ async function main() {
             throw error;
         }
     }
-    // Write summary for all created discussions
     if (createdDiscussions.length > 0) {
         let summaryContent = "\n\n## GitHub Discussions\n";
         for (const discussion of createdDiscussions) {
