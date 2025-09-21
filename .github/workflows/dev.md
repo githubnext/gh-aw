@@ -27,6 +27,26 @@ tools:
     - "mkdir *"
     - "cp *"
     - "mv *"
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: '20'
+      cache: 'npm'
+      cache-dependency-path: 'docs/package-lock.json'
+
+  - name: Install dependencies
+    working-directory: ./docs
+    run: npm ci
+
+  - name: Build documentation
+    working-directory: ./docs
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: npm run build
 ---
 
 # Documentation Build and Accessibility Analysis
@@ -35,14 +55,8 @@ This workflow compiles the documentation, launches the development server, takes
 
 Please follow these steps:
 
-## Step 1: Prepare Documentation Build
-1. Navigate to the `docs` directory in the repository
-2. Temporarily modify the configuration files to disable the changelog functionality that requires GitHub API access:
-   - Edit `src/content.config.ts` to remove the `changelogs` collection
-   - Edit `astro.config.mjs` to remove starlight-changelogs imports and configuration
-3. Install documentation dependencies with `npm install`
-
 ## Step 2: Build and Launch Documentation Server
+0. Go to the `docs` directory
 1. Start the documentation development server using `npm run dev`
 2. Wait for the server to fully start (it should be accessible on `http://localhost:4321/gh-aw/`)
 3. Verify the server is running by making a curl request to test accessibility

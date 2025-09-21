@@ -15,6 +15,7 @@ on:
 
 # Allow this job to clone the repo and create a page deployment
 permissions:
+  releases: read
   contents: read
   pages: write
   id-token: write
