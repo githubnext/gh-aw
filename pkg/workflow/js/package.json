@@ -16,11 +16,12 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "compile": "tsc --project tsconfig.build.json && sed -i 's/^export {};$//' *.js",
     "test": "npm run typecheck && vitest run",
     "test:js": "vitest run",
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
-    "format:cjs": "prettier --write '**/*.cjs'",
+    "format:cjs": "prettier --write '**/*.cjs' '**/*.js'",
     "lint:cjs": "prettier --check '**/*.cjs'"
   }
 }

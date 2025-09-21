@@ -1,3 +1,27 @@
+import type { SafeOutputItems } from "./types/safe-outputs";
+
+type DiscussionCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+}
+type DiscussionCategoryQuery = {
+  repository: {
+    id: string;
+    discussionCategories: {
+      nodes: Array<DiscussionCategory>;
+    };
+  };
+}
+
+type Discussion = {
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+}
+
 async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -13,7 +37,7 @@ async function main() {
   core.debug(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
@@ -61,9 +85,10 @@ async function main() {
     return;
   }
 
+
   // Get repository ID and discussion categories using GraphQL API
-  let discussionCategories = [];
-  let repositoryId = null;
+  let discussionCategories: DiscussionCategory[] = [];
+  let repositoryId: string | undefined = undefined;
   try {
     const repositoryQuery = `
       query($owner: String!, $repo: String!) {
@@ -81,11 +106,12 @@ async function main() {
       }
     `;
 
-    const queryResult = await github.graphql(repositoryQuery, {
+    const queryResult = await github.graphql<DiscussionCategoryQuery>(repositoryQuery, {
       owner: context.repo.owner,
       repo: context.repo.repo,
     });
-
+    if (!queryResult || !queryResult.repository)
+      throw new Error("Failed to fetch repository information via GraphQL");
     repositoryId = queryResult.repository.id;
     discussionCategories = queryResult.repository.discussionCategories.nodes || [];
     core.info(
@@ -128,7 +154,7 @@ async function main() {
     throw new Error("Repository ID is required but not available");
   }
 
-  const createdDiscussions = [];
+  const createdDiscussions: Discussion[] = [];
 
   // Process each create-discussion item
   for (let i = 0; i < createDiscussionItems.length; i++) {
@@ -186,7 +212,11 @@ async function main() {
         }
       `;
 
-      const mutationResult = await github.graphql(createDiscussionMutation, {
+      const mutationResult = await github.graphql<{
+        createDiscussion: {
+          discussion: Discussion;
+        };
+      }>(createDiscussionMutation, {
         repositoryId: repositoryId,
         categoryId: categoryId,
         title: title,
@@ -194,6 +224,10 @@ async function main() {
       });
 
       const discussion = mutationResult.createDiscussion.discussion;
+      if (!discussion) {
+        core.error("Failed to create discussion: No discussion data returned");
+        continue;
+      }
 
       core.info("Created discussion #" + discussion.number + ": " + discussion.url);
       createdDiscussions.push(discussion);

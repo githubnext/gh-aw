@@ -239,6 +239,7 @@ func TestEmbeddedScriptsNotEmpty(t *testing.T) {
 	}{
 		{"createPullRequestScript", createPullRequestScript},
 		{"createIssueScript", createIssueScript},
+		{"createDiscussionScript", createDiscussionScript},
 		{"createCommentScript", createCommentScript},
 		{"collectJSONLOutputScript", collectJSONLOutputScript},
 		{"addLabelsScript", addLabelsScript},

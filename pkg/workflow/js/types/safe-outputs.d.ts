@@ -33,6 +33,8 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
   title: string;
   /** Discussion body content */
   body: string;
+  /** Optional category ID for the discussion */
+  category_id?: number | string;
 }
 
 /**
@@ -168,7 +170,12 @@ type SafeOutputItem =
   | MissingToolItem
   | UploadAssetItem;
 
-
+/**
+ * Sanitized safe output items
+ */
+interface SafeOutputItems {
+  items: SafeOutputItem[];
+}
 
 // === Export JSONL types ===
 export {
@@ -186,4 +193,5 @@ export {
   MissingToolItem,
   UploadAssetItem,
   SafeOutputItem,
+  SafeOutputItems
 };
