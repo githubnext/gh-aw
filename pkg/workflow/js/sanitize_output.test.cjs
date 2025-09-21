@@ -48,7 +48,7 @@ const mockCore = {
 // Set up global variables
 global.core = mockCore;
 
-describe("sanitize_output.cjs", () => {
+describe("sanitize_output.js", () => {
   let sanitizeScript;
   let sanitizeContentFunction;
 
@@ -61,7 +61,7 @@ describe("sanitize_output.cjs", () => {
     delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "sanitize_output.cjs");
+    const scriptPath = path.join(process.cwd(), "sanitize_output.js");
     sanitizeScript = fs.readFileSync(scriptPath, "utf8");
 
     // Extract sanitizeContent function for unit testing

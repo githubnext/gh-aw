@@ -33,6 +33,7 @@
   },
   "include": [
     "add_comment.ts",
+    "add_labels.ts",
     "add_reaction.ts",
     "check_permissions.ts",
     "check_team_member.ts",
@@ -40,7 +41,9 @@
     "create_issue.ts",
     "missing_tool.ts",
     "safe_outputs_mcp_client.ts",
+    "sanitize_output.ts",
     "setup_agent_output.ts",
+    "update_issue.ts",
     "upload_assets.ts",
     "validate_errors.ts",
     "types/*.d.ts"

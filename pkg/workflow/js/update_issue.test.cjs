@@ -71,7 +71,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("update_issue.cjs", () => {
+describe("update_issue.js", () => {
   let updateIssueScript;
 
   beforeEach(() => {
@@ -91,7 +91,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_UPDATE_BODY = "false";
 
     // Read the script
-    const scriptPath = path.join(__dirname, "update_issue.cjs");
+    const scriptPath = path.join(__dirname, "update_issue.js");
     updateIssueScript = fs.readFileSync(scriptPath, "utf8");
   });
 

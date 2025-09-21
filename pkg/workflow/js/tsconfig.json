@@ -32,7 +32,7 @@
     "typeRoots": ["./node_modules/@types", "./types"]
   },
   "include": [
-    "add_labels.cjs",
+    "add_labels.ts",
     "add_reaction.ts",
     "add_reaction_and_edit_comment.cjs",
     "check_permissions.ts",
@@ -51,9 +51,9 @@
     "push_to_pr_branch.cjs",
     "safe_outputs_mcp_client.ts",
     "safe_outputs_mcp_server.cjs",
-    "sanitize_output.cjs",
+    "sanitize_output.ts",
     "setup_agent_output.ts",
-    "update_issue.cjs",
+    "update_issue.ts",
     "validate_errors.ts",
     "types/*.d.ts"
   ],
