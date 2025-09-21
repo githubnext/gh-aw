@@ -10,14 +10,7 @@ function sanitizeContent(content) {
 
   // Read allowed domains from environment variable
   const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-  const defaultAllowedDomains = [
-    "github.com",
-    "github.io",
-    "githubusercontent.com",
-    "githubassets.com",
-    "github.dev",
-    "codespaces.new",
-  ];
+  const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
   const allowedDomains = allowedDomainsEnv
     ? allowedDomainsEnv
@@ -165,10 +158,7 @@ function sanitizeContent(content) {
    */
   function neutralizeBotTriggers(s) {
     // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-    return s.replace(
-      /\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi,
-      (match, action, ref) => `\`${action} #${ref}\``
-    );
+    return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
   }
 }
 
@@ -193,9 +183,7 @@ async function main() {
     core.setOutput("output", "");
   } else {
     const sanitizedContent = sanitizeContent(outputContent);
-    core.info(
-      `Collected agentic output (sanitized): ${sanitizedContent.substring(0, 200)}${sanitizedContent.length > 200 ? "..." : ""}`
-    );
+    core.info(`Collected agentic output (sanitized): ${sanitizedContent.substring(0, 200)}${sanitizedContent.length > 200 ? "..." : ""}`);
     core.setOutput("output", sanitizedContent);
   }
 }

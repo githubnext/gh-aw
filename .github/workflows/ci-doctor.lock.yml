@@ -76,9 +76,7 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
             const safeOutputsConfigRaw = JSON.parse(configEnv); 
-            const safeOutputsConfig = Object.fromEntries(
-              Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])
-            );
+            const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
             if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
@@ -197,9 +195,7 @@ jobs:
               const stats = fs.statSync(filePath);
               const sizeBytes = stats.size;
               const sizeKB = Math.ceil(sizeBytes / 1024);
-              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB
-                ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10)
-                : 10240; 
+              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
               if (sizeKB > maxSizeKB) {
                 throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
               }
@@ -489,10 +485,7 @@ jobs:
             const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
             if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
             const TOOLS = Object.fromEntries(
-              ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [
-                tool.name,
-                tool,
-              ])
+              ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [tool.name, tool])
             );
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
@@ -546,8 +539,7 @@ jobs:
                     return;
                   }
                   const handler = tool.handler || defaultHandler(tool.name);
-                  const requiredFields =
-                    tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
                   if (requiredFields.length) {
                     const missing = requiredFields.filter(f => {
                       const value = args[f];
@@ -999,14 +991,7 @@ jobs:
                   return "";
                 }
                 const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-                const defaultAllowedDomains = [
-                  "github.com",
-                  "github.io",
-                  "githubusercontent.com",
-                  "githubassets.com",
-                  "github.dev",
-                  "codespaces.new",
-                ];
+                const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
                 const allowedDomains = allowedDomainsEnv
                   ? allowedDomainsEnv
                       .split(",")
@@ -1057,10 +1042,7 @@ jobs:
                   return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
                 }
                 function neutralizeBotTriggers(s) {
-                  return s.replace(
-                    /\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi,
-                    (match, action, ref) => `\`${action} #${ref}\``
-                  );
+                  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
                 }
               }
               function getMaxAllowedForType(itemType, config) {
@@ -1105,19 +1087,12 @@ jobs:
                 repaired = repaired.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
                 repaired = repaired.replace(/"([^"\\]*)"/g, (match, content) => {
                   if (content.includes("\n") || content.includes("\r") || content.includes("\t")) {
-                    const escaped = content
-                      .replace(/\\/g, "\\\\")
-                      .replace(/\n/g, "\\n")
-                      .replace(/\r/g, "\\r")
-                      .replace(/\t/g, "\\t");
+                    const escaped = content.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
                     return `"${escaped}"`;
                   }
                   return match;
                 });
-                repaired = repaired.replace(
-                  /"([^"]*)"([^":,}\]]*)"([^"]*)"(\s*[,:}\]])/g,
-                  (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`
-                );
+                repaired = repaired.replace(/"([^"]*)"([^":,}\]]*)"([^"]*)"(\s*[,:}\]])/g, (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`);
                 repaired = repaired.replace(/(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g, "$1]");
                 const openBraces = (repaired.match(/\{/g) || []).length;
                 const closeBraces = (repaired.match(/\}/g) || []).length;
@@ -1311,9 +1286,7 @@ jobs:
                   }
                   const itemType = item.type;
                   if (!expectedOutputTypes[itemType]) {
-                    errors.push(
-                      `Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`
-                    );
+                    errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
                   const typeCount = parsedItems.filter(existing => existing.type === itemType).length;
@@ -1335,9 +1308,7 @@ jobs:
                       item.title = sanitizeContent(item.title);
                       item.body = sanitizeContent(item.body);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(
-                           label => (typeof label === "string" ? sanitizeContent(label) : label)
-                        );
+                        item.labels = item.labels.map( label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
                       break;
                     case "add-comment":
@@ -1369,9 +1340,7 @@ jobs:
                       item.body = sanitizeContent(item.body);
                       item.branch = sanitizeContent(item.branch);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(
-                           label => (typeof label === "string" ? sanitizeContent(label) : label)
-                        );
+                        item.labels = item.labels.map( label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
                       break;
                     case "add-labels":
@@ -1383,11 +1352,7 @@ jobs:
                         errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                       }
-                      const labelsIssueNumValidation = validateIssueOrPRNumber(
-                        item.issue_number,
-                        "add-labels 'issue_number'",
-                        i + 1
-                      );
+                      const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
                       if (!labelsIssueNumValidation.isValid) {
                         errors.push(labelsIssueNumValidation.error);
                         continue;
@@ -1420,11 +1385,7 @@ jobs:
                         }
                         item.body = sanitizeContent(item.body);
                       }
-                      const updateIssueNumValidation = validateIssueOrPRNumber(
-                        item.issue_number,
-                        "update-issue 'issue_number'",
-                        i + 1
-                      );
+                      const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update-issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
                         errors.push(updateIssueNumValidation.error);
                         continue;
@@ -1441,11 +1402,7 @@ jobs:
                       }
                       item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
-                      const pushPRNumValidation = validateIssueOrPRNumber(
-                        item.pull_request_number,
-                        "push-to-pr-branch 'pull_request_number'",
-                        i + 1
-                      );
+                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pr-branch 'pull_request_number'", i + 1);
                       if (!pushPRNumValidation.isValid) {
                         errors.push(pushPRNumValidation.error);
                         continue;
@@ -1481,9 +1438,7 @@ jobs:
                         lineNumber !== undefined &&
                         startLineValidation.normalizedValue > lineNumber
                       ) {
-                        errors.push(
-                          `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`
-                        );
+                        errors.push(`Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`);
                         continue;
                       }
                       if (item.side !== undefined) {
@@ -1557,16 +1512,10 @@ jobs:
                       }
                       const allowedSeverities = ["error", "warning", "info", "note"];
                       if (!allowedSeverities.includes(item.severity.toLowerCase())) {
-                        errors.push(
-                          `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
-                        );
+                        errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`);
                         continue;
                       }
-                      const columnValidation = validateOptionalPositiveInteger(
-                        item.column,
-                        "create-code-scanning-alert 'column'",
-                        i + 1
-                      );
+                      const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
                       if (!columnValidation.isValid) {
                         errors.push(columnValidation.error);
                         continue;
@@ -1807,10 +1756,8 @@ jobs:
                     if (usage.input_tokens || usage.output_tokens) {
                       markdown += `**Token Usage:**\n`;
                       if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_creation_input_tokens)
-                        markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_read_input_tokens)
-                        markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
                       if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
                       markdown += "\n";
                     }
@@ -2067,143 +2014,142 @@ jobs:
         with:
           script: |
             async function main() {
-                const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-                const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!outputContent) {
-                    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                    return;
-                }
-                if (outputContent.trim() === "") {
-                    core.info("Agent output content is empty");
-                    return;
-                }
-                core.info(`Agent output content length: ${outputContent.length}`);
-                let validatedOutput;
-                try {
-                    validatedOutput = JSON.parse(outputContent);
-                }
-                catch (error) {
-                    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                    return;
-                }
-                if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                    core.info("No valid items found in agent output");
-                    return;
-                }
-                const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
-                if (createIssueItems.length === 0) {
-                    core.info("No create-issue items found in agent output");
-                    return;
-                }
-                core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-                if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                    summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                    for (let i = 0; i < createIssueItems.length; i++) {
-                        const item = createIssueItems[i];
-                        summaryContent += `### Issue ${i + 1}\n`;
-                        summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                        if (item.body) {
-                            summaryContent += `**Body:**\n${item.body}\n\n`;
-                        }
-                        if (item.labels && item.labels.length > 0) {
-                            summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                        }
-                        summaryContent += "---\n\n";
-                    }
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Issue creation preview written to step summary");
-                    return;
-                }
-                const parentIssueNumber = context.payload?.issue?.number;
-                const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-                let envLabels = labelsEnv
-                    ? labelsEnv
-                        .split(",")
-                        .map((label) => label.trim())
-                        .filter((label) => label)
-                    : [];
-                const createdIssues = [];
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
                 for (let i = 0; i < createIssueItems.length; i++) {
-                    const createIssueItem = createIssueItems[i];
-                    core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`);
-                    let labels = [...envLabels];
-                    if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                        labels = [...labels, ...createIssueItem.labels].filter(Boolean);
-                    }
-                    let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                    let bodyLines = createIssueItem.body.split("\n");
-                    if (!title) {
-                        title = createIssueItem.body || "Agent Output";
-                    }
-                    const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-                    if (titlePrefix && !title.startsWith(titlePrefix)) {
-                        title = titlePrefix + title;
-                    }
-                    if (parentIssueNumber) {
-                        core.info("Detected issue context, parent issue #" + parentIssueNumber);
-                        bodyLines.push(`Related to #${parentIssueNumber}`);
-                    }
-                    const runId = context.runId;
-                    const runUrl = context.payload.repository
-                        ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                        : `https://github.com/actions/runs/${runId}`;
-                    bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
-                    const body = bodyLines.join("\n").trim();
-                    core.info(`Creating issue with title: ${title}`);
-                    core.info(`Labels: ${labels}`);
-                    core.info(`Body length: ${body.length}`);
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Issue creation preview written to step summary");
+                return;
+              }
+              const parentIssueNumber = context.payload?.issue?.number;
+              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(label => label.trim())
+                    .filter(label => label)
+                : [];
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                );
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
+                }
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let bodyLines = createIssueItem.body.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (parentIssueNumber) {
+                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
+                  bodyLines.push(`Related to #${parentIssueNumber}`);
+                }
+                const runId = context.runId;
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `https://github.com/actions/runs/${runId}`;
+                bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: body,
+                    labels: labels,
+                  });
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  createdIssues.push(issue);
+                  if (parentIssueNumber) {
                     try {
-                        const { data: issue } = await github.rest.issues.create({
-                            owner: context.repo.owner,
-                            repo: context.repo.repo,
-                            title: title,
-                            body: body,
-                            labels: labels,
-                        });
-                        core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                        createdIssues.push(issue);
-                        if (parentIssueNumber) {
-                            try {
-                                await github.rest.issues.createComment({
-                                    owner: context.repo.owner,
-                                    repo: context.repo.repo,
-                                    issue_number: parentIssueNumber,
-                                    body: `Created related issue: #${issue.number}`,
-                                });
-                                core.info("Added comment to parent issue #" + parentIssueNumber);
-                            }
-                            catch (error) {
-                                core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
-                            }
-                        }
-                        if (i === createIssueItems.length - 1) {
-                            core.setOutput("issue_number", issue.number);
-                            core.setOutput("issue_url", issue.html_url);
-                        }
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: parentIssueNumber,
+                        body: `Created related issue: #${issue.number}`,
+                      });
+                      core.info("Added comment to parent issue #" + parentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
                     }
-                    catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        if (errorMessage.includes("Issues has been disabled in this repository")) {
-                            core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                            core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                            continue;
-                        }
-                        core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
-                        throw error;
-                    }
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  throw error;
                 }
-                if (createdIssues.length > 0) {
-                    let summaryContent = "\n\n## GitHub Issues\n";
-                    for (const issue of createdIssues) {
-                        summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                    }
-                    await core.summary.addRaw(summaryContent).write();
+              }
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
                 }
-                core.info(`Successfully created ${createdIssues.length} issue(s)`);
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
             (async () => {
-                await main();
+              await main();
             })();
 
   create_issue_comment:

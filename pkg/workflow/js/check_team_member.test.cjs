@@ -99,9 +99,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: admin");
     expect(mockCore.info).toHaveBeenCalledWith("User has admin access to repository");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
@@ -121,9 +119,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: maintain");
     expect(mockCore.info).toHaveBeenCalledWith("User has maintain access to repository");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
@@ -143,9 +139,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: write");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
   });
@@ -164,9 +158,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: read");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
   });
@@ -185,9 +177,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: none");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
   });
@@ -205,9 +195,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'testuser' is admin or maintainer of testowner/testrepo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo");
     expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: API Error: Not Found");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
   });
@@ -228,9 +216,7 @@ describe("check_team_member.cjs", () => {
       username: "different-user",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'different-user' is admin or maintainer of testowner/testrepo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'different-user' is admin or maintainer of testowner/testrepo");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
   });
 
@@ -253,9 +239,7 @@ describe("check_team_member.cjs", () => {
       username: "testuser",
     });
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking if user 'testuser' is admin or maintainer of different-owner/different-repo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of different-owner/different-repo");
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true");
   });
 

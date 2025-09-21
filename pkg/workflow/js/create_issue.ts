@@ -38,9 +38,7 @@ async function main(): Promise<void> {
   }
 
   // Find all create-issue items
-  const createIssueItems = validatedOutput.items.filter(
-    item => item.type === "create-issue"
-  );
+  const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
   if (createIssueItems.length === 0) {
     core.info("No create-issue items found in agent output");
     return;
@@ -79,9 +77,9 @@ async function main(): Promise<void> {
   const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
   let envLabels: string[] = labelsEnv
     ? labelsEnv
-      .split(",")
-      .map((label: string) => label.trim())
-      .filter((label: string) => label)
+        .split(",")
+        .map((label: string) => label.trim())
+        .filter((label: string) => label)
     : [];
 
   const createdIssues: CreatedIssue[] = [];
@@ -160,9 +158,7 @@ async function main(): Promise<void> {
           });
           core.info("Added comment to parent issue #" + parentIssueNumber);
         } catch (error) {
-          core.info(
-            `Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`
-          );
+          core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 

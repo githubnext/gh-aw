@@ -410,9 +410,7 @@ describe("collect_ndjson_output.cjs", () => {
     const testFile = "/tmp/test-ndjson-output.txt";
     const items = [];
     for (let i = 1; i <= 12; i++) {
-      items.push(
-        `{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": ${i}, "body": "Comment ${i}"}`
-      );
+      items.push(`{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": ${i}, "body": "Comment ${i}"}`);
     }
     const ndjsonContent = items.join("\n");
 
@@ -431,9 +429,7 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items).toHaveLength(5); // Only first 5 items should be allowed
     expect(parsedOutput.errors).toHaveLength(7); // 7 items exceeding max
     expect(
-      parsedOutput.errors.every(e =>
-        e.includes("Too many items of type 'create-pull-request-review-comment'. Maximum allowed: 5")
-      )
+      parsedOutput.errors.every(e => e.includes("Too many items of type 'create-pull-request-review-comment'. Maximum allowed: 5"))
     ).toBe(true);
   });
 
@@ -1487,9 +1483,7 @@ Line 3"}
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'severity' must be one of: error, warning, info, note"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert 'severity' must be one of: error, warning, info, note");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1512,9 +1506,7 @@ Line 3"}
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'column' must be a valid positive integer (got: invalid)"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: invalid)");
       expect(failedMessage).toContain("create-code-scanning-alert 'ruleIdSuffix' must be a string");
       expect(failedMessage).toContain(
         "create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
@@ -1547,9 +1539,7 @@ Line 3"}
 
       expect(parsedOutput.items[0].file).toBe("src/valid.js");
       expect(parsedOutput.items[1].file).toBe("src/valid2.js");
-      expect(parsedOutput.errors).toContain(
-        "Line 2: create-code-scanning-alert requires a 'line' field (number or string)"
-      );
+      expect(parsedOutput.errors).toContain("Line 2: create-code-scanning-alert requires a 'line' field (number or string)");
     });
 
     it("should reject code scanning alert entries with invalid line and column values", async () => {
@@ -1569,14 +1559,10 @@ Line 3"}
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'line' must be a valid positive integer (got: invalid)"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: invalid)");
       expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: 0)");
       expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: -5)");
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'column' must be a valid positive integer (got: abc)"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: abc)");
       expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: 0)");
 
       // setOutput should not be called because of early return
@@ -1691,9 +1677,7 @@ Line 3"}
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "Hey `@username` and `@org/team`, check this out! But preserve email@domain.com"
-      );
+      expect(parsedOutput.items[0].body).toBe("Hey `@username` and `@org/team`, check this out! But preserve email@domain.com");
     });
 
     it("should neutralize bot trigger phrases", async () => {

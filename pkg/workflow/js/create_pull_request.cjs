@@ -156,17 +156,13 @@ async function main() {
   }
 
   // Find the create-pull-request item
-  const pullRequestItem = validatedOutput.items.find(
-    /** @param {any} item */ item => item.type === "create-pull-request"
-  );
+  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create-pull-request");
   if (!pullRequestItem) {
     core.warning("No create-pull-request item found in agent output");
     return;
   }
 
-  core.debug(
-    `Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`
-  );
+  core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
 
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {

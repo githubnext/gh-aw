@@ -28,9 +28,7 @@ async function main() {
   }
 
   // Find all create-code-scanning-alert items
-  const securityItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "create-code-scanning-alert"
-  );
+  const securityItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "create-code-scanning-alert");
   if (securityItems.length === 0) {
     core.info("No create-code-scanning-alert items found in agent output");
     return;
@@ -60,9 +58,7 @@ async function main() {
   }
 
   // Get the max configuration from environment variable
-  const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX
-    ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX)
-    : 0; // 0 means unlimited
+  const maxFindings = process.env.GITHUB_AW_SECURITY_REPORT_MAX ? parseInt(process.env.GITHUB_AW_SECURITY_REPORT_MAX) : 0; // 0 means unlimited
   core.info(`Max findings configuration: ${maxFindings === 0 ? "unlimited" : maxFindings}`);
 
   // Get the driver configuration from environment variable
@@ -140,9 +136,7 @@ async function main() {
       }
       // Check for characters that would be problematic in rule IDs
       if (!/^[a-zA-Z0-9_-]+$/.test(trimmedSuffix)) {
-        core.info(
-          `Invalid ruleIdSuffix "${trimmedSuffix}" (must contain only alphanumeric characters, hyphens, and underscores)`
-        );
+        core.info(`Invalid ruleIdSuffix "${trimmedSuffix}" (must contain only alphanumeric characters, hyphens, and underscores)`);
         continue;
       }
       ruleIdSuffix = trimmedSuffix;

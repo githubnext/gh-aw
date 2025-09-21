@@ -6,9 +6,7 @@ const encoder = new TextEncoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
 const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-const safeOutputsConfig = Object.fromEntries(
-  Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])
-);
+const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
 const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
@@ -153,9 +151,7 @@ const uploadAssetHandler = args => {
   const sizeKB = Math.ceil(sizeBytes / 1024);
 
   // Check file size - read from environment variable if available
-  const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB
-    ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10)
-    : 10240; // Default 10MB
+  const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; // Default 10MB
   if (sizeKB > maxSizeKB) {
     throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
   }
@@ -466,10 +462,7 @@ debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
 const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
 if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
 const TOOLS = Object.fromEntries(
-  ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [
-    tool.name,
-    tool,
-  ])
+  ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [tool.name, tool])
 );
 debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
 if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
@@ -530,8 +523,7 @@ function handleMessage(req) {
         return;
       }
       const handler = tool.handler || defaultHandler(tool.name);
-      const requiredFields =
-        tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+      const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
       if (requiredFields.length) {
         const missing = requiredFields.filter(f => {
           const value = args[f];

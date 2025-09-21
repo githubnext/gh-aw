@@ -57,11 +57,7 @@ function parseCodexLog(logContent) {
             if (nextLine.includes("success in")) {
               statusIcon = "✅";
               break;
-            } else if (
-              nextLine.includes("failure in") ||
-              nextLine.includes("error in") ||
-              nextLine.includes("failed in")
-            ) {
+            } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
               statusIcon = "❌";
               break;
             }
@@ -186,11 +182,7 @@ function parseCodexLog(logContent) {
             if (nextLine.includes("success in")) {
               statusIcon = "✅";
               break;
-            } else if (
-              nextLine.includes("failure in") ||
-              nextLine.includes("error in") ||
-              nextLine.includes("failed in")
-            ) {
+            } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
               statusIcon = "❌";
               break;
             }

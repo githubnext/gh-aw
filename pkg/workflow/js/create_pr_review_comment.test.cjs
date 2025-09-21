@@ -135,10 +135,7 @@ describe("create_pr_review_comment.cjs", () => {
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("review_comment_id", 456);
-    expect(mockCore.setOutput).toHaveBeenCalledWith(
-      "review_comment_url",
-      "https://github.com/testowner/testrepo/pull/123#discussion_r456"
-    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("review_comment_url", "https://github.com/testowner/testrepo/pull/123#discussion_r456");
   });
 
   it("should create a multi-line PR review comment", async () => {
@@ -224,10 +221,7 @@ describe("create_pr_review_comment.cjs", () => {
 
     // Verify outputs were set for the last comment
     expect(mockCore.setOutput).toHaveBeenCalledWith("review_comment_id", 222);
-    expect(mockCore.setOutput).toHaveBeenCalledWith(
-      "review_comment_url",
-      "https://github.com/testowner/testrepo/pull/123#discussion_r222"
-    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("review_comment_url", "https://github.com/testowner/testrepo/pull/123#discussion_r222");
   });
 
   it("should use configured side from environment variable", async () => {

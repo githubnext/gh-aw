@@ -359,9 +359,7 @@ describe("create_issue.cjs", () => {
     await eval(`(async () => { ${createIssueScript} })()`);
 
     // Should log warning message instead of error
-    expect(mockCore.info).toHaveBeenCalledWith(
-      '⚠ Cannot create issue "Test issue": Issues are disabled for this repository'
-    );
+    expect(mockCore.info).toHaveBeenCalledWith('⚠ Cannot create issue "Test issue": Issues are disabled for this repository');
     expect(mockCore.info).toHaveBeenCalledWith(
       "Consider enabling issues in repository settings if you want to create issues automatically"
     );
@@ -407,9 +405,7 @@ describe("create_issue.cjs", () => {
     await eval(`(async () => { ${createIssueScript} })()`);
 
     // Should log warning for first issue
-    expect(mockCore.info).toHaveBeenCalledWith(
-      '⚠ Cannot create issue "First issue": Issues are disabled for this repository'
-    );
+    expect(mockCore.info).toHaveBeenCalledWith('⚠ Cannot create issue "First issue": Issues are disabled for this repository');
 
     // Both API calls should have been made
     expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);

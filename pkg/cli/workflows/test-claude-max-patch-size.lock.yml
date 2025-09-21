@@ -164,9 +164,7 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
             const safeOutputsConfigRaw = JSON.parse(configEnv); 
-            const safeOutputsConfig = Object.fromEntries(
-              Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])
-            );
+            const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
             if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
@@ -285,9 +283,7 @@ jobs:
               const stats = fs.statSync(filePath);
               const sizeBytes = stats.size;
               const sizeKB = Math.ceil(sizeBytes / 1024);
-              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB
-                ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10)
-                : 10240; 
+              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
               if (sizeKB > maxSizeKB) {
                 throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
               }
@@ -577,10 +573,7 @@ jobs:
             const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
             if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
             const TOOLS = Object.fromEntries(
-              ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [
-                tool.name,
-                tool,
-              ])
+              ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [tool.name, tool])
             );
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
@@ -634,8 +627,7 @@ jobs:
                     return;
                   }
                   const handler = tool.handler || defaultHandler(tool.name);
-                  const requiredFields =
-                    tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+                  const requiredFields = tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
                   if (requiredFields.length) {
                     const missing = requiredFields.filter(f => {
                       const value = args[f];
@@ -925,14 +917,7 @@ jobs:
                   return "";
                 }
                 const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-                const defaultAllowedDomains = [
-                  "github.com",
-                  "github.io",
-                  "githubusercontent.com",
-                  "githubassets.com",
-                  "github.dev",
-                  "codespaces.new",
-                ];
+                const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
                 const allowedDomains = allowedDomainsEnv
                   ? allowedDomainsEnv
                       .split(",")
@@ -983,10 +968,7 @@ jobs:
                   return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
                 }
                 function neutralizeBotTriggers(s) {
-                  return s.replace(
-                    /\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi,
-                    (match, action, ref) => `\`${action} #${ref}\``
-                  );
+                  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
                 }
               }
               function getMaxAllowedForType(itemType, config) {
@@ -1031,19 +1013,12 @@ jobs:
                 repaired = repaired.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
                 repaired = repaired.replace(/"([^"\\]*)"/g, (match, content) => {
                   if (content.includes("\n") || content.includes("\r") || content.includes("\t")) {
-                    const escaped = content
-                      .replace(/\\/g, "\\\\")
-                      .replace(/\n/g, "\\n")
-                      .replace(/\r/g, "\\r")
-                      .replace(/\t/g, "\\t");
+                    const escaped = content.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
                     return `"${escaped}"`;
                   }
                   return match;
                 });
-                repaired = repaired.replace(
-                  /"([^"]*)"([^":,}\]]*)"([^"]*)"(\s*[,:}\]])/g,
-                  (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`
-                );
+                repaired = repaired.replace(/"([^"]*)"([^":,}\]]*)"([^"]*)"(\s*[,:}\]])/g, (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`);
                 repaired = repaired.replace(/(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g, "$1]");
                 const openBraces = (repaired.match(/\{/g) || []).length;
                 const closeBraces = (repaired.match(/\}/g) || []).length;
@@ -1237,9 +1212,7 @@ jobs:
                   }
                   const itemType = item.type;
                   if (!expectedOutputTypes[itemType]) {
-                    errors.push(
-                      `Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`
-                    );
+                    errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
                   const typeCount = parsedItems.filter(existing => existing.type === itemType).length;
@@ -1261,9 +1234,7 @@ jobs:
                       item.title = sanitizeContent(item.title);
                       item.body = sanitizeContent(item.body);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(
-                           label => (typeof label === "string" ? sanitizeContent(label) : label)
-                        );
+                        item.labels = item.labels.map( label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
                       break;
                     case "add-comment":
@@ -1295,9 +1266,7 @@ jobs:
                       item.body = sanitizeContent(item.body);
                       item.branch = sanitizeContent(item.branch);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(
-                           label => (typeof label === "string" ? sanitizeContent(label) : label)
-                        );
+                        item.labels = item.labels.map( label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
                       break;
                     case "add-labels":
@@ -1309,11 +1278,7 @@ jobs:
                         errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                       }
-                      const labelsIssueNumValidation = validateIssueOrPRNumber(
-                        item.issue_number,
-                        "add-labels 'issue_number'",
-                        i + 1
-                      );
+                      const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
                       if (!labelsIssueNumValidation.isValid) {
                         errors.push(labelsIssueNumValidation.error);
                         continue;
@@ -1346,11 +1311,7 @@ jobs:
                         }
                         item.body = sanitizeContent(item.body);
                       }
-                      const updateIssueNumValidation = validateIssueOrPRNumber(
-                        item.issue_number,
-                        "update-issue 'issue_number'",
-                        i + 1
-                      );
+                      const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update-issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
                         errors.push(updateIssueNumValidation.error);
                         continue;
@@ -1367,11 +1328,7 @@ jobs:
                       }
                       item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
-                      const pushPRNumValidation = validateIssueOrPRNumber(
-                        item.pull_request_number,
-                        "push-to-pr-branch 'pull_request_number'",
-                        i + 1
-                      );
+                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pr-branch 'pull_request_number'", i + 1);
                       if (!pushPRNumValidation.isValid) {
                         errors.push(pushPRNumValidation.error);
                         continue;
@@ -1407,9 +1364,7 @@ jobs:
                         lineNumber !== undefined &&
                         startLineValidation.normalizedValue > lineNumber
                       ) {
-                        errors.push(
-                          `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`
-                        );
+                        errors.push(`Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`);
                         continue;
                       }
                       if (item.side !== undefined) {
@@ -1483,16 +1438,10 @@ jobs:
                       }
                       const allowedSeverities = ["error", "warning", "info", "note"];
                       if (!allowedSeverities.includes(item.severity.toLowerCase())) {
-                        errors.push(
-                          `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
-                        );
+                        errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`);
                         continue;
                       }
-                      const columnValidation = validateOptionalPositiveInteger(
-                        item.column,
-                        "create-code-scanning-alert 'column'",
-                        i + 1
-                      );
+                      const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
                       if (!columnValidation.isValid) {
                         errors.push(columnValidation.error);
                         continue;
@@ -1733,10 +1682,8 @@ jobs:
                     if (usage.input_tokens || usage.output_tokens) {
                       markdown += `**Token Usage:**\n`;
                       if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_creation_input_tokens)
-                        markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_read_input_tokens)
-                        markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
                       if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
                       markdown += "\n";
                     }
@@ -2221,16 +2168,12 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const pullRequestItem = validatedOutput.items.find(
-                 item => item.type === "create-pull-request"
-              );
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create-pull-request");
               if (!pullRequestItem) {
                 core.warning("No create-pull-request item found in agent output");
                 return;
               }
-              core.debug(
-                `Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`
-              );
+              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
                 summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";

@@ -13,14 +13,7 @@ async function main() {
 
     // Read allowed domains from environment variable
     const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-    const defaultAllowedDomains = [
-      "github.com",
-      "github.io",
-      "githubusercontent.com",
-      "githubassets.com",
-      "github.dev",
-      "codespaces.new",
-    ];
+    const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
     const allowedDomains = allowedDomainsEnv
       ? allowedDomainsEnv
@@ -138,10 +131,7 @@ async function main() {
      */
     function neutralizeBotTriggers(s) {
       // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-      return s.replace(
-        /\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi,
-        (match, action, ref) => `\`${action} #${ref}\``
-      );
+      return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
     }
   }
 
@@ -214,21 +204,14 @@ async function main() {
     // Fix newlines and tabs inside strings by escaping them
     repaired = repaired.replace(/"([^"\\]*)"/g, (match, content) => {
       if (content.includes("\n") || content.includes("\r") || content.includes("\t")) {
-        const escaped = content
-          .replace(/\\/g, "\\\\")
-          .replace(/\n/g, "\\n")
-          .replace(/\r/g, "\\r")
-          .replace(/\t/g, "\\t");
+        const escaped = content.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
         return `"${escaped}"`;
       }
       return match;
     });
 
     // Fix unescaped quotes inside string values
-    repaired = repaired.replace(
-      /"([^"]*)"([^":,}\]]*)"([^"]*)"(\s*[,:}\]])/g,
-      (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`
-    );
+    repaired = repaired.replace(/"([^"]*)"([^":,}\]]*)"([^"]*)"(\s*[,:}\]])/g, (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`);
 
     // Fix wrong bracket/brace types - arrays should end with ] not }
     repaired = repaired.replace(/(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g, "$1]");
@@ -497,9 +480,7 @@ async function main() {
       // Validate against expected output types
       const itemType = item.type;
       if (!expectedOutputTypes[itemType]) {
-        errors.push(
-          `Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`
-        );
+        errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
         continue;
       }
 
@@ -527,9 +508,7 @@ async function main() {
           item.body = sanitizeContent(item.body);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(
-              /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
-            );
+            item.labels = item.labels.map(/** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label));
           }
           break;
 
@@ -567,9 +546,7 @@ async function main() {
           item.branch = sanitizeContent(item.branch);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(
-              /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
-            );
+            item.labels = item.labels.map(/** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label));
           }
           break;
 
@@ -583,11 +560,7 @@ async function main() {
             continue;
           }
           // Validate optional issue_number field
-          const labelsIssueNumValidation = validateIssueOrPRNumber(
-            item.issue_number,
-            "add-labels 'issue_number'",
-            i + 1
-          );
+          const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
           if (!labelsIssueNumValidation.isValid) {
             errors.push(labelsIssueNumValidation.error);
             continue;
@@ -627,11 +600,7 @@ async function main() {
             item.body = sanitizeContent(item.body);
           }
           // Validate issue_number if provided (for target "*")
-          const updateIssueNumValidation = validateIssueOrPRNumber(
-            item.issue_number,
-            "update-issue 'issue_number'",
-            i + 1
-          );
+          const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update-issue 'issue_number'", i + 1);
           if (!updateIssueNumValidation.isValid) {
             errors.push(updateIssueNumValidation.error);
             continue;
@@ -653,11 +622,7 @@ async function main() {
           item.branch = sanitizeContent(item.branch);
           item.message = sanitizeContent(item.message);
           // Validate pull_request_number if provided (for target "*")
-          const pushPRNumValidation = validateIssueOrPRNumber(
-            item.pull_request_number,
-            "push-to-pr-branch 'pull_request_number'",
-            i + 1
-          );
+          const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pr-branch 'pull_request_number'", i + 1);
           if (!pushPRNumValidation.isValid) {
             errors.push(pushPRNumValidation.error);
             continue;
@@ -699,9 +664,7 @@ async function main() {
             lineNumber !== undefined &&
             startLineValidation.normalizedValue > lineNumber
           ) {
-            errors.push(
-              `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`
-            );
+            errors.push(`Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`);
             continue;
           }
           // Validate optional side field
@@ -787,18 +750,12 @@ async function main() {
           // Validate severity level
           const allowedSeverities = ["error", "warning", "info", "note"];
           if (!allowedSeverities.includes(item.severity.toLowerCase())) {
-            errors.push(
-              `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
-            );
+            errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`);
             continue;
           }
 
           // Validate optional column field
-          const columnValidation = validateOptionalPositiveInteger(
-            item.column,
-            "create-code-scanning-alert 'column'",
-            i + 1
-          );
+          const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
           if (!columnValidation.isValid) {
             errors.push(columnValidation.error);
             continue;

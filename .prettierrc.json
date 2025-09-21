@@ -4,7 +4,7 @@
   "singleQuote": false,
   "tabWidth": 2,
   "trailingComma": "es5",
-  "printWidth": 120,
+  "printWidth": 140,
   "bracketSpacing": true,
   "arrowParens": "avoid"
 }

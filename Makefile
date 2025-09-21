@@ -13,7 +13,7 @@ all: build
 
 # Build the binary
 .PHONY: build
-build: js
+build: js fmt-cjs
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -180,7 +180,7 @@ install: build
 
 # Recompile all workflow files
 .PHONY: recompile
-recompile: build
+recompile: build 
 	./$(BINARY_NAME) compile --validate --instructions --verbose
 	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose;
 

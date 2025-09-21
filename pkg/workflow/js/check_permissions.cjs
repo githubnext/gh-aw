@@ -26,9 +26,7 @@ async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;
   const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-  const requiredPermissions = requiredPermissionsEnv
-    ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
-    : [];
+  const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
     core.error("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
@@ -70,8 +68,6 @@ async function main() {
   core.warning(
     `Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
-  await setCancelled(
-    `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-  );
+  await setCancelled(`Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
 }
 await main();

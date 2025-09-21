@@ -95,9 +95,7 @@ async function main() {
         pullRequest = fullPR;
         core.info("Fetched full pull request details from API");
       } catch (error) {
-        core.info(
-          `Failed to fetch full pull request details: ${error instanceof Error ? error.message : String(error)}`
-        );
+        core.info(`Failed to fetch full pull request details: ${error instanceof Error ? error.message : String(error)}`);
         return;
       }
     } else {

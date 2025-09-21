@@ -270,9 +270,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Not running in issue or pull request context, skipping label addition"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Not running in issue or pull request context, skipping label addition");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -381,9 +379,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Pull request context detected but no pull request found in payload"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Pull request context detected but no pull request found in payload");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
   });
@@ -451,9 +447,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Label removal is not permitted. Found line starting with '-': -enhancement"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Label removal is not permitted. Found line starting with '-': -enhancement");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -551,9 +545,7 @@ describe("add_labels.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("Successfully added 2 labels to issue #123");
       expect(mockCore.setOutput).toHaveBeenCalledWith("labels_added", "bug\nenhancement");
 
-      const summaryCall = mockCore.summary.addRaw.mock.calls.find(call =>
-        call[0].includes("Successfully added 2 label(s) to issue #123")
-      );
+      const summaryCall = mockCore.summary.addRaw.mock.calls.find(call => call[0].includes("Successfully added 2 label(s) to issue #123"));
       expect(summaryCall).toBeDefined();
       expect(summaryCall[0]).toContain("- `bug`");
       expect(summaryCall[0]).toContain("- `enhancement`");
@@ -666,9 +658,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        `Allowed labels: ${JSON.stringify(["bug", "enhancement", "feature"])}`
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement", "feature"])}`);
       expect(mockCore.debug).toHaveBeenCalledWith("Max count: 5");
     });
 
@@ -686,9 +676,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        `Requested labels: ${JSON.stringify(["bug", "enhancement", "invalid"])}`
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith(`Requested labels: ${JSON.stringify(["bug", "enhancement", "invalid"])}`);
     });
 
     it("should log final labels being added", async () => {
@@ -705,9 +693,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        `Adding 2 labels to issue #123: ${JSON.stringify(["bug", "enhancement"])}`
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`Adding 2 labels to issue #123: ${JSON.stringify(["bug", "enhancement"])}`);
     });
   });
 
@@ -726,9 +712,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.debug).toHaveBeenCalledWith(
-        `Allowed labels: ${JSON.stringify(["bug", "enhancement", "feature"])}`
-      );
+      expect(mockCore.debug).toHaveBeenCalledWith(`Allowed labels: ${JSON.stringify(["bug", "enhancement", "feature"])}`);
       expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
         owner: "testowner",
         repo: "testrepo",

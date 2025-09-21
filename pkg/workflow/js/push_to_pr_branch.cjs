@@ -174,22 +174,16 @@ async function main() {
   // Fetch the specific PR to get its head branch
   try {
     let prInfo = "";
-    const prInfoRes = await exec.exec(
-      `gh`,
-      [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `'.headRefName'`],
-      {
-        listeners: { stdout: data => (prInfo += data.toString()) },
-      }
-    );
+    const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `'.headRefName'`], {
+      listeners: { stdout: data => (prInfo += data.toString()) },
+    });
     if (!prInfoRes) {
       branchName = prInfo.trim();
     } else {
       throw new Error("No head branch found for PR");
     }
   } catch (error) {
-    core.info(
-      `Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
     // Exit with failure if we cannot determine the branch name
     core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
     return;
@@ -219,9 +213,7 @@ async function main() {
       return;
     }
   } catch (error) {
-    core.setFailed(
-      `Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
