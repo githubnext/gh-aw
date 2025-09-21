@@ -39,7 +39,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: "lts"
+          node-version: "24"
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
       - name: Set up Go
@@ -47,7 +47,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-
+      - name: npm ci
+        run: npm ci
+        working-directory: ./pkg/workflow/js
       - name: Build code
         run: make build
 
@@ -73,7 +75,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "lts"
+          node-version: "24"
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
       - name: Install npm dependencies
