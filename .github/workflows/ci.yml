@@ -47,7 +47,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-
+      - name: npm list
+        run: npm list
+        working-directory: ./pkg/workflow/js
       - name: Build code
         run: make build
 
