@@ -130,7 +130,7 @@ async function createCodeScanningAlertMain() {
             core.info("Created code scanning alert: " + alert.id);
             createdAlerts.push({
                 number: alert.id,
-                url: alert.url,
+                url: alert.url || "",
                 html_url: `${context.payload.repository?.html_url}/security/code-scanning`,
             });
             if (i === securityItems.length - 1) {

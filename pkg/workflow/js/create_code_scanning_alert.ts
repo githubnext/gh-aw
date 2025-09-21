@@ -169,7 +169,7 @@ async function createCodeScanningAlertMain(): Promise<CreatedAlert[]> {
       core.info("Created code scanning alert: " + alert.id);
       createdAlerts.push({
         number: alert.id as any,
-        url: alert.url,
+        url: alert.url || "",
         html_url: `${context.payload.repository?.html_url}/security/code-scanning`,
       });
 

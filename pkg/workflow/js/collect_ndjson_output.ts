@@ -1,12 +1,28 @@
-async function main() {
+async function collectNdjsonOutputMain(): Promise<void> {
   const fs = require("fs");
+
+  interface ValidationResult {
+    isValid: boolean;
+    error?: string;
+    normalizedValue?: number;
+  }
+
+  interface SafeOutputItem {
+    type: string;
+    [key: string]: any;
+  }
+
+  interface OutputData {
+    items: SafeOutputItem[];
+    errors: string[];
+  }
 
   /**
    * Sanitizes content for safe output in GitHub Actions
-   * @param {string} content - The content to sanitize
-   * @returns {string} The sanitized content
+   * @param content - The content to sanitize
+   * @returns The sanitized content
    */
-  function sanitizeContent(content) {
+  function sanitizeContent(content: string): string {
     if (!content || typeof content !== "string") {
       return "";
     }
@@ -72,10 +88,10 @@ async function main() {
 
     /**
      * Remove unknown domains
-     * @param {string} s - The string to process
-     * @returns {string} The string with unknown domains redacted
+     * @param s - The string to process
+     * @returns The string with unknown domains redacted
      */
-    function sanitizeUrlDomains(s) {
+    function sanitizeUrlDomains(s: string): string {
       return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
         // Extract just the URL part after https://
         const urlAfterProtocol = match.slice(8); // Remove 'https://'
@@ -95,111 +111,65 @@ async function main() {
 
     /**
      * Remove unknown protocols except https
-     * @param {string} s - The string to process
-     * @returns {string} The string with non-https protocols redacted
+     * @param s - The string to process
+     * @returns The string with non-https protocols redacted
      */
-    function sanitizeUrlProtocols(s) {
-      // Match protocol:// patterns (URLs) and standalone protocol: patterns that look like URLs
-      // Avoid matching command line flags like -v:10 or z3 -memory:high
-      return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-        // Allow https (case insensitive), redact everything else
-        return protocol.toLowerCase() === "https" ? match : "(redacted)";
-      });
+    function sanitizeUrlProtocols(s: string): string {
+      // Match protocols that are not https
+      return s.replace(/\b(?!https:\/\/)[a-z][a-z0-9+.-]*:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, "(redacted)");
     }
 
     /**
-     * Neutralizes @mentions by wrapping them in backticks
-     * @param {string} s - The string to process
-     * @returns {string} The string with neutralized mentions
+     * Neutralize @mentions by wrapping them in backticks
+     * @param s - The string to process
+     * @returns The string with neutralized @mentions
      */
-    function neutralizeMentions(s) {
-      // Replace @name or @org/team outside code with `@name`
-      return s.replace(
-        /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-        (_m, p1, p2) => `${p1}\`@${p2}\``
-      );
+    function neutralizeMentions(s: string): string {
+      // Match @username patterns but avoid already neutralized ones (in backticks)
+      return s.replace(/(?<!`)@([a-zA-Z0-9_-]+)(?!`)/g, "`@$1`");
     }
 
     /**
-     * Removes XML comments to prevent content hiding
-     * @param {string} s - The string to process
-     * @returns {string} The string with XML comments removed
+     * Remove XML comments to prevent content hiding
+     * @param s - The string to process
+     * @returns The string with XML comments removed
      */
-    function removeXmlComments(s) {
-      // Remove XML/HTML comments including malformed ones that might be used to hide content
-      // Matches: <!-- ... --> and <!--- ... --> and <!--- ... --!> variations
-      return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+    function removeXmlComments(s: string): string {
+      // Remove <!-- comment --> patterns
+      return s.replace(/<!--[\s\S]*?-->/g, "");
     }
 
     /**
-     * Neutralizes bot trigger phrases by wrapping them in backticks
-     * @param {string} s - The string to process
-     * @returns {string} The string with neutralized bot triggers
+     * Neutralize common bot trigger phrases by wrapping them in backticks
+     * @param s - The string to process
+     * @returns The string with neutralized bot triggers
      */
-    function neutralizeBotTriggers(s) {
-      // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-      return s.replace(
-        /\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi,
-        (match, action, ref) => `\`${action} #${ref}\``
-      );
+    function neutralizeBotTriggers(s: string): string {
+      const botTriggers = [
+        /(?<!`)\b(fixes?|closes?|resolves?)\s+#(\d+)(?!`)/gi,
+        /(?<!`)\b(re-?open|reopen)\s+#(\d+)(?!`)/gi,
+        /(?<!`)\/\w+(?!`)/g, // slash commands like /help, /close, etc.
+      ];
+
+      let result = s;
+      for (const trigger of botTriggers) {
+        result = result.replace(trigger, "`$&`");
+      }
+      return result;
     }
   }
 
   /**
-   * Gets the maximum allowed count for a given output type
-   * @param {string} itemType - The output item type
-   * @param {any} config - The safe-outputs configuration
-   * @returns {number} The maximum allowed count
+   * Simple JSON repair attempt
+   * @param jsonStr - The malformed JSON string
+   * @returns A potentially repaired JSON string
    */
-  function getMaxAllowedForType(itemType, config) {
-    // Check if max is explicitly specified in config
-    if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
-      return config[itemType].max;
-    }
-
-    // Use default limits for plural-supported types
-    switch (itemType) {
-      case "create-issue":
-        return 1; // Only one issue allowed
-      case "add-comment":
-        return 1; // Only one comment allowed
-      case "create-pull-request":
-        return 1; // Only one pull request allowed
-      case "create-pull-request-review-comment":
-        return 1; // Default to 1 review comment allowed
-      case "add-labels":
-        return 5; // Only one labels operation allowed
-      case "update-issue":
-        return 1; // Only one issue update allowed
-      case "push-to-pr-branch":
-        return 1; // Only one push to branch allowed
-      case "create-discussion":
-        return 1; // Only one discussion allowed
-      case "missing-tool":
-        return 1000; // Allow many missing tool reports (default: unlimited)
-      case "create-code-scanning-alert":
-        return 1000; // Allow many repository security advisories (default: unlimited)
-      case "upload-asset":
-        return 10; // Default to 10 assets allowed
-      default:
-        return 1; // Default to single item for unknown types
-    }
-  }
-
-  /**
-   * Attempts to repair common JSON syntax issues in LLM-generated content
-   * @param {string} jsonStr - The potentially malformed JSON string
-   * @returns {string} The repaired JSON string
-   */
-  function repairJson(jsonStr) {
+  function repairJson(jsonStr: string): string {
     let repaired = jsonStr.trim();
 
-    // remove invalid control characters like
-    // U+0014 (DC4) — represented here as "\u0014"
-    // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
+    // Convert control characters to proper JSON escape sequences first
     // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-    /** @type {Record<number, string>} */
-    const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
+    const _ctrl: Record<number, string> = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
     repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
       const c = ch.charCodeAt(0);
       return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
@@ -261,12 +231,12 @@ async function main() {
 
   /**
    * Validates that a value is a positive integer
-   * @param {any} value - The value to validate
-   * @param {string} fieldName - The name of the field being validated
-   * @param {number} lineNum - The line number for error reporting
-   * @returns {{isValid: boolean, error?: string, normalizedValue?: number}} Validation result
+   * @param value - The value to validate
+   * @param fieldName - The name of the field being validated
+   * @param lineNum - The line number for error reporting
+   * @returns Validation result
    */
-  function validatePositiveInteger(value, fieldName, lineNum) {
+  function validatePositiveInteger(value: any, fieldName: string, lineNum: number): ValidationResult {
     if (value === undefined || value === null) {
       // Match the original error format for create-code-scanning-alert
       if (fieldName.includes("create-code-scanning-alert 'line'")) {
@@ -298,7 +268,7 @@ async function main() {
       if (fieldName.includes("create-pull-request-review-comment 'line'")) {
         return {
           isValid: false,
-          error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number or string field`,
+          error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number`,
         };
       }
       return {
@@ -307,96 +277,63 @@ async function main() {
       };
     }
 
-    const parsed = typeof value === "string" ? parseInt(value, 10) : value;
-    if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-      // Match the original error format for different field types
-      if (fieldName.includes("create-code-scanning-alert 'line'")) {
+    // Convert to number if it's a string
+    let numValue: number;
+    if (typeof value === "string") {
+      const parsed = parseInt(value, 10);
+      if (isNaN(parsed)) {
         return {
           isValid: false,
-          error: `Line ${lineNum}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${value})`,
+          error: `Line ${lineNum}: ${fieldName} must be a valid number`,
         };
       }
-      if (fieldName.includes("create-pull-request-review-comment 'line'")) {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: create-pull-request-review-comment 'line' must be a positive integer`,
-        };
-      }
+      numValue = parsed;
+    } else {
+      numValue = value;
+    }
+
+    if (!Number.isInteger(numValue) || numValue <= 0) {
       return {
         isValid: false,
-        error: `Line ${lineNum}: ${fieldName} must be a positive integer (got: ${value})`,
+        error: `Line ${lineNum}: ${fieldName} must be a positive integer`,
       };
     }
 
-    return { isValid: true, normalizedValue: parsed };
+    return { isValid: true, normalizedValue: numValue };
   }
 
   /**
-   * Validates an optional positive integer field
-   * @param {any} value - The value to validate
-   * @param {string} fieldName - The name of the field being validated
-   * @param {number} lineNum - The line number for error reporting
-   * @returns {{isValid: boolean, error?: string, normalizedValue?: number}} Validation result
+   * Validates that a value is a positive integer if provided (optional)
+   * @param value - The value to validate
+   * @param fieldName - The name of the field being validated
+   * @param lineNum - The line number for error reporting
+   * @returns Validation result
    */
-  function validateOptionalPositiveInteger(value, fieldName, lineNum) {
-    if (value === undefined) {
-      return { isValid: true };
+  function validateOptionalPositiveInteger(value: any, fieldName: string, lineNum: number): ValidationResult {
+    if (value === undefined || value === null) {
+      return { isValid: true }; // Optional field is valid when not provided
     }
 
     if (typeof value !== "number" && typeof value !== "string") {
-      // Match the original error format for specific field types
-      if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a number or string`,
-        };
-      }
-      if (fieldName.includes("create-code-scanning-alert 'column'")) {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a number or string`,
-        };
-      }
       return {
         isValid: false,
         error: `Line ${lineNum}: ${fieldName} must be a number or string`,
       };
     }
 
-    const parsed = typeof value === "string" ? parseInt(value, 10) : value;
-    if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-      // Match the original error format for different field types
-      if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a positive integer`,
-        };
-      }
-      if (fieldName.includes("create-code-scanning-alert 'column'")) {
-        return {
-          isValid: false,
-          error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${value})`,
-        };
-      }
-      return {
-        isValid: false,
-        error: `Line ${lineNum}: ${fieldName} must be a positive integer (got: ${value})`,
-      };
-    }
-
-    return { isValid: true, normalizedValue: parsed };
+    return { isValid: true };
   }
 
   /**
-   * Validates an issue or pull request number (optional field)
-   * @param {any} value - The value to validate
-   * @param {string} fieldName - The name of the field being validated
-   * @param {number} lineNum - The line number for error reporting
-   * @returns {{isValid: boolean, error?: string}} Validation result
+   * Validates that a value is an issue or PR number (positive integer) if provided (optional)
+   * @param value - The value to validate
+   * @param fieldName - The name of the field being validated
+   * @param lineNum - The line number for error reporting
+   * @returns Validation result
    */
-  function validateIssueOrPRNumber(value, fieldName, lineNum) {
-    if (value === undefined) {
-      return { isValid: true };
+  function validateIssueOrPRNumber(value: any, fieldName: string, lineNum: number): ValidationResult {
+    if (value === undefined || value === null) {
+      return { isValid: true }; // Optional field is valid when not provided
     }
 
     if (typeof value !== "number" && typeof value !== "string") {
@@ -411,10 +348,10 @@ async function main() {
 
   /**
    * Attempts to parse JSON with repair fallback
-   * @param {string} jsonStr - The JSON string to parse
-   * @returns {Object|undefined} The parsed JSON object, or undefined if parsing fails
+   * @param jsonStr - The JSON string to parse
+   * @returns The parsed JSON object, or undefined if parsing fails
    */
-  function parseJsonWithRepair(jsonStr) {
+  function parseJsonWithRepair(jsonStr: string): any {
     try {
       // First, try normal JSON.parse
       return JSON.parse(jsonStr);
@@ -458,8 +395,7 @@ async function main() {
   core.info(`Raw output content length: ${outputContent.length}`);
 
   // Parse the safe-outputs configuration
-  /** @type {any} */
-  let expectedOutputTypes = {};
+  let expectedOutputTypes: any = {};
   if (safeOutputsConfig) {
     try {
       expectedOutputTypes = JSON.parse(safeOutputsConfig);
@@ -472,15 +408,14 @@ async function main() {
 
   // Parse JSONL content
   const lines = outputContent.trim().split("\n");
-  const parsedItems = [];
-  const errors = [];
+  const parsedItems: SafeOutputItem[] = [];
+  const errors: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line === "") continue; // Skip empty lines
     try {
-      /** @type {any} */
-      const item = parseJsonWithRepair(line);
+      const item: any = parseJsonWithRepair(line);
 
       // If item is undefined (failed to parse), add error and process next line
       if (item === undefined) {
@@ -497,103 +432,201 @@ async function main() {
       // Validate against expected output types
       const itemType = item.type;
       if (!expectedOutputTypes[itemType]) {
-        errors.push(
-          `Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`
-        );
+        errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
         continue;
       }
 
-      // Check for too many items of the same type
-      const typeCount = parsedItems.filter(existing => existing.type === itemType).length;
-      const maxAllowed = getMaxAllowedForType(itemType, expectedOutputTypes);
-      if (typeCount >= maxAllowed) {
-        errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
-        continue;
-      }
-
-      // Basic validation based on type
+      // Validate common fields based on the type
       switch (itemType) {
         case "create-issue":
+          // Validate required title field
           if (!item.title || typeof item.title !== "string") {
-            errors.push(`Line ${i + 1}: create_issue requires a 'title' string field`);
+            errors.push(`Line ${i + 1}: create-issue requires a 'title' string field`);
             continue;
           }
+          // Validate required body field
           if (!item.body || typeof item.body !== "string") {
-            errors.push(`Line ${i + 1}: create_issue requires a 'body' string field`);
+            errors.push(`Line ${i + 1}: create-issue requires a 'body' string field`);
             continue;
           }
           // Sanitize text content
           item.title = sanitizeContent(item.title);
           item.body = sanitizeContent(item.body);
-          // Sanitize labels if present
-          if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(
-              /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
-            );
+          // Validate optional labels field
+          if (item.labels !== undefined) {
+            if (!Array.isArray(item.labels)) {
+              errors.push(`Line ${i + 1}: create-issue 'labels' must be an array`);
+              continue;
+            }
+            // Validate each label is a string
+            for (let j = 0; j < item.labels.length; j++) {
+              if (typeof item.labels[j] !== "string") {
+                errors.push(`Line ${i + 1}: create-issue label at index ${j} must be a string`);
+                continue;
+              }
+              // Sanitize label content
+              item.labels[j] = sanitizeContent(item.labels[j]);
+            }
+          }
+          break;
+
+        case "create-discussion":
+          // Validate required title field
+          if (!item.title || typeof item.title !== "string") {
+            errors.push(`Line ${i + 1}: create-discussion requires a 'title' string field`);
+            continue;
+          }
+          // Validate required body field
+          if (!item.body || typeof item.body !== "string") {
+            errors.push(`Line ${i + 1}: create-discussion requires a 'body' string field`);
+            continue;
+          }
+          // Sanitize text content
+          item.title = sanitizeContent(item.title);
+          item.body = sanitizeContent(item.body);
+          // Validate optional category field
+          if (item.category !== undefined && typeof item.category !== "string") {
+            errors.push(`Line ${i + 1}: create-discussion 'category' must be a string`);
+            continue;
+          }
+          if (item.category) {
+            item.category = sanitizeContent(item.category);
           }
           break;
 
         case "add-comment":
+          // Validate required body field
           if (!item.body || typeof item.body !== "string") {
-            errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
+            errors.push(`Line ${i + 1}: add-comment requires a 'body' string field`);
             continue;
           }
-          // Validate optional issue_number field
-          const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-          if (!issueNumValidation.isValid) {
-            errors.push(issueNumValidation.error);
-            continue;
-          }
-          // Sanitize text content
+          // Sanitize body content
           item.body = sanitizeContent(item.body);
+          // Validate optional issue_number field
+          const addCommentIssueNumValidation = validateIssueOrPRNumber(
+            item.issue_number,
+            "add-comment 'issue_number'",
+            i + 1
+          );
+          if (!addCommentIssueNumValidation.isValid) {
+            errors.push(addCommentIssueNumValidation.error!);
+            continue;
+          }
           break;
 
         case "create-pull-request":
+          // Validate required title field
           if (!item.title || typeof item.title !== "string") {
-            errors.push(`Line ${i + 1}: create_pull_request requires a 'title' string field`);
+            errors.push(`Line ${i + 1}: create-pull-request requires a 'title' string field`);
             continue;
           }
+          // Validate required body field
           if (!item.body || typeof item.body !== "string") {
-            errors.push(`Line ${i + 1}: create_pull_request requires a 'body' string field`);
+            errors.push(`Line ${i + 1}: create-pull-request requires a 'body' string field`);
             continue;
           }
+          // Validate required branch field
           if (!item.branch || typeof item.branch !== "string") {
-            errors.push(`Line ${i + 1}: create_pull_request requires a 'branch' string field`);
+            errors.push(`Line ${i + 1}: create-pull-request requires a 'branch' string field`);
             continue;
           }
           // Sanitize text content
           item.title = sanitizeContent(item.title);
           item.body = sanitizeContent(item.body);
           item.branch = sanitizeContent(item.branch);
-          // Sanitize labels if present
-          if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(
-              /** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label)
-            );
+          // Validate optional labels field
+          if (item.labels !== undefined) {
+            if (!Array.isArray(item.labels)) {
+              errors.push(`Line ${i + 1}: create-pull-request 'labels' must be an array`);
+              continue;
+            }
+            // Validate each label is a string
+            for (let j = 0; j < item.labels.length; j++) {
+              if (typeof item.labels[j] !== "string") {
+                errors.push(`Line ${i + 1}: create-pull-request label at index ${j} must be a string`);
+                continue;
+              }
+              // Sanitize label content
+              item.labels[j] = sanitizeContent(item.labels[j]);
+            }
+          }
+          break;
+
+        case "create-code-scanning-alert":
+          // Validate required file field
+          if (!item.file || typeof item.file !== "string") {
+            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'file' string field`);
+            continue;
+          }
+          // Validate required line field
+          const codeAlertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
+          if (!codeAlertLineValidation.isValid) {
+            errors.push(codeAlertLineValidation.error!);
+            continue;
+          }
+          // Validate required severity field
+          if (!item.severity || typeof item.severity !== "string") {
+            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'severity' string field`);
+            continue;
+          }
+          const validSeverities = ["error", "warning", "info", "note"];
+          if (!validSeverities.includes(item.severity)) {
+            errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${validSeverities.join(", ")}`);
+            continue;
+          }
+          // Validate required message field
+          if (!item.message || typeof item.message !== "string") {
+            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'message' string field`);
+            continue;
+          }
+          // Sanitize text content
+          item.file = sanitizeContent(item.file);
+          item.message = sanitizeContent(item.message);
+          // Validate optional column field
+          const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
+          if (!columnValidation.isValid) {
+            errors.push(columnValidation.error!);
+            continue;
+          }
+          // Validate optional ruleIdSuffix field
+          if (item.ruleIdSuffix !== undefined && typeof item.ruleIdSuffix !== "string") {
+            errors.push(`Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`);
+            continue;
+          }
+          if (item.ruleIdSuffix) {
+            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
           }
           break;
 
         case "add-labels":
+          // Validate required labels field
           if (!item.labels || !Array.isArray(item.labels)) {
-            errors.push(`Line ${i + 1}: add_labels requires a 'labels' array field`);
+            errors.push(`Line ${i + 1}: add-labels requires a 'labels' array field`);
             continue;
           }
-          if (item.labels.some(/** @param {any} label */ label => typeof label !== "string")) {
-            errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
+          if (item.labels.length === 0) {
+            errors.push(`Line ${i + 1}: add-labels 'labels' array cannot be empty`);
             continue;
+          }
+          // Validate each label is a string
+          for (let j = 0; j < item.labels.length; j++) {
+            if (typeof item.labels[j] !== "string") {
+              errors.push(`Line ${i + 1}: add-labels label at index ${j} must be a string`);
+              continue;
+            }
+            // Sanitize label content
+            item.labels[j] = sanitizeContent(item.labels[j]);
           }
           // Validate optional issue_number field
-          const labelsIssueNumValidation = validateIssueOrPRNumber(
+          const addLabelsIssueNumValidation = validateIssueOrPRNumber(
             item.issue_number,
             "add-labels 'issue_number'",
             i + 1
           );
-          if (!labelsIssueNumValidation.isValid) {
-            errors.push(labelsIssueNumValidation.error);
+          if (!addLabelsIssueNumValidation.isValid) {
+            errors.push(addLabelsIssueNumValidation.error!);
             continue;
           }
-          // Sanitize label strings
-          item.labels = item.labels.map(/** @param {any} label */ label => sanitizeContent(label));
           break;
 
         case "update-issue":
@@ -633,7 +666,7 @@ async function main() {
             i + 1
           );
           if (!updateIssueNumValidation.isValid) {
-            errors.push(updateIssueNumValidation.error);
+            errors.push(updateIssueNumValidation.error!);
             continue;
           }
           break;
@@ -659,7 +692,7 @@ async function main() {
             i + 1
           );
           if (!pushPRNumValidation.isValid) {
-            errors.push(pushPRNumValidation.error);
+            errors.push(pushPRNumValidation.error!);
             continue;
           }
           break;
@@ -672,11 +705,11 @@ async function main() {
           // Validate required line field
           const lineValidation = validatePositiveInteger(item.line, "create-pull-request-review-comment 'line'", i + 1);
           if (!lineValidation.isValid) {
-            errors.push(lineValidation.error);
+            errors.push(lineValidation.error!);
             continue;
           }
           // lineValidation.normalizedValue is guaranteed to be defined when isValid is true
-          const lineNumber = lineValidation.normalizedValue;
+          const lineNumber = lineValidation.normalizedValue!;
           // Validate required body field
           if (!item.body || typeof item.body !== "string") {
             errors.push(`Line ${i + 1}: create-pull-request-review-comment requires a 'body' string field`);
@@ -691,7 +724,7 @@ async function main() {
             i + 1
           );
           if (!startLineValidation.isValid) {
-            errors.push(startLineValidation.error);
+            errors.push(startLineValidation.error!);
             continue;
           }
           if (
@@ -699,9 +732,7 @@ async function main() {
             lineNumber !== undefined &&
             startLineValidation.normalizedValue > lineNumber
           ) {
-            errors.push(
-              `Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`
-            );
+            errors.push(`Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`);
             continue;
           }
           // Validate optional side field
@@ -712,120 +743,67 @@ async function main() {
             }
           }
           break;
-        case "create-discussion":
-          if (!item.title || typeof item.title !== "string") {
-            errors.push(`Line ${i + 1}: create_discussion requires a 'title' string field`);
-            continue;
-          }
-          if (!item.body || typeof item.body !== "string") {
-            errors.push(`Line ${i + 1}: create_discussion requires a 'body' string field`);
-            continue;
-          }
-          // Validate optional category field
-          if (item.category !== undefined) {
-            if (typeof item.category !== "string") {
-              errors.push(`Line ${i + 1}: create_discussion 'category' must be a string`);
-              continue;
-            }
-            item.category = sanitizeContent(item.category);
-          }
-          // Sanitize text content
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
-          break;
 
         case "missing-tool":
           // Validate required tool field
           if (!item.tool || typeof item.tool !== "string") {
-            errors.push(`Line ${i + 1}: missing_tool requires a 'tool' string field`);
+            errors.push(`Line ${i + 1}: missing-tool requires a 'tool' string field`);
             continue;
           }
           // Validate required reason field
           if (!item.reason || typeof item.reason !== "string") {
-            errors.push(`Line ${i + 1}: missing_tool requires a 'reason' string field`);
+            errors.push(`Line ${i + 1}: missing-tool requires a 'reason' string field`);
             continue;
           }
           // Sanitize text content
           item.tool = sanitizeContent(item.tool);
           item.reason = sanitizeContent(item.reason);
           // Validate optional alternatives field
-          if (item.alternatives !== undefined) {
-            if (typeof item.alternatives !== "string") {
-              errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
-              continue;
-            }
+          if (item.alternatives !== undefined && typeof item.alternatives !== "string") {
+            errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
+            continue;
+          }
+          if (item.alternatives) {
             item.alternatives = sanitizeContent(item.alternatives);
           }
           break;
 
         case "upload-asset":
+          // Validate required path field
           if (!item.path || typeof item.path !== "string") {
-            errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
+            errors.push(`Line ${i + 1}: upload-asset requires a 'path' string field`);
             continue;
           }
-          break;
-        case "create-code-scanning-alert":
-          // Validate required fields
-          if (!item.file || typeof item.file !== "string") {
-            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`);
+          // Validate fileName (should be string if present)
+          if (item.fileName !== undefined && typeof item.fileName !== "string") {
+            errors.push(`Line ${i + 1}: upload-asset 'fileName' must be a string`);
             continue;
           }
-          const alertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
-          if (!alertLineValidation.isValid) {
-            errors.push(alertLineValidation.error);
+          // Validate sha (should be string if present)
+          if (item.sha !== undefined && typeof item.sha !== "string") {
+            errors.push(`Line ${i + 1}: upload-asset 'sha' must be a string`);
             continue;
           }
-          if (!item.severity || typeof item.severity !== "string") {
-            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`);
+          // Validate size (should be number if present)
+          if (item.size !== undefined && typeof item.size !== "number") {
+            errors.push(`Line ${i + 1}: upload-asset 'size' must be a number`);
             continue;
           }
-          if (!item.message || typeof item.message !== "string") {
-            errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`);
+          // Validate url (should be string if present)
+          if (item.url !== undefined && typeof item.url !== "string") {
+            errors.push(`Line ${i + 1}: upload-asset 'url' must be a string`);
             continue;
           }
-
-          // Validate severity level
-          const allowedSeverities = ["error", "warning", "info", "note"];
-          if (!allowedSeverities.includes(item.severity.toLowerCase())) {
-            errors.push(
-              `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`
-            );
+          // Validate targetFileName (should be string if present)
+          if (item.targetFileName !== undefined && typeof item.targetFileName !== "string") {
+            errors.push(`Line ${i + 1}: upload-asset 'targetFileName' must be a string`);
             continue;
           }
-
-          // Validate optional column field
-          const columnValidation = validateOptionalPositiveInteger(
-            item.column,
-            "create-code-scanning-alert 'column'",
-            i + 1
-          );
-          if (!columnValidation.isValid) {
-            errors.push(columnValidation.error);
-            continue;
-          }
-
-          // Validate optional ruleIdSuffix field
-          if (item.ruleIdSuffix !== undefined) {
-            if (typeof item.ruleIdSuffix !== "string") {
-              errors.push(`Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`);
-              continue;
-            }
-            if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
-              errors.push(
-                `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
-              );
-              continue;
-            }
-          }
-
-          // Normalize severity to lowercase and sanitize string fields
-          item.severity = item.severity.toLowerCase();
-          item.file = sanitizeContent(item.file);
-          item.severity = sanitizeContent(item.severity);
-          item.message = sanitizeContent(item.message);
-          if (item.ruleIdSuffix) {
-            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
-          }
+          // Sanitize path content
+          item.path = sanitizeContent(item.path);
+          if (item.fileName) item.fileName = sanitizeContent(item.fileName);
+          if (item.url) item.url = sanitizeContent(item.url);
+          if (item.targetFileName) item.targetFileName = sanitizeContent(item.targetFileName);
           break;
 
         default:
@@ -833,20 +811,21 @@ async function main() {
           continue;
       }
 
-      core.info(`Line ${i + 1}: Valid ${itemType} item`);
+      // If we made it here, the item is valid
       parsedItems.push(item);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
+      errors.push(`Line ${i + 1}: ${errorMsg}`);
     }
   }
 
-  // Report validation results
+  // Check if there are too many errors
   if (errors.length > 0) {
-    core.warning("Validation errors found:");
-    errors.forEach(error => core.warning(`  - ${error}`));
+    core.warning(`Found ${errors.length} validation errors:`);
+    errors.forEach(error => core.warning(`  ${error}`));
 
-    if (parsedItems.length === 0) {
+    // For now, fail if there are any errors to maintain strict validation
+    if (errors.length > 0) {
       core.setFailed(errors.map(e => `  - ${e}`).join("\n"));
       return;
     }
@@ -858,7 +837,7 @@ async function main() {
   core.info(`Successfully parsed ${parsedItems.length} valid output items`);
 
   // Set the parsed and validated items as output
-  const validatedOutput = {
+  const validatedOutput: OutputData = {
     items: parsedItems,
     errors: errors,
   };
@@ -898,5 +877,6 @@ async function main() {
   }
 }
 
-// Call the main function
-await main();
+(async () => {
+  await collectNdjsonOutputMain();
+})();

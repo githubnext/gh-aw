@@ -27,7 +27,7 @@ var createCodeScanningAlertScript string
 //go:embed js/compute_text.js
 var computeTextScript string
 
-//go:embed js/collect_ndjson_output.cjs
+//go:embed js/collect_ndjson_output.js
 var collectJSONLOutputScript string
 
 //go:embed js/add_labels.js
@@ -66,7 +66,7 @@ var validateErrorsScript string
 //go:embed js/missing_tool.js
 var missingToolScript string
 
-//go:embed js/safe_outputs_mcp_server.cjs
+//go:embed js/safe_outputs_mcp_server.js
 var safeOutputsMCPServerScript string
 
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
