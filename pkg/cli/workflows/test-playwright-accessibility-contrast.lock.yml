@@ -2151,5 +2151,4 @@ jobs:
             (async () => {
                 await main();
             })();
-            export {};
 
