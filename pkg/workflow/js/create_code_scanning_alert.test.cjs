@@ -64,9 +64,9 @@ global.core = mockCore;
 global.context = mockContext;
 
 // Read the code scanning alert script
-const securityReportScript = fs.readFileSync(path.join(import.meta.dirname, "create_code_scanning_alert.cjs"), "utf8");
+const securityReportScript = fs.readFileSync(path.join(import.meta.dirname, "create_code_scanning_alert.js"), "utf8");
 
-describe("create_code_scanning_alert.cjs", () => {
+describe("create_code_scanning_alert.js", () => {
   beforeEach(() => {
     // Reset mocks
     mockCore.setOutput.mockClear();

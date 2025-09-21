@@ -58,7 +58,7 @@ const mockContext = {
 global.core = mockCore;
 global.context = mockContext;
 
-describe("push_to_pr_branch.cjs", () => {
+describe("push_to_pr_branch.js", () => {
   let pushToPrBranchScript;
   let mockFs;
   let mockExec;
@@ -113,7 +113,7 @@ describe("push_to_pr_branch.cjs", () => {
     mockCore.error.mockReset();
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "push_to_pr_branch.cjs");
+    const scriptPath = path.join(process.cwd(), "push_to_pr_branch.js");
     pushToPrBranchScript = fs.readFileSync(scriptPath, "utf8");
 
     // Modify the script to inject our mocks and make core available
@@ -324,7 +324,7 @@ const exec = global.exec;`
 
   describe("Script validation", () => {
     it("should have valid JavaScript syntax", () => {
-      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.js");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Basic syntax validation - should not contain obvious errors
@@ -335,7 +335,7 @@ const exec = global.exec;`
     });
 
     it("should export a main function", () => {
-      const scriptPath = path.join(__dirname, "push_to_pr_branch.cjs");
+      const scriptPath = path.join(__dirname, "push_to_pr_branch.js");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
       // Check that the script has the expected structure

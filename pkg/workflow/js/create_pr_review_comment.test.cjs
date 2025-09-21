@@ -78,7 +78,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("create_pr_review_comment.cjs", () => {
+describe("create_pr_review_comment.js", () => {
   let createPRReviewCommentScript;
 
   beforeEach(() => {
@@ -86,7 +86,7 @@ describe("create_pr_review_comment.cjs", () => {
     vi.clearAllMocks();
 
     // Read the script file
-    const scriptPath = path.join(__dirname, "create_pr_review_comment.cjs");
+    const scriptPath = path.join(__dirname, "create_pr_review_comment.js");
     createPRReviewCommentScript = fs.readFileSync(scriptPath, "utf8");
 
     // Reset environment variables

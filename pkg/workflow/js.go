@@ -18,10 +18,10 @@ var createDiscussionScript string
 //go:embed js/add_comment.js
 var createCommentScript string
 
-//go:embed js/create_pr_review_comment.cjs
+//go:embed js/create_pr_review_comment.js
 var createPRReviewCommentScript string
 
-//go:embed js/create_code_scanning_alert.cjs
+//go:embed js/create_code_scanning_alert.js
 var createCodeScanningAlertScript string
 
 //go:embed js/compute_text.js
@@ -36,7 +36,7 @@ var addLabelsScript string
 //go:embed js/update_issue.js
 var updateIssueScript string
 
-//go:embed js/push_to_pr_branch.cjs
+//go:embed js/push_to_pr_branch.js
 var pushToBranchScript string
 
 //go:embed js/upload_assets.js
