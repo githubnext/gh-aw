@@ -12,7 +12,7 @@ safe-outputs:
     title-prefix: "[docs] "
 engine: 
   id: claude
-  max-turns: 10
+  max-turns: 50
 permissions: read-all
 tools:
   playwright:
