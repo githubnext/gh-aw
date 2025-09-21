@@ -691,7 +691,7 @@ jobs:
                   "--output-dir",
                   "/tmp/mcp-logs/playwright",
                   "--allowed-origins",
-                  "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com;*.github.com"
                 ]
               },
               "safe_outputs": {
