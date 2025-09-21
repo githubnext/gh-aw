@@ -1,4 +1,4 @@
-import type { SafeOutputItems, AddLabelsItem } from "./types/safe-outputs";
+import type { SafeOutputItems } from "./types/safe-outputs";
 
 async function addLabelsMain(): Promise<void> {
   // Read the validated output content from environment variable
@@ -30,7 +30,7 @@ async function addLabelsMain(): Promise<void> {
   }
 
   // Find the add-labels item
-  const labelsItem = validatedOutput.items.find(item => item.type === "add-labels") as AddLabelsItem | undefined;
+  const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
   if (!labelsItem) {
     core.warning("No add-labels item found in agent output");
     return;
@@ -88,10 +88,10 @@ async function addLabelsMain(): Promise<void> {
 
   if (labelTarget === "*") {
     // For target "*", we need an explicit issue number from the labels item
-    if ((labelsItem as any).issue_number) {
-      issueNumber = parseInt((labelsItem as any).issue_number, 10);
+    if (labelsItem.issue_number) {
+      issueNumber = parseInt(labelsItem.issue_number, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        core.info(`Invalid issue number specified: ${(labelsItem as any).issue_number}`);
+        core.info(`Invalid issue number specified: ${labelsItem.issue_number}`);
         return;
       }
     } else {

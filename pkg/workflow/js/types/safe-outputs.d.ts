@@ -104,6 +104,10 @@ interface AddLabelsItem extends BaseSafeOutputItem {
   type: "add-labels";
   /** Array of label names to add */
   labels: string[];
+  /**
+   * Target issue
+   */
+  issue_number?: string;
 }
 
 /**
