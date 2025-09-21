@@ -1,4 +1,4 @@
-async function setCancelled(message) {
+async function setCheckPermissionsCancelled(message: string): Promise<void> {
   try {
     await github.rest.actions.cancelWorkflowRun({
       owner: context.repo.owner,
@@ -13,7 +13,7 @@ async function setCancelled(message) {
   }
 }
 
-async function main() {
+async function checkPermissionsMain(): Promise<void> {
   const { eventName } = context;
 
   // skip check for safe events
@@ -32,7 +32,7 @@ async function main() {
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
     core.error("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-    await setCancelled("Configuration error: Required permissions not specified");
+    await setCheckPermissionsCancelled("Configuration error: Required permissions not specified");
     return;
   }
 
@@ -62,7 +62,7 @@ async function main() {
   } catch (repoError) {
     const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
-    await setCancelled(`Repository permission check failed: ${errorMessage}`);
+    await setCheckPermissionsCancelled(`Repository permission check failed: ${errorMessage}`);
     return;
   }
 
@@ -70,8 +70,11 @@ async function main() {
   core.warning(
     `Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
-  await setCancelled(
+  await setCheckPermissionsCancelled(
     `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
   );
 }
-await main();
+
+(async () => {
+  await checkPermissionsMain();
+})();

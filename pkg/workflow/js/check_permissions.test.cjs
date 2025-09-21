@@ -69,7 +69,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("check_permissions.cjs", () => {
+describe("check_permissions.js", () => {
   let checkPermissionsScript;
   let originalEnv;
 
@@ -89,7 +89,7 @@ describe("check_permissions.cjs", () => {
     };
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "check_permissions.cjs");
+    const scriptPath = path.join(process.cwd(), "check_permissions.js");
     checkPermissionsScript = fs.readFileSync(scriptPath, "utf8");
   });
 

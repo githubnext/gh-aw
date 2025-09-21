@@ -32,6 +32,9 @@
     "removeComments": true
   },
   "include": [
+    "add_reaction.ts",
+    "check_permissions.ts",
+    "check_team_member.ts",
     "create_discussion.ts",
     "create_issue.ts",
     "missing_tool.ts",

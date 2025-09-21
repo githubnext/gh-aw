@@ -33,10 +33,10 @@
   },
   "include": [
     "add_labels.cjs",
-    "add_reaction.cjs",
+    "add_reaction.ts",
     "add_reaction_and_edit_comment.cjs",
-    "check_permissions.cjs",
-    "check_team_member.cjs",
+    "check_permissions.ts",
+    "check_team_member.ts",
     "collect_ndjson_output.cjs",
     "compute_text.cjs",
     "create_code_scanning_alert.cjs",

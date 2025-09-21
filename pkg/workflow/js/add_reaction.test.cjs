@@ -67,7 +67,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("add_reaction.cjs", () => {
+describe("add_reaction.js", () => {
   let addReactionScript;
 
   beforeEach(() => {
@@ -92,7 +92,7 @@ describe("add_reaction.cjs", () => {
     };
 
     // Load the script content
-    const scriptPath = path.join(process.cwd(), "add_reaction.cjs");
+    const scriptPath = path.join(process.cwd(), "add_reaction.js");
     addReactionScript = fs.readFileSync(scriptPath, "utf8");
   });
 

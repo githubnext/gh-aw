@@ -45,13 +45,13 @@ var uploadAssetsScript string
 //go:embed js/setup_agent_output.js
 var setupAgentOutputScript string
 
-//go:embed js/add_reaction.cjs
+//go:embed js/add_reaction.js
 var addReactionScript string
 
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScript string
 
-//go:embed js/check_permissions.cjs
+//go:embed js/check_permissions.js
 var checkPermissionsScript string
 
 //go:embed js/parse_claude_log.cjs

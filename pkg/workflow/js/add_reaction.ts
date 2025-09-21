@@ -1,18 +1,20 @@
-async function main() {
+type ValidReaction = "+1" | "-1" | "laugh" | "confused" | "heart" | "hooray" | "rocket" | "eyes";
+
+async function addReactionMain(): Promise<void> {
   // Read inputs from environment variables
-  const reaction = process.env.GITHUB_AW_REACTION || "eyes";
+  const reaction = (process.env.GITHUB_AW_REACTION || "eyes") as ValidReaction;
 
   core.info(`Reaction type: ${reaction}`);
 
   // Validate reaction type
-  const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
+  const validReactions: ValidReaction[] = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
   if (!validReactions.includes(reaction)) {
     core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
     return;
   }
 
   // Determine the API endpoint based on the event type
-  let endpoint;
+  let endpoint: string;
   const eventName = context.eventName;
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -74,10 +76,10 @@ async function main() {
 
 /**
  * Add a reaction to a GitHub issue, PR, or comment
- * @param {string} endpoint - The GitHub API endpoint to add the reaction to
- * @param {string} reaction - The reaction type to add
+ * @param endpoint - The GitHub API endpoint to add the reaction to
+ * @param reaction - The reaction type to add
  */
-async function addReaction(endpoint, reaction) {
+async function addReaction(endpoint: string, reaction: ValidReaction): Promise<void> {
   const response = await github.request("POST " + endpoint, {
     content: reaction,
     headers: {
@@ -95,4 +97,6 @@ async function addReaction(endpoint, reaction) {
   }
 }
 
-await main();
+(async () => {
+  await addReactionMain();
+})();

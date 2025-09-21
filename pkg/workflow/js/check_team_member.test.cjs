@@ -66,7 +66,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("check_team_member.cjs", () => {
+describe("check_team_member.js", () => {
   let checkTeamMemberScript;
 
   beforeEach(() => {
@@ -81,7 +81,7 @@ describe("check_team_member.cjs", () => {
     };
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "check_team_member.cjs");
+    const scriptPath = path.join(process.cwd(), "check_team_member.js");
     checkTeamMemberScript = fs.readFileSync(scriptPath, "utf8");
   });
 

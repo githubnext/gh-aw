@@ -1,4 +1,4 @@
-async function setCancelled(message) {
+async function setCheckTeamMemberCancelled(message: string): Promise<void> {
   try {
     await github.rest.actions.cancelWorkflowRun({
       owner: context.repo.owner,
@@ -13,7 +13,7 @@ async function setCancelled(message) {
   }
 }
 
-async function main() {
+async function checkTeamMemberMain(): Promise<void> {
   const actor = context.actor;
   const { owner, repo } = context.repo;
 
@@ -44,7 +44,10 @@ async function main() {
   core.warning(
     `Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`
   );
-  await setCancelled(`Access denied: User '${actor}' is not authorized for this workflow`);
+  await setCheckTeamMemberCancelled(`Access denied: User '${actor}' is not authorized for this workflow`);
   core.setOutput("is_team_member", "false");
 }
-await main();
+
+(async () => {
+  await checkTeamMemberMain();
+})();
