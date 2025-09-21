@@ -108,6 +108,27 @@ func TestFormatJavaScriptForYAML(t *testing.T) {
 				"            }\n",
 			},
 		},
+		{
+			name:   "script with regular expressions should preserve them",
+			script: "const regex = /\\/\\// // This should be removed but regex should stay\nconst value = 42;",
+			expected: []string{
+				"            const regex = /\\/\\// \n",
+				"            const value = 42;\n",
+			},
+		},
+		{
+			name:   "script with complex regular expressions and comments",
+			script: "const regex1 = /foo\\/bar/g; // comment after regex\nconst regex2 = /test\\/\\/path/i; // another comment\nconst problematic = /end\\/\\/with\\/slashes/; // comment\n// This is a comment\nconst simpleRegex = /simple/;\nif (text.match(/pattern\\/with\\/slashes/)) {\n  console.log('matched');\n}",
+			expected: []string{
+				"            const regex1 = /foo\\/bar/g; \n",
+				"            const regex2 = /test\\/\\/path/i; \n",
+				"            const problematic = /end\\/\\/with\\/slashes/; \n",
+				"            const simpleRegex = /simple/;\n",
+				"            if (text.match(/pattern\\/with\\/slashes/)) {\n",
+				"              console.log('matched');\n",
+				"            }\n",
+			},
+		},
 	}
 
 	for _, tt := range tests {

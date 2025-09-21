@@ -561,7 +561,7 @@ jobs:
                   const result = handler(args);
                   const content = result && result.content ? result.content : [];
                   replyResult(id, { content });
-                } else if (/^notifications\
+                } else if (/^notifications\//.test(method)) {
                   debug(`ignore ${method}`);
                 } else {
                   replyError(id, -32601, `Method not found: ${method}`);
@@ -1943,14 +1943,14 @@ jobs:
                   break;
                 case "Read":
                   const filePath = input.file_path || input.path || "";
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\
+                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); 
                   markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
                   break;
                 case "Write":
                 case "Edit":
                 case "MultiEdit":
                   const writeFilePath = input.file_path || input.path || "";
-                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\
+                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
                   markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
                   break;
                 case "Grep":
@@ -1960,7 +1960,7 @@ jobs:
                   break;
                 case "LS":
                   const lsPath = input.path || "";
-                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\
+                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
                   markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
                   break;
                 default:
