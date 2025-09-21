@@ -401,9 +401,7 @@ describe("create_issue.cjs", () => {
     };
 
     // First call fails with disabled error, second call succeeds
-    mockGithub.rest.issues.create
-      .mockRejectedValueOnce(disabledError)
-      .mockResolvedValueOnce({ data: mockIssue });
+    mockGithub.rest.issues.create.mockRejectedValueOnce(disabledError).mockResolvedValueOnce({ data: mockIssue });
 
     // Execute the script
     await eval(`(async () => { ${createIssueScript} })()`);

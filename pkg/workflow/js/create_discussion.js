@@ -191,4 +191,4 @@ async function main() {
     core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
 }
 await main();
-export {};
+
