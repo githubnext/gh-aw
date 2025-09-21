@@ -907,7 +907,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               created_at: new Date().toISOString()
             };
             
@@ -1033,7 +1033,6 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
           GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
@@ -2158,8 +2157,6 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[docs] "
-          GITHUB_AW_ISSUE_LABELS: "documentation,accessibility,automation"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             async function main() {
@@ -2338,7 +2335,6 @@ jobs:
           GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             const fs = require("fs");

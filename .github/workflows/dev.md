@@ -10,8 +10,6 @@ safe-outputs:
   upload-assets:
   create-issue:
     title-prefix: "[docs] "
-    labels: [documentation, accessibility, automation]
-  staged: true
 engine: 
   id: claude
   max-turns: 10
