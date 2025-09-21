@@ -92,7 +92,7 @@ describe("add_reaction.js", () => {
     };
 
     // Load the script content
-    const scriptPath = path.join(process.cwd(), "add_reaction.js");
+    const scriptPath = path.join(__dirname, "add_reaction.js");
     addReactionScript = fs.readFileSync(scriptPath, "utf8");
   });
 
