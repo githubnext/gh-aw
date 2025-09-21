@@ -61,17 +61,10 @@ async function main() {
 
   // Read the allowed labels from environment variable (optional)
   const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
-  let allowedLabels: string[] | null = null;
-
-  if (allowedLabelsEnv && allowedLabelsEnv.trim() !== "") {
-    allowedLabels = allowedLabelsEnv
-      .split(",")
-      .map(label => label.trim())
-      .filter(label => label);
-    if (allowedLabels.length === 0) {
-      allowedLabels = null; // Treat empty list as no restrictions
-    }
-  }
+  const allowedLabels = allowedLabelsEnv
+    ?.split(",")
+    .map(label => label.trim())
+    .filter(label => label);
 
   if (allowedLabels) {
     core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);

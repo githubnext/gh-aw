@@ -42,16 +42,10 @@ async function main() {
     return;
   }
   const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
-  let allowedLabels = null;
-  if (allowedLabelsEnv && allowedLabelsEnv.trim() !== "") {
-    allowedLabels = allowedLabelsEnv
-      .split(",")
-      .map(label => label.trim())
-      .filter(label => label);
-    if (allowedLabels.length === 0) {
-      allowedLabels = null;
-    }
-  }
+  const allowedLabels = allowedLabelsEnv
+    ?.split(",")
+    .map(label => label.trim())
+    .filter(label => label);
   if (allowedLabels) {
     core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
   } else {
