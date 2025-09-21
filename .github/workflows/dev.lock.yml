@@ -2324,6 +2324,7 @@ jobs:
           name: safe-outputs-assets
           path: /tmp/safe-outputs/assets/
       - name: List downloaded asset files
+        continue-on-error: true
         run: |
           echo "Downloaded asset files:"
           ls -la /tmp/safe-outputs/assets/

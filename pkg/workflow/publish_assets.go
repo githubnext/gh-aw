@@ -125,6 +125,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 
 	// list files
 	steps = append(steps, "      - name: List downloaded asset files\n")
+	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          echo \"Downloaded asset files:\"\n")
 	steps = append(steps, "          ls -la /tmp/safe-outputs/assets/\n")
