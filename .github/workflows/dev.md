@@ -7,6 +7,7 @@ on:
       - copilot/*
       - pelikhan/*
 safe-outputs:
+  staged: true
   upload-assets:
   create-issue:
     title-prefix: "[docs] "
