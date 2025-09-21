@@ -171,8 +171,13 @@ func TestLogParserScriptRetrieval(t *testing.T) {
 
 			// Basic validation that it contains expected functions
 			expectedFunctions := []string{
-				"function main(",
+				"parseClaudeLogMain(", // Updated for TypeScript conversion
 				"function parse",
+			}
+			
+			// For codex log, check for the correct function name
+			if scriptName == "parse_codex_log" {
+				expectedFunctions[0] = "parseCodexLogMain(" // Updated for TypeScript conversion
 			}
 
 			for _, expected := range expectedFunctions {

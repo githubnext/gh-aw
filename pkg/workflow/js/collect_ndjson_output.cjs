@@ -1,5 +1,4 @@
-// @ts-nocheck
-async function collectNdjsonOutputMain() {
+async function main() {
   const fs = require("fs");
 
   /**
@@ -473,8 +472,8 @@ async function collectNdjsonOutputMain() {
 
   // Parse JSONL content
   const lines = outputContent.trim().split("\n");
-  const parsedItems: any[] = [];
-  const errors: string[] = [];
+  const parsedItems = [];
+  const errors = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -899,6 +898,5 @@ async function collectNdjsonOutputMain() {
   }
 }
 
-(async () => {
-  await collectNdjsonOutputMain();
-})();
+// Call the main function
+await main();

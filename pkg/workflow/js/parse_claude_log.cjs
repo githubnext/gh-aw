@@ -1,5 +1,4 @@
-// @ts-nocheck
-async function parseClaudeLogMain() {
+function main() {
   const fs = require("fs");
 
   try {
@@ -14,7 +13,7 @@ async function parseClaudeLogMain() {
     }
     const logContent = fs.readFileSync(logFile, "utf8");
     const result = parseClaudeLog(logContent);
-    await core.summary.addRaw(result.markdown).write();
+    core.summary.addRaw(result.markdown).write();
     if (result.mcpFailures && result.mcpFailures.length > 0) {
       const failedServers = result.mcpFailures.join(", ");
       core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
@@ -523,6 +522,4 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-(async () => {
-  await parseClaudeLogMain();
-})();
+main();

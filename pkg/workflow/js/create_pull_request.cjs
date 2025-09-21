@@ -3,8 +3,7 @@ const fs = require("fs");
 /** @type {typeof import("crypto")} */
 const crypto = require("crypto");
 
-// @ts-nocheck
-async function createPullRequestMain() {
+async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -93,7 +92,6 @@ async function createPullRequestMain() {
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
     const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
-    const { Buffer } = require("buffer");
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
@@ -340,6 +338,4 @@ async function createPullRequestMain() {
     )
     .write();
 }
-(async () => {
-  await createPullRequestMain();
-})();
+await main();

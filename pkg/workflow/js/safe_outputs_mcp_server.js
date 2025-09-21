@@ -1,8 +1,7 @@
-async function safeOutputsMcpServerMain() {
+function safeOutputsMcpServerMain() {
     const fs = require("fs");
     const path = require("path");
     const crypto = require("crypto");
-    const { TextEncoder } = require("util");
     const encoder = new TextEncoder();
     const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
     if (!configEnv)
@@ -13,7 +12,7 @@ async function safeOutputsMcpServerMain() {
     if (!outputFile)
         throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
     const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
-    const debug = (msg) => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+    const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
     function writeMessage(obj) {
         const json = JSON.stringify(obj);
         debug(`send: ${json}`);
@@ -24,7 +23,6 @@ async function safeOutputsMcpServerMain() {
     class ReadBuffer {
         _buffer;
         append(chunk) {
-            const { Buffer } = require("buffer");
             this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
         }
         readMessage() {
@@ -102,7 +100,7 @@ async function safeOutputsMcpServerMain() {
             throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
-    const defaultHandler = (type) => (args) => {
+    const defaultHandler = type => args => {
         const entry = { ...(args || {}), type };
         appendSafeOutput(entry);
         return {
@@ -114,7 +112,7 @@ async function safeOutputsMcpServerMain() {
             ],
         };
     };
-    const uploadAssetHandler = (args) => {
+    const uploadAssetHandler = args => {
         const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
         if (!branchName)
             throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
@@ -184,7 +182,7 @@ async function safeOutputsMcpServerMain() {
             ],
         };
     };
-    const normTool = (toolName) => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : "");
+    const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
     const ALL_TOOLS = [
         {
             name: "create_issue",

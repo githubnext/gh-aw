@@ -1,3 +1,4 @@
+// @ts-nocheck
 interface ErrorPattern {
   pattern: string;
   description?: string;

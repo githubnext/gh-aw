@@ -49,25 +49,49 @@ async function collectNdjsonOutputMain() {
             });
         }
         function sanitizeUrlProtocols(s) {
-            return s.replace(/\b(?!https:\/\/)[a-z][a-z0-9+.-]*:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, "(redacted)");
+            return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+                return protocol.toLowerCase() === "https" ? match : "(redacted)";
+            });
         }
         function neutralizeMentions(s) {
-            return s.replace(/(?<!`)@([a-zA-Z0-9_-]+)(?!`)/g, "`@$1`");
+            return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => `${p1}\`@${p2}\``);
         }
         function removeXmlComments(s) {
-            return s.replace(/<!--[\s\S]*?-->/g, "");
+            return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
         }
         function neutralizeBotTriggers(s) {
-            const botTriggers = [
-                /(?<!`)\b(fixes?|closes?|resolves?)\s+#(\d+)(?!`)/gi,
-                /(?<!`)\b(re-?open|reopen)\s+#(\d+)(?!`)/gi,
-                /(?<!`)\/\w+(?!`)/g,
-            ];
-            let result = s;
-            for (const trigger of botTriggers) {
-                result = result.replace(trigger, "`$&`");
-            }
-            return result;
+            return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+        }
+    }
+    function getMaxAllowedForType(itemType, config) {
+        if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
+            return config[itemType].max;
+        }
+        switch (itemType) {
+            case "create-issue":
+                return 1;
+            case "add-comment":
+                return 1;
+            case "create-pull-request":
+                return 1;
+            case "create-pull-request-review-comment":
+                return 1;
+            case "add-labels":
+                return 5;
+            case "update-issue":
+                return 1;
+            case "push-to-pr-branch":
+                return 1;
+            case "create-discussion":
+                return 1;
+            case "missing-tool":
+                return 1000;
+            case "create-code-scanning-alert":
+                return 1000;
+            case "upload-asset":
+                return 10;
+            default:
+                return 1;
         }
     }
     function repairJson(jsonStr) {
@@ -140,7 +164,7 @@ async function collectNdjsonOutputMain() {
             if (fieldName.includes("create-pull-request-review-comment 'line'")) {
                 return {
                     isValid: false,
-                    error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number`,
+                    error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number or string field`,
                 };
             }
             return {
@@ -148,42 +172,72 @@ async function collectNdjsonOutputMain() {
                 error: `Line ${lineNum}: ${fieldName} must be a number or string`,
             };
         }
-        let numValue;
-        if (typeof value === "string") {
-            const parsed = parseInt(value, 10);
-            if (isNaN(parsed)) {
+        const parsed = typeof value === "string" ? parseInt(value, 10) : value;
+        if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+            if (fieldName.includes("create-code-scanning-alert 'line'")) {
                 return {
                     isValid: false,
-                    error: `Line ${lineNum}: ${fieldName} must be a valid number`,
+                    error: `Line ${lineNum}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${value})`,
                 };
             }
-            numValue = parsed;
-        }
-        else {
-            numValue = value;
-        }
-        if (!Number.isInteger(numValue) || numValue <= 0) {
+            if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+                return {
+                    isValid: false,
+                    error: `Line ${lineNum}: create-pull-request-review-comment 'line' must be a positive integer`,
+                };
+            }
             return {
                 isValid: false,
-                error: `Line ${lineNum}: ${fieldName} must be a positive integer`,
+                error: `Line ${lineNum}: ${fieldName} must be a positive integer (got: ${value})`,
             };
         }
-        return { isValid: true, normalizedValue: numValue };
+        return { isValid: true, normalizedValue: parsed };
     }
     function validateOptionalPositiveInteger(value, fieldName, lineNum) {
-        if (value === undefined || value === null) {
+        if (value === undefined) {
             return { isValid: true };
         }
         if (typeof value !== "number" && typeof value !== "string") {
+            if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
+                return {
+                    isValid: false,
+                    error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a number or string`,
+                };
+            }
+            if (fieldName.includes("create-code-scanning-alert 'column'")) {
+                return {
+                    isValid: false,
+                    error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a number or string`,
+                };
+            }
             return {
                 isValid: false,
                 error: `Line ${lineNum}: ${fieldName} must be a number or string`,
             };
         }
-        return { isValid: true };
+        const parsed = typeof value === "string" ? parseInt(value, 10) : value;
+        if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+            if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
+                return {
+                    isValid: false,
+                    error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a positive integer`,
+                };
+            }
+            if (fieldName.includes("create-code-scanning-alert 'column'")) {
+                return {
+                    isValid: false,
+                    error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${value})`,
+                };
+            }
+            return {
+                isValid: false,
+                error: `Line ${lineNum}: ${fieldName} must be a positive integer (got: ${value})`,
+            };
+        }
+        return { isValid: true, normalizedValue: parsed };
     }
     function validateIssueOrPRNumber(value, fieldName, lineNum) {
-        if (value === undefined || value === null) {
+        if (value === undefined) {
             return { isValid: true };
         }
         if (typeof value !== "number" && typeof value !== "string") {
@@ -263,152 +317,75 @@ async function collectNdjsonOutputMain() {
                 errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                 continue;
             }
+            const typeCount = parsedItems.filter(existing => existing.type === itemType).length;
+            const maxAllowed = getMaxAllowedForType(itemType, expectedOutputTypes);
+            if (typeCount >= maxAllowed) {
+                errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
+                continue;
+            }
             switch (itemType) {
                 case "create-issue":
                     if (!item.title || typeof item.title !== "string") {
-                        errors.push(`Line ${i + 1}: create-issue requires a 'title' string field`);
+                        errors.push(`Line ${i + 1}: create_issue requires a 'title' string field`);
                         continue;
                     }
                     if (!item.body || typeof item.body !== "string") {
-                        errors.push(`Line ${i + 1}: create-issue requires a 'body' string field`);
+                        errors.push(`Line ${i + 1}: create_issue requires a 'body' string field`);
                         continue;
                     }
                     item.title = sanitizeContent(item.title);
                     item.body = sanitizeContent(item.body);
-                    if (item.labels !== undefined) {
-                        if (!Array.isArray(item.labels)) {
-                            errors.push(`Line ${i + 1}: create-issue 'labels' must be an array`);
-                            continue;
-                        }
-                        for (let j = 0; j < item.labels.length; j++) {
-                            if (typeof item.labels[j] !== "string") {
-                                errors.push(`Line ${i + 1}: create-issue label at index ${j} must be a string`);
-                                continue;
-                            }
-                            item.labels[j] = sanitizeContent(item.labels[j]);
-                        }
-                    }
-                    break;
-                case "create-discussion":
-                    if (!item.title || typeof item.title !== "string") {
-                        errors.push(`Line ${i + 1}: create-discussion requires a 'title' string field`);
-                        continue;
-                    }
-                    if (!item.body || typeof item.body !== "string") {
-                        errors.push(`Line ${i + 1}: create-discussion requires a 'body' string field`);
-                        continue;
-                    }
-                    item.title = sanitizeContent(item.title);
-                    item.body = sanitizeContent(item.body);
-                    if (item.category !== undefined && typeof item.category !== "string") {
-                        errors.push(`Line ${i + 1}: create-discussion 'category' must be a string`);
-                        continue;
-                    }
-                    if (item.category) {
-                        item.category = sanitizeContent(item.category);
+                    if (item.labels && Array.isArray(item.labels)) {
+                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
                     }
                     break;
                 case "add-comment":
                     if (!item.body || typeof item.body !== "string") {
-                        errors.push(`Line ${i + 1}: add-comment requires a 'body' string field`);
+                        errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
+                        continue;
+                    }
+                    const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
+                    if (!issueNumValidation.isValid) {
+                        errors.push(issueNumValidation.error);
                         continue;
                     }
                     item.body = sanitizeContent(item.body);
-                    const addCommentIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-comment 'issue_number'", i + 1);
-                    if (!addCommentIssueNumValidation.isValid) {
-                        errors.push(addCommentIssueNumValidation.error);
-                        continue;
-                    }
                     break;
                 case "create-pull-request":
                     if (!item.title || typeof item.title !== "string") {
-                        errors.push(`Line ${i + 1}: create-pull-request requires a 'title' string field`);
+                        errors.push(`Line ${i + 1}: create_pull_request requires a 'title' string field`);
                         continue;
                     }
                     if (!item.body || typeof item.body !== "string") {
-                        errors.push(`Line ${i + 1}: create-pull-request requires a 'body' string field`);
+                        errors.push(`Line ${i + 1}: create_pull_request requires a 'body' string field`);
                         continue;
                     }
                     if (!item.branch || typeof item.branch !== "string") {
-                        errors.push(`Line ${i + 1}: create-pull-request requires a 'branch' string field`);
+                        errors.push(`Line ${i + 1}: create_pull_request requires a 'branch' string field`);
                         continue;
                     }
                     item.title = sanitizeContent(item.title);
                     item.body = sanitizeContent(item.body);
                     item.branch = sanitizeContent(item.branch);
-                    if (item.labels !== undefined) {
-                        if (!Array.isArray(item.labels)) {
-                            errors.push(`Line ${i + 1}: create-pull-request 'labels' must be an array`);
-                            continue;
-                        }
-                        for (let j = 0; j < item.labels.length; j++) {
-                            if (typeof item.labels[j] !== "string") {
-                                errors.push(`Line ${i + 1}: create-pull-request label at index ${j} must be a string`);
-                                continue;
-                            }
-                            item.labels[j] = sanitizeContent(item.labels[j]);
-                        }
-                    }
-                    break;
-                case "create-code-scanning-alert":
-                    if (!item.file || typeof item.file !== "string") {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'file' string field`);
-                        continue;
-                    }
-                    const codeAlertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
-                    if (!codeAlertLineValidation.isValid) {
-                        errors.push(codeAlertLineValidation.error);
-                        continue;
-                    }
-                    if (!item.severity || typeof item.severity !== "string") {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'severity' string field`);
-                        continue;
-                    }
-                    const validSeverities = ["error", "warning", "info", "note"];
-                    if (!validSeverities.includes(item.severity)) {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${validSeverities.join(", ")}`);
-                        continue;
-                    }
-                    if (!item.message || typeof item.message !== "string") {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'message' string field`);
-                        continue;
-                    }
-                    item.file = sanitizeContent(item.file);
-                    item.message = sanitizeContent(item.message);
-                    const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
-                    if (!columnValidation.isValid) {
-                        errors.push(columnValidation.error);
-                        continue;
-                    }
-                    if (item.ruleIdSuffix !== undefined && typeof item.ruleIdSuffix !== "string") {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`);
-                        continue;
-                    }
-                    if (item.ruleIdSuffix) {
-                        item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
+                    if (item.labels && Array.isArray(item.labels)) {
+                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
                     }
                     break;
                 case "add-labels":
                     if (!item.labels || !Array.isArray(item.labels)) {
-                        errors.push(`Line ${i + 1}: add-labels requires a 'labels' array field`);
+                        errors.push(`Line ${i + 1}: add_labels requires a 'labels' array field`);
                         continue;
                     }
-                    if (item.labels.length === 0) {
-                        errors.push(`Line ${i + 1}: add-labels 'labels' array cannot be empty`);
+                    if (item.labels.some(label => typeof label !== "string")) {
+                        errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                     }
-                    for (let j = 0; j < item.labels.length; j++) {
-                        if (typeof item.labels[j] !== "string") {
-                            errors.push(`Line ${i + 1}: add-labels label at index ${j} must be a string`);
-                            continue;
-                        }
-                        item.labels[j] = sanitizeContent(item.labels[j]);
-                    }
-                    const addLabelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
-                    if (!addLabelsIssueNumValidation.isValid) {
-                        errors.push(addLabelsIssueNumValidation.error);
+                    const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
+                    if (!labelsIssueNumValidation.isValid) {
+                        errors.push(labelsIssueNumValidation.error);
                         continue;
                     }
+                    item.labels = item.labels.map(label => sanitizeContent(label));
                     break;
                 case "update-issue":
                     const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
@@ -493,73 +470,112 @@ async function collectNdjsonOutputMain() {
                         }
                     }
                     break;
+                case "create-discussion":
+                    if (!item.title || typeof item.title !== "string") {
+                        errors.push(`Line ${i + 1}: create_discussion requires a 'title' string field`);
+                        continue;
+                    }
+                    if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: create_discussion requires a 'body' string field`);
+                        continue;
+                    }
+                    if (item.category !== undefined) {
+                        if (typeof item.category !== "string") {
+                            errors.push(`Line ${i + 1}: create_discussion 'category' must be a string`);
+                            continue;
+                        }
+                        item.category = sanitizeContent(item.category);
+                    }
+                    item.title = sanitizeContent(item.title);
+                    item.body = sanitizeContent(item.body);
+                    break;
                 case "missing-tool":
                     if (!item.tool || typeof item.tool !== "string") {
-                        errors.push(`Line ${i + 1}: missing-tool requires a 'tool' string field`);
+                        errors.push(`Line ${i + 1}: missing_tool requires a 'tool' string field`);
                         continue;
                     }
                     if (!item.reason || typeof item.reason !== "string") {
-                        errors.push(`Line ${i + 1}: missing-tool requires a 'reason' string field`);
+                        errors.push(`Line ${i + 1}: missing_tool requires a 'reason' string field`);
                         continue;
                     }
                     item.tool = sanitizeContent(item.tool);
                     item.reason = sanitizeContent(item.reason);
-                    if (item.alternatives !== undefined && typeof item.alternatives !== "string") {
-                        errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
-                        continue;
-                    }
-                    if (item.alternatives) {
+                    if (item.alternatives !== undefined) {
+                        if (typeof item.alternatives !== "string") {
+                            errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
+                            continue;
+                        }
                         item.alternatives = sanitizeContent(item.alternatives);
                     }
                     break;
                 case "upload-asset":
                     if (!item.path || typeof item.path !== "string") {
-                        errors.push(`Line ${i + 1}: upload-asset requires a 'path' string field`);
+                        errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
                         continue;
                     }
-                    if (item.fileName !== undefined && typeof item.fileName !== "string") {
-                        errors.push(`Line ${i + 1}: upload-asset 'fileName' must be a string`);
+                    break;
+                case "create-code-scanning-alert":
+                    if (!item.file || typeof item.file !== "string") {
+                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`);
                         continue;
                     }
-                    if (item.sha !== undefined && typeof item.sha !== "string") {
-                        errors.push(`Line ${i + 1}: upload-asset 'sha' must be a string`);
+                    const alertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
+                    if (!alertLineValidation.isValid) {
+                        errors.push(alertLineValidation.error);
                         continue;
                     }
-                    if (item.size !== undefined && typeof item.size !== "number") {
-                        errors.push(`Line ${i + 1}: upload-asset 'size' must be a number`);
+                    if (!item.severity || typeof item.severity !== "string") {
+                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`);
                         continue;
                     }
-                    if (item.url !== undefined && typeof item.url !== "string") {
-                        errors.push(`Line ${i + 1}: upload-asset 'url' must be a string`);
+                    if (!item.message || typeof item.message !== "string") {
+                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`);
                         continue;
                     }
-                    if (item.targetFileName !== undefined && typeof item.targetFileName !== "string") {
-                        errors.push(`Line ${i + 1}: upload-asset 'targetFileName' must be a string`);
+                    const allowedSeverities = ["error", "warning", "info", "note"];
+                    if (!allowedSeverities.includes(item.severity.toLowerCase())) {
+                        errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`);
                         continue;
                     }
-                    item.path = sanitizeContent(item.path);
-                    if (item.fileName)
-                        item.fileName = sanitizeContent(item.fileName);
-                    if (item.url)
-                        item.url = sanitizeContent(item.url);
-                    if (item.targetFileName)
-                        item.targetFileName = sanitizeContent(item.targetFileName);
+                    const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
+                    if (!columnValidation.isValid) {
+                        errors.push(columnValidation.error);
+                        continue;
+                    }
+                    if (item.ruleIdSuffix !== undefined) {
+                        if (typeof item.ruleIdSuffix !== "string") {
+                            errors.push(`Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`);
+                            continue;
+                        }
+                        if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
+                            errors.push(`Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`);
+                            continue;
+                        }
+                    }
+                    item.severity = item.severity.toLowerCase();
+                    item.file = sanitizeContent(item.file);
+                    item.severity = sanitizeContent(item.severity);
+                    item.message = sanitizeContent(item.message);
+                    if (item.ruleIdSuffix) {
+                        item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
+                    }
                     break;
                 default:
                     errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
                     continue;
             }
+            core.info(`Line ${i + 1}: Valid ${itemType} item`);
             parsedItems.push(item);
         }
         catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            errors.push(`Line ${i + 1}: ${errorMsg}`);
+            errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
         }
     }
     if (errors.length > 0) {
-        core.warning(`Found ${errors.length} validation errors:`);
-        errors.forEach(error => core.warning(`  ${error}`));
-        if (errors.length > 0) {
+        core.warning("Validation errors found:");
+        errors.forEach(error => core.warning(`  - ${error}`));
+        if (parsedItems.length === 0) {
             core.setFailed(errors.map(e => `  - ${e}`).join("\n"));
             return;
         }

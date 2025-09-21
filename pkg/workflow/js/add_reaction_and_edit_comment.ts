@@ -52,7 +52,8 @@ async function addReactionAndEditCommentMain(): Promise<void> {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-        shouldEditComment = true;
+        // Only edit comments for command workflows  
+        shouldEditComment = command ? true : false;
         break;
 
       case "pull_request":
@@ -74,7 +75,8 @@ async function addReactionAndEditCommentMain(): Promise<void> {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-        shouldEditComment = true;
+        // Only edit comments for command workflows
+        shouldEditComment = command ? true : false;
         break;
 
       default:
@@ -103,43 +105,54 @@ async function addReactionAndEditCommentMain(): Promise<void> {
 
     // Edit the comment if applicable and if it's a command workflow
     if (shouldEditComment && commentUpdateEndpoint && command) {
-      try {
-        // Get the current comment content
-        const currentCommentResponse = await github.request(`GET ${commentUpdateEndpoint}`);
-        const currentBody = currentCommentResponse.data.body || "";
-
-        // Check if the footer already exists
-        const footerText = `\n\n> Processed by [${command}](${runUrl}) 🚀`;
-        
-        let newBody: string;
-        if (currentBody.includes(`> Processed by [${command}]`)) {
-          // Footer already exists, don't duplicate it
-          core.info("Comment already has workflow footer, skipping edit");
-          return;
-        } else {
-          // Add the footer
-          newBody = currentBody + footerText;
-        }
-
-        // Update the comment
-        const updateResponse = await github.request(`PATCH ${commentUpdateEndpoint}`, {
-          body: newBody,
-        });
-
-        if (updateResponse.status === 200) {
-          core.info("Successfully updated comment with workflow footer");
-          core.setOutput("comment_updated", "true");
-        } else {
-          core.warning(`Unexpected response status when updating comment: ${updateResponse.status}`);
-        }
-      } catch (updateError) {
-        // Non-fatal error - reaction was still added
-        core.warning(`Failed to update comment: ${updateError instanceof Error ? updateError.message : String(updateError)}`);
-        core.setOutput("comment_updated", "false");
-      }
+      core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
+      await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
     }
   } catch (error) {
     core.setFailed(`Failed to add reaction: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Edit a comment to add a workflow run link
+ * @param endpoint - The GitHub API endpoint to update the comment
+ * @param runUrl - The URL of the workflow run
+ */
+async function editCommentWithWorkflowLink(endpoint: string, runUrl: string): Promise<void> {
+  try {
+    // Get the current comment content
+    const currentCommentResponse = await github.request(`GET ${endpoint}`);
+    const currentBody = currentCommentResponse.data.body || "";
+    const command = process.env.GITHUB_AW_COMMAND;
+
+    // Check if the footer already exists
+    const footerText = `\n\n> Processed by [${command}](${runUrl}) 🚀`;
+    
+    let newBody: string;
+    if (currentBody.includes(`> Processed by [${command}]`)) {
+      // Footer already exists, don't duplicate it
+      core.info("Comment already has workflow footer, skipping edit");
+      return;
+    } else {
+      // Add the footer
+      newBody = currentBody + footerText;
+    }
+
+    // Update the comment
+    const updateResponse = await github.request(`PATCH ${endpoint}`, {
+      body: newBody,
+    });
+
+    if (updateResponse.status === 200) {
+      core.info("Successfully updated comment with workflow footer");
+      core.setOutput("comment_updated", "true");
+    } else {
+      core.warning(`Unexpected response status when updating comment: ${updateResponse.status}`);
+    }
+  } catch (updateError) {
+    // Non-fatal error - reaction was still added
+    core.warning(`Failed to update comment: ${updateError instanceof Error ? updateError.message : String(updateError)}`);
+    core.setOutput("comment_updated", "false");
   }
 }
 

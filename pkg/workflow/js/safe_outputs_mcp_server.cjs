@@ -1,5 +1,3 @@
-// @ts-nocheck
-function safeOutputsMcpServerMain(): Promise<void> {
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -24,8 +22,6 @@ function writeMessage(obj) {
 }
 
 class ReadBuffer {
-  private _buffer?: Buffer;
-  
   append(chunk) {
     this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
   }
@@ -565,8 +561,3 @@ process.stdin.on("data", onData);
 process.stdin.on("error", err => debug(`stdin error: ${err}`));
 process.stdin.resume();
 debug(`listening...`);
-}
-
-(async () => {
-  await safeOutputsMcpServerMain();
-})();
