@@ -41,11 +41,13 @@ async function main() {
     core.info("📝 Label addition preview written to step summary");
     return;
   }
-  const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
+  const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
   const allowedLabels = allowedLabelsEnv
-    ?.split(",")
-    .map(label => label.trim())
-    .filter(label => label);
+    ? allowedLabelsEnv
+        .split(",")
+        .map(label => label.trim())
+        .filter(label => label)
+    : undefined;
   if (allowedLabels) {
     core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
   } else {
