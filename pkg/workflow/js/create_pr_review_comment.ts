@@ -71,10 +71,14 @@ async function createPrReviewCommentMain(): Promise<CreatedReviewComment[]> {
   // Get the PR number from environment or context
   let prNumber: number | undefined;
   const prTarget = process.env.GITHUB_AW_PR_TARGET || "triggering";
-  
+
   if (prTarget === "triggering") {
     // Use the triggering PR
-    if (context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment") {
+    if (
+      context.eventName === "pull_request" ||
+      context.eventName === "pull_request_review" ||
+      context.eventName === "pull_request_review_comment"
+    ) {
       prNumber = context.payload.pull_request?.number;
     }
   } else {
@@ -112,9 +116,7 @@ async function createPrReviewCommentMain(): Promise<CreatedReviewComment[]> {
     const startSide = (commentItem as any).start_side;
 
     if (!path || !line || !body) {
-      core.warning(
-        `Skipping review comment ${i + 1}: missing required fields (path, line, or body)`
-      );
+      core.warning(`Skipping review comment ${i + 1}: missing required fields (path, line, or body)`);
       continue;
     }
 
@@ -161,9 +163,7 @@ async function createPrReviewCommentMain(): Promise<CreatedReviewComment[]> {
         core.setOutput("pr_number", prNumber);
       }
     } catch (error) {
-      core.error(
-        `✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`
-      );
+      core.error(`✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

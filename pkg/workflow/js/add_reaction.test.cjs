@@ -164,9 +164,7 @@ describe("add_reaction.js", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        `API endpoint: ${"/repos/testowner/testrepo/issues/comments/789/reactions"}`
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/issues/comments/789/reactions"}`);
       expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/comments/789/reactions", {
         content: "eyes",
         headers: { Accept: "application/vnd.github+json" },
@@ -200,9 +198,7 @@ describe("add_reaction.js", () => {
 
       await eval(`(async () => { ${addReactionScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        `API endpoint: ${"/repos/testowner/testrepo/pulls/comments/321/reactions"}`
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(`API endpoint: ${"/repos/testowner/testrepo/pulls/comments/321/reactions"}`);
       expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/pulls/comments/321/reactions", {
         content: "eyes",
         headers: { Accept: "application/vnd.github+json" },

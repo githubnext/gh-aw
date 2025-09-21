@@ -52,7 +52,7 @@ async function addReactionAndEditCommentMain(): Promise<void> {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-        // Only edit comments for command workflows  
+        // Only edit comments for command workflows
         shouldEditComment = command ? true : false;
         break;
 
@@ -127,7 +127,7 @@ async function editCommentWithWorkflowLink(endpoint: string, runUrl: string): Pr
 
     // Check if the footer already exists
     const footerText = `\n\n> Processed by [${command}](${runUrl}) 🚀`;
-    
+
     let newBody: string;
     if (currentBody.includes(`> Processed by [${command}]`)) {
       // Footer already exists, don't duplicate it

@@ -246,9 +246,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "No changes to push - failing as configured by if-no-changes: error"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("No changes to push - failing as configured by if-no-changes: error");
     });
 
     it("should handle valid patch content and parse JSON output", async () => {
@@ -365,9 +363,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/)
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/));
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
@@ -394,9 +390,7 @@ const exec = global.exec;`
       await executeScript();
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/)
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/));
     });
 
     it("should use default 1024 KB limit when env var not set", async () => {
@@ -421,9 +415,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/)
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/));
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });

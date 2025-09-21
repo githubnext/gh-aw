@@ -1,172 +1,161 @@
 async function pushToPrBranchMain() {
-    const fs = require("fs");
-    const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-    if (outputContent.trim() === "") {
-        core.info("Agent output content is empty");
+  const fs = require("fs");
+  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  if (outputContent.trim() === "") {
+    core.info("Agent output content is empty");
+    return;
+  }
+  const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
+  const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
+  if (!fs.existsSync("/tmp/aw.patch")) {
+    const message = "No patch file found - cannot push without changes";
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(message);
+        return;
+      case "ignore":
+        return;
+      case "warn":
+      default:
+        core.info(message);
         return;
     }
-    const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
-    const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
-    if (!fs.existsSync("/tmp/aw.patch")) {
-        const message = "No patch file found - cannot push without changes";
-        switch (ifNoChanges) {
-            case "error":
-                core.setFailed(message);
-                return;
-            case "ignore":
-                return;
-            case "warn":
-            default:
-                core.info(message);
-                return;
-        }
-    }
-    const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
-    if (patchContent.includes("Failed to generate patch")) {
-        const message = "Patch file contains error message - cannot push without changes";
-        switch (ifNoChanges) {
-            case "error":
-                core.setFailed(message);
-                return;
-            case "ignore":
-                return;
-            case "warn":
-            default:
-                core.info(message);
-                return;
-        }
-    }
-    if (patchContent.trim() === "") {
-        const message = "Patch file is empty - no changes to push";
-        switch (ifNoChanges) {
-            case "error":
-                core.setFailed(message);
-                return;
-            case "ignore":
-                return;
-            case "warn":
-            default:
-                core.info(message);
-                return;
-        }
-    }
-    core.info(`Patch file size: ${patchContent.length} characters`);
-    core.debug(`Patch content preview: ${patchContent.substring(0, 200)}...`);
-    let targetBranch;
-    if (target === "triggering") {
-        if (context.eventName === "pull_request" || context.eventName === "pull_request_review") {
-            targetBranch = context.payload.pull_request?.head?.ref || "main";
-        }
-        else {
-            targetBranch = context.ref.replace("refs/heads/", "");
-        }
-    }
-    else {
-        targetBranch = target;
-    }
-    core.info(`Target branch: ${targetBranch}`);
-    try {
-        await exec.exec("git", ["fetch", "origin", targetBranch]);
-        let branchExists = false;
-        try {
-            await exec.exec("git", ["rev-parse", "--verify", targetBranch]);
-            branchExists = true;
-        }
-        catch {
-            branchExists = false;
-        }
-        if (branchExists) {
-            await exec.exec("git", ["checkout", targetBranch]);
-            await exec.exec("git", ["pull", "origin", targetBranch]);
-        }
-        else {
-            await exec.exec("git", ["checkout", "-b", targetBranch, `origin/${targetBranch}`]);
-        }
-        core.info(`Successfully checked out branch: ${targetBranch}`);
-    }
-    catch (error) {
-        core.setFailed(`Failed to checkout target branch '${targetBranch}': ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+  if (patchContent.includes("Failed to generate patch")) {
+    const message = "Patch file contains error message - cannot push without changes";
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(message);
+        return;
+      case "ignore":
+        return;
+      case "warn":
+      default:
+        core.info(message);
         return;
     }
-    try {
-        core.info("Applying patch to working directory...");
-        await exec.exec("git", ["apply", "/tmp/aw.patch"]);
-        core.info("Patch applied successfully");
-    }
-    catch (error) {
-        core.setFailed(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (patchContent.trim() === "") {
+    const message = "Patch file is empty - no changes to push";
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(message);
+        return;
+      case "ignore":
+        return;
+      case "warn":
+      default:
+        core.info(message);
         return;
     }
-    try {
-        await exec.exec("git", ["add", "."]);
-        core.info("Changes staged successfully");
+  }
+  core.info(`Patch file size: ${patchContent.length} characters`);
+  core.debug(`Patch content preview: ${patchContent.substring(0, 200)}...`);
+  let targetBranch;
+  if (target === "triggering") {
+    if (context.eventName === "pull_request" || context.eventName === "pull_request_review") {
+      targetBranch = context.payload.pull_request?.head?.ref || "main";
+    } else {
+      targetBranch = context.ref.replace("refs/heads/", "");
     }
-    catch (error) {
-        core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
+  } else {
+    targetBranch = target;
+  }
+  core.info(`Target branch: ${targetBranch}`);
+  try {
+    await exec.exec("git", ["fetch", "origin", targetBranch]);
+    let branchExists = false;
+    try {
+      await exec.exec("git", ["rev-parse", "--verify", targetBranch]);
+      branchExists = true;
+    } catch {
+      branchExists = false;
+    }
+    if (branchExists) {
+      await exec.exec("git", ["checkout", targetBranch]);
+      await exec.exec("git", ["pull", "origin", targetBranch]);
+    } else {
+      await exec.exec("git", ["checkout", "-b", targetBranch, `origin/${targetBranch}`]);
+    }
+    core.info(`Successfully checked out branch: ${targetBranch}`);
+  } catch (error) {
+    core.setFailed(`Failed to checkout target branch '${targetBranch}': ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  try {
+    core.info("Applying patch to working directory...");
+    await exec.exec("git", ["apply", "/tmp/aw.patch"]);
+    core.info("Patch applied successfully");
+  } catch (error) {
+    core.setFailed(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  try {
+    await exec.exec("git", ["add", "."]);
+    core.info("Changes staged successfully");
+  } catch (error) {
+    core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  let hasChanges = false;
+  try {
+    const { exitCode } = await exec.getExecOutput("git", ["diff", "--cached", "--quiet"]);
+    hasChanges = exitCode !== 0;
+  } catch {
+    hasChanges = true;
+  }
+  if (!hasChanges) {
+    const message = "No changes to commit after applying patch";
+    switch (ifNoChanges) {
+      case "error":
+        core.setFailed(message);
+        return;
+      case "ignore":
+        return;
+      case "warn":
+      default:
+        core.info(message);
         return;
     }
-    let hasChanges = false;
-    try {
-        const { exitCode } = await exec.getExecOutput("git", ["diff", "--cached", "--quiet"]);
-        hasChanges = exitCode !== 0;
-    }
-    catch {
-        hasChanges = true;
-    }
-    if (!hasChanges) {
-        const message = "No changes to commit after applying patch";
-        switch (ifNoChanges) {
-            case "error":
-                core.setFailed(message);
-                return;
-            case "ignore":
-                return;
-            case "warn":
-            default:
-                core.info(message);
-                return;
-        }
-    }
-    const commitMessage = process.env.GITHUB_AW_COMMIT_MESSAGE || "Apply changes from agentic workflow";
-    const runId = context.runId;
-    const runUrl = context.payload.repository
-        ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-        : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-    const fullCommitMessage = `${commitMessage}\n\nGenerated by: ${runUrl}`;
-    try {
-        await exec.exec("git", ["commit", "-m", fullCommitMessage]);
-        core.info(`Changes committed with message: "${commitMessage}"`);
-    }
-    catch (error) {
-        core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-    }
-    try {
-        await exec.exec("git", ["push", "origin", targetBranch]);
-        core.info(`Changes pushed to branch: ${targetBranch}`);
-        core.setOutput("branch_name", targetBranch);
-        core.setOutput("commit_sha", await getLatestCommitSha());
-        core.setOutput("pushed", "true");
-        let summaryContent = "\n\n## Git Push Summary\n";
-        summaryContent += `- **Branch**: \`${targetBranch}\`\n`;
-        summaryContent += `- **Commit**: [View Changes](${context.payload.repository?.html_url}/commit/${await getLatestCommitSha()})\n`;
-        summaryContent += `- **Status**: ✅ Successfully pushed\n`;
-        await core.summary.addRaw(summaryContent).write();
-    }
-    catch (error) {
-        core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-    }
+  }
+  const commitMessage = process.env.GITHUB_AW_COMMIT_MESSAGE || "Apply changes from agentic workflow";
+  const runId = context.runId;
+  const runUrl = context.payload.repository
+    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+    : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const fullCommitMessage = `${commitMessage}\n\nGenerated by: ${runUrl}`;
+  try {
+    await exec.exec("git", ["commit", "-m", fullCommitMessage]);
+    core.info(`Changes committed with message: "${commitMessage}"`);
+  } catch (error) {
+    core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  try {
+    await exec.exec("git", ["push", "origin", targetBranch]);
+    core.info(`Changes pushed to branch: ${targetBranch}`);
+    core.setOutput("branch_name", targetBranch);
+    core.setOutput("commit_sha", await getLatestCommitSha());
+    core.setOutput("pushed", "true");
+    let summaryContent = "\n\n## Git Push Summary\n";
+    summaryContent += `- **Branch**: \`${targetBranch}\`\n`;
+    summaryContent += `- **Commit**: [View Changes](${context.payload.repository?.html_url}/commit/${await getLatestCommitSha()})\n`;
+    summaryContent += `- **Status**: ✅ Successfully pushed\n`;
+    await core.summary.addRaw(summaryContent).write();
+  } catch (error) {
+    core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
 }
 async function getLatestCommitSha() {
-    try {
-        const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
-        return stdout.trim();
-    }
-    catch {
-        return "unknown";
-    }
+  try {
+    const { stdout } = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+    return stdout.trim();
+  } catch {
+    return "unknown";
+  }
 }
 (async () => {
-    await pushToPrBranchMain();
+  await pushToPrBranchMain();
 })();

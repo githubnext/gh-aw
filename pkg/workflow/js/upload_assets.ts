@@ -128,9 +128,7 @@ async function uploadAssetsMain(): Promise<void> {
 
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
       } catch (error) {
-        core.warning(
-          `Failed to process asset ${(asset as any).fileName}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        core.warning(`Failed to process asset ${(asset as any).fileName}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -142,18 +140,13 @@ async function uploadAssetsMain(): Promise<void> {
         core.summary.addRaw("## Staged Asset Publication");
       } else {
         await exec.exec(`git push origin ${branchName}`);
-        core.summary
-          .addRaw("## Assets")
-          .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``)
-          .addRaw("");
+        core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``).addRaw("");
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${branchName}`);
       }
 
       for (const asset of uploadAssetItems as any[]) {
         if (asset.fileName && asset.sha && asset.size && asset.url) {
-          core.summary.addRaw(
-            `- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`
-          );
+          core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
         }
       }
       core.summary.write();

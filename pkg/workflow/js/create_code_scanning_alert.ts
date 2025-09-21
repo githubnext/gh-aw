@@ -36,9 +36,7 @@ async function createCodeScanningAlertMain(): Promise<CreatedAlert[]> {
   }
 
   // Find all create-code-scanning-alert items
-  const securityItems = validatedOutput.items.filter(
-    item => item.type === "create-code-scanning-alert"
-  ) as CreateCodeScanningAlertItem[];
+  const securityItems = validatedOutput.items.filter(item => item.type === "create-code-scanning-alert") as CreateCodeScanningAlertItem[];
   if (securityItems.length === 0) {
     core.info("No create-code-scanning-alert items found in agent output");
     return [];
@@ -73,9 +71,7 @@ async function createCodeScanningAlertMain(): Promise<CreatedAlert[]> {
   // Process each security item
   for (let i = 0; i < securityItems.length; i++) {
     const securityItem = securityItems[i];
-    core.info(
-      `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}: rule=${(securityItem as any).rule_id}`
-    );
+    core.info(`Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}: rule=${(securityItem as any).rule_id}`);
 
     // Extract security alert details
     const file = (securityItem as any).file;
@@ -88,9 +84,7 @@ async function createCodeScanningAlertMain(): Promise<CreatedAlert[]> {
     const endColumn = (securityItem as any).end_column;
 
     if (!file || !ruleId || !message) {
-      core.warning(
-        `Skipping security alert ${i + 1}: missing required fields (file, rule_id, or message)`
-      );
+      core.warning(`Skipping security alert ${i + 1}: missing required fields (file, rule_id, or message)`);
       continue;
     }
 
@@ -179,9 +173,7 @@ async function createCodeScanningAlertMain(): Promise<CreatedAlert[]> {
         core.setOutput("alert_url", alert.url);
       }
     } catch (error) {
-      core.error(
-        `✗ Failed to create code scanning alert: ${error instanceof Error ? error.message : String(error)}`
-      );
+      core.error(`✗ Failed to create code scanning alert: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

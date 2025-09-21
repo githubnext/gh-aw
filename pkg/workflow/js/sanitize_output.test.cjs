@@ -566,9 +566,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Collected agentic output \(sanitized\):.*@user/)
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Collected agentic output \(sanitized\):.*@user/));
 
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();

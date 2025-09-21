@@ -114,9 +114,7 @@ describe("create_discussion.js", () => {
 
     // Check that it logs the content length first, then the error
     expect(mockCore.debug).toHaveBeenCalledWith("Agent output content length: 12");
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringMatching(/Error parsing agent output JSON:.*Unexpected token/)
-    );
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:.*Unexpected token/));
   });
 
   it("should handle missing create-discussion items", async () => {
@@ -190,10 +188,7 @@ describe("create_discussion.js", () => {
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 1);
-    expect(mockCore.setOutput).toHaveBeenCalledWith(
-      "discussion_url",
-      "https://github.com/testowner/testrepo/discussions/1"
-    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_url", "https://github.com/testowner/testrepo/discussions/1");
 
     // Verify summary was written
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## GitHub Discussions"));
@@ -315,9 +310,7 @@ describe("create_discussion.js", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Should log appropriate warning message
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "⚠ Cannot create discussions: Discussions are not enabled for this repository"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("⚠ Cannot create discussions: Discussions are not enabled for this repository");
     expect(mockCore.info).toHaveBeenCalledWith(
       "Consider enabling discussions in repository settings if you want to create discussions automatically"
     );

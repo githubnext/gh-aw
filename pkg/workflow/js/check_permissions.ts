@@ -26,9 +26,7 @@ async function checkPermissionsMain(): Promise<void> {
   const actor = context.actor;
   const { owner, repo } = context.repo;
   const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-  const requiredPermissions = requiredPermissionsEnv
-    ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "")
-    : [];
+  const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
     core.error("❌ Configuration error: Required permissions not specified. Contact repository administrator.");

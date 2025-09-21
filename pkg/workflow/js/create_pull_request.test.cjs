@@ -5,7 +5,9 @@ import path from "path";
 // Create standalone test functions by extracting parts of the script
 const createTestableFunction = scriptContent => {
   // Extract just the main function content and wrap it properly
-  const mainFunctionMatch = scriptContent.match(/async function createPullRequestMain\(\) \{([\s\S]*?)\}\s*\(async \(\) => \{\s*await createPullRequestMain\(\);\s*\}\)\(\);?\s*$/);
+  const mainFunctionMatch = scriptContent.match(
+    /async function createPullRequestMain\(\) \{([\s\S]*?)\}\s*\(async \(\) => \{\s*await createPullRequestMain\(\);\s*\}\)\(\);?\s*$/
+  );
   if (!mainFunctionMatch) {
     throw new Error("Could not extract main function from script");
   }
@@ -151,9 +153,7 @@ describe("create_pull_request.js", () => {
 
     await mainFunction();
 
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      "No patch file found - cannot create pull request without changes"
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("No patch file found - cannot create pull request without changes");
     expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
   });
 
@@ -166,9 +166,7 @@ describe("create_pull_request.js", () => {
 
     await mainFunction();
 
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      "Patch file is empty - no changes to apply (noop operation)"
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
     expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
   });
 
@@ -477,9 +475,7 @@ describe("create_pull_request.js", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-        "Patch file is empty - no changes to apply (noop operation)"
-      );
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -501,9 +497,7 @@ describe("create_pull_request.js", () => {
 
       const mainFunction = createMainFunction(mockDependencies);
 
-      await expect(mainFunction()).rejects.toThrow(
-        "No changes to push - failing as configured by if-no-changes: error"
-      );
+      await expect(mainFunction()).rejects.toThrow("No changes to push - failing as configured by if-no-changes: error");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -515,9 +509,7 @@ describe("create_pull_request.js", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-        "No patch file found - cannot create pull request without changes"
-      );
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("No patch file found - cannot create pull request without changes");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -565,9 +557,7 @@ describe("create_pull_request.js", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-        "Patch file is empty - no changes to apply (noop operation)"
-      );
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
   });
@@ -602,9 +592,7 @@ describe("create_pull_request.js", () => {
       expect(mockDependencies.core.summary.write).toHaveBeenCalled();
 
       // Verify console log for staged mode
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "📝 Pull request creation preview written to step summary"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("📝 Pull request creation preview written to step summary");
 
       // Verify that actual PR creation was not called
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -698,9 +686,7 @@ describe("create_pull_request.js", () => {
       expect(summaryCall).toContain("No patch file found - cannot create pull request without changes");
 
       // Verify console log for staged mode
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "📝 Pull request creation preview written to step summary (no patch file)"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("📝 Pull request creation preview written to step summary (no patch file)");
     });
 
     it("should handle patch error in staged mode", async () => {
@@ -718,9 +704,7 @@ describe("create_pull_request.js", () => {
       expect(summaryCall).toContain("Patch file contains error message - cannot create pull request without changes");
 
       // Verify console log for staged mode
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "📝 Pull request creation preview written to step summary (patch error)"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("📝 Pull request creation preview written to step summary (patch error)");
     });
 
     it("should validate patch size within limit", async () => {
@@ -753,9 +737,7 @@ describe("create_pull_request.js", () => {
       const main = createMainFunction(mockDependencies);
       await main();
 
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/)
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/));
       expect(mockDependencies.core.info).toHaveBeenCalledWith("Patch size validation passed");
       // Should not throw an error
     });
@@ -782,9 +764,7 @@ describe("create_pull_request.js", () => {
 
       await expect(main()).rejects.toThrow(/Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/);
 
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/)
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/));
     });
 
     it("should show staged preview when patch size exceeds limit in staged mode", async () => {
@@ -850,9 +830,7 @@ describe("create_pull_request.js", () => {
       const main = createMainFunction(mockDependencies);
       await main();
 
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/)
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/));
       expect(mockDependencies.core.info).toHaveBeenCalledWith("Patch size validation passed");
     });
 

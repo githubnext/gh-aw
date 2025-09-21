@@ -128,9 +128,7 @@ describe("update_issue.js", () => {
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      'Target is "triggering" but not running in issue context, skipping issue update'
-    );
+    expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue context, skipping issue update');
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 

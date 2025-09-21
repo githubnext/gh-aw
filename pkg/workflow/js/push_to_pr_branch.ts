@@ -72,7 +72,7 @@ async function pushToPrBranchMain(): Promise<void> {
 
   // Determine the target branch
   let targetBranch: string;
-  
+
   if (target === "triggering") {
     // Use the branch from the triggering PR or current branch
     if (context.eventName === "pull_request" || context.eventName === "pull_request_review") {
@@ -112,9 +112,7 @@ async function pushToPrBranchMain(): Promise<void> {
 
     core.info(`Successfully checked out branch: ${targetBranch}`);
   } catch (error) {
-    core.setFailed(
-      `Failed to checkout target branch '${targetBranch}': ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to checkout target branch '${targetBranch}': ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -124,9 +122,7 @@ async function pushToPrBranchMain(): Promise<void> {
     await exec.exec("git", ["apply", "/tmp/aw.patch"]);
     core.info("Patch applied successfully");
   } catch (error) {
-    core.setFailed(
-      `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -135,9 +131,7 @@ async function pushToPrBranchMain(): Promise<void> {
     await exec.exec("git", ["add", "."]);
     core.info("Changes staged successfully");
   } catch (error) {
-    core.setFailed(
-      `Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -181,9 +175,7 @@ async function pushToPrBranchMain(): Promise<void> {
     await exec.exec("git", ["commit", "-m", fullCommitMessage]);
     core.info(`Changes committed with message: "${commitMessage}"`);
   } catch (error) {
-    core.setFailed(
-      `Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -204,9 +196,7 @@ async function pushToPrBranchMain(): Promise<void> {
     summaryContent += `- **Status**: ✅ Successfully pushed\n`;
     await core.summary.addRaw(summaryContent).write();
   } catch (error) {
-    core.setFailed(
-      `Failed to push changes: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 }

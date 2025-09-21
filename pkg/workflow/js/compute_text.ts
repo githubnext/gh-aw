@@ -10,14 +10,7 @@ function sanitizeContentCompute(content: string): string {
 
   // Read allowed domains from environment variable
   const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-  const defaultAllowedDomains = [
-    "github.com",
-    "github.io",
-    "githubusercontent.com",
-    "githubassets.com",
-    "github.dev",
-    "codespaces.new",
-  ];
+  const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
   const allowedDomains = allowedDomainsEnv
     ? allowedDomainsEnv
@@ -80,13 +73,13 @@ function neutralizeMentionsCompute(content: string): string {
 function convertXmlTagsToParenthesesCompute(content: string): string {
   // Convert opening XML tags like <tag> to (tag)
   let result = content.replace(/<([^<>/\s]+)>/g, "($1)");
-  
+
   // Convert closing XML tags like </tag> to (/tag)
   result = result.replace(/<\/([^<>/\s]+)>/g, "(/$1)");
-  
+
   // Convert self-closing XML tags like <tag/> to (tag/)
   result = result.replace(/<([^<>/\s]+)\/>/g, "($1/)");
-  
+
   return result;
 }
 
@@ -108,14 +101,7 @@ function sanitizeUrlProtocolsCompute(content: string): string {
  */
 function sanitizeUrlDomainsCompute(content: string): string {
   const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-  const defaultAllowedDomains = [
-    "github.com",
-    "github.io",
-    "githubusercontent.com",
-    "githubassets.com",
-    "github.dev",
-    "codespaces.new",
-  ];
+  const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
   const allowedDomains = allowedDomainsEnv
     ? allowedDomainsEnv
@@ -127,10 +113,8 @@ function sanitizeUrlDomainsCompute(content: string): string {
   // Match HTTPS URLs and check domains
   return content.replace(/https:\/\/([^\/\s<>"`]+)/gi, (match, domain) => {
     // Check if domain is in allowlist (case-insensitive)
-    const isAllowed = allowedDomains.some(allowed => 
-      domain.toLowerCase().endsWith(allowed.toLowerCase())
-    );
-    
+    const isAllowed = allowedDomains.some(allowed => domain.toLowerCase().endsWith(allowed.toLowerCase()));
+
     return isAllowed ? match : "(redacted)";
   });
 }
@@ -204,19 +188,19 @@ async function computeTextMain(): Promise<void> {
   summaryContent += `- Words: ${wordCount.toLocaleString()}\n`;
   summaryContent += `- Characters: ${charCount.toLocaleString()}\n`;
   summaryContent += `- Characters (no spaces): ${charCountNoSpaces.toLocaleString()}\n`;
-  
+
   if (uniqueUrls.length > 0) {
     summaryContent += `- URLs found: ${uniqueUrls.length}\n`;
   }
-  
+
   if (uniqueMentions.length > 0) {
     summaryContent += `- Mentions found: ${uniqueMentions.length}\n`;
   }
-  
+
   if (codeBlockMatches.length > 0) {
     summaryContent += `- Code blocks: ${codeBlockMatches.length}\n`;
   }
-  
+
   if (inlineCodeMatches.length > 0) {
     summaryContent += `- Inline code snippets: ${inlineCodeMatches.length}\n`;
   }

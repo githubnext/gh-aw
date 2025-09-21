@@ -90,25 +90,25 @@ function parseCodexLog(logContent: string): string {
     // Generate summary section
     if (commandSummary.length > 0) {
       markdown += "### Command Summary\n\n";
-      
+
       // Sort by frequency
       commandSummary.sort((a, b) => b.count - a.count);
-      
+
       for (const cmd of commandSummary) {
-        markdown += `- **${cmd.command}** (${cmd.count} time${cmd.count !== 1 ? 's' : ''})\n`;
+        markdown += `- **${cmd.command}** (${cmd.count} time${cmd.count !== 1 ? "s" : ""})\n`;
       }
       markdown += "\n";
     }
 
     // Generate detailed execution log
     markdown += "### Execution Log\n\n";
-    
+
     let currentSection = "";
     let inCodeBlock = false;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // Skip empty lines
       if (line.trim() === "") {
         if (inCodeBlock) {
@@ -123,7 +123,7 @@ function parseCodexLog(logContent: string): string {
           markdown += "```\n\n";
           inCodeBlock = false;
         }
-        
+
         const toolMatch = line.match(/\] tool ([^(]+)\(/);
         if (toolMatch) {
           const toolName = toolMatch[1].trim();
@@ -142,7 +142,7 @@ function parseCodexLog(logContent: string): string {
           markdown += "```\n\n";
           inCodeBlock = false;
         }
-        
+
         if (currentSection !== "shell") {
           currentSection = "shell";
           markdown += "#### 💻 Shell Commands\n\n";

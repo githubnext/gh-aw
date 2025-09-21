@@ -22,9 +22,7 @@ async function validateErrorsMain() {
     // Get error patterns from environment variables
     const patterns = getErrorPatternsFromEnv();
     if (patterns.length === 0) {
-      throw new Error(
-        "GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern"
-      );
+      throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
     }
 
     const content = fs.readFileSync(logFile, "utf8");

@@ -10,14 +10,7 @@ function sanitizeContent(content: string): string {
 
   // Read allowed domains from environment variable
   const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-  const defaultAllowedDomains = [
-    "github.com",
-    "github.io",
-    "githubusercontent.com",
-    "githubassets.com",
-    "github.dev",
-    "codespaces.new",
-  ];
+  const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
   const allowedDomains = allowedDomainsEnv
     ? allowedDomainsEnv
@@ -80,13 +73,13 @@ function neutralizeMentions(content: string): string {
 function convertXmlTagsToParentheses(content: string): string {
   // Convert opening XML tags like <tag> to (tag)
   let result = content.replace(/<([^<>/\s]+)>/g, "($1)");
-  
+
   // Convert closing XML tags like </tag> to (/tag)
   result = result.replace(/<\/([^<>/\s]+)>/g, "(/$1)");
-  
+
   // Convert self-closing XML tags like <tag/> to (tag/)
   result = result.replace(/<([^<>/\s]+)\/>/g, "($1/)");
-  
+
   return result;
 }
 
@@ -108,14 +101,7 @@ function sanitizeUrlProtocols(content: string): string {
  */
 function sanitizeUrlDomains(content: string): string {
   const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-  const defaultAllowedDomains = [
-    "github.com",
-    "github.io",
-    "githubusercontent.com",
-    "githubassets.com",
-    "github.dev",
-    "codespaces.new",
-  ];
+  const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
   const allowedDomains = allowedDomainsEnv
     ? allowedDomainsEnv
@@ -127,10 +113,8 @@ function sanitizeUrlDomains(content: string): string {
   // Match HTTPS URLs and check domains
   return content.replace(/https:\/\/([^\/\s<>"`]+)/gi, (match, domain) => {
     // Check if domain is in allowlist (case-insensitive)
-    const isAllowed = allowedDomains.some(allowed => 
-      domain.toLowerCase().endsWith(allowed.toLowerCase())
-    );
-    
+    const isAllowed = allowedDomains.some(allowed => domain.toLowerCase().endsWith(allowed.toLowerCase()));
+
     return isAllowed ? match : "(redacted)";
   });
 }
@@ -164,9 +148,9 @@ async function sanitizeOutputMain(): Promise<void> {
   if (sanitizedContent !== outputContent) {
     const sizeDiff = outputContent.length - sanitizedContent.length;
     const reductionPercent = ((sizeDiff / outputContent.length) * 100).toFixed(1);
-    
+
     core.info(`Content sanitized: ${sizeDiff} characters removed (${reductionPercent}% reduction)`);
-    
+
     // Write summary
     await core.summary
       .addRaw("## Content Sanitization Summary\n")

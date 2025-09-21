@@ -188,9 +188,7 @@ describe("missing_tool.js", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "1");
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        `missing-tool entry missing 'tool' field: ${JSON.stringify(testData.items[0])}`
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith(`missing-tool entry missing 'tool' field: ${JSON.stringify(testData.items[0])}`);
     });
 
     it("should skip entries missing reason field", async () => {
@@ -214,9 +212,7 @@ describe("missing_tool.js", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("total_count", "1");
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        `missing-tool entry missing 'reason' field: ${JSON.stringify(testData.items[0])}`
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith(`missing-tool entry missing 'reason' field: ${JSON.stringify(testData.items[0])}`);
     });
   });
 

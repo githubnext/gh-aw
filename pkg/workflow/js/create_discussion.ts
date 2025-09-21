@@ -5,7 +5,7 @@ type DiscussionCategory = {
   name: string;
   slug: string;
   description: string | null;
-}
+};
 type DiscussionCategoryQuery = {
   repository: {
     id: string;
@@ -13,14 +13,14 @@ type DiscussionCategoryQuery = {
       nodes: Array<DiscussionCategory>;
     };
   };
-}
+};
 
 type Discussion = {
   id: string;
   number: number;
   title: string;
   url: string;
-}
+};
 
 async function main() {
   // Read the validated output content from environment variable
@@ -51,9 +51,7 @@ async function main() {
   }
 
   // Find all create-discussion items
-  const createDiscussionItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "create-discussion"
-  );
+  const createDiscussionItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "create-discussion");
   if (createDiscussionItems.length === 0) {
     core.warning("No create-discussion items found in agent output");
     return;
@@ -85,7 +83,6 @@ async function main() {
     return;
   }
 
-
   // Get repository ID and discussion categories using GraphQL API
   let discussionCategories: DiscussionCategory[] = [];
   let repositoryId: string | undefined = undefined;
@@ -110,14 +107,11 @@ async function main() {
       owner: context.repo.owner,
       repo: context.repo.repo,
     });
-    if (!queryResult || !queryResult.repository)
-      throw new Error("Failed to fetch repository information via GraphQL");
+    if (!queryResult || !queryResult.repository) throw new Error("Failed to fetch repository information via GraphQL");
     repositoryId = queryResult.repository.id;
     discussionCategories = queryResult.repository.discussionCategories.nodes || [];
     core.info(
-      `Available categories: ${JSON.stringify(
-        discussionCategories.map(/** @param {any} cat */ cat => ({ name: cat.name, id: cat.id }))
-      )}`
+      `Available categories: ${JSON.stringify(discussionCategories.map(/** @param {any} cat */ cat => ({ name: cat.name, id: cat.id })))}`
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

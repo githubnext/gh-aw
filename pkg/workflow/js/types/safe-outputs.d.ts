@@ -193,5 +193,5 @@ export {
   MissingToolItem,
   UploadAssetItem,
   SafeOutputItem,
-  SafeOutputItems
+  SafeOutputItems,
 };

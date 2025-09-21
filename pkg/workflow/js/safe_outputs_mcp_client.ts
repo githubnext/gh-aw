@@ -32,10 +32,10 @@ async function safeOutputsMcpClientMain(): Promise<void> {
   const path = require("path");
   const { Buffer } = require("buffer");
   const { setTimeout, clearTimeout } = require("timers");
-  
+
   const serverPath = path.join("/tmp/safe-outputs/mcp-server.cjs");
   const { GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS } = process.env;
-  
+
   function parseJsonl(input: string | undefined): ToolCall[] {
     if (!input) return [];
     return input
@@ -44,24 +44,24 @@ async function safeOutputsMcpClientMain(): Promise<void> {
       .filter(Boolean)
       .map(line => JSON.parse(line));
   }
-  
+
   const toolCalls = parseJsonl(GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS);
-  
+
   const child = spawn(process.execPath, [serverPath], {
     stdio: ["pipe", "pipe", "pipe"],
     env: process.env,
   });
-  
+
   let stdoutBuffer: any = Buffer.alloc(0);
   const pending = new Map<number, PendingRequest>();
   let nextId = 1;
-  
+
   function writeMessage(obj: JsonRpcRequest): void {
     const json = JSON.stringify(obj);
     const message = json + "\n";
     child.stdin.write(message);
   }
-  
+
   function sendRequest(method: string, params?: any): Promise<any> {
     const id = nextId++;
     const req: JsonRpcRequest = { jsonrpc: "2.0", id, method, params };
@@ -83,7 +83,7 @@ async function safeOutputsMcpClientMain(): Promise<void> {
       };
     });
   }
-  
+
   function handleMessage(msg: JsonRpcResponse): void {
     if (msg.method && !msg.id) {
       console.error("<- notification", msg.method, msg.params || "");
@@ -102,18 +102,18 @@ async function safeOutputsMcpClientMain(): Promise<void> {
     }
     console.error("<- unexpected message", msg);
   }
-  
+
   child.stdout.on("data", (chunk: any) => {
     stdoutBuffer = Buffer.concat([stdoutBuffer, chunk]);
     while (true) {
       const newlineIndex = stdoutBuffer.indexOf("\n");
       if (newlineIndex === -1) break;
-  
+
       const line = stdoutBuffer.slice(0, newlineIndex).toString("utf8").replace(/\r$/, "");
       stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
-  
+
       if (line.trim() === "") continue; // Skip empty lines
-  
+
       let parsed: any = null;
       try {
         parsed = JSON.parse(line);
@@ -126,15 +126,15 @@ async function safeOutputsMcpClientMain(): Promise<void> {
       }
     }
   });
-  
+
   child.stderr.on("data", (d: any) => {
     process.stderr.write("[server] " + d.toString());
   });
-  
+
   child.on("exit", (code: number | null, sig: any) => {
     console.error("server exited", code, sig);
   });
-  
+
   try {
     console.error("Starting MCP client -> spawning server at", serverPath);
     const init = await sendRequest("initialize", {
