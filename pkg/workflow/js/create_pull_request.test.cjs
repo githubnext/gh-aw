@@ -22,13 +22,13 @@ const createTestableFunction = scriptContent => {
   `);
 };
 
-describe("create_pull_request.cjs", () => {
+describe("create_pull_request.js", () => {
   let createMainFunction;
   let mockDependencies;
 
   beforeEach(() => {
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "create_pull_request.cjs");
+    const scriptPath = path.join(process.cwd(), "create_pull_request.js");
     const scriptContent = readFileSync(scriptPath, "utf8");
 
     // Create testable function

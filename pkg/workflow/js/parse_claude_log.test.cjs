@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 
-describe("parse_claude_log.cjs", () => {
+describe("parse_claude_log.js", () => {
   let mockCore;
   let parseClaudeLogScript;
   let originalConsole;
@@ -75,7 +75,7 @@ describe("parse_claude_log.cjs", () => {
     });
 
     // Read the script file
-    const scriptPath = path.join(__dirname, "parse_claude_log.cjs");
+    const scriptPath = path.join(__dirname, "parse_claude_log.js");
     parseClaudeLogScript = fs.readFileSync(scriptPath, "utf8");
   });
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//go:embed js/create_pull_request.cjs
+//go:embed js/create_pull_request.js
 var createPullRequestScript string
 
 //go:embed js/create_issue.js
@@ -54,7 +54,7 @@ var addReactionAndEditCommentScript string
 //go:embed js/check_permissions.js
 var checkPermissionsScript string
 
-//go:embed js/parse_claude_log.cjs
+//go:embed js/parse_claude_log.js
 var parseClaudeLogScript string
 
 //go:embed js/parse_codex_log.js
