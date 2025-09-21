@@ -1,4 +1,11 @@
-async function main() {
+import type { SafeOutputItems, AddCommentItem } from "./types/safe-outputs";
+
+interface CreatedComment {
+  id: number;
+  html_url: string;
+}
+
+async function addCommentMain(): Promise<CreatedComment[]> {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -6,35 +13,35 @@ async function main() {
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-    return;
+    return [];
   }
 
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
-    return;
+    return [];
   }
 
   core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
     core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
+    return [];
   }
 
   if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
     core.info("No valid items found in agent output");
-    return;
+    return [];
   }
 
   // Find all add-comment items
-  const commentItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "add-comment");
+  const commentItems = validatedOutput.items.filter(item => item.type === "add-comment") as AddCommentItem[];
   if (commentItems.length === 0) {
     core.info("No add-comment items found in agent output");
-    return;
+    return [];
   }
 
   core.info(`Found ${commentItems.length} add-comment item(s)`);
@@ -47,8 +54,8 @@ async function main() {
     for (let i = 0; i < commentItems.length; i++) {
       const item = commentItems[i];
       summaryContent += `### Comment ${i + 1}\n`;
-      if (item.issue_number) {
-        summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
+      if ((item as any).issue_number) {
+        summaryContent += `**Target Issue:** #${(item as any).issue_number}\n\n`;
       } else {
         summaryContent += `**Target:** Current issue/PR\n\n`;
       }
@@ -59,7 +66,7 @@ async function main() {
     // Write to step summary
     await core.summary.addRaw(summaryContent).write();
     core.info("📝 Comment creation preview written to step summary");
-    return;
+    return [];
   }
 
   // Get the target configuration from environment variable
@@ -76,10 +83,10 @@ async function main() {
   // Validate context based on target configuration
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
     core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
-    return;
+    return [];
   }
 
-  const createdComments = [];
+  const createdComments: CreatedComment[] = [];
 
   // Process each comment item
   for (let i = 0; i < commentItems.length; i++) {
@@ -87,15 +94,15 @@ async function main() {
     core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
 
     // Determine the issue/PR number and comment endpoint for this comment
-    let issueNumber;
-    let commentEndpoint;
+    let issueNumber: number | undefined;
+    let commentEndpoint: string = "issues"; // Default to issues endpoint
 
     if (commentTarget === "*") {
       // For target "*", we need an explicit issue number from the comment item
-      if (commentItem.issue_number) {
-        issueNumber = parseInt(commentItem.issue_number, 10);
+      if ((commentItem as any).issue_number) {
+        issueNumber = parseInt((commentItem as any).issue_number, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
+          core.info(`Invalid issue number specified: ${(commentItem as any).issue_number}`);
           continue;
         }
         commentEndpoint = "issues";
@@ -184,4 +191,7 @@ async function main() {
   core.info(`Successfully created ${createdComments.length} comment(s)`);
   return createdComments;
 }
-await main();
+
+(async () => {
+  await addCommentMain();
+})();

@@ -75,7 +75,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("add_comment.cjs", () => {
+describe("add_comment.js", () => {
   let createCommentScript;
 
   beforeEach(() => {
@@ -90,7 +90,7 @@ describe("add_comment.cjs", () => {
     global.context.payload.issue = { number: 123 };
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "add_comment.cjs");
+    const scriptPath = path.join(process.cwd(), "add_comment.js");
     createCommentScript = fs.readFileSync(scriptPath, "utf8");
   });
 

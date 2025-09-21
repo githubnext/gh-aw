@@ -15,7 +15,7 @@ var createIssueScript string
 //go:embed js/create_discussion.js
 var createDiscussionScript string
 
-//go:embed js/add_comment.cjs
+//go:embed js/add_comment.js
 var createCommentScript string
 
 //go:embed js/create_pr_review_comment.cjs
@@ -39,7 +39,7 @@ var updateIssueScript string
 //go:embed js/push_to_pr_branch.cjs
 var pushToBranchScript string
 
-//go:embed js/upload_assets.cjs
+//go:embed js/upload_assets.js
 var uploadAssetsScript string
 
 //go:embed js/setup_agent_output.js

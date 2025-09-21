@@ -1,8 +1,18 @@
-const fs = require("fs");
-const path = require("path");
-const crypto = require("crypto");
+import type { SafeOutputItems } from "./types/safe-outputs";
 
-async function main() {
+interface AssetItem {
+  fileName: string;
+  sha: string;
+  size: number;
+  targetFileName: string;
+  url?: string;
+}
+
+async function uploadAssetsMain(): Promise<void> {
+  const fs = require("fs");
+  const path = require("path");
+  const crypto = require("crypto");
+
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -32,7 +42,7 @@ async function main() {
   core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
@@ -48,7 +58,7 @@ async function main() {
   }
 
   // Find all upload-asset items
-  const uploadAssetItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "upload-asset");
+  const uploadAssetItems = validatedOutput.items.filter(item => item.type === "upload-asset");
   if (uploadAssetItems.length === 0) {
     core.info("No upload-asset items found in agent output");
     core.setOutput("upload_count", "0");
@@ -76,7 +86,7 @@ async function main() {
     }
 
     // Process each asset
-    for (const asset of uploadAssetItems) {
+    for (const asset of uploadAssetItems as any[]) {
       try {
         const { fileName, sha, size, targetFileName } = asset;
 
@@ -119,7 +129,7 @@ async function main() {
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
       } catch (error) {
         core.warning(
-          `Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to process asset ${(asset as any).fileName}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
@@ -139,7 +149,7 @@ async function main() {
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${branchName}`);
       }
 
-      for (const asset of uploadAssetItems) {
+      for (const asset of uploadAssetItems as any[]) {
         if (asset.fileName && asset.sha && asset.size && asset.url) {
           core.summary.addRaw(
             `- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`
@@ -159,4 +169,6 @@ async function main() {
   core.setOutput("branch_name", branchName);
 }
 
-await main();
+(async () => {
+  await uploadAssetsMain();
+})();

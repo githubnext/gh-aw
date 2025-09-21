@@ -32,13 +32,16 @@
     "removeComments": true
   },
   "include": [
+    "add_comment.ts",
     "add_reaction.ts",
     "check_permissions.ts",
     "check_team_member.ts",
     "create_discussion.ts",
     "create_issue.ts",
     "missing_tool.ts",
+    "safe_outputs_mcp_client.ts",
     "setup_agent_output.ts",
+    "upload_assets.ts",
     "validate_errors.ts",
     "types/*.d.ts"
   ],
