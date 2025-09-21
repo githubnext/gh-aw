@@ -311,7 +311,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 	}
 
 	// Check that it contains the specified domains AND localhost domains with port variations
-	if !strings.Contains(output, "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com,*.github.com") {
+	if !strings.Contains(output, "localhost;localhost:*;127.0.0.1;127.0.0.1:*;example.com;*.github.com") {
 		t.Errorf("Expected configured domains with localhost and port variations in --allowed-origins value")
 	}
 
@@ -362,7 +362,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 	}
 
 	// Check that it contains default domains with port variations (localhost, localhost:*, 127.0.0.1, 127.0.0.1:*)
-	if !strings.Contains(output, "localhost,localhost:*,127.0.0.1,127.0.0.1:*") {
+	if !strings.Contains(output, "localhost;localhost:*;127.0.0.1;127.0.0.1:*") {
 		t.Errorf("Expected default domains with port variations in --allowed-origins value")
 	}
 
