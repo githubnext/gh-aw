@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 
-describe("collect_ndjson_output.cjs", () => {
+describe("collect_ndjson_output.js", () => {
   let mockCore;
   let collectScript;
 
@@ -61,7 +61,7 @@ describe("collect_ndjson_output.cjs", () => {
     global.core = mockCore;
 
     // Read the script file
-    const scriptPath = path.join(__dirname, "collect_ndjson_output.cjs");
+    const scriptPath = path.join(__dirname, "collect_ndjson_output.js");
     collectScript = fs.readFileSync(scriptPath, "utf8");
 
     // Make fs available globally for the evaluated script

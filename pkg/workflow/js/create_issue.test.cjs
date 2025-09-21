@@ -72,7 +72,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("create_issue.cjs", () => {
+describe("create_issue.js", () => {
   let createIssueScript;
 
   beforeEach(() => {

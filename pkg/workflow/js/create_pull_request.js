@@ -1,5 +1,5 @@
 const fs = require("fs");
-const crypto = require("crypto");
+const cryptoModule = require("crypto");
 async function createPullRequestMain() {
     const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
     const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
@@ -172,7 +172,7 @@ async function createPullRequestMain() {
     core.debug(`Labels: ${JSON.stringify(labels)}`);
     core.debug(`Draft: ${draft}`);
     core.debug(`Body length: ${body.length}`);
-    const randomHex = crypto.randomBytes(8).toString("hex");
+    const randomHex = cryptoModule.randomBytes(8).toString("hex");
     if (!branchName) {
         core.debug("No branch name provided in JSONL, generating unique branch name");
         branchName = `${workflowId}-${randomHex}`;

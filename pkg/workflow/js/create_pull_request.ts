@@ -1,7 +1,7 @@
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 /** @type {typeof import("crypto")} */
-const crypto = require("crypto");
+const cryptoModule = require("crypto");
 
 // @ts-nocheck
 async function createPullRequestMain() {
@@ -243,7 +243,7 @@ async function createPullRequestMain() {
   core.debug(`Draft: ${draft}`);
   core.debug(`Body length: ${body.length}`);
 
-  const randomHex = crypto.randomBytes(8).toString("hex");
+  const randomHex = cryptoModule.randomBytes(8).toString("hex");
   // Use branch name from JSONL if provided, otherwise generate unique branch name
   if (!branchName) {
     core.debug("No branch name provided in JSONL, generating unique branch name");

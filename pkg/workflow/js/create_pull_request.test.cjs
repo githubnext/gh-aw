@@ -5,7 +5,7 @@ import path from "path";
 // Create standalone test functions by extracting parts of the script
 const createTestableFunction = scriptContent => {
   // Extract just the main function content and wrap it properly
-  const mainFunctionMatch = scriptContent.match(/async function main\(\) \{([\s\S]*?)\}\s*await main\(\);?\s*$/);
+  const mainFunctionMatch = scriptContent.match(/async function createPullRequestMain\(\) \{([\s\S]*?)\}\s*\(async \(\) => \{\s*await createPullRequestMain\(\);\s*\}\)\(\);?\s*$/);
   if (!mainFunctionMatch) {
     throw new Error("Could not extract main function from script");
   }
@@ -14,7 +14,7 @@ const createTestableFunction = scriptContent => {
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, github, core, context, process, console } = arguments[0];
+    const { fs, cryptoModule, github, core, context, process, console } = arguments[0];
     
     return async function main() {
       ${mainFunctionBody}
@@ -45,7 +45,7 @@ describe("create_pull_request.js", () => {
         existsSync: vi.fn().mockReturnValue(true),
         readFileSync: vi.fn().mockReturnValue("diff --git a/file.txt b/file.txt\n+new content"),
       },
-      crypto: {
+      cryptoModule: {
         randomBytes: vi.fn().mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
       },
       execSync: vi.fn(),

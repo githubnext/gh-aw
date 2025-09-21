@@ -46,7 +46,7 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 	}
 
 	// Create command for the MCP server
-	cmd := exec.Command("node", "js/safe_outputs_mcp_server.cjs")
+	cmd := exec.Command("node", "js/safe_outputs_mcp_server.js")
 	cmd.Dir = filepath.Dir("") // Use current working directory context
 	cmd.Env = env
 
