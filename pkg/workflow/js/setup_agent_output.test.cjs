@@ -48,7 +48,7 @@ const mockCore = {
 // Set up global variables
 global.core = mockCore;
 
-describe("setup_agent_output.cjs", () => {
+describe("setup_agent_output.js", () => {
   let setupScript;
 
   beforeEach(() => {
@@ -56,7 +56,7 @@ describe("setup_agent_output.cjs", () => {
     vi.clearAllMocks();
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "setup_agent_output.cjs");
+    const scriptPath = path.join(process.cwd(), "setup_agent_output.js");
     setupScript = fs.readFileSync(scriptPath, "utf8");
 
     // Make fs available globally for the evaluated script

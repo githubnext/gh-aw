@@ -42,7 +42,7 @@ var pushToBranchScript string
 //go:embed js/upload_assets.cjs
 var uploadAssetsScript string
 
-//go:embed js/setup_agent_output.cjs
+//go:embed js/setup_agent_output.js
 var setupAgentOutputScript string
 
 //go:embed js/add_reaction.cjs

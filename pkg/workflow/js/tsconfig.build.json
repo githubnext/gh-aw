@@ -34,6 +34,7 @@
   "include": [
     "create_discussion.ts",
     "create_issue.ts",
+    "setup_agent_output.ts",
     "types/*.d.ts"
   ],
   "exclude": [

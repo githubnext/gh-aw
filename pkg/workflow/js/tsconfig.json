@@ -52,7 +52,7 @@
     "safe_outputs_mcp_client.cjs",
     "safe_outputs_mcp_server.cjs",
     "sanitize_output.cjs",
-    "setup_agent_output.cjs",
+    "setup_agent_output.ts",
     "update_issue.cjs",
     "validate_errors.cjs",
     "types/*.d.ts"

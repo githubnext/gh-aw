@@ -235,16 +235,18 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const fs = require("fs");
-            const crypto = require("crypto");
-            function main() {
-              const randomSuffix = crypto.randomBytes(8).toString("hex");
-              const outputFile = `/tmp/aw_output_${randomSuffix}.txt`;
-              fs.mkdirSync("/tmp", { recursive: true });
-              core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
-              core.setOutput("output_file", outputFile);
+            async function main() {
+                const crypto = require("crypto");
+                const fs = require("fs");
+                const randomSuffix = crypto.randomBytes(8).toString("hex");
+                const outputFile = `/tmp/aw_output_${randomSuffix}.txt`;
+                fs.mkdirSync("/tmp", { recursive: true });
+                core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
+                core.setOutput("output_file", outputFile);
             }
-            main();
+            (async () => {
+                await main();
+            })();
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
