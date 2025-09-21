@@ -1,4 +1,4 @@
-async function main() {
+async function setupAgentOutputMain() {
     const crypto = require("crypto");
     const fs = require("fs");
     const randomSuffix = crypto.randomBytes(8).toString("hex");
@@ -8,5 +8,5 @@ async function main() {
     core.setOutput("output_file", outputFile);
 }
 (async () => {
-    await main();
+    await setupAgentOutputMain();
 })();

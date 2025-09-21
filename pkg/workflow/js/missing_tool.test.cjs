@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 
-describe("missing_tool.cjs", () => {
+describe("missing_tool.js", () => {
   let mockCore;
   let missingToolScript;
   let originalConsole;
@@ -73,7 +73,7 @@ describe("missing_tool.cjs", () => {
     });
 
     // Read the script file
-    const scriptPath = path.join(__dirname, "missing_tool.cjs");
+    const scriptPath = path.join(__dirname, "missing_tool.js");
     missingToolScript = fs.readFileSync(scriptPath, "utf8");
   });
 

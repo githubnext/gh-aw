@@ -34,7 +34,9 @@
   "include": [
     "create_discussion.ts",
     "create_issue.ts",
+    "missing_tool.ts",
     "setup_agent_output.ts",
+    "validate_errors.ts",
     "types/*.d.ts"
   ],
   "exclude": [

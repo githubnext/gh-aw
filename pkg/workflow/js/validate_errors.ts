@@ -1,4 +1,11 @@
-function main() {
+interface ErrorPattern {
+  pattern: string;
+  description?: string;
+  level_group?: number;
+  message_group?: number;
+}
+
+async function validateErrorsMain() {
   const fs = require("fs");
 
   try {
@@ -33,7 +40,7 @@ function main() {
   }
 }
 
-function getErrorPatternsFromEnv() {
+function getErrorPatternsFromEnv(): ErrorPattern[] {
   const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
   if (!patternsEnv) {
     throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
@@ -50,12 +57,7 @@ function getErrorPatternsFromEnv() {
   }
 }
 
-/**
- * @param {string} logContent
- * @param {any[]} patterns
- * @returns {boolean}
- */
-function validateErrors(logContent, patterns) {
+function validateErrors(logContent: string, patterns: ErrorPattern[]): boolean {
   const lines = logContent.split("\n");
   let hasErrors = false;
 
@@ -85,12 +87,7 @@ function validateErrors(logContent, patterns) {
   return hasErrors;
 }
 
-/**
- * @param {any} match
- * @param {any} pattern
- * @returns {string}
- */
-function extractLevel(match, pattern) {
+function extractLevel(match: RegExpExecArray, pattern: ErrorPattern): string {
   if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
     return match[pattern.level_group];
   }
@@ -106,13 +103,7 @@ function extractLevel(match, pattern) {
   return "unknown";
 }
 
-/**
- * @param {any} match
- * @param {any} pattern
- * @param {any} fullLine
- * @returns {string}
- */
-function extractMessage(match, pattern, fullLine) {
+function extractMessage(match: RegExpExecArray, pattern: ErrorPattern, fullLine: string): string {
   if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
     return match[pattern.message_group].trim();
   }
@@ -121,12 +112,7 @@ function extractMessage(match, pattern, fullLine) {
   return match[0] || fullLine.trim();
 }
 
-/**
- * @param {any} str
- * @param {any} maxLength
- * @returns {string}
- */
-function truncateString(str, maxLength) {
+function truncateString(str: string, maxLength: number): string {
   if (!str) return "";
   if (str.length <= maxLength) return str;
   return str.substring(0, maxLength) + "...";
@@ -144,6 +130,8 @@ if (typeof module !== "undefined" && module.exports) {
 }
 
 // Only run main if this script is executed directly, not when imported for testing
-if (typeof module === "undefined" || require.main === module) {
-  main();
-}
+(async () => {
+  if (typeof module === "undefined" || require.main === module) {
+    await validateErrorsMain();
+  }
+})();

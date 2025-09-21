@@ -1,4 +1,13 @@
-async function main() {
+import type { SafeOutputItems } from "./types/safe-outputs";
+
+interface MissingTool {
+  tool: string;
+  reason: string;
+  alternatives: string | null;
+  timestamp: string;
+}
+
+async function missingToolMain() {
   const fs = require("fs");
 
   // Get environment variables
@@ -11,8 +20,7 @@ async function main() {
     core.info(`Maximum reports allowed: ${maxReports}`);
   }
 
-  /** @type {any[]} */
-  const missingTools = [];
+  const missingTools: MissingTool[] = [];
 
   // Return early if no agent output
   if (!agentOutput.trim()) {
@@ -23,7 +31,7 @@ async function main() {
   }
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(agentOutput);
   } catch (error) {
@@ -53,7 +61,7 @@ async function main() {
         continue;
       }
 
-      const missingTool = {
+      const missingTool: MissingTool = {
         tool: entry.tool,
         reason: entry.reason,
         alternatives: entry.alternatives || null,
@@ -117,7 +125,11 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  core.error(`Error processing missing-tool reports: ${error}`);
-  core.setFailed(`Error processing missing-tool reports: ${error}`);
-});
+(async () => {
+  try {
+    await missingToolMain();
+  } catch (error) {
+    core.error(`Error processing missing-tool reports: ${error}`);
+    core.setFailed(`Error processing missing-tool reports: ${error}`);
+  }
+})();

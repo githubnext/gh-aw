@@ -60,10 +60,10 @@ var parseClaudeLogScript string
 //go:embed js/parse_codex_log.cjs
 var parseCodexLogScript string
 
-//go:embed js/validate_errors.cjs
+//go:embed js/validate_errors.js
 var validateErrorsScript string
 
-//go:embed js/missing_tool.cjs
+//go:embed js/missing_tool.js
 var missingToolScript string
 
 //go:embed js/safe_outputs_mcp_server.cjs

@@ -55,7 +55,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            async function main() {
+            async function setupAgentOutputMain() {
                 const crypto = require("crypto");
                 const fs = require("fs");
                 const randomSuffix = crypto.randomBytes(8).toString("hex");
@@ -65,7 +65,7 @@ jobs:
                 core.setOutput("output_file", outputFile);
             }
             (async () => {
-                await main();
+                await setupAgentOutputMain();
             })();
       - name: Setup Safe Outputs Collector MCP
         run: |

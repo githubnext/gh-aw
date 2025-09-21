@@ -1,4 +1,4 @@
-async function main(): Promise<void> {
+async function setupAgentOutputMain() {
   // Generate a unique filename using 16 random hex characters
   const crypto = require("crypto");
   const fs = require("fs");
@@ -10,5 +10,5 @@ async function main(): Promise<void> {
 }
 
 (async () => {
-  await main();
+  await setupAgentOutputMain();
 })();

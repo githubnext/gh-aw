@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const { validateErrors, extractLevel, extractMessage, truncateString } = await import("./validate_errors.cjs");
+const { validateErrors, extractLevel, extractMessage, truncateString } = await import("./validate_errors.js");
 
 // Mock global objects for testing
 global.console = {
