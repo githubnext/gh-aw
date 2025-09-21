@@ -37,10 +37,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
+        working-directory: ./pkg/workflow/js
         with:
           cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
