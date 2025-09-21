@@ -839,7 +839,7 @@ jobs:
           2. The tool will return a URL for the uploaded screenshot that can be included in the issue
           
           ## Step 5: Accessibility Analysis
-          1. Analyze the screenshot for accessibility issues, focusing on:
+          1. Analyze the screenshot **image** for accessibility issues. DO NOT ANALYZE THE HTML. Focusing on:
              - Color contrast ratios (WCAG 2.1 AA requirements: 4.5:1 for normal text, 3:1 for large text)
              - Text readability against background colors
              - Navigation elements visibility
@@ -850,16 +850,9 @@ jobs:
           ## Step 6: Create Issue with Results
           1. Use the `safe-outputs create-issue` functionality to create a GitHub issue
           2. Include in the issue:
-             - Summary of the documentation build process
              - The uploaded screenshot URL from step 4
              - Detailed accessibility analysis results
              - Any recommendations for improvements
-             - Note that this was generated automatically by the dev workflow
-          
-          ## Step 7: Cleanup
-          1. Stop the development server
-          2. Restore the original configuration files
-          3. Clean up any temporary files
           
           Focus on providing a comprehensive accessibility analysis that would be useful for improving the documentation's usability for all users.
           
