@@ -644,7 +644,7 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"--allowed-origins\",\n")
-		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ",") + "\"")
+		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
 	yaml.WriteString("\n")
 	yaml.WriteString("                ]\n")
