@@ -7,6 +7,7 @@ on:
       - copilot/*
       - pelikhan/*
 safe-outputs:
+  upload-assets:
   create-issue:
     title-prefix: "[docs] "
     labels: [documentation, accessibility, automation]
@@ -17,7 +18,6 @@ engine:
 permissions: read-all
 tools:
   playwright:
-    allowed_domains: ["localhost", "127.0.0.1"]
   bash:
     - "cd *"
     - "npm *"
@@ -53,9 +53,13 @@ Please follow these steps:
 1. Use Playwright to navigate to `http://localhost:4321/gh-aw/`
 2. Wait for the page to fully load
 3. Take a full-page screenshot of the documentation homepage
-4. Save the screenshot to a temporary file
+4. Save the screenshot to a file (e.g., `/tmp/docs-screenshot.png`)
 
-## Step 4: Accessibility Analysis
+## Step 4: Upload Screenshot
+1. Use the `upload asset` tool from safe-outputs to upload the screenshot file
+2. The tool will return a URL for the uploaded screenshot that can be included in the issue
+
+## Step 5: Accessibility Analysis
 1. Analyze the screenshot for accessibility issues, focusing on:
    - Color contrast ratios (WCAG 2.1 AA requirements: 4.5:1 for normal text, 3:1 for large text)
    - Text readability against background colors
@@ -64,16 +68,16 @@ Please follow these steps:
    - Code block readability
    - Overall visual hierarchy and accessibility
 
-## Step 5: Create Issue with Results
+## Step 6: Create Issue with Results
 1. Use the `safe-outputs create-issue` functionality to create a GitHub issue
 2. Include in the issue:
    - Summary of the documentation build process
-   - Screenshot of the documentation homepage
+   - The uploaded screenshot URL from step 4
    - Detailed accessibility analysis results
    - Any recommendations for improvements
    - Note that this was generated automatically by the dev workflow
 
-## Step 6: Cleanup
+## Step 7: Cleanup
 1. Stop the development server
 2. Restore the original configuration files
 3. Clean up any temporary files
