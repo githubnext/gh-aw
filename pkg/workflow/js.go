@@ -30,7 +30,7 @@ var computeTextScript string
 //go:embed js/collect_ndjson_output.cjs
 var collectJSONLOutputScript string
 
-//go:embed js/add_labels.cjs
+//go:embed js/add_labels.js
 var addLabelsScript string
 
 //go:embed js/update_issue.cjs

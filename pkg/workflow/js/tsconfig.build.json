@@ -32,6 +32,7 @@
     "removeComments": true
   },
   "include": [
+    "add_labels.ts",
     "create_discussion.ts",
     "create_issue.ts",
     "types/*.d.ts"

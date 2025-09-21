@@ -1,3 +1,5 @@
+import type { SafeOutputItems } from "./types/safe-outputs";
+
 async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -14,7 +16,7 @@ async function main() {
   core.debug(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
@@ -28,7 +30,7 @@ async function main() {
   }
 
   // Find the add-labels item
-  const labelsItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "add-labels");
+  const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
   if (!labelsItem) {
     core.warning("No add-labels item found in agent output");
     return;
@@ -59,7 +61,7 @@ async function main() {
 
   // Read the allowed labels from environment variable (optional)
   const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
-  let allowedLabels = null;
+  let allowedLabels: string[] | null = null;
 
   if (allowedLabelsEnv && allowedLabelsEnv.trim() !== "") {
     allowedLabels = allowedLabelsEnv
@@ -139,16 +141,16 @@ async function main() {
   }
 
   // Validate that all requested labels are in the allowed list (if restrictions are set)
-  let validLabels;
+  let validLabels: string[];
   if (allowedLabels) {
-    validLabels = requestedLabels.filter(/** @param {string} label */ label => allowedLabels.includes(label));
+    validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
   } else {
     // No restrictions, all requested labels are valid
     validLabels = requestedLabels;
   }
 
   // Remove duplicates from requested labels
-  let uniqueLabels = [...new Set(validLabels)];
+  let uniqueLabels: string[] = [...new Set(validLabels)];
 
   // Enforce max limit
   if (uniqueLabels.length > maxCount) {
