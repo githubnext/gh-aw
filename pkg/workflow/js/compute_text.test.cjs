@@ -68,7 +68,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("compute_text.cjs", () => {
+describe("compute_text.js", () => {
   let computeTextScript;
   let sanitizeContentFunction;
 
@@ -84,7 +84,7 @@ describe("compute_text.cjs", () => {
     delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "compute_text.cjs");
+    const scriptPath = path.join(process.cwd(), "compute_text.js");
     computeTextScript = fs.readFileSync(scriptPath, "utf8");
 
     // Extract sanitizeContent function for unit testing

@@ -24,7 +24,7 @@ var createPRReviewCommentScript string
 //go:embed js/create_code_scanning_alert.cjs
 var createCodeScanningAlertScript string
 
-//go:embed js/compute_text.cjs
+//go:embed js/compute_text.js
 var computeTextScript string
 
 //go:embed js/collect_ndjson_output.cjs
@@ -48,7 +48,7 @@ var setupAgentOutputScript string
 //go:embed js/add_reaction.js
 var addReactionScript string
 
-//go:embed js/add_reaction_and_edit_comment.cjs
+//go:embed js/add_reaction_and_edit_comment.js
 var addReactionAndEditCommentScript string
 
 //go:embed js/check_permissions.js
@@ -57,7 +57,7 @@ var checkPermissionsScript string
 //go:embed js/parse_claude_log.cjs
 var parseClaudeLogScript string
 
-//go:embed js/parse_codex_log.cjs
+//go:embed js/parse_codex_log.js
 var parseCodexLogScript string
 
 //go:embed js/validate_errors.js
