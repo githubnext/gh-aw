@@ -1332,7 +1332,11 @@ jobs:
                       }
                       item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
-                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pull-request-branch 'pull_request_number'", i + 1);
+                      const pushPRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "push-to-pull-request-branch 'pull_request_number'",
+                        i + 1
+                      );
                       if (!pushPRNumValidation.isValid) {
                         errors.push(pushPRNumValidation.error);
                         continue;
@@ -2190,7 +2194,7 @@ jobs:
               let branchName;
               try {
                 let prInfo = "";
-                const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `'.headRefName'`], {
+                const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
                   listeners: { stdout: data => (prInfo += data.toString()) },
                 });
                 if (!prInfoRes) {

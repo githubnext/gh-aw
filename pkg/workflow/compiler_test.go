@@ -5493,3 +5493,166 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 		})
 	}
 }
+
+// TestDescriptionFieldRendering tests that the description field from frontmatter
+// is correctly rendered as comments in the generated lock file
+func TestDescriptionFieldRendering(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "description-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name                string
+		frontmatter         string
+		expectedDescription string
+		description         string
+	}{
+		{
+			name: "single_line_description",
+			frontmatter: `---
+description: "This is a simple workflow description"
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+engine: claude
+tools:
+  github:
+    allowed: [list_commits]
+---`,
+			expectedDescription: "# This is a simple workflow description",
+			description:         "Should render single-line description as comment",
+		},
+		{
+			name: "multiline_description",
+			frontmatter: `---
+description: |
+  This is a multi-line workflow description.
+  It explains what the workflow does in detail.
+  Each line should be rendered as a separate comment.
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+engine: claude
+tools:
+  github:
+    allowed: [list_commits]
+---`,
+			expectedDescription: "# This is a multi-line workflow description.\n# It explains what the workflow does in detail.\n# Each line should be rendered as a separate comment.",
+			description:         "Should render multi-line description with each line as comment",
+		},
+		{
+			name: "no_description",
+			frontmatter: `---
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+engine: claude
+tools:
+  github:
+    allowed: [list_commits]
+---`,
+			expectedDescription: "",
+			description:         "Should not render any description comments when no description is provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := tt.frontmatter + `
+
+# Test Workflow
+
+This is a test workflow to verify description field rendering.
+`
+
+			testFile := filepath.Join(tmpDir, tt.name+"-workflow.md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			err := compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Unexpected error compiling workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read generated lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			if tt.expectedDescription == "" {
+				// Verify no description comments are present
+				// The standard header should end and workflow content should start immediately
+				lines := strings.Split(lockContent, "\n")
+				inHeader := true
+				for i, line := range lines {
+					if inHeader && strings.HasPrefix(line, "# For more information:") {
+						// This is the last line of the standard header
+						// Next non-empty line should be workflow content (name: ...)
+						for j := i + 1; j < len(lines); j++ {
+							if strings.TrimSpace(lines[j]) != "" {
+								if strings.HasPrefix(lines[j], "#") && !strings.HasPrefix(lines[j], "# ") {
+									// Found a comment that's not a space-prefixed description comment
+									break
+								}
+								if strings.HasPrefix(lines[j], "# ") {
+									t.Errorf("Found unexpected description comment when none expected: %s", lines[j])
+								}
+								break
+							}
+						}
+						break
+					}
+				}
+			} else {
+				// Verify description comments are present
+				if !strings.Contains(lockContent, tt.expectedDescription) {
+					t.Errorf("Expected description comments not found in generated YAML:\nExpected: %s\nGenerated content:\n%s", tt.expectedDescription, lockContent)
+				}
+
+				// Verify description comes after standard header and before workflow content
+				headerEndPattern := "# For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md"
+				workflowStartPattern := `name: "`
+
+				headerPos := strings.Index(lockContent, headerEndPattern)
+				descPos := strings.Index(lockContent, tt.expectedDescription)
+				workflowPos := strings.Index(lockContent, workflowStartPattern)
+
+				if headerPos == -1 {
+					t.Error("Standard header not found in generated YAML")
+				}
+				if descPos == -1 {
+					t.Error("Description comments not found in generated YAML")
+				}
+				if workflowPos == -1 {
+					t.Error("Workflow content not found in generated YAML")
+				}
+
+				if headerPos >= descPos {
+					t.Error("Description should come after standard header")
+				}
+				if descPos >= workflowPos {
+					t.Error("Description should come before workflow content")
+				}
+			}
+
+			// Clean up generated lock file
+			os.Remove(lockFile)
+		})
+	}
+}

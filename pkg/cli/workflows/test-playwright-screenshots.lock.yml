@@ -1488,7 +1488,11 @@ jobs:
                       }
                       item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
-                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pull-request-branch 'pull_request_number'", i + 1);
+                      const pushPRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "push-to-pull-request-branch 'pull_request_number'",
+                        i + 1
+                      );
                       if (!pushPRNumValidation.isValid) {
                         errors.push(pushPRNumValidation.error);
                         continue;

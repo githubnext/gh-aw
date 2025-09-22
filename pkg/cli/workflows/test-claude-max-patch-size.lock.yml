@@ -1330,7 +1330,11 @@ jobs:
                       }
                       item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
-                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pull-request-branch 'pull_request_number'", i + 1);
+                      const pushPRNumValidation = validateIssueOrPRNumber(
+                        item.pull_request_number,
+                        "push-to-pull-request-branch 'pull_request_number'",
+                        i + 1
+                      );
                       if (!pushPRNumValidation.isValid) {
                         errors.push(pushPRNumValidation.error);
                         continue;
@@ -2028,6 +2032,9 @@ jobs:
     timeout-minutes: 10
     outputs:
       branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
+      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
+      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
       pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
     steps:
@@ -2265,38 +2272,81 @@ jobs:
                     return;
                 }
               }
-              const { data: pullRequest } = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: title,
-                body: body,
-                head: branchName,
-                base: baseBranch,
-                draft: draft,
-              });
-              core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-              if (labels.length > 0) {
-                await github.rest.issues.addLabels({
+              try {
+                const { data: pullRequest } = await github.rest.pulls.create({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  issue_number: pullRequest.number,
-                  labels: labels,
+                  title: title,
+                  body: body,
+                  head: branchName,
+                  base: baseBranch,
+                  draft: draft,
                 });
-                core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-              }
-              core.setOutput("pull_request_number", pullRequest.number);
-              core.setOutput("pull_request_url", pullRequest.html_url);
-              core.setOutput("branch_name", branchName);
-              await core.summary
-                .addRaw(
-                  `
+                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                if (labels.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pullRequest.number,
+                    labels: labels,
+                  });
+                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                }
+                core.setOutput("pull_request_number", pullRequest.number);
+                core.setOutput("pull_request_url", pullRequest.html_url);
+                core.setOutput("branch_name", branchName);
+                await core.summary
+                  .addRaw(
+                    `
             ## Pull Request
             - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
             - **Branch**: \`${branchName}\`
             - **Base Branch**: \`${baseBranch}\`
             `
-                )
-                .write();
+                  )
+                  .write();
+              } catch (prError) {
+                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+                core.info("Falling back to creating an issue instead");
+                const branchUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/tree/${branchName}`
+                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const fallbackBody = `${body}
+            ---
+            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+            You can manually create a pull request from the branch if needed.`;
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Fallback Issue Created
+            - **Issue**: [#${issue.number}](${issue.html_url})
+            - **Branch**: [\`${branchName}\`](${branchUrl})
+            - **Base Branch**: \`${baseBranch}\`
+            - **Note**: Pull request creation failed, created issue as fallback
+            `
+                    )
+                    .write();
+                } catch (issueError) {
+                  core.setFailed(
+                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                  );
+                  return;
+                }
+              }
             }
             await main();
 
