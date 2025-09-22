@@ -270,7 +270,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "create_pull-request",
+    name: "create_pull_request",
     description: "Create a new GitHub pull request",
     inputSchema: {
       type: "object",
