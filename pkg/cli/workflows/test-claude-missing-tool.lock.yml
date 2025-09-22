@@ -22,12 +22,10 @@ run-name: "Test Claude with Missing Tool Safe Output and Cache Memory"
 jobs:
   test-claude-with-missing-tool-safe-output-and-cache-memory:
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions: {}
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |

@@ -4150,7 +4150,7 @@ This workflow tests post-steps without pre-steps.
 }
 
 func TestDefaultPermissions(t *testing.T) {
-	// Test that workflows without permissions in frontmatter get default permissions applied
+	// Test that workflows without permissions in frontmatter get default empty permissions applied
 	tmpDir, err := os.MkdirTemp("", "default-permissions-test")
 	if err != nil {
 		t.Fatal(err)
@@ -4170,7 +4170,7 @@ engine: claude
 
 # Test Workflow
 
-This workflow should get default permissions applied automatically.
+This workflow should get default empty permissions applied automatically.
 `
 
 	testFile := filepath.Join(tmpDir, "test-default-permissions.md")
@@ -4199,7 +4199,7 @@ This workflow should get default permissions applied automatically.
 
 	// Verify that default permissions are present in the generated workflow
 	expectedDefaultPermissions := []string{
-		"read-all",
+		"permissions: {}",
 	}
 
 	for _, expectedPerm := range expectedDefaultPermissions {
@@ -4251,13 +4251,21 @@ This workflow should get default permissions applied automatically.
 		t.Fatal("Permissions section not found in main job")
 	}
 
-	// Verify permissions is a map
-	permissionsValue, ok := permissions.(string)
-	if !ok {
-		t.Fatal("Permissions section is not a string")
-	}
-	if permissionsValue != "read-all" {
-		t.Fatal("Default permissions not read-all")
+	// Verify permissions structure
+	permissionsValue := permissions
+	
+	// Check if it's an empty map (which represents {})
+	if permissionsMap, ok := permissionsValue.(map[string]any); ok {
+		if len(permissionsMap) != 0 {
+			t.Fatalf("Expected empty permissions map, got: %v", permissionsMap)
+		}
+	} else if permissionsStr, ok := permissionsValue.(string); ok {
+		// If it's a string, it should be "{}"
+		if permissionsStr != "{}" {
+			t.Fatalf("Expected empty permissions '{}', got: '%s'", permissionsStr)
+		}
+	} else {
+		t.Fatalf("Permissions section should be either empty map or '{}' string, got: %T %v", permissionsValue, permissionsValue)
 	}
 }
 

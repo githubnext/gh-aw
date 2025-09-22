@@ -1019,8 +1019,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 
 	// Set default permissions if none specified (but not if explicitly empty)
 	if data.Permissions == nil {
-		// No permissions section in frontmatter at all - use default read-all
-		data.Permissions = &Permissions{Global: "read-all"}
+		// No permissions section in frontmatter at all - use empty permissions by default
+		data.Permissions = &Permissions{} // Empty permissions by default
 	} else if data.Permissions.IsEmpty() {
 		// Permissions explicitly set to empty (permissions: {}) - keep empty
 		// Do nothing, leave as is

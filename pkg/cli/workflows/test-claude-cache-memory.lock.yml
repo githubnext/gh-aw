@@ -22,10 +22,8 @@ run-name: "Test Claude with Cache Memory File Share"
 jobs:
   test-claude-with-cache-memory-file-share:
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions: {}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |

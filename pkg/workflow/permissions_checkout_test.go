@@ -16,7 +16,7 @@ func TestCheckoutStepWithPermissions(t *testing.T) {
 		{
 			name:           "no_permissions",
 			permissions:    "",
-			shouldCheckout: true, // Default is read-all which includes contents access
+			shouldCheckout: false, // Default is empty {} which doesn't include contents access
 		},
 		{
 			name:           "empty_permissions",
