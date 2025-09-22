@@ -193,11 +193,13 @@ It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on G
 Examples:
   gh aw run weekly-research
   gh aw run weekly-research daily-plan
-  gh aw run weekly-research --repeat 3600  # Run every hour`,
+  gh aw run weekly-research --repeat 3600  # Run every hour
+  gh aw run weekly-research --enable       # Enable if disabled, run, then restore state`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		repeatSeconds, _ := cmd.Flags().GetInt("repeat")
-		if err := cli.RunWorkflowsOnGitHub(args, repeatSeconds, verbose); err != nil {
+		enable, _ := cmd.Flags().GetBool("enable")
+		if err := cli.RunWorkflowsOnGitHub(args, repeatSeconds, enable, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -296,6 +298,7 @@ func init() {
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
+	runCmd.Flags().Bool("enable", false, "Enable the workflow before running if needed, and restore state afterward")
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)

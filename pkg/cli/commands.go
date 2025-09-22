@@ -1813,6 +1813,25 @@ func fetchGitHubWorkflows(verbose bool) (map[string]*GitHubWorkflow, error) {
 	return workflowMap, nil
 }
 
+// getWorkflowStatus gets the status of a single workflow by name
+func getWorkflowStatus(workflowIdOrName string, verbose bool) (*GitHubWorkflow, error) {
+	// Extract workflow name for lookup
+	filename := strings.TrimSuffix(filepath.Base(workflowIdOrName), ".md")
+
+	// Get all GitHub workflows
+	githubWorkflows, err := fetchGitHubWorkflows(verbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch GitHub workflows: %w", err)
+	}
+
+	// Find the workflow
+	if workflow, exists := githubWorkflows[filename]; exists {
+		return workflow, nil
+	}
+
+	return nil, fmt.Errorf("workflow '%s' not found on GitHub", workflowIdOrName)
+}
+
 func extractWorkflowNameFromPath(path string) string {
 	base := filepath.Base(path)
 	name := strings.TrimSuffix(base, filepath.Ext(base))
@@ -3228,7 +3247,7 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 }
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) error {
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
 	}
@@ -3256,6 +3275,32 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 
 	if !runnable {
 		return fmt.Errorf("workflow '%s' cannot be run on GitHub Actions - it must have 'workflow_dispatch' trigger", workflowIdOrName)
+	}
+
+	// Handle --enable flag logic: check workflow state and enable if needed
+	var wasDisabled bool
+	var workflowID int64
+	if enable {
+		// Get current workflow status
+		if workflow, err := getWorkflowStatus(workflowIdOrName, verbose); err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
+			}
+		} else {
+			workflowID = workflow.ID
+			if workflow.State == "disabled_manually" {
+				wasDisabled = true
+				if verbose {
+					fmt.Printf("Workflow '%s' is disabled, enabling it temporarily...\n", workflowIdOrName)
+				}
+				// Enable the workflow
+				cmd := exec.Command("gh", "workflow", "enable", strconv.FormatInt(workflow.ID, 10))
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("failed to enable workflow '%s': %w", workflowIdOrName, err)
+				}
+				fmt.Printf("Enabled workflow: %s\n", workflowIdOrName)
+			}
+		}
 	}
 
 	// Determine the lock file name based on the workflow source
@@ -3313,6 +3358,20 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			fmt.Fprintf(os.Stderr, "%s", exitError.Stderr)
 		}
+
+		// Restore workflow state if it was disabled and we enabled it (even on error)
+		if enable && wasDisabled && workflowID != 0 {
+			if verbose {
+				fmt.Printf("Restoring workflow '%s' to disabled state after error...\n", workflowIdOrName)
+			}
+			restoreCmd := exec.Command("gh", "workflow", "disable", strconv.FormatInt(workflowID, 10))
+			if restoreErr := restoreCmd.Run(); restoreErr != nil {
+				fmt.Printf("Warning: Failed to restore workflow '%s' to disabled state: %v\n", workflowIdOrName, restoreErr)
+			} else {
+				fmt.Printf("Restored workflow to disabled state: %s\n", workflowIdOrName)
+			}
+		}
+
 		return fmt.Errorf("failed to run workflow on GitHub Actions: %w", err)
 	}
 
@@ -3332,11 +3391,24 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", err)
 	}
 
+	// Restore workflow state if it was disabled and we enabled it
+	if enable && wasDisabled && workflowID != 0 {
+		if verbose {
+			fmt.Printf("Restoring workflow '%s' to disabled state...\n", workflowIdOrName)
+		}
+		cmd := exec.Command("gh", "workflow", "disable", strconv.FormatInt(workflowID, 10))
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("Warning: Failed to restore workflow '%s' to disabled state: %v\n", workflowIdOrName, err)
+		} else {
+			fmt.Printf("Restored workflow to disabled state: %s\n", workflowIdOrName)
+		}
+	}
+
 	return nil
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating at intervals
-func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, verbose bool) error {
+func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, enable bool, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -3372,7 +3444,7 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, verbose boo
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
