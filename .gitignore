@@ -51,3 +51,4 @@ coverage/
 logs/
 
 node_modules/
+gh-aw-test/
