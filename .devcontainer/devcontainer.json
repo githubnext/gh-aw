@@ -18,12 +18,14 @@
 			"repositories": {
 				"githubnext/agentics": {
 					"permissions": {
-						"contents": "read"
+						"contents": "read",
+						"workflows": "write"
 					}
 				},
 				"githubnext/gh-aw-test": {
 					"permissions": {
-						"contents": "write"
+						"contents": "write",
+						"workflows": "write"
 					}
 				}
 			}
