@@ -123,6 +123,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 type WorkflowData struct {
 	Name               string
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
+	Description        string // optional description rendered as comment in lock file
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
@@ -576,6 +577,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData := &WorkflowData{
 		Name:               workflowName,
 		FrontmatterName:    frontmatterName,
+		Description:        c.extractDescription(result.Frontmatter),
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
@@ -674,6 +676,21 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 	// Convert the value to string - it should be just the expression
 	if strValue, ok := value.(string); ok {
 		return c.extractExpressionFromIfString(strValue)
+	}
+
+	return ""
+}
+
+// extractDescription extracts the description field from frontmatter
+func (c *Compiler) extractDescription(frontmatter map[string]any) string {
+	value, exists := frontmatter["description"]
+	if !exists {
+		return ""
+	}
+
+	// Convert the value to string
+	if strValue, ok := value.(string); ok {
+		return strings.TrimSpace(strValue)
 	}
 
 	return ""
@@ -1418,6 +1435,16 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString("# To update this file, edit the corresponding .md file and run:\n")
 	yaml.WriteString("#   " + constants.CLIExtensionPrefix + " compile\n")
 	yaml.WriteString("# For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md\n")
+
+	// Add description comment if provided
+	if data.Description != "" {
+		yaml.WriteString("#\n")
+		// Split description into lines and prefix each with "# "
+		descriptionLines := strings.Split(strings.TrimSpace(data.Description), "\n")
+		for _, line := range descriptionLines {
+			yaml.WriteString(fmt.Sprintf("# %s\n", strings.TrimSpace(line)))
+		}
+	}
 
 	// Add stop-time comment if configured
 	if data.StopTime != "" {

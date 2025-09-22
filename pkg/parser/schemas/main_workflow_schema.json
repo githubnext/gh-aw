@@ -6,6 +6,10 @@
       "type": "string",
       "description": "Name of the workflow"
     },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the workflow that will be rendered as comments in the generated lock file"
+    },
     "on": {
       "description": "GitHub Actions workflow triggers",
       "oneOf": [
