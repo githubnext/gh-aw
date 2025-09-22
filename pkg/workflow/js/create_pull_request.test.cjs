@@ -450,6 +450,135 @@ describe("create_pull_request.cjs", () => {
     expect(callArgs.title).toBe("[BOT] PR title already prefixed"); // Should not be duplicated
   });
 
+  it("should fallback to creating issue when PR creation fails", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "PR that will fail",
+          body: "This PR creation will fail and fallback to an issue.",
+        },
+      ],
+    });
+    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "enhancement, automated";
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock PR creation to fail
+    const prError = new Error("Pull request creation is disabled by organization policy");
+    mockDependencies.github.rest.pulls.create.mockRejectedValue(prError);
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 456,
+      html_url: "https://github.com/testowner/testrepo/issues/456",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify PR creation was attempted
+    expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "PR that will fail",
+      body: expect.stringContaining("This PR creation will fail and fallback to an issue."),
+      head: "test-workflow-1234567890abcdef",
+      base: "main",
+      draft: true,
+    });
+
+    // Verify fallback issue was created with enhanced body
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "PR that will fail",
+      body: expect.stringMatching(
+        /This PR creation will fail and fallback to an issue\.[\s\S]*---[\s\S]*Note.*originally intended as a pull request[\s\S]*Original error.*Pull request creation is disabled by organization policy[\s\S]*You can manually create a pull request from the branch if needed/
+      ),
+      labels: ["enhancement", "automated"],
+    });
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
+      "Failed to create pull request: Pull request creation is disabled by organization policy"
+    );
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Falling back to creating an issue instead");
+    expect(mockDependencies.core.info).toHaveBeenCalledWith(
+      "Created fallback issue #456: https://github.com/testowner/testrepo/issues/456"
+    );
+
+    // Verify fallback outputs were set
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_number", 456);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("branch_name", "test-workflow-1234567890abcdef");
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("fallback_used", "true");
+
+    // Verify fallback summary was written
+    expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## Fallback Issue Created"));
+  });
+
+  it("should fail when both PR and fallback issue creation fail", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "PR that will fail",
+          body: "Both PR and issue creation will fail.",
+        },
+      ],
+    });
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock both PR and issue creation to fail
+    const prError = new Error("Pull request creation failed");
+    const issueError = new Error("Issue creation also failed");
+    mockDependencies.github.rest.pulls.create.mockRejectedValue(prError);
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockRejectedValue(issueError),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify both API calls were attempted
+    expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+
+    // Verify setFailed was called with combined error message
+    expect(mockDependencies.core.setFailed).toHaveBeenCalledWith(
+      "Failed to create both pull request and fallback issue. PR error: Pull request creation failed. Issue error: Issue creation also failed"
+    );
+  });
+
   describe("if-no-changes configuration", () => {
     beforeEach(() => {
       mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
