@@ -15,7 +15,17 @@ engine:
   id: claude
   max-turns: 50
 permissions: read-all
+network:
+  allowed:
+    - defaults        # Basic infrastructure (certificates, JSON schema, Ubuntu)
+    - node           # Node.js/NPM ecosystem for docs dependencies
+    - github         # GitHub domains for API access
+    - "localhost"    # Local development server
+    - "*.github.io"  # GitHub Pages domains
+    - "*.githubusercontent.com" # GitHub raw content
 tools:
+  web-fetch:         # Enable web content fetching with network permissions
+  web-search:        # Enable web search with network permissions
   playwright:
   bash:
     - "cd *"
