@@ -784,6 +784,10 @@ This workflow tests the create_pull_request job generation.
 		t.Error("Expected pull-requests: write permission in create_pull_request job")
 	}
 
+	if !strings.Contains(lockContentStr, "issues: write") {
+		t.Error("Expected issues: write permission in create_pull_request job (required for fallback issue creation)")
+	}
+
 	// Verify steps
 	if !strings.Contains(lockContentStr, "Download patch artifact") {
 		t.Error("Expected 'Download patch artifact' step in create_pull_request job")
