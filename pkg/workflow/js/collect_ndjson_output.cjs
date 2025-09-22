@@ -750,7 +750,9 @@ async function main() {
           // Validate severity level
           const allowedSeverities = ["error", "warning", "info", "note"];
           if (!allowedSeverities.includes(item.severity.toLowerCase())) {
-            errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`);
+            errors.push(
+              `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}, got ${item.severity.toLowerCase()}`
+            );
             continue;
           }
 

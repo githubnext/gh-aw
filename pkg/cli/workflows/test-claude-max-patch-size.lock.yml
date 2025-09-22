@@ -437,7 +437,7 @@ jobs:
               },
               {
                 name: "create_code_scanning_alert",
-                description: "Create a code scanning alert",
+                description: "Create a code scanning alert. severity MUST be one of 'error', 'warning', 'info', 'note'.",
                 inputSchema: {
                   type: "object",
                   required: ["file", "line", "severity", "message"],
@@ -453,7 +453,8 @@ jobs:
                     severity: {
                       type: "string",
                       enum: ["error", "warning", "info", "note"],
-                      description: "Severity level",
+                      description:
+                        ' Security severity levels follow the industry-standard Common Vulnerability Scoring System (CVSS) that is also used for advisories in the GitHub Advisory Database and must be one of "error", "warning", "info", "note".',
                     },
                     message: {
                       type: "string",
@@ -1438,7 +1439,9 @@ jobs:
                       }
                       const allowedSeverities = ["error", "warning", "info", "note"];
                       if (!allowedSeverities.includes(item.severity.toLowerCase())) {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}`);
+                        errors.push(
+                          `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}, got ${item.severity.toLowerCase()}`
+                        );
                         continue;
                       }
                       const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);

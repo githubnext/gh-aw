@@ -325,7 +325,7 @@ const ALL_TOOLS = [
   },
   {
     name: "create_code_scanning_alert",
-    description: "Create a code scanning alert",
+    description: "Create a code scanning alert. severity MUST be one of 'error', 'warning', 'info', 'note'.",
     inputSchema: {
       type: "object",
       required: ["file", "line", "severity", "message"],
@@ -341,7 +341,8 @@ const ALL_TOOLS = [
         severity: {
           type: "string",
           enum: ["error", "warning", "info", "note"],
-          description: "Severity level",
+          description:
+            ' Security severity levels follow the industry-standard Common Vulnerability Scoring System (CVSS) that is also used for advisories in the GitHub Advisory Database and must be one of "error", "warning", "info", "note".',
         },
         message: {
           type: "string",
