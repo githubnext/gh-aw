@@ -303,7 +303,7 @@ func TestDisableWorkflows(t *testing.T) {
 	if err == nil {
 		t.Errorf("DisableWorkflows should return error when no workflows found to disable, got nil")
 	}
-	
+
 	// The error should indicate workflows couldn't be found
 	if !strings.Contains(err.Error(), "workflow") {
 		t.Errorf("DisableWorkflows error should mention workflows, got: %v", err)
