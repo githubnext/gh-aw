@@ -176,7 +176,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "push-to-pr-branch"
+          "const": "push-to-pull-request-branch"
         },
         "message": {
           "type": "string",

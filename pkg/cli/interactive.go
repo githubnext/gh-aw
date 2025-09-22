@@ -186,7 +186,7 @@ func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
 		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
 		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
 		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
-		huh.NewOption("push-to-pr-branch - Push changes to PR branches", "push-to-pr-branch"),
+		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
 	}
 
 	var selected []string

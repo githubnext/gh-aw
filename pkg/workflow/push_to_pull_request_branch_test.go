@@ -11,25 +11,25 @@ func TestPushToPullRequestBranchConfigParsing(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
-	// Create a test markdown file with push-to-pr-branch configuration
+	// Create a test markdown file with push-to-pull-request-branch configuration
 	testMarkdown := `---
 on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     target: "triggering"
 ---
 
 # Test Push to PR Branch
 
-This is a test workflow to validate push-to-pr-branch configuration parsing.
+This is a test workflow to validate push-to-pull-request-branch configuration parsing.
 
 Please make changes and push them to the feature branch.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -50,9 +50,9 @@ Please make changes and push them to the feature branch.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pr_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pr_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pr_branch job")
+	// Verify that push_to_pull_request_branch job is generated
+	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
 	}
 
 	// Verify that the target configuration is passed correctly
@@ -66,7 +66,7 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Verify that the job depends on the main workflow job
-	if !strings.Contains(lockContentStr, "needs: test-push-to-pr-branch") {
+	if !strings.Contains(lockContentStr, "needs: test-push-to-pull-request-branch") {
 		t.Errorf("Generated workflow should have dependency on main job")
 	}
 
@@ -86,7 +86,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     target: "*"
 ---
 
@@ -96,7 +96,7 @@ This workflow allows pushing to any pull request.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-asterisk.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-asterisk.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -138,7 +138,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     target: "triggering"
 ---
 
@@ -148,7 +148,7 @@ This workflow uses the default branch value.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-default-branch.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-default-branch.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -163,7 +163,7 @@ This workflow uses the default branch value.
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := filepath.Join(tmpDir, "test-push-to-pr-branch-default-branch.lock.yml")
+	lockFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-default-branch.lock.yml")
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -171,9 +171,9 @@ This workflow uses the default branch value.
 
 	lockContent := string(content)
 
-	// Check that the push_to_pr_branch job is generated
-	if !strings.Contains(lockContent, "push_to_pr_branch:") {
-		t.Errorf("Expected push_to_pr_branch job to be generated")
+	// Check that the push_to_pull_request_branch job is generated
+	if !strings.Contains(lockContent, "push_to_pull_request_branch:") {
+		t.Errorf("Expected push_to_pull_request_branch job to be generated")
 	}
 }
 
@@ -181,13 +181,13 @@ func TestPushToPullRequestBranchNullConfig(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
-	// Create a test markdown file with null configuration (push-to-pr-branch: with no value)
+	// Create a test markdown file with null configuration (push-to-pull-request-branch: with no value)
 	testMarkdown := `---
 on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch: 
+  push-to-pull-request-branch: 
 ---
 
 # Test Push to Branch Null Config
@@ -196,7 +196,7 @@ This workflow uses null configuration which should default to "triggering".
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-null-config.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-null-config.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -211,7 +211,7 @@ This workflow uses null configuration which should default to "triggering".
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := filepath.Join(tmpDir, "test-push-to-pr-branch-null-config.lock.yml")
+	lockFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-null-config.lock.yml")
 	content, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -219,9 +219,9 @@ This workflow uses null configuration which should default to "triggering".
 
 	lockContent := string(content)
 
-	// Check that the push_to_pr_branch job is generated
-	if !strings.Contains(lockContent, "push_to_pr_branch:") {
-		t.Errorf("Expected push_to_pr_branch job to be generated")
+	// Check that the push_to_pull_request_branch job is generated
+	if !strings.Contains(lockContent, "push_to_pull_request_branch:") {
+		t.Errorf("Expected push_to_pull_request_branch job to be generated")
 	}
 
 	// Check that no target is set (should use default)
@@ -240,16 +240,16 @@ on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
 ---
 
 # Test Push to Branch Minimal
 
-This workflow has minimal push-to-pr-branch configuration.
+This workflow has minimal push-to-pull-request-branch configuration.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-minimal.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-minimal.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -270,9 +270,9 @@ This workflow has minimal push-to-pr-branch configuration.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pr_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pr_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pr_branch job")
+	// Verify that push_to_pull_request_branch job is generated
+	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
 	}
 
 	// Verify that target defaults to triggering behavior (no explicit target env var)
@@ -296,7 +296,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     target: "triggering"
     if-no-changes: "error"
 ---
@@ -307,7 +307,7 @@ This workflow fails when there are no changes.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-error.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-error.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -344,7 +344,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     if-no-changes: "ignore"
 ---
 
@@ -354,7 +354,7 @@ This workflow ignores when there are no changes.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-ignore.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-ignore.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -391,7 +391,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
 ---
 
 # Test Push to Branch Default if-no-changes
@@ -400,7 +400,7 @@ This workflow uses default if-no-changes behavior.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-default-if-no-changes.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-default-if-no-changes.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -437,7 +437,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     target: "triggering"
 ---
 
@@ -447,7 +447,7 @@ This workflow explicitly sets branch to "triggering".
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pr-branch-explicit-triggering.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-explicit-triggering.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -460,7 +460,7 @@ This workflow explicitly sets branch to "triggering".
 	}
 
 	// Read the generated .lock.yml file
-	lockFile := filepath.Join(tmpDir, "test-push-to-pr-branch-explicit-triggering.lock.yml")
+	lockFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-explicit-triggering.lock.yml")
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
@@ -468,9 +468,9 @@ This workflow explicitly sets branch to "triggering".
 
 	lockContentStr := string(lockContent)
 
-	// Verify that push_to_pr_branch job is generated
-	if !strings.Contains(lockContentStr, "push_to_pr_branch:") {
-		t.Errorf("Generated workflow should contain push_to_pr_branch job")
+	// Verify that push_to_pull_request_branch job is generated
+	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
 	}
 
 	// Verify that target configuration is included

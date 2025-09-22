@@ -33,7 +33,7 @@ This declares that the workflow should create at most one new issue.
 | **Add Issue Label** | `add-labels:` | Add labels to issues or pull requests | 3 |
 | **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 |
 | **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
-| **Push to Pull Request Branch** | `push-to-pr-branch:` | Push changes directly to a branch | 1 |
+| **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
 
@@ -364,20 +364,20 @@ The compiled workflow will have additional prompting describing that, to create 
 - Customizable rule IDs via optional ruleIdSuffix field
 - Rule IDs default to `{workflow-filename}-security-finding-{index}` format when no custom suffix is provided
 
-### Push to Pull Request Branch (`push-to-pr-branch:`)
+### Push to Pull Request Branch (`push-to-pull-request-branch:`)
 
-Adding `push-to-pr-branch:` to the `safe-outputs:` section declares that the workflow should conclude with pushing additional changes to the branch associated with a pull request. This is useful for applying code changes directly to a designated branch within pull requests.
+Adding `push-to-pull-request-branch:` to the `safe-outputs:` section declares that the workflow should conclude with pushing additional changes to the branch associated with a pull request. This is useful for applying code changes directly to a designated branch within pull requests.
 
 **Basic Configuration:**
 ```yaml
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
 ```
 
 **With Configuration:**
 ```yaml
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     target: "*"                          # Optional: target for push operations
                                          # "triggering" (default) - only push in triggering PR context
                                          # "*" - allow pushes to any pull request (requires pull_request_number in agent output)
@@ -406,7 +406,7 @@ Analyze the pull request and make necessary code improvements.
 ```yaml
 # Always succeed, warn when no changes (default behavior)
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     branch: feature-branch
     if-no-changes: "warn"
 ```
@@ -414,7 +414,7 @@ safe-outputs:
 ```yaml
 # Fail when no changes are made (strict mode)
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     branch: feature-branch
     if-no-changes: "error"
 ```
@@ -422,7 +422,7 @@ safe-outputs:
 ```yaml
 # Silent success, no output when no changes
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     branch: feature-branch
     if-no-changes: "ignore"
 ```
@@ -452,7 +452,7 @@ Similar to GitHub's `actions/upload-artifact` action, you can configure how the 
 - Label count is limited by `max` setting (default: 3) - exceeding this limit causes job failure
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
 
-When `create-pull-request` or `push-to-pr-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
+When `create-pull-request` or `push-to-pull-request-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
 
 ### Missing Tool Reporting (`missing-tool:`)
 
@@ -527,7 +527,7 @@ The compiled workflow will have additional prompting describing that, to create 
 
 ## Automatically Added Tools
 
-When `create-pull-request` or `push-to-pr-branch` are configured, these Claude tools are automatically added:
+When `create-pull-request` or `push-to-pull-request-branch` are configured, these Claude tools are automatically added:
 
 - **Edit**: Allows editing existing files
 - **MultiEdit**: Allows making multiple edits to files in a single operation
@@ -601,13 +601,13 @@ safe-outputs:
 
 ### Maximum Patch Size (`max-patch-size:`)
 
-When using `create-pull-request` or `push-to-pr-branch`, you can configure the maximum allowed size for git patches to prevent workflow failures from excessively large patches:
+When using `create-pull-request` or `push-to-pull-request-branch`, you can configure the maximum allowed size for git patches to prevent workflow failures from excessively large patches:
 
 ```yaml
 safe-outputs:
   max-patch-size: 512                   # Optional: maximum patch size in KB (default: 1024)
   create-pull-request:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
 ```
 
 **Configuration Options:**
@@ -627,7 +627,7 @@ safe-outputs:
 # Large patches allowed (5 MB limit)  
 safe-outputs:
   max-patch-size: 5120
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     if-no-changes: "error"
 ```
 

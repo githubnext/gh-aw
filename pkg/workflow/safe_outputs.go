@@ -147,7 +147,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          To push changes to the branch of a pull request:\n")
 		yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 		yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-		yaml.WriteString("          3. Push the branch to the repo by using the push-to-pr-branch tool from the safe-outputs MCP\n")
+		yaml.WriteString("          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -304,7 +304,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UpdateIssues = updateIssuesConfig
 			}
 
-			// Handle push-to-pr-branch
+			// Handle push-to-pull-request-branch
 			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
 			if pushToBranchConfig != nil {
 				config.PushToPullRequestBranch = pushToBranchConfig

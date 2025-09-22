@@ -514,7 +514,7 @@ jobs:
                 },
               },
               {
-                name: "push_to_pr_branch",
+                name: "push_to_pull_request_branch",
                 description: "Push changes to a pull request branch",
                 inputSchema: {
                   type: "object",
@@ -663,7 +663,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pr-branch\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pull-request-branch\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -732,7 +732,7 @@ jobs:
           To push changes to the branch of a pull request:
           1. Make any file changes directly in the working directory
           2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          3. Push the branch to the repo by using the push-to-pr-branch tool from the safe-outputs MCP
+          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP
           
           EOF
       - name: Print prompt to step summary
@@ -911,7 +911,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pr-branch\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pull-request-branch\":{}}"
         with:
           script: |
             async function main() {
@@ -992,7 +992,7 @@ jobs:
                     return 5; 
                   case "update-issue":
                     return 1; 
-                  case "push-to-pr-branch":
+                  case "push-to-pull-request-branch":
                     return 1; 
                   case "create-discussion":
                     return 1; 
@@ -1321,18 +1321,18 @@ jobs:
                         continue;
                       }
                       break;
-                    case "push-to-pr-branch":
+                    case "push-to-pull-request-branch":
                       if (!item.branch || typeof item.branch !== "string") {
-                        errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'branch' string field`);
+                        errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'branch' string field`);
                         continue;
                       }
                       if (!item.message || typeof item.message !== "string") {
-                        errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'message' string field`);
+                        errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'message' string field`);
                         continue;
                       }
                       item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
-                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pr-branch 'pull_request_number'", i + 1);
+                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pull-request-branch 'pull_request_number'", i + 1);
                       if (!pushPRNumValidation.isValid) {
                         errors.push(pushPRNumValidation.error);
                         continue;
@@ -1950,13 +1950,13 @@ jobs:
                     echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
                     break
                   fi
-                # Extract branch from push-to-pr-branch line using simple grep and sed
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pr-branch"'; then
-                  echo "Found push-to-pr-branch line: $line"
+                # Extract branch from push-to-pull-request-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pull-request-branch"'; then
+                  echo "Found push-to-pull-request-branch line: $line"
                   # Extract branch value using sed
                   BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
                   if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push-to-pr-branch: $BRANCH_NAME"
+                    echo "Extracted branch name from push-to-pull-request-branch: $BRANCH_NAME"
                     break
                   fi
                 fi
@@ -2020,7 +2020,7 @@ jobs:
           path: /tmp/aw.patch
           if-no-files-found: ignore
 
-  push_to_pr_branch:
+  push_to_pull_request_branch:
     needs: test-claude-patch-size-limit-exceeded
     if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
     runs-on: ubuntu-latest
@@ -2030,9 +2030,9 @@ jobs:
       issues: read
     timeout-minutes: 10
     outputs:
-      branch_name: ${{ steps.push_to_pr_branch.outputs.branch_name }}
-      commit_sha: ${{ steps.push_to_pr_branch.outputs.commit_sha }}
-      push_url: ${{ steps.push_to_pr_branch.outputs.push_url }}
+      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
     steps:
       - name: Download patch artifact
         continue-on-error: true
@@ -2050,7 +2050,7 @@ jobs:
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
       - name: Push to Branch
-        id: push_to_pr_branch
+        id: push_to_pull_request_branch
         uses: actions/github-script@v8
         env:
           GH_TOKEN: ${{ github.token }}
@@ -2140,12 +2140,12 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pr-branch");
+              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
               if (!pushItem) {
-                core.info("No push-to-pr-branch item found in agent output");
+                core.info("No push-to-pull-request-branch item found in agent output");
                 return;
               }
-              core.info("Found push-to-pr-branch item");
+              core.info("Found push-to-pull-request-branch item");
               if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
                 let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
                 summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
@@ -2177,7 +2177,7 @@ jobs:
               if (target === "triggering") {
                 pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
                 if (!pullNumber) {
-                  core.setFailed('push-to-pr-branch with target "triggering" requires pull request context');
+                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
                   return;
                 }
               } else if (target === "*") {

@@ -27,7 +27,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         "create-discussion": { enabled: true },
         "add-comment": { enabled: true, max: 3 },
         "missing-tool": { enabled: true },
-        "push-to-pr-branch": { enabled: true }, // Enable for SDK testing
+        "push-to-pull-request-branch": { enabled: true }, // Enable for SDK testing
       }),
     };
   });

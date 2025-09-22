@@ -1585,7 +1585,7 @@
             }
           ]
         },
-        "push-to-pr-branch": {
+        "push-to-pull-request-branch": {
           "oneOf": [
             {
               "type": "null",
