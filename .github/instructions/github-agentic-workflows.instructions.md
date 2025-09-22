@@ -145,7 +145,7 @@ The YAML frontmatter supports these fields:
         target: "*"                     # Optional: target for comments (default: "triggering")
     ```
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
-  - `create-pull-request:` - Safe pull request creation with git patches
+  - `create-pull-request:` - Safe pull request creation with git patches, with automatic fallback to issue creation
     ```yaml
     safe-outputs:
       create-pull-request:
@@ -153,7 +153,7 @@ The YAML frontmatter supports these fields:
         labels: [automation, ai-agent]  # Optional: labels to attach to PRs
         draft: true                     # Optional: create as draft PR (defaults to true)
     ```
-    When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
+    When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions. If PR creation fails (e.g., due to organization policies), the system automatically creates an issue instead with the same title, description, and labels, plus a link to the created branch.
   - `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
     ```yaml
     safe-outputs:

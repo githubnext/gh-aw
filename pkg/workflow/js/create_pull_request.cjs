@@ -292,46 +292,103 @@ async function main() {
     }
   }
 
-  // Create the pull request
-  const { data: pullRequest } = await github.rest.pulls.create({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    title: title,
-    body: body,
-    head: branchName,
-    base: baseBranch,
-    draft: draft,
-  });
-
-  core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-
-  // Add labels if specified
-  if (labels.length > 0) {
-    await github.rest.issues.addLabels({
+  // Try to create the pull request, with fallback to issue creation
+  try {
+    const { data: pullRequest } = await github.rest.pulls.create({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      issue_number: pullRequest.number,
-      labels: labels,
+      title: title,
+      body: body,
+      head: branchName,
+      base: baseBranch,
+      draft: draft,
     });
-    core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-  }
 
-  // Set output for other jobs to use
-  core.setOutput("pull_request_number", pullRequest.number);
-  core.setOutput("pull_request_url", pullRequest.html_url);
-  core.setOutput("branch_name", branchName);
+    core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
 
-  // Write summary to GitHub Actions summary
-  await core.summary
-    .addRaw(
-      `
+    // Add labels if specified
+    if (labels.length > 0) {
+      await github.rest.issues.addLabels({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        issue_number: pullRequest.number,
+        labels: labels,
+      });
+      core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+    }
+
+    // Set output for other jobs to use
+    core.setOutput("pull_request_number", pullRequest.number);
+    core.setOutput("pull_request_url", pullRequest.html_url);
+    core.setOutput("branch_name", branchName);
+
+    // Write summary to GitHub Actions summary
+    await core.summary
+      .addRaw(
+        `
 
 ## Pull Request
 - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
 - **Branch**: \`${branchName}\`
 - **Base Branch**: \`${baseBranch}\`
 `
-    )
-    .write();
+      )
+      .write();
+  } catch (prError) {
+    core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+    core.info("Falling back to creating an issue instead");
+
+    // Create issue as fallback with enhanced body content
+    const branchUrl = context.payload.repository
+      ? `${context.payload.repository.html_url}/tree/${branchName}`
+      : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+
+    const fallbackBody = `${body}
+
+---
+
+**Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+
+**Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+
+You can manually create a pull request from the branch if needed.`;
+
+    try {
+      const { data: issue } = await github.rest.issues.create({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        title: title,
+        body: fallbackBody,
+        labels: labels,
+      });
+
+      core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+
+      // Set output for other jobs to use (issue instead of PR)
+      core.setOutput("issue_number", issue.number);
+      core.setOutput("issue_url", issue.html_url);
+      core.setOutput("branch_name", branchName);
+      core.setOutput("fallback_used", "true");
+
+      // Write summary to GitHub Actions summary
+      await core.summary
+        .addRaw(
+          `
+
+## Fallback Issue Created
+- **Issue**: [#${issue.number}](${issue.html_url})
+- **Branch**: [\`${branchName}\`](${branchUrl})
+- **Base Branch**: \`${baseBranch}\`
+- **Note**: Pull request creation failed, created issue as fallback
+`
+        )
+        .write();
+    } catch (issueError) {
+      core.setFailed(
+        `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+      );
+      return;
+    }
+  }
 }
 await main();
