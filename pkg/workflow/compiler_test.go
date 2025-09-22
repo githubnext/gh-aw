@@ -5613,7 +5613,6 @@ This is a test workflow to verify description field rendering.
 								if strings.HasPrefix(lines[j], "# ") {
 									t.Errorf("Found unexpected description comment when none expected: %s", lines[j])
 								}
-								inHeader = false
 								break
 							}
 						}
