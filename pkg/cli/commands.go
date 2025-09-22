@@ -1413,11 +1413,17 @@ func toggleWorkflows(pattern string, enable bool) error {
 	if err != nil {
 		// Handle missing .github/workflows directory gracefully
 		fmt.Printf("No workflow files found to %s.\n", action)
+		if enable {
+			return fmt.Errorf("no workflow files found to enable: %v", err)
+		}
 		return nil
 	}
 
 	if len(mdFiles) == 0 {
 		fmt.Printf("No markdown workflow files found to %s.\n", action)
+		if enable {
+			return fmt.Errorf("no markdown workflow files found to enable")
+		}
 		return nil
 	}
 
@@ -1426,6 +1432,9 @@ func toggleWorkflows(pattern string, enable bool) error {
 	if err != nil {
 		// Handle GitHub CLI authentication/connection issues gracefully
 		fmt.Printf("Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v\n", err)
+		if enable {
+			return fmt.Errorf("cannot enable workflows: unable to fetch GitHub workflow status (%v)", err)
+		}
 		fmt.Printf("No workflows to %s.\n", action)
 		return nil
 	}
@@ -1462,6 +1471,9 @@ func toggleWorkflows(pattern string, enable bool) error {
 
 	if len(matchingWorkflows) == 0 {
 		fmt.Printf("No workflows found matching pattern '%s' that need to be %sd.\n", pattern, action)
+		if enable {
+			return fmt.Errorf("no workflows found to enable matching pattern '%s'", pattern)
+		}
 		return nil
 	}
 
@@ -1472,6 +1484,9 @@ func toggleWorkflows(pattern string, enable bool) error {
 	}
 
 	// Perform the action
+	var failures []string
+	var successes []string
+	
 	for _, workflow := range matchingWorkflows {
 		var cmd *exec.Cmd
 		if enable {
@@ -1486,8 +1501,19 @@ func toggleWorkflows(pattern string, enable bool) error {
 
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("Failed to %s workflow %s: %v\n", action, workflow.Name, err)
+			failures = append(failures, workflow.Name)
 		} else {
 			fmt.Printf("%sd workflow: %s\n", strings.ToUpper(action[:1])+action[1:], workflow.Name)
+			successes = append(successes, workflow.Name)
+		}
+	}
+
+	// Return error if any workflows failed to be processed
+	if len(failures) > 0 {
+		if enable {
+			return fmt.Errorf("failed to enable %d workflow(s): %s", len(failures), strings.Join(failures, ", "))
+		} else {
+			return fmt.Errorf("failed to disable %d workflow(s): %s", len(failures), strings.Join(failures, ", "))
 		}
 	}
 
