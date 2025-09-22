@@ -5478,7 +5478,7 @@ func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 		},
 	}
 
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
 			var result int
@@ -5546,7 +5546,7 @@ tools:
     allowed: [list_commits]
 ---`,
 			expectedDescription: "# This is a multi-line workflow description.\n# It explains what the workflow does in detail.\n# Each line should be rendered as a separate comment.",
-			description: "Should render multi-line description with each line as comment",
+			description:         "Should render multi-line description with each line as comment",
 		},
 		{
 			name: "no_description",
@@ -5629,7 +5629,7 @@ This is a test workflow to verify description field rendering.
 				// Verify description comes after standard header and before workflow content
 				headerEndPattern := "# For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md"
 				workflowStartPattern := `name: "`
-				
+
 				headerPos := strings.Index(lockContent, headerEndPattern)
 				descPos := strings.Index(lockContent, tt.expectedDescription)
 				workflowPos := strings.Index(lockContent, workflowStartPattern)
