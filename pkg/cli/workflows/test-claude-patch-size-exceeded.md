@@ -7,7 +7,7 @@ permissions:
 engine: claude
 safe-outputs:
   max-patch-size: 1  # Very small limit (1 KB) to test failure case
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     if-no-changes: "warn"
 ---
 

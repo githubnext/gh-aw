@@ -161,7 +161,7 @@ type SafeOutputsConfig struct {
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
-	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
+	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
@@ -1316,7 +1316,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	githubConfig["allowed"] = newAllowed
 	tools["github"] = githubConfig
 
-	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pr-branch
+	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
 	if safeOutputs != nil && needsGitCommands(safeOutputs) {
 
 		// Add edit tool with null value
@@ -1618,14 +1618,14 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build push_to_pr_branch job if output.push-to-pr-branch is configured
+	// Build push_to_pull_request_branch job if output.push-to-pull-request-branch is configured
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		pushToBranchJob, err := c.buildCreateOutputPushToPullRequestBranchJob(data, jobName)
 		if err != nil {
-			return fmt.Errorf("failed to build push_to_pr_branch job: %w", err)
+			return fmt.Errorf("failed to build push_to_pull_request_branch job: %w", err)
 		}
 		if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
-			return fmt.Errorf("failed to add push_to_pr_branch job: %w", err)
+			return fmt.Errorf("failed to add push_to_pull_request_branch job: %w", err)
 		}
 	}
 
@@ -2346,7 +2346,7 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
 			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 		}
-		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
+		safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
 	}
 	if data.SafeOutputs.UploadAssets != nil {
 		safeOutputsConfig["upload-asset"] = map[string]any{}

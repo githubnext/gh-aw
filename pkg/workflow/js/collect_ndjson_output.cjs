@@ -161,7 +161,7 @@ async function main() {
         return 5; // Only one labels operation allowed
       case "update-issue":
         return 1; // Only one issue update allowed
-      case "push-to-pr-branch":
+      case "push-to-pull-request-branch":
         return 1; // Only one push to branch allowed
       case "create-discussion":
         return 1; // Only one discussion allowed
@@ -607,22 +607,26 @@ async function main() {
           }
           break;
 
-        case "push-to-pr-branch":
+        case "push-to-pull-request-branch":
           // Validate required branch field
           if (!item.branch || typeof item.branch !== "string") {
-            errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'branch' string field`);
+            errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'branch' string field`);
             continue;
           }
           // Validate required message field
           if (!item.message || typeof item.message !== "string") {
-            errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'message' string field`);
+            errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'message' string field`);
             continue;
           }
           // Sanitize text content
           item.branch = sanitizeContent(item.branch);
           item.message = sanitizeContent(item.message);
           // Validate pull_request_number if provided (for target "*")
-          const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pr-branch 'pull_request_number'", i + 1);
+          const pushPRNumValidation = validateIssueOrPRNumber(
+            item.pull_request_number,
+            "push-to-pull-request-branch 'pull_request_number'",
+            i + 1
+          );
           if (!pushPRNumValidation.isValid) {
             errors.push(pushPRNumValidation.error);
             continue;

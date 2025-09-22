@@ -48,7 +48,7 @@
     "missing_tool.cjs",
     "parse_claude_log.cjs",
     "parse_codex_log.cjs",
-    "push_to_pr_branch.cjs",
+    "push_to_pull_request_branch.cjs",
     "safe_outputs_mcp_client.cjs",
     "safe_outputs_mcp_server.cjs",
     "sanitize_output.cjs",

@@ -105,14 +105,14 @@ async function main() {
     return;
   }
 
-  // Find the push-to-pr-branch item
-  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push-to-pr-branch");
+  // Find the push-to-pull-request-branch item
+  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push-to-pull-request-branch");
   if (!pushItem) {
-    core.info("No push-to-pr-branch item found in agent output");
+    core.info("No push-to-pull-request-branch item found in agent output");
     return;
   }
 
-  core.info("Found push-to-pr-branch item");
+  core.info("Found push-to-pull-request-branch item");
 
   // If in staged mode, emit step summary instead of pushing changes
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
@@ -159,7 +159,7 @@ async function main() {
 
     // Check if we're in a pull request context when required
     if (!pullNumber) {
-      core.setFailed('push-to-pr-branch with target "triggering" requires pull request context');
+      core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
       return;
     }
   } else if (target === "*") {
@@ -174,7 +174,7 @@ async function main() {
   // Fetch the specific PR to get its head branch
   try {
     let prInfo = "";
-    const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `'.headRefName'`], {
+    const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
       listeners: { stdout: data => (prInfo += data.toString()) },
     });
     if (!prInfoRes) {

@@ -113,8 +113,8 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						config.Allowed = append(config.Allowed, "add-labels")
 					case "update-issue":
 						config.Allowed = append(config.Allowed, "update-issue")
-					case "push-to-pr-branch":
-						config.Allowed = append(config.Allowed, "push-to-pr-branch")
+					case "push-to-pull-request-branch":
+						config.Allowed = append(config.Allowed, "push-to-pull-request-branch")
 					case "missing-tool":
 						config.Allowed = append(config.Allowed, "missing-tool")
 					}

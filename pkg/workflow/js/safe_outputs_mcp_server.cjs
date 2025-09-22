@@ -402,7 +402,7 @@ const ALL_TOOLS = [
     },
   },
   {
-    name: "push_to_pr_branch",
+    name: "push_to_pull_request_branch",
     description: "Push changes to a pull request branch",
     inputSchema: {
       type: "object",

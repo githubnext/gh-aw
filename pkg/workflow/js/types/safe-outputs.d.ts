@@ -127,7 +127,7 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
-  type: "push-to-pr-branch";
+  type: "push-to-pull-request-branch";
   /** Optional commit message */
   message?: string;
   /** Optional pull request number for target "*" */

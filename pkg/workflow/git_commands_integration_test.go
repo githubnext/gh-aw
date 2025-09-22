@@ -60,7 +60,7 @@ safe-outputs:
     max: 1
 ---
 
-This workflow should NOT get Git commands since it doesn't use create-pull-request or push-to-pr-branch.
+This workflow should NOT get Git commands since it doesn't use create-pull-request or push-to-pull-request-branch.
 `
 
 	compiler := NewCompiler(false, "", "test")
@@ -136,17 +136,17 @@ This is a test workflow that should automatically get additional Claude tools wh
 }
 
 func TestAdditionalClaudeToolsIntegrationWithPushToPullRequestBranch(t *testing.T) {
-	// Create a simple workflow with push-to-pr-branch enabled
+	// Create a simple workflow with push-to-pull-request-branch enabled
 	workflowContent := `---
 name: Test Additional Claude Tools Integration with Push to Branch
 tools:
   edit:
 safe-outputs:
-  push-to-pr-branch:
+  push-to-pull-request-branch:
     branch: "feature-branch"
 ---
 
-This is a test workflow that should automatically get additional Claude tools when push-to-pr-branch is enabled.
+This is a test workflow that should automatically get additional Claude tools when push-to-pull-request-branch is enabled.
 `
 
 	compiler := NewCompiler(false, "", "test")
@@ -170,11 +170,11 @@ This is a test workflow that should automatically get additional Claude tools wh
 		t.Error("Expected pre-existing Read tool to be preserved")
 	}
 
-	// Verify Git commands are also present (since push-to-pr-branch is enabled)
+	// Verify Git commands are also present (since push-to-pull-request-branch is enabled)
 	expectedGitCommands := []string{"Bash(git checkout:*)", "Bash(git add:*)", "Bash(git commit:*)"}
 	for _, expectedCmd := range expectedGitCommands {
 		if !strings.Contains(allowedToolsStr, expectedCmd) {
-			t.Errorf("Expected allowed tools to contain %s when push-to-pr-branch is enabled, got: %s", expectedCmd, allowedToolsStr)
+			t.Errorf("Expected allowed tools to contain %s when push-to-pull-request-branch is enabled, got: %s", expectedCmd, allowedToolsStr)
 		}
 	}
 }

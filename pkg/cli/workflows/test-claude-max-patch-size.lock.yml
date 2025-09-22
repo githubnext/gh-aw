@@ -514,7 +514,7 @@ jobs:
                 },
               },
               {
-                name: "push_to_pr_branch",
+                name: "push_to_pull_request_branch",
                 description: "Push changes to a pull request branch",
                 inputSchema: {
                   type: "object",
@@ -990,7 +990,7 @@ jobs:
                     return 5; 
                   case "update-issue":
                     return 1; 
-                  case "push-to-pr-branch":
+                  case "push-to-pull-request-branch":
                     return 1; 
                   case "create-discussion":
                     return 1; 
@@ -1319,18 +1319,18 @@ jobs:
                         continue;
                       }
                       break;
-                    case "push-to-pr-branch":
+                    case "push-to-pull-request-branch":
                       if (!item.branch || typeof item.branch !== "string") {
-                        errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'branch' string field`);
+                        errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'branch' string field`);
                         continue;
                       }
                       if (!item.message || typeof item.message !== "string") {
-                        errors.push(`Line ${i + 1}: push_to_pr_branch requires a 'message' string field`);
+                        errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'message' string field`);
                         continue;
                       }
                       item.branch = sanitizeContent(item.branch);
                       item.message = sanitizeContent(item.message);
-                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pr-branch 'pull_request_number'", i + 1);
+                      const pushPRNumValidation = validateIssueOrPRNumber(item.pull_request_number, "push-to-pull-request-branch 'pull_request_number'", i + 1);
                       if (!pushPRNumValidation.isValid) {
                         errors.push(pushPRNumValidation.error);
                         continue;
@@ -1948,13 +1948,13 @@ jobs:
                     echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
                     break
                   fi
-                # Extract branch from push-to-pr-branch line using simple grep and sed
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pr-branch"'; then
-                  echo "Found push-to-pr-branch line: $line"
+                # Extract branch from push-to-pull-request-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pull-request-branch"'; then
+                  echo "Found push-to-pull-request-branch line: $line"
                   # Extract branch value using sed
                   BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
                   if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push-to-pr-branch: $BRANCH_NAME"
+                    echo "Extracted branch name from push-to-pull-request-branch: $BRANCH_NAME"
                     break
                   fi
                 fi

@@ -26,7 +26,7 @@ func TestMaximumPatchSizeEnvironmentVariable(t *testing.T) {
 			name: "default patch size (no config)",
 			frontmatterContent: `---
 safe-outputs:
-  push-to-pr-branch: null
+  push-to-pull-request-branch: null
   create-pull-request: null
 ---
 
@@ -42,7 +42,7 @@ This workflow tests default patch size configuration.`,
 			frontmatterContent: `---
 safe-outputs:
   max-patch-size: 512
-  push-to-pr-branch: null
+  push-to-pull-request-branch: null
   create-pull-request: null
 ---
 
@@ -98,8 +98,8 @@ This workflow tests custom 2MB patch size configuration.`,
 
 			// Check that the environment variable is set correctly in push job
 			if tt.shouldContainPushJob {
-				if !strings.Contains(lockContentStr, "push_to_pr_branch:") {
-					t.Errorf("Expected push_to_pr_branch job to be generated")
+				if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+					t.Errorf("Expected push_to_pull_request_branch job to be generated")
 				}
 				if !strings.Contains(lockContentStr, tt.expectedEnvValue) {
 					t.Errorf("Expected '%s' to be found in push job, got:\n%s", tt.expectedEnvValue, lockContentStr)
@@ -142,7 +142,7 @@ func TestPatchSizeWithInvalidValues(t *testing.T) {
 			frontmatterContent: `---
 safe-outputs:
   max-patch-size: 1
-  push-to-pr-branch: null
+  push-to-pull-request-branch: null
 ---
 
 # Test Workflow
