@@ -1386,11 +1386,6 @@ func calculateTimeRemaining(stopTimeStr string) string {
 	}
 }
 
-// EnableWorkflows enables workflows matching a pattern
-func EnableWorkflows(pattern string) error {
-	return toggleWorkflows(pattern, true)
-}
-
 // DisableWorkflows disables workflows matching a pattern
 func DisableWorkflows(pattern string) error {
 	return toggleWorkflows(pattern, false)
@@ -1413,12 +1408,12 @@ func toggleWorkflows(pattern string, enable bool) error {
 	if err != nil {
 		// Handle missing .github/workflows directory gracefully
 		fmt.Printf("No workflow files found to %s.\n", action)
-		return nil
+		return fmt.Errorf("no workflow files found to %s: %v", action, err)
 	}
 
 	if len(mdFiles) == 0 {
 		fmt.Printf("No markdown workflow files found to %s.\n", action)
-		return nil
+		return fmt.Errorf("no markdown workflow files found to %s", action)
 	}
 
 	// Get GitHub workflows status for comparison
@@ -1426,8 +1421,7 @@ func toggleWorkflows(pattern string, enable bool) error {
 	if err != nil {
 		// Handle GitHub CLI authentication/connection issues gracefully
 		fmt.Printf("Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v\n", err)
-		fmt.Printf("No workflows to %s.\n", action)
-		return nil
+		return fmt.Errorf("cannot %s workflows: unable to fetch GitHub workflow status (%v)", action, err)
 	}
 
 	var matchingWorkflows []GitHubWorkflow
@@ -1462,7 +1456,7 @@ func toggleWorkflows(pattern string, enable bool) error {
 
 	if len(matchingWorkflows) == 0 {
 		fmt.Printf("No workflows found matching pattern '%s' that need to be %sd.\n", pattern, action)
-		return nil
+		return fmt.Errorf("no workflows found to %s matching pattern '%s'", action, pattern)
 	}
 
 	// Show what will be changed
@@ -1472,6 +1466,8 @@ func toggleWorkflows(pattern string, enable bool) error {
 	}
 
 	// Perform the action
+	var failures []string
+
 	for _, workflow := range matchingWorkflows {
 		var cmd *exec.Cmd
 		if enable {
@@ -1486,8 +1482,18 @@ func toggleWorkflows(pattern string, enable bool) error {
 
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("Failed to %s workflow %s: %v\n", action, workflow.Name, err)
+			failures = append(failures, workflow.Name)
 		} else {
 			fmt.Printf("%sd workflow: %s\n", strings.ToUpper(action[:1])+action[1:], workflow.Name)
+		}
+	}
+
+	// Return error if any workflows failed to be processed
+	if len(failures) > 0 {
+		if enable {
+			return fmt.Errorf("failed to enable %d workflow(s): %s", len(failures), strings.Join(failures, ", "))
+		} else {
+			return fmt.Errorf("failed to disable %d workflow(s): %s", len(failures), strings.Join(failures, ", "))
 		}
 	}
 
