@@ -1467,7 +1467,6 @@ func toggleWorkflows(pattern string, enable bool) error {
 
 	// Perform the action
 	var failures []string
-	var successes []string
 
 	for _, workflow := range matchingWorkflows {
 		var cmd *exec.Cmd
@@ -1486,7 +1485,6 @@ func toggleWorkflows(pattern string, enable bool) error {
 			failures = append(failures, workflow.Name)
 		} else {
 			fmt.Printf("%sd workflow: %s\n", strings.ToUpper(action[:1])+action[1:], workflow.Name)
-			successes = append(successes, workflow.Name)
 		}
 	}
 
