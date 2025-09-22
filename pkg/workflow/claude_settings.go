@@ -33,21 +33,9 @@ type HookEntry struct {
 
 // GenerateSettingsJSON generates Claude Code settings JSON for network permissions
 func (g *ClaudeSettingsGenerator) GenerateSettingsJSON() string {
-	settings := ClaudeSettings{
-		Hooks: &HookConfiguration{
-			PreToolUse: []PreToolUseHook{
-				{
-					Matcher: "WebFetch|WebSearch",
-					Hooks: []HookEntry{
-						{
-							Type:    "command",
-							Command: ".claude/hooks/network_permissions.py",
-						},
-					},
-				},
-			},
-		},
-	}
+	// With JavaScript-based network validation in GitHub Actions,
+	// we no longer need Claude Code hook configuration
+	settings := ClaudeSettings{}
 
 	settingsJSON, _ := json.MarshalIndent(settings, "", "  ")
 	return string(settingsJSON)

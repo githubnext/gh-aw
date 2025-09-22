@@ -8,21 +8,8 @@ import (
 
 func TestClaudeSettingsStructures(t *testing.T) {
 	t.Run("ClaudeSettings JSON marshaling", func(t *testing.T) {
-		settings := ClaudeSettings{
-			Hooks: &HookConfiguration{
-				PreToolUse: []PreToolUseHook{
-					{
-						Matcher: "WebFetch|WebSearch",
-						Hooks: []HookEntry{
-							{
-								Type:    "command",
-								Command: ".claude/hooks/network_permissions.py",
-							},
-						},
-					},
-				},
-			},
-		}
+		// Test the basic structure without hooks (JavaScript validation replaces Python hooks)
+		settings := ClaudeSettings{}
 
 		jsonData, err := json.Marshal(settings)
 		if err != nil {
@@ -30,20 +17,8 @@ func TestClaudeSettingsStructures(t *testing.T) {
 		}
 
 		jsonStr := string(jsonData)
-		if !strings.Contains(jsonStr, `"hooks"`) {
-			t.Error("JSON should contain hooks field")
-		}
-		if !strings.Contains(jsonStr, `"PreToolUse"`) {
-			t.Error("JSON should contain PreToolUse field")
-		}
-		if !strings.Contains(jsonStr, `"WebFetch|WebSearch"`) {
-			t.Error("JSON should contain matcher pattern")
-		}
-		if !strings.Contains(jsonStr, `"command"`) {
-			t.Error("JSON should contain hook type")
-		}
-		if !strings.Contains(jsonStr, `.claude/hooks/network_permissions.py`) {
-			t.Error("JSON should contain hook command path")
+		if jsonStr == "" {
+			t.Error("JSON should not be empty")
 		}
 	})
 
@@ -70,28 +45,15 @@ func TestClaudeSettingsStructures(t *testing.T) {
 			t.Fatalf("Failed to unmarshal settings: %v", err)
 		}
 
-		// Verify structure is preserved
-		if settings.Hooks == nil {
-			t.Error("Unmarshaled settings should have hooks")
-		}
-		if len(settings.Hooks.PreToolUse) != 1 {
-			t.Errorf("Expected 1 PreToolUse hook, got %d", len(settings.Hooks.PreToolUse))
-		}
-
-		hook := settings.Hooks.PreToolUse[0]
-		if hook.Matcher != "WebFetch|WebSearch" {
-			t.Errorf("Expected matcher 'WebFetch|WebSearch', got '%s'", hook.Matcher)
-		}
-		if len(hook.Hooks) != 1 {
-			t.Errorf("Expected 1 hook entry, got %d", len(hook.Hooks))
+		// With JavaScript-based validation, hooks are no longer needed
+		// Verify that settings can be marshaled/unmarshaled correctly
+		remarshaled, err := json.MarshalIndent(settings, "", "  ")
+		if err != nil {
+			t.Fatalf("Failed to remarshal settings: %v", err)
 		}
 
-		entry := hook.Hooks[0]
-		if entry.Type != "command" {
-			t.Errorf("Expected hook type 'command', got '%s'", entry.Type)
-		}
-		if entry.Command != ".claude/hooks/network_permissions.py" {
-			t.Errorf("Expected command '.claude/hooks/network_permissions.py', got '%s'", entry.Command)
+		if string(remarshaled) != originalJSON {
+			t.Error("JSON round-trip failed")
 		}
 	})
 }
@@ -156,9 +118,9 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 			}
 		}
 
-		// Verify the JSON content is embedded
-		if !strings.Contains(stepStr, `"hooks"`) {
-			t.Error("Step should contain embedded JSON settings")
+		// Verify the JSON content is embedded (even if empty, it should be valid JSON)
+		if !strings.Contains(stepStr, "cat > /tmp/.claude/settings.json") {
+			t.Error("Step should create settings.json file")
 		}
 	})
 
@@ -171,29 +133,10 @@ func TestClaudeSettingsWorkflowGeneration(t *testing.T) {
 			t.Fatalf("Generated JSON should be valid: %v", err)
 		}
 
-		// Check structure
-		hooks, exists := settings["hooks"]
-		if !exists {
-			t.Error("Settings should contain hooks section")
-		}
-
-		hooksMap, ok := hooks.(map[string]any)
-		if !ok {
-			t.Error("Hooks should be an object")
-		}
-
-		preToolUse, exists := hooksMap["PreToolUse"]
-		if !exists {
-			t.Error("Hooks should contain PreToolUse section")
-		}
-
-		preToolUseArray, ok := preToolUse.([]any)
-		if !ok {
-			t.Error("PreToolUse should be an array")
-		}
-
-		if len(preToolUseArray) != 1 {
-			t.Errorf("PreToolUse should contain 1 hook, got %d", len(preToolUseArray))
+		// With JavaScript-based validation, we expect empty or minimal settings
+		// The key requirement is that the JSON is valid
+		if len(jsonStr) == 0 {
+			t.Error("Generated JSON should not be empty")
 		}
 	})
 }

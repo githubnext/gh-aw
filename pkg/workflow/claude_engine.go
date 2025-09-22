@@ -44,7 +44,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		steps = append(steps, settingsStep)
 
 		// Add hook generation step
-		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
+		hookStep := hookGenerator.GenerateNetworkHookWorkflowStepJS(allowedDomains)
 		steps = append(steps, hookStep)
 	}
 

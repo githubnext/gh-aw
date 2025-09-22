@@ -8,36 +8,6 @@ import (
 func TestNetworkHookGenerator(t *testing.T) {
 	generator := &NetworkHookGenerator{}
 
-	t.Run("GenerateNetworkHookScript", func(t *testing.T) {
-		allowedDomains := []string{"example.com", "*.trusted.com", "api.service.org"}
-		script := generator.GenerateNetworkHookScript(allowedDomains)
-
-		// Check that script contains the expected domains
-		if !strings.Contains(script, `"example.com"`) {
-			t.Error("Script should contain example.com")
-		}
-		if !strings.Contains(script, `"*.trusted.com"`) {
-			t.Error("Script should contain *.trusted.com")
-		}
-		if !strings.Contains(script, `"api.service.org"`) {
-			t.Error("Script should contain api.service.org")
-		}
-
-		// Check for required Python imports and functions
-		if !strings.Contains(script, "import json") {
-			t.Error("Script should import json")
-		}
-		if !strings.Contains(script, "import urllib.parse") {
-			t.Error("Script should import urllib.parse")
-		}
-		if !strings.Contains(script, "def extract_domain") {
-			t.Error("Script should define extract_domain function")
-		}
-		if !strings.Contains(script, "def is_domain_allowed") {
-			t.Error("Script should define is_domain_allowed function")
-		}
-	})
-
 	t.Run("GenerateNetworkHookWorkflowStepJS", func(t *testing.T) {
 		allowedDomains := []string{"api.github.com", "*.trusted.com"}
 		step := generator.GenerateNetworkHookWorkflowStepJS(allowedDomains)
@@ -64,45 +34,6 @@ func TestNetworkHookGenerator(t *testing.T) {
 		}
 		if !strings.Contains(stepStr, "async function main") {
 			t.Error("Step should contain main function")
-		}
-	})
-
-	t.Run("GenerateNetworkHookWorkflowStep", func(t *testing.T) {
-		allowedDomains := []string{"api.github.com", "*.trusted.com"}
-		step := generator.GenerateNetworkHookWorkflowStep(allowedDomains)
-
-		stepStr := strings.Join(step, "\n")
-
-		// Check that the step contains proper YAML structure
-		if !strings.Contains(stepStr, "name: Generate Network Permissions Hook") {
-			t.Error("Step should have correct name")
-		}
-		if !strings.Contains(stepStr, ".claude/hooks/network_permissions.py") {
-			t.Error("Step should create hook file in correct location")
-		}
-		if !strings.Contains(stepStr, "chmod +x") {
-			t.Error("Step should make hook executable")
-		}
-
-		// Check that domains are included in the hook
-		if !strings.Contains(stepStr, "api.github.com") {
-			t.Error("Step should contain api.github.com domain")
-		}
-		if !strings.Contains(stepStr, "*.trusted.com") {
-			t.Error("Step should contain *.trusted.com domain")
-		}
-	})
-
-	t.Run("EmptyDomainsGeneration", func(t *testing.T) {
-		allowedDomains := []string{} // Empty list means deny-all
-		script := generator.GenerateNetworkHookScript(allowedDomains)
-
-		// Should still generate a valid script
-		if !strings.Contains(script, "ALLOWED_DOMAINS = []") {
-			t.Error("Script should handle empty domains list (deny-all policy)")
-		}
-		if !strings.Contains(script, "def is_domain_allowed") {
-			t.Error("Script should still define required functions")
 		}
 	})
 }
