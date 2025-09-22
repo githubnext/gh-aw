@@ -299,14 +299,19 @@ func TestEnableWorkflowsFailureScenarios(t *testing.T) {
 func TestDisableWorkflows(t *testing.T) {
 	err := DisableWorkflows("test-pattern")
 
-	// Disable should NOT error when no workflows found (maintains backward compatibility)
-	if err != nil {
-		t.Errorf("DisableWorkflows should not return error for missing workflows, got: %v", err)
+	// Disable should now also return an error when no workflows found
+	if err == nil {
+		t.Errorf("DisableWorkflows should return error when no workflows found to disable, got nil")
+	}
+	
+	// The error should indicate workflows couldn't be found
+	if !strings.Contains(err.Error(), "workflow") {
+		t.Errorf("DisableWorkflows error should mention workflows, got: %v", err)
 	}
 }
 
-func TestDisableWorkflowsDoesNotErrorOnFailure(t *testing.T) {
-	// Test that disable maintains backward compatibility and doesn't error on various failure scenarios
+func TestDisableWorkflowsFailureScenarios(t *testing.T) {
+	// Test that disable now also errors on failure scenarios
 	tests := []struct {
 		name        string
 		pattern     string
@@ -315,20 +320,20 @@ func TestDisableWorkflowsDoesNotErrorOnFailure(t *testing.T) {
 		{
 			name:        "empty pattern",
 			pattern:     "",
-			description: "Should not error when no workflows found to disable",
+			description: "Should error when no workflows found to disable",
 		},
 		{
 			name:        "nonexistent pattern",
 			pattern:     "nonexistent-workflow-pattern",
-			description: "Should not error when pattern matches no workflows",
+			description: "Should error when pattern matches no workflows",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := DisableWorkflows(tt.pattern)
-			if err != nil {
-				t.Errorf("%s: DisableWorkflows should not error, got: %v", tt.description, err)
+			if err == nil {
+				t.Errorf("%s: DisableWorkflows should now error, got nil", tt.description)
 			}
 		})
 	}
@@ -422,7 +427,7 @@ func TestAllCommandsExist(t *testing.T) {
 		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                                                  // Should handle missing directory gracefully
 		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                                                  // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, true, "EnableWorkflows"},                                                          // Should now error when no workflows found to enable
-		{func() error { return DisableWorkflows("test") }, false, "DisableWorkflows"},                                                       // Should handle missing directory gracefully
+		{func() error { return DisableWorkflows("test") }, true, "DisableWorkflows"},                                                        // Should now also error when no workflows found to disable
 		{func() error { return RunWorkflowOnGitHub("", false, false) }, true, "RunWorkflowOnGitHub"},                                        // Should error with empty workflow name
 		{func() error { return RunWorkflowsOnGitHub([]string{}, 0, false, false) }, true, "RunWorkflowsOnGitHub"},                           // Should error with empty workflow list
 	}
