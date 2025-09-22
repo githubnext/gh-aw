@@ -66,7 +66,7 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Verify that the job depends on the main workflow job
-	if !strings.Contains(lockContentStr, "needs: test-push-to-pull-request-branch") {
+	if !strings.Contains(lockContentStr, "needs: test-push-to-pr-branch") {
 		t.Errorf("Generated workflow should have dependency on main job")
 	}
 

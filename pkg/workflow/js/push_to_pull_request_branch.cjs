@@ -174,7 +174,7 @@ async function main() {
   // Fetch the specific PR to get its head branch
   try {
     let prInfo = "";
-    const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `'.headRefName'`], {
+    const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
       listeners: { stdout: data => (prInfo += data.toString()) },
     });
     if (!prInfoRes) {
