@@ -303,6 +303,39 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 		})
 	}
 
+	// Add status tool
+	if isToolAllowed("status") {
+		type statusArgs struct {
+			Pattern string `json:"pattern,omitempty"`
+			Verbose bool   `json:"verbose,omitempty"`
+		}
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "status",
+			Description: "Show status of natural language action files and workflows",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
+			if verbose || args.Verbose {
+				fmt.Fprintf(os.Stderr, "📊 Checking workflow status...\n")
+			}
+
+			err := StatusWorkflows(args.Pattern, args.Verbose || verbose)
+			if err != nil {
+				return &mcp.CallToolResult{
+					IsError: true,
+					Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error checking status: %v", err)}},
+				}, nil, nil
+			}
+
+			message := "Workflow status check completed"
+			if args.Pattern != "" {
+				message = fmt.Sprintf("Workflow status check completed for pattern: %s", args.Pattern)
+			}
+
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: message}},
+			}, nil, nil
+		})
+	}
+
 	return server
 }
 
@@ -324,6 +357,7 @@ to interact with GitHub Agentic Workflows functionality. The server exposes the 
   run          - Run agentic workflows on GitHub Actions
   enable       - Enable workflows
   disable      - Disable workflows
+  status       - Show status of natural language action files and workflows
 
 The server uses stdio transport by default, making it suitable for use with various MCP clients.
 
@@ -355,7 +389,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed logging")
-	cmd.Flags().StringSlice("allowed-tools", []string{}, "Comma-separated list of tools to enable (compile,logs,mcp_inspect,mcp_list,mcp_add,run,enable,disable). If not specified, all tools are enabled.")
+	cmd.Flags().StringSlice("allowed-tools", []string{}, "Comma-separated list of tools to enable (compile,logs,mcp_inspect,mcp_list,mcp_add,run,enable,disable,status). If not specified, all tools are enabled.")
 
 	return cmd
 }

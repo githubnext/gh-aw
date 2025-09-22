@@ -20,7 +20,7 @@
     },
     "gh-aw-workflow-mgmt": {
       "command": "./gh-aw",
-      "args": ["mcp", "serve", "--allowed-tools", "run,enable,disable"],
+      "args": ["mcp", "serve", "--allowed-tools", "run,enable,disable,status"],
       "cwd": ".",
       "env": {
         "PATH": "${PATH}"
