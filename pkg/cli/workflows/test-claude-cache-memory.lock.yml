@@ -173,7 +173,8 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-                }
+                },
+                "timeout": 60
               }
             }
           }

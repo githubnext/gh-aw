@@ -302,6 +302,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"ghcr.io/github/github-mcp-server:sha-09deac4\"",
 				"]",
 				"env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }",
+				"timeout = 60",
 				"EOF",
 			},
 		},

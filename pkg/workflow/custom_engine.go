@@ -197,7 +197,8 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
-	yaml.WriteString("                }\n")
+	yaml.WriteString("                },\n")
+	yaml.WriteString("                \"timeout\": 60\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")

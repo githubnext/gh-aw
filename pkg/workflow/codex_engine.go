@@ -490,6 +490,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
 	yaml.WriteString("          ]\n")
 	yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
+	yaml.WriteString("          timeout = 60\n")
 }
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml

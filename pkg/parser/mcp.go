@@ -56,14 +56,15 @@ func EnsureLocalhostDomains(domains []string) []string {
 // MCPServerConfig represents a parsed MCP server configuration
 type MCPServerConfig struct {
 	Name      string            `json:"name"`
-	Type      string            `json:"type"`      // stdio, http, docker
-	Command   string            `json:"command"`   // for stdio
-	Args      []string          `json:"args"`      // for stdio
-	Container string            `json:"container"` // for docker
-	URL       string            `json:"url"`       // for http
-	Headers   map[string]string `json:"headers"`   // for http
-	Env       map[string]string `json:"env"`       // environment variables
-	Allowed   []string          `json:"allowed"`   // allowed tools
+	Type      string            `json:"type"`              // stdio, http, docker
+	Command   string            `json:"command"`           // for stdio
+	Args      []string          `json:"args"`              // for stdio
+	Container string            `json:"container"`         // for docker
+	URL       string            `json:"url"`               // for http
+	Headers   map[string]string `json:"headers"`           // for http
+	Env       map[string]string `json:"env"`               // environment variables
+	Allowed   []string          `json:"allowed"`           // allowed tools
+	Timeout   *int              `json:"timeout,omitempty"` // timeout in seconds
 }
 
 // MCPServerInfo contains the inspection results for an MCP server
@@ -146,6 +147,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 			if toolName == "github" {
 				// Handle GitHub MCP server - always use Docker by default
+				timeoutVal := 60 // Default 1 minute timeout for GitHub MCP server
 				config := MCPServerConfig{
 					Name:    "github",
 					Type:    "docker", // GitHub defaults to Docker (local containerized)
@@ -154,7 +156,8 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:sha-09deac4",
 					},
-					Env: make(map[string]string),
+					Env:     make(map[string]string),
+					Timeout: &timeoutVal,
 				}
 
 				// Try to get GitHub token, but don't fail if it's not available

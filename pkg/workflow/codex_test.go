@@ -546,3 +546,48 @@ This is a test workflow for testing the config field functionality.
 		})
 	}
 }
+
+func TestCodexEngineGitHubMCPTimeout(t *testing.T) {
+	engine := NewCodexEngine()
+
+	// Create a builder to capture the MCP configuration output
+	var yaml strings.Builder
+
+	// Create mock tools with GitHub
+	tools := map[string]any{
+		"github": map[string]any{
+			"allowed": []string{"get_issue", "add_issue_comment"},
+		},
+	}
+
+	// Create minimal workflow data
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	// Call the specific GitHub MCP config renderer for Codex
+	engine.renderGitHubCodexMCPConfig(&yaml, tools["github"], workflowData)
+
+	// Get the generated configuration
+	mcpConfigOutput := yaml.String()
+
+	// Verify that the timeout field is present and set to 60 seconds
+	if !strings.Contains(mcpConfigOutput, "timeout = 60") {
+		t.Errorf("Expected GitHub MCP configuration to include 'timeout = 60', but it was not found in output:\n%s", mcpConfigOutput)
+	}
+
+	// Verify that the configuration contains the expected GitHub MCP server setup
+	if !strings.Contains(mcpConfigOutput, "[mcp_servers.github]") {
+		t.Errorf("Expected GitHub MCP configuration to include '[mcp_servers.github]', but it was not found in output:\n%s", mcpConfigOutput)
+	}
+
+	// Verify that the Docker command is included
+	if !strings.Contains(mcpConfigOutput, "command = \"docker\"") {
+		t.Errorf("Expected GitHub MCP configuration to include Docker command, but it was not found in output:\n%s", mcpConfigOutput)
+	}
+
+	// Verify that the GitHub token environment variable is included
+	if !strings.Contains(mcpConfigOutput, "GITHUB_PERSONAL_ACCESS_TOKEN") {
+		t.Errorf("Expected GitHub MCP configuration to include GITHUB_PERSONAL_ACCESS_TOKEN, but it was not found in output:\n%s", mcpConfigOutput)
+	}
+}
