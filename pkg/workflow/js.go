@@ -69,6 +69,9 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
+//go:embed js/network_permissions_hook.cjs
+var networkPermissionsHookScript string
+
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {
@@ -437,4 +440,9 @@ func GetLogParserScript(name string) string {
 // GetSafeOutputsMCPServerScript returns the JavaScript content for the safe-outputs MCP server
 func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
+}
+
+// GetNetworkPermissionsHookScript returns the JavaScript content for the network permissions hook
+func GetNetworkPermissionsHookScript() string {
+	return networkPermissionsHookScript
 }

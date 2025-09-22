@@ -154,6 +154,22 @@ chmod +x .claude/hooks/network_permissions.py`, hookScript)
 	return GitHubActionStep(lines)
 }
 
+// GenerateNetworkHookWorkflowStepJS generates a GitHub Actions workflow step using JavaScript instead of Python
+func (g *NetworkHookGenerator) GenerateNetworkHookWorkflowStepJS(allowedDomains []string) GitHubActionStep {
+	var lines []string
+	lines = append(lines, "      - name: Network Permissions Validation")
+	lines = append(lines, "        uses: actions/github-script@v8")
+	lines = append(lines, "        with:")
+	lines = append(lines, "          script: |")
+
+	// Get the JavaScript content and format it for YAML
+	jsContent := GetNetworkPermissionsHookScript()
+	jsLines := FormatJavaScriptForYAML(jsContent)
+	lines = append(lines, jsLines...)
+
+	return GitHubActionStep(lines)
+}
+
 // ShouldEnforceNetworkPermissions checks if network permissions should be enforced
 // Returns true if network permissions are configured and not in "defaults" mode
 func ShouldEnforceNetworkPermissions(network *NetworkPermissions) bool {

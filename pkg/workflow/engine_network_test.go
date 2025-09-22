@@ -38,6 +38,35 @@ func TestNetworkHookGenerator(t *testing.T) {
 		}
 	})
 
+	t.Run("GenerateNetworkHookWorkflowStepJS", func(t *testing.T) {
+		allowedDomains := []string{"api.github.com", "*.trusted.com"}
+		step := generator.GenerateNetworkHookWorkflowStepJS(allowedDomains)
+
+		stepStr := strings.Join(step, "\n")
+
+		// Check that the step contains proper YAML structure for JavaScript
+		if !strings.Contains(stepStr, "name: Network Permissions Validation") {
+			t.Error("Step should have correct name for JS version")
+		}
+		if !strings.Contains(stepStr, "uses: actions/github-script@v8") {
+			t.Error("Step should use github-script action")
+		}
+		if !strings.Contains(stepStr, "script: |") {
+			t.Error("Step should contain script section")
+		}
+
+		// Check that JavaScript functions are included
+		if !strings.Contains(stepStr, "function extractDomain") {
+			t.Error("Step should contain extractDomain function")
+		}
+		if !strings.Contains(stepStr, "function isDomainAllowed") {
+			t.Error("Step should contain isDomainAllowed function")
+		}
+		if !strings.Contains(stepStr, "async function main") {
+			t.Error("Step should contain main function")
+		}
+	})
+
 	t.Run("GenerateNetworkHookWorkflowStep", func(t *testing.T) {
 		allowedDomains := []string{"api.github.com", "*.trusted.com"}
 		step := generator.GenerateNetworkHookWorkflowStep(allowedDomains)
