@@ -168,7 +168,7 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 
 > [!TIP]
 > You can inspect the tools available for an Agentic Workflow by running <br/>
-> `gh aw mcp-inspect <workflow-file>`
+> `gh aw mcp inspect <workflow-file>`
 
 ### Wildcard Access
 
@@ -284,7 +284,7 @@ Error: Tool 'my_tool' not found
 ## Related Documentation
 
 - [Tools Configuration](/gh-aw/reference/tools/) - Complete tools reference
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands including `mcp-inspect`
+- [CLI Commands](/gh-aw/tools/cli/) - CLI commands including `mcp inspect`
 - [Include Directives](/gh-aw/reference/include-directives/) - Modularizing workflows with includes
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory organization
