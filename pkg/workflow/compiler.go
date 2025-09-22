@@ -125,8 +125,8 @@ type WorkflowData struct {
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	Description        string // optional description rendered as comment in lock file
 	On                 string
-	Permissions  *Permissions // Structured permissions
-	Network            string // top-level network permissions configuration
+	Permissions        *Permissions // Structured permissions
+	Network            string       // top-level network permissions configuration
 	Concurrency        string
 	RunName            string
 	Env                string
@@ -589,14 +589,14 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
 	workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
-	
+
 	// Parse structured permissions
 	permissionsStruct, err := ParsePermissions(result.Frontmatter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse permissions: %w", err)
 	}
 	workflowData.Permissions = permissionsStruct
-	
+
 	workflowData.Network = c.extractTopLevelYAMLSection(result.Frontmatter, "network")
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")

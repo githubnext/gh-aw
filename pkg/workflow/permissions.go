@@ -13,20 +13,20 @@ type Permissions struct {
 	Global string // "read", "write", "read-all", "write-all", or "" for individual permissions
 
 	// Individual permissions
-	Actions         string // read, write, none
-	Checks          string // read, write, none
-	Contents        string // read, write, none
-	Deployments     string // read, write, none
-	Discussions     string // read, write, none
-	Issues          string // read, write, none
-	Metadata        string // read, write, none
-	Models          string // read, write, none
-	Packages        string // read, write, none
-	Pages           string // read, write, none
-	PullRequests    string // read, write, none
+	Actions            string // read, write, none
+	Checks             string // read, write, none
+	Contents           string // read, write, none
+	Deployments        string // read, write, none
+	Discussions        string // read, write, none
+	Issues             string // read, write, none
+	Metadata           string // read, write, none
+	Models             string // read, write, none
+	Packages           string // read, write, none
+	Pages              string // read, write, none
+	PullRequests       string // read, write, none
 	RepositoryProjects string // read, write, none
-	SecurityEvents  string // read, write, none
-	Statuses        string // read, write, none
+	SecurityEvents     string // read, write, none
+	Statuses           string // read, write, none
 }
 
 // ParsePermissions parses permissions from frontmatter
@@ -158,7 +158,7 @@ func (p *Permissions) ToYAML() string {
 
 	// Handle individual permissions
 	perms := make(map[string]string)
-	
+
 	if p.Actions != "" {
 		perms["actions"] = p.Actions
 	}

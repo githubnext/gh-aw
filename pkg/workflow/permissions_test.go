@@ -376,7 +376,7 @@ func TestPermissions_ToYAML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.permissions.ToYAML()
-			
+
 			// Check if result matches any of the expected formats
 			found := false
 			for _, expected := range tt.expected {
@@ -385,7 +385,7 @@ func TestPermissions_ToYAML(t *testing.T) {
 					break
 				}
 			}
-			
+
 			if !found {
 				t.Errorf("Expected one of %v, got %s", tt.expected, result)
 			}
