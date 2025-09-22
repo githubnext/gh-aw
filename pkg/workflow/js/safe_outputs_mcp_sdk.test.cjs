@@ -4,9 +4,7 @@ import path from "path";
 import { Client } from "@modelcontextprotocol/sdk/client";
 
 // Import from the actual file path since the package exports seem to have issues
-const {
-  StdioClientTransport,
-} = require("./node_modules/@modelcontextprotocol/sdk/dist/cjs/client/stdio.js");
+const { StdioClientTransport } = require("./node_modules/@modelcontextprotocol/sdk/dist/cjs/client/stdio.js");
 
 // Mock environment for isolated testing
 const originalEnv = process.env;
@@ -18,10 +16,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
 
   beforeEach(() => {
     // Create temporary output file
-    tempOutputFile = path.join(
-      "/tmp",
-      `test_safe_outputs_sdk_${Date.now()}.jsonl`
-    );
+    tempOutputFile = path.join("/tmp", `test_safe_outputs_sdk_${Date.now()}.jsonl`);
 
     // Set up environment
     process.env = {
@@ -32,7 +27,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         "create-discussion": { enabled: true },
         "add-comment": { enabled: true, max: 3 },
         "missing-tool": { enabled: true },
-        "push-to-pr-branch": { enabled: true }, // Enable for SDK testing
+        "push-to-pull-request-branch": { enabled: true }, // Enable for SDK testing
       }),
     };
   });
@@ -95,10 +90,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       console.log("Transport configuration:");
       console.log("- Command:", transportConfig.command);
       console.log("- Args:", transportConfig.args);
-      console.log(
-        "- Environment variables configured:",
-        Object.keys(transportConfig.env)
-      );
+      console.log("- Environment variables configured:", Object.keys(transportConfig.env));
 
       transport = new StdioClientTransport(transportConfig);
       expect(transport).toBeDefined();
@@ -107,9 +99,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       console.log("Expected MCP SDK workflow:");
       console.log("1. await client.connect(transport)");
       console.log("2. const tools = await client.listTools()");
-      console.log(
-        "3. const result = await client.callTool({ name: 'tool_name', arguments: {...} })"
-      );
+      console.log("3. const result = await client.callTool({ name: 'tool_name', arguments: {...} })");
       console.log("4. await client.close()");
 
       // Demonstrate tool call structure
@@ -173,10 +163,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       // Check startup message
       expect(serverOutput).toContain("safe-outputs-mcp-server");
       expect(serverOutput).toContain("ready on stdio");
-      console.log(
-        "✅ Server started successfully with output:",
-        serverOutput.trim()
-      );
+      console.log("✅ Server started successfully with output:", serverOutput.trim());
 
       // Test manual protocol interaction
       const initMessage = {
@@ -213,15 +200,10 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
           expect(response.jsonrpc).toBe("2.0");
           expect(response.result).toBeDefined();
           expect(response.result.serverInfo).toBeDefined();
-          console.log(
-            "✅ Initialization response valid:",
-            response.result.serverInfo
-          );
+          console.log("✅ Initialization response valid:", response.result.serverInfo);
         }
       } else {
-        console.log(
-          "⚠️ No response received (might be expected in test environment)"
-        );
+        console.log("⚠️ No response received (might be expected in test environment)");
       }
 
       // Clean up

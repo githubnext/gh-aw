@@ -99,9 +99,7 @@ describe("collect_ndjson_output.cjs", () => {
     await eval(`(async () => { ${collectScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "GITHUB_AW_SAFE_OUTPUTS not set, no output to collect"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
   });
 
   it("should handle missing output file", async () => {
@@ -110,9 +108,7 @@ describe("collect_ndjson_output.cjs", () => {
     await eval(`(async () => { ${collectScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Output file does not exist: /tmp/nonexistent-file.txt"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Output file does not exist: /tmp/nonexistent-file.txt");
   });
 
   it("should handle empty output file", async () => {
@@ -133,8 +129,7 @@ describe("collect_ndjson_output.cjs", () => {
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -252,8 +247,7 @@ describe("collect_ndjson_output.cjs", () => {
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -309,9 +303,7 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].title).toBe("First Issue");
     expect(parsedOutput.items[1].title).toBe("Second Issue");
     expect(parsedOutput.errors).toHaveLength(1); // Error for the third item exceeding max
-    expect(parsedOutput.errors[0]).toContain(
-      "Too many items of type 'create-issue'. Maximum allowed: 2"
-    );
+    expect(parsedOutput.errors[0]).toContain("Too many items of type 'create-issue'. Maximum allowed: 2");
   });
 
   it("should validate required fields for create-discussion type", async () => {
@@ -348,8 +340,7 @@ describe("collect_ndjson_output.cjs", () => {
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -372,8 +363,7 @@ describe("collect_ndjson_output.cjs", () => {
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-pull-request-review-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -387,22 +377,10 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].line).toBe(10);
     expect(parsedOutput.items[0].body).toBeDefined();
     expect(parsedOutput.errors).toHaveLength(4); // 4 invalid items
-    expect(
-      parsedOutput.errors.some(e =>
-        e.includes("line' must be a positive integer")
-      )
-    ).toBe(true);
-    expect(
-      parsedOutput.errors.some(e => e.includes("requires a 'line' number"))
-    ).toBe(true);
-    expect(
-      parsedOutput.errors.some(e => e.includes("requires a 'path' string"))
-    ).toBe(true);
-    expect(
-      parsedOutput.errors.some(e =>
-        e.includes("start_line' must be less than or equal to 'line'")
-      )
-    ).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("line' must be a positive integer"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'line' number"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("requires a 'path' string"))).toBe(true);
+    expect(parsedOutput.errors.some(e => e.includes("start_line' must be less than or equal to 'line'"))).toBe(true);
   });
 
   it("should validate optional fields for create-pull-request-review-comment type", async () => {
@@ -412,8 +390,7 @@ describe("collect_ndjson_output.cjs", () => {
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-pull-request-review-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -433,17 +410,14 @@ describe("collect_ndjson_output.cjs", () => {
     const testFile = "/tmp/test-ndjson-output.txt";
     const items = [];
     for (let i = 1; i <= 12; i++) {
-      items.push(
-        `{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": ${i}, "body": "Comment ${i}"}`
-      );
+      items.push(`{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": ${i}, "body": "Comment ${i}"}`);
     }
     const ndjsonContent = items.join("\n");
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
     // Set max to 5 for create-pull-request-review-comment
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-pull-request-review-comment": {"max": 5}}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 5}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -455,11 +429,7 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items).toHaveLength(5); // Only first 5 items should be allowed
     expect(parsedOutput.errors).toHaveLength(7); // 7 items exceeding max
     expect(
-      parsedOutput.errors.every(e =>
-        e.includes(
-          "Too many items of type 'create-pull-request-review-comment'. Maximum allowed: 5"
-        )
-      )
+      parsedOutput.errors.every(e => e.includes("Too many items of type 'create-pull-request-review-comment'. Maximum allowed: 5"))
     ).toBe(true);
   });
 
@@ -678,8 +648,7 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-issue": true, "add-comment": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -692,9 +661,7 @@ Line 3"}
       expect(parsedOutput.items).toHaveLength(1);
       expect(parsedOutput.items[0].type).toBe("add-comment");
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
-      expect(
-        parsedOutput.errors.some(error => error.includes("JSON parsing failed"))
-      ).toBe(true);
+      expect(parsedOutput.errors.some(error => error.includes("JSON parsing failed"))).toBe(true);
     });
 
     it("should still report error if repair fails completely", async () => {
@@ -776,11 +743,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].labels).toEqual([
-        "bug",
-        "feature",
-        "enhancement",
-      ]);
+      expect(parsedOutput.items[0].labels).toEqual(["bug", "feature", "enhancement"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -1137,10 +1100,7 @@ Line 3"}
       expect(parsedOutput.items[0].type).toBe("create-issue");
       expect(parsedOutput.items[0].metadata).toBeDefined();
       expect(parsedOutput.items[0].metadata.project).toBe("test");
-      expect(parsedOutput.items[0].metadata.tags).toEqual([
-        "important",
-        "urgent",
-      ]);
+      expect(parsedOutput.items[0].metadata.tags).toEqual(["important", "urgent"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -1252,11 +1212,7 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
       expect(parsedOutput.items[0].type).toBe("add-labels");
-      expect(parsedOutput.items[0].labels).toEqual([
-        "priority",
-        "bug",
-        "urgent",
-      ]);
+      expect(parsedOutput.items[0].labels).toEqual(["priority", "bug", "urgent"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -1339,8 +1295,7 @@ Line 3"}
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-      '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -1348,10 +1303,7 @@ Line 3"}
     expect(fs.existsSync("/tmp/agent_output.json")).toBe(true);
 
     // Verify the content of agent_output.json
-    const agentOutputContent = fs.readFileSync(
-      "/tmp/agent_output.json",
-      "utf8"
-    );
+    const agentOutputContent = fs.readFileSync("/tmp/agent_output.json", "utf8");
     const agentOutputJson = JSON.parse(agentOutputContent);
 
     expect(agentOutputJson.items).toHaveLength(2);
@@ -1360,10 +1312,7 @@ Line 3"}
     expect(agentOutputJson.errors).toHaveLength(0);
 
     // Verify GITHUB_AW_AGENT_OUTPUT environment variable was set
-    expect(mockCore.exportVariable).toHaveBeenCalledWith(
-      "GITHUB_AW_AGENT_OUTPUT",
-      "/tmp/agent_output.json"
-    );
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_AGENT_OUTPUT", "/tmp/agent_output.json");
 
     // Verify existing functionality still works (core.setOutput calls)
     const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1398,9 +1347,7 @@ Line 3"}
     fs.writeFileSync = originalWriteFileSync;
 
     // Verify the error was logged but the script continued to work
-    expect(mockCore.error).toHaveBeenCalledWith(
-      "Failed to write agent output file: Permission denied"
-    );
+    expect(mockCore.error).toHaveBeenCalledWith("Failed to write agent output file: Permission denied");
 
     // Verify existing functionality still works (core.setOutput calls)
     const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1424,8 +1371,7 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1478,26 +1424,17 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'file' field (string)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'line' field (number or string)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'severity' field (string)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'message' field (string)"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'file' field (string)");
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'severity' field (string)");
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'message' field (string)");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1514,26 +1451,17 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'file' field (string)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'line' field (number or string)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'severity' field (string)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert requires a 'message' field (string)"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'file' field (string)");
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'severity' field (string)");
+      expect(failedMessage).toContain("create-code-scanning-alert requires a 'message' field (string)");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1548,17 +1476,14 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'severity' must be one of: error, warning, info, note"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert 'severity' must be one of: error, warning, info, note");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1574,20 +1499,15 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'column' must be a valid positive integer (got: invalid)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'ruleIdSuffix' must be a string"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: invalid)");
+      expect(failedMessage).toContain("create-code-scanning-alert 'ruleIdSuffix' must be a string");
       expect(failedMessage).toContain(
         "create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
       );
@@ -1619,9 +1539,7 @@ Line 3"}
 
       expect(parsedOutput.items[0].file).toBe("src/valid.js");
       expect(parsedOutput.items[1].file).toBe("src/valid2.js");
-      expect(parsedOutput.errors).toContain(
-        "Line 2: create-code-scanning-alert requires a 'line' field (number or string)"
-      );
+      expect(parsedOutput.errors).toContain("Line 2: create-code-scanning-alert requires a 'line' field (number or string)");
     });
 
     it("should reject code scanning alert entries with invalid line and column values", async () => {
@@ -1634,29 +1552,18 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'line' must be a valid positive integer (got: invalid)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'line' must be a valid positive integer (got: 0)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'line' must be a valid positive integer (got: -5)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'column' must be a valid positive integer (got: abc)"
-      );
-      expect(failedMessage).toContain(
-        "create-code-scanning-alert 'column' must be a valid positive integer (got: 0)"
-      );
+      expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: invalid)");
+      expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: 0)");
+      expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: -5)");
+      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: abc)");
+      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: 0)");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1676,19 +1583,12 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "output",
-        expect.any(String)
-      );
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("output", expect.any(String));
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].body).toBe(
-        "Use z3 -v:10 and z3 -memory:high for performance monitoring"
-      );
+      expect(parsedOutput.items[0].body).toBe("Use z3 -v:10 and z3 -memory:high for performance monitoring");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -1702,9 +1602,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe(
@@ -1722,9 +1620,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe(
@@ -1742,9 +1638,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe(
@@ -1762,9 +1656,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe(
@@ -1782,14 +1674,10 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "Hey `@username` and `@org/team`, check this out! But preserve email@domain.com"
-      );
+      expect(parsedOutput.items[0].body).toBe("Hey `@username` and `@org/team`, check this out! But preserve email@domain.com");
     });
 
     it("should neutralize bot trigger phrases", async () => {
@@ -1802,21 +1690,16 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "This `fixes #123` and `closes #456`, also `resolves #789`"
-      );
+      expect(parsedOutput.items[0].body).toBe("This `fixes #123` and `closes #456`, also `resolves #789`");
     });
 
     it("should remove ANSI escape sequences", async () => {
       const testFile = "/tmp/test-ndjson-output.txt";
       // Use actual ANSI escape sequences
-      const bodyWithAnsi =
-        "\u001b[31mRed text\u001b[0m and \u001b[1mBold text\u001b[m";
+      const bodyWithAnsi = "\u001b[31mRed text\u001b[0m and \u001b[1mBold text\u001b[m";
       const ndjsonContent = JSON.stringify({
         type: "create-issue",
         title: "ANSI Test",
@@ -1829,9 +1712,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe("Red text and Bold text");
@@ -1850,9 +1731,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe(
@@ -1873,9 +1752,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       // All these should be preserved since they don't match the protocol:// pattern
@@ -1895,14 +1772,10 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toMatch(
-        /\[Content truncated due to length\]$/
-      );
+      expect(parsedOutput.items[0].body).toMatch(/\[Content truncated due to length\]$/);
       expect(parsedOutput.items[0].body.length).toBeLessThan(600000);
     });
 
@@ -1921,15 +1794,11 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       expect(outputCall).toBeDefined();
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toMatch(
-        /\[Content truncated due to line count\]$/
-      );
+      expect(parsedOutput.items[0].body).toMatch(/\[Content truncated due to line count\]$/);
       const lineCount = parsedOutput.items[0].body.split("\n").length;
       expect(lineCount).toBeLessThan(66000);
     });
@@ -1944,9 +1813,7 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       // The content should be preserved with proper escaping
@@ -1960,20 +1827,15 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG =
-        '{"create-pull-request": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].title).toBe("PR with z3 -v:10 flag");
-      expect(parsedOutput.items[0].body).toBe(
-        "Testing https://github.com/repo and (redacted)"
-      );
+      expect(parsedOutput.items[0].body).toBe("Testing https://github.com/repo and (redacted)");
       expect(parsedOutput.items[0].branch).toBe("feature/z3-timeout:5000");
       expect(parsedOutput.items[0].labels).toEqual(["bug", "z3:solver"]);
     });
@@ -1988,14 +1850,10 @@ Line 3"}
 
       await eval(`(async () => { ${collectScript} })()`);
 
-      const outputCall = mockCore.setOutput.mock.calls.find(
-        call => call[0] === "output"
-      );
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "This is visible  more visible text  and more text  final text"
-      );
+      expect(parsedOutput.items[0].body).toBe("This is visible  more visible text  and more text  final text");
     });
   });
 });

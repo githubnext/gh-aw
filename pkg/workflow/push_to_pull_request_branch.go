@@ -6,15 +6,15 @@ import (
 
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
-	Target      string `yaml:"target,omitempty"`        // Target for push-to-pr-branch: like add-comment but for pull requests
+	Target      string `yaml:"target,omitempty"`        // Target for push-to-pull-request-branch: like add-comment but for pull requests
 	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 	GitHubToken string `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
 }
 
-// buildCreateOutputPushToPullRequestBranchJob creates the push_to_pr_branch job
+// buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
 func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.PushToPullRequestBranch == nil {
-		return nil, fmt.Errorf("safe-outputs.push-to-pr-branch configuration is required")
+		return nil, fmt.Errorf("safe-outputs.push-to-pull-request-branch configuration is required")
 	}
 
 	var steps []string
@@ -38,7 +38,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	// Step 4: Push to Branch
 	steps = append(steps, "      - name: Push to Branch\n")
-	steps = append(steps, "        id: push_to_pr_branch\n")
+	steps = append(steps, "        id: push_to_pull_request_branch\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
@@ -78,9 +78,9 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	// Create outputs for the job
 	outputs := map[string]string{
-		"branch_name": "${{ steps.push_to_pr_branch.outputs.branch_name }}",
-		"commit_sha":  "${{ steps.push_to_pr_branch.outputs.commit_sha }}",
-		"push_url":    "${{ steps.push_to_pr_branch.outputs.push_url }}",
+		"branch_name": "${{ steps.push_to_pull_request_branch.outputs.branch_name }}",
+		"commit_sha":  "${{ steps.push_to_pull_request_branch.outputs.commit_sha }}",
+		"push_url":    "${{ steps.push_to_pull_request_branch.outputs.push_url }}",
 	}
 
 	// Determine the job condition based on target configuration
@@ -114,7 +114,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 
 	job := &Job{
-		Name:           "push_to_pr_branch",
+		Name:           "push_to_pull_request_branch",
 		If:             jobCondition,
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: write\n      pull-requests: read\n      issues: read",
@@ -127,14 +127,14 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	return job, nil
 }
 
-// parsePushToPullRequestBranchConfig handles push-to-pr-branch configuration
+// parsePushToPullRequestBranchConfig handles push-to-pull-request-branch configuration
 func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) *PushToPullRequestBranchConfig {
-	if configData, exists := outputMap["push-to-pr-branch"]; exists {
+	if configData, exists := outputMap["push-to-pull-request-branch"]; exists {
 		pushToBranchConfig := &PushToPullRequestBranchConfig{
 			IfNoChanges: "warn", // Default behavior: warn when no changes
 		}
 
-		// Handle the case where configData is nil (push-to-pr-branch: with no value)
+		// Handle the case where configData is nil (push-to-pull-request-branch: with no value)
 		if configData == nil {
 			return pushToBranchConfig
 		}

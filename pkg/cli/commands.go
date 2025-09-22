@@ -45,13 +45,6 @@ func GetVersion() string {
 }
 
 // GitHubWorkflow represents a GitHub Actions workflow from the API
-type GitHubWorkflow struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Path  string `json:"path"`
-	State string `json:"state"`
-}
-
 // GitHubWorkflowsResponse represents the GitHub API response for workflows
 // Note: The API returns an array directly, not wrapped in a workflows field
 
@@ -1393,114 +1386,6 @@ func calculateTimeRemaining(stopTimeStr string) string {
 	}
 }
 
-// EnableWorkflows enables workflows matching a pattern
-func EnableWorkflows(pattern string) error {
-	return toggleWorkflows(pattern, true)
-}
-
-// DisableWorkflows disables workflows matching a pattern
-func DisableWorkflows(pattern string) error {
-	return toggleWorkflows(pattern, false)
-}
-
-// Helper function to toggle workflows
-func toggleWorkflows(pattern string, enable bool) error {
-	action := "enable"
-	if !enable {
-		action = "disable"
-	}
-
-	// Check if gh CLI is available
-	if !isGHCLIAvailable() {
-		return fmt.Errorf("GitHub CLI (gh) is required but not available")
-	}
-
-	// Get the core set of workflows from markdown files in .github/workflows
-	mdFiles, err := getMarkdownWorkflowFiles()
-	if err != nil {
-		// Handle missing .github/workflows directory gracefully
-		fmt.Printf("No workflow files found to %s.\n", action)
-		return nil
-	}
-
-	if len(mdFiles) == 0 {
-		fmt.Printf("No markdown workflow files found to %s.\n", action)
-		return nil
-	}
-
-	// Get GitHub workflows status for comparison
-	githubWorkflows, err := fetchGitHubWorkflows(false)
-	if err != nil {
-		// Handle GitHub CLI authentication/connection issues gracefully
-		fmt.Printf("Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v\n", err)
-		fmt.Printf("No workflows to %s.\n", action)
-		return nil
-	}
-
-	var matchingWorkflows []GitHubWorkflow
-
-	// Find matching workflows from the markdown files
-	for _, file := range mdFiles {
-		base := filepath.Base(file)
-		name := strings.TrimSuffix(base, ".md")
-
-		// Skip if pattern specified and doesn't match
-		if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
-			continue
-		}
-
-		// Find the corresponding GitHub workflow to get status and ID
-		githubWorkflow, exists := githubWorkflows[name]
-		if !exists {
-			fmt.Printf("Warning: No GitHub workflow found for %s\n", name)
-			continue
-		}
-
-		// Check if action is needed
-		if enable && githubWorkflow.State == "active" {
-			continue // Already enabled
-		}
-		if !enable && githubWorkflow.State == "disabled_manually" {
-			continue // Already disabled
-		}
-
-		matchingWorkflows = append(matchingWorkflows, *githubWorkflow)
-	}
-
-	if len(matchingWorkflows) == 0 {
-		fmt.Printf("No workflows found matching pattern '%s' that need to be %sd.\n", pattern, action)
-		return nil
-	}
-
-	// Show what will be changed
-	fmt.Printf("The following workflows will be %sd:\n", action)
-	for _, workflow := range matchingWorkflows {
-		fmt.Printf("  %s (current state: %s)\n", workflow.Name, workflow.State)
-	}
-
-	// Perform the action
-	for _, workflow := range matchingWorkflows {
-		var cmd *exec.Cmd
-		if enable {
-			cmd = exec.Command("gh", "workflow", "enable", strconv.FormatInt(workflow.ID, 10))
-		} else {
-			// First cancel any running workflows
-			if err := cancelWorkflowRuns(workflow.ID); err != nil {
-				fmt.Printf("Warning: Failed to cancel runs for workflow %s: %v\n", workflow.Name, err)
-			}
-			cmd = exec.Command("gh", "workflow", "disable", strconv.FormatInt(workflow.ID, 10))
-		}
-
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("Failed to %s workflow %s: %v\n", action, workflow.Name, err)
-		} else {
-			fmt.Printf("%sd workflow: %s\n", strings.ToUpper(action[:1])+action[1:], workflow.Name)
-		}
-	}
-
-	return nil
-}
-
 // Helper functions
 
 func extractWorkflowNameFromFile(filePath string) (string, error) {
@@ -1627,84 +1512,6 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 	return nil
 }
 
-func isGitRepo() bool {
-	cmd := exec.Command("git", "rev-parse", "--git-dir")
-	return cmd.Run() == nil
-}
-
-// findGitRoot finds the root directory of the git repository
-func findGitRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("not in a git repository or git command failed: %w", err)
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-func stageWorkflowChanges() {
-	// Find git root and add .github/workflows relative to it
-	if gitRoot, err := findGitRoot(); err == nil {
-		workflowsPath := filepath.Join(gitRoot, ".github/workflows/")
-		_ = exec.Command("git", "-C", gitRoot, "add", workflowsPath).Run()
-
-		// Also stage .gitattributes if it was modified
-		_ = stageGitAttributesIfChanged()
-	} else {
-		// Fallback to relative path if git root can't be found
-		_ = exec.Command("git", "add", ".github/workflows/").Run()
-		_ = exec.Command("git", "add", ".gitattributes").Run()
-	}
-}
-
-// ensureGitAttributes ensures that .gitattributes contains the entry to mark .lock.yml files as generated
-func ensureGitAttributes() error {
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return err // Not in a git repository, skip
-	}
-
-	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
-	lockYmlEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
-
-	// Read existing .gitattributes file if it exists
-	var lines []string
-	if content, err := os.ReadFile(gitAttributesPath); err == nil {
-		lines = strings.Split(string(content), "\n")
-	}
-
-	// Check if the entry already exists or needs updating
-	found := false
-	for i, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if trimmedLine == lockYmlEntry {
-			return nil // Entry already exists with correct format
-		}
-		// Check for old format entry that needs updating
-		if strings.HasPrefix(trimmedLine, ".github/workflows/*.lock.yml") {
-			lines[i] = lockYmlEntry
-			found = true
-			break
-		}
-	}
-
-	// Add the entry if not found
-	if !found {
-		if len(lines) > 0 && lines[len(lines)-1] != "" {
-			lines = append(lines, "") // Add empty line before our entry if file doesn't end with newline
-		}
-		lines = append(lines, lockYmlEntry)
-	}
-
-	// Write back to file
-	content := strings.Join(lines, "\n")
-	if err := os.WriteFile(gitAttributesPath, []byte(content), 0644); err != nil {
-		return fmt.Errorf("failed to write .gitattributes: %w", err)
-	}
-
-	return nil
-}
-
 // ensureCopilotInstructions ensures that .github/instructions/github-agentic-workflows.md contains the copilot instructions
 func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 	if !writeInstructions {
@@ -1755,99 +1562,9 @@ func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 	return nil
 }
 
-// stageGitAttributesIfChanged stages .gitattributes if it was modified
-func stageGitAttributesIfChanged() error {
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return err
-	}
-	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
-	return exec.Command("git", "-C", gitRoot, "add", gitAttributesPath).Run()
-}
-
 func isGHCLIAvailable() bool {
 	cmd := exec.Command("gh", "--version")
 	return cmd.Run() == nil
-}
-
-func fetchGitHubWorkflows(verbose bool) (map[string]*GitHubWorkflow, error) {
-	// Start spinner for network operation (only if not in verbose mode)
-	spinner := console.NewSpinner("Fetching GitHub workflow status...")
-	if !verbose {
-		spinner.Start()
-	}
-
-	cmd := exec.Command("gh", "workflow", "list", "--all", "--json", "id,name,path,state")
-	output, err := cmd.Output()
-
-	// Stop spinner
-	if !verbose {
-		spinner.Stop()
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute gh workflow list command: %w", err)
-	}
-
-	// Check if output is empty
-	if len(output) == 0 {
-		return nil, fmt.Errorf("gh workflow list returned empty output - check if repository has workflows and gh CLI is authenticated")
-	}
-
-	// Validate JSON before unmarshaling
-	if !json.Valid(output) {
-		return nil, fmt.Errorf("gh workflow list returned invalid JSON - this may be due to network issues or authentication problems")
-	}
-
-	var workflows []GitHubWorkflow
-	if err := json.Unmarshal(output, &workflows); err != nil {
-		return nil, fmt.Errorf("failed to parse workflow data: %w", err)
-	}
-
-	workflowMap := make(map[string]*GitHubWorkflow)
-	for i, workflow := range workflows {
-		name := extractWorkflowNameFromPath(workflow.Path)
-		workflowMap[name] = &workflows[i]
-	}
-
-	return workflowMap, nil
-}
-
-func extractWorkflowNameFromPath(path string) string {
-	base := filepath.Base(path)
-	name := strings.TrimSuffix(base, filepath.Ext(base))
-	return strings.TrimSuffix(name, ".lock")
-}
-
-func cancelWorkflowRuns(workflowID int64) error {
-	// Start spinner for network operation
-	spinner := console.NewSpinner("Cancelling workflow runs...")
-	spinner.Start()
-
-	// Get running workflow runs
-	cmd := exec.Command("gh", "run", "list", "--workflow", strconv.FormatInt(workflowID, 10), "--status", "in_progress", "--json", "databaseId")
-	output, err := cmd.Output()
-	if err != nil {
-		spinner.Stop()
-		return err
-	}
-
-	var runs []struct {
-		DatabaseID int64 `json:"databaseId"`
-	}
-	if err := json.Unmarshal(output, &runs); err != nil {
-		spinner.Stop()
-		return err
-	}
-
-	// Cancel each running workflow
-	for _, run := range runs {
-		cancelCmd := exec.Command("gh", "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
-		_ = cancelCmd.Run() // Ignore errors for individual cancellations
-	}
-
-	spinner.Stop()
-	return nil
 }
 
 // IncludeDependency represents a file dependency from @include directives
@@ -1985,194 +1702,6 @@ func copyIncludeDependenciesWithForce(dependencies []IncludeDependency, githubWo
 		}
 
 		fmt.Printf("Copied include file: %s\n", dep.TargetPath)
-	}
-
-	return nil
-}
-
-// InstallPackage installs agentic workflows from a GitHub repository
-func InstallPackage(repoSpec string, local bool, verbose bool) error {
-	if verbose {
-		fmt.Printf("Installing package: %s\n", repoSpec)
-	}
-
-	// Parse repository specification (org/repo[@version])
-	repo, version, err := parseRepoSpec(repoSpec)
-	if err != nil {
-		return fmt.Errorf("invalid repository specification: %w", err)
-	}
-
-	if verbose {
-		fmt.Printf("Repository: %s\n", repo)
-		if version != "" {
-			fmt.Printf("Version: %s\n", version)
-		} else {
-			fmt.Printf("Version: main (default)\n")
-		}
-	}
-
-	// Get packages directory based on local flag
-	packagesDir, err := getPackagesDir(local)
-	if err != nil {
-		return fmt.Errorf("failed to determine packages directory: %w", err)
-	}
-
-	if verbose {
-		if local {
-			fmt.Printf("Installing to local packages directory: %s\n", packagesDir)
-		} else {
-			fmt.Printf("Installing to global packages directory: %s\n", packagesDir)
-		}
-	}
-
-	// Create packages directory
-	if err := os.MkdirAll(packagesDir, 0755); err != nil {
-		return fmt.Errorf("failed to create packages directory: %w", err)
-	}
-
-	// Create target directory for this repository
-	targetDir := filepath.Join(packagesDir, repo)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return fmt.Errorf("failed to create package directory: %w", err)
-	}
-
-	// Check if package already exists
-	if _, err := os.Stat(targetDir); err == nil {
-		entries, err := os.ReadDir(targetDir)
-		if err == nil && len(entries) > 0 {
-			fmt.Printf("Package %s already exists. Updating...\n", repo)
-			// Remove existing content
-			if err := os.RemoveAll(targetDir); err != nil {
-				return fmt.Errorf("failed to remove existing package: %w", err)
-			}
-			if err := os.MkdirAll(targetDir, 0755); err != nil {
-				return fmt.Errorf("failed to recreate package directory: %w", err)
-			}
-		}
-	}
-
-	// Download workflows from the repository
-	if err := downloadWorkflows(repo, version, targetDir, verbose); err != nil {
-		return fmt.Errorf("failed to download workflows: %w", err)
-	}
-
-	fmt.Printf("Successfully installed package: %s\n", repo)
-	return nil
-}
-
-// UninstallPackage removes an installed package
-func UninstallPackage(repoSpec string, local bool, verbose bool) error {
-	if verbose {
-		fmt.Printf("Uninstalling package: %s\n", repoSpec)
-	}
-
-	// Parse repository specification (only org/repo part, ignore version)
-	repo, _, err := parseRepoSpec(repoSpec)
-	if err != nil {
-		return fmt.Errorf("invalid repository specification: %w", err)
-	}
-
-	// Get packages directory based on local flag
-	packagesDir, err := getPackagesDir(local)
-	if err != nil {
-		return fmt.Errorf("failed to determine packages directory: %w", err)
-	}
-
-	if verbose {
-		if local {
-			fmt.Printf("Uninstalling from local packages directory: %s\n", packagesDir)
-		} else {
-			fmt.Printf("Uninstalling from global packages directory: %s\n", packagesDir)
-		}
-	}
-
-	// Check if package exists
-	targetDir := filepath.Join(packagesDir, repo)
-
-	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		fmt.Printf("Package %s is not installed.\n", repo)
-		return nil
-	}
-
-	// Remove the package directory
-	if err := os.RemoveAll(targetDir); err != nil {
-		return fmt.Errorf("failed to remove package directory: %w", err)
-	}
-
-	fmt.Printf("Successfully uninstalled package: %s\n", repo)
-	return nil
-}
-
-// ListPackages lists all installed packages
-func ListPackages(local bool, verbose bool) error {
-	if verbose {
-		fmt.Printf("Listing installed packages...\n")
-	}
-
-	packagesDir, err := getPackagesDir(local)
-	if err != nil {
-		return fmt.Errorf("failed to determine packages directory: %w", err)
-	}
-
-	if verbose {
-		if local {
-			fmt.Printf("Looking in local packages directory: %s\n", packagesDir)
-		} else {
-			fmt.Printf("Looking in global packages directory: %s\n", packagesDir)
-		}
-	}
-
-	if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
-		if local {
-			fmt.Println("No local packages directory found.")
-		} else {
-			fmt.Println("No global packages directory found.")
-		}
-		fmt.Println("Use '" + constants.CLIExtensionPrefix + " install <org/repo>' to install packages.")
-		return nil
-	}
-
-	// Find all installed packages
-	packages, err := findInstalledPackages(packagesDir)
-	if err != nil {
-		return fmt.Errorf("failed to scan packages: %w", err)
-	}
-
-	if len(packages) == 0 {
-		fmt.Println("No packages installed.")
-		fmt.Println("Use '" + constants.CLIExtensionPrefix + " install <org/repo>' to install packages.")
-		return nil
-	}
-
-	for _, pkg := range packages {
-		count := len(pkg.Workflows)
-		if pkg.CommitSHA != "" {
-			// Truncate commit SHA to first 8 characters for display
-			shortSHA := pkg.CommitSHA
-			if len(shortSHA) > 8 {
-				shortSHA = shortSHA[:8]
-			}
-			if count == 1 {
-				fmt.Printf("%s@%s (%d agentic workflow)\n", pkg.Name, shortSHA, count)
-			} else {
-				fmt.Printf("%s@%s (%d agentic workflows)\n", pkg.Name, shortSHA, count)
-			}
-		} else {
-			if count == 1 {
-				fmt.Printf("%s (%d agentic workflow)\n", pkg.Name, count)
-			} else {
-				fmt.Printf("%s (%d agentic workflows)\n", pkg.Name, count)
-			}
-		}
-
-		if verbose {
-			fmt.Printf("  Location: %s\n", pkg.Path)
-			fmt.Printf("  Workflows:\n")
-			for _, workflow := range pkg.Workflows {
-				fmt.Printf("    - %s\n", workflow)
-			}
-			fmt.Println()
-		}
 	}
 
 	return nil
@@ -3228,7 +2757,7 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 }
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) error {
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
 	}
@@ -3256,6 +2785,36 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 
 	if !runnable {
 		return fmt.Errorf("workflow '%s' cannot be run on GitHub Actions - it must have 'workflow_dispatch' trigger", workflowIdOrName)
+	}
+
+	// Handle --enable flag logic: check workflow state and enable if needed
+	var wasDisabled bool
+	var workflowID int64
+	if enable {
+		// Get current workflow status
+		workflow, err := getWorkflowStatus(workflowIdOrName, verbose)
+		if err != nil {
+			if verbose {
+				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
+			}
+		}
+
+		// If we successfully got workflow status, check if it needs enabling
+		if err == nil {
+			workflowID = workflow.ID
+			if workflow.State == "disabled_manually" {
+				wasDisabled = true
+				if verbose {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
+				}
+				// Enable the workflow
+				cmd := exec.Command("gh", "workflow", "enable", strconv.FormatInt(workflow.ID, 10))
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("failed to enable workflow '%s': %w", workflowIdOrName, err)
+				}
+				fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Enabled workflow: %s", workflowIdOrName)))
+			}
+		}
 	}
 
 	// Determine the lock file name based on the workflow source
@@ -3313,6 +2872,12 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			fmt.Fprintf(os.Stderr, "%s", exitError.Stderr)
 		}
+
+		// Restore workflow state if it was disabled and we enabled it (even on error)
+		if enable && wasDisabled && workflowID != 0 {
+			restoreWorkflowState(workflowIdOrName, workflowID, verbose)
+		}
+
 		return fmt.Errorf("failed to run workflow on GitHub Actions: %w", err)
 	}
 
@@ -3332,11 +2897,16 @@ func RunWorkflowOnGitHub(workflowIdOrName string, verbose bool) error {
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", err)
 	}
 
+	// Restore workflow state if it was disabled and we enabled it
+	if enable && wasDisabled && workflowID != 0 {
+		restoreWorkflowState(workflowIdOrName, workflowID, verbose)
+	}
+
 	return nil
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating at intervals
-func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, verbose bool) error {
+func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, enable bool, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -3372,7 +2942,7 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, verbose boo
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 

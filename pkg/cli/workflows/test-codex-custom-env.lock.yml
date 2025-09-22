@@ -142,6 +142,13 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_CI }}
+      - name: Upload MCP logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-logs
+          path: /tmp/mcp-logs/
+          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
@@ -173,69 +180,48 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            /**
-             * Parse codex log content and format as markdown
-             * @param {string} logContent - The raw log content to parse
-             * @returns {string} Formatted markdown content
-             */
             function parseCodexLog(logContent) {
               try {
                 const lines = logContent.split("\n");
                 let markdown = "## 🤖 Commands and Tools\n\n";
                 const commandSummary = [];
-                // First pass: collect commands for summary
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
-                  // Detect tool usage and exec commands
                   if (line.includes("] tool ") && line.includes("(")) {
-                    // Extract tool name
                     const toolMatch = line.match(/\] tool ([^(]+)\(/);
                     if (toolMatch) {
                       const toolName = toolMatch[1];
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
+                      let statusIcon = "❓"; 
                       for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("success in")) {
                           statusIcon = "✅";
                           break;
-                        } else if (
-                          nextLine.includes("failure in") ||
-                          nextLine.includes("error in") ||
-                          nextLine.includes("failed in")
-                        ) {
+                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
                           statusIcon = "❌";
                           break;
                         }
                       }
                       if (toolName.includes(".")) {
-                        // Format as provider::method
                         const parts = toolName.split(".");
                         const provider = parts[0];
                         const method = parts.slice(1).join("_");
-                        commandSummary.push(
-                          `* ${statusIcon} \`${provider}::${method}(...)\``
-                        );
+                        commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
                       } else {
                         commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
                       }
                     }
                   } else if (line.includes("] exec ")) {
-                    // Extract exec command
                     const execMatch = line.match(/exec (.+?) in/);
                     if (execMatch) {
                       const formattedCommand = formatBashCommand(execMatch[1]);
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
+                      let statusIcon = "❓"; 
                       for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("succeeded in")) {
                           statusIcon = "✅";
                           break;
-                        } else if (
-                          nextLine.includes("failed in") ||
-                          nextLine.includes("error")
-                        ) {
+                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
                           statusIcon = "❌";
                           break;
                         }
@@ -244,7 +230,6 @@ jobs:
                     }
                   }
                 }
-                // Add command summary
                 if (commandSummary.length > 0) {
                   for (const cmd of commandSummary) {
                     markdown += `${cmd}\n`;
@@ -252,9 +237,7 @@ jobs:
                 } else {
                   markdown += "No commands or tools used.\n";
                 }
-                // Add Information section
                 markdown += "\n## 📊 Information\n\n";
-                // Extract metadata from Codex logs
                 let totalTokens = 0;
                 const tokenMatches = logContent.match(/tokens used: (\d+)/g);
                 if (tokenMatches) {
@@ -269,7 +252,6 @@ jobs:
                 if (totalTokens > 0) {
                   markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
                 }
-                // Count tool calls and exec commands
                 const toolCalls = (logContent.match(/\] tool /g) || []).length;
                 const execCommands = (logContent.match(/\] exec /g) || []).length;
                 if (toolCalls > 0) {
@@ -279,11 +261,9 @@ jobs:
                   markdown += `**Commands Executed:** ${execCommands}\n\n`;
                 }
                 markdown += "\n## 🤖 Reasoning\n\n";
-                // Second pass: process full conversation flow with interleaved reasoning, tools, and commands
                 let inThinkingSection = false;
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
-                  // Skip metadata lines
                   if (
                     line.includes("OpenAI Codex") ||
                     line.startsWith("--------") ||
@@ -298,29 +278,22 @@ jobs:
                   ) {
                     continue;
                   }
-                  // Process thinking sections
                   if (line.includes("] thinking")) {
                     inThinkingSection = true;
                     continue;
                   }
-                  // Process tool calls
                   if (line.includes("] tool ") && line.includes("(")) {
                     inThinkingSection = false;
                     const toolMatch = line.match(/\] tool ([^(]+)\(/);
                     if (toolMatch) {
                       const toolName = toolMatch[1];
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
+                      let statusIcon = "❓"; 
                       for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("success in")) {
                           statusIcon = "✅";
                           break;
-                        } else if (
-                          nextLine.includes("failure in") ||
-                          nextLine.includes("error in") ||
-                          nextLine.includes("failed in")
-                        ) {
+                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
                           statusIcon = "❌";
                           break;
                         }
@@ -336,23 +309,18 @@ jobs:
                     }
                     continue;
                   }
-                  // Process exec commands
                   if (line.includes("] exec ")) {
                     inThinkingSection = false;
                     const execMatch = line.match(/exec (.+?) in/);
                     if (execMatch) {
                       const formattedCommand = formatBashCommand(execMatch[1]);
-                      // Look ahead to find the result status
-                      let statusIcon = "❓"; // Unknown by default
+                      let statusIcon = "❓"; 
                       for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("succeeded in")) {
                           statusIcon = "✅";
                           break;
-                        } else if (
-                          nextLine.includes("failed in") ||
-                          nextLine.includes("error")
-                        ) {
+                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
                           statusIcon = "❌";
                           break;
                         }
@@ -361,14 +329,8 @@ jobs:
                     }
                     continue;
                   }
-                  // Process thinking content
-                  if (
-                    inThinkingSection &&
-                    line.trim().length > 20 &&
-                    !line.startsWith("[2025-")
-                  ) {
+                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
                     const trimmed = line.trim();
-                    // Add thinking content directly
                     markdown += `${trimmed}\n\n`;
                   }
                 }
@@ -378,42 +340,26 @@ jobs:
                 return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
-            /**
-             * Format bash command for display
-             * @param {string} command - The command to format
-             * @returns {string} Formatted command string
-             */
             function formatBashCommand(command) {
               if (!command) return "";
-              // Convert multi-line commands to single line by replacing newlines with spaces
-              // and collapsing multiple spaces
               let formatted = command
-                .replace(/\n/g, " ") // Replace newlines with spaces
-                .replace(/\r/g, " ") // Replace carriage returns with spaces
-                .replace(/\t/g, " ") // Replace tabs with spaces
-                .replace(/\s+/g, " ") // Collapse multiple spaces into one
-                .trim(); // Remove leading/trailing whitespace
-              // Escape backticks to prevent markdown issues
+                .replace(/\n/g, " ") 
+                .replace(/\r/g, " ") 
+                .replace(/\t/g, " ") 
+                .replace(/\s+/g, " ") 
+                .trim(); 
               formatted = formatted.replace(/`/g, "\\`");
-              // Truncate if too long (keep reasonable length for summary)
               const maxLength = 80;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
               }
               return formatted;
             }
-            /**
-             * Truncate string to maximum length
-             * @param {string} str - The string to truncate
-             * @param {number} maxLength - Maximum length allowed
-             * @returns {string} Truncated string
-             */
             function truncateString(str, maxLength) {
               if (!str) return "";
               if (str.length <= maxLength) return str;
               return str.substring(0, maxLength) + "...";
             }
-            // Export for testing
             if (typeof module !== "undefined" && module.exports) {
               module.exports = { parseCodexLog, formatBashCommand, truncateString };
             }
@@ -438,19 +384,14 @@ jobs:
               try {
                 const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logFile) {
-                  throw new Error(
-                    "GITHUB_AW_AGENT_OUTPUT environment variable is required"
-                  );
+                  throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
                 if (!fs.existsSync(logFile)) {
                   throw new Error(`Log file not found: ${logFile}`);
                 }
-                // Get error patterns from environment variables
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
-                  throw new Error(
-                    "GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern"
-                  );
+                  throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 const content = fs.readFileSync(logFile, "utf8");
                 const hasErrors = validateErrors(content, patterns);
@@ -461,17 +402,13 @@ jobs:
                 }
               } catch (error) {
                 console.debug(error);
-                core.setFailed(
-                  `Error validating log: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.setFailed(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             function getErrorPatternsFromEnv() {
               const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
               if (!patternsEnv) {
-                throw new Error(
-                  "GITHUB_AW_ERROR_PATTERNS environment variable is required"
-                );
+                throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
               }
               try {
                 const patterns = JSON.parse(patternsEnv);
@@ -480,16 +417,9 @@ jobs:
                 }
                 return patterns;
               } catch (e) {
-                throw new Error(
-                  `Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`
-                );
+                throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
               }
             }
-            /**
-             * @param {string} logContent
-             * @param {any[]} patterns
-             * @returns {boolean}
-             */
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
               let hasErrors = false;
@@ -513,20 +443,10 @@ jobs:
               }
               return hasErrors;
             }
-            /**
-             * @param {any} match
-             * @param {any} pattern
-             * @returns {string}
-             */
             function extractLevel(match, pattern) {
-              if (
-                pattern.level_group &&
-                pattern.level_group > 0 &&
-                match[pattern.level_group]
-              ) {
+              if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
                 return match[pattern.level_group];
               }
-              // Try to infer level from the match content
               const fullMatch = match[0];
               if (fullMatch.toLowerCase().includes("error")) {
                 return "error";
@@ -535,34 +455,17 @@ jobs:
               }
               return "unknown";
             }
-            /**
-             * @param {any} match
-             * @param {any} pattern
-             * @param {any} fullLine
-             * @returns {string}
-             */
             function extractMessage(match, pattern, fullLine) {
-              if (
-                pattern.message_group &&
-                pattern.message_group > 0 &&
-                match[pattern.message_group]
-              ) {
+              if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
                 return match[pattern.message_group].trim();
               }
-              // Fallback to the full match or line
               return match[0] || fullLine.trim();
             }
-            /**
-             * @param {any} str
-             * @param {any} maxLength
-             * @returns {string}
-             */
             function truncateString(str, maxLength) {
               if (!str) return "";
               if (str.length <= maxLength) return str;
               return str.substring(0, maxLength) + "...";
             }
-            // Export for testing
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 validateErrors,
@@ -572,7 +475,6 @@ jobs:
                 truncateString,
               };
             }
-            // Only run main if this script is executed directly, not when imported for testing
             if (typeof module === "undefined" || require.main === module) {
               main();
             }

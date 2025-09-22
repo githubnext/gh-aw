@@ -1,8 +1,7 @@
-async function main() {
-  /** @type {typeof import("fs")} */
-  const fs = require("fs");
-  const { execSync } = require("child_process");
+/** @type {typeof import("fs")} */
+const fs = require("fs");
 
+async function main() {
   // Environment validation - fail early if required variables are missing
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   if (outputContent.trim() === "") {
@@ -35,8 +34,7 @@ async function main() {
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
-    const message =
-      "Patch file contains error message - cannot push without changes";
+    const message = "Patch file contains error message - cannot push without changes";
 
     switch (ifNoChanges) {
       case "error":
@@ -56,16 +54,11 @@ async function main() {
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
-    const maxSizeKb = parseInt(
-      process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024",
-      10
-    );
+    const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-    core.info(
-      `Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`
-    );
+    core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
 
     if (patchSizeKb > maxSizeKb) {
       const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
@@ -76,14 +69,11 @@ async function main() {
     core.info("Patch size validation passed");
   }
   if (isEmpty) {
-    const message =
-      "Patch file is empty - no changes to apply (noop operation)";
+    const message = "Patch file is empty - no changes to apply (noop operation)";
 
     switch (ifNoChanges) {
       case "error":
-        core.setFailed(
-          "No changes to push - failing as configured by if-no-changes: error"
-        );
+        core.setFailed("No changes to push - failing as configured by if-no-changes: error");
         return;
       case "ignore":
         // Silent success - no console output
@@ -106,9 +96,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -117,22 +105,19 @@ async function main() {
     return;
   }
 
-  // Find the push-to-pr-branch item
-  const pushItem = validatedOutput.items.find(
-    /** @param {any} item */ item => item.type === "push-to-pr-branch"
-  );
+  // Find the push-to-pull-request-branch item
+  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push-to-pull-request-branch");
   if (!pushItem) {
-    core.info("No push-to-pr-branch item found in agent output");
+    core.info("No push-to-pull-request-branch item found in agent output");
     return;
   }
 
-  core.info("Found push-to-pr-branch item");
+  core.info("Found push-to-pull-request-branch item");
 
   // If in staged mode, emit step summary instead of pushing changes
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-    summaryContent +=
-      "The following changes would be pushed if staged mode was disabled:\n\n";
+    summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
 
     summaryContent += `**Target:** ${target}\n\n`;
 
@@ -161,9 +146,7 @@ async function main() {
     // If target is a specific number, validate it's a valid pull request number
     const pullNumber = parseInt(target, 10);
     if (isNaN(pullNumber)) {
-      core.setFailed(
-        'Invalid target configuration: must be "triggering", "*", or a valid pull request number'
-      );
+      core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
       return;
     }
   }
@@ -172,14 +155,11 @@ async function main() {
   let pullNumber;
   if (target === "triggering") {
     // Use the number of the triggering pull request
-    pullNumber =
-      context.payload?.pull_request?.number || context.payload?.issue?.number;
+    pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
 
     // Check if we're in a pull request context when required
     if (!pullNumber) {
-      core.setFailed(
-        'push-to-pr-branch with target "triggering" requires pull request context'
-      );
+      core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
       return;
     }
   } else if (target === "*") {
@@ -193,20 +173,17 @@ async function main() {
   let branchName;
   // Fetch the specific PR to get its head branch
   try {
-    const prInfo = execSync(
-      `gh pr view ${pullNumber} --json headRefName --jq '.headRefName'`,
-      { encoding: "utf8" }
-    ).trim();
-
-    if (prInfo) {
-      branchName = prInfo;
+    let prInfo = "";
+    const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
+      listeners: { stdout: data => (prInfo += data.toString()) },
+    });
+    if (!prInfoRes) {
+      branchName = prInfo.trim();
     } else {
       throw new Error("No head branch found for PR");
     }
   } catch (error) {
-    core.info(
-      `Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
     // Exit with failure if we cannot determine the branch name
     core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
     return;
@@ -221,17 +198,12 @@ async function main() {
   core.info(`Switching to branch: ${branchName}`);
   try {
     // Try to checkout existing branch first
-    execSync("git fetch origin", { stdio: "inherit" });
+    await exec.exec("git fetch origin");
 
     // Check if branch exists on origin
     try {
-      execSync(`git rev-parse --verify origin/${branchName}`, {
-        stdio: "pipe",
-      });
-      // Branch exists on origin, check it out
-      execSync(`git checkout -B ${branchName} origin/${branchName}`, {
-        stdio: "inherit",
-      });
+      await exec.exec(`git rev-parse --verify origin/${branchName}`);
+      await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
       core.info(`Checked out existing branch from origin: ${branchName}`);
     } catch (originError) {
       // Give an error if branch doesn't exist on origin
@@ -241,9 +213,7 @@ async function main() {
       return;
     }
   } catch (error) {
-    core.setFailed(
-      `Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -252,16 +222,14 @@ async function main() {
     core.info("Applying patch...");
     try {
       // Patches are created with git format-patch, so use git am to apply them
-      execSync("git am /tmp/aw.patch", { stdio: "inherit" });
+      await exec.exec("git am /tmp/aw.patch");
       core.info("Patch applied successfully");
 
       // Push the applied commits to the branch
-      execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+      await exec.exec(`git push origin ${branchName}`);
       core.info(`Changes committed and pushed to branch: ${branchName}`);
     } catch (error) {
-      core.error(
-        `Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`
-      );
+      core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
       core.setFailed("Failed to apply patch");
       return;
     }
@@ -269,14 +237,11 @@ async function main() {
     core.info("Skipping patch application (empty patch)");
 
     // Handle if-no-changes configuration for empty patches
-    const message =
-      "No changes to apply - noop operation completed successfully";
+    const message = "No changes to apply - noop operation completed successfully";
 
     switch (ifNoChanges) {
       case "error":
-        core.setFailed(
-          "No changes to apply - failing as configured by if-no-changes: error"
-        );
+        core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
         return;
       case "ignore":
         // Silent success - no console output
@@ -289,7 +254,12 @@ async function main() {
   }
 
   // Get commit SHA and push URL
-  const commitSha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  let commitSha = "";
+  const commitShaRes = await exec.exec("git", ["rev-parse", "HEAD"], {
+    listeners: { stdout: data => (commitSha += data.toString()) },
+  });
+  if (commitShaRes) throw new Error("Failed to get commit SHA");
+  commitSha = commitSha.trim();
 
   // Get commit SHA and push URL
   const pushUrl = context.payload.repository
@@ -302,9 +272,7 @@ async function main() {
   core.setOutput("push_url", pushUrl);
 
   // Write summary to GitHub Actions summary
-  const summaryTitle = hasChanges
-    ? "Push to Branch"
-    : "Push to Branch (No Changes)";
+  const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
   const summaryContent = hasChanges
     ? `
 ## ${summaryTitle}

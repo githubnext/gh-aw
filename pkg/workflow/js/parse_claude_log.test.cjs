@@ -116,10 +116,7 @@ describe("parse_claude_log.cjs", () => {
 
   const extractParseFunction = () => {
     // Extract just the parseClaudeLog function for unit testing
-    const scriptWithExport = parseClaudeLogScript.replace(
-      "main();",
-      "global.testParseClaudeLog = parseClaudeLog;"
-    );
+    const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testParseClaudeLog = parseClaudeLog;");
     const scriptFunction = new Function(scriptWithExport);
     scriptFunction();
     return global.testParseClaudeLog;
@@ -267,10 +264,7 @@ npm warn exec The following package was not found
           type: "system",
           subtype: "init",
           session_id: "mcp-test",
-          tools: [
-            "mcp__github__create_issue",
-            "mcp__safe_outputs__missing-tool",
-          ],
+          tools: ["mcp__github__create_issue", "mcp__safe_outputs__missing-tool"],
           model: "claude-sonnet-4-20250514",
         },
         {
@@ -351,26 +345,19 @@ npm warn exec The following package was not found
 
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "MCP server(s) failed to launch: broken_server"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("MCP server(s) failed to launch: broken_server");
     });
 
     it("should handle missing log file", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "/nonexistent/file.log";
 
       // Extract main function and run it directly
-      const scriptWithExport = parseClaudeLogScript.replace(
-        "main();",
-        "global.testMain = main;"
-      );
+      const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testMain = main;");
       const scriptFunction = new Function(scriptWithExport);
       scriptFunction();
       await global.testMain();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Log file not found: /nonexistent/file.log"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Log file not found: /nonexistent/file.log");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -378,10 +365,7 @@ npm warn exec The following package was not found
       delete process.env.GITHUB_AW_AGENT_OUTPUT;
 
       // Extract main function and run it directly
-      const scriptWithExport = parseClaudeLogScript.replace(
-        "main();",
-        "global.testMain = main;"
-      );
+      const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testMain = main;");
       const scriptFunction = new Function(scriptWithExport);
       scriptFunction();
       await global.testMain();

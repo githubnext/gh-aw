@@ -186,12 +186,22 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
 	stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
 
+	// Set MCP_TIMEOUT to 60000ms for MCP server communication
+	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
+
 	if workflowData.SafeOutputs != nil {
 		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
 
 		// Add staged flag if specified
 		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
 			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+		}
+
+		// Add branch name if upload assets is configured
+		if workflowData.SafeOutputs.UploadAssets != nil {
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
 		}
 	}
 
@@ -632,10 +642,14 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                \"command\": \"npx\",\n")
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("                  \"--output-dir\",\n")
+	yaml.WriteString("                  \"/tmp/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
+		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"--allowed-origins\",\n")
-		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ",") + "\"\n")
+		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
+	yaml.WriteString("\n")
 	yaml.WriteString("                ]\n")
 
 	if isLast {
@@ -685,7 +699,10 @@ func (e *ClaudeEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast 
 	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

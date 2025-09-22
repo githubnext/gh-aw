@@ -83,8 +83,7 @@ function parseClaudeLog(logContent) {
 
     if (!Array.isArray(logEntries) || logEntries.length === 0) {
       return {
-        markdown:
-          "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
+        markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
         mcpFailures: [],
       };
     }
@@ -93,9 +92,7 @@ function parseClaudeLog(logContent) {
     const mcpFailures = [];
 
     // Check for initialization data first
-    const initEntry = logEntries.find(
-      entry => entry.type === "system" && entry.subtype === "init"
-    );
+    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
 
     if (initEntry) {
       markdown += "## 🚀 Initialization\n\n";
@@ -129,18 +126,7 @@ function parseClaudeLog(logContent) {
             const input = content.input || {};
 
             // Skip internal tools - only show external commands and API calls
-            if (
-              [
-                "Read",
-                "Write",
-                "Edit",
-                "MultiEdit",
-                "LS",
-                "Grep",
-                "Glob",
-                "TodoWrite",
-              ].includes(toolName)
-            ) {
+            if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
               continue; // Skip internal file operations and searches
             }
 
@@ -181,13 +167,7 @@ function parseClaudeLog(logContent) {
 
     // Find the last entry with metadata
     const lastEntry = logEntries[logEntries.length - 1];
-    if (
-      lastEntry &&
-      (lastEntry.num_turns ||
-        lastEntry.duration_ms ||
-        lastEntry.total_cost_usd ||
-        lastEntry.usage)
-    ) {
+    if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
       if (lastEntry.num_turns) {
         markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
       }
@@ -207,22 +187,15 @@ function parseClaudeLog(logContent) {
         const usage = lastEntry.usage;
         if (usage.input_tokens || usage.output_tokens) {
           markdown += `**Token Usage:**\n`;
-          if (usage.input_tokens)
-            markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-          if (usage.cache_creation_input_tokens)
-            markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-          if (usage.cache_read_input_tokens)
-            markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-          if (usage.output_tokens)
-            markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+          if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+          if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+          if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+          if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
           markdown += "\n";
         }
       }
 
-      if (
-        lastEntry.permission_denials &&
-        lastEntry.permission_denials.length > 0
-      ) {
+      if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
         markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
       }
     }
@@ -281,10 +254,7 @@ function formatInitializationSummary(initEntry) {
 
   if (initEntry.cwd) {
     // Show a cleaner path by removing common prefixes
-    const cleanCwd = initEntry.cwd.replace(
-      /^\/home\/runner\/work\/[^\/]+\/[^\/]+/,
-      "."
-    );
+    const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
     markdown += `**Working Directory:** ${cleanCwd}\n\n`;
   }
 
@@ -292,12 +262,7 @@ function formatInitializationSummary(initEntry) {
   if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
     markdown += "**MCP Servers:**\n";
     for (const server of initEntry.mcp_servers) {
-      const statusIcon =
-        server.status === "connected"
-          ? "✅"
-          : server.status === "failed"
-            ? "❌"
-            : "❓";
+      const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
       markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
 
       // Track failed MCP servers
@@ -323,34 +288,14 @@ function formatInitializationSummary(initEntry) {
     };
 
     for (const tool of initEntry.tools) {
-      if (
-        ["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(
-          tool
-        )
-      ) {
+      if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
         categories["Core"].push(tool);
-      } else if (
-        [
-          "Read",
-          "Edit",
-          "MultiEdit",
-          "Write",
-          "LS",
-          "Grep",
-          "Glob",
-          "NotebookEdit",
-        ].includes(tool)
-      ) {
+      } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
         categories["File Operations"].push(tool);
       } else if (tool.startsWith("mcp__github__")) {
         categories["Git/GitHub"].push(formatMcpName(tool));
-      } else if (
-        tool.startsWith("mcp__") ||
-        ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)
-      ) {
-        categories["MCP"].push(
-          tool.startsWith("mcp__") ? formatMcpName(tool) : tool
-        );
+      } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+        categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
       } else {
         categories["Other"].push(tool);
       }
@@ -429,10 +374,7 @@ function formatToolUse(toolUse, toolResult) {
 
     case "Read":
       const filePath = input.file_path || input.path || "";
-      const relativePath = filePath.replace(
-        /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
-        ""
-      ); // Remove /home/runner/work/repo/repo/ prefix
+      const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); // Remove /home/runner/work/repo/repo/ prefix
       markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
       break;
 
@@ -440,10 +382,7 @@ function formatToolUse(toolUse, toolResult) {
     case "Edit":
     case "MultiEdit":
       const writeFilePath = input.file_path || input.path || "";
-      const writeRelativePath = writeFilePath.replace(
-        /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
-        ""
-      );
+      const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
 
       markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
       break;
@@ -456,10 +395,7 @@ function formatToolUse(toolUse, toolResult) {
 
     case "LS":
       const lsPath = input.path || "";
-      const lsRelativePath = lsPath.replace(
-        /^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//,
-        ""
-      );
+      const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
       markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
       break;
 
@@ -474,10 +410,7 @@ function formatToolUse(toolUse, toolResult) {
         const keys = Object.keys(input);
         if (keys.length > 0) {
           // Try to find the most important parameter
-          const mainParam =
-            keys.find(k =>
-              ["query", "command", "path", "file_path", "content"].includes(k)
-            ) || keys[0];
+          const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
           const value = String(input[mainParam] || "");
 
           if (value) {

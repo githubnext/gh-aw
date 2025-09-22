@@ -12,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -122,6 +123,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 type WorkflowData struct {
 	Name               string
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
+	Description        string // optional description rendered as comment in lock file
 	On                 string
 	Permissions  *Permissions // Structured permissions
 	Network            string // top-level network permissions configuration
@@ -152,15 +154,16 @@ type WorkflowData struct {
 
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
-	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issue,omitempty"`
-	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussion,omitempty"`
-	AddComments                     *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
-	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
-	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
-	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alert,omitempty"`
+	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
+	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
+	AddComments                     *AddCommentsConfig                     `yaml:"add-comments,omitempty"`
+	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
+	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comments,omitempty"`
+	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
-	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issue,omitempty"`
-	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pr-branch,omitempty"`
+	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
+	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
+	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
@@ -312,7 +315,19 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 	}
 
-	fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+	// Display success message with file size if we generated a lock file
+	if c.noEmit {
+		fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+	} else {
+		// Get the size of the generated lock file for display
+		if lockFileInfo, err := os.Stat(lockFile); err == nil {
+			lockSize := pretty.FormatFileSize(lockFileInfo.Size())
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
+		} else {
+			// Fallback to original display if we can't get file info
+			fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+		}
+	}
 	return nil
 }
 
@@ -562,6 +577,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData := &WorkflowData{
 		Name:               workflowName,
 		FrontmatterName:    frontmatterName,
+		Description:        c.extractDescription(result.Frontmatter),
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
@@ -667,6 +683,21 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 	// Convert the value to string - it should be just the expression
 	if strValue, ok := value.(string); ok {
 		return c.extractExpressionFromIfString(strValue)
+	}
+
+	return ""
+}
+
+// extractDescription extracts the description field from frontmatter
+func (c *Compiler) extractDescription(frontmatter map[string]any) string {
+	value, exists := frontmatter["description"]
+	if !exists {
+		return ""
+	}
+
+	// Convert the value to string
+	if strValue, ok := value.(string); ok {
+		return strings.TrimSpace(strValue)
 	}
 
 	return ""
@@ -1313,7 +1344,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	githubConfig["allowed"] = newAllowed
 	tools["github"] = githubConfig
 
-	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pr-branch
+	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
 	if safeOutputs != nil && needsGitCommands(safeOutputs) {
 
 		// Add edit tool with null value
@@ -1415,6 +1446,16 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString("# To update this file, edit the corresponding .md file and run:\n")
 	yaml.WriteString("#   " + constants.CLIExtensionPrefix + " compile\n")
 	yaml.WriteString("# For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md\n")
+
+	// Add description comment if provided
+	if data.Description != "" {
+		yaml.WriteString("#\n")
+		// Split description into lines and prefix each with "# "
+		descriptionLines := strings.Split(strings.TrimSpace(data.Description), "\n")
+		for _, line := range descriptionLines {
+			yaml.WriteString(fmt.Sprintf("# %s\n", strings.TrimSpace(line)))
+		}
+	}
 
 	// Add stop-time comment if configured
 	if data.StopTime != "" {
@@ -1615,14 +1656,14 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build push_to_pr_branch job if output.push-to-pr-branch is configured
+	// Build push_to_pull_request_branch job if output.push-to-pull-request-branch is configured
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		pushToBranchJob, err := c.buildCreateOutputPushToPullRequestBranchJob(data, jobName)
 		if err != nil {
-			return fmt.Errorf("failed to build push_to_pr_branch job: %w", err)
+			return fmt.Errorf("failed to build push_to_pull_request_branch job: %w", err)
 		}
 		if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
-			return fmt.Errorf("failed to add push_to_pr_branch job: %w", err)
+			return fmt.Errorf("failed to add push_to_pull_request_branch job: %w", err)
 		}
 	}
 
@@ -1634,6 +1675,17 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 		if err := c.jobManager.AddJob(missingToolJob); err != nil {
 			return fmt.Errorf("failed to add missing_tool job: %w", err)
+		}
+	}
+
+	// Build upload_assets job if output.upload-asset is configured
+	if data.SafeOutputs.UploadAssets != nil {
+		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName, taskJobCreated, frontmatter)
+		if err != nil {
+			return fmt.Errorf("failed to build upload_assets job: %w", err)
+		}
+		if err := c.jobManager.AddJob(uploadAssetsJob); err != nil {
+			return fmt.Errorf("failed to add upload_assets job: %w", err)
 		}
 	}
 
@@ -1868,11 +1920,19 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateExtractAccessLogs(yaml, data.Tools)
 	c.generateUploadAccessLogs(yaml, data.Tools)
 
+	// upload MCP logs (if any MCP tools were used)
+	c.generateUploadMCPLogs(yaml, data.Tools)
+
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine, logFileFull)
 
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
+
+	// upload assets if upload-asset is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
+		c.generateUploadAssets(yaml)
+	}
 
 	// Add error validation for AI execution logs
 	c.generateErrorValidation(yaml, engine, logFileFull, data)
@@ -1894,6 +1954,16 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string
 	fmt.Fprintf(yaml, "          name: %s.log\n", logFile)
 	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
 	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Upload safe outputs assets\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: safe-outputs-assets\n")
+	yaml.WriteString("          path: /tmp/safe-outputs/assets/\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
 func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string) {
@@ -2038,6 +2108,16 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          name: access.log\n")
 	yaml.WriteString("          path: /tmp/access-logs/\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string]any) {
+	yaml.WriteString("      - name: Upload MCP logs\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: mcp-logs\n")
+	yaml.WriteString("          path: /tmp/mcp-logs/\n")
+	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
@@ -2327,7 +2407,10 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
 			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 		}
-		safeOutputsConfig["push-to-pr-branch"] = pushToBranchConfig
+		safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
+	}
+	if data.SafeOutputs.UploadAssets != nil {
+		safeOutputsConfig["upload-asset"] = map[string]any{}
 	}
 	if data.SafeOutputs.MissingTool != nil {
 		missingToolConfig := map[string]any{}

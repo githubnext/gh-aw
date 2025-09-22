@@ -138,6 +138,13 @@ codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearc
 		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
 			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 		}
+
+		// Add branch name if upload assets is configured
+		if workflowData.SafeOutputs.UploadAssets != nil {
+			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
+			env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
+			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
+		}
 	}
 
 	// Add custom environment variables from engine config
@@ -494,11 +501,13 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	yaml.WriteString("          [mcp_servers.playwright]\n")
 	yaml.WriteString("          command = \"npx\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@latest\"")
+	yaml.WriteString("            \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("            \"--output-dir\",\n")
+	yaml.WriteString("            \"/tmp/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-origins\",\n")
-		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ",") + "\"")
+		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
@@ -534,7 +543,7 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 		yaml.WriteString("          args = [\n")
 		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
 		yaml.WriteString("          ]\n")
-		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }} }\n")
+		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, \"GITHUB_AW_ASSETS_BRANCH\" = \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\", \"GITHUB_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\", \"GITHUB_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
 	}
 }
 

@@ -802,7 +802,7 @@ func getSafeOutputToolDescription(toolName string) string {
 		return "Add labels to a GitHub issue or pull request"
 	case "update-issue":
 		return "Update a GitHub issue"
-	case "push-to-pr-branch":
+	case "push-to-pull-request-branch":
 		return "Push changes to a pull request branch"
 	case "missing-tool":
 		return "Report a missing tool or functionality needed to complete tasks"

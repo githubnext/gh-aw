@@ -33,6 +33,8 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
   title: string;
   /** Discussion body content */
   body: string;
+  /** Optional category ID for the discussion */
+  category_id?: number | string;
 }
 
 /**
@@ -102,6 +104,8 @@ interface AddLabelsItem extends BaseSafeOutputItem {
   type: "add-labels";
   /** Array of label names to add */
   labels: string[];
+  /** Target issue; otherwize resolved from current context */
+  issue_number?: number;
 }
 
 /**
@@ -123,7 +127,7 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
-  type: "push-to-pr-branch";
+  type: "push-to-pull-request-branch";
   /** Optional commit message */
   message?: string;
   /** Optional pull request number for target "*" */
@@ -144,6 +148,15 @@ interface MissingToolItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for uploading an asset file
+ */
+interface UploadAssetItem extends BaseSafeOutputItem {
+  type: "upload-asset";
+  /** File path to upload */
+  file_path: string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -156,9 +169,15 @@ type SafeOutputItem =
   | AddLabelsItem
   | UpdateIssueItem
   | PushToPrBranchItem
-  | MissingToolItem;
+  | MissingToolItem
+  | UploadAssetItem;
 
-
+/**
+ * Sanitized safe output items
+ */
+interface SafeOutputItems {
+  items: SafeOutputItem[];
+}
 
 // === Export JSONL types ===
 export {
@@ -174,5 +193,7 @@ export {
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,
+  UploadAssetItem,
   SafeOutputItem,
+  SafeOutputItems,
 };

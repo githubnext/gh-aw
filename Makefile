@@ -13,7 +13,7 @@ all: build
 
 # Build the binary
 .PHONY: build
-build:
+build: js fmt-cjs
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -132,7 +132,7 @@ validate-workflows:
 fmt:
 	go fmt ./...
 
-# Format JavaScript (.cjs) files
+# Format JavaScript (.cjs and .js) files
 .PHONY: fmt-cjs
 fmt-cjs:
 	cd pkg/workflow/js && npm run format:cjs
@@ -141,7 +141,13 @@ fmt-cjs:
 .PHONY: js
 js:
 	echo "Running TypeScript compiler..."; \
-	cd pkg/workflow/js && npm run typecheck
+	cd pkg/workflow/js && npm run compile
+
+# Compile TypeScript files to CommonJS
+.PHONY: compile-ts
+compile-ts:
+	echo "Compiling TypeScript files..."; \
+	cd pkg/workflow/js && npm run compile
 
 # Check formatting
 .PHONY: fmt-check
@@ -174,9 +180,9 @@ install: build
 
 # Recompile all workflow files
 .PHONY: recompile
-recompile: build
-	./$(BINARY_NAME) compile --validate --instructions
-	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate;
+recompile: build 
+	./$(BINARY_NAME) compile --validate --instructions --verbose
+	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose;
 
 # Run development server
 .PHONY: dev
@@ -249,7 +255,7 @@ minor-release:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint js build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint js compile-ts build test-all recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -268,7 +274,8 @@ help:
 	@echo "  deps             - Install dependencies"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
-	@echo "  fmt-cjs          - Format JavaScript (.cjs) files"
+	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) files"
+	@echo "  compile-ts       - Compile TypeScript files to JavaScript (.js)"
 	@echo "  fmt-check        - Check code formatting"
 	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"

@@ -17,17 +17,6 @@ func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *Workflo
 	}
 }
 
-// generateGitConfigurationSteps generates standardized git credential setup as string steps
-func (c *Compiler) generateGitConfigurationSteps() []string {
-	return []string{
-		"      - name: Configure Git credentials\n",
-		"        run: |\n",
-		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
-		"          git config --global user.name \"${{ github.workflow }}\"\n",
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
-	}
-}
-
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration
@@ -130,12 +119,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
-		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
-		if safeOutputConfig != "" {
-			// Add environment variables for JSONL validation
-			yaml.WriteString("        env:\n")
-			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-		}
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
@@ -157,6 +140,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("        env:\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+			if workflowData.SafeOutputs.UploadAssets != nil {
+				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
+				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
+				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
+			}
 		}
 	}
 	yaml.WriteString("        run: |\n")
