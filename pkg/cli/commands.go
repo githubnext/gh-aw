@@ -1486,7 +1486,7 @@ func toggleWorkflows(pattern string, enable bool) error {
 	// Perform the action
 	var failures []string
 	var successes []string
-	
+
 	for _, workflow := range matchingWorkflows {
 		var cmd *exec.Cmd
 		if enable {
