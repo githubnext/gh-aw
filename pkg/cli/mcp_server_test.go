@@ -5,14 +5,14 @@ import (
 )
 
 func TestMCPServerCommand(t *testing.T) {
-	t.Run("mcp server command is available", func(t *testing.T) {
+	t.Run("mcp serve command is available", func(t *testing.T) {
 		cmd := NewMCPServerSubcommand()
 		if cmd == nil {
 			t.Fatal("NewMCPServerSubcommand returned nil")
 		}
 		
-		if cmd.Use != "server" {
-			t.Errorf("Expected command Use to be 'server', got '%s'", cmd.Use)
+		if cmd.Use != "serve" {
+			t.Errorf("Expected command Use to be 'serve', got '%s'", cmd.Use)
 		}
 		
 		if cmd.Short == "" {

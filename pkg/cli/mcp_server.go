@@ -280,7 +280,7 @@ func createMCPServer(verbose bool) *mcp.Server {
 // NewMCPServerSubcommand creates the mcp server subcommand
 func NewMCPServerSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "server",
+		Use:   "serve",
 		Short: "Launch an MCP server exposing CLI tools",
 		Long: `Launch a Model Context Protocol server that exposes various gh-aw CLI commands as MCP tools.
 
@@ -299,8 +299,8 @@ to interact with GitHub Agentic Workflows functionality. The server exposes the 
 The server uses stdio transport by default, making it suitable for use with various MCP clients.
 
 Examples:
-  gh aw mcp server                    # Start MCP server on stdio
-  gh aw mcp server -v                 # Start with verbose logging`,
+  gh aw mcp serve                     # Start MCP server on stdio
+  gh aw mcp serve -v                  # Start with verbose logging`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 

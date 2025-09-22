@@ -374,7 +374,7 @@ func TestMCPCommand(t *testing.T) {
 		}
 	})
 
-	t.Run("mcp command has server subcommand", func(t *testing.T) {
+	t.Run("mcp command has serve subcommand", func(t *testing.T) {
 		mcpCmd, _, _ := rootCmd.Find([]string{"mcp"})
 		if mcpCmd == nil {
 			t.Fatal("mcp command not found")
@@ -382,13 +382,13 @@ func TestMCPCommand(t *testing.T) {
 
 		found := false
 		for _, subCmd := range mcpCmd.Commands() {
-			if subCmd.Name() == "server" {
+			if subCmd.Name() == "serve" {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Error("mcp server subcommand should be available")
+			t.Error("mcp serve subcommand should be available")
 		}
 	})
 
