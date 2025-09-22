@@ -124,8 +124,8 @@ gh aw run WorkflowName1 WorkflowName2 WorkflowName3
 # Run workflows and repeat every 3 minutes
 gh aw run WorkflowName --repeat 180
 
-# Run workflow with enable flag (enable if disabled, run, restore state)
-gh aw run weekly-research --enable
+# Run workflow with enable-if-needed flag (enable if disabled, run, restore state)
+gh aw run weekly-research --enable-if-needed
 
 # Run workflow with specific input parameters (if supported)
 gh aw run weekly-research --input priority=high

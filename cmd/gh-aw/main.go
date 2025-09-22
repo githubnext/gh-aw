@@ -194,11 +194,11 @@ Examples:
   gh aw run weekly-research
   gh aw run weekly-research daily-plan
   gh aw run weekly-research --repeat 3600  # Run every hour
-  gh aw run weekly-research --enable       # Enable if disabled, run, then restore state`,
+  gh aw run weekly-research --enable-if-needed # Enable if disabled, run, then restore state`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		repeatSeconds, _ := cmd.Flags().GetInt("repeat")
-		enable, _ := cmd.Flags().GetBool("enable")
+		enable, _ := cmd.Flags().GetBool("enable-if-needed")
 		if err := cli.RunWorkflowsOnGitHub(args, repeatSeconds, enable, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
@@ -298,7 +298,7 @@ func init() {
 
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
-	runCmd.Flags().Bool("enable", false, "Enable the workflow before running if needed, and restore state afterward")
+	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
