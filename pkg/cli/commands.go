@@ -3207,11 +3207,15 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 	var workflowID int64
 	if enable {
 		// Get current workflow status
-		if workflow, err := getWorkflowStatus(workflowIdOrName, verbose); err != nil {
+		workflow, err := getWorkflowStatus(workflowIdOrName, verbose)
+		if err != nil {
 			if verbose {
 				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
 			}
-		} else {
+		}
+
+		// If we successfully got workflow status, check if it needs enabling
+		if err == nil {
 			workflowID = workflow.ID
 			if workflow.State == "disabled_manually" {
 				wasDisabled = true
