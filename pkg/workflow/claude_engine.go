@@ -186,6 +186,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
 	stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
 
+	// Set MCP_TIMEOUT to 60000ms for MCP server communication
+	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
+
 	if workflowData.SafeOutputs != nil {
 		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
 
