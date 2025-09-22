@@ -8,20 +8,20 @@ const mockCore = {
   notice: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
-  
+
   // Core workflow functions
   setFailed: vi.fn(),
   setOutput: vi.fn(),
   getInput: vi.fn(),
-  
+
   // Group functions
   startGroup: vi.fn(),
   endGroup: vi.fn(),
-  
+
   // State and summary
   saveState: vi.fn(),
   getState: vi.fn(),
-  
+
   summary: {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn(),
