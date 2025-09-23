@@ -1,13 +1,8 @@
 {
   "servers": {
-    "gh-aw": {
+    "github-agentic-workflows": {
       "command": "./gh-aw",
       "args": ["mcp", "serve"],
-      "cwd": "${workspaceFolder}"
-    },
-    "gh-aw-compile": {
-      "command": "./gh-aw",
-      "args": ["mcp", "serve", "--allowed-tools", "compile,logs"],
       "cwd": "${workspaceFolder}"
     }
   }

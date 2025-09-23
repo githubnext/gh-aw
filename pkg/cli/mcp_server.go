@@ -13,7 +13,7 @@ import (
 // createMCPServer creates and configures the MCP server with specified CLI tools
 func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "gh-aw-mcp-server",
+		Name:    "github_agentic_workflows",
 		Version: GetVersion(),
 	}, nil)
 
