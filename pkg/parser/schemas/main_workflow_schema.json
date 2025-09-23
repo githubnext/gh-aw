@@ -1589,6 +1589,39 @@
             }
           ]
         },
+        "update-releases": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub releases from agentic workflow output",
+              "properties": {
+                "release-id": {
+                  "type": "string",
+                  "description": "Explicit release ID or GitHub expression to resolve release ID"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for updates: 'triggering' (default), '*' (any release), or explicit release number"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of releases to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable release updating with default configuration"
+            }
+          ]
+        },
         "push-to-pull-request-branch": {
           "oneOf": [
             {

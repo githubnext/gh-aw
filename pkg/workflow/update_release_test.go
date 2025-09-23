@@ -7,11 +7,11 @@ import (
 func TestUpdateReleasesConfigParsing(t *testing.T) {
 	compiler := NewCompiler(false, "", "")
 
-	// Test basic update-release configuration
+	// Test basic update-releases configuration
 	outputMap := map[string]any{
-		"update-release": map[string]any{
-			"max":      5,
-			"target":   "triggering",
+		"update-releases": map[string]any{
+			"max":        5,
+			"target":     "triggering",
 			"release-id": "${{ github.event.release.id }}",
 		},
 	}
@@ -39,7 +39,7 @@ func TestUpdateReleasesConfigDefaults(t *testing.T) {
 
 	// Test minimal configuration with defaults
 	outputMap := map[string]any{
-		"update-release": map[string]any{},
+		"update-releases": map[string]any{},
 	}
 
 	config := compiler.parseUpdateReleasesConfig(outputMap)
@@ -65,7 +65,7 @@ func TestUpdateReleasesConfigGitHubToken(t *testing.T) {
 
 	// Test configuration with GitHub token
 	outputMap := map[string]any{
-		"update-release": map[string]any{
+		"update-releases": map[string]any{
 			"github-token": "${{ secrets.CUSTOM_PAT }}",
 		},
 	}

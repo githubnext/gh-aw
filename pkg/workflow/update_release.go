@@ -107,9 +107,9 @@ func (c *Compiler) buildCreateOutputUpdateReleaseJob(data *WorkflowData, mainJob
 	return job, nil
 }
 
-// parseUpdateReleasesConfig handles update-release configuration
+// parseUpdateReleasesConfig handles update-releases configuration
 func (c *Compiler) parseUpdateReleasesConfig(outputMap map[string]any) *UpdateReleasesConfig {
-	if configData, exists := outputMap["update-release"]; exists {
+	if configData, exists := outputMap["update-releases"]; exists {
 		updateReleasesConfig := &UpdateReleasesConfig{Max: 1} // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
