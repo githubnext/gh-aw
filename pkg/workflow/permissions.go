@@ -3,7 +3,7 @@ package workflow
 import (
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // PermissionsParser provides functionality to parse and analyze GitHub Actions permissions
