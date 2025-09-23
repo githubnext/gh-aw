@@ -4253,7 +4253,7 @@ This workflow should get default empty permissions applied automatically.
 
 	// Verify permissions structure
 	permissionsValue := permissions
-	
+
 	// Check if it's an empty map (which represents {})
 	if permissionsMap, ok := permissionsValue.(map[string]any); ok {
 		if len(permissionsMap) != 0 {
