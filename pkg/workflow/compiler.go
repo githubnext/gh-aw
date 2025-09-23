@@ -227,6 +227,27 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		fmt.Println(console.FormatSuccessMessage("Expression safety validation passed"))
 	}
 
+	// Validate markdown content size for GitHub Actions script limits
+	if c.verbose {
+		fmt.Println(console.FormatInfoMessage("Validating markdown content size..."))
+	}
+	cleanedMarkdownContent := removeXMLComments(workflowData.MarkdownContent)
+	if err := validateMarkdownSizeForGitHubActions(cleanedMarkdownContent); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return errors.New(formattedErr)
+	}
+	if c.verbose {
+		fmt.Println(console.FormatSuccessMessage("Markdown content size validation passed"))
+	}
+
 	if c.verbose {
 		fmt.Println(console.FormatSuccessMessage("Successfully parsed frontmatter and markdown content"))
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow name: %s", workflowData.Name)))
@@ -2092,11 +2113,10 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
-// truncateMarkdownForGitHubActions truncates markdown content to stay within GitHub Actions script size limits
+// validateMarkdownSizeForGitHubActions validates that markdown content stays within GitHub Actions script size limits
 // GitHub Actions has a limit of approximately 21,000 characters for inline shell scripts
-func truncateMarkdownForGitHubActions(content string) string {
+func validateMarkdownSizeForGitHubActions(content string) error {
 	const maxCharacters = 21000 // Leave some buffer below the actual limit
-	const truncationNotice = "\n\n[Content truncated due to GitHub Actions script size limit]"
 	const indentSpaces = "          " // 10 spaces added to each line
 	
 	// Calculate the content size including indentation
@@ -2106,38 +2126,13 @@ func truncateMarkdownForGitHubActions(content string) string {
 		estimatedSize += len(indentSpaces) + len(line) + 1 // +1 for newline
 	}
 	
-	// Add the size of the truncation notice with indentation
-	noticeLines := strings.Split(truncationNotice, "\n")
-	noticeSize := 0
-	for _, line := range noticeLines {
-		noticeSize += len(indentSpaces) + len(line) + 1
-	}
-	
-	// If the content fits, return as-is
+	// If the content fits, validation passes
 	if estimatedSize <= maxCharacters {
-		return content
+		return nil
 	}
 	
-	// Calculate the effective limit accounting for the truncation notice
-	effectiveLimit := maxCharacters - noticeSize
-	
-	// Truncate content line by line to stay within the limit
-	var truncatedLines []string
-	currentSize := 0
-	
-	for _, line := range lines {
-		lineSize := len(indentSpaces) + len(line) + 1
-		if currentSize+lineSize > effectiveLimit {
-			break
-		}
-		truncatedLines = append(truncatedLines, line)
-		currentSize += lineSize
-	}
-	
-	// Join the truncated lines and add the notice
-	truncated := strings.Join(truncatedLines, "\n") + truncationNotice
-	
-	return truncated
+	// Return error with detailed information about the limit
+	return fmt.Errorf("workflow markdown content is too large (%d characters when rendered) and exceeds GitHub Actions script size limit of %d characters. Please reduce the content size to stay within the limit", estimatedSize, maxCharacters)
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
@@ -2159,10 +2154,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add markdown content with proper indentation (removing XML comments)
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 	
-	// Truncate content if it would exceed GitHub Actions script size limits
-	truncatedContent := truncateMarkdownForGitHubActions(cleanedMarkdownContent)
-	
-	for _, line := range strings.Split(truncatedContent, "\n") {
+	for _, line := range strings.Split(cleanedMarkdownContent, "\n") {
 		yaml.WriteString("          " + line + "\n")
 	}
 

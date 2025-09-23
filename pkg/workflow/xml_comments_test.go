@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -255,55 +257,94 @@ Final content.`,
 	}
 }
 
-func TestTruncateMarkdownForGitHubActions(t *testing.T) {
-	// Test short content - should not be truncated
+func TestValidateMarkdownSizeForGitHubActions(t *testing.T) {
+	// Test short content - should pass validation
 	shortContent := "# Short content\n\nThis is a brief workflow description."
-	result := truncateMarkdownForGitHubActions(shortContent)
-	if result != shortContent {
-		t.Error("Short content should not be truncated")
+	err := validateMarkdownSizeForGitHubActions(shortContent)
+	if err != nil {
+		t.Error("Short content should pass validation")
 	}
 
-	// Test content that exceeds the limit
+	// Test content that exceeds the limit - should fail validation
 	longContent := strings.Repeat("This is a very long line of content that will be repeated many times to exceed the character limit.\n", 500)
-	result = truncateMarkdownForGitHubActions(longContent)
+	err = validateMarkdownSizeForGitHubActions(longContent)
 	
-	if len(result) > 21000 {
-		t.Errorf("Truncated content should not exceed 21000 characters, got %d", len(result))
+	if err == nil {
+		t.Error("Long content should fail validation")
 	}
 	
-	if !strings.Contains(result, "[Content truncated due to GitHub Actions script size limit]") {
-		t.Error("Truncated content should include truncation notice")
+	if !strings.Contains(err.Error(), "exceeds GitHub Actions script size limit") {
+		t.Error("Error message should mention GitHub Actions script size limit")
 	}
 	
-	// Should still preserve the beginning of the content
-	if !strings.HasPrefix(result, "This is a very long line") {
-		t.Error("Truncated content should preserve the beginning")
+	if !strings.Contains(err.Error(), "characters when rendered") {
+		t.Error("Error message should mention rendered character count")
 	}
 }
 
-func TestGeneratePromptWithCharacterLimitEnforcement(t *testing.T) {
+func TestCompileWorkflowWithCharacterLimitEnforcement(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "character-limit-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
 	compiler := NewCompiler(false, "", "test")
 
-	// Create content that exceeds the GitHub Actions character limit
-	longContent := "# Very Long Workflow\n\n"
-	longContent += strings.Repeat("This is a very long line that will be repeated many times to test the character limit enforcement in GitHub Actions prompt generation.\n", 400)
+	// Test that normal-sized content compiles successfully
+	normalContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+tools:
+  github:
+    allowed: [add_issue_comment]
+engine: claude
+---
 
-	data := &WorkflowData{
-		MarkdownContent: longContent,
+# Normal Workflow
+
+This is a normal-sized workflow that should compile successfully.`
+
+	normalFile := filepath.Join(tmpDir, "normal-workflow.md")
+	if err := os.WriteFile(normalFile, []byte(normalContent), 0644); err != nil {
+		t.Fatal(err)
 	}
 
-	var yaml strings.Builder
-	compiler.generatePrompt(&yaml, data)
-
-	output := yaml.String()
-
-	// The generated YAML should contain the truncation notice
-	if !strings.Contains(output, "[Content truncated due to GitHub Actions script size limit]") {
-		t.Error("Expected truncation notice in generated YAML when content exceeds character limit")
+	err = compiler.CompileWorkflow(normalFile)
+	if err != nil {
+		t.Errorf("Normal workflow should compile successfully, got error: %v", err)
 	}
 
-	// Should still preserve the workflow title
-	if !strings.Contains(output, "# Very Long Workflow") {
-		t.Error("Expected workflow title to be preserved even when truncated")
+	// Test that oversized content fails compilation
+	longContent := "---\n" +
+		"on:\n" +
+		"  issues:\n" +
+		"    types: [opened]\n" +
+		"permissions:\n" +
+		"  issues: write\n" +
+		"tools:\n" +
+		"  github:\n" +
+		"    allowed: [add_issue_comment]\n" +
+		"engine: claude\n" +
+		"---\n\n" +
+		"# Very Long Workflow\n\n" +
+		strings.Repeat("This is a very long line that will be repeated many times to test the character limit enforcement in GitHub Actions prompt generation.\n", 400)
+
+	longFile := filepath.Join(tmpDir, "long-workflow.md")
+	if err := os.WriteFile(longFile, []byte(longContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err = compiler.CompileWorkflow(longFile)
+	if err == nil {
+		t.Error("Long workflow should fail compilation due to size limit")
+	}
+
+	if !strings.Contains(err.Error(), "exceeds GitHub Actions script size limit") {
+		t.Errorf("Error should mention GitHub Actions script size limit, got: %v", err)
 	}
 }
