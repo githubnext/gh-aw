@@ -4867,10 +4867,10 @@ func TestCloneRepoOption(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name            string
-		frontmatter     string
-		expectCheckout  bool
-		description     string
+		name           string
+		frontmatter    string
+		expectCheckout bool
+		description    string
 	}{
 		{
 			name: "default_behavior",
@@ -4880,7 +4880,7 @@ permissions:
   issues: write
 ---`,
 			expectCheckout: true,
-			description:   "Should include checkout step by default when clone-repo is not specified",
+			description:    "Should include checkout step by default when clone-repo is not specified",
 		},
 		{
 			name: "clone_repo_true",
@@ -4891,7 +4891,7 @@ permissions:
 clone-repo: true
 ---`,
 			expectCheckout: true,
-			description:   "Should include checkout step when clone-repo is explicitly set to true",
+			description:    "Should include checkout step when clone-repo is explicitly set to true",
 		},
 		{
 			name: "clone_repo_false",
@@ -4902,7 +4902,7 @@ permissions:
 clone-repo: false
 ---`,
 			expectCheckout: false,
-			description:   "Should skip checkout step when clone-repo is set to false",
+			description:    "Should skip checkout step when clone-repo is set to false",
 		},
 	}
 
@@ -4937,7 +4937,7 @@ This is a test workflow for clone-repo functionality.
 
 			// Check if checkout step is present
 			hasCheckout := strings.Contains(lockContent, "- name: Checkout repository") &&
-						  strings.Contains(lockContent, "uses: actions/checkout@v5")
+				strings.Contains(lockContent, "uses: actions/checkout@v5")
 
 			if tt.expectCheckout && !hasCheckout {
 				t.Errorf("Expected checkout step to be present but it was missing. %s", tt.description)

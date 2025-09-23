@@ -613,7 +613,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 	workflowData.Roles = c.extractRoles(result.Frontmatter)
-	
+
 	// Extract clone-repo field (defaults to true for backward compatibility)
 	workflowData.CloneRepo = extractBoolValue(result.Frontmatter, "clone-repo", true)
 
