@@ -445,8 +445,8 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflow)))
 
 		// Show available workflows using the same logic as ListWorkflows
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run '" + constants.CLIExtensionPrefix + " list' to see available workflows."))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For packages, use '" + constants.CLIExtensionPrefix + " list --packages' to see installed packages."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run '"+constants.CLIExtensionPrefix+" list' to see available workflows."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For packages, use '"+constants.CLIExtensionPrefix+" list --packages' to see installed packages."))
 		return fmt.Errorf("workflow not found: %s", workflow)
 	}
 
