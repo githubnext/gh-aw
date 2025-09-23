@@ -3,12 +3,50 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
+
+// redirectStdoutToString captures stdout during function execution and returns it as a string
+func redirectStdoutToString(fn func() error) (string, error) {
+	// Save original stdout
+	originalStdout := os.Stdout
+	
+	// Create a pipe to capture stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		return "", fmt.Errorf("failed to create pipe: %w", err)
+	}
+	
+	// Redirect stdout to the pipe
+	os.Stdout = w
+	
+	// Execute the function
+	fnErr := fn()
+	
+	// Close the write end and restore stdout
+	w.Close()
+	os.Stdout = originalStdout
+	
+	// Read the captured output
+	output, readErr := io.ReadAll(r)
+	r.Close()
+	
+	if readErr != nil {
+		return "", fmt.Errorf("failed to read captured output: %w", readErr)
+	}
+	
+	// Return the captured output and any error from the function
+	if fnErr != nil {
+		return string(output), fnErr
+	}
+	
+	return string(output), nil
+}
 
 // createMCPServer creates and configures the MCP server with specified CLI tools
 func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
@@ -46,7 +84,11 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				fmt.Fprintf(os.Stderr, "🔧 Compiling workflows...\n")
 			}
 
-			err := CompileWorkflows(args.Files, args.Verbose || verbose, "", args.Validate, false, "", false, false, args.Purge)
+			// Capture the compilation output using the helper function
+			output, err := redirectStdoutToString(func() error {
+				return CompileWorkflows(args.Files, args.Verbose || verbose, "", args.Validate, false, "", false, false, args.Purge)
+			})
+
 			if err != nil {
 				return &mcp.CallToolResult{
 					IsError: true,
@@ -54,13 +96,17 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
-			message := "Successfully compiled all workflow files"
-			if len(args.Files) > 0 {
-				message = fmt.Sprintf("Successfully compiled %d workflow file(s)", len(args.Files))
+			// Provide the actual output or a default message based on args
+			if output == "" {
+				message := "Successfully compiled all workflow files"
+				if len(args.Files) > 0 {
+					message = fmt.Sprintf("Successfully compiled %d workflow file(s)", len(args.Files))
+				}
+				output = message
 			}
 
 			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: message}},
+				Content: []mcp.Content{&mcp.TextContent{Text: output}},
 			}, nil, nil
 		})
 	}
@@ -116,7 +162,11 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				fmt.Fprintf(os.Stderr, "🔍 Inspecting MCP servers...\n")
 			}
 
-			err := InspectWorkflowMCP(args.Workflow, args.Server, args.Tool, args.Verbose || verbose)
+			// Capture the inspection output using the helper function
+			output, err := redirectStdoutToString(func() error {
+				return InspectWorkflowMCP(args.Workflow, args.Server, args.Tool, args.Verbose || verbose)
+			})
+
 			if err != nil {
 				return &mcp.CallToolResult{
 					IsError: true,
@@ -124,8 +174,13 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
+			// Provide the actual output or a default message
+			if output == "" {
+				output = "MCP server inspection completed"
+			}
+
 			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: "MCP server inspection completed"}},
+				Content: []mcp.Content{&mcp.TextContent{Text: output}},
 			}, nil, nil
 		})
 	}
@@ -144,7 +199,11 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				fmt.Fprintf(os.Stderr, "📋 Listing MCP servers...\n")
 			}
 
-			err := ListWorkflowMCP(args.Workflow, args.Verbose || verbose)
+			// Capture the list output using the helper function
+			output, err := redirectStdoutToString(func() error {
+				return ListWorkflowMCP(args.Workflow, args.Verbose || verbose)
+			})
+
 			if err != nil {
 				return &mcp.CallToolResult{
 					IsError: true,
@@ -152,8 +211,13 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
+			// Provide the actual output or a default message
+			if output == "" {
+				output = "MCP server listing completed"
+			}
+
 			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: "MCP server listing completed"}},
+				Content: []mcp.Content{&mcp.TextContent{Text: output}},
 			}, nil, nil
 		})
 	}
@@ -317,31 +381,10 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				fmt.Fprintf(os.Stderr, "📊 Checking workflow status...\n")
 			}
 
-			// Capture the status output by redirecting stdout to a buffer
-			// since StatusWorkflows writes directly to stdout
-			originalStdout := os.Stdout
-			r, w, err := os.Pipe()
-			if err != nil {
-				return &mcp.CallToolResult{
-					IsError: true,
-					Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error creating pipe: %v", err)}},
-				}, nil, nil
-			}
-
-			// Temporarily redirect stdout
-			os.Stdout = w
-
-			// Call the status function
-			statusErr := StatusWorkflows(args.Pattern, args.Verbose || verbose)
-
-			// Restore stdout
-			w.Close()
-			os.Stdout = originalStdout
-
-			// Read the captured output
-			outputBytes := make([]byte, 4096)
-			n, readErr := r.Read(outputBytes)
-			r.Close()
+			// Capture the status output using the helper function
+			output, statusErr := redirectStdoutToString(func() error {
+				return StatusWorkflows(args.Pattern, args.Verbose || verbose)
+			})
 
 			if statusErr != nil {
 				return &mcp.CallToolResult{
@@ -350,10 +393,8 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
-			var output string
-			if readErr == nil && n > 0 {
-				output = string(outputBytes[:n])
-			} else {
+			// Provide a default message if no output was captured
+			if output == "" {
 				output = "Status check completed successfully"
 			}
 
