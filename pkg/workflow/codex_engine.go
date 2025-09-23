@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+// GetDeclaredOutputFiles returns the output files that Claude may produce
+func (e *CodexEngine) GetDeclaredOutputFiles() []string {
+	return []string{
+		"$CODEX_HOME/history.jsonl", // Codex interaction history
+	}
+}
+
 // convertToIdentifier converts a workflow name to a valid identifier format
 // by converting to lowercase and replacing spaces with hyphens
 func convertToIdentifier(name string) string {
@@ -227,10 +234,6 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
 
-	// Add history configuration to disable persistence
-	yaml.WriteString("          [history]\n")
-	yaml.WriteString("          persistence = \"none\"\n")
-
 	// Add network configuration based on network permissions
 	e.renderNetworkConfig(yaml, workflowData.NetworkPermissions)
 
@@ -259,6 +262,11 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			}
 		}
 	}
+
+	// Add history configuration to disable persistence
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [history]\n")
+	yaml.WriteString("          persistence = \"save-all\"\n")
 
 	// Append custom config if provided
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
@@ -653,7 +661,7 @@ func (e *CodexEngine) renderNetworkConfig(yaml *strings.Builder, networkPermissi
 
 // getSandboxParam generates the appropriate sandbox CLI parameter based on network permissions
 func (e *CodexEngine) getSandboxParam(networkPermissions *NetworkPermissions) string {
-	// Default (nil permissions) - use danger-full-access mode  
+	// Default (nil permissions) - use danger-full-access mode
 	if networkPermissions == nil {
 		return "--sandbox danger-full-access "
 	}

@@ -655,8 +655,6 @@ jobs:
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/config.toml << EOF
-          [history]
-          persistence = "none"
           
           # Full access mode (danger)
           sandbox_mode = "danger-full-access"
@@ -690,6 +688,9 @@ jobs:
             "/tmp/safe-outputs/mcp-server.cjs",
           ]
           env = { "GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", "GITHUB_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_AW_ASSETS_BRANCH" = "${{ env.GITHUB_AW_ASSETS_BRANCH }}", "GITHUB_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}", "GITHUB_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}" }
+          
+          [history]
+          persistence = "save-all"
           EOF
       - name: Create prompt
         env:
@@ -1497,6 +1498,16 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_outputs
+          path: |
+            $CODEX_HOME/history.jsonl
+          if-no-files-found: ignore
+      - name: Clean up engine output files
+        run: |
+          rm -f $CODEX_HOME/history.jsonl
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
