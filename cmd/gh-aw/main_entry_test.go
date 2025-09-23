@@ -221,7 +221,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		cmd := exec.Command("go", "run", "main.go", "version")
 		cmd.Dir = "."
 
-		output, err := cmd.Output()
+		output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
 		if err != nil {
 			t.Fatalf("Failed to run main with version: %v", err)
 		}
@@ -371,6 +371,24 @@ func TestMCPCommand(t *testing.T) {
 		}
 		if !found {
 			t.Error("mcp inspect subcommand should be available")
+		}
+	})
+
+	t.Run("mcp command has serve subcommand", func(t *testing.T) {
+		mcpCmd, _, _ := rootCmd.Find([]string{"mcp"})
+		if mcpCmd == nil {
+			t.Fatal("mcp command not found")
+		}
+
+		found := false
+		for _, subCmd := range mcpCmd.Commands() {
+			if subCmd.Name() == "serve" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("mcp serve subcommand should be available")
 		}
 	})
 

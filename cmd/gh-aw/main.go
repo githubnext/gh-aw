@@ -247,8 +247,8 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("%s version %s", constants.CLIExtensionPrefix, version)))
-		fmt.Println(console.FormatInfoMessage("GitHub Agentic Workflows CLI from GitHub Next"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%s version %s", constants.CLIExtensionPrefix, version)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Agentic Workflows CLI from GitHub Next"))
 	},
 }
 
@@ -322,7 +322,7 @@ func main() {
 	cli.SetVersionInfo(version)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(console.FormatErrorMessage(err.Error()))
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		os.Exit(1)
 	}
 }

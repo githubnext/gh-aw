@@ -40,7 +40,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
 	}
 
 	// Parse the workflow file
@@ -57,13 +57,13 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	// Validate frontmatter before analyzing MCPs
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(workflowData.Frontmatter, workflowPath); err != nil {
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Frontmatter validation failed: %v", err)))
-			fmt.Println(console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Frontmatter validation failed: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
 		} else {
 			return fmt.Errorf("frontmatter validation failed: %w", err)
 		}
 	} else if verbose {
-		fmt.Println(console.FormatSuccessMessage("Frontmatter validation passed"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Frontmatter validation passed"))
 	}
 
 	// Validate MCP configurations specifically using compiler validation
@@ -71,13 +71,13 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		if tools, ok := toolsSection.(map[string]any); ok {
 			if err := workflow.ValidateMCPConfigs(tools); err != nil {
 				if verbose {
-					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("MCP configuration validation failed: %v", err)))
-					fmt.Println(console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP configuration validation failed: %v", err)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
 				} else {
 					return fmt.Errorf("MCP configuration validation failed: %w", err)
 				}
 			} else if verbose {
-				fmt.Println(console.FormatSuccessMessage("MCP configuration validation passed"))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("MCP configuration validation passed"))
 			}
 		}
 	}
@@ -90,16 +90,16 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	if len(mcpConfigs) == 0 {
 		if serverFilter != "" {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No MCP servers matching filter '%s' found in workflow", serverFilter)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No MCP servers matching filter '%s' found in workflow", serverFilter)))
 		} else {
-			fmt.Println(console.FormatWarningMessage("No MCP servers found in workflow"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No MCP servers found in workflow"))
 		}
 		return nil
 	}
 
 	// Inspect each MCP server
 	if toolFilter != "" {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s), looking for tool '%s'", len(mcpConfigs), toolFilter)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s), looking for tool '%s'", len(mcpConfigs), toolFilter)))
 	} else {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) to inspect", len(mcpConfigs))))
 	}

@@ -51,12 +51,12 @@ func GetVersion() string {
 // ListWorkflows lists available workflow components
 func ListWorkflows(verbose bool) error {
 	if verbose {
-		fmt.Println(console.FormatProgressMessage("Searching for available workflow components..."))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Searching for available workflow components..."))
 	}
 
 	// First list available agentic engines
 	if err := listAgenticEngines(verbose); err != nil {
-		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to list agentic engines: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list agentic engines: %v", err)))
 	}
 
 	// Then list package workflows
@@ -72,7 +72,7 @@ func listAgenticEngines(verbose bool) error {
 	engines := registry.GetSupportedEngines()
 
 	if len(engines) == 0 {
-		fmt.Println(console.FormatInfoMessage("No agentic engines available."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No agentic engines available."))
 		return nil
 	}
 
@@ -142,9 +142,9 @@ func listAgenticEngines(verbose bool) error {
 		Headers: headers,
 		Rows:    rows,
 	}
-	fmt.Print(console.RenderTable(tableConfig))
+	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, "")
 	return nil
 }
 
@@ -187,7 +187,7 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		}
 
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflows...", repoSpec)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflows...", repoSpec)))
 		}
 		// Install as global package (not local) to match the behavior expected
 		if err := InstallPackage(repoSpec, false, verbose); err != nil {
@@ -216,19 +216,19 @@ func addWorkflowsNormal(workflows []string, number int, verbose bool, engineOver
 	if err != nil {
 		// If we can't create a tracker (e.g., not in git repo), fall back to non-tracking behavior
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Could not create file tracker: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not create file tracker: %v", err)))
 		}
 		tracker = nil
 	}
 
 	if len(workflows) > 1 {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Adding %d workflow(s)...", len(workflows))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding %d workflow(s)...", len(workflows))))
 	}
 
 	// Add each workflow
 	for i, workflow := range workflows {
 		if len(workflows) > 1 {
-			fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), workflow)))
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), workflow)))
 		}
 
 		// For multiple workflows, only use the name flag for the first one
@@ -243,7 +243,7 @@ func addWorkflowsNormal(workflows []string, number int, verbose bool, engineOver
 	}
 
 	if len(workflows) > 1 {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully added all %d workflows", len(workflows))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully added all %d workflows", len(workflows))))
 	}
 
 	return nil
@@ -411,10 +411,10 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow)))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
 		if force {
-			fmt.Println(console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
 		}
 	}
 
@@ -424,7 +424,7 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	}
 
 	if verbose {
-		fmt.Println("Locating workflow components...")
+		fmt.Fprintln(os.Stderr, "Locating workflow components...")
 	}
 
 	workflowsDir := getWorkflowsDir()
@@ -445,8 +445,8 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflow)))
 
 		// Show available workflows using the same logic as ListWorkflows
-		fmt.Println(console.FormatInfoMessage("Run '" + constants.CLIExtensionPrefix + " list' to see available workflows."))
-		fmt.Println(console.FormatInfoMessage("For packages, use '" + constants.CLIExtensionPrefix + " list --packages' to see installed packages."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run '"+constants.CLIExtensionPrefix+" list' to see available workflows."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For packages, use '"+constants.CLIExtensionPrefix+" list --packages' to see installed packages."))
 		return fmt.Errorf("workflow not found: %s", workflow)
 	}
 
@@ -486,12 +486,12 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 	// Collect all @include dependencies from the workflow file
 	includeDeps, err := collectIncludeDependenciesFromSource(string(sourceContent), sourceInfo, verbose)
 	if err != nil {
-		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to collect include dependencies: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to collect include dependencies: %v", err)))
 	}
 
 	// Copy all @include dependencies to .github/workflows maintaining relative paths
 	if err := copyIncludeDependenciesFromSourceWithForce(includeDeps, githubWorkflowsDir, sourceInfo, verbose, force, tracker); err != nil {
-		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to copy include dependencies: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy include dependencies: %v", err)))
 	}
 
 	// Process each copy
@@ -509,10 +509,10 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		if _, err := os.Stat(destFile); err == nil {
 			fileExists = true
 			if !force {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
 				continue
 			}
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Overwriting existing file: %s", destFile)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Overwriting existing file: %s", destFile)))
 		}
 
 		// Process content for numbered workflows
@@ -541,12 +541,12 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 		// Try to compile the workflow and track generated files
 		if tracker != nil {
 			if err := compileWorkflowWithTracking(destFile, verbose, engineOverride, tracker); err != nil {
-				fmt.Println(err)
+				fmt.Fprintln(os.Stderr, err)
 			}
 		} else {
 			// Fall back to basic compilation without tracking
 			if err := compileWorkflow(destFile, verbose, engineOverride); err != nil {
-				fmt.Println(err)
+				fmt.Fprintln(os.Stderr, err)
 			}
 		}
 	}
@@ -576,7 +576,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage("Validating generated lock file YAML syntax..."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Validating generated lock file YAML syntax..."))
 	}
 
 	lockContent, err := os.ReadFile(lockFile)
@@ -591,7 +591,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	}
 
 	if verbose {
-		fmt.Println(console.FormatSuccessMessage("Generated lock file YAML syntax validation passed"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Generated lock file YAML syntax validation passed"))
 	}
 
 	return nil
@@ -629,7 +629,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		var markdownFile string
 		if len(markdownFiles) > 0 {
 			if len(markdownFiles) > 1 {
-				fmt.Println(console.FormatWarningMessage("Watch mode only supports a single file, using the first one"))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Watch mode only supports a single file, using the first one"))
 			}
 			// Resolve the workflow file to get the full path
 			resolvedFile, err := resolveWorkflowFile(markdownFiles[0], verbose)
@@ -652,7 +652,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			}
 
 			if verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
 			}
 			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
@@ -663,22 +663,22 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		}
 
 		if verbose {
-			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d workflow file(s)", compiledCount)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d workflow file(s)", compiledCount)))
 		}
 
 		// Ensure .gitattributes marks .lock.yml files as generated
 		if err := ensureGitAttributes(); err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 		} else if verbose {
-			fmt.Println(console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
 		}
 
 		// Ensure copilot instructions are present
 		if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
 			}
 		}
 
@@ -732,7 +732,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		}
 
 		if verbose && len(existingLockFiles) > 0 {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
 		}
 	}
 
@@ -747,7 +747,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	}
 
 	if verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled all %d workflow files", len(mdFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled all %d workflow files", len(mdFiles))))
 	}
 
 	// Handle purge logic: delete orphaned .lock.yml files
@@ -769,32 +769,32 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		if len(orphanedFiles) > 0 {
 			for _, orphanedFile := range orphanedFiles {
 				if err := os.Remove(orphanedFile); err != nil {
-					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned lock file %s: %v", filepath.Base(orphanedFile), err)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned lock file %s: %v", filepath.Base(orphanedFile), err)))
 				} else {
-					fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Removed orphaned lock file: %s", filepath.Base(orphanedFile))))
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed orphaned lock file: %s", filepath.Base(orphanedFile))))
 				}
 			}
 			if verbose {
-				fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .lock.yml files", len(orphanedFiles))))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .lock.yml files", len(orphanedFiles))))
 			}
 		} else if verbose {
-			fmt.Println(console.FormatInfoMessage("No orphaned .lock.yml files found to purge"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .lock.yml files found to purge"))
 		}
 	}
 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 		}
 	} else if verbose {
-		fmt.Println(console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
 	}
 
 	// Ensure copilot instructions are present
 	if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
 		}
 	}
 
@@ -865,7 +865,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 	}
 
 	if verbose {
-		fmt.Println("Press Ctrl+C to stop watching.")
+		fmt.Fprintln(os.Stderr, "Press Ctrl+C to stop watching.")
 	}
 
 	// Set up signal handling for graceful shutdown
@@ -879,25 +879,25 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 	// Compile initially if no specific file provided
 	if markdownFile == "" {
-		fmt.Println("Watching for file changes")
+		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
-			fmt.Println("🔨 Initial compilation of all workflow files...")
+			fmt.Fprintln(os.Stderr, "🔨 Initial compilation of all workflow files...")
 		}
 		if err := compileAllWorkflowFiles(compiler, workflowsDir, verbose); err != nil {
 			// Always show initial compilation errors, not just in verbose mode
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
-		fmt.Println("Recompiled")
+		fmt.Fprintln(os.Stderr, "Recompiled")
 	} else {
-		fmt.Println("Watching for file changes")
+		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
-			fmt.Printf("🔨 Initial compilation of %s...\n", markdownFile)
+			fmt.Fprintf(os.Stderr, "🔨 Initial compilation of %s...\n", markdownFile)
 		}
 		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose); err != nil {
 			// Always show initial compilation errors on new line without wrapping
 			fmt.Fprintln(os.Stderr, err.Error())
 		}
-		fmt.Println("Recompiled")
+		fmt.Fprintln(os.Stderr, "Recompiled")
 	}
 
 	// Main watch loop
@@ -958,7 +958,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 		case <-sigChan:
 			if verbose {
-				fmt.Println("\n🛑 Stopping watch mode...")
+				fmt.Fprintln(os.Stderr, "\n🛑 Stopping watch mode...")
 			}
 			if debounceTimer != nil {
 				debounceTimer.Stop()
@@ -1012,9 +1012,9 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		return
 	}
 
-	fmt.Println("Watching for file changes")
+	fmt.Fprintln(os.Stderr, "Watching for file changes")
 	if verbose {
-		fmt.Printf("🔨 Compiling %d modified file(s)...\n", len(files))
+		fmt.Fprintf(os.Stderr, "🔨 Compiling %d modified file(s)...\n", len(files))
 	}
 
 	for _, file := range files {
@@ -1027,14 +1027,14 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		}
 
 		if verbose {
-			fmt.Printf("🔨 Compiling: %s\n", file)
+			fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
 		}
 
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
 		} else if verbose {
-			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
 		}
 	}
 

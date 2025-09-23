@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 )
@@ -13,7 +14,7 @@ func listAvailableServers(registryURL string, verbose bool) error {
 
 	// Search for all servers (empty query)
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Fetching available MCP servers from registry: %s", registryClient.registryURL)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching available MCP servers from registry: %s", registryClient.registryURL)))
 	}
 
 	servers, err := registryClient.SearchServers("")
@@ -22,15 +23,15 @@ func listAvailableServers(registryURL string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Retrieved %d servers from registry", len(servers))))
 		if len(servers) > 0 {
-			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("First server example - Name: '%s', Description: '%s'",
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("First server example - Name: '%s', Description: '%s'",
 				servers[0].Name, servers[0].Description)))
 		}
 	}
 
 	if len(servers) == 0 {
-		fmt.Println(console.FormatWarningMessage("No MCP servers found in the registry"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No MCP servers found in the registry"))
 		return nil
 	}
 
@@ -69,8 +70,8 @@ func listAvailableServers(registryURL string, verbose bool) error {
 		TotalRow:  []string{fmt.Sprintf("Total: %d servers", len(servers)), ""},
 	}
 
-	fmt.Print(console.RenderTable(tableConfig))
-	fmt.Println(console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-name>"))
+	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Usage: gh aw mcp add <workflow-file> <server-name>"))
 
 	return nil
 }

@@ -127,12 +127,12 @@ func getWorkflowStatus(workflowIdOrName string, verbose bool) (*GitHubWorkflow, 
 // restoreWorkflowState restores a workflow to disabled state if it was previously disabled
 func restoreWorkflowState(workflowIdOrName string, workflowID int64, verbose bool) {
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Restoring workflow '%s' to disabled state...", workflowIdOrName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Restoring workflow '%s' to disabled state...", workflowIdOrName)))
 	}
 	cmd := exec.Command("gh", "workflow", "disable", strconv.FormatInt(workflowID, 10))
 	if err := cmd.Run(); err != nil {
-		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to restore workflow '%s' to disabled state: %v", workflowIdOrName, err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to restore workflow '%s' to disabled state: %v", workflowIdOrName, err)))
 	} else {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Restored workflow to disabled state: %s", workflowIdOrName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Restored workflow to disabled state: %s", workflowIdOrName)))
 	}
 }

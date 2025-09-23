@@ -35,19 +35,19 @@ func toggleWorkflows(pattern string, enable bool) error {
 	mdFiles, err := getMarkdownWorkflowFiles()
 	if err != nil {
 		// Handle missing .github/workflows directory gracefully
-		fmt.Printf("No workflow files found to %s.\n", action)
+		fmt.Fprintf(os.Stderr, "No workflow files found to %s.\n", action)
 		return fmt.Errorf("no workflow files found to %s: %v", action, err)
 	}
 
 	if len(mdFiles) == 0 {
-		fmt.Printf("No markdown workflow files found to %s.\n", action)
+		fmt.Fprintf(os.Stderr, "No markdown workflow files found to %s.\n", action)
 		return fmt.Errorf("no markdown workflow files found to %s", action)
 	}
 
 	// Get GitHub workflows status for comparison; warn but continue if unavailable
 	githubWorkflows, err := fetchGitHubWorkflows(false)
 	if err != nil {
-		fmt.Printf("Warning: Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v\n", err)
+		fmt.Fprintf(os.Stderr, "Warning: Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v\n", err)
 		githubWorkflows = make(map[string]*GitHubWorkflow)
 	}
 
@@ -87,7 +87,7 @@ func toggleWorkflows(pattern string, enable bool) error {
 		if enable {
 			if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 				if err := compileWorkflow(file, false, ""); err != nil {
-					fmt.Printf("Warning: Failed to compile workflow %s to create lock file: %v\n", name, err)
+					fmt.Fprintf(os.Stderr, "Warning: Failed to compile workflow %s to create lock file: %v\n", name, err)
 					// If we can't compile and there's no GitHub entry, skip because we can't address it
 					if !exists {
 						continue
@@ -127,17 +127,17 @@ func toggleWorkflows(pattern string, enable bool) error {
 	if len(targets) == 0 {
 		if matchedCount > 0 {
 			// Nothing to change; consider as success for idempotency
-			fmt.Printf("All workflows matching pattern '%s' are already %sd.\n", pattern, action)
+			fmt.Fprintf(os.Stderr, "All workflows matching pattern '%s' are already %sd.\n", pattern, action)
 			return nil
 		}
-		fmt.Printf("No workflows found matching pattern '%s'.\n", pattern)
+		fmt.Fprintf(os.Stderr, "No workflows found matching pattern '%s'.\n", pattern)
 		return fmt.Errorf("no workflows found matching pattern '%s'", pattern)
 	}
 
 	// Show what will be changed
-	fmt.Printf("The following workflows will be %sd:\n", action)
+	fmt.Fprintf(os.Stderr, "The following workflows will be %sd:\n", action)
 	for _, t := range targets {
-		fmt.Printf("  %s (current state: %s)\n", t.Name, t.CurrentState)
+		fmt.Fprintf(os.Stderr, "  %s (current state: %s)\n", t.Name, t.CurrentState)
 	}
 
 	// Perform the action
@@ -156,13 +156,13 @@ func toggleWorkflows(pattern string, enable bool) error {
 			// First cancel any running workflows (by ID when available, else by lock file name)
 			if t.ID != 0 {
 				if err := cancelWorkflowRuns(t.ID); err != nil {
-					fmt.Printf("Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
+					fmt.Fprintf(os.Stderr, "Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
 				}
 				// Prefer disabling by lock file name for reliability
 				cmd = exec.Command("gh", "workflow", "disable", t.LockFileBase)
 			} else {
 				if err := cancelWorkflowRunsByLockFile(t.LockFileBase); err != nil {
-					fmt.Printf("Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
+					fmt.Fprintf(os.Stderr, "Warning: Failed to cancel runs for workflow %s: %v\n", t.Name, err)
 				}
 				cmd = exec.Command("gh", "workflow", "disable", t.LockFileBase)
 			}
@@ -170,18 +170,18 @@ func toggleWorkflows(pattern string, enable bool) error {
 
 		if output, err := cmd.CombinedOutput(); err != nil {
 			if len(output) > 0 {
-				fmt.Printf("Failed to %s workflow %s: %v\n%s\n", action, t.Name, err, string(output))
+				fmt.Fprintf(os.Stderr, "Failed to %s workflow %s: %v\n%s\n", action, t.Name, err, string(output))
 				// Provide clearer hint on common permission issues
 				outStr := strings.ToLower(string(output))
 				if strings.Contains(outStr, "http 403") || strings.Contains(outStr, "resource not accessible by integration") {
-					fmt.Printf("Hint: Disabling/enabling workflows requires repository admin or maintainer permissions. Ensure your gh auth has write/admin access to this repo.\n")
+					fmt.Fprintf(os.Stderr, "Hint: Disabling/enabling workflows requires repository admin or maintainer permissions. Ensure your gh auth has write/admin access to this repo.\n")
 				}
 			} else {
-				fmt.Printf("Failed to %s workflow %s: %v\n", action, t.Name, err)
+				fmt.Fprintf(os.Stderr, "Failed to %s workflow %s: %v\n", action, t.Name, err)
 			}
 			failures = append(failures, t.Name)
 		} else {
-			fmt.Printf("%sd workflow: %s\n", strings.ToUpper(action[:1])+action[1:], t.Name)
+			fmt.Fprintf(os.Stderr, "%sd workflow: %s\n", strings.ToUpper(action[:1])+action[1:], t.Name)
 		}
 	}
 

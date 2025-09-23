@@ -21,7 +21,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Adding MCP tool '%s' to workflow: %s", mcpServerID, console.ToRelativePath(workflowPath))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding MCP tool '%s' to workflow: %s", mcpServerID, console.ToRelativePath(workflowPath))))
 	}
 
 	// Create registry client
@@ -29,7 +29,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 
 	// Search for the MCP server in the registry
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Searching for MCP server '%s' in registry: %s", mcpServerID, registryClient.registryURL)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Searching for MCP server '%s' in registry: %s", mcpServerID, registryClient.registryURL)))
 	}
 
 	servers, err := registryClient.SearchServers(mcpServerID)
@@ -65,7 +65,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	if selectedServer == nil && len(servers) > 0 {
 		selectedServer = &servers[0]
 		if verbose {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No exact match for '%s', using closest match: %s", mcpServerID, selectedServer.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No exact match for '%s', using closest match: %s", mcpServerID, selectedServer.Name)))
 		}
 	}
 
@@ -80,8 +80,8 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Selected server: %s (Transport: %s)", selectedServer.Name, selectedServer.Transport)))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Will add as tool ID: %s", toolID)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Selected server: %s (Transport: %s)", selectedServer.Name, selectedServer.Transport)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Will add as tool ID: %s", toolID)))
 	}
 
 	// Read the workflow file
@@ -116,7 +116,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		return fmt.Errorf("failed to add tool to workflow: %w", err)
 	}
 
-	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Added MCP tool '%s' to workflow %s", toolID, console.ToRelativePath(workflowPath))))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added MCP tool '%s' to workflow %s", toolID, console.ToRelativePath(workflowPath))))
 
 	// Check for required secrets and provide CLI commands if missing
 	if err := checkAndSuggestSecrets(mcpConfig, verbose); err != nil {
@@ -128,7 +128,7 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 
 	// Compile the workflow
 	if verbose {
-		fmt.Println(console.FormatInfoMessage("Compiling workflow..."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling workflow..."))
 	}
 
 	compiler := workflow.NewCompiler(verbose, "", "")
