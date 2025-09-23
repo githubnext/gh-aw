@@ -61,9 +61,9 @@ pkg/
 import "github.com/githubnext/gh-aw/pkg/console"
 
 // Success, info, warning, error messages
-fmt.Println(console.FormatSuccessMessage("Success!"))
-fmt.Println(console.FormatInfoMessage("Info"))
-fmt.Println(console.FormatWarningMessage("Warning"))
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Success!"))
+fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Info"))
+fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Warning"))
 fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 
 // Other types: CommandMessage, ProgressMessage, PromptMessage, 
@@ -78,6 +78,12 @@ fmt.Fprintln(os.Stderr, err)
 // CORRECT  
 fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 ```
+
+**Logging Guidelines:**
+- **ALWAYS** use `fmt.Fprintln(os.Stderr, ...)` or `fmt.Fprintf(os.Stderr, ...)` for CLI logging
+- **NEVER** use `fmt.Println()` or `fmt.Printf()` directly - all output should go to stderr
+- Use console formatting helpers with `os.Stderr` for consistent styling
+- For simple messages without console formatting: `fmt.Fprintf(os.Stderr, "message\n")`
 
 ## Development Guidelines
 
