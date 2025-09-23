@@ -32,7 +32,7 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage("Starting interactive workflow creation..."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting interactive workflow creation..."))
 	}
 
 	builder := &InteractiveWorkflowBuilder{
@@ -273,7 +273,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(verbose bool, force bool) 
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 
-	fmt.Printf("Created new workflow: %s\n", destFile)
+	fmt.Fprintf(os.Stderr, "Created new workflow: %s\n", destFile)
 	return nil
 }
 
@@ -465,7 +465,7 @@ func (b *InteractiveWorkflowBuilder) describeTrigger() string {
 
 // compileWorkflow automatically compiles the generated workflow
 func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
-	fmt.Println(console.FormatInfoMessage("Compiling the generated workflow..."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling the generated workflow..."))
 
 	// Use the existing compile functionality
 	return CompileWorkflows([]string{b.WorkflowName}, verbose, "", true, false, "", false, false, false)

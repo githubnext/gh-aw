@@ -271,7 +271,7 @@ Examples:
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool) error {
 	if verbose {
-		fmt.Println(console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
 
 	var processedRuns []ProcessedRun
@@ -283,7 +283,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		iteration++
 
 		if verbose && iteration > 1 {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Need %d more runs with artifacts, fetching more...", iteration, count-len(processedRuns))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Need %d more runs with artifacts, fetching more...", iteration, count-len(processedRuns))))
 		}
 
 		// Fetch a batch of runs
@@ -314,13 +314,13 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		if len(runs) == 0 {
 			if verbose {
-				fmt.Println(console.FormatInfoMessage("No more workflow runs found, stopping iteration"))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No more workflow runs found, stopping iteration"))
 			}
 			break
 		}
 
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d workflow runs in batch %d", len(runs), iteration)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow runs in batch %d", len(runs), iteration)))
 		}
 
 		// Process each run in this batch
@@ -336,14 +336,14 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			if result.Skipped {
 				if verbose {
 					if result.Error != nil {
-						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping run %d: %v", result.Run.DatabaseID, result.Error)))
 					}
 				}
 				continue
 			}
 
 			if result.Error != nil {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifacts for run %d: %v", result.Run.DatabaseID, result.Error)))
 				continue
 			}
 
@@ -378,7 +378,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 								}
 							}
 						}
-						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, engineName, engine)))
 					}
 					continue
 				}
@@ -396,7 +396,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 				if isStaged {
 					if verbose {
-						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
 					}
 					continue
 				}
@@ -428,7 +428,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		}
 
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d/%d)", batchProcessed, iteration, len(processedRuns), count)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d/%d)", batchProcessed, iteration, len(processedRuns), count)))
 		}
 
 		// Prepare for next iteration: set beforeDate to the oldest run from this batch
@@ -440,7 +440,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		// If we got fewer runs than requested in this batch, we've likely hit the end
 		if len(runs) < batchSize {
 			if verbose {
-				fmt.Println(console.FormatInfoMessage("Received fewer runs than requested, likely reached end of available runs"))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received fewer runs than requested, likely reached end of available runs"))
 			}
 			break
 		}
@@ -448,11 +448,11 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Check if we hit the maximum iterations limit
 	if iteration >= MaxIterations && len(processedRuns) < count {
-		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts out of %d requested", MaxIterations, len(processedRuns), count)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts out of %d requested", MaxIterations, len(processedRuns), count)))
 	}
 
 	if len(processedRuns) == 0 {
-		fmt.Println(console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
 		return nil
 	}
 
@@ -481,7 +481,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Display logs location prominently
 	absOutputDir, _ := filepath.Abs(outputDir)
-	fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", len(processedRuns), absOutputDir)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", len(processedRuns), absOutputDir)))
 	return nil
 }
 
@@ -498,7 +498,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", len(actualRuns))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing %d runs in parallel...", len(actualRuns))))
 	}
 
 	// Use conc pool for controlled concurrency with results
@@ -509,7 +509,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 		run := run // capture loop variable
 		p.Go(func() DownloadResult {
 			if verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", run.DatabaseID, run.Status)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", run.DatabaseID, run.Status)))
 			}
 
 			// Download artifacts and logs for this run
@@ -534,7 +534,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				metrics, metricsErr := extractLogMetrics(runOutputDir, verbose)
 				if metricsErr != nil {
 					if verbose {
-						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", run.DatabaseID, metricsErr)))
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics for run %d: %v", run.DatabaseID, metricsErr)))
 					}
 					// Don't fail the whole download for metrics errors
 					metrics = LogMetrics{}
@@ -545,7 +545,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				accessAnalysis, accessErr := analyzeAccessLogs(runOutputDir, verbose)
 				if accessErr != nil {
 					if verbose {
-						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", run.DatabaseID, accessErr)))
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs for run %d: %v", run.DatabaseID, accessErr)))
 					}
 				}
 				result.AccessAnalysis = accessAnalysis
@@ -554,7 +554,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, run, verbose)
 				if missingErr != nil {
 					if verbose {
-						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools for run %d: %v", run.DatabaseID, missingErr)))
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract missing tools for run %d: %v", run.DatabaseID, missingErr)))
 					}
 				}
 				result.MissingTools = missingTools
@@ -563,7 +563,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				mcpFailures, mcpErr := extractMCPFailuresFromRun(runOutputDir, run, verbose)
 				if mcpErr != nil {
 					if verbose {
-						fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", run.DatabaseID, mcpErr)))
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures for run %d: %v", run.DatabaseID, mcpErr)))
 					}
 				}
 				result.MCPFailures = mcpFailures
@@ -583,7 +583,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				successCount++
 			}
 		}
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Completed parallel processing: %d successful, %d total", successCount, len(results))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Completed parallel processing: %d successful, %d total", successCount, len(results))))
 	}
 
 	return results

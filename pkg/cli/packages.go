@@ -11,7 +11,7 @@ import (
 // InstallPackage installs agentic workflows from a GitHub repository
 func InstallPackage(repoSpec string, local bool, verbose bool) error {
 	if verbose {
-		fmt.Printf("Installing package: %s\n", repoSpec)
+		fmt.Fprintf(os.Stderr, "Installing package: %s\n", repoSpec)
 	}
 
 	// Parse repository specification (org/repo[@version])
@@ -21,11 +21,11 @@ func InstallPackage(repoSpec string, local bool, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Printf("Repository: %s\n", repo)
+		fmt.Fprintf(os.Stderr, "Repository: %s\n", repo)
 		if version != "" {
-			fmt.Printf("Version: %s\n", version)
+			fmt.Fprintf(os.Stderr, "Version: %s\n", version)
 		} else {
-			fmt.Printf("Version: main (default)\n")
+			fmt.Fprintf(os.Stderr, "Version: main (default)\n")
 		}
 	}
 
@@ -37,9 +37,9 @@ func InstallPackage(repoSpec string, local bool, verbose bool) error {
 
 	if verbose {
 		if local {
-			fmt.Printf("Installing to local packages directory: %s\n", packagesDir)
+			fmt.Fprintf(os.Stderr, "Installing to local packages directory: %s\n", packagesDir)
 		} else {
-			fmt.Printf("Installing to global packages directory: %s\n", packagesDir)
+			fmt.Fprintf(os.Stderr, "Installing to global packages directory: %s\n", packagesDir)
 		}
 	}
 
@@ -58,7 +58,7 @@ func InstallPackage(repoSpec string, local bool, verbose bool) error {
 	if _, err := os.Stat(targetDir); err == nil {
 		entries, err := os.ReadDir(targetDir)
 		if err == nil && len(entries) > 0 {
-			fmt.Printf("Package %s already exists. Updating...\n", repo)
+			fmt.Fprintf(os.Stderr, "Package %s already exists. Updating...\n", repo)
 			// Remove existing content
 			if err := os.RemoveAll(targetDir); err != nil {
 				return fmt.Errorf("failed to remove existing package: %w", err)
@@ -74,14 +74,14 @@ func InstallPackage(repoSpec string, local bool, verbose bool) error {
 		return fmt.Errorf("failed to download workflows: %w", err)
 	}
 
-	fmt.Printf("Successfully installed package: %s\n", repo)
+	fmt.Fprintf(os.Stderr, "Successfully installed package: %s\n", repo)
 	return nil
 }
 
 // UninstallPackage removes an installed package
 func UninstallPackage(repoSpec string, local bool, verbose bool) error {
 	if verbose {
-		fmt.Printf("Uninstalling package: %s\n", repoSpec)
+		fmt.Fprintf(os.Stderr, "Uninstalling package: %s\n", repoSpec)
 	}
 
 	// Parse repository specification (only org/repo part, ignore version)
@@ -98,9 +98,9 @@ func UninstallPackage(repoSpec string, local bool, verbose bool) error {
 
 	if verbose {
 		if local {
-			fmt.Printf("Uninstalling from local packages directory: %s\n", packagesDir)
+			fmt.Fprintf(os.Stderr, "Uninstalling from local packages directory: %s\n", packagesDir)
 		} else {
-			fmt.Printf("Uninstalling from global packages directory: %s\n", packagesDir)
+			fmt.Fprintf(os.Stderr, "Uninstalling from global packages directory: %s\n", packagesDir)
 		}
 	}
 
@@ -108,7 +108,7 @@ func UninstallPackage(repoSpec string, local bool, verbose bool) error {
 	targetDir := filepath.Join(packagesDir, repo)
 
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		fmt.Printf("Package %s is not installed.\n", repo)
+		fmt.Fprintf(os.Stderr, "Package %s is not installed.\n", repo)
 		return nil
 	}
 
@@ -117,7 +117,7 @@ func UninstallPackage(repoSpec string, local bool, verbose bool) error {
 		return fmt.Errorf("failed to remove package directory: %w", err)
 	}
 
-	fmt.Printf("Successfully uninstalled package: %s\n", repo)
+	fmt.Fprintf(os.Stderr, "Successfully uninstalled package: %s\n", repo)
 	return nil
 }
 
