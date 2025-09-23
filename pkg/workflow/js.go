@@ -36,6 +36,9 @@ var addLabelsScript string
 //go:embed js/update_issue.cjs
 var updateIssueScript string
 
+//go:embed js/update_release.cjs
+var updateReleaseScript string
+
 //go:embed js/push_to_pull_request_branch.cjs
 var pushToBranchScript string
 

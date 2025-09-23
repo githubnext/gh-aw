@@ -162,6 +162,7 @@ type SafeOutputsConfig struct {
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
+	UpdateReleases                  *UpdateReleasesConfig                  `yaml:"update-releases,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
@@ -1642,6 +1643,17 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 		if err := c.jobManager.AddJob(updateIssueJob); err != nil {
 			return fmt.Errorf("failed to add update_issue job: %w", err)
+		}
+	}
+
+	// Build update_release job if output.update-release is configured
+	if data.SafeOutputs.UpdateReleases != nil {
+		updateReleaseJob, err := c.buildCreateOutputUpdateReleaseJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build update_release job: %w", err)
+		}
+		if err := c.jobManager.AddJob(updateReleaseJob); err != nil {
+			return fmt.Errorf("failed to add update_release job: %w", err)
 		}
 	}
 

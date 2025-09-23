@@ -54,6 +54,7 @@
     "sanitize_output.cjs",
     "setup_agent_output.cjs",
     "update_issue.cjs",
+    "update_release.ts",
     "validate_errors.cjs",
     "types/*.d.ts"
   ],

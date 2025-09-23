@@ -35,6 +35,7 @@
     "add_labels.ts",
     "create_discussion.ts",
     "create_issue.ts",
+    "update_release.ts",
     "types/*.d.ts"
   ],
   "exclude": [

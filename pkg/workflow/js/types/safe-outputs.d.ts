@@ -124,6 +124,17 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for updating a release
+ */
+interface UpdateReleaseItem extends BaseSafeOutputItem {
+  type: "update-release";
+  /** Content to append to release body */
+  body: string;
+  /** Optional release ID for target "*" */
+  release_id?: number | string;
+}
+
+/**
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
@@ -168,6 +179,7 @@ type SafeOutputItem =
   | CreateCodeScanningAlertItem
   | AddLabelsItem
   | UpdateIssueItem
+  | UpdateReleaseItem
   | PushToPrBranchItem
   | MissingToolItem
   | UploadAssetItem;
@@ -191,6 +203,7 @@ export {
   CreateCodeScanningAlertItem,
   AddLabelsItem,
   UpdateIssueItem,
+  UpdateReleaseItem,
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,

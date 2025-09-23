@@ -402,6 +402,21 @@ const ALL_TOOLS = [
     },
   },
   {
+    name: "update_release",
+    description: "Update a GitHub release",
+    inputSchema: {
+      type: "object",
+      properties: {
+        body: { type: "string", description: "Content to append to release body" },
+        release_id: {
+          type: ["number", "string"],
+          description: "Optional release ID for target '*'",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "push_to_pull_request_branch",
     description: "Push changes to a pull request branch",
     inputSchema: {

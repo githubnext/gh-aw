@@ -161,6 +161,8 @@ async function main() {
         return 5; // Only one labels operation allowed
       case "update-issue":
         return 1; // Only one issue update allowed
+      case "update-release":
+        return 1; // Only one release update allowed
       case "push-to-pull-request-branch":
         return 1; // Only one push to branch allowed
       case "create-discussion":
@@ -604,6 +606,23 @@ async function main() {
           if (!updateIssueNumValidation.isValid) {
             errors.push(updateIssueNumValidation.error);
             continue;
+          }
+          break;
+
+        case "update-release":
+          // Validate required body field
+          if (!item.body || typeof item.body !== "string") {
+            errors.push(`Line ${i + 1}: update-release requires a 'body' string field`);
+            continue;
+          }
+          // Sanitize body content
+          item.body = sanitizeContent(item.body);
+          // Validate release_id if provided (for target "*")
+          if (item.release_id !== undefined) {
+            if (typeof item.release_id !== "string" && typeof item.release_id !== "number") {
+              errors.push(`Line ${i + 1}: update-release 'release_id' must be a string or number`);
+              continue;
+            }
           }
           break;
 

@@ -15,6 +15,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
+		safeOutputs.UpdateReleases != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil
@@ -63,6 +64,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Updating Issues")
+		written = true
+	}
+
+	if safeOutputs.UpdateReleases != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Updating Releases")
 		written = true
 	}
 
@@ -138,6 +147,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Updating an Issue**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To udpate an issue, use the update-issue tool from the safe-outputs MCP\n")
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.UpdateReleases != nil {
+		yaml.WriteString("          **Updating a Release**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To update a release, use the update-release tool from the safe-outputs MCP\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -302,6 +318,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
 			if updateIssuesConfig != nil {
 				config.UpdateIssues = updateIssuesConfig
+			}
+
+			// Handle update-release
+			updateReleasesConfig := c.parseUpdateReleasesConfig(outputMap)
+			if updateReleasesConfig != nil {
+				config.UpdateReleases = updateReleasesConfig
 			}
 
 			// Handle push-to-pull-request-branch
