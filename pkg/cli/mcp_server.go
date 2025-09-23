@@ -317,21 +317,52 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				fmt.Fprintf(os.Stderr, "📊 Checking workflow status...\n")
 			}
 
-			err := StatusWorkflows(args.Pattern, args.Verbose || verbose)
+			// Capture the status output by redirecting stdout to a buffer
+			// since StatusWorkflows writes directly to stdout
+			originalStdout := os.Stdout
+			r, w, err := os.Pipe()
 			if err != nil {
 				return &mcp.CallToolResult{
 					IsError: true,
-					Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error checking status: %v", err)}},
+					Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error creating pipe: %v", err)}},
 				}, nil, nil
 			}
 
-			message := "Workflow status check completed"
+			// Temporarily redirect stdout
+			os.Stdout = w
+
+			// Call the status function
+			statusErr := StatusWorkflows(args.Pattern, args.Verbose || verbose)
+
+			// Restore stdout
+			w.Close()
+			os.Stdout = originalStdout
+
+			// Read the captured output
+			outputBytes := make([]byte, 4096)
+			n, readErr := r.Read(outputBytes)
+			r.Close()
+
+			if statusErr != nil {
+				return &mcp.CallToolResult{
+					IsError: true,
+					Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Error checking status: %v", statusErr)}},
+				}, nil, nil
+			}
+
+			var output string
+			if readErr == nil && n > 0 {
+				output = string(outputBytes[:n])
+			} else {
+				output = "Status check completed successfully"
+			}
+
 			if args.Pattern != "" {
-				message = fmt.Sprintf("Workflow status check completed for pattern: %s", args.Pattern)
+				output = fmt.Sprintf("Status for pattern '%s':\n%s", args.Pattern, output)
 			}
 
 			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: message}},
+				Content: []mcp.Content{&mcp.TextContent{Text: output}},
 			}, nil, nil
 		})
 	}
