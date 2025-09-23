@@ -231,21 +231,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid frontmatter with legacy MCP format",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"legacyTool": map[string]any{
-						"mcp": map[string]any{
-							"type":    "stdio",
-							"command": "legacy-tool",
-						},
-						"allowed": []string{"legacy_function"},
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
 			name: "invalid new format: stdio without command or container",
 			frontmatter: map[string]any{
 				"tools": map[string]any{

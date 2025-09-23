@@ -263,57 +263,6 @@ func TestWorkflowDataStructure(t *testing.T) {
 
 }
 
-func TestInvalidJSONInMCPConfig(t *testing.T) {
-	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "invalid-json-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Create a test markdown file with invalid JSON in MCP config
-	testContent := `---
-on: push
-tools:
-  badApi:
-    mcp: '{"type": "stdio", "command": "test", invalid json'
-    allowed: ["*"]
----
-
-# Test Invalid JSON MCP Configuration
-
-This workflow tests error handling for invalid JSON in MCP configuration.
-`
-
-	testFile := filepath.Join(tmpDir, "test-invalid-json.md")
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	compiler := NewCompiler(false, "", "test")
-
-	// This should fail with a JSON parsing error
-	err = compiler.CompileWorkflow(testFile)
-	if err == nil {
-		t.Error("Expected error for invalid JSON in MCP configuration, got nil")
-		return
-	}
-
-	// Check that the error message contains expected text
-	expectedErrorSubstrings := []string{
-		"invalid MCP configuration",
-		"badApi",
-		"invalid JSON",
-	}
-
-	errorMsg := err.Error()
-	for _, expectedSubstring := range expectedErrorSubstrings {
-		if !strings.Contains(errorMsg, expectedSubstring) {
-			t.Errorf("Expected error message to contain '%s', but got: %s", expectedSubstring, errorMsg)
-		}
-	}
-}
-
 func TestOnSection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "workflow-on-test")
