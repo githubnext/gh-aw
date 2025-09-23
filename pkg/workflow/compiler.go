@@ -1751,7 +1751,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	// Build step content using the generateMainJobSteps helper method
 	// but capture it into a string instead of writing directly
 	var stepBuilder strings.Builder
-	c.generateMainJobSteps(&stepBuilder, data, frontmatter)
+	c.generateMainJobSteps(&stepBuilder, data)
 
 	// Split the steps content into individual step entries
 	stepsContent := stepBuilder.String()
@@ -1798,7 +1798,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 }
 
 // generateMainJobSteps generates the steps section for the main job
-func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData, frontmatter map[string]any) {
+func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Determine if we need to add a checkout step
 	needsCheckout := c.shouldAddCheckoutStep(data)
 
