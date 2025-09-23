@@ -1159,152 +1159,175 @@
           {
             "type": "object",
             "description": "Custom tool object configuration",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": ["stdio", "http"],
-                "description": "MCP connection type"
-              },
-              "command": {
-                "type": "string",
-                "description": "Command for stdio MCP connections"
-              },
-              "args": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Arguments for command execution"
-              },
-              "container": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$",
-                "description": "Container image for stdio MCP connections (alternative to command)"
-              },
-              "url": {
-                "type": "string",
-                "description": "URL for HTTP MCP connections"
-              },
-              "headers": {
-                "type": "object",
-                "patternProperties": {
-                  "^[A-Za-z0-9-]+$": {
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": false,
-                "description": "HTTP headers for HTTP MCP connections"
-              },
-              "env": {
-                "type": "object",
-                "patternProperties": {
-                  "^[A-Z_][A-Z0-9_]*$": {
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": false,
-                "description": "Environment variables for MCP server"
-              },
-              "permissions": {
-                "type": "object",
+            "oneOf": [
+              {
+                "description": "New format: Direct MCP configuration fields",
                 "properties": {
-                  "network": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["stdio", "http"],
+                    "description": "MCP connection type"
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Command for stdio MCP connections"
+                  },
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Arguments for command execution"
+                  },
+                  "container": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$",
+                    "description": "Container image for stdio MCP connections (alternative to command)"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "URL for HTTP MCP connections"
+                  },
+                  "headers": {
                     "type": "object",
-                    "properties": {
-                      "allowed": {
-                        "type": "array",
-                        "items": {
-                          "type": "string",
-                          "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
-                          "description": "Allowed domain name"
-                        },
-                        "minItems": 1,
-                        "uniqueItems": true,
-                        "description": "List of allowed domain names for network access"
+                    "patternProperties": {
+                      "^[A-Za-z0-9-]+$": {
+                        "type": "string"
                       }
                     },
-                    "required": ["allowed"],
                     "additionalProperties": false,
-                    "description": "Network access permissions"
+                    "description": "HTTP headers for HTTP MCP connections"
+                  },
+                  "env": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^[A-Z_][A-Z0-9_]*$": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Environment variables for MCP server"
+                  },
+                  "permissions": {
+                    "type": "object",
+                    "properties": {
+                      "network": {
+                        "type": "object",
+                        "properties": {
+                          "allowed": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
+                              "description": "Allowed domain name"
+                            },
+                            "minItems": 1,
+                            "uniqueItems": true,
+                            "description": "List of allowed domain names for network access"
+                          }
+                        },
+                        "required": ["allowed"],
+                        "additionalProperties": false,
+                        "description": "Network access permissions"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Permissions configuration for container-based MCP servers"
+                  },
+                  "allowed": {
+                    "type": "array",
+                    "description": "List of allowed tool functions",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "additionalProperties": false,
-                "description": "Permissions configuration for container-based MCP servers"
+                "required": ["type"],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "type": {
+                          "const": "http"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": ["url"],
+                      "not": {
+                        "anyOf": [
+                          {"required": ["command"]},
+                          {"required": ["container"]},
+                          {"required": ["permissions"]}
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "type": {
+                          "const": "stdio"
+                        }
+                      }
+                    },
+                    "then": {
+                      "anyOf": [
+                        {"required": ["command"]},
+                        {"required": ["container"]}
+                      ],
+                      "not": {
+                        "allOf": [
+                          {"required": ["command"]},
+                          {"required": ["container"]}
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": ["container"]
+                    },
+                    "then": {
+                      "properties": {
+                        "type": {
+                          "const": "stdio"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "required": ["permissions"]
+                    },
+                    "then": {
+                      "required": ["container"],
+                      "properties": {
+                        "type": {
+                          "const": "stdio"
+                        }
+                      }
+                    }
+                  }
+                ]
               },
-              "allowed": {
-                "type": "array",
-                "description": "List of allowed tool functions",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "additionalProperties": false,
-            "allOf": [
               {
-                "if": {
-                  "properties": {
-                    "type": {
-                      "const": "http"
+                "description": "Old format: Nested MCP configuration (backward compatibility)",
+                "properties": {
+                  "mcp": {
+                    "description": "MCP server configuration (legacy format)",
+                    "additionalProperties": true
+                  },
+                  "allowed": {
+                    "type": "array",
+                    "description": "List of allowed tool functions",
+                    "items": {
+                      "type": "string"
                     }
                   }
                 },
-                "then": {
-                  "required": ["url"],
-                  "not": {
-                    "anyOf": [
-                      {"required": ["command"]},
-                      {"required": ["container"]},
-                      {"required": ["permissions"]}
-                    ]
-                  }
-                }
-              },
-              {
-                "if": {
-                  "properties": {
-                    "type": {
-                      "const": "stdio"
-                    }
-                  }
-                },
-                "then": {
-                  "anyOf": [
-                    {"required": ["command"]},
-                    {"required": ["container"]}
-                  ],
-                  "not": {
-                    "allOf": [
-                      {"required": ["command"]},
-                      {"required": ["container"]}
-                    ]
-                  }
-                }
-              },
-              {
-                "if": {
-                  "required": ["container"]
-                },
-                "then": {
-                  "properties": {
-                    "type": {
-                      "const": "stdio"
-                    }
-                  }
-                }
-              },
-              {
-                "if": {
-                  "required": ["permissions"]
-                },
-                "then": {
-                  "required": ["container"],
-                  "properties": {
-                    "type": {
-                      "const": "stdio"
-                    }
-                  }
-                }
+                "additionalProperties": false
               }
             ]
           }

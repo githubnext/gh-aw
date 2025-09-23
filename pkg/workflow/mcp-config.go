@@ -382,36 +382,43 @@ func ValidateMCPConfigs(tools map[string]any) error {
 			var mcpConfig map[string]any
 			var hasMCP bool
 
-			// Check for new format first - direct MCP fields in tool config
-			mcpFields := []string{"type", "command", "args", "container", "url", "headers", "env", "permissions"}
+			// Check for MCP configuration in both old and new formats
 			mcpConfig = make(map[string]any)
-			for _, field := range mcpFields {
-				if value, exists := config[field]; exists {
-					mcpConfig[field] = value
-					hasMCP = true
+			
+			// First, check for old format (nested mcp field)
+			if mcpSection, hasNestedMcp := config["mcp"]; hasNestedMcp {
+				hasMCP = true
+				
+				if mcpString, ok := mcpSection.(string); ok {
+					// Validate JSON string format
+					var parsedMcp map[string]any
+					if err := json.Unmarshal([]byte(mcpString), &parsedMcp); err != nil {
+						return fmt.Errorf("tool '%s' has invalid JSON in mcp configuration: %w", toolName, err)
+					}
+					mcpConfig = parsedMcp
+				} else if mcpMap, ok := mcpSection.(map[string]any); ok {
+					// Create a copy to avoid modifying the original during validation
+					for k, v := range mcpMap {
+						mcpConfig[k] = v
+					}
+				} else {
+					return fmt.Errorf("tool '%s' has invalid mcp configuration format", toolName)
 				}
-			}
-
-			// If no direct fields found, fall back to old nested format
-			if !hasMCP {
-				if mcpSection, hasNestedMcp := config["mcp"]; hasNestedMcp {
-					hasMCP = true
-					
-					if mcpString, ok := mcpSection.(string); ok {
-						// Validate JSON string format
-						var parsedMcp map[string]any
-						if err := json.Unmarshal([]byte(mcpString), &parsedMcp); err != nil {
-							return fmt.Errorf("tool '%s' has invalid JSON in mcp configuration: %w", toolName, err)
-						}
-						mcpConfig = parsedMcp
-					} else if mcpMap, ok := mcpSection.(map[string]any); ok {
-						// Create a copy to avoid modifying the original during validation
-						mcpConfig = make(map[string]any)
-						for k, v := range mcpMap {
-							mcpConfig[k] = v
-						}
-					} else {
-						return fmt.Errorf("tool '%s' has invalid mcp configuration format", toolName)
+				
+				// For old format, also merge any external MCP fields (like permissions outside mcp)
+				externalMcpFields := []string{"permissions"}
+				for _, field := range externalMcpFields {
+					if value, exists := config[field]; exists {
+						mcpConfig[field] = value
+					}
+				}
+			} else {
+				// Check for new format - direct MCP fields in tool config
+				mcpFields := []string{"type", "command", "args", "container", "url", "headers", "env", "permissions"}
+				for _, field := range mcpFields {
+					if value, exists := config[field]; exists {
+						mcpConfig[field] = value
+						hasMCP = true
 					}
 				}
 			}
