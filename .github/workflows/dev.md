@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - copilot/*
-      - pelikhan/*
 safe-outputs:
   staged: true
   upload-assets:
@@ -31,18 +30,15 @@ tools:
 steps:
   - name: Checkout repository
     uses: actions/checkout@v5
-
   - name: Setup Node.js
     uses: actions/setup-node@v4
     with:
       node-version: '24'
       cache: 'npm'
       cache-dependency-path: 'docs/package-lock.json'
-
   - name: Install dependencies
     working-directory: ./docs
     run: npm ci
-
   - name: Build documentation
     working-directory: ./docs
     env:
