@@ -254,3 +254,56 @@ Final content.`,
 		t.Error("Expected final content to be preserved")
 	}
 }
+
+func TestTruncateMarkdownForGitHubActions(t *testing.T) {
+	// Test short content - should not be truncated
+	shortContent := "# Short content\n\nThis is a brief workflow description."
+	result := truncateMarkdownForGitHubActions(shortContent)
+	if result != shortContent {
+		t.Error("Short content should not be truncated")
+	}
+
+	// Test content that exceeds the limit
+	longContent := strings.Repeat("This is a very long line of content that will be repeated many times to exceed the character limit.\n", 500)
+	result = truncateMarkdownForGitHubActions(longContent)
+	
+	if len(result) > 21000 {
+		t.Errorf("Truncated content should not exceed 21000 characters, got %d", len(result))
+	}
+	
+	if !strings.Contains(result, "[Content truncated due to GitHub Actions script size limit]") {
+		t.Error("Truncated content should include truncation notice")
+	}
+	
+	// Should still preserve the beginning of the content
+	if !strings.HasPrefix(result, "This is a very long line") {
+		t.Error("Truncated content should preserve the beginning")
+	}
+}
+
+func TestGeneratePromptWithCharacterLimitEnforcement(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Create content that exceeds the GitHub Actions character limit
+	longContent := "# Very Long Workflow\n\n"
+	longContent += strings.Repeat("This is a very long line that will be repeated many times to test the character limit enforcement in GitHub Actions prompt generation.\n", 400)
+
+	data := &WorkflowData{
+		MarkdownContent: longContent,
+	}
+
+	var yaml strings.Builder
+	compiler.generatePrompt(&yaml, data)
+
+	output := yaml.String()
+
+	// The generated YAML should contain the truncation notice
+	if !strings.Contains(output, "[Content truncated due to GitHub Actions script size limit]") {
+		t.Error("Expected truncation notice in generated YAML when content exceeds character limit")
+	}
+
+	// Should still preserve the workflow title
+	if !strings.Contains(output, "# Very Long Workflow") {
+		t.Error("Expected workflow title to be preserved even when truncated")
+	}
+}

@@ -2092,6 +2092,54 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
+// truncateMarkdownForGitHubActions truncates markdown content to stay within GitHub Actions script size limits
+// GitHub Actions has a limit of approximately 21,000 characters for inline shell scripts
+func truncateMarkdownForGitHubActions(content string) string {
+	const maxCharacters = 21000 // Leave some buffer below the actual limit
+	const truncationNotice = "\n\n[Content truncated due to GitHub Actions script size limit]"
+	const indentSpaces = "          " // 10 spaces added to each line
+	
+	// Calculate the content size including indentation
+	lines := strings.Split(content, "\n")
+	estimatedSize := 0
+	for _, line := range lines {
+		estimatedSize += len(indentSpaces) + len(line) + 1 // +1 for newline
+	}
+	
+	// Add the size of the truncation notice with indentation
+	noticeLines := strings.Split(truncationNotice, "\n")
+	noticeSize := 0
+	for _, line := range noticeLines {
+		noticeSize += len(indentSpaces) + len(line) + 1
+	}
+	
+	// If the content fits, return as-is
+	if estimatedSize <= maxCharacters {
+		return content
+	}
+	
+	// Calculate the effective limit accounting for the truncation notice
+	effectiveLimit := maxCharacters - noticeSize
+	
+	// Truncate content line by line to stay within the limit
+	var truncatedLines []string
+	currentSize := 0
+	
+	for _, line := range lines {
+		lineSize := len(indentSpaces) + len(line) + 1
+		if currentSize+lineSize > effectiveLimit {
+			break
+		}
+		truncatedLines = append(truncatedLines, line)
+		currentSize += lineSize
+	}
+	
+	// Join the truncated lines and add the notice
+	truncated := strings.Join(truncatedLines, "\n") + truncationNotice
+	
+	return truncated
+}
+
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Create prompt\n")
 
@@ -2110,7 +2158,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add markdown content with proper indentation (removing XML comments)
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
-	for _, line := range strings.Split(cleanedMarkdownContent, "\n") {
+	
+	// Truncate content if it would exceed GitHub Actions script size limits
+	truncatedContent := truncateMarkdownForGitHubActions(cleanedMarkdownContent)
+	
+	for _, line := range strings.Split(truncatedContent, "\n") {
 		yaml.WriteString("          " + line + "\n")
 	}
 
