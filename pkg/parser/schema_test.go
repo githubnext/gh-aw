@@ -268,7 +268,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "value must be one of 'stdio', 'http'",
+			errContains: "oneOf",
 		},
 		{
 			name: "valid frontmatter with detailed permissions",
@@ -435,11 +435,9 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"customTool": map[string]any{
-						"allowed": []string{"function1"},
-						"mcp": map[string]any{
-							"type":    "stdio",
-							"command": "my-tool",
-						},
+						"type":         "stdio",
+						"command":      "my-tool",
+						"allowed":      []string{"function1"},
 						"invalid_prop": "value",
 					},
 				},
