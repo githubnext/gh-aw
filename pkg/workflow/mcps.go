@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // generateGitConfiguration generates standardized git credential setup
@@ -11,17 +14,6 @@ func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *Workflo
 	steps := c.generateGitConfigurationSteps()
 	for _, step := range steps {
 		yaml.WriteString(step)
-	}
-}
-
-// generateGitConfigurationSteps generates standardized git credential setup as string steps
-func (c *Compiler) generateGitConfigurationSteps() []string {
-	return []string{
-		"      - name: Configure Git credentials\n",
-		"        run: |\n",
-		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
-		"          git config --global user.name \"${{ github.workflow }}\"\n",
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
 	}
 }
 
@@ -127,12 +119,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
-		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
-		if safeOutputConfig != "" {
-			// Add environment variables for JSONL validation
-			yaml.WriteString("        env:\n")
-			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-		}
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
@@ -154,6 +140,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("        env:\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+			if workflowData.SafeOutputs.UploadAssets != nil {
+				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
+				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
+				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
+			}
 		}
 	}
 	yaml.WriteString("        run: |\n")
@@ -187,42 +178,11 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	return playwrightDockerImageVersion
 }
 
-// ensureLocalhostDomainsWorkflow ensures that localhost and 127.0.0.1 are always included
-// in the allowed domains list for Playwright, even when custom domains are specified
-func ensureLocalhostDomainsWorkflow(domains []string) []string {
-	hasLocalhost := false
-	hasLoopback := false
-
-	for _, domain := range domains {
-		if domain == "localhost" {
-			hasLocalhost = true
-		}
-		if domain == "127.0.0.1" {
-			hasLoopback = true
-		}
-	}
-
-	result := make([]string, 0, len(domains)+2)
-
-	// Always add localhost domains first
-	if !hasLocalhost {
-		result = append(result, "localhost")
-	}
-	if !hasLoopback {
-		result = append(result, "127.0.0.1")
-	}
-
-	// Add the rest of the domains
-	result = append(result, domains...)
-
-	return result
-}
-
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
-	// Default to localhost only (same as Copilot agent default)
-	allowedDomains := []string{"localhost", "127.0.0.1"}
+	// Default to localhost with all port variations (same as Copilot agent default)
+	allowedDomains := constants.DefaultAllowedDomains
 
 	// Extract allowed_domains from Playwright tool configuration
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
@@ -251,7 +211,7 @@ func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *Ne
 			resolvedDomains := GetAllowedDomains(playwrightNetwork)
 
 			// Ensure localhost domains are always included
-			allowedDomains = ensureLocalhostDomainsWorkflow(resolvedDomains)
+			allowedDomains = parser.EnsureLocalhostDomains(resolvedDomains)
 		}
 	}
 

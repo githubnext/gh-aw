@@ -57,11 +57,7 @@ function parseCodexLog(logContent) {
             if (nextLine.includes("success in")) {
               statusIcon = "✅";
               break;
-            } else if (
-              nextLine.includes("failure in") ||
-              nextLine.includes("error in") ||
-              nextLine.includes("failed in")
-            ) {
+            } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
               statusIcon = "❌";
               break;
             }
@@ -72,9 +68,7 @@ function parseCodexLog(logContent) {
             const parts = toolName.split(".");
             const provider = parts[0];
             const method = parts.slice(1).join("_");
-            commandSummary.push(
-              `* ${statusIcon} \`${provider}::${method}(...)\``
-            );
+            commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
           } else {
             commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
           }
@@ -92,10 +86,7 @@ function parseCodexLog(logContent) {
             if (nextLine.includes("succeeded in")) {
               statusIcon = "✅";
               break;
-            } else if (
-              nextLine.includes("failed in") ||
-              nextLine.includes("error")
-            ) {
+            } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
               statusIcon = "❌";
               break;
             }
@@ -191,11 +182,7 @@ function parseCodexLog(logContent) {
             if (nextLine.includes("success in")) {
               statusIcon = "✅";
               break;
-            } else if (
-              nextLine.includes("failure in") ||
-              nextLine.includes("error in") ||
-              nextLine.includes("failed in")
-            ) {
+            } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
               statusIcon = "❌";
               break;
             }
@@ -227,10 +214,7 @@ function parseCodexLog(logContent) {
             if (nextLine.includes("succeeded in")) {
               statusIcon = "✅";
               break;
-            } else if (
-              nextLine.includes("failed in") ||
-              nextLine.includes("error")
-            ) {
+            } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
               statusIcon = "❌";
               break;
             }
@@ -242,11 +226,7 @@ function parseCodexLog(logContent) {
       }
 
       // Process thinking content
-      if (
-        inThinkingSection &&
-        line.trim().length > 20 &&
-        !line.startsWith("[2025-")
-      ) {
+      if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
         const trimmed = line.trim();
         // Add thinking content directly
         markdown += `${trimmed}\n\n`;

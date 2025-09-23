@@ -87,17 +87,16 @@ describe("create_discussion.cjs", () => {
     delete process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID;
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "create_discussion.cjs");
+    const scriptPath = path.join(process.cwd(), "create_discussion.js");
     createDiscussionScript = fs.readFileSync(scriptPath, "utf8");
+    createDiscussionScript = createDiscussionScript.replace("export {};", "");
   });
 
   it("should handle missing GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "No GITHUB_AW_AGENT_OUTPUT environment variable found"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
   });
 
   it("should handle empty agent output", async () => {
@@ -114,14 +113,8 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Check that it logs the content length first, then the error
-    expect(mockCore.debug).toHaveBeenCalledWith(
-      "Agent output content length: 12"
-    );
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /Error parsing agent output JSON:.*Unexpected token/
-      )
-    );
+    expect(mockCore.debug).toHaveBeenCalledWith("Agent output content length: 12");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:.*Unexpected token/));
   });
 
   it("should handle missing create-discussion items", async () => {
@@ -132,9 +125,7 @@ describe("create_discussion.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      "No create-discussion items found in agent output"
-    );
+    expect(mockCore.warning).toHaveBeenCalledWith("No create-discussion items found in agent output");
   });
 
   it("should create discussions successfully with basic configuration", async () => {
@@ -179,19 +170,14 @@ describe("create_discussion.cjs", () => {
     expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
 
     // Verify repository query with categories
-    expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining("query($owner: String!, $repo: String!)"),
-      {
-        owner: "testowner",
-        repo: "testrepo",
-      }
-    );
+    expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("query($owner: String!, $repo: String!)"), {
+      owner: "testowner",
+      repo: "testrepo",
+    });
 
     // Verify create discussion mutation
     expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"
-      ),
+      expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"),
       {
         repositoryId: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
         categoryId: "DIC_test456",
@@ -202,15 +188,10 @@ describe("create_discussion.cjs", () => {
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 1);
-    expect(mockCore.setOutput).toHaveBeenCalledWith(
-      "discussion_url",
-      "https://github.com/testowner/testrepo/discussions/1"
-    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_url", "https://github.com/testowner/testrepo/discussions/1");
 
     // Verify summary was written
-    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(
-      expect.stringContaining("## GitHub Discussions")
-    );
+    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## GitHub Discussions"));
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 
@@ -253,9 +234,7 @@ describe("create_discussion.cjs", () => {
 
     // Verify the title was prefixed in the GraphQL mutation
     expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"
-      ),
+      expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"),
       expect.objectContaining({
         title: "[ai] Test Discussion",
       })
@@ -304,9 +283,7 @@ describe("create_discussion.cjs", () => {
 
     // Verify the specified category was used in the GraphQL mutation
     expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"
-      ),
+      expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"),
       expect.objectContaining({
         categoryId: "DIC_custom789",
       })
@@ -333,9 +310,7 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Should log appropriate warning message
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "⚠ Cannot create discussions: Discussions are not enabled for this repository"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("⚠ Cannot create discussions: Discussions are not enabled for this repository");
     expect(mockCore.info).toHaveBeenCalledWith(
       "Consider enabling discussions in repository settings if you want to create discussions automatically"
     );

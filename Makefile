@@ -13,7 +13,7 @@ all: build
 
 # Build the binary
 .PHONY: build
-build:
+build: js fmt-cjs
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -37,7 +37,31 @@ build-windows:
 # Test the code
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v -timeout=3m ./...
+
+# Test unit tests only (excludes integration tests)
+.PHONY: test-unit
+test-unit:
+	go test -v -timeout=3m -tags '!integration' ./...
+
+# Test integration tests only
+.PHONY: test-integration
+test-integration:
+	go test -v -timeout=3m -tags 'integration' ./...
+
+.PHONY: test-perf
+test-perf:
+	go test -v -timeout=3m ./... | tee /tmp/test-output.log; \
+	EXIT_CODE=$$?; \
+	echo ""; \
+	echo "=== SLOWEST TESTS ==="; \
+	grep -E "^\s*--- (PASS|FAIL):" /tmp/test-output.log | \
+	grep -E "\([0-9]+\.[0-9]+s\)" | \
+	sed 's/.*\(Test[^ ]*\).* (\([0-9]*\.[0-9]*s\)).*/\2 \1/' | \
+	sort -nr | \
+	head -10; \
+	rm -f /tmp/test-output.log; \
+	exit $$EXIT_CODE
 
 # Test JavaScript files
 .PHONY: test-js
@@ -51,7 +75,7 @@ test-all: test test-js
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
-	go test -v -coverprofile=coverage.out ./...
+	go test -v -timeout=3m -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 # Clean build artifacts
@@ -108,7 +132,7 @@ validate-workflows:
 fmt:
 	go fmt ./...
 
-# Format JavaScript (.cjs) files
+# Format JavaScript (.cjs and .js) files
 .PHONY: fmt-cjs
 fmt-cjs:
 	cd pkg/workflow/js && npm run format:cjs
@@ -117,7 +141,13 @@ fmt-cjs:
 .PHONY: js
 js:
 	echo "Running TypeScript compiler..."; \
-	cd pkg/workflow/js && npm run typecheck
+	cd pkg/workflow/js && npm run compile
+
+# Compile TypeScript files to CommonJS
+.PHONY: compile-ts
+compile-ts:
+	echo "Compiling TypeScript files..."; \
+	cd pkg/workflow/js && npm run compile
 
 # Check formatting
 .PHONY: fmt-check
@@ -150,9 +180,9 @@ install: build
 
 # Recompile all workflow files
 .PHONY: recompile
-recompile: build
-	./$(BINARY_NAME) compile --validate --instructions
-	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate;
+recompile: build 
+	./$(BINARY_NAME) compile --validate --instructions --verbose
+	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose;
 
 # Run development server
 .PHONY: dev
@@ -225,7 +255,7 @@ minor-release:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint js build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint js compile-ts build test-all recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -234,7 +264,9 @@ help:
 	@echo "Available targets:"
 	@echo "  build            - Build the binary for current platform"
 	@echo "  build-all        - Build binaries for all platforms"
-	@echo "  test             - Run Go tests"
+	@echo "  test             - Run Go tests (unit + integration)"
+	@echo "  test-unit        - Run Go unit tests only (fast)"
+	@echo "  test-integration - Run Go integration tests only"
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
@@ -242,7 +274,8 @@ help:
 	@echo "  deps             - Install dependencies"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
-	@echo "  fmt-cjs          - Format JavaScript (.cjs) files"
+	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) files"
+	@echo "  compile-ts       - Compile TypeScript files to JavaScript (.js)"
 	@echo "  fmt-check        - Check code formatting"
 	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"

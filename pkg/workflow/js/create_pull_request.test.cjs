@@ -5,9 +5,7 @@ import path from "path";
 // Create standalone test functions by extracting parts of the script
 const createTestableFunction = scriptContent => {
   // Extract just the main function content and wrap it properly
-  const mainFunctionMatch = scriptContent.match(
-    /async function main\(\) \{([\s\S]*?)\}\s*await main\(\);?\s*$/
-  );
+  const mainFunctionMatch = scriptContent.match(/async function main\(\) \{([\s\S]*?)\}\s*await main\(\);?\s*$/);
   if (!mainFunctionMatch) {
     throw new Error("Could not extract main function from script");
   }
@@ -16,7 +14,7 @@ const createTestableFunction = scriptContent => {
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, execSync, github, core, context, process, console } = arguments[0];
+    const { fs, crypto, github, core, context, process, console } = arguments[0];
     
     return async function main() {
       ${mainFunctionBody}
@@ -36,18 +34,19 @@ describe("create_pull_request.cjs", () => {
     // Create testable function
     createMainFunction = createTestableFunction(scriptContent);
 
+    // Set up global exec mock
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0), // Return exit code directly
+    };
+
     // Set up mock dependencies
     mockDependencies = {
       fs: {
         existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi
-          .fn()
-          .mockReturnValue("diff --git a/file.txt b/file.txt\n+new content"),
+        readFileSync: vi.fn().mockReturnValue("diff --git a/file.txt b/file.txt\n+new content"),
       },
       crypto: {
-        randomBytes: vi
-          .fn()
-          .mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
+        randomBytes: vi.fn().mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
       },
       execSync: vi.fn(),
       github: {
@@ -122,12 +121,17 @@ describe("create_pull_request.cjs", () => {
     };
   });
 
+  afterEach(() => {
+    // Clean up global exec mock
+    if (typeof global !== "undefined") {
+      delete global.exec;
+    }
+  });
+
   it("should throw error when GITHUB_AW_WORKFLOW_ID is missing", async () => {
     const mainFunction = createMainFunction(mockDependencies);
 
-    await expect(mainFunction()).rejects.toThrow(
-      "GITHUB_AW_WORKFLOW_ID environment variable is required"
-    );
+    await expect(mainFunction()).rejects.toThrow("GITHUB_AW_WORKFLOW_ID environment variable is required");
   });
 
   it("should throw error when GITHUB_AW_BASE_BRANCH is missing", async () => {
@@ -135,9 +139,7 @@ describe("create_pull_request.cjs", () => {
 
     const mainFunction = createMainFunction(mockDependencies);
 
-    await expect(mainFunction()).rejects.toThrow(
-      "GITHUB_AW_BASE_BRANCH environment variable is required"
-    );
+    await expect(mainFunction()).rejects.toThrow("GITHUB_AW_BASE_BRANCH environment variable is required");
   });
 
   it("should handle missing patch file with default warn behavior", async () => {
@@ -149,9 +151,7 @@ describe("create_pull_request.cjs", () => {
 
     await mainFunction();
 
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      "No patch file found - cannot create pull request without changes"
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("No patch file found - cannot create pull request without changes");
     expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
   });
 
@@ -164,9 +164,7 @@ describe("create_pull_request.cjs", () => {
 
     await mainFunction();
 
-    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-      "Patch file is empty - no changes to apply (noop operation)"
-    );
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
     expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
   });
 
@@ -212,18 +210,11 @@ describe("create_pull_request.cjs", () => {
     await mainFunction();
 
     // Verify git operations (excluding git config which is handled by workflow)
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git checkout -b test-workflow-1234567890abcdef",
-      { stdio: "inherit" }
-    );
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git am /tmp/aw.patch",
-      { stdio: "inherit" }
-    );
-    expect(mockDependencies.execSync).toHaveBeenCalledWith(
-      "git push origin test-workflow-1234567890abcdef",
-      { stdio: "inherit" }
-    );
+    expect(global.exec.exec).toHaveBeenCalledWith("git fetch origin");
+    expect(global.exec.exec).toHaveBeenCalledWith("git checkout main");
+    expect(global.exec.exec).toHaveBeenCalledWith("git checkout -b test-workflow-1234567890abcdef");
+    expect(global.exec.exec).toHaveBeenCalledWith("git am /tmp/aw.patch");
+    expect(global.exec.exec).toHaveBeenCalledWith("git push origin test-workflow-1234567890abcdef");
 
     // Verify PR creation
     expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalledWith({
@@ -236,18 +227,9 @@ describe("create_pull_request.cjs", () => {
       draft: true, // default value
     });
 
-    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith(
-      "pull_request_number",
-      123
-    );
-    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith(
-      "pull_request_url",
-      mockPullRequest.html_url
-    );
-    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith(
-      "branch_name",
-      "test-workflow-1234567890abcdef"
-    );
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_number", 123);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_url", mockPullRequest.html_url);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("branch_name", "test-workflow-1234567890abcdef");
   });
 
   it("should handle labels correctly", async () => {
@@ -262,8 +244,7 @@ describe("create_pull_request.cjs", () => {
         },
       ],
     });
-    mockDependencies.process.env.GITHUB_AW_PR_LABELS =
-      "enhancement, automated, needs-review";
+    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "enhancement, automated, needs-review";
 
     // Mock execSync to simulate git behavior with changes
     mockDependencies.execSync.mockImplementation(command => {
@@ -380,13 +361,9 @@ describe("create_pull_request.cjs", () => {
 
     const callArgs = mockDependencies.github.rest.pulls.create.mock.calls[0][0];
     expect(callArgs.title).toBe("Test PR Title");
-    expect(callArgs.body).toContain(
-      "Test PR content with detailed body information."
-    );
+    expect(callArgs.body).toContain("Test PR content with detailed body information.");
     expect(callArgs.body).toContain("Generated by Agentic Workflow");
-    expect(callArgs.body).toContain(
-      "https://github.com/testowner/testrepo/actions/runs/12345"
-    );
+    expect(callArgs.body).toContain("https://github.com/testowner/testrepo/actions/runs/12345");
   });
 
   it("should apply title prefix when provided", async () => {
@@ -473,6 +450,135 @@ describe("create_pull_request.cjs", () => {
     expect(callArgs.title).toBe("[BOT] PR title already prefixed"); // Should not be duplicated
   });
 
+  it("should fallback to creating issue when PR creation fails", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "PR that will fail",
+          body: "This PR creation will fail and fallback to an issue.",
+        },
+      ],
+    });
+    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "enhancement, automated";
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock PR creation to fail
+    const prError = new Error("Pull request creation is disabled by organization policy");
+    mockDependencies.github.rest.pulls.create.mockRejectedValue(prError);
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 456,
+      html_url: "https://github.com/testowner/testrepo/issues/456",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify PR creation was attempted
+    expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "PR that will fail",
+      body: expect.stringContaining("This PR creation will fail and fallback to an issue."),
+      head: "test-workflow-1234567890abcdef",
+      base: "main",
+      draft: true,
+    });
+
+    // Verify fallback issue was created with enhanced body
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "PR that will fail",
+      body: expect.stringMatching(
+        /This PR creation will fail and fallback to an issue\.[\s\S]*---[\s\S]*Note.*originally intended as a pull request[\s\S]*Original error.*Pull request creation is disabled by organization policy[\s\S]*You can manually create a pull request from the branch if needed/
+      ),
+      labels: ["enhancement", "automated"],
+    });
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
+      "Failed to create pull request: Pull request creation is disabled by organization policy"
+    );
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Falling back to creating an issue instead");
+    expect(mockDependencies.core.info).toHaveBeenCalledWith(
+      "Created fallback issue #456: https://github.com/testowner/testrepo/issues/456"
+    );
+
+    // Verify fallback outputs were set
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_number", 456);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("branch_name", "test-workflow-1234567890abcdef");
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("fallback_used", "true");
+
+    // Verify fallback summary was written
+    expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## Fallback Issue Created"));
+  });
+
+  it("should fail when both PR and fallback issue creation fail", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "PR that will fail",
+          body: "Both PR and issue creation will fail.",
+        },
+      ],
+    });
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock both PR and issue creation to fail
+    const prError = new Error("Pull request creation failed");
+    const issueError = new Error("Issue creation also failed");
+    mockDependencies.github.rest.pulls.create.mockRejectedValue(prError);
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockRejectedValue(issueError),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify both API calls were attempted
+    expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+
+    // Verify setFailed was called with combined error message
+    expect(mockDependencies.core.setFailed).toHaveBeenCalledWith(
+      "Failed to create both pull request and fallback issue. PR error: Pull request creation failed. Issue error: Issue creation also failed"
+    );
+  });
+
   describe("if-no-changes configuration", () => {
     beforeEach(() => {
       mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
@@ -496,9 +602,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-        "Patch file is empty - no changes to apply (noop operation)"
-      );
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -510,9 +614,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(
-        expect.stringContaining("Patch file is empty")
-      );
+      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(expect.stringContaining("Patch file is empty"));
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -522,9 +624,7 @@ describe("create_pull_request.cjs", () => {
 
       const mainFunction = createMainFunction(mockDependencies);
 
-      await expect(mainFunction()).rejects.toThrow(
-        "No changes to push - failing as configured by if-no-changes: error"
-      );
+      await expect(mainFunction()).rejects.toThrow("No changes to push - failing as configured by if-no-changes: error");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -536,9 +636,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-        "No patch file found - cannot create pull request without changes"
-      );
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("No patch file found - cannot create pull request without changes");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -550,9 +648,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(
-        expect.stringContaining("No patch file found")
-      );
+      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(expect.stringContaining("No patch file found"));
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
@@ -562,16 +658,12 @@ describe("create_pull_request.cjs", () => {
 
       const mainFunction = createMainFunction(mockDependencies);
 
-      await expect(mainFunction()).rejects.toThrow(
-        "No patch file found - cannot create pull request without changes"
-      );
+      await expect(mainFunction()).rejects.toThrow("No patch file found - cannot create pull request without changes");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
 
     it("should handle patch with error message with warn behavior", async () => {
-      mockDependencies.fs.readFileSync.mockReturnValue(
-        "Failed to generate patch: some error"
-      );
+      mockDependencies.fs.readFileSync.mockReturnValue("Failed to generate patch: some error");
       mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "warn";
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -592,9 +684,7 @@ describe("create_pull_request.cjs", () => {
 
       await mainFunction();
 
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith(
-        "Patch file is empty - no changes to apply (noop operation)"
-      );
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("Patch file is empty - no changes to apply (noop operation)");
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
     });
   });
@@ -624,16 +714,12 @@ describe("create_pull_request.cjs", () => {
 
       // Verify that step summary was written
       expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "## 🎭 Staged Mode: Create Pull Request Preview"
-        )
+        expect.stringContaining("## 🎭 Staged Mode: Create Pull Request Preview")
       );
       expect(mockDependencies.core.summary.write).toHaveBeenCalled();
 
       // Verify console log for staged mode
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "📝 Pull request creation preview written to step summary"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("📝 Pull request creation preview written to step summary");
 
       // Verify that actual PR creation was not called
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
@@ -642,9 +728,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should include patch information in staged mode summary", async () => {
       mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.fs.readFileSync.mockReturnValue(
-        "diff --git a/test.txt b/test.txt\n+added line\n-removed line"
-      );
+      mockDependencies.fs.readFileSync.mockReturnValue("diff --git a/test.txt b/test.txt\n+added line\n-removed line");
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -655,9 +739,7 @@ describe("create_pull_request.cjs", () => {
       expect(summaryCall).toContain("**Branch:** feature-test");
       expect(summaryCall).toContain("**Base:** main");
       expect(summaryCall).toContain("**Body:**");
-      expect(summaryCall).toContain(
-        "This is a test PR for staged mode functionality."
-      );
+      expect(summaryCall).toContain("This is a test PR for staged mode functionality.");
       expect(summaryCall).toContain("**Changes:** Patch file exists with");
       expect(summaryCall).toContain("Show patch preview");
       expect(summaryCall).toContain("diff --git a/test.txt");
@@ -706,16 +788,11 @@ describe("create_pull_request.cjs", () => {
       await mainFunction();
 
       // Verify no git operations were performed
-      expect(mockDependencies.execSync).not.toHaveBeenCalledWith(
-        expect.stringContaining("git"),
-        expect.anything()
-      );
+      expect(mockDependencies.execSync).not.toHaveBeenCalledWith(expect.stringContaining("git"), expect.anything());
 
       // Verify no GitHub API calls were made
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
-      expect(
-        mockDependencies.github.rest.issues.addLabels
-      ).not.toHaveBeenCalled();
+      expect(mockDependencies.github.rest.issues.addLabels).not.toHaveBeenCalled();
 
       // Verify no outputs were set
       expect(mockDependencies.core.setOutput).not.toHaveBeenCalled();
@@ -733,21 +810,15 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
       const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
       expect(summaryCall).toContain("⚠️ No patch file found");
-      expect(summaryCall).toContain(
-        "No patch file found - cannot create pull request without changes"
-      );
+      expect(summaryCall).toContain("No patch file found - cannot create pull request without changes");
 
       // Verify console log for staged mode
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "📝 Pull request creation preview written to step summary (no patch file)"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("📝 Pull request creation preview written to step summary (no patch file)");
     });
 
     it("should handle patch error in staged mode", async () => {
       mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.fs.readFileSync.mockReturnValue(
-        "Failed to generate patch: some error occurred"
-      );
+      mockDependencies.fs.readFileSync.mockReturnValue("Failed to generate patch: some error occurred");
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -757,14 +828,10 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.core.summary.addRaw).toHaveBeenCalled();
       const summaryCall = mockDependencies.core.summary.addRaw.mock.calls[0][0];
       expect(summaryCall).toContain("⚠️ Patch file contains error");
-      expect(summaryCall).toContain(
-        "Patch file contains error message - cannot create pull request without changes"
-      );
+      expect(summaryCall).toContain("Patch file contains error message - cannot create pull request without changes");
 
       // Verify console log for staged mode
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "📝 Pull request creation preview written to step summary (patch error)"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("📝 Pull request creation preview written to step summary (patch error)");
     });
 
     it("should validate patch size within limit", async () => {
@@ -782,8 +849,7 @@ describe("create_pull_request.cjs", () => {
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
-      const patchContent =
-        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
       mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
 
       const mockPullRequest = {
@@ -798,12 +864,8 @@ describe("create_pull_request.cjs", () => {
       const main = createMainFunction(mockDependencies);
       await main();
 
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/)
-      );
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "Patch size validation passed"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 10 KB\)/));
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("Patch size validation passed");
       // Should not throw an error
     });
 
@@ -822,19 +884,14 @@ describe("create_pull_request.cjs", () => {
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
-      const patchContent =
-        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
       mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
 
       const main = createMainFunction(mockDependencies);
 
-      await expect(main()).rejects.toThrow(
-        /Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/
-      );
+      await expect(main()).rejects.toThrow(/Patch size \(\d+ KB\) exceeds maximum allowed size \(1 KB\)/);
 
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/)
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1 KB\)/));
     });
 
     it("should show staged preview when patch size exceeds limit in staged mode", async () => {
@@ -853,8 +910,7 @@ describe("create_pull_request.cjs", () => {
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
-      const patchContent =
-        "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
+      const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
       mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
 
       const main = createMainFunction(mockDependencies);
@@ -901,12 +957,8 @@ describe("create_pull_request.cjs", () => {
       const main = createMainFunction(mockDependencies);
       await main();
 
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/)
-      );
-      expect(mockDependencies.core.info).toHaveBeenCalledWith(
-        "Patch size validation passed"
-      );
+      expect(mockDependencies.core.info).toHaveBeenCalledWith(expect.stringMatching(/Patch size: \d+ KB \(maximum allowed: 1024 KB\)/));
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("Patch size validation passed");
     });
 
     it("should skip patch size validation for empty patches", async () => {
@@ -929,9 +981,7 @@ describe("create_pull_request.cjs", () => {
       await main();
 
       // Should not check patch size for empty patches
-      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(
-        expect.stringMatching(/Patch size:/)
-      );
+      expect(mockDependencies.core.info).not.toHaveBeenCalledWith(expect.stringMatching(/Patch size:/));
       // Should proceed with empty patch handling
     });
   });

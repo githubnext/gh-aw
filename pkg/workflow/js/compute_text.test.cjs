@@ -133,8 +133,7 @@ describe("compute_text.cjs", () => {
     });
 
     it("should handle self-closing XML tags without whitespace", () => {
-      const input =
-        'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
+      const input = 'Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>';
       const result = sanitizeContentFunction(input);
       expect(result).toContain("(br/)");
       expect(result).toContain('(img src="test.jpg"/)');
@@ -142,8 +141,7 @@ describe("compute_text.cjs", () => {
     });
 
     it("should handle self-closing XML tags with whitespace", () => {
-      const input =
-        'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
+      const input = 'With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />';
       const result = sanitizeContentFunction(input);
       expect(result).toContain("(br /)");
       expect(result).toContain('(img src="test.jpg" /)');
@@ -151,8 +149,7 @@ describe("compute_text.cjs", () => {
     });
 
     it("should handle XML tags with various whitespace patterns", () => {
-      const input =
-        'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
+      const input = 'Various: <div\tclass="test">content</div> <span\n  id="test">text</span>';
       const result = sanitizeContentFunction(input);
       expect(result).toContain('(div\tclass="test")content(/div)');
       expect(result).toContain('(span\n  id="test")text(/span)');
@@ -202,8 +199,7 @@ describe("compute_text.cjs", () => {
 
     it("should respect custom allowed domains", () => {
       process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
-      const input =
-        "Visit https://example.com and https://trusted.org and https://evil.com";
+      const input = "Visit https://example.com and https://trusted.org and https://evil.com";
       const result = sanitizeContentFunction(input);
       expect(result).toContain("https://example.com");
       expect(result).toContain("https://trusted.org");
@@ -235,10 +231,7 @@ describe("compute_text.cjs", () => {
 
       await testMain();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "text",
-        "Test Issue\n\nIssue description"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Test Issue\n\nIssue description");
     });
 
     it("should extract text from pull request payload", async () => {
@@ -252,10 +245,7 @@ describe("compute_text.cjs", () => {
 
       await testMain();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "text",
-        "Test PR\n\nPR description"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Test PR\n\nPR description");
     });
 
     it("should extract text from issue comment payload", async () => {
@@ -268,10 +258,7 @@ describe("compute_text.cjs", () => {
 
       await testMain();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "text",
-        "This is a comment"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", "This is a comment");
     });
 
     it("should extract text from pull request target payload", async () => {
@@ -285,10 +272,7 @@ describe("compute_text.cjs", () => {
 
       await testMain();
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "text",
-        "Test PR Target\n\nPR target description"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Test PR Target\n\nPR target description");
     });
 
     it("should extract text from pull request review comment payload", async () => {

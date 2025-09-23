@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "github-agentic-workflows": {
+      "command": "./gh-aw",
+      "args": ["mcp", "serve"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

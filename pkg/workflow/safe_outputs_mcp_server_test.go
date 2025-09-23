@@ -30,6 +30,13 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", outputFile))
 
+	// Add required environment variables for upload_asset tool
+	env = append(env, "GITHUB_AW_ASSETS_BRANCH=test-assets")
+	env = append(env, "GITHUB_AW_ASSETS_MAX_SIZE_KB=10240")
+	env = append(env, "GITHUB_AW_ASSETS_ALLOWED_EXTS=.png,.jpg,.jpeg")
+	env = append(env, "GITHUB_SERVER_URL=https://github.com")
+	env = append(env, "GITHUB_REPOSITORY=test/repo")
+
 	if config != nil {
 		configJSON, err := json.Marshal(config)
 		if err != nil {
@@ -133,7 +140,7 @@ func TestSafeOutputsMCPServer_ListTools(t *testing.T) {
 		toolNames[i] = tool.Name
 	}
 
-	expectedTools := []string{"create-issue", "create-discussion", "missing-tool"}
+	expectedTools := []string{"create_issue", "create_discussion", "missing_tool"}
 	for _, expected := range expectedTools {
 		found := false
 		for _, actual := range toolNames {
@@ -403,4 +410,100 @@ func deepEqual(a, b any) bool {
 		return false
 	}
 	return bytes.Equal(aBytes, bBytes)
+}
+
+func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
+	tempFile := createTempOutputFile(t)
+	defer os.Remove(tempFile)
+
+	config := map[string]any{
+		"upload_asset": true,
+	}
+
+	client := NewMCPTestClient(t, tempFile, config)
+	defer client.Close()
+
+	// Create a test file to publish (using allowed extension)
+	testFilePath := "/tmp/test-asset.png"
+	testContent := "This is a test asset file."
+
+	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	defer os.Remove(testFilePath)
+
+	// Call upload_asset tool
+	ctx := context.Background()
+	result, err := client.CallTool(ctx, "upload_asset", map[string]any{
+		"path": testFilePath,
+	})
+	if err != nil {
+		t.Fatalf("Failed to call upload_asset: %v", err)
+	}
+
+	// Check response structure
+	if len(result.Content) == 0 {
+		t.Fatalf("Expected at least one content item")
+	}
+
+	// Type assert to text content (should be safe since we're generating text content)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("Expected first content item to be text content, got %T", result.Content[0])
+	}
+
+	if !strings.Contains(textContent.Text, "raw.githubusercontent.com") {
+		t.Errorf("Expected response to contain URL with raw.githubusercontent.com, got: %s", textContent.Text)
+	}
+
+	// Verify the output file contains the expected entry
+	if err := verifyOutputFile(t, tempFile, "upload-asset", map[string]any{
+		"type": "upload-asset",
+	}); err != nil {
+		t.Fatalf("Output file verification failed: %v", err)
+	}
+}
+
+func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
+	tempFile := createTempOutputFile(t)
+	defer os.Remove(tempFile)
+
+	config := map[string]any{
+		"upload_asset": true,
+	}
+
+	client := NewMCPTestClient(t, tempFile, config)
+	defer client.Close()
+
+	// Test valid paths first - /tmp should be allowed
+	testFilePath := "/tmp/test-asset-validation.png"
+	testContent := "This is a test file for path validation."
+
+	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	defer os.Remove(testFilePath)
+
+	ctx := context.Background()
+
+	// This should succeed (file in /tmp)
+	_, err := client.CallTool(ctx, "upload_asset", map[string]any{
+		"path": testFilePath,
+	})
+	if err != nil {
+		t.Fatalf("Expected /tmp file to be allowed, but got error: %v", err)
+	}
+
+	// Test invalid path - should be rejected
+	invalidPath := "/etc/passwd"
+	_, err = client.CallTool(ctx, "upload_asset", map[string]any{
+		"path": invalidPath,
+	})
+	if err == nil {
+		t.Fatalf("Expected file outside workspace/tmp to be rejected, but it was allowed")
+	}
+
+	// Check that the error mentions it's an error (could be wrapped)
+	t.Logf("Got expected error for invalid path: %v", err)
+	// Just verify that an error occurred - the exact message might be wrapped
 }

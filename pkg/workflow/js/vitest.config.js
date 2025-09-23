@@ -1,17 +1,17 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'node',
+    environment: "node",
     globals: true,
-    include: ['**/*.test.{js,cjs}'],
+    include: ["**/*.test.{js,cjs}"],
     testTimeout: 10000,
     hookTimeout: 10000,
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html'],
-      include: ['**/*.cjs'],
-      exclude: ['**/*.test.{js,cjs}']
-    }
-  }
+      provider: "v8",
+      reporter: ["text", "html"],
+      include: ["**/*.cjs"],
+      exclude: ["**/*.test.{js,cjs}"],
+    },
+  },
 });

@@ -315,7 +315,7 @@ func ProcessIncludes(content, baseDir string, extractTools bool) (string, error)
 				if isOptional {
 					// For optional includes, show a friendly informational message to stdout
 					if !extractTools {
-						fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Optional include file not found: %s. You can create this file to configure the workflow.", filePath)))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional include file not found: %s. You can create this file to configure the workflow.", filePath)))
 					}
 					continue
 				}
@@ -1027,7 +1027,7 @@ func UpdateWorkflowFrontmatter(workflowPath string, updateFunc func(frontmatter 
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Updated workflow file: %s", console.ToRelativePath(workflowPath))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Updated workflow file: %s", console.ToRelativePath(workflowPath))))
 	}
 
 	return nil

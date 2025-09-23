@@ -6,6 +6,10 @@
       "type": "string",
       "description": "Name of the workflow"
     },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the workflow that will be rendered as comments in the generated lock file"
+    },
     "on": {
       "description": "GitHub Actions workflow triggers",
       "oneOf": [
@@ -1585,7 +1589,7 @@
             }
           ]
         },
-        "push-to-pr-branch": {
+        "push-to-pull-request-branch": {
           "oneOf": [
             {
               "type": "null",
@@ -1638,6 +1642,45 @@
             {
               "type": "null",
               "description": "Enable missing tool reporting with default configuration"
+            }
+          ]
+        },
+        "upload-assets": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for publishing assets to an orphaned git branch",
+              "properties": {
+                "branch": {
+                  "type": "string",
+                  "description": "Branch name (default: 'assets/${{ github.workflow }}')",
+                  "default": "assets/${{ github.workflow }}"
+                },
+                "max-size": {
+                  "type": "integer",
+                  "description": "Maximum file size in KB (default: 10240 = 10MB)",
+                  "minimum": 1,
+                  "maximum": 51200,
+                  "default": 10240
+                },
+                "allowed-exts": {
+                  "type": "array",
+                  "description": "Allowed file extensions (default: common non-executable types)",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\.[a-zA-Z0-9]+$"
+                  }
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable asset publishing with default configuration"
             }
           ]
         },

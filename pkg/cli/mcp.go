@@ -18,7 +18,8 @@ MCP server configurations in your agentic workflows.
 Available subcommands:
   add      - Add an MCP tool to an agentic workflow
   list     - List MCP servers defined in agentic workflows
-  inspect  - Inspect MCP servers and list available tools, resources, and roots`,
+  inspect  - Inspect MCP servers and list available tools, resources, and roots
+  serve    - Launch an MCP server exposing CLI tools`,
 		Run: func(cmd *cobra.Command, args []string) {
 			_ = cmd.Help()
 		},
@@ -28,6 +29,7 @@ Available subcommands:
 	cmd.AddCommand(NewMCPAddSubcommand())
 	cmd.AddCommand(NewMCPListSubcommand())
 	cmd.AddCommand(NewMCPInspectSubcommand())
+	cmd.AddCommand(NewMCPServerSubcommand())
 
 	return cmd
 }

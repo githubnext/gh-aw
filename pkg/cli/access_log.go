@@ -62,7 +62,7 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 		entry, err := parseSquidLogLine(line)
 		if err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse log line: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log line: %v", err)))
 			}
 			continue
 		}
@@ -169,7 +169,7 @@ func analyzeAccessLogs(runDir string, verbose bool) (*DomainAnalysis, error) {
 
 	// No access logs found
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No access logs found in %s", runDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No access logs found in %s", runDir)))
 	}
 	return nil, nil
 }
@@ -183,13 +183,13 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 
 	if len(files) == 0 {
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No access log files found in %s", accessLogsDir)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No access log files found in %s", accessLogsDir)))
 		}
 		return nil, nil
 	}
 
 	if verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Analyzing %d access log files from %s", len(files), accessLogsDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing %d access log files from %s", len(files), accessLogsDir)))
 	}
 
 	// Aggregate analysis from all files
@@ -203,13 +203,13 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 
 	for _, file := range files {
 		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsing %s", filepath.Base(file))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %s", filepath.Base(file))))
 		}
 
 		analysis, err := parseSquidAccessLog(file, verbose)
 		if err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse %s: %v", filepath.Base(file), err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse %s: %v", filepath.Base(file), err)))
 			}
 			continue
 		}
@@ -268,7 +268,7 @@ func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	}
 
 	if len(analyses) == 0 {
-		fmt.Println(console.FormatInfoMessage("No access logs found"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No access logs found"))
 		return
 	}
 
@@ -292,47 +292,47 @@ func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, "")
 
 	// Display allowed domains with better formatting
 	if len(allAllowedDomains) > 0 {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("✅ Allowed Domains (%d):", len(allAllowedDomains))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✅ Allowed Domains (%d):", len(allAllowedDomains))))
 		allowedList := make([]string, 0, len(allAllowedDomains))
 		for domain := range allAllowedDomains {
 			allowedList = append(allowedList, domain)
 		}
 		sort.Strings(allowedList)
 		for _, domain := range allowedList {
-			fmt.Println(console.FormatListItem(formatDomainWithEcosystem(domain)))
+			fmt.Fprintln(os.Stderr, console.FormatListItem(formatDomainWithEcosystem(domain)))
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Display denied domains with better formatting
 	if len(allDeniedDomains) > 0 {
-		fmt.Println(console.FormatErrorMessage(fmt.Sprintf("❌ Denied Domains (%d):", len(allDeniedDomains))))
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("❌ Denied Domains (%d):", len(allDeniedDomains))))
 		deniedList := make([]string, 0, len(allDeniedDomains))
 		for domain := range allDeniedDomains {
 			deniedList = append(deniedList, domain)
 		}
 		sort.Strings(deniedList)
 		for _, domain := range deniedList {
-			fmt.Println(console.FormatListItem(formatDomainWithEcosystem(domain)))
+			fmt.Fprintln(os.Stderr, console.FormatListItem(formatDomainWithEcosystem(domain)))
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	if verbose && len(analyses) > 1 {
 		// Show per-run breakdown with improved formatting
-		fmt.Println(console.FormatInfoMessage("📋 Per-run breakdown:"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("📋 Per-run breakdown:"))
 		for _, pr := range processedRuns {
 			if pr.AccessAnalysis != nil {
 				analysis := pr.AccessAnalysis
-				fmt.Printf("   %s Run %d: %d requests (%d allowed, %d denied)\n",
+				fmt.Fprintf(os.Stderr, "   %s Run %d: %d requests (%d allowed, %d denied)\n",
 					console.FormatListItem(""),
 					pr.Run.DatabaseID, analysis.TotalRequests, analysis.AllowedCount, analysis.DeniedCount)
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 }

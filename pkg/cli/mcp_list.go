@@ -47,7 +47,7 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 	}
 
 	if len(mcpConfigs) == 0 {
-		fmt.Println(console.FormatInfoMessage("No MCP servers found in workflow"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No MCP servers found in workflow"))
 		return nil
 	}
 
@@ -120,11 +120,11 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 			Headers: headers,
 			Rows:    rows,
 		}
-		fmt.Print(console.RenderTable(tableConfig))
+		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 	}
 
 	if !verbose {
-		fmt.Printf("\nRun 'gh aw mcp list %s --verbose' for detailed information\n", workflowFile)
+		fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list %s --verbose' for detailed information\n", workflowFile)
 	}
 
 	return nil
@@ -154,7 +154,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		content, err := os.ReadFile(file)
 		if err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
 			}
 			continue
 		}
@@ -162,7 +162,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		frontmatterData, err := parser.ExtractFrontmatterFromContent(string(content))
 		if err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
 			}
 			continue
 		}
@@ -170,7 +170,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 		mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterData.Frontmatter, "")
 		if err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Error extracting MCP from %s: %v", filepath.Base(file), err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error extracting MCP from %s: %v", filepath.Base(file), err)))
 			}
 			continue
 		}
@@ -196,7 +196,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 	}
 
 	if len(workflowData) == 0 {
-		fmt.Println(console.FormatInfoMessage("No workflows with MCP servers found"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows with MCP servers found"))
 		return nil
 	}
 
@@ -224,7 +224,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 			Headers: headers,
 			Rows:    rows,
 		}
-		fmt.Print(console.RenderTable(tableConfig))
+		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 	} else {
 		// Simple table with just workflow names and counts
 		headers := []string{"Workflow", "Server Count"}
@@ -241,13 +241,13 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 			Headers: headers,
 			Rows:    rows,
 		}
-		fmt.Print(console.RenderTable(tableConfig))
+		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 	}
 
 	if !verbose {
-		fmt.Printf("\nRun 'gh aw mcp list --verbose' for detailed information\n")
+		fmt.Fprintf(os.Stderr, "\nRun 'gh aw mcp list --verbose' for detailed information\n")
 	}
-	fmt.Printf("Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow\n")
+	fmt.Fprintf(os.Stderr, "Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow\n")
 
 	return nil
 }

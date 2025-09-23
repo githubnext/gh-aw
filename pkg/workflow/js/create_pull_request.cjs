@@ -2,7 +2,6 @@
 const fs = require("fs");
 /** @type {typeof import("crypto")} */
 const crypto = require("crypto");
-const { execSync } = require("child_process");
 
 async function main() {
   // Check if we're in staged mode
@@ -28,22 +27,18 @@ async function main() {
 
   // Check if patch file exists and has valid content
   if (!fs.existsSync("/tmp/aw.patch")) {
-    const message =
-      "No patch file found - cannot create pull request without changes";
+    const message = "No patch file found - cannot create pull request without changes";
 
     // If in staged mode, still show preview
     if (isStaged) {
       let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent +=
-        "The following pull request would be created if staged mode was disabled:\n\n";
+      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
       summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
       summaryContent += `**Message:** ${message}\n\n`;
 
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
-      core.info(
-        "📝 Pull request creation preview written to step summary (no patch file)"
-      );
+      core.info("📝 Pull request creation preview written to step summary (no patch file)");
       return;
     }
 
@@ -64,22 +59,18 @@ async function main() {
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
-    const message =
-      "Patch file contains error message - cannot create pull request without changes";
+    const message = "Patch file contains error message - cannot create pull request without changes";
 
     // If in staged mode, still show preview
     if (isStaged) {
       let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent +=
-        "The following pull request would be created if staged mode was disabled:\n\n";
+      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
       summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
       summaryContent += `**Message:** ${message}\n\n`;
 
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
-      core.info(
-        "📝 Pull request creation preview written to step summary (patch error)"
-      );
+      core.info("📝 Pull request creation preview written to step summary (patch error)");
       return;
     }
 
@@ -100,34 +91,25 @@ async function main() {
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
-    const maxSizeKb = parseInt(
-      process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024",
-      10
-    );
+    const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-    core.info(
-      `Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`
-    );
+    core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
 
     if (patchSizeKb > maxSizeKb) {
       const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
 
       // If in staged mode, still show preview with error
       if (isStaged) {
-        let summaryContent =
-          "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-        summaryContent +=
-          "The following pull request would be created if staged mode was disabled:\n\n";
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
         summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
         summaryContent += `**Message:** ${message}\n\n`;
 
         // Write to step summary
         await core.summary.addRaw(summaryContent).write();
-        core.info(
-          "📝 Pull request creation preview written to step summary (patch size error)"
-        );
+        core.info("📝 Pull request creation preview written to step summary (patch size error)");
         return;
       }
 
@@ -137,14 +119,11 @@ async function main() {
     core.info("Patch size validation passed");
   }
   if (isEmpty && !isStaged) {
-    const message =
-      "Patch file is empty - no changes to apply (noop operation)";
+    const message = "Patch file is empty - no changes to apply (noop operation)";
 
     switch (ifNoChanges) {
       case "error":
-        throw new Error(
-          "No changes to push - failing as configured by if-no-changes: error"
-        );
+        throw new Error("No changes to push - failing as configured by if-no-changes: error");
       case "ignore":
         // Silent success - no console output
         return;
@@ -167,9 +146,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -179,23 +156,18 @@ async function main() {
   }
 
   // Find the create-pull-request item
-  const pullRequestItem = validatedOutput.items.find(
-    /** @param {any} item */ item => item.type === "create-pull-request"
-  );
+  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create-pull-request");
   if (!pullRequestItem) {
     core.warning("No create-pull-request item found in agent output");
     return;
   }
 
-  core.debug(
-    `Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`
-  );
+  core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
 
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-    summaryContent +=
-      "The following pull request would be created if staged mode was disabled:\n\n";
+    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
 
     summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
     summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
@@ -224,9 +196,7 @@ async function main() {
   // Extract title, body, and branch from the JSON item
   let title = pullRequestItem.title.trim();
   let bodyLines = pullRequestItem.body.split("\n");
-  let branchName = pullRequestItem.branch
-    ? pullRequestItem.branch.trim()
-    : null;
+  let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
 
   // If no title was found, use a default
   if (!title) {
@@ -244,12 +214,7 @@ async function main() {
   const runUrl = context.payload.repository
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
     : `https://github.com/actions/runs/${runId}`;
-  bodyLines.push(
-    ``,
-    ``,
-    `> Generated by Agentic Workflow [Run](${runUrl})`,
-    ""
-  );
+  bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
 
   // Prepare the body content
   const body = bodyLines.join("\n").trim();
@@ -275,9 +240,7 @@ async function main() {
   const randomHex = crypto.randomBytes(8).toString("hex");
   // Use branch name from JSONL if provided, otherwise generate unique branch name
   if (!branchName) {
-    core.debug(
-      "No branch name provided in JSONL, generating unique branch name"
-    );
+    core.debug("No branch name provided in JSONL, generating unique branch name");
     // Generate unique branch name using cryptographic random hex
     branchName = `${workflowId}-${randomHex}`;
   } else {
@@ -291,41 +254,34 @@ async function main() {
   // Create a new branch using git CLI, ensuring it's based on the correct base branch
 
   // First, fetch latest changes and checkout the base branch
-  core.debug(
-    `Fetching latest changes and checking out base branch: ${baseBranch}`
-  );
-  execSync("git fetch origin", { stdio: "inherit" });
-  execSync(`git checkout ${baseBranch}`, { stdio: "inherit" });
+  core.debug(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+  await exec.exec("git fetch origin");
+  await exec.exec(`git checkout ${baseBranch}`);
 
   // Handle branch creation/checkout
-  core.debug(
-    `Branch should not exist locally, creating new branch from base: ${branchName}`
-  );
-  execSync(`git checkout -b ${branchName}`, { stdio: "inherit" });
+  core.debug(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+  await exec.exec(`git checkout -b ${branchName}`);
   core.info(`Created new branch from base: ${branchName}`);
 
   // Apply the patch using git CLI (skip if empty)
   if (!isEmpty) {
     core.info("Applying patch...");
     // Patches are created with git format-patch, so use git am to apply them
-    execSync("git am /tmp/aw.patch", { stdio: "inherit" });
+    await exec.exec("git am /tmp/aw.patch");
     core.info("Patch applied successfully");
 
     // Push the applied commits to the branch
-    execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+    await exec.exec(`git push origin ${branchName}`);
     core.info("Changes pushed to branch");
   } else {
     core.info("Skipping patch application (empty patch)");
 
     // For empty patches, handle if-no-changes configuration
-    const message =
-      "No changes to apply - noop operation completed successfully";
+    const message = "No changes to apply - noop operation completed successfully";
 
     switch (ifNoChanges) {
       case "error":
-        throw new Error(
-          "No changes to apply - failing as configured by if-no-changes: error"
-        );
+        throw new Error("No changes to apply - failing as configured by if-no-changes: error");
       case "ignore":
         // Silent success - no console output
         return;
@@ -336,48 +292,103 @@ async function main() {
     }
   }
 
-  // Create the pull request
-  const { data: pullRequest } = await github.rest.pulls.create({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    title: title,
-    body: body,
-    head: branchName,
-    base: baseBranch,
-    draft: draft,
-  });
-
-  core.info(
-    `Created pull request #${pullRequest.number}: ${pullRequest.html_url}`
-  );
-
-  // Add labels if specified
-  if (labels.length > 0) {
-    await github.rest.issues.addLabels({
+  // Try to create the pull request, with fallback to issue creation
+  try {
+    const { data: pullRequest } = await github.rest.pulls.create({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      issue_number: pullRequest.number,
-      labels: labels,
+      title: title,
+      body: body,
+      head: branchName,
+      base: baseBranch,
+      draft: draft,
     });
-    core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-  }
 
-  // Set output for other jobs to use
-  core.setOutput("pull_request_number", pullRequest.number);
-  core.setOutput("pull_request_url", pullRequest.html_url);
-  core.setOutput("branch_name", branchName);
+    core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
 
-  // Write summary to GitHub Actions summary
-  await core.summary
-    .addRaw(
-      `
+    // Add labels if specified
+    if (labels.length > 0) {
+      await github.rest.issues.addLabels({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        issue_number: pullRequest.number,
+        labels: labels,
+      });
+      core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+    }
+
+    // Set output for other jobs to use
+    core.setOutput("pull_request_number", pullRequest.number);
+    core.setOutput("pull_request_url", pullRequest.html_url);
+    core.setOutput("branch_name", branchName);
+
+    // Write summary to GitHub Actions summary
+    await core.summary
+      .addRaw(
+        `
 
 ## Pull Request
 - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
 - **Branch**: \`${branchName}\`
 - **Base Branch**: \`${baseBranch}\`
 `
-    )
-    .write();
+      )
+      .write();
+  } catch (prError) {
+    core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+    core.info("Falling back to creating an issue instead");
+
+    // Create issue as fallback with enhanced body content
+    const branchUrl = context.payload.repository
+      ? `${context.payload.repository.html_url}/tree/${branchName}`
+      : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+
+    const fallbackBody = `${body}
+
+---
+
+**Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+
+**Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+
+You can manually create a pull request from the branch if needed.`;
+
+    try {
+      const { data: issue } = await github.rest.issues.create({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        title: title,
+        body: fallbackBody,
+        labels: labels,
+      });
+
+      core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+
+      // Set output for other jobs to use (issue instead of PR)
+      core.setOutput("issue_number", issue.number);
+      core.setOutput("issue_url", issue.html_url);
+      core.setOutput("branch_name", branchName);
+      core.setOutput("fallback_used", "true");
+
+      // Write summary to GitHub Actions summary
+      await core.summary
+        .addRaw(
+          `
+
+## Fallback Issue Created
+- **Issue**: [#${issue.number}](${issue.html_url})
+- **Branch**: [\`${branchName}\`](${branchUrl})
+- **Base Branch**: \`${baseBranch}\`
+- **Note**: Pull request creation failed, created issue as fallback
+`
+        )
+        .write();
+    } catch (issueError) {
+      core.setFailed(
+        `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+      );
+      return;
+    }
+  }
 }
 await main();

@@ -4,6 +4,9 @@ import "strings"
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
+	if safeOutputs == nil {
+		return false
+	}
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.AddComments != nil ||
@@ -13,6 +16,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
+		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil
 }
 
@@ -78,6 +82,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		written = true
 	}
 
+	if safeOutputs.UploadAssets != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Uploading Assets")
+		written = true
+	}
+
 	// Missing-tool is always available
 	if written {
 		yaml.WriteString(", ")
@@ -135,7 +147,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          To push changes to the branch of a pull request:\n")
 		yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 		yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-		yaml.WriteString("          3. Push the branch to the repo by using the push-to-pr-branch tool from the safe-outputs MCP\n")
+		yaml.WriteString("          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -143,6 +155,17 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Creating Code Scanning Alert**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To create code scanning alert use the create-code-scanning-alert tool from the safe-outputs MCP\n")
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.UploadAssets != nil {
+		yaml.WriteString("          **Uploading Assets**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To upload files as URL-addressable assets:\n")
+		yaml.WriteString("          1. Use the `upload asset` tool from the safe-outputs MCP\n")
+		yaml.WriteString("          2. Provide the path to the file you want to upload\n")
+		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
+		yaml.WriteString("          4. Assets are uploaded to an orphaned git branch after workflow completion\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -281,10 +304,16 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UpdateIssues = updateIssuesConfig
 			}
 
-			// Handle push-to-pr-branch
+			// Handle push-to-pull-request-branch
 			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
 			if pushToBranchConfig != nil {
 				config.PushToPullRequestBranch = pushToBranchConfig
+			}
+
+			// Handle upload-asset
+			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
+			if uploadAssetsConfig != nil {
+				config.UploadAssets = uploadAssetsConfig
 			}
 
 			// Handle missing-tool (parse configuration if present)

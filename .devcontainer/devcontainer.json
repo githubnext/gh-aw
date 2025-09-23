@@ -18,12 +18,14 @@
 			"repositories": {
 				"githubnext/agentics": {
 					"permissions": {
-						"contents": "read"
+						"contents": "read",
+						"workflows": "write"
 					}
 				},
 				"githubnext/gh-aw-test": {
 					"permissions": {
-						"contents": "write"
+						"contents": "write",
+						"workflows": "write"
 					}
 				}
 			}
@@ -37,7 +39,6 @@
 			"version": "24"
 		}
 	},
-	"onCreateCommand": ".devcontainer/setup.sh",
 	"containerEnv": {
 		"GOOGLE_APPLICATION_CREDENTIALS": ".credentials/vertex_api.json",
 		"CLAUDE_CODE_USE_VERTEX": "1",

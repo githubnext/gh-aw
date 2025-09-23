@@ -64,10 +64,7 @@ global.core = mockCore;
 global.context = mockContext;
 
 // Read the code scanning alert script
-const securityReportScript = fs.readFileSync(
-  path.join(import.meta.dirname, "create_code_scanning_alert.cjs"),
-  "utf8"
-);
+const securityReportScript = fs.readFileSync(path.join(import.meta.dirname, "create_code_scanning_alert.cjs"), "utf8");
 
 describe("create_code_scanning_alert.cjs", () => {
   beforeEach(() => {
@@ -99,27 +96,21 @@ describe("create_code_scanning_alert.cjs", () => {
     it("should handle missing environment variable", async () => {
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "No GITHUB_AW_AGENT_OUTPUT environment variable found"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     });
 
     it("should handle empty agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "Agent output content is empty"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     });
 
     it("should handle invalid JSON", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringMatching(/Error parsing agent output JSON:/)
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/));
     });
 
     it("should handle missing items array", async () => {
@@ -128,9 +119,7 @@ describe("create_code_scanning_alert.cjs", () => {
       });
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "No valid items found in agent output"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output");
     });
 
     it("should handle no code scanning alert items", async () => {
@@ -139,9 +128,7 @@ describe("create_code_scanning_alert.cjs", () => {
       });
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "No create-code-scanning-alert items found in agent output"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No create-code-scanning-alert items found in agent output");
     });
 
     it("should create SARIF file for valid security findings", async () => {
@@ -179,27 +166,17 @@ describe("create_code_scanning_alert.cjs", () => {
 
       // Check first finding
       const firstResult = sarifContent.runs[0].results[0];
-      expect(firstResult.message.text).toBe(
-        "SQL injection vulnerability detected"
-      );
+      expect(firstResult.message.text).toBe("SQL injection vulnerability detected");
       expect(firstResult.level).toBe("error");
-      expect(
-        firstResult.locations[0].physicalLocation.artifactLocation.uri
-      ).toBe("src/app.js");
-      expect(firstResult.locations[0].physicalLocation.region.startLine).toBe(
-        42
-      );
+      expect(firstResult.locations[0].physicalLocation.artifactLocation.uri).toBe("src/app.js");
+      expect(firstResult.locations[0].physicalLocation.region.startLine).toBe(42);
 
       // Check second finding
       const secondResult = sarifContent.runs[0].results[1];
       expect(secondResult.message.text).toBe("Potential XSS vulnerability");
       expect(secondResult.level).toBe("warning");
-      expect(
-        secondResult.locations[0].physicalLocation.artifactLocation.uri
-      ).toBe("src/utils.js");
-      expect(secondResult.locations[0].physicalLocation.region.startLine).toBe(
-        15
-      );
+      expect(secondResult.locations[0].physicalLocation.artifactLocation.uri).toBe("src/utils.js");
+      expect(secondResult.locations[0].physicalLocation.region.startLine).toBe(15);
 
       // Check outputs were set
       expect(mockCore.setOutput).toHaveBeenCalledWith("sarif_file", sarifFile);
@@ -241,9 +218,7 @@ describe("create_code_scanning_alert.cjs", () => {
 
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
-      expect(sarifContent.runs[0].results[0].message.text).toBe(
-        "First finding"
-      );
+      expect(sarifContent.runs[0].results[0].message.text).toBe("First finding");
 
       // Check output reflects the limit
       expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", 1);
@@ -299,9 +274,7 @@ describe("create_code_scanning_alert.cjs", () => {
 
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
-      expect(sarifContent.runs[0].results[0].message.text).toBe(
-        "Valid finding"
-      );
+      expect(sarifContent.runs[0].results[0].message.text).toBe("Valid finding");
 
       // Check outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("findings_count", 1);
@@ -330,14 +303,10 @@ describe("create_code_scanning_alert.cjs", () => {
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check driver name
-      expect(sarifContent.runs[0].tool.driver.name).toBe(
-        "Custom Security Scanner"
-      );
+      expect(sarifContent.runs[0].tool.driver.name).toBe("Custom Security Scanner");
 
       // Check rule ID includes workflow filename
-      expect(sarifContent.runs[0].results[0].ruleId).toBe(
-        "security-scan-security-finding-1"
-      );
+      expect(sarifContent.runs[0].results[0].ruleId).toBe("security-scan-security-finding-1");
     });
 
     it("should use default driver name when not configured", async () => {
@@ -360,14 +329,10 @@ describe("create_code_scanning_alert.cjs", () => {
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check default driver name
-      expect(sarifContent.runs[0].tool.driver.name).toBe(
-        "GitHub Agentic Workflows Security Scanner"
-      );
+      expect(sarifContent.runs[0].tool.driver.name).toBe("GitHub Agentic Workflows Security Scanner");
 
       // Check rule ID includes default workflow filename
-      expect(sarifContent.runs[0].results[0].ruleId).toBe(
-        "workflow-security-finding-1"
-      );
+      expect(sarifContent.runs[0].results[0].ruleId).toBe("workflow-security-finding-1");
     });
 
     it("should support optional column specification", async () => {
@@ -399,16 +364,10 @@ describe("create_code_scanning_alert.cjs", () => {
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check first result has custom column
-      expect(
-        sarifContent.runs[0].results[0].locations[0].physicalLocation.region
-          .startColumn
-      ).toBe(15);
+      expect(sarifContent.runs[0].results[0].locations[0].physicalLocation.region.startColumn).toBe(15);
 
       // Check second result has default column
-      expect(
-        sarifContent.runs[0].results[1].locations[0].physicalLocation.region
-          .startColumn
-      ).toBe(1);
+      expect(sarifContent.runs[0].results[1].locations[0].physicalLocation.region.startColumn).toBe(1);
     });
 
     it("should validate column numbers", async () => {
@@ -456,13 +415,8 @@ describe("create_code_scanning_alert.cjs", () => {
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
-      expect(sarifContent.runs[0].results[0].message.text).toBe(
-        "Valid with column"
-      );
-      expect(
-        sarifContent.runs[0].results[0].locations[0].physicalLocation.region
-          .startColumn
-      ).toBe(5);
+      expect(sarifContent.runs[0].results[0].message.text).toBe("Valid with column");
+      expect(sarifContent.runs[0].results[0].locations[0].physicalLocation.region.startColumn).toBe(5);
     });
 
     it("should support optional ruleIdSuffix specification", async () => {
@@ -504,19 +458,13 @@ describe("create_code_scanning_alert.cjs", () => {
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
 
       // Check first result has custom rule ID
-      expect(sarifContent.runs[0].results[0].ruleId).toBe(
-        "security-scan-sql-injection"
-      );
+      expect(sarifContent.runs[0].results[0].ruleId).toBe("security-scan-sql-injection");
 
       // Check second result has custom rule ID
-      expect(sarifContent.runs[0].results[1].ruleId).toBe(
-        "security-scan-xss-vulnerability"
-      );
+      expect(sarifContent.runs[0].results[1].ruleId).toBe("security-scan-xss-vulnerability");
 
       // Check third result uses default numbering
-      expect(sarifContent.runs[0].results[2].ruleId).toBe(
-        "security-scan-security-finding-3"
-      );
+      expect(sarifContent.runs[0].results[2].ruleId).toBe("security-scan-security-finding-3");
     });
 
     it("should validate ruleIdSuffix values", async () => {
@@ -572,12 +520,8 @@ describe("create_code_scanning_alert.cjs", () => {
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
       const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
       expect(sarifContent.runs[0].results).toHaveLength(1);
-      expect(sarifContent.runs[0].results[0].message.text).toBe(
-        "Valid with valid ruleIdSuffix"
-      );
-      expect(sarifContent.runs[0].results[0].ruleId).toBe(
-        "workflow-valid-rule-id_123"
-      );
+      expect(sarifContent.runs[0].results[0].message.text).toBe("Valid with valid ruleIdSuffix");
+      expect(sarifContent.runs[0].results[0].ruleId).toBe("workflow-valid-rule-id_123");
     });
   });
 });

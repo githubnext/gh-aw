@@ -13,20 +13,9 @@ async function main() {
   core.info(`Run URL: ${runUrl}`);
 
   // Validate reaction type
-  const validReactions = [
-    "+1",
-    "-1",
-    "laugh",
-    "confused",
-    "heart",
-    "hooray",
-    "rocket",
-    "eyes",
-  ];
+  const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
   if (!validReactions.includes(reaction)) {
-    core.setFailed(
-      `Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`
-    );
+    core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
     return;
   }
 
@@ -103,9 +92,7 @@ async function main() {
       await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
     } else {
       if (!command && commentUpdateEndpoint) {
-        core.info(
-          "Skipping comment edit - only available for command workflows"
-        );
+        core.info("Skipping comment edit - only available for command workflows");
       } else {
         core.info(`Skipping comment edit for event type: ${eventName}`);
       }
@@ -113,9 +100,7 @@ async function main() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-    core.setFailed(
-      `Failed to process reaction and comment edit: ${errorMessage}`
-    );
+    core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
   }
 }
 
@@ -181,8 +166,7 @@ async function editCommentWithWorkflowLink(endpoint, runUrl) {
     // Don't fail the entire job if comment editing fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.warning(
-      "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " +
-        errorMessage
+      "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
     );
   }
 }

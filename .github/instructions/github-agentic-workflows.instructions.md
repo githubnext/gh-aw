@@ -866,23 +866,23 @@ permissions:
 
 ### MCP Server Inspection
 
-Use the `mcp-inspect` command to analyze and debug MCP servers in workflows:
+Use the `mcp inspect` command to analyze and debug MCP servers in workflows:
 
 ```bash
 # List workflows with MCP configurations
-gh aw mcp-inspect
+gh aw mcp inspect
 
 # Inspect MCP servers in a specific workflow
-gh aw mcp-inspect workflow-name
+gh aw mcp inspect workflow-name
 
 # Filter to a specific MCP server
-gh aw mcp-inspect workflow-name --server server-name
+gh aw mcp inspect workflow-name --server server-name
 
 # Show detailed information about a specific tool
-gh aw mcp-inspect workflow-name --server server-name --tool tool-name
+gh aw mcp inspect workflow-name --server server-name --tool tool-name
 
 # Enable verbose output with connection details
-gh aw mcp-inspect workflow-name --verbose
+gh aw mcp inspect workflow-name --verbose
 ```
 
 The `--tool` flag provides detailed information about a specific tool, including:

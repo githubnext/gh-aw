@@ -1,3 +1,5 @@
+import type { SafeOutputItems } from "./types/safe-outputs";
+
 async function main() {
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -14,13 +16,11 @@ async function main() {
   core.debug(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(
-      `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -30,9 +30,7 @@ async function main() {
   }
 
   // Find the add-labels item
-  const labelsItem = validatedOutput.items.find(
-    /** @param {any} item */ item => item.type === "add-labels"
-  );
+  const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
   if (!labelsItem) {
     core.warning("No add-labels item found in agent output");
     return;
@@ -43,8 +41,7 @@ async function main() {
   // If in staged mode, emit step summary instead of adding labels
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
-    summaryContent +=
-      "The following labels would be added if staged mode was disabled:\n\n";
+    summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
 
     if (labelsItem.issue_number) {
       summaryContent += `**Target Issue:** #${labelsItem.issue_number}\n\n`;
@@ -63,18 +60,13 @@ async function main() {
   }
 
   // Read the allowed labels from environment variable (optional)
-  const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED;
-  let allowedLabels = null;
-
-  if (allowedLabelsEnv && allowedLabelsEnv.trim() !== "") {
-    allowedLabels = allowedLabelsEnv
-      .split(",")
-      .map(label => label.trim())
-      .filter(label => label);
-    if (allowedLabels.length === 0) {
-      allowedLabels = null; // Treat empty list as no restrictions
-    }
-  }
+  const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
+  const allowedLabels = allowedLabelsEnv
+    ? allowedLabelsEnv
+        .split(",")
+        .map(label => label.trim())
+        .filter(label => label)
+    : undefined;
 
   if (allowedLabels) {
     core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
@@ -86,26 +78,21 @@ async function main() {
   const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
   const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
   if (isNaN(maxCount) || maxCount < 1) {
-    core.setFailed(
-      `Invalid max value: ${maxCountEnv}. Must be a positive integer`
-    );
+    core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
     return;
   }
 
   core.debug(`Max count: ${maxCount}`);
 
   // Check if we're in an issue or pull request context
-  const isIssueContext =
-    context.eventName === "issues" || context.eventName === "issue_comment";
+  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
   const isPRContext =
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment";
 
   if (!isIssueContext && !isPRContext) {
-    core.setFailed(
-      "Not running in issue or pull request context, skipping label addition"
-    );
+    core.setFailed("Not running in issue or pull request context, skipping label addition");
     return;
   }
 
@@ -126,9 +113,7 @@ async function main() {
       issueNumber = context.payload.pull_request.number;
       contextType = "pull request";
     } else {
-      core.setFailed(
-        "Pull request context detected but no pull request found in payload"
-      );
+      core.setFailed("Pull request context detected but no pull request found in payload");
       return;
     }
   }
@@ -145,26 +130,22 @@ async function main() {
   // Check for label removal attempts (labels starting with '-')
   for (const label of requestedLabels) {
     if (label.startsWith("-")) {
-      core.setFailed(
-        `Label removal is not permitted. Found line starting with '-': ${label}`
-      );
+      core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
       return;
     }
   }
 
   // Validate that all requested labels are in the allowed list (if restrictions are set)
-  let validLabels;
+  let validLabels: string[];
   if (allowedLabels) {
-    validLabels = requestedLabels.filter(
-      /** @param {string} label */ label => allowedLabels.includes(label)
-    );
+    validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
   } else {
     // No restrictions, all requested labels are valid
     validLabels = requestedLabels;
   }
 
   // Remove duplicates from requested labels
-  let uniqueLabels = [...new Set(validLabels)];
+  let uniqueLabels: string[] = [...new Set(validLabels)];
 
   // Enforce max limit
   if (uniqueLabels.length > maxCount) {
@@ -187,9 +168,7 @@ No labels were added (no valid labels found in agent output).
     return;
   }
 
-  core.info(
-    `Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`
-  );
+  core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`);
 
   try {
     // Add labels using GitHub API
@@ -200,17 +179,13 @@ No labels were added (no valid labels found in agent output).
       labels: uniqueLabels,
     });
 
-    core.info(
-      `Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`
-    );
+    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
 
     // Set output for other jobs to use
     core.setOutput("labels_added", uniqueLabels.join("\n"));
 
     // Write summary
-    const labelsListMarkdown = uniqueLabels
-      .map(label => `- \`${label}\``)
-      .join("\n");
+    const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
     await core.summary
       .addRaw(
         `

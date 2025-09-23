@@ -20,6 +20,7 @@ go.work
 # Build output
 dist/
 build/
+run-*/
 
 # IDE files
 .idea/
@@ -51,3 +52,4 @@ coverage/
 logs/
 
 node_modules/
+gh-aw-test/

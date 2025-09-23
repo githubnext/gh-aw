@@ -99,9 +99,7 @@ describe("update_issue.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "No GITHUB_AW_AGENT_OUTPUT environment variable found"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 
@@ -130,9 +128,7 @@ describe("update_issue.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      'Target is "triggering" but not running in issue context, skipping issue update'
-    );
+    expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue context, skipping issue update');
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 
@@ -167,10 +163,7 @@ describe("update_issue.cjs", () => {
     });
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 123);
-    expect(mockCore.setOutput).toHaveBeenCalledWith(
-      "issue_url",
-      mockIssue.html_url
-    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url);
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
@@ -291,9 +284,7 @@ describe("update_issue.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "No valid updates to apply for this item"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("No valid updates to apply for this item");
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 
@@ -312,9 +303,7 @@ describe("update_issue.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Invalid status value: invalid. Must be 'open' or 'closed'"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Invalid status value: invalid. Must be 'open' or 'closed'");
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 });

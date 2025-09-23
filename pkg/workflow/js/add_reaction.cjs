@@ -5,20 +5,9 @@ async function main() {
   core.info(`Reaction type: ${reaction}`);
 
   // Validate reaction type
-  const validReactions = [
-    "+1",
-    "-1",
-    "laugh",
-    "confused",
-    "heart",
-    "hooray",
-    "rocket",
-    "eyes",
-  ];
+  const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
   if (!validReactions.includes(reaction)) {
-    core.setFailed(
-      `Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`
-    );
+    core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
     return;
   }
 

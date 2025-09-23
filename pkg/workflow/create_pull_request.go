@@ -102,7 +102,10 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	outputs := map[string]string{
 		"pull_request_number": "${{ steps.create_pull_request.outputs.pull_request_number }}",
 		"pull_request_url":    "${{ steps.create_pull_request.outputs.pull_request_url }}",
+		"issue_number":        "${{ steps.create_pull_request.outputs.issue_number }}",
+		"issue_url":           "${{ steps.create_pull_request.outputs.issue_url }}",
 		"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
+		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
 	}
 
 	// Determine the job condition for command workflows
