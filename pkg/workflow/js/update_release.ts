@@ -1,4 +1,4 @@
-import type { SafeOutputItems } from "./types/safe-outputs.js";
+import type { SafeOutputItems, UpdateReleaseItem } from "./types/safe-outputs.js";
 
 async function main() {
   // Check if we're in staged mode
@@ -33,7 +33,7 @@ async function main() {
   }
 
   // Find all update-release items
-  const updateItems = validatedOutput.items.filter((item: any) => item.type === "update-release");
+  const updateItems = validatedOutput.items.filter((item): item is UpdateReleaseItem => item.type === "update-release");
   if (updateItems.length === 0) {
     core.info("No update-release items found in agent output");
     return;
@@ -47,7 +47,7 @@ async function main() {
     summaryContent += "The following release updates would be applied if staged mode was disabled:\n\n";
 
     for (let i = 0; i < updateItems.length; i++) {
-      const item = updateItems[i] as any;
+      const item = updateItems[i];
       summaryContent += `### Release Update ${i + 1}\n`;
       if (item.release_id) {
         summaryContent += `- **Release ID**: ${item.release_id}\n`;
@@ -83,7 +83,7 @@ async function main() {
 
   // Process each update item
   for (let i = 0; i < updateItems.length; i++) {
-    const updateItem = updateItems[i] as any;
+    const updateItem = updateItems[i];
     core.info(`Processing update-release item ${i + 1}/${updateItems.length}`);
 
     // Determine the release ID for this update
