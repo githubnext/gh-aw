@@ -153,7 +153,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 	if safeOutputs.UpdateReleases != nil {
 		yaml.WriteString("          **Updating a Release**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To update a release, use the update-release tool from the safe-outputs MCP\n")
+		yaml.WriteString("          To update a release, use the update_release tool from the safe-outputs MCP\n")
 		yaml.WriteString("          \n")
 	}
 

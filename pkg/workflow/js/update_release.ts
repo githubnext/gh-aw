@@ -1,3 +1,5 @@
+import type { SafeOutputItems } from "./types/safe-outputs.js";
+
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -17,7 +19,7 @@ async function main() {
   core.info(`Agent output content length: ${outputContent.length}`);
 
   // Parse the validated output JSON
-  let validatedOutput;
+  let validatedOutput: SafeOutputItems;
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
@@ -45,7 +47,7 @@ async function main() {
     summaryContent += "The following release updates would be applied if staged mode was disabled:\n\n";
 
     for (let i = 0; i < updateItems.length; i++) {
-      const item = updateItems[i];
+      const item = updateItems[i] as any;
       summaryContent += `### Release Update ${i + 1}\n`;
       if (item.release_id) {
         summaryContent += `- **Release ID**: ${item.release_id}\n`;
@@ -81,7 +83,7 @@ async function main() {
 
   // Process each update item
   for (let i = 0; i < updateItems.length; i++) {
-    const updateItem = updateItems[i];
+    const updateItem = updateItems[i] as any;
     core.info(`Processing update-release item ${i + 1}/${updateItems.length}`);
 
     // Determine the release ID for this update

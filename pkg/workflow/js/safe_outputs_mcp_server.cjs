@@ -406,6 +406,7 @@ const ALL_TOOLS = [
     description: "Update a GitHub release",
     inputSchema: {
       type: "object",
+      required: ["body"],
       properties: {
         body: { type: "string", description: "Content to append to release body" },
         release_id: {
