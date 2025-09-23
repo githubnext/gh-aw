@@ -15,36 +15,36 @@ import (
 func redirectStdoutToString(fn func() error) (string, error) {
 	// Save original stdout
 	originalStdout := os.Stdout
-	
+
 	// Create a pipe to capture stdout
 	r, w, err := os.Pipe()
 	if err != nil {
 		return "", fmt.Errorf("failed to create pipe: %w", err)
 	}
-	
+
 	// Redirect stdout to the pipe
 	os.Stdout = w
-	
+
 	// Execute the function
 	fnErr := fn()
-	
+
 	// Close the write end and restore stdout
 	w.Close()
 	os.Stdout = originalStdout
-	
+
 	// Read the captured output
 	output, readErr := io.ReadAll(r)
 	r.Close()
-	
+
 	if readErr != nil {
 		return "", fmt.Errorf("failed to read captured output: %w", readErr)
 	}
-	
+
 	// Return the captured output and any error from the function
 	if fnErr != nil {
 		return string(output), fnErr
 	}
-	
+
 	return string(output), nil
 }
 
@@ -132,7 +132,11 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				count = 30
 			}
 
-			err := DownloadWorkflowLogs(args.Workflow, count, "", "", "", args.Engine, "", 0, 0, args.Verbose || verbose, false, false)
+			// Capture the logs output using the helper function
+			output, err := redirectStdoutToString(func() error {
+				return DownloadWorkflowLogs(args.Workflow, count, "", "", "", args.Engine, "", 0, 0, args.Verbose || verbose, false, false)
+			})
+
 			if err != nil {
 				return &mcp.CallToolResult{
 					IsError: true,
@@ -140,8 +144,13 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
+			// Provide the actual output or a default message
+			if output == "" {
+				output = "Successfully downloaded and analyzed workflow logs"
+			}
+
 			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: "Successfully downloaded and analyzed workflow logs"}},
+				Content: []mcp.Content{&mcp.TextContent{Text: output}},
 			}, nil, nil
 		})
 	}
@@ -247,7 +256,11 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
-			err := AddMCPTool(args.Workflow, args.Server, args.Registry, args.Transport, args.ToolID, args.Verbose || verbose)
+			// Capture the mcp_add output using the helper function
+			output, err := redirectStdoutToString(func() error {
+				return AddMCPTool(args.Workflow, args.Server, args.Registry, args.Transport, args.ToolID, args.Verbose || verbose)
+			})
+
 			if err != nil {
 				return &mcp.CallToolResult{
 					IsError: true,
@@ -255,8 +268,13 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
+			// Provide the actual output or a default message
+			if output == "" {
+				output = fmt.Sprintf("Successfully added MCP tool '%s' to workflow '%s'", args.Server, args.Workflow)
+			}
+
 			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Successfully added MCP tool '%s' to workflow '%s'", args.Server, args.Workflow)}},
+				Content: []mcp.Content{&mcp.TextContent{Text: output}},
 			}, nil, nil
 		})
 	}
@@ -284,7 +302,11 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
-			err := RunWorkflowsOnGitHub(args.Workflows, args.Repeat, args.Enable, args.Verbose || verbose)
+			// Capture the run output using the helper function
+			output, err := redirectStdoutToString(func() error {
+				return RunWorkflowsOnGitHub(args.Workflows, args.Repeat, args.Enable, args.Verbose || verbose)
+			})
+
 			if err != nil {
 				return &mcp.CallToolResult{
 					IsError: true,
@@ -292,13 +314,17 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 				}, nil, nil
 			}
 
-			message := fmt.Sprintf("Successfully ran %d workflow(s)", len(args.Workflows))
-			if len(args.Workflows) == 1 {
-				message = fmt.Sprintf("Successfully ran workflow: %s", args.Workflows[0])
+			// Provide the actual output or generate a default message
+			if output == "" {
+				message := fmt.Sprintf("Successfully ran %d workflow(s)", len(args.Workflows))
+				if len(args.Workflows) == 1 {
+					message = fmt.Sprintf("Successfully ran workflow: %s", args.Workflows[0])
+				}
+				output = message
 			}
 
 			return &mcp.CallToolResult{
-				Content: []mcp.Content{&mcp.TextContent{Text: message}},
+				Content: []mcp.Content{&mcp.TextContent{Text: output}},
 			}, nil, nil
 		})
 	}
