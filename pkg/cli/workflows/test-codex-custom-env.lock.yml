@@ -36,8 +36,8 @@ jobs:
           persistence = "none"
           
           [sandbox]
-          # Network access disabled
-          network = false
+          # Network access disabled (empty)
+          network_access = false
           
           [mcp_servers.github]
           user_agent = "test-codex-custom-environment-variable"
