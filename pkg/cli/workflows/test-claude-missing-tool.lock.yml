@@ -532,6 +532,21 @@ jobs:
                 },
               },
               {
+                name: "update_release",
+                description: "Update a GitHub release",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    body: { type: "string", description: "Content to append to release body" },
+                    release_id: {
+                      type: ["number", "string"],
+                      description: "Optional release ID for target '*'",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
                 name: "push_to_pull_request_branch",
                 description: "Push changes to a pull request branch",
                 inputSchema: {
@@ -1043,6 +1058,8 @@ jobs:
                     return 5; 
                   case "update-issue":
                     return 1; 
+                  case "update-release":
+                    return 1; 
                   case "push-to-pull-request-branch":
                     return 1; 
                   case "create-discussion":
@@ -1370,6 +1387,19 @@ jobs:
                       if (!updateIssueNumValidation.isValid) {
                         errors.push(updateIssueNumValidation.error);
                         continue;
+                      }
+                      break;
+                    case "update-release":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: update-release requires a 'body' string field`);
+                        continue;
+                      }
+                      item.body = sanitizeContent(item.body);
+                      if (item.release_id !== undefined) {
+                        if (typeof item.release_id !== "string" && typeof item.release_id !== "number") {
+                          errors.push(`Line ${i + 1}: update-release 'release_id' must be a string or number`);
+                          continue;
+                        }
                       }
                       break;
                     case "push-to-pull-request-branch":
