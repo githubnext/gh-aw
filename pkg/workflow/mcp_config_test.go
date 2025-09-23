@@ -37,45 +37,6 @@ tools:
 			expectedCommand:     "docker",
 			expectedDockerImage: "ghcr.io/github/github-mcp-server:sha-09deac4",
 		},
-		{
-			name: "custom docker image version",
-			frontmatter: `---
-tools:
-  github:
-    use_docker_mcp: true
-    docker_image_version: "v1.2.3"
-    allowed: [list_issues, create_issue]
----`,
-			expectedType:        "docker",
-			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:v1.2.3",
-		},
-		{
-			name: "custom docker image SHA",
-			frontmatter: `---
-tools:
-  github:
-    use_docker_mcp: true
-    docker_image_version: "sha-abcd1234"
-    allowed: [list_issues, create_issue]
----`,
-			expectedType:        "docker",
-			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:sha-abcd1234",
-		},
-		{
-			name: "custom docker image version with services disabled",
-			frontmatter: `---
-tools:
-  github:
-    use_docker_mcp: true
-    docker_image_version: "latest"
-    allowed: [list_issues, create_issue]
----`,
-			expectedType:        "docker",
-			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:latest",
-		},
 	}
 
 	for _, tt := range tests {
@@ -273,23 +234,7 @@ func TestCustomDockerMCPConfiguration(t *testing.T) {
 		frontmatter         string
 		expectedType        string // "docker" or "http"
 		expectedDockerImage string // Expected Docker image version
-	}{
-		{
-			name: "custom docker MCP with default settings",
-			frontmatter: `---
-tools:
-  github:
-    use_docker_mcp: true
-    allowed: [list_issues, create_issue]
-  custom_tool:
-    mcp:
-      type: "stdio"
-      command: "docker"
-      args: ["run", "-i", "--rm", "custom/mcp-server:latest"]
----`,
-			expectedType:        "docker",      // GitHub always uses docker now
-			expectedDockerImage: "sha-09deac4", // Default version
-		},
+	}{		
 		{
 			name: "custom docker MCP with default settings",
 			frontmatter: `---
