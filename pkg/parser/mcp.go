@@ -265,13 +265,28 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 				continue
 			}
 
-			// Check if it has MCP configuration
-			mcpSection, hasMcp := toolConfig["mcp"]
+			// Check if it has MCP configuration - either new format (direct fields) or old format (nested mcp field)
+			var hasMcp bool
+			var mcpSection any
+			var isNewFormat bool
+
+			// Check for new format first - direct MCP fields in tool config
+			if hasDirectMCPFields(toolConfig) {
+				hasMcp = true
+				mcpSection = toolConfig // The toolConfig itself contains the MCP fields
+				isNewFormat = true
+			} else if mcpSectionValue, hasNestedMcp := toolConfig["mcp"]; hasNestedMcp {
+				// Fall back to old format for backward compatibility
+				hasMcp = true
+				mcpSection = mcpSectionValue
+				isNewFormat = false
+			}
+
 			if !hasMcp {
 				continue
 			}
 
-			config, err := ParseMCPConfig(toolName, mcpSection, toolConfig)
+			config, err := ParseMCPConfigWithFormat(toolName, mcpSection, toolConfig, isNewFormat)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse MCP config for %s: %w", toolName, err)
 			}
@@ -288,8 +303,34 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	return configs, nil
 }
 
-// ParseMCPConfig parses MCP configuration from various formats (map or JSON string)
+// hasDirectMCPFields checks if a tool configuration has MCP fields directly (new format)
+func hasDirectMCPFields(toolConfig map[string]any) bool {
+	// Check for required MCP fields that indicate this is an MCP server configuration
+	if typeVal, hasType := toolConfig["type"]; hasType {
+		if typeStr, ok := typeVal.(string); ok && (typeStr == "stdio" || typeStr == "http") {
+			return true
+		}
+	}
+	
+	// Check for other MCP-specific fields even without type (for validation error messages)
+	mcpFields := []string{"command", "container", "url", "headers", "env", "permissions"}
+	for _, field := range mcpFields {
+		if _, hasField := toolConfig[field]; hasField {
+			// If we have MCP fields but no type, this is likely a misconfigured MCP server
+			return true
+		}
+	}
+	
+	return false
+}
+
+// ParseMCPConfig parses MCP configuration from various formats (map or JSON string) - legacy version for backward compatibility
 func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) (MCPServerConfig, error) {
+	return ParseMCPConfigWithFormat(toolName, mcpSection, toolConfig, false)
+}
+
+// ParseMCPConfigWithFormat parses MCP configuration from various formats with format indication
+func ParseMCPConfigWithFormat(toolName string, mcpSection any, toolConfig map[string]any, isNewFormat bool) (MCPServerConfig, error) {
 	config := MCPServerConfig{
 		Name: toolName,
 		Env:  make(map[string]string),
@@ -319,6 +360,20 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 		}
 	default:
 		return config, fmt.Errorf("invalid mcp configuration format")
+	}
+
+	// For new format, filter out non-MCP fields from the config
+	if isNewFormat {
+		// This is the new format where MCP fields are directly in toolConfig
+		// Create a clean mcpConfig with only MCP-specific fields
+		filteredMcpConfig := make(map[string]any)
+		mcpFields := []string{"type", "command", "args", "container", "url", "headers", "env", "permissions"}
+		for _, field := range mcpFields {
+			if value, exists := mcpConfig[field]; exists {
+				filteredMcpConfig[field] = value
+			}
+		}
+		mcpConfig = filteredMcpConfig
 	}
 
 	// Extract type (required)

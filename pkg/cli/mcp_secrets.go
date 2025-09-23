@@ -12,14 +12,30 @@ func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
 	// Extract environment variables from the tool config
 	var requiredSecrets []string
 
-	if mcpSection, ok := toolConfig["mcp"].(map[string]any); ok {
+	// Check for environment variables in both new and old formats
+	var envMap map[string]string
+	
+	// Check new format - direct env field
+	if env, hasEnv := toolConfig["env"].(map[string]any); hasEnv {
+		envMap = make(map[string]string)
+		for k, v := range env {
+			if str, ok := v.(string); ok {
+				envMap[k] = str
+			}
+		}
+	} else if mcpSection, ok := toolConfig["mcp"].(map[string]any); ok {
+		// Fall back to old format - nested mcp.env field
 		if env, hasEnv := mcpSection["env"].(map[string]string); hasEnv {
-			for _, value := range env {
-				// Extract secret name from GitHub Actions syntax: ${{ secrets.SECRET_NAME }}
-				if strings.HasPrefix(value, "${{ secrets.") && strings.HasSuffix(value, " }}") {
-					secretName := value[12 : len(value)-3] // Remove "${{ secrets." and " }}"
-					requiredSecrets = append(requiredSecrets, secretName)
-				}
+			envMap = env
+		}
+	}
+	
+	if envMap != nil {
+		for _, value := range envMap {
+			// Extract secret name from GitHub Actions syntax: ${{ secrets.SECRET_NAME }}
+			if strings.HasPrefix(value, "${{ secrets.") && strings.HasSuffix(value, " }}") {
+				secretName := value[12 : len(value)-3] // Remove "${{ secrets." and " }}"
+				requiredSecrets = append(requiredSecrets, secretName)
 			}
 		}
 	}

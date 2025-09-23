@@ -397,6 +397,85 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "New format: Custom MCP server with stdio type (direct fields)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"custom-server-new": map[string]any{
+						"type":    "stdio",
+						"command": "/usr/local/bin/mcp-server",
+						"args":    []any{"--config", "/etc/config.json"},
+						"env": map[string]any{
+							"API_KEY": "secret-key",
+							"DEBUG":   "1",
+						},
+						"allowed": []any{"tool1", "tool2"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "custom-server-new",
+					Type:    "stdio",
+					Command: "/usr/local/bin/mcp-server",
+					Args:    []string{"--config", "/etc/config.json"},
+					Env:     map[string]string{"API_KEY": "secret-key", "DEBUG": "1"},
+					Allowed: []string{"tool1", "tool2"},
+				},
+			},
+		},
+		{
+			name: "New format: HTTP MCP server (direct fields)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"http-server-new": map[string]any{
+						"type": "http",
+						"url":  "https://api.example.com/mcp",
+						"headers": map[string]any{
+							"Authorization": "Bearer token123",
+							"Content-Type":  "application/json",
+						},
+						"allowed": []any{"http_tool1", "http_tool2"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "http-server-new",
+					Type:    "http",
+					URL:     "https://api.example.com/mcp",
+					Headers: map[string]string{"Authorization": "Bearer token123", "Content-Type": "application/json"},
+					Env:     map[string]string{},
+					Allowed: []string{"http_tool1", "http_tool2"},
+				},
+			},
+		},
+		{
+			name: "New format: Container-based MCP server (direct fields)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"docker-server-new": map[string]any{
+						"type":      "stdio",
+						"container": "myregistry/mcp-server:v1.0",
+						"env": map[string]any{
+							"DATABASE_URL": "postgresql://localhost/db",
+						},
+						"allowed": []any{"db_tool1"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:      "docker-server-new",
+					Type:      "stdio",
+					Container: "myregistry/mcp-server:v1.0",
+					Command:   "docker",
+					Args:      []string{"run", "--rm", "-i", "-e", "DATABASE_URL", "myregistry/mcp-server:v1.0"},
+					Env:       map[string]string{"DATABASE_URL": "postgresql://localhost/db"},
+					Allowed:   []string{"db_tool1"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -676,6 +755,60 @@ func TestParseMCPConfig(t *testing.T) {
 			},
 			toolConfig:  map[string]any{},
 			expectError: true,
+		},
+		{
+			name:     "New format: Stdio with command and args (direct fields)",
+			toolName: "test-server-new",
+			mcpSection: map[string]any{
+				"type":    "stdio",
+				"command": "/usr/bin/server",
+				"args":    []any{"--verbose", "--config=/etc/config.yml"},
+				"allowed": []any{"tool1", "tool2"},
+			},
+			toolConfig: map[string]any{
+				"type":    "stdio",
+				"command": "/usr/bin/server",
+				"args":    []any{"--verbose", "--config=/etc/config.yml"},
+				"allowed": []any{"tool1", "tool2"},
+			},
+			expected: MCPServerConfig{
+				Name:    "test-server-new",
+				Type:    "stdio",
+				Command: "/usr/bin/server",
+				Args:    []string{"--verbose", "--config=/etc/config.yml"},
+				Env:     map[string]string{},
+				Allowed: []string{"tool1", "tool2"},
+			},
+		},
+		{
+			name:     "New format: HTTP server (direct fields)",
+			toolName: "http-server-new",
+			mcpSection: map[string]any{
+				"type": "http",
+				"url":  "https://mcp.example.com/api",
+				"headers": map[string]any{
+					"Authorization": "Bearer token123",
+					"User-Agent":    "gh-aw/1.0",
+				},
+				"allowed": []any{"http_tool"},
+			},
+			toolConfig: map[string]any{
+				"type": "http",
+				"url":  "https://mcp.example.com/api",
+				"headers": map[string]any{
+					"Authorization": "Bearer token123",
+					"User-Agent":    "gh-aw/1.0",
+				},
+				"allowed": []any{"http_tool"},
+			},
+			expected: MCPServerConfig{
+				Name:    "http-server-new",
+				Type:    "http",
+				URL:     "https://mcp.example.com/api",
+				Headers: map[string]string{"Authorization": "Bearer token123", "User-Agent": "gh-aw/1.0"},
+				Env:     map[string]string{},
+				Allowed: []string{"http_tool"},
+			},
 		},
 	}
 
