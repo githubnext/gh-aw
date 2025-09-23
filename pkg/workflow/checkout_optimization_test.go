@@ -15,7 +15,7 @@ func TestCheckoutOptimization(t *testing.T) {
 		description         string
 	}{
 		{
-			name: "no permissions should omit checkout",
+			name: "no permissions defaults to read-all should include checkout",
 			frontmatter: `---
 on:
   issues:
@@ -25,8 +25,8 @@ tools:
     allowed: [list_issues]
 engine: claude
 ---`,
-			expectedHasCheckout: false,
-			description:         "When no permissions are specified, checkout should be omitted",
+			expectedHasCheckout: true,
+			description:         "When no permissions are specified, default read-all grants checkout",
 		},
 		{
 			name: "permissions without contents should omit checkout",
@@ -233,63 +233,54 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 		name        string
 		permissions string
 		customSteps string
-		frontmatter map[string]any
 		expected    bool
 	}{
 		{
-			name:        "no permissions in frontmatter, no custom steps",
+			name:        "default permissions should include checkout",
 			permissions: "permissions: read-all", // Default applied by compiler
 			customSteps: "",
-			frontmatter: map[string]any{}, // No permissions key
-			expected:    false,
+			expected:    true,
 		},
 		{
 			name:        "contents read permission specified, no custom steps",
 			permissions: "permissions:\n  contents: read",
 			customSteps: "",
-			frontmatter: map[string]any{"permissions": map[string]any{"contents": "read"}},
 			expected:    true,
 		},
 		{
 			name:        "contents write permission specified, no custom steps",
 			permissions: "permissions:\n  contents: write",
 			customSteps: "",
-			frontmatter: map[string]any{"permissions": map[string]any{"contents": "write"}},
 			expected:    true,
 		},
 		{
 			name:        "no contents permission specified, no custom steps",
 			permissions: "permissions:\n  issues: write",
 			customSteps: "",
-			frontmatter: map[string]any{"permissions": map[string]any{"issues": "write"}},
 			expected:    false,
 		},
 		{
 			name:        "contents read permission, custom steps with checkout",
 			permissions: "permissions:\n  contents: read",
 			customSteps: "steps:\n  - uses: actions/checkout@v5",
-			frontmatter: map[string]any{"permissions": map[string]any{"contents": "read"}},
 			expected:    false,
 		},
 		{
 			name:        "contents read permission, custom steps without checkout",
 			permissions: "permissions:\n  contents: read",
 			customSteps: "steps:\n  - uses: actions/setup-node@v4",
-			frontmatter: map[string]any{"permissions": map[string]any{"contents": "read"}},
 			expected:    true,
 		},
 		{
 			name:        "read-all shorthand permission specified",
 			permissions: "permissions: read-all",
 			customSteps: "",
-			frontmatter: map[string]any{"permissions": "read-all"},
 			expected:    true,
 		},
 		{
 			name:        "write-all shorthand permission specified",
 			permissions: "permissions: write-all",
 			customSteps: "",
-			frontmatter: map[string]any{"permissions": "write-all"},
 			expected:    true,
 		},
 	}
@@ -303,7 +294,7 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 				CustomSteps: tt.customSteps,
 			}
 
-			result := compiler.shouldAddCheckoutStep(data, tt.frontmatter)
+			result := compiler.shouldAddCheckoutStep(data)
 			if result != tt.expected {
 				t.Errorf("shouldAddCheckoutStep() = %v, expected %v", result, tt.expected)
 			}

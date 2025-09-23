@@ -1800,7 +1800,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData, frontmatter map[string]any) {
 	// Determine if we need to add a checkout step
-	needsCheckout := c.shouldAddCheckoutStep(data, frontmatter)
+	needsCheckout := c.shouldAddCheckoutStep(data)
 
 	// Add checkout step first if needed
 	if needsCheckout {
@@ -2221,15 +2221,10 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 }
 
 // shouldAddCheckoutStep determines if the checkout step should be added based on permissions and custom steps
-func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData, frontmatter map[string]any) bool {
+func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 	// Check condition 1: If custom steps already contain checkout, don't add another one
 	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
 		return false // Custom steps already have checkout
-	}
-
-	// Check condition 2: If no permissions were originally specified, don't add checkout (optimization)
-	if _, hasPermissions := frontmatter["permissions"]; !hasPermissions {
-		return false // No permissions specified, skip checkout
 	}
 
 	// Check condition 2: If permissions don't grant contents access, don't add checkout
