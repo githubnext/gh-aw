@@ -100,8 +100,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		webSearchParam = "--search "
 	}
 
-	// See https://github.com/githubnext/gh-aw/issues/892
-	fullAutoParam := "--dangerously-bypass-approvals-and-sandbox "
+	// Build sandbox parameter based on network permissions
+	sandboxParam := e.getSandboxParam(workflowData.NetworkPermissions)
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
@@ -120,7 +120,7 @@ codex --version
 codex login --api-key "$OPENAI_API_KEY"
 
 # Run codex with log capture - pipefail ensures codex exit code is preserved
-codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
+codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, sandboxParam, logFile)
 
 	env := map[string]string{
 		"OPENAI_API_KEY":       "${{ secrets.OPENAI_API_KEY }}",
@@ -615,33 +615,59 @@ func (e *CodexEngine) GetDefaultNetworkPermissions() *NetworkPermissions {
 	}
 }
 
-// renderNetworkConfig generates network configuration for codex config.toml
+// renderNetworkConfig generates sandbox configuration for codex config.toml
 func (e *CodexEngine) renderNetworkConfig(yaml *strings.Builder, networkPermissions *NetworkPermissions) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [sandbox]\n")
 
 	// Default network setting if no permissions specified (equivalent to network: defaults for other engines)
 	if networkPermissions == nil {
-		yaml.WriteString("          # Network access enabled (default)\n")
-		yaml.WriteString("          network_access = true\n")
+		yaml.WriteString("          # Default sandbox mode with network access enabled\n")
+		yaml.WriteString("          sandbox_mode = \"danger-full-access\"\n")
 		return
 	}
 
-	// Handle empty allowed list - means no network access
+	// Handle empty allowed list - means no network access, workspace-write mode
 	if len(networkPermissions.Allowed) == 0 {
-		yaml.WriteString("          # Network access disabled (empty)\n")
+		yaml.WriteString("          # Workspace-write mode with no network access\n")
+		yaml.WriteString("          sandbox_mode = \"workspace-write\"\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [sandbox_workspace_write]\n")
 		yaml.WriteString("          network_access = false\n")
 		return
 	}
 
-	// Handle wildcard - means full network access
+	// Handle wildcard - means full access, danger-full-access mode
 	if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "*" {
-		yaml.WriteString("          # Network access enabled (*)\n")
-		yaml.WriteString("          network_access = true\n")
+		yaml.WriteString("          # Full access mode (danger)\n")
+		yaml.WriteString("          sandbox_mode = \"danger-full-access\"\n")
 		return
 	}
 
 	// This should not happen due to validation, but handle gracefully
-	yaml.WriteString("          # Network access disabled (fallback)\n")
+	yaml.WriteString("          # Fallback to workspace-write mode with no network access\n")
+	yaml.WriteString("          sandbox_mode = \"workspace-write\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [sandbox_workspace_write]\n")
 	yaml.WriteString("          network_access = false\n")
+}
+
+// getSandboxParam generates the appropriate sandbox CLI parameter based on network permissions
+func (e *CodexEngine) getSandboxParam(networkPermissions *NetworkPermissions) string {
+	// Default (nil permissions) - use danger-full-access mode  
+	if networkPermissions == nil {
+		return "--sandbox danger-full-access "
+	}
+
+	// Empty allowed list - means no network access, use workspace-write mode
+	if len(networkPermissions.Allowed) == 0 {
+		return "--sandbox workspace-write "
+	}
+
+	// Wildcard - means full access, use danger-full-access mode
+	if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "*" {
+		return "--sandbox danger-full-access "
+	}
+
+	// Fallback to workspace-write mode
+	return "--sandbox workspace-write "
 }

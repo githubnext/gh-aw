@@ -290,9 +290,8 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"[history]",
 				"persistence = \"none\"",
 				"",
-				"[sandbox]",
-				"# Network access enabled by default",
-				"network = true",
+				"# Default sandbox mode with network access enabled",
+				"sandbox_mode = \"danger-full-access\"",
 				"",
 				"[mcp_servers.github]",
 				"user_agent = \"test-workflow\"",
@@ -653,14 +652,11 @@ func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
 		engine.renderNetworkConfig(&yaml, nil)
 		output := yaml.String()
 
-		if !strings.Contains(output, "network = true") {
-			t.Error("Expected config.toml to contain 'network = true' for nil permissions")
+		if !strings.Contains(output, "sandbox_mode = \"danger-full-access\"") {
+			t.Error("Expected config.toml to contain 'sandbox_mode = \"danger-full-access\"' for nil permissions")
 		}
-		if !strings.Contains(output, "Network access enabled by default") {
+		if !strings.Contains(output, "Default sandbox mode with network access enabled") {
 			t.Error("Expected comment about default access")
-		}
-		if !strings.Contains(output, "[sandbox]") {
-			t.Error("Expected config.toml to contain '[sandbox]' section")
 		}
 	})
 
@@ -672,14 +668,14 @@ func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
 		engine.renderNetworkConfig(&yaml, permissions)
 		output := yaml.String()
 
-		if !strings.Contains(output, "network = false") {
-			t.Error("Expected config.toml to contain 'network = false' for empty allowed list")
+		if !strings.Contains(output, "sandbox_mode = \"workspace-write\"") {
+			t.Error("Expected config.toml to contain 'sandbox_mode = \"workspace-write\"' for empty allowed list")
 		}
-		if !strings.Contains(output, "Network access disabled") {
-			t.Error("Expected comment about disabled access")
+		if !strings.Contains(output, "network_access = false") {
+			t.Error("Expected config.toml to contain 'network_access = false' for empty allowed list")
 		}
-		if !strings.Contains(output, "[sandbox]") {
-			t.Error("Expected config.toml to contain '[sandbox]' section")
+		if !strings.Contains(output, "Workspace-write mode with no network access") {
+			t.Error("Expected comment about workspace-write mode")
 		}
 	})
 
@@ -691,14 +687,11 @@ func TestCodexEngineNetworkConfigGeneration(t *testing.T) {
 		engine.renderNetworkConfig(&yaml, permissions)
 		output := yaml.String()
 
-		if !strings.Contains(output, "network = true") {
-			t.Error("Expected config.toml to contain 'network = true' for wildcard")
+		if !strings.Contains(output, "sandbox_mode = \"danger-full-access\"") {
+			t.Error("Expected config.toml to contain 'sandbox_mode = \"danger-full-access\"' for wildcard")
 		}
-		if !strings.Contains(output, "Network access enabled") {
-			t.Error("Expected comment about enabled access")
-		}
-		if !strings.Contains(output, "[sandbox]") {
-			t.Error("Expected config.toml to contain '[sandbox]' section")
+		if !strings.Contains(output, "Full access mode (danger)") {
+			t.Error("Expected comment about full access mode")
 		}
 	})
 }
@@ -719,4 +712,38 @@ func TestCodexEngineGetDefaultNetworkPermissions(t *testing.T) {
 	if defaults.Mode != "" {
 		t.Errorf("Expected Codex default to have empty mode, got: %s", defaults.Mode)
 	}
+}
+
+func TestCodexEngineGetSandboxParam(t *testing.T) {
+	engine := NewCodexEngine()
+	
+	t.Run("getSandboxParam - nil permissions", func(t *testing.T) {
+		param := engine.getSandboxParam(nil)
+		expected := "--sandbox danger-full-access "
+		if param != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, param)
+		}
+	})
+
+	t.Run("getSandboxParam - empty allowed list", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{},
+		}
+		param := engine.getSandboxParam(permissions)
+		expected := "--sandbox workspace-write "
+		if param != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, param)
+		}
+	})
+
+	t.Run("getSandboxParam - wildcard allowed", func(t *testing.T) {
+		permissions := &NetworkPermissions{
+			Allowed: []string{"*"},
+		}
+		param := engine.getSandboxParam(permissions)
+		expected := "--sandbox danger-full-access "
+		if param != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, param)
+		}
+	})
 }

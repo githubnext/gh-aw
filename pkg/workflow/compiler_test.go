@@ -2393,8 +2393,8 @@ This is a test workflow with wildcard network permissions and codex engine.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		if !strings.Contains(string(lockContentEmpty), "network = false") {
-			t.Error("Should contain 'network = false' for empty network permissions")
+		if !strings.Contains(string(lockContentEmpty), "network_access = false") {
+			t.Error("Should contain 'network_access = false' for empty network permissions")
 		}
 
 		// Compile the wildcard network workflow
@@ -2410,8 +2410,8 @@ This is a test workflow with wildcard network permissions and codex engine.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		if !strings.Contains(string(lockContentWildcard), "network = true") {
-			t.Error("Should contain 'network = true' for wildcard network permissions")
+		if !strings.Contains(string(lockContentWildcard), "sandbox_mode = \"danger-full-access\"") {
+			t.Error("Should contain 'sandbox_mode = \"danger-full-access\"' for wildcard network permissions")
 		}
 	})
 
