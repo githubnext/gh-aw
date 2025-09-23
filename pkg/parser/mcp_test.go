@@ -117,7 +117,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 			expected: []MCPServerConfig{
 				{
-					Name: "http-direct", 
+					Name: "http-direct",
 					Type: "http",
 					URL:  "https://api.example.com/mcp",
 					Headers: map[string]string{
