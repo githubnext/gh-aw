@@ -1751,7 +1751,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	// Build step content using the generateMainJobSteps helper method
 	// but capture it into a string instead of writing directly
 	var stepBuilder strings.Builder
-	c.generateMainJobSteps(&stepBuilder, data)
+	c.generateMainJobSteps(&stepBuilder, data, frontmatter)
 
 	// Split the steps content into individual step entries
 	stepsContent := stepBuilder.String()
@@ -1798,8 +1798,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 }
 
 // generateMainJobSteps generates the steps section for the main job
-func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
-	// Add custom steps or default checkout step
+func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData, frontmatter map[string]any) {
+	// Determine if we need to add a checkout step
+	needsCheckout := c.shouldAddCheckoutStep(data, frontmatter)
+
+	// Add checkout step first if needed
+	if needsCheckout {
+		yaml.WriteString("      - name: Checkout repository\n")
+		yaml.WriteString("        uses: actions/checkout@v5\n")
+	}
+
+	// Add custom steps if present
 	if data.CustomSteps != "" {
 		// Remove "steps:" line and adjust indentation
 		lines := strings.Split(data.CustomSteps, "\n")
@@ -1815,9 +1824,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				yaml.WriteString("      " + line + "\n")
 			}
 		}
-	} else {
-		yaml.WriteString("      - name: Checkout repository\n")
-		yaml.WriteString("        uses: actions/checkout@v5\n")
 	}
 
 	// Add cache steps if cache configuration is present
@@ -2212,6 +2218,28 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 	}
 
 	return nil
+}
+
+// shouldAddCheckoutStep determines if the checkout step should be added based on permissions and custom steps
+func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData, frontmatter map[string]any) bool {
+	// Check condition 1: If custom steps already contain checkout, don't add another one
+	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
+		return false // Custom steps already have checkout
+	}
+
+	// Check condition 2: If no permissions were originally specified, don't add checkout (optimization)
+	if _, hasPermissions := frontmatter["permissions"]; !hasPermissions {
+		return false // No permissions specified, skip checkout
+	}
+
+	// Check condition 2: If permissions don't grant contents access, don't add checkout
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return false // No contents read access, so checkout is not needed
+	}
+
+	// If we get here, permissions allow contents access and custom steps (if any) don't contain checkout
+	return true // Add checkout because it's needed and not already present
 }
 
 // convertStepToYAML converts a step map to YAML string with proper indentation

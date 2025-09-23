@@ -234,7 +234,7 @@ func TestCustomDockerMCPConfiguration(t *testing.T) {
 		frontmatter         string
 		expectedType        string // "docker" or "http"
 		expectedDockerImage string // Expected Docker image version
-	}{		
+	}{
 		{
 			name: "custom docker MCP with default settings",
 			frontmatter: `---
