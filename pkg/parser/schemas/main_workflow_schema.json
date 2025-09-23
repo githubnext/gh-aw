@@ -1237,10 +1237,6 @@
                 "items": {
                   "type": "string"
                 }
-              },
-              "mcp": {
-                "description": "Legacy MCP server configuration (deprecated, use direct fields)",
-                "additionalProperties": true
               }
             },
             "additionalProperties": false,

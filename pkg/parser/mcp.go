@@ -265,11 +265,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 				continue
 			}
 
-			// Check if it has MCP configuration (new format or legacy format)
+			// Check if it has MCP configuration
 			var mcpSection any
 			var hasMcp bool
 
-			// Check for direct type field (new format)
+			// Check for direct type field
 			if _, hasType := toolConfig["type"]; hasType {
 				// If we have a direct type field, create an MCP section from all direct fields
 				mcpFields := map[string]any{}
@@ -279,10 +279,6 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					}
 				}
 				mcpSection = mcpFields
-				hasMcp = true
-			} else if legacyMcp, hasLegacyMcp := toolConfig["mcp"]; hasLegacyMcp {
-				// Fall back to legacy format
-				mcpSection = legacyMcp
 				hasMcp = true
 			}
 

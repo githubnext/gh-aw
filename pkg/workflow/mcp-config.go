@@ -199,7 +199,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	return nil
 }
 
-// getMCPConfig extracts MCP configuration from a tool config in the new format
+// getMCPConfig extracts MCP configuration from a tool config
 func getMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, error) {
 	result := make(map[string]any)
 
@@ -207,37 +207,10 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, e
 	// Note: "permissions" stays at the tool level, not an MCP field
 	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers"}
 
-	// Check new format: direct fields in tool config
-	hasDirectFields := false
+	// Check for direct fields in tool config
 	for _, field := range mcpFields {
 		if value, exists := toolConfig[field]; exists {
 			result[field] = value
-			hasDirectFields = true
-		}
-	}
-
-	// If we have direct fields, use them and skip legacy format
-	if hasDirectFields {
-		return result, nil
-	}
-
-	// Fall back to legacy format: mcp.type, mcp.url, mcp.command, etc.
-	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
-		if mcpMap, ok := mcpSection.(map[string]any); ok {
-			// Copy all MCP properties
-			for key, value := range mcpMap {
-				result[key] = value
-			}
-		} else if mcpString, ok := mcpSection.(string); ok {
-			// Handle JSON string format
-			var parsedMcp map[string]any
-			if err := json.Unmarshal([]byte(mcpString), &parsedMcp); err != nil {
-				return nil, fmt.Errorf("invalid JSON in mcp configuration: %w", err)
-			}
-			// Copy all MCP properties from parsed JSON
-			for key, value := range parsedMcp {
-				result[key] = value
-			}
 		}
 	}
 
@@ -343,31 +316,10 @@ func isMCPType(typeStr string) bool {
 
 // hasMCPConfig checks if a tool configuration has MCP configuration
 func hasMCPConfig(toolConfig map[string]any) (bool, string) {
-	// Check new format: direct type field
+	// Check for direct type field
 	if mcpType, hasType := toolConfig["type"]; hasType {
 		if typeStr, ok := mcpType.(string); ok && isMCPType(typeStr) {
 			return true, typeStr
-		}
-	}
-
-	// Fall back to legacy format: mcp.type
-	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
-		if mcpMap, ok := mcpSection.(map[string]any); ok {
-			if mcpType, hasType := mcpMap["type"]; hasType {
-				if typeStr, ok := mcpType.(string); ok && isMCPType(typeStr) {
-					return true, typeStr
-				}
-			}
-		} else if mcpString, ok := mcpSection.(string); ok {
-			// Handle JSON string format
-			var parsedMcp map[string]any
-			if err := json.Unmarshal([]byte(mcpString), &parsedMcp); err == nil {
-				if mcpType, hasType := parsedMcp["type"]; hasType {
-					if typeStr, ok := mcpType.(string); ok && isMCPType(typeStr) {
-						return true, typeStr
-					}
-				}
-			}
 		}
 	}
 

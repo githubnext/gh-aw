@@ -109,55 +109,6 @@ tools:
 
 **Use cases**: Cloud services, remote APIs, shared infrastructure
 
-### 4. Legacy Format (Deprecated)
-
-For backward compatibility, the legacy `mcp` wrapper format is still supported:
-
-```yaml
-tools:
-  legacy-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "legacy_server"]
-    allowed: ["process_data"]
-```
-
-**JSON String Format** (legacy):
-
-```yaml
-tools:
-  complex-server:
-    mcp: |
-      {
-        "type": "stdio",
-        "command": "python",
-        "args": ["-m", "complex_mcp"],
-        "env": {
-          "API_KEY": "${secrets.API_KEY}",
-          "DEBUG": "true"
-        }
-      }
-    allowed: ["process_data", "generate_report"]
-```
-
-> [!NOTE]
-> The legacy `mcp:` wrapper format is deprecated. Use direct fields instead:
-> ```yaml
-> # ✅ New format (recommended)
-> tools:
->   my-tool:
->     type: stdio
->     command: "python"
-> 
-> # ❌ Legacy format (deprecated)  
-> tools:
->   my-tool:
->     mcp:
->       type: stdio
->       command: "python"
-> ```
-
 ## GitHub MCP Integration
 
 GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools Configuration](/gh-aw/reference/tools/) for details.
@@ -182,10 +133,9 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), you ca
 ```yaml
 tools:
   custom-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_server"]
+    type: stdio
+    command: "python"
+    args: ["-m", "my_server"]
     allowed: ["tool1", "tool2", "tool3"]
 ```
 
@@ -200,10 +150,9 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 ```yaml
 tools:
   custom-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_server"]
+    type: stdio
+    command: "python"
+    args: ["-m", "my_server"]
     allowed: ["*"]  # Allow ALL tools from this server
 ```
 
@@ -214,27 +163,26 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 ```yaml
 tools:
   remote-api:
-    mcp:
-      type: http
-      url: "https://api.service.com"
-      headers:
-        Authorization: "Bearer ${secrets.API_TOKEN}"
-        X-Custom-Key: "${secrets.CUSTOM_KEY}"
+    type: http
+    url: "https://api.service.com"
+    headers:
+      Authorization: "Bearer ${secrets.API_TOKEN}"
+      X-Custom-Key: "${secrets.CUSTOM_KEY}"
 ```
 
 ## Network Egress Permissions
 
-Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `mcp.permissions.network.allowed`.
+Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `permissions.network.allowed`.
 
 ```yaml
 tools:
   fetch:
-    mcp:
-      container: mcp/fetch
-      permissions:
-        network:
-          allowed:
-            - "example.com"
+    type: stdio
+    container: mcp/fetch
+    permissions:
+      network:
+        allowed:
+          - "example.com"
     allowed: ["fetch"]
 ```
 
