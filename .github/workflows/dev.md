@@ -11,9 +11,9 @@ safe-outputs:
   upload-assets:
   create-issue:
     title-prefix: "[docs] "
-engine: 
-  id: claude
-  max-turns: 50
+engine: codex
+network:
+  allowed: ["*"]
 permissions: read-all
 tools:
   playwright:

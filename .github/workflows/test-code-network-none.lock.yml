@@ -3,15 +3,15 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Test"
-on: push
+name: "Test Code Network None"
+on: workflow_dispatch
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test"
+run-name: "Test Code Network None"
 
 jobs:
   task:
@@ -90,7 +90,7 @@ jobs:
             }
             await main();
 
-  test:
+  test-code-network-none:
     needs: task
     runs-on: ubuntu-latest
     permissions: read-all
@@ -117,7 +117,7 @@ jobs:
           network_access = false
           
           [mcp_servers.github]
-          user_agent = "test"
+          user_agent = "test-code-network-none"
           command = "docker"
           args = [
             "run",
@@ -135,7 +135,7 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test
+          Write a poem.
           
           EOF
       - name: Print prompt to step summary
@@ -158,7 +158,7 @@ jobs:
               engine_name: "Codex",
               model: "",
               version: "",
-              workflow_name: "Test",
+              workflow_name: "Test Code Network None",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: false,
@@ -213,7 +213,7 @@ jobs:
           codex login --api-key "$OPENAI_API_KEY"
           
           # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex --full-auto exec --sandbox workspace-write "$INSTRUCTION" 2>&1 | tee /tmp/test.log
+          codex --full-auto exec --sandbox workspace-write "$INSTRUCTION" 2>&1 | tee /tmp/test-code-network-none.log
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -230,7 +230,7 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-code-network-none.log
         with:
           script: |
             function main() {
@@ -445,14 +445,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test.log
-          path: /tmp/test.log
+          name: test-code-network-none.log
+          path: /tmp/test-code-network-none.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/test-code-network-none.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
         with:
           script: |

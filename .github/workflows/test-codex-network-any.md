@@ -1,5 +1,5 @@
 ---
-on: push
+on: workflow_dispatch
 engine: codex
 network:
   allowed: ["*"]
