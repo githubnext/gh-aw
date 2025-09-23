@@ -27,12 +27,11 @@ tools:
     allowed: [get_issue, add_issue_comment]
   
   trello:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "trello_mcp"]
-      env:
-        TRELLO_TOKEN: "${secrets.TRELLO_TOKEN}"
+    type: stdio
+    command: "python"
+    args: ["-m", "trello_mcp"]
+    env:
+      TRELLO_TOKEN: "${secrets.TRELLO_TOKEN}"
     allowed: ["list_boards"]
 ---
 
@@ -62,13 +61,12 @@ Direct command execution with stdin/stdout communication:
 ```yaml
 tools:
   python-service:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_mcp_server"]
-      env:
-        API_KEY: "${secrets.MY_API_KEY}"
-        DEBUG: "false"
+    type: stdio
+    command: "python"
+    args: ["-m", "my_mcp_server"]
+    env:
+      API_KEY: "${secrets.MY_API_KEY}"
+      DEBUG: "false"
     allowed: ["process_data", "generate_report"]
 ```
 
@@ -81,11 +79,10 @@ Containerized MCP servers for isolation and portability:
 ```yaml
 tools:
   notion:
-    mcp:
-      type: stdio
-      container: "mcp/notion"
-      env:
-        NOTION_TOKEN: "${secrets.NOTION_TOKEN}"
+    type: stdio
+    container: "mcp/notion"
+    env:
+      NOTION_TOKEN: "${secrets.NOTION_TOKEN}"
     allowed: ["create_page", "search_pages"]
 ```
 
@@ -102,20 +99,31 @@ Remote MCP servers accessible via HTTP (Claude engine only):
 ```yaml
 tools:
   remote-api:
-    mcp:
-      type: http
-      url: "https://api.example.com/mcp"
-      headers:
-        Authorization: "Bearer ${secrets.API_TOKEN}"
-        Content-Type: "application/json"
+    type: http
+    url: "https://api.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${secrets.API_TOKEN}"
+      Content-Type: "application/json"
     allowed: ["query_data", "update_records"]
 ```
 
 **Use cases**: Cloud services, remote APIs, shared infrastructure
 
-### 4. JSON String Format
+### 4. Legacy Format (Deprecated)
 
-Alternative format for complex configurations:
+For backward compatibility, the legacy `mcp` wrapper format is still supported:
+
+```yaml
+tools:
+  legacy-server:
+    mcp:
+      type: stdio
+      command: "python"
+      args: ["-m", "legacy_server"]
+    allowed: ["process_data"]
+```
+
+**JSON String Format** (legacy):
 
 ```yaml
 tools:
@@ -132,6 +140,23 @@ tools:
       }
     allowed: ["process_data", "generate_report"]
 ```
+
+> [!NOTE]
+> The legacy `mcp:` wrapper format is deprecated. Use direct fields instead:
+> ```yaml
+> # ✅ New format (recommended)
+> tools:
+>   my-tool:
+>     type: stdio
+>     command: "python"
+> 
+> # ❌ Legacy format (deprecated)  
+> tools:
+>   my-tool:
+>     mcp:
+>       type: stdio
+>       command: "python"
+> ```
 
 ## GitHub MCP Integration
 

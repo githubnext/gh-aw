@@ -203,7 +203,25 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 func getMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, error) {
 	result := make(map[string]any)
 
-	// Check new format: mcp.type, mcp.url, mcp.command, etc.
+	// List of MCP fields that can be direct children of the tool config
+	// Note: "permissions" stays at the tool level, not an MCP field
+	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers"}
+
+	// Check new format: direct fields in tool config
+	hasDirectFields := false
+	for _, field := range mcpFields {
+		if value, exists := toolConfig[field]; exists {
+			result[field] = value
+			hasDirectFields = true
+		}
+	}
+
+	// If we have direct fields, use them and skip legacy format
+	if hasDirectFields {
+		return result, nil
+	}
+
+	// Fall back to legacy format: mcp.type, mcp.url, mcp.command, etc.
 	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
 		if mcpMap, ok := mcpSection.(map[string]any); ok {
 			// Copy all MCP properties
@@ -223,17 +241,20 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, e
 		}
 	}
 
-	// Check if this container needs proxy support
-	if _, hasContainer := result["container"]; hasContainer {
-		if hasNetPerms, _ := hasNetworkPermissions(toolConfig); hasNetPerms {
-			// Mark this configuration as proxy-enabled
-			result["__uses_proxy"] = true
+	// Only apply transformations if we have MCP configuration
+	if len(result) > 0 {
+		// Check if this container needs proxy support
+		if _, hasContainer := result["container"]; hasContainer {
+			if hasNetPerms, _ := hasNetworkPermissions(toolConfig); hasNetPerms {
+				// Mark this configuration as proxy-enabled
+				result["__uses_proxy"] = true
+			}
 		}
-	}
 
-	// Transform container field to docker command if present
-	if err := transformContainerToDockerCommand(result, toolName); err != nil {
-		return nil, err
+		// Transform container field to docker command if present
+		if err := transformContainerToDockerCommand(result, toolName); err != nil {
+			return nil, err
+		}
 	}
 
 	return result, nil
@@ -322,7 +343,14 @@ func isMCPType(typeStr string) bool {
 
 // hasMCPConfig checks if a tool configuration has MCP configuration
 func hasMCPConfig(toolConfig map[string]any) (bool, string) {
-	// Check new format: mcp.type
+	// Check new format: direct type field
+	if mcpType, hasType := toolConfig["type"]; hasType {
+		if typeStr, ok := mcpType.(string); ok && isMCPType(typeStr) {
+			return true, typeStr
+		}
+	}
+
+	// Fall back to legacy format: mcp.type
 	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
 		if mcpMap, ok := mcpSection.(map[string]any); ok {
 			if mcpType, hasType := mcpMap["type"]; hasType {
@@ -350,34 +378,69 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 func ValidateMCPConfigs(tools map[string]any) error {
 	for toolName, toolConfig := range tools {
 		if config, ok := toolConfig.(map[string]any); ok {
-			if mcpSection, hasMcp := config["mcp"]; hasMcp {
-				var mcpConfig map[string]any
+			// Extract raw MCP configuration (without transformation)
+			mcpConfig, err := getRawMCPConfig(config, toolName)
+			if err != nil {
+				return fmt.Errorf("tool '%s' has invalid MCP configuration: %w", toolName, err)
+			}
 
-				if mcpString, ok := mcpSection.(string); ok {
-					// Validate JSON string format
-					var parsedMcp map[string]any
-					if err := json.Unmarshal([]byte(mcpString), &parsedMcp); err != nil {
-						return fmt.Errorf("tool '%s' has invalid JSON in mcp configuration: %w", toolName, err)
-					}
-					mcpConfig = parsedMcp
-				} else if mcpMap, ok := mcpSection.(map[string]any); ok {
-					// Create a copy to avoid modifying the original during validation
-					mcpConfig = make(map[string]any)
-					for k, v := range mcpMap {
-						mcpConfig[k] = v
-					}
-				} else {
-					return fmt.Errorf("tool '%s' has invalid mcp configuration format", toolName)
-				}
+			// Skip validation if no MCP configuration found
+			if len(mcpConfig) == 0 {
+				continue
+			}
 
-				// Validate MCP configuration requirements (before transformation)
-				if err := validateMCPRequirements(toolName, mcpConfig, config); err != nil {
-					return err
-				}
+			// Validate MCP configuration requirements (before transformation)
+			if err := validateMCPRequirements(toolName, mcpConfig, config); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
+}
+
+// getRawMCPConfig extracts MCP configuration without any transformations for validation
+func getRawMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, error) {
+	result := make(map[string]any)
+
+	// List of MCP fields that can be direct children of the tool config
+	// Note: "permissions" stays at the tool level, not an MCP field
+	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers"}
+
+	// Check new format: direct fields in tool config
+	hasDirectFields := false
+	for _, field := range mcpFields {
+		if value, exists := toolConfig[field]; exists {
+			result[field] = value
+			hasDirectFields = true
+		}
+	}
+
+	// If we have direct fields, use them and skip legacy format
+	if hasDirectFields {
+		return result, nil
+	}
+
+	// Fall back to legacy format: mcp.type, mcp.url, mcp.command, etc.
+	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
+		if mcpMap, ok := mcpSection.(map[string]any); ok {
+			// Copy all MCP properties
+			for key, value := range mcpMap {
+				result[key] = value
+			}
+		} else if mcpString, ok := mcpSection.(string); ok {
+			// Handle JSON string format
+			var parsedMcp map[string]any
+			if err := json.Unmarshal([]byte(mcpString), &parsedMcp); err != nil {
+				return nil, fmt.Errorf("invalid JSON in mcp configuration: %w", err)
+			}
+			// Copy all MCP properties from parsed JSON
+			for key, value := range parsedMcp {
+				result[key] = value
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // getTypeString returns a human-readable type name for error messages

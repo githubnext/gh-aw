@@ -74,6 +74,89 @@ func TestExtractMCPConfigurations(t *testing.T) {
 		expectError  bool
 	}{
 		{
+			name: "New format: Custom MCP server with direct fields",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"direct-server": map[string]any{
+						"type":    "stdio",
+						"command": "python",
+						"args":    []any{"-m", "direct_server"},
+						"env": map[string]any{
+							"DEBUG": "true",
+						},
+						"allowed": []any{"process", "query"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "direct-server",
+					Type:    "stdio",
+					Command: "python",
+					Args:    []string{"-m", "direct_server"},
+					Env: map[string]string{
+						"DEBUG": "true",
+					},
+					Allowed: []string{"process", "query"},
+				},
+			},
+		},
+		{
+			name: "New format: HTTP server with direct fields",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"http-direct": map[string]any{
+						"type": "http",
+						"url":  "https://api.example.com/mcp",
+						"headers": map[string]any{
+							"Authorization": "Bearer token123",
+						},
+						"allowed": []any{"query", "update"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name: "http-direct", 
+					Type: "http",
+					URL:  "https://api.example.com/mcp",
+					Headers: map[string]string{
+						"Authorization": "Bearer token123",
+					},
+					Env:     map[string]string{},
+					Allowed: []string{"query", "update"},
+				},
+			},
+		},
+		{
+			name: "New format: Container with direct fields",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"container-direct": map[string]any{
+						"type":      "stdio",
+						"container": "mcp/service:latest",
+						"env": map[string]any{
+							"API_KEY": "secret123",
+						},
+						"allowed": []any{"execute"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:      "container-direct",
+					Type:      "stdio",
+					Container: "mcp/service:latest",
+					Command:   "docker",
+					Args:      []string{"run", "--rm", "-i", "-e", "API_KEY", "mcp/service:latest"},
+					Env: map[string]string{
+						"API_KEY": "secret123",
+					},
+					Allowed: []string{"execute"},
+				},
+			},
+		},
+		{
 			name:        "Empty frontmatter",
 			frontmatter: map[string]any{},
 			expected:    []MCPServerConfig{},

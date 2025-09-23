@@ -155,6 +155,107 @@ func TestValidateMCPConfigs(t *testing.T) {
 		errMsg  string
 	}{
 		{
+			name: "new format: valid stdio with direct fields",
+			tools: map[string]any{
+				"test-server": map[string]any{
+					"type":    "stdio",
+					"command": "python",
+					"args":    []any{"-m", "server"},
+					"env": map[string]any{
+						"DEBUG": "true",
+					},
+					"allowed": []any{"tool1", "tool2"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "new format: valid http with direct fields",
+			tools: map[string]any{
+				"http-server": map[string]any{
+					"type": "http",
+					"url":  "https://api.example.com/mcp",
+					"headers": map[string]any{
+						"Authorization": "Bearer token123",
+					},
+					"allowed": []any{"query", "update"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "new format: stdio with container",
+			tools: map[string]any{
+				"container-server": map[string]any{
+					"type":      "stdio",
+					"container": "mcp/server:latest",
+					"env": map[string]any{
+						"API_KEY": "secret",
+					},
+					"allowed": []any{"process"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "new format: missing required type field",
+			tools: map[string]any{
+				"no-type": map[string]any{
+					"command": "python",
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "missing property 'type'",
+		},
+		{
+			name: "new format: invalid type value",
+			tools: map[string]any{
+				"bad-type": map[string]any{
+					"type":    "invalid",
+					"command": "python",
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "must be one of: stdio, http",
+		},
+		{
+			name: "new format: http missing url",
+			tools: map[string]any{
+				"http-no-url": map[string]any{
+					"type":    "http",
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "missing property 'url'",
+		},
+		{
+			name: "new format: stdio missing command and container",
+			tools: map[string]any{
+				"stdio-incomplete": map[string]any{
+					"type":    "stdio",
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "must specify either 'command' or 'container'",
+		},
+		{
+			name: "new format: both command and container specified",
+			tools: map[string]any{
+				"both-cmd-container": map[string]any{
+					"type":      "stdio",
+					"command":   "python",
+					"container": "mcp/server",
+					"allowed":   []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "cannot specify both 'container' and 'command'",
+		},
+		{
 			name: "valid MCP configs",
 			tools: map[string]any{
 				"trelloApi": map[string]any{

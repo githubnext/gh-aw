@@ -209,7 +209,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid frontmatter with complex tools configuration",
+			name: "valid frontmatter with complex tools configuration (new format)",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"github": map[string]any{
@@ -222,15 +222,68 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 						},
 					},
 					"customTool": map[string]any{
-						"mcp": map[string]any{
-							"type":    "stdio",
-							"command": "my-tool",
-						},
+						"type":    "stdio",
+						"command": "my-tool",
 						"allowed": []string{"function1", "function2"},
 					},
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with legacy MCP format",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"legacyTool": map[string]any{
+						"mcp": map[string]any{
+							"type":    "stdio",
+							"command": "legacy-tool",
+						},
+						"allowed": []string{"legacy_function"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid new format: stdio without command or container",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"invalidTool": map[string]any{
+						"type":    "stdio",
+						"allowed": []string{"some_function"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "anyOf",
+		},
+		{
+			name: "invalid new format: http without url",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"invalidHttp": map[string]any{
+						"type":    "http",
+						"allowed": []string{"some_function"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "missing property 'url'",
+		},
+		{
+			name: "invalid new format: unknown type",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"unknownType": map[string]any{
+						"type":    "unknown",
+						"command": "test",
+						"allowed": []string{"some_function"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "value must be one of 'stdio', 'http'",
 		},
 		{
 			name: "valid frontmatter with detailed permissions",
