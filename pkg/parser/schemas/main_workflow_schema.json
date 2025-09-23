@@ -972,10 +972,6 @@
                     "type": "string"
                   }
                 },
-                "use_docker_mcp": {
-                  "type": "boolean",
-                  "description": "Whether to use Docker MCP for GitHub tools"
-                },
                 "docker_image_version": {
                   "type": "string",
                   "description": "Docker image version for GitHub MCP server"
