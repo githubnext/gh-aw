@@ -84,7 +84,7 @@ func TestMCPServerIntegration(t *testing.T) {
 	// Build the binary first
 	tempDir := t.TempDir()
 	binaryPath := filepath.Join(tempDir, "gh-aw")
-	
+
 	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/gh-aw")
 	buildCmd.Dir = "/home/runner/work/gh-aw/gh-aw"
 	if err := buildCmd.Run(); err != nil {
@@ -274,7 +274,7 @@ func TestMCPServerTools(t *testing.T) {
 	// Build the binary first
 	tempDir := t.TempDir()
 	binaryPath := filepath.Join(tempDir, "gh-aw")
-	
+
 	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/gh-aw")
 	buildCmd.Dir = "/home/runner/work/gh-aw/gh-aw"
 	if err := buildCmd.Run(); err != nil {
@@ -293,11 +293,11 @@ func TestMCPServerTools(t *testing.T) {
 	if err := gitInitCmd.Run(); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
-	
+
 	gitConfigCmd := exec.Command("git", "config", "user.email", "test@example.com")
 	gitConfigCmd.Dir = tempDir
 	_ = gitConfigCmd.Run()
-	
+
 	gitConfigCmd2 := exec.Command("git", "config", "user.name", "Test User")
 	gitConfigCmd2.Dir = tempDir
 	_ = gitConfigCmd2.Run()
