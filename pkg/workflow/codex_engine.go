@@ -12,7 +12,7 @@ import (
 // GetDeclaredOutputFiles returns the output files that Claude may produce
 func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 	return []string{
-		"$CODEX_HOME/history.jsonl", // Codex interaction history
+		"${{ env.CODEX_HOME }}/history.jsonl", // Codex interaction history
 	}
 }
 

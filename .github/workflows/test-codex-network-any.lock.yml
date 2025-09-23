@@ -222,11 +222,11 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            $CODEX_HOME/history.jsonl
+            ${{ env.CODEX_HOME }}/history.jsonl
           if-no-files-found: ignore
       - name: Clean up engine output files
         run: |
-          rm -f $CODEX_HOME/history.jsonl
+          rm -f ${{ env.CODEX_HOME }}/history.jsonl
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
