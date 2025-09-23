@@ -51,12 +51,12 @@ func GetVersion() string {
 // ListWorkflows lists available workflow components
 func ListWorkflows(verbose bool) error {
 	if verbose {
-		fmt.Println(console.FormatProgressMessage("Searching for available workflow components..."))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Searching for available workflow components..."))
 	}
 
 	// First list available agentic engines
 	if err := listAgenticEngines(verbose); err != nil {
-		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to list agentic engines: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list agentic engines: %v", err)))
 	}
 
 	// Then list package workflows
@@ -72,7 +72,7 @@ func listAgenticEngines(verbose bool) error {
 	engines := registry.GetSupportedEngines()
 
 	if len(engines) == 0 {
-		fmt.Println(console.FormatInfoMessage("No agentic engines available."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No agentic engines available."))
 		return nil
 	}
 
@@ -142,9 +142,9 @@ func listAgenticEngines(verbose bool) error {
 		Headers: headers,
 		Rows:    rows,
 	}
-	fmt.Print(console.RenderTable(tableConfig))
+	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, "")
 	return nil
 }
 

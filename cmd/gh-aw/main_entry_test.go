@@ -221,7 +221,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		cmd := exec.Command("go", "run", "main.go", "version")
 		cmd.Dir = "."
 
-		output, err := cmd.Output()
+		output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
 		if err != nil {
 			t.Fatalf("Failed to run main with version: %v", err)
 		}
