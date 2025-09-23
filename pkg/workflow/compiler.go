@@ -150,6 +150,7 @@ type WorkflowData struct {
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
+	CloneRepo          bool                // whether to clone the repository (default: true)
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -584,6 +585,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		EngineConfig:       engineConfig,
 		NetworkPermissions: networkPermissions,
 		NeedsTextOutput:    needsTextOutput,
+		CloneRepo:          true, // default to true for backward compatibility
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -611,6 +613,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Command = c.extractCommandName(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 	workflowData.Roles = c.extractRoles(result.Frontmatter)
+	
+	// Extract clone-repo field (defaults to true for backward compatibility)
+	workflowData.CloneRepo = extractBoolValue(result.Frontmatter, "clone-repo", true)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
@@ -1815,7 +1820,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				yaml.WriteString("      " + line + "\n")
 			}
 		}
-	} else {
+	} else if data.CloneRepo {
+		// Only add checkout step if clone-repo is not explicitly set to false
 		yaml.WriteString("      - name: Checkout repository\n")
 		yaml.WriteString("        uses: actions/checkout@v5\n")
 	}

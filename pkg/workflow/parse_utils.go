@@ -19,6 +19,21 @@ func extractStringValue(frontmatter map[string]any, key string) string {
 	return ""
 }
 
+// extractBoolValue extracts a boolean value from the frontmatter map
+// Returns the provided default value if the key doesn't exist or isn't a boolean
+func extractBoolValue(frontmatter map[string]any, key string, defaultValue bool) bool {
+	value, exists := frontmatter[key]
+	if !exists {
+		return defaultValue
+	}
+
+	if boolValue, ok := value.(bool); ok {
+		return boolValue
+	}
+
+	return defaultValue
+}
+
 // parseIntValue safely parses various numeric types to int
 // This is a common utility used across multiple parsing functions
 func parseIntValue(value any) (int, bool) {

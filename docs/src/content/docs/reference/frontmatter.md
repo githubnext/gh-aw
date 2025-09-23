@@ -18,6 +18,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `if`: Conditional execution of the workflow
 - `steps`: Custom steps for the job
 - `cache`: Cache configuration for workflow dependencies
+- `clone-repo`: Control automatic repository checkout (defaults to true)
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/codex) with optional max-turns setting
@@ -389,6 +390,33 @@ steps:
 ```
 
 If no custom steps are specified, a default step to checkout the repository is added automatically.
+
+## Repository Checkout Control (`clone-repo:`)
+
+By default, workflows automatically include a repository checkout step using `actions/checkout@v5`. You can disable this behavior by setting `clone-repo: false`:
+
+```yaml
+clone-repo: false  # Skip automatic repository checkout
+```
+
+This is useful for workflows that don't need repository access or want to handle checkout manually in custom steps.
+
+**Default behavior (when `clone-repo` is not specified):**
+```yaml
+# These are equivalent:
+# (no clone-repo specified)
+clone-repo: true
+```
+
+Both will include the automatic checkout step:
+```yaml
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v5
+```
+
+**With `clone-repo: false`:**
+The checkout step is skipped entirely, and the workflow starts directly with other setup steps or the AI execution.
 
 ## Cache Configuration (`cache:`)
 

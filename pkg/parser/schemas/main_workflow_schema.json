@@ -1732,6 +1732,10 @@
           "minItems": 1
         }
       ]
+    },
+    "clone-repo": {
+      "type": "boolean",
+      "description": "Whether to automatically clone the repository using actions/checkout@v5 (defaults to true for backward compatibility)"
     }
   },
   "additionalProperties": false

@@ -4856,6 +4856,106 @@ engine: claude
 	}
 }
 
+func TestCloneRepoOption(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "clone-repo-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name            string
+		frontmatter     string
+		expectCheckout  bool
+		description     string
+	}{
+		{
+			name: "default_behavior",
+			frontmatter: `---
+permissions:
+  contents: read
+  issues: write
+---`,
+			expectCheckout: true,
+			description:   "Should include checkout step by default when clone-repo is not specified",
+		},
+		{
+			name: "clone_repo_true",
+			frontmatter: `---
+permissions:
+  contents: read
+  issues: write
+clone-repo: true
+---`,
+			expectCheckout: true,
+			description:   "Should include checkout step when clone-repo is explicitly set to true",
+		},
+		{
+			name: "clone_repo_false",
+			frontmatter: `---
+permissions:
+  contents: read
+  issues: write
+clone-repo: false
+---`,
+			expectCheckout: false,
+			description:   "Should skip checkout step when clone-repo is set to false",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test markdown file
+			testContent := tt.frontmatter + `
+
+# Test Workflow
+
+This is a test workflow for clone-repo functionality.
+`
+
+			testFile := filepath.Join(tmpDir, fmt.Sprintf("%s.md", tt.name))
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+			content, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContent := string(content)
+
+			// Check if checkout step is present
+			hasCheckout := strings.Contains(lockContent, "- name: Checkout repository") &&
+						  strings.Contains(lockContent, "uses: actions/checkout@v5")
+
+			if tt.expectCheckout && !hasCheckout {
+				t.Errorf("Expected checkout step to be present but it was missing. %s", tt.description)
+			}
+
+			if !tt.expectCheckout && hasCheckout {
+				t.Errorf("Expected checkout step to be absent but it was present. %s", tt.description)
+			}
+
+			// Verify the YAML is still valid
+			var yamlData map[string]any
+			if err := yaml.Unmarshal(content, &yamlData); err != nil {
+				t.Errorf("Generated YAML is not valid: %v", err)
+			}
+		})
+	}
+}
+
 func TestAccessLogUploadConditional(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
