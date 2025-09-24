@@ -43,14 +43,15 @@ By default, ChatOps workflows restrict execution to users with `admin` or `maint
 
 You can customize access using the `roles:` configuration, but using `roles: all` creates security risks, especially in public repositories where any authenticated user could trigger workflows.
 
-## Key Benefits
+## Accessing Context Information
 
-**Security**: AI agents run with minimal permissions while safe outputs handle write operations through separate secured jobs.
+ChatOps workflows have access to sanitized context from the triggering event through `needs.task.outputs.text`. This provides safe access to issue content, pull request details, or comment text without security risks.
 
-**Context**: Commands create permanent records within the conversation context, making automation decisions visible and auditable.
+```yaml
+# In your workflow content, reference the sanitized text:
+Analyze this content: "${{ needs.task.outputs.text }}"
+```
 
-**Accessibility**: Complex automation becomes available through simple slash commands that any team member can use.
-
-**Integration**: Automation feels like natural conversation rather than external tooling.
+The sanitized context automatically filters out potential security issues like unauthorized mentions, malicious links, and excessive content while preserving the essential information your automation needs.
 
 Start with simple, high-value commands and expand based on team needs. Each command should solve real problems and integrate naturally into existing development conversations.
