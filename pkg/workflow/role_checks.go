@@ -7,13 +7,14 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-func (c *Compiler) generateRoleCheck(data *WorkflowData, steps []string) []string {
+// generateMembershipCheck generates steps for the check-membership job that only sets outputs
+func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) []string {
 	if data.Command != "" {
 		steps = append(steps, "      - name: Check team membership for command workflow\n")
 	} else {
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 	}
-	steps = append(steps, "        id: check-team-member\n")
+	steps = append(steps, "        id: check-membership\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables for permission check
@@ -23,8 +24,8 @@ func (c *Compiler) generateRoleCheck(data *WorkflowData, steps []string) []strin
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
-	// Generate the JavaScript code for the permission check
-	scriptContent := c.generateRoleCheckScript(data.Roles)
+	// Generate the JavaScript code for the membership check (output-only version)
+	scriptContent := c.generateMembershipCheckScript(data.Roles)
 	scriptLines := strings.Split(scriptContent, "\n")
 	for _, line := range scriptLines {
 		if strings.TrimSpace(line) != "" {
@@ -46,6 +47,21 @@ console.log("Permission check skipped - 'roles: all' specified");`
 	// Use the embedded check_permissions.cjs script
 	// The GITHUB_AW_REQUIRED_ROLES environment variable is set via the env field
 	return checkPermissionsScript
+}
+
+// generateMembershipCheckScript generates JavaScript code to check user permissions (output-only version)
+func (c *Compiler) generateMembershipCheckScript(requiredPermissions []string) string {
+	// If "all" is specified, no checks needed (this shouldn't happen since needsRoleCheck would return false)
+	if len(requiredPermissions) == 1 && requiredPermissions[0] == "all" {
+		return `
+core.setOutput("is_team_member", "true");
+core.setOutput("result", "roles_all");
+console.log("Permission check skipped - 'roles: all' specified");`
+	}
+
+	// Use the embedded check_membership.cjs script
+	// The GITHUB_AW_REQUIRED_ROLES environment variable is set via the env field
+	return checkMembershipScript
 }
 
 // extractRoles extracts the 'roles' field from frontmatter to determine permission requirements
@@ -82,6 +98,11 @@ func (c *Compiler) needsRoleCheck(data *WorkflowData, frontmatter map[string]any
 	// If user explicitly specified "roles: all", no permission checks needed
 	if len(data.Roles) == 1 && data.Roles[0] == "all" {
 		return false
+	}
+
+	// Command workflows always need permission checks
+	if data.Command != "" {
+		return true
 	}
 
 	// Check if the workflow uses only safe events (only if frontmatter is available)

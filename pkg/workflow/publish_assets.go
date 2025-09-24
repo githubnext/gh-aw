@@ -183,15 +183,6 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Set base permissions
 	permissions := "permissions:\n      contents: write  # Required for creating orphaned branch and pushing assets"
 
-	// Add actions: write permission if team member checks are present for command workflows
-	_, hasExplicitRoles := frontmatter["roles"]
-	requiresWorkflowCancellation := data.Command != "" ||
-		(!taskJobCreated && c.needsRoleCheck(data, frontmatter) && hasExplicitRoles)
-
-	if requiresWorkflowCancellation {
-		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: write  # Required for creating orphaned branch and pushing assets"
-	}
-
 	job := &Job{
 		Name:           "upload_assets",
 		If:             jobCondition,

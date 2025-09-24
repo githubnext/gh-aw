@@ -62,8 +62,8 @@ This workflow tests that the step summary includes both JSONL and processed outp
 	}
 
 	// Verify that the step includes the original JSONL output section
-	if !strings.Contains(lockContent, "## Agent Output (JSONL)") {
-		t.Error("Expected '## Agent Output (JSONL)' section in step summary")
+	if !strings.Contains(lockContent, "## Safe Outputs (JSONL)") {
+		t.Error("Expected '## Safe Outputs (JSONL)' section in step summary")
 	}
 
 	// Verify that the JavaScript code includes the new processed output section via core.summary

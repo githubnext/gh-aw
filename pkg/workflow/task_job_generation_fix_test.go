@@ -64,9 +64,9 @@ Do some simple work.`
 			t.Error("Expected jobs section to be present")
 		}
 
-		// Verify main job doesn't have "needs: task"
-		if strings.Contains(lockContentStr, "needs: task") {
-			t.Error("Main job should not depend on task job when task job is not generated")
+		// Verify main job doesn't have "needs: activation"
+		if strings.Contains(lockContentStr, "needs: activation") {
+			t.Error("Main job should not depend on activation job when activation job is not generated")
 		}
 	})
 
@@ -106,14 +106,14 @@ Do some work.`
 
 		lockContentStr := string(lockContent)
 
-		// Verify that task job IS generated
-		if !strings.Contains(lockContentStr, "task:") {
-			t.Error("Expected task job for unsafe events (push)")
+		// Verify that activation job is generated
+		if !strings.Contains(lockContentStr, "activation:") {
+			t.Error("Expected activation job for unsafe events (push)")
 		}
 
-		// Verify main job depends on task
-		if !strings.Contains(lockContentStr, "needs: task") {
-			t.Error("Main job should depend on task job when task job is generated")
+		// Verify main job depends on activation
+		if !strings.Contains(lockContentStr, "needs: activation") {
+			t.Error("Main job should depend on activation job when activation job is generated")
 		}
 	})
 
@@ -154,19 +154,19 @@ Do conditional work.`
 
 		lockContentStr := string(lockContent)
 
-		// Verify that task job IS generated due to if condition
-		if !strings.Contains(lockContentStr, "task:") {
-			t.Error("Expected task job for workflow with if condition")
+		// Verify that activation job IS generated due to if condition
+		if !strings.Contains(lockContentStr, "activation:") {
+			t.Error("Expected activation job for workflow with if condition")
 		}
 
-		// Verify task job has the if condition
+		// Verify activation job has the if condition
 		if !strings.Contains(lockContentStr, "if: ${{ github.ref == 'refs/heads/main' }}") {
-			t.Error("Expected task job to have the if condition")
+			t.Error("Expected activation job to have the if condition")
 		}
 
-		// Verify main job depends on task
-		if !strings.Contains(lockContentStr, "needs: task") {
-			t.Error("Main job should depend on task job when task job is generated")
+		// Verify main job depends on activation
+		if !strings.Contains(lockContentStr, "needs: activation") {
+			t.Error("Main job should depend on activation job when activation job is generated")
 		}
 	})
 }
