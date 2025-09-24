@@ -803,7 +803,7 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
-          mkdir -p /tmp/aw-prompts
+          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Documentation Build and Accessibility Analysis
           
@@ -845,6 +845,12 @@ jobs:
           
           Focus on providing a comprehensive accessibility analysis that would be useful for improving the documentation's usability for all users.
           
+          EOF
+      - name: Append safe outputs instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
           
           ---
           
@@ -866,14 +872,14 @@ jobs:
           
           EOF
       - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:

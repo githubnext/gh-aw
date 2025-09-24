@@ -720,7 +720,7 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
-          mkdir -p /tmp/aw-prompts
+          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Test Claude with Missing Tool Safe Output and Cache Memory
           
@@ -761,6 +761,12 @@ jobs:
           - Integration works with existing tools like GitHub
           - Safe output system handles missing tool scenarios correctly
           
+          EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
           
           ---
           
@@ -780,6 +786,12 @@ jobs:
           - `/tmp/cache-memory/state/` - organized state files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          EOF
+      - name: Append safe outputs instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
           
           ---
           
@@ -793,14 +805,14 @@ jobs:
           
           EOF
       - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:

@@ -158,7 +158,7 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
-          mkdir -p /tmp/aw-prompts
+          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Test Claude Push to PR Branch
           
@@ -172,14 +172,14 @@ jobs:
           
           EOF
       - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:

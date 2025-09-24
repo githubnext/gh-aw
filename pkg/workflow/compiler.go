@@ -223,12 +223,10 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		})
 		return errors.New(formattedErr)
 	}
-	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage("Expression safety validation passed"))
-	}
+
+	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
 
 	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage("Successfully parsed frontmatter and markdown content"))
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow name: %s", workflowData.Name)))
 		if len(workflowData.Tools) > 0 {
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Tools configured: %d", len(workflowData.Tools))))
@@ -242,9 +240,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// instead of using a shared action file
 
 	// Generate the YAML content
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage("Generating GitHub Actions YAML..."))
-	}
 	yamlContent, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
@@ -257,14 +252,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			Message: fmt.Sprintf("failed to generate YAML: %v", err),
 		})
 		return errors.New(formattedErr)
-	}
-
-	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated YAML content (%d bytes)", len(yamlContent))))
-	}
-
-	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated YAML content (%d bytes)", len(yamlContent))))
 	}
 
 	// Validate against GitHub Actions schema (unless skipped)
@@ -283,10 +270,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 				Message: fmt.Sprintf("workflow schema validation failed: %v", err),
 			})
 			return errors.New(formattedErr)
-		}
-
-		if c.verbose {
-			fmt.Println(console.FormatSuccessMessage("GitHub Actions schema validation passed"))
 		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
@@ -391,7 +374,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("File size: %d bytes", len(content))))
-		fmt.Println(console.FormatInfoMessage("Extracting frontmatter..."))
 	}
 
 	// Parse frontmatter and markdown
@@ -424,8 +406,8 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Frontmatter length: %d characters", len(result.Frontmatter))))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Markdown content length: %d characters", len(result.Markdown))))
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Frontmatter: %d characters, Markdown content length: %d characters",
+			len(result.Frontmatter), len(result.Markdown))))
 	}
 
 	markdownDir := filepath.Dir(markdownPath)
@@ -2092,45 +2074,129 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
-func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Create prompt\n")
+// validateMarkdownSizeForGitHubActions is no longer used - content is now split into multiple steps
+// to handle GitHub Actions script size limits automatically
+// func (c *Compiler) validateMarkdownSizeForGitHubActions(content string) error { ... }
 
-	// Add environment variables section - always include GITHUB_AW_PROMPT
+// splitContentIntoChunks splits markdown content into chunks that fit within GitHub Actions script size limits
+func splitContentIntoChunks(content string) []string {
+	const maxChunkSize = 20900        // 21000 - 100 character buffer
+	const indentSpaces = "          " // 10 spaces added to each line
+
+	lines := strings.Split(content, "\n")
+	var chunks []string
+	var currentChunk []string
+	currentSize := 0
+
+	for _, line := range lines {
+		lineSize := len(indentSpaces) + len(line) + 1 // +1 for newline
+
+		// If adding this line would exceed the limit, start a new chunk
+		if currentSize+lineSize > maxChunkSize && len(currentChunk) > 0 {
+			chunks = append(chunks, strings.Join(currentChunk, "\n"))
+			currentChunk = []string{line}
+			currentSize = lineSize
+		} else {
+			currentChunk = append(currentChunk, line)
+			currentSize += lineSize
+		}
+	}
+
+	// Add the last chunk if there's content
+	if len(currentChunk) > 0 {
+		chunks = append(chunks, strings.Join(currentChunk, "\n"))
+	}
+
+	return chunks
+}
+
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
+	// Clean the markdown content
+	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
+
+	// Split content into manageable chunks
+	chunks := splitContentIntoChunks(cleanedMarkdownContent)
+
+	// Create the initial prompt file step
+	yaml.WriteString("      - name: Create prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
-
-	// Only add GITHUB_AW_SAFE_OUTPUTS environment variable if safe-outputs feature is used
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	}
-
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
-	yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
+	yaml.WriteString("          mkdir -p $(dirname \"$GITHUB_AW_PROMPT\")\n")
 
-	// Add markdown content with proper indentation (removing XML comments)
-	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
-	for _, line := range strings.Split(cleanedMarkdownContent, "\n") {
-		yaml.WriteString("          " + line + "\n")
+	if len(chunks) > 0 {
+		yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
+		for _, line := range strings.Split(chunks[0], "\n") {
+			yaml.WriteString("          " + line + "\n")
+		}
+		yaml.WriteString("          EOF\n")
+	} else {
+		yaml.WriteString("          touch $GITHUB_AW_PROMPT\n")
 	}
 
-	// Add cache folder notification if cache-memory is enabled
-	generateCacheMemoryPromptSection(yaml, data.CacheMemoryConfig)
+	// Create additional steps for remaining chunks
+	for i, chunk := range chunks[1:] {
+		stepNum := i + 2
+		yaml.WriteString(fmt.Sprintf("      - name: Append prompt (part %d)\n", stepNum))
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
+		for _, line := range strings.Split(chunk, "\n") {
+			yaml.WriteString("          " + line + "\n")
+		}
+		yaml.WriteString("          EOF\n")
+	}
 
-	generateSafeOutputsPromptSection(yaml, data.SafeOutputs)
+	// Add cache memory prompt as separate step if enabled
+	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
 
-	yaml.WriteString("          EOF\n")
+	// Add safe outputs prompt as separate step if enabled
+	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
 
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
+}
+
+// generateCacheMemoryPromptStep generates a separate step for cache memory prompt section
+func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *CacheMemoryConfig) {
+	if config == nil || !config.Enabled {
+		return
+	}
+
+	yaml.WriteString("      - name: Append cache memory instructions to prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
+	generateCacheMemoryPromptSection(yaml, config)
+	yaml.WriteString("          EOF\n")
+}
+
+// generateSafeOutputsPromptStep generates a separate step for safe outputs prompt section
+func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutputs *SafeOutputsConfig) {
+	if safeOutputs == nil {
+		return
+	}
+
+	yaml.WriteString("      - name: Append safe outputs instructions to prompt\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
+	generateSafeOutputsPromptSection(yaml, safeOutputs)
+	yaml.WriteString("          EOF\n")
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
