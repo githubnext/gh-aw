@@ -305,6 +305,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"headers":    true,
 		"registry":   true,
 		"allowed":    true,
+		"network":    true,
 	}
 
 	for key := range toolConfig {
