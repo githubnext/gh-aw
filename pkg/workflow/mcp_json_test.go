@@ -410,10 +410,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"httpWithNetPerms": map[string]any{
 					"type": "http",
 					"url":  "https://example.com",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -427,10 +425,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"stdioNonContainerWithNetPerms": map[string]any{
 					"type":    "stdio",
 					"command": "python",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -444,10 +440,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"stdioContainerWithNetPerms": map[string]any{
 					"type":      "stdio",
 					"container": "mcp/fetch",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -460,10 +454,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"httpWithMcpNetPerms": map[string]any{
 					"type": "http",
 					"url":  "https://example.com",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},

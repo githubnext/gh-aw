@@ -545,36 +545,7 @@ func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
 		}
 	}
 
-	// Legacy format: check permissions.network for backward compatibility
-	extractLegacy := func(perms any) (bool, []string) {
-		permsMap, ok := perms.(map[string]any)
-		if !ok {
-			return false, nil
-		}
-		network, hasNetwork := permsMap["network"]
-		if !hasNetwork {
-			return false, nil
-		}
-		return extract(network)
-	}
 
-	// Legacy: check top-level permissions
-	if permissions, hasPerms := toolConfig["permissions"]; hasPerms {
-		if ok, domains := extractLegacy(permissions); ok {
-			return true, domains
-		}
-	}
-
-	// Legacy: check permissions nested under mcp 
-	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
-		if m, ok := mcpSection.(map[string]any); ok {
-			if permissions, hasPerms := m["permissions"]; hasPerms {
-				if ok, domains := extractLegacy(permissions); ok {
-					return true, domains
-				}
-			}
-		}
-	}
 
 	return false, nil
 }
