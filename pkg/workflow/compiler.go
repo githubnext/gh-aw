@@ -1814,8 +1814,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJo
 	var depends []string
 	if activationJobCreated {
 		depends = []string{"activation"} // Depend on the activation job only if it exists
-	} else if checkMembershipJobCreated {
-		depends = []string{"check-membership"} // Depend on check-membership if no activation job
 	}
 
 	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
@@ -1832,41 +1830,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJo
 	if data.Command != "" {
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-
-		// If we have a check-membership job but no activation job, add membership validation
-		if checkMembershipJobCreated && !activationJobCreated {
-			membershipExpr := BuildEquals(
-				BuildPropertyAccess("needs.check-membership.outputs.is_team_member"),
-				BuildStringLiteral("true"),
-			)
-			combinedExpr := &AndNode{Left: membershipExpr, Right: commandCondition}
-			jobCondition = combinedExpr.Render()
-		} else {
-			jobCondition = commandConditionStr
-		}
+		jobCondition = commandCondition.Render()
 	} else {
-		// If we have a check-membership job but no activation job, add membership validation
-		if checkMembershipJobCreated && !activationJobCreated {
-			needsRoleCheck := c.needsRoleCheck(data, frontmatter)
-			if needsRoleCheck {
-				membershipExpr := BuildEquals(
-					BuildPropertyAccess("needs.check-membership.outputs.is_team_member"),
-					BuildStringLiteral("true"),
-				)
-				if data.If != "" {
-					ifExpr := &ExpressionNode{Expression: data.If}
-					combinedExpr := &AndNode{Left: membershipExpr, Right: ifExpr}
-					jobCondition = combinedExpr.Render()
-				} else {
-					jobCondition = membershipExpr.Render()
-				}
-			} else {
-				jobCondition = data.If
-			}
-		} else {
-			jobCondition = data.If // Use the original If condition from the workflow data
-		}
+		jobCondition = data.If // Use the original If condition from the workflow data
 	}
 
 	job := &Job{
