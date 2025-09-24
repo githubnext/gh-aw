@@ -1,0 +1,72 @@
+name: Update Branch (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch to update (defaults to current branch)'
+        required: false
+        type: string
+    outputs:
+      updated:
+        description: 'Whether the branch was updated'
+        value: ${{ jobs.update-branch.outputs.updated }}
+      branch:
+        description: 'The branch that was updated'
+        value: ${{ jobs.update-branch.outputs.branch }}
+      base_branch:
+        description: 'The base branch used for merging'
+        value: ${{ jobs.update-branch.outputs.base_branch }}
+      pr_number:
+        description: 'The pull request number'
+        value: ${{ jobs.update-branch.outputs.pr_number }}
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  update-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      updated: ${{ steps.update.outputs.updated }}
+      branch: ${{ steps.update.outputs.branch }}
+      base_branch: ${{ steps.update.outputs.base_branch }}
+      pr_number: ${{ steps.update.outputs.pr_number }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup GitHub CLI
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Switch to target branch
+        if: ${{ inputs.branch }}
+        run: |
+          git checkout ${{ inputs.branch }}
+
+      - name: Update branch with base branch changes
+        id: update
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Read and execute the update_branch.cjs script
+            const scriptPath = path.join(process.env.GITHUB_WORKSPACE, 'pkg/workflow/js/update_branch.cjs');
+            const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+            
+            // Execute the script (removing the require statement since exec is provided by github-script)
+            const modifiedScript = scriptContent.replace(
+              'const exec = require("@actions/exec");', 
+              '// exec is available from github-script context'
+            );
+            
+            await eval(`(async () => { ${modifiedScript} })()`);

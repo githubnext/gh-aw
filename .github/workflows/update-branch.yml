@@ -1,0 +1,46 @@
+name: Update Branch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  update-branch:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history to enable merging
+          fetch-depth: 0
+          # Use a token that can push to protected branches if needed
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup GitHub CLI
+        run: |
+          # GitHub CLI is pre-installed on ubuntu-latest, but ensure it's authenticated
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Update branch with base branch changes
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Read and execute the update_branch.cjs script
+            const scriptPath = path.join(process.env.GITHUB_WORKSPACE, 'pkg/workflow/js/update_branch.cjs');
+            const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+            
+            // Execute the script (removing the require statement since exec is provided by github-script)
+            const modifiedScript = scriptContent.replace(
+              'const exec = require("@actions/exec");', 
+              '// exec is available from github-script context'
+            );
+            
+            await eval(`(async () => { ${modifiedScript} })()`);
