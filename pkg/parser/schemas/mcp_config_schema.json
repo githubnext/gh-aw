@@ -51,39 +51,32 @@
       "additionalProperties": false,
       "description": "HTTP headers for HTTP MCP connections"
     },
-    "permissions": {
+    "network": {
       "type": "object",
       "properties": {
-        "network": {
-          "type": "object",
-          "properties": {
-            "allowed": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
-                "description": "Allowed domain name"
-              },
-              "minItems": 1,
-              "uniqueItems": true,
-              "description": "List of allowed domain names for network access"
-            }
+        "allowed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
+            "description": "Allowed domain name"
           },
-          "required": ["allowed"],
-          "additionalProperties": false,
-          "description": "Network access permissions"
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "List of allowed domain names for network access"
+        },
+        "proxy-args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Custom proxy arguments for container-based MCP servers"
         }
       },
       "additionalProperties": false,
-      "description": "Permissions configuration for container-based MCP servers"
+      "description": "Network configuration for container-based MCP servers"
     },
-    "proxy-args": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Custom proxy arguments for container-based MCP servers"
-    }
+
   },
   "anyOf": [
     {"required": ["type"]},
@@ -107,7 +100,7 @@
           "anyOf": [
             {"required": ["command"]},
             {"required": ["container"]},
-            {"required": ["permissions"]}
+            {"required": ["network"]}
           ]
         }
       }
@@ -174,7 +167,7 @@
     },
     {
       "if": {
-        "required": ["permissions"]
+        "required": ["network"]
       },
       "then": {
         "required": ["container"],

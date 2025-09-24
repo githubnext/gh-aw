@@ -759,6 +759,30 @@ func TestParseMCPConfig(t *testing.T) {
 			},
 		},
 		{
+			name:     "Stdio with network proxy-args (new format)",
+			toolName: "network-proxy-server",
+			mcpSection: map[string]any{
+				"type":      "stdio",
+				"command":   "docker",
+				"args":      []any{"run", "myserver"},
+				"network": map[string]any{
+					"allowed":    []any{"example.com", "api.example.com"},
+					"proxy-args": []any{"--network-proxy-arg1", "--network-proxy-arg2"},
+				},
+			},
+			toolConfig: map[string]any{},
+			expected: MCPServerConfig{
+				Name:      "network-proxy-server",
+				Type:      "stdio",
+				Command:   "docker",
+				Args:      []string{"run", "myserver"},
+				ProxyArgs: []string{"--network-proxy-arg1", "--network-proxy-arg2"},
+				Env:       map[string]string{},
+				Headers:   map[string]string{},
+				Allowed:   []string{},
+			},
+		},
+		{
 			name:     "Local type (alias for stdio)",
 			toolName: "local-server",
 			mcpSection: map[string]any{

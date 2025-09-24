@@ -202,6 +202,21 @@ func TestValidateMCPConfigs(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "new format: stdio with container and network config",
+			tools: map[string]any{
+				"network-server": map[string]any{
+					"type":      "stdio",
+					"container": "mcp/network-server:latest",
+					"network": map[string]any{
+						"allowed": []any{"example.com", "api.example.com"},
+						"proxy-args": []any{"--proxy-test"},
+					},
+					"allowed": []any{"fetch", "post"},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "new format: missing type and no inferrable fields",
 			tools: map[string]any{
 				"no-type": map[string]any{
