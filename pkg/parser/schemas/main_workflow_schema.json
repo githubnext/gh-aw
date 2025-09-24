@@ -1726,8 +1726,12 @@
       "properties": {
         "type": {
           "type": "string",
-          "const": "stdio",
-          "description": "MCP connection type for stdio"
+          "enum": ["stdio", "local"],
+          "description": "MCP connection type for stdio (local is an alias for stdio)"
+        },
+        "registry": {
+          "type": "string",
+          "description": "URI to the installation location when MCP is installed from a registry"
         },
         "command": {
           "type": "string",
@@ -1826,6 +1830,10 @@
           "type": "string",
           "const": "http",
           "description": "MCP connection type for HTTP"
+        },
+        "registry": {
+          "type": "string",
+          "description": "URI to the installation location when MCP is installed from a registry"
         },
         "url": {
           "type": "string",

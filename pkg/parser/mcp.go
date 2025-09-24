@@ -57,6 +57,7 @@ func EnsureLocalhostDomains(domains []string) []string {
 type MCPServerConfig struct {
 	Name      string            `json:"name"`
 	Type      string            `json:"type"`      // stdio, http, docker
+	Registry  string            `json:"registry"`  // URI to installation location from registry
 	Command   string            `json:"command"`   // for stdio
 	Args      []string          `json:"args"`      // for stdio
 	Container string            `json:"container"` // for docker
@@ -316,8 +317,9 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 // ParseMCPConfig parses MCP configuration from various formats (map or JSON string)
 func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) (MCPServerConfig, error) {
 	config := MCPServerConfig{
-		Name: toolName,
-		Env:  make(map[string]string),
+		Name:    toolName,
+		Env:     make(map[string]string),
+		Headers: make(map[string]string),
 	}
 
 	// Parse allowed tools
@@ -349,7 +351,12 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 	// Extract type (explicit or inferred)
 	if typeVal, hasType := mcpConfig["type"]; hasType {
 		if typeStr, ok := typeVal.(string); ok {
-			config.Type = typeStr
+			// Normalize "local" to "stdio"
+			if typeStr == "local" {
+				config.Type = "stdio"
+			} else {
+				config.Type = typeStr
+			}
 		} else {
 			return config, fmt.Errorf("type must be a string")
 		}
@@ -363,6 +370,15 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			config.Type = "stdio"
 		} else {
 			return config, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
+		}
+	}
+
+	// Extract registry field (available for both stdio and http)
+	if registry, hasRegistry := mcpConfig["registry"]; hasRegistry {
+		if registryStr, ok := registry.(string); ok {
+			config.Registry = registryStr
+		} else {
+			return config, fmt.Errorf("registry must be a string")
 		}
 	}
 
@@ -449,7 +465,6 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 		// Extract headers
 		if headers, hasHeaders := mcpConfig["headers"]; hasHeaders {
 			if headersMap, ok := headers.(map[string]any); ok {
-				config.Headers = make(map[string]string)
 				for key, value := range headersMap {
 					if valueStr, ok := value.(string); ok {
 						config.Headers[key] = valueStr

@@ -4,8 +4,12 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["stdio", "http"],
-      "description": "MCP connection type"
+      "enum": ["stdio", "http", "local"],
+      "description": "MCP connection type (local is an alias for stdio)"
+    },
+    "registry": {
+      "type": "string",
+      "description": "URI to the installation location when MCP is installed from a registry"
     },
     "url": {
       "type": "string",
