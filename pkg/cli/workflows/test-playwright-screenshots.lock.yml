@@ -100,8 +100,7 @@ jobs:
     if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Task job condition barrier
-        run: echo "Task job executed - conditions satisfied"
+      - run: echo "Activation success"
 
   dev:
     needs: activation
