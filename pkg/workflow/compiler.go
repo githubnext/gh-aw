@@ -643,8 +643,17 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 	
-	// Extract safe-jobs from top level
-	workflowData.SafeJobs = c.parseSafeJobsConfig(result.Frontmatter)
+	// Extract safe-jobs from top level and process includes
+	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
+	
+	// Process @include directives to extract additional safe-jobs (reuse the same includedTools JSON)
+	// Since ExpandIncludes extracts all frontmatter as JSON, we can use the same result
+	includedSafeJobs, err := c.mergeSafeJobsFromIncludes(topSafeJobs, includedTools)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
+	}
+	
+	workflowData.SafeJobs = includedSafeJobs
 
 	// Parse the "on" section for command triggers, reactions, and other events
 	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
@@ -960,6 +969,30 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 	return mergedTools, nil
+}
+
+// mergeSafeJobsFromIncludes merges safe-jobs from included files and detects conflicts
+func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConfig, includedContentJSON string) (map[string]*SafeJobConfig, error) {
+	if includedContentJSON == "" || includedContentJSON == "{}" {
+		return topSafeJobs, nil
+	}
+
+	// Parse the included content as frontmatter to extract safe-jobs
+	var includedContent map[string]any
+	if err := json.Unmarshal([]byte(includedContentJSON), &includedContent); err != nil {
+		return topSafeJobs, nil // Return original safe-jobs if parsing fails
+	}
+
+	// Extract safe-jobs from the included content
+	includedSafeJobs := extractSafeJobsFromFrontmatter(includedContent)
+
+	// Merge with conflict detection
+	mergedSafeJobs, err := mergeSafeJobs(topSafeJobs, includedSafeJobs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge safe-jobs: %w", err)
+	}
+	
+	return mergedSafeJobs, nil
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
@@ -1508,7 +1541,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, mainJobName string) error {
 		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=${{ needs.%s.outputs.output }}\" >> $GITHUB_ENV\n", mainJobName))
 
 		// Add custom environment variables from safe-outputs.env
-		if data.SafeOutputs.Env != nil {
+		if data.SafeOutputs != nil && data.SafeOutputs.Env != nil {
 			for key, value := range data.SafeOutputs.Env {
 				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
 			}

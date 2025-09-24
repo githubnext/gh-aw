@@ -334,3 +334,138 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 		t.Error("Expected config to contain 'message' input")
 	}
 }
+
+func TestExtractSafeJobsFromFrontmatter(t *testing.T) {
+	frontmatter := map[string]any{
+		"safe-jobs": map[string]any{
+			"deploy": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"inputs": map[string]any{
+					"environment": map[string]any{
+						"description": "Target environment",
+						"required":    true,
+						"type":        "choice",
+						"options":     []any{"staging", "production"},
+					},
+				},
+			},
+		},
+	}
+	
+	result := extractSafeJobsFromFrontmatter(frontmatter)
+	
+	if len(result) != 1 {
+		t.Errorf("Expected 1 safe-job, got %d", len(result))
+	}
+	
+	deployJob, exists := result["deploy"]
+	if !exists {
+		t.Error("Expected 'deploy' job to exist")
+	}
+	
+	if deployJob.RunsOn != "ubuntu-latest" {
+		t.Errorf("Expected runs-on to be 'ubuntu-latest', got '%s'", deployJob.RunsOn)
+	}
+}
+
+func TestMergeSafeJobs(t *testing.T) {
+	base := map[string]*SafeJobConfig{
+		"deploy": &SafeJobConfig{
+			RunsOn: "ubuntu-latest",
+		},
+	}
+	
+	additional := map[string]*SafeJobConfig{
+		"test": &SafeJobConfig{
+			RunsOn: "ubuntu-latest",
+		},
+	}
+	
+	// Test successful merge
+	result, err := mergeSafeJobs(base, additional)
+	if err != nil {
+		t.Errorf("Expected no error merging safe-jobs, got %v", err)
+	}
+	
+	if len(result) != 2 {
+		t.Errorf("Expected 2 safe-jobs after merge, got %d", len(result))
+	}
+	
+	// Test conflict detection
+	conflicting := map[string]*SafeJobConfig{
+		"deploy": &SafeJobConfig{
+			RunsOn: "windows-latest",
+		},
+	}
+	
+	_, err = mergeSafeJobs(base, conflicting)
+	if err == nil {
+		t.Error("Expected error when merging conflicting safe-job names")
+	}
+	
+	if !strings.Contains(err.Error(), "safe-job name conflict") {
+		t.Errorf("Expected conflict error message, got '%s'", err.Error())
+	}
+}
+
+func TestMergeSafeJobsFromIncludes(t *testing.T) {
+	c := NewCompiler(false, "", "test")
+	
+	topSafeJobs := map[string]*SafeJobConfig{
+		"deploy": &SafeJobConfig{
+			RunsOn: "ubuntu-latest",
+		},
+	}
+	
+	// Simulate included content JSON that contains safe-jobs
+	includedJSON := `{
+		"safe-jobs": {
+			"test": {
+				"runs-on": "ubuntu-latest",
+				"inputs": {
+					"suite": {
+						"description": "Test suite to run",
+						"required": true,
+						"type": "string"
+					}
+				}
+			}
+		}
+	}`
+	
+	result, err := c.mergeSafeJobsFromIncludes(topSafeJobs, includedJSON)
+	if err != nil {
+		t.Errorf("Expected no error merging from includes, got %v", err)
+	}
+	
+	if len(result) != 2 {
+		t.Errorf("Expected 2 safe-jobs after merge, got %d", len(result))
+	}
+	
+	testJob, exists := result["test"]
+	if !exists {
+		t.Error("Expected 'test' job from includes to exist")
+	}
+	
+	if testJob.RunsOn != "ubuntu-latest" {
+		t.Errorf("Expected test job runs-on to be 'ubuntu-latest', got '%s'", testJob.RunsOn)
+	}
+	
+	// Test conflict detection
+	conflictingJSON := `{
+		"safe-jobs": {
+			"deploy": {
+				"runs-on": "windows-latest"
+			}
+		}
+	}`
+	
+	_, err = c.mergeSafeJobsFromIncludes(topSafeJobs, conflictingJSON)
+	if err == nil {
+		t.Error("Expected error when merging conflicting safe-job from includes")
+	}
+	
+	if !strings.Contains(err.Error(), "safe-job name conflict") {
+		t.Errorf("Expected conflict error message, got '%s'", err.Error())
+	}
+}

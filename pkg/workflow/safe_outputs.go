@@ -1,6 +1,9 @@
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
@@ -525,4 +528,48 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 	}
 	
 	return result
+}
+
+// extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map
+func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
+	safeJobs, exists := frontmatter["safe-jobs"]
+	if !exists {
+		return make(map[string]*SafeJobConfig)
+	}
+
+	if safeJobsMap, ok := safeJobs.(map[string]any); ok {
+		c := &Compiler{} // Create a temporary compiler for parsing
+		frontmatterCopy := map[string]any{"safe-jobs": safeJobsMap}
+		return c.parseSafeJobsConfig(frontmatterCopy)
+	}
+
+	return make(map[string]*SafeJobConfig)
+}
+
+// mergeSafeJobs merges safe-jobs from multiple sources and detects name conflicts
+func mergeSafeJobs(base map[string]*SafeJobConfig, additional map[string]*SafeJobConfig) (map[string]*SafeJobConfig, error) {
+	if len(additional) == 0 {
+		return base, nil
+	}
+
+	if base == nil {
+		base = make(map[string]*SafeJobConfig)
+	}
+
+	result := make(map[string]*SafeJobConfig)
+	
+	// Copy base safe-jobs
+	for name, config := range base {
+		result[name] = config
+	}
+
+	// Check for conflicts and merge additional safe-jobs
+	for name, config := range additional {
+		if _, exists := result[name]; exists {
+			return nil, fmt.Errorf("safe-job name conflict: '%s' is defined in both main workflow and included files", name)
+		}
+		result[name] = config
+	}
+
+	return result, nil
 }
