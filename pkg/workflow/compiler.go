@@ -228,9 +228,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	}
 
 	// Validate markdown content size for GitHub Actions script limits
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage("Validating markdown content size..."))
-	}
 	cleanedMarkdownContent := removeXMLComments(workflowData.MarkdownContent)
 	if err := validateMarkdownSizeForGitHubActions(cleanedMarkdownContent); err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
@@ -243,9 +240,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			Message: err.Error(),
 		})
 		return errors.New(formattedErr)
-	}
-	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage("Markdown content size validation passed"))
 	}
 
 	if c.verbose {
@@ -278,10 +272,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			Message: fmt.Sprintf("failed to generate YAML: %v", err),
 		})
 		return errors.New(formattedErr)
-	}
-
-	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated YAML content (%d bytes)", len(yamlContent))))
 	}
 
 	if c.verbose {
