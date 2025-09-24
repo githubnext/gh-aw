@@ -7,15 +7,12 @@ engine: claude
 mcp-servers:
   # New direct field format - stdio with command
   my-stdio-server:
-    type: stdio
-    command: "python"
-    args: ["-m", "my_server"]
-    env:
-      API_KEY: "secret123"
+    command: npx
+    args: ["-y", "my-server"]
     registry: "https://registry.example.com/servers/my-stdio-server"
-    proxy-args: ["--custom-arg"]
     allowed: ["process_data", "get_info"]
     
+
   # New direct field format - http with url
   my-http-server:
     url: "https://api.example.com/mcp"

@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Create Repository Security Advisory"
 
 jobs:
-  test-claude-create-repository-security-advisory:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       security-events: write

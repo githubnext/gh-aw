@@ -1,160 +1,156 @@
 async function main() {
-    const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-    if (!outputContent) {
-        core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-        return;
+  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+  if (!outputContent) {
+    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    return;
+  }
+  if (outputContent.trim() === "") {
+    core.info("Agent output content is empty");
+    return;
+  }
+  core.debug(`Agent output content length: ${outputContent.length}`);
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    core.warning("No valid items found in agent output");
+    return;
+  }
+  const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
+  if (!labelsItem) {
+    core.warning("No add-labels item found in agent output");
+    return;
+  }
+  core.debug(`Found add-labels item with ${labelsItem.labels.length} labels`);
+  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+    let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
+    summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
+    if (labelsItem.issue_number) {
+      summaryContent += `**Target Issue:** #${labelsItem.issue_number}\n\n`;
+    } else {
+      summaryContent += `**Target:** Current issue/PR\n\n`;
     }
-    if (outputContent.trim() === "") {
-        core.info("Agent output content is empty");
-        return;
+    if (labelsItem.labels && labelsItem.labels.length > 0) {
+      summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
     }
-    core.debug(`Agent output content length: ${outputContent.length}`);
-    let validatedOutput;
-    try {
-        validatedOutput = JSON.parse(outputContent);
+    await core.summary.addRaw(summaryContent).write();
+    core.info("📝 Label addition preview written to step summary");
+    return;
+  }
+  const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
+  const allowedLabels = allowedLabelsEnv
+    ? allowedLabelsEnv
+        .split(",")
+        .map(label => label.trim())
+        .filter(label => label)
+    : undefined;
+  if (allowedLabels) {
+    core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
+  } else {
+    core.debug("No label restrictions - any labels are allowed");
+  }
+  const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
+  const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
+  if (isNaN(maxCount) || maxCount < 1) {
+    core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+    return;
+  }
+  core.debug(`Max count: ${maxCount}`);
+  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+  const isPRContext =
+    context.eventName === "pull_request" ||
+    context.eventName === "pull_request_review" ||
+    context.eventName === "pull_request_review_comment";
+  if (!isIssueContext && !isPRContext) {
+    core.setFailed("Not running in issue or pull request context, skipping label addition");
+    return;
+  }
+  let issueNumber;
+  let contextType;
+  if (isIssueContext) {
+    if (context.payload.issue) {
+      issueNumber = context.payload.issue.number;
+      contextType = "issue";
+    } else {
+      core.setFailed("Issue context detected but no issue found in payload");
+      return;
     }
-    catch (error) {
-        core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-        return;
+  } else if (isPRContext) {
+    if (context.payload.pull_request) {
+      issueNumber = context.payload.pull_request.number;
+      contextType = "pull request";
+    } else {
+      core.setFailed("Pull request context detected but no pull request found in payload");
+      return;
     }
-    if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-        core.warning("No valid items found in agent output");
-        return;
+  }
+  if (!issueNumber) {
+    core.setFailed("Could not determine issue or pull request number");
+    return;
+  }
+  const requestedLabels = labelsItem.labels || [];
+  core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+  for (const label of requestedLabels) {
+    if (label.startsWith("-")) {
+      core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
+      return;
     }
-    const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
-    if (!labelsItem) {
-        core.warning("No add-labels item found in agent output");
-        return;
-    }
-    core.debug(`Found add-labels item with ${labelsItem.labels.length} labels`);
-    if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-        let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
-        summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
-        if (labelsItem.issue_number) {
-            summaryContent += `**Target Issue:** #${labelsItem.issue_number}\n\n`;
-        }
-        else {
-            summaryContent += `**Target:** Current issue/PR\n\n`;
-        }
-        if (labelsItem.labels && labelsItem.labels.length > 0) {
-            summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
-        }
-        await core.summary.addRaw(summaryContent).write();
-        core.info("📝 Label addition preview written to step summary");
-        return;
-    }
-    const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
-    const allowedLabels = allowedLabelsEnv
-        ? allowedLabelsEnv
-            .split(",")
-            .map(label => label.trim())
-            .filter(label => label)
-        : undefined;
-    if (allowedLabels) {
-        core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
-    }
-    else {
-        core.debug("No label restrictions - any labels are allowed");
-    }
-    const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
-    const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
-    if (isNaN(maxCount) || maxCount < 1) {
-        core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-        return;
-    }
-    core.debug(`Max count: ${maxCount}`);
-    const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-    const isPRContext = context.eventName === "pull_request" ||
-        context.eventName === "pull_request_review" ||
-        context.eventName === "pull_request_review_comment";
-    if (!isIssueContext && !isPRContext) {
-        core.setFailed("Not running in issue or pull request context, skipping label addition");
-        return;
-    }
-    let issueNumber;
-    let contextType;
-    if (isIssueContext) {
-        if (context.payload.issue) {
-            issueNumber = context.payload.issue.number;
-            contextType = "issue";
-        }
-        else {
-            core.setFailed("Issue context detected but no issue found in payload");
-            return;
-        }
-    }
-    else if (isPRContext) {
-        if (context.payload.pull_request) {
-            issueNumber = context.payload.pull_request.number;
-            contextType = "pull request";
-        }
-        else {
-            core.setFailed("Pull request context detected but no pull request found in payload");
-            return;
-        }
-    }
-    if (!issueNumber) {
-        core.setFailed("Could not determine issue or pull request number");
-        return;
-    }
-    const requestedLabels = labelsItem.labels || [];
-    core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-    for (const label of requestedLabels) {
-        if (label.startsWith("-")) {
-            core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
-            return;
-        }
-    }
-    let validLabels;
-    if (allowedLabels) {
-        validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
-    }
-    else {
-        validLabels = requestedLabels;
-    }
-    let uniqueLabels = [...new Set(validLabels)];
-    if (uniqueLabels.length > maxCount) {
-        core.debug(`too many labels, keep ${maxCount}`);
-        uniqueLabels = uniqueLabels.slice(0, maxCount);
-    }
-    if (uniqueLabels.length === 0) {
-        core.info("No labels to add");
-        core.setOutput("labels_added", "");
-        await core.summary
-            .addRaw(`
+  }
+  let validLabels;
+  if (allowedLabels) {
+    validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
+  } else {
+    validLabels = requestedLabels;
+  }
+  let uniqueLabels = [...new Set(validLabels)];
+  if (uniqueLabels.length > maxCount) {
+    core.debug(`too many labels, keep ${maxCount}`);
+    uniqueLabels = uniqueLabels.slice(0, maxCount);
+  }
+  if (uniqueLabels.length === 0) {
+    core.info("No labels to add");
+    core.setOutput("labels_added", "");
+    await core.summary
+      .addRaw(
+        `
 ## Label Addition
 
 No labels were added (no valid labels found in agent output).
-`)
-            .write();
-        return;
-    }
-    core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`);
-    try {
-        await github.rest.issues.addLabels({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: issueNumber,
-            labels: uniqueLabels,
-        });
-        core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
-        core.setOutput("labels_added", uniqueLabels.join("\n"));
-        const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-        await core.summary
-            .addRaw(`
+`
+      )
+      .write();
+    return;
+  }
+  core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`);
+  try {
+    await github.rest.issues.addLabels({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+      labels: uniqueLabels,
+    });
+    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
+    core.setOutput("labels_added", uniqueLabels.join("\n"));
+    const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
+    await core.summary
+      .addRaw(
+        `
 ## Label Addition
 
 Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${issueNumber}:
 
 ${labelsListMarkdown}
-`)
-            .write();
-    }
-    catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        core.error(`Failed to add labels: ${errorMessage}`);
-        core.setFailed(`Failed to add labels: ${errorMessage}`);
-    }
+`
+      )
+      .write();
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to add labels: ${errorMessage}`);
+    core.setFailed(`Failed to add labels: ${errorMessage}`);
+  }
 }
 await main();
-

@@ -102,7 +102,7 @@ jobs:
     steps:
       - run: echo "Activation success"
 
-  dev:
+  agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
@@ -2107,7 +2107,7 @@ jobs:
           if-no-files-found: ignore
 
   create_issue:
-    needs: dev
+    needs: agent
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2121,7 +2121,7 @@ jobs:
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[docs] "
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
@@ -2266,7 +2266,7 @@ jobs:
             })();
 
   upload_assets:
-    needs: dev
+    needs: agent
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required for creating orphaned branch and pushing assets
@@ -2299,7 +2299,7 @@ jobs:
         id: upload_assets
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.dev.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"

@@ -20,7 +20,7 @@ concurrency:
 run-name: "Test Claude with Missing Tool Safe Output and Cache Memory"
 
 jobs:
-  test-claude-with-missing-tool-safe-output-and-cache-memory:
+  agent:
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:
@@ -1994,7 +1994,7 @@ jobs:
           if-no-files-found: warn
 
   missing_tool:
-    needs: test-claude-with-missing-tool-safe-output-and-cache-memory
+    needs: agent
     if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
@@ -2008,7 +2008,7 @@ jobs:
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-with-missing-tool-safe-output-and-cache-memory.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_MISSING_TOOL_MAX: 5
         with:
           script: |
