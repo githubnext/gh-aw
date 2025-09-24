@@ -100,6 +100,11 @@ func (c *Compiler) needsRoleCheck(data *WorkflowData, frontmatter map[string]any
 		return false
 	}
 
+	// Command workflows always need permission checks
+	if data.Command != "" {
+		return true
+	}
+
 	// Check if the workflow uses only safe events (only if frontmatter is available)
 	if frontmatter != nil && c.hasSafeEventsOnly(data, frontmatter) {
 		return false

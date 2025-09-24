@@ -1508,7 +1508,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Team membership checks are specifically for command workflows
 	// Non-command workflows use general role checks instead
 	var checkMembershipJobCreated bool
-	needsPermissionCheck := c.needsRoleCheck(data, frontmatter) || data.Command != ""
+	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 
 	if needsPermissionCheck {
 		checkMembershipJob, err := c.buildCheckMembershipJob(data, frontmatter)
