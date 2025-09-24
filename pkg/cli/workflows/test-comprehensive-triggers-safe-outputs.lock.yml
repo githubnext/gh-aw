@@ -77,6 +77,8 @@ env:
   REPOSITORY_NAME: ${{ github.repository }}
   TRIGGER_CONTEXT: workflow-triggered
 
+# Cache configuration from frontmatter was processed and added to the main job steps
+
 jobs:
   task:
     runs-on: ubuntu-latest
@@ -317,6 +319,27 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      # Cache configuration from frontmatter processed below
+      - name: Cache (poetry-deps-${{ hashFiles('**/poetry.lock', '**/package-lock.json') }})
+        uses: actions/cache@v4
+        with:
+          key: poetry-deps-${{ hashFiles('**/poetry.lock', '**/package-lock.json') }}
+          path: |
+            ~/.cache/pypoetry
+            node_modules
+            ~/.npm
+          restore-keys: poetry-deps-
+
+      - name: Cache (poem-assets-${{ github.run_id }})
+        uses: actions/cache@v4
+        with:
+          key: poem-assets-${{ github.run_id }}
+          path: |
+            /tmp/poem-assets
+            /tmp/generated-content
+          restore-keys: |
+            poem-assets-
+          fail-on-cache-miss: false
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |
@@ -337,7 +360,7 @@ jobs:
         with:
           name: cache-memory
           path: /tmp/cache-memory
-          retention-days: 14
+          retention-days: 30
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

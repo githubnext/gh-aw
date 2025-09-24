@@ -51,6 +51,23 @@ network:
     - "poetry-api.com"
     - "rhyme-zone.com"
 
+# Cache configuration for dependencies
+cache:
+  - key: poetry-deps-${{ hashFiles('**/poetry.lock', '**/package-lock.json') }}
+    path: 
+      - ~/.cache/pypoetry
+      - node_modules
+      - ~/.npm
+    restore-keys: |
+      poetry-deps-
+  - key: poem-assets-${{ github.run_id }}
+    path:
+      - /tmp/poem-assets
+      - /tmp/generated-content
+    restore-keys:
+      - poem-assets-
+    fail-on-cache-miss: false
+
 # Tools configuration
 tools:
   github:
@@ -61,8 +78,9 @@ tools:
     - "echo"
     - "date"
     - "whoami"
+  # Memory cache for persistent AI memory across runs
   cache-memory:
-    retention-days: 14
+    retention-days: 30
 
 # Comprehensive safe-outputs configuration - ALL types
 safe-outputs:
