@@ -143,3 +143,30 @@ func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
 
 	return make(map[string]any)
 }
+
+// extractMCPServersFromFrontmatter extracts mcp-servers section from frontmatter
+func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any {
+	if mcpServers, exists := frontmatter["mcp-servers"]; exists {
+		if mcpServersMap, ok := mcpServers.(map[string]any); ok {
+			return mcpServersMap
+		}
+	}
+	return make(map[string]any)
+}
+
+// mergeToolsAndMCPServers merges tools, mcp-servers, and included tools
+func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, includedTools string) (map[string]any, error) {
+	// Start with top-level tools
+	result := topTools
+	if result == nil {
+		result = make(map[string]any)
+	}
+
+	// Add MCP servers to the tools collection
+	for serverName, serverConfig := range mcpServers {
+		result[serverName] = serverConfig
+	}
+
+	// Merge included tools
+	return c.mergeTools(result, includedTools)
+}

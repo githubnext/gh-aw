@@ -419,6 +419,15 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 		}
 	}
 
+	// Infer type from presence of fields (same logic as getMCPConfig)
+	if _, hasURL := toolConfig["url"]; hasURL {
+		return true, "http"
+	} else if _, hasCommand := toolConfig["command"]; hasCommand {
+		return true, "stdio"
+	} else if _, hasContainer := toolConfig["container"]; hasContainer {
+		return true, "stdio"
+	}
+
 	return false, ""
 }
 

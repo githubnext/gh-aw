@@ -31,7 +31,7 @@ tools:
     command: "python"
     args: ["-m", "trello_mcp"]
     env:
-      TRELLO_TOKEN: "${secrets.TRELLO_TOKEN}"
+      TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
     allowed: ["list_boards"]
 ---
 
@@ -65,7 +65,7 @@ tools:
     command: "python"
     args: ["-m", "my_mcp_server"]
     env:
-      API_KEY: "${secrets.MY_API_KEY}"
+      API_KEY: "${{ secrets.MY_API_KEY }}"
       DEBUG: "false"
     allowed: ["process_data", "generate_report"]
 ```
@@ -102,7 +102,7 @@ tools:
     type: http
     url: "https://api.example.com/mcp"
     headers:
-      Authorization: "Bearer ${secrets.API_TOKEN}"
+      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
       Content-Type: "application/json"
     allowed: ["query_data", "update_records"]
 ```
@@ -166,8 +166,8 @@ tools:
     type: http
     url: "https://api.service.com"
     headers:
-      Authorization: "Bearer ${secrets.API_TOKEN}"
-      X-Custom-Key: "${secrets.CUSTOM_KEY}"
+      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
+      X-Custom-Key: "${{ secrets.CUSTOM_KEY }}"
 ```
 
 ## Network Egress Permissions
