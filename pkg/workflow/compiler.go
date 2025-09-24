@@ -1506,7 +1506,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded(data, needsPermissionCheck) || checkMembershipJobCreated {
-		activationJob, err := c.buildActivationJob(data, frontmatter, checkMembershipJobCreated)
+		activationJob, err := c.buildActivationJob(data, checkMembershipJobCreated)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -1706,7 +1706,7 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[s
 }
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
-func (c *Compiler) buildActivationJob(data *WorkflowData, frontmatter map[string]any, checkMembershipJobCreated bool) (*Job, error) {
+func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCreated bool) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
