@@ -14,38 +14,29 @@ concurrency:
 run-name: "Test Workflow"
 
 jobs:
-  task:
+  check-membership:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
+    outputs:
+      error_message: ${{ steps.check-membership.outputs.error_message }}
+      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
+      result: ${{ steps.check-membership.outputs.result }}
+      user_permission: ${{ steps.check-membership.outputs.user_permission }}
     steps:
       - name: Check team membership for workflow
-        id: check-team-member
+        id: check-membership
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
-            async function setCancelled(message) {
-              try {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  run_id: context.runId,
-                });
-                core.info(`Cancellation requested for this workflow run: ${message}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to cancel workflow run: ${errorMessage}`);
-                core.setFailed(message); // Fallback if API call fails
-              }
-            }
             async function main() {
               const { eventName } = context;
               // skip check for safe events
               const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
               if (safeEvents.includes(eventName)) {
                 core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
                 return;
               }
               const actor = context.actor;
@@ -53,8 +44,10 @@ jobs:
               const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
               const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
               if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.error("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                await setCancelled("Configuration error: Required permissions not specified");
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
                 return;
               }
               // Check if the actor has the required repository permissions
@@ -72,26 +65,40 @@ jobs:
                 for (const requiredPerm of requiredPermissions) {
                   if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
                     core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
                     return;
                   }
                 }
                 core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
               } catch (repoError) {
                 const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
                 core.warning(`Repository permission check failed: ${errorMessage}`);
-                await setCancelled(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
                 return;
               }
-              // Cancel the workflow when permission check fails
-              core.warning(
-                `Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-              );
-              await setCancelled(`Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
             }
             await main();
 
+  activation:
+    needs: check-membership
+    if: needs.check-membership.outputs.is_team_member == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Activation success"
+
   test-workflow:
-    needs: task
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -226,22 +233,6 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
-              },
-              "local-server": {
-                "command": "local-tool",
-                "args": [
-                  "--local"
-                ]
-              },
-              "my-stdio-server": {
-                "command": "python",
-                "args": [
-                  "-m",
-                  "my_server"
-                ],
-                "env": {
-                  "API_KEY": "secret123"
-                }
               }
             }
           }
@@ -368,14 +359,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        # - mcp__local-server__local_action
-        # - mcp__my-stdio-server__get_info
-        # - mcp__my-stdio-server__process_data
         timeout-minutes: 5
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__local-server__local_action,mcp__my-stdio-server__get_info,mcp__my-stdio-server__process_data" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-workflow.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/test-workflow.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"

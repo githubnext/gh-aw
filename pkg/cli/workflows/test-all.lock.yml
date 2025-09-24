@@ -1396,7 +1396,7 @@ jobs:
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
-          echo "## Agent Output (JSONL)" >> $GITHUB_STEP_SUMMARY
+          echo "## Safe Outputs (JSONL)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````json' >> $GITHUB_STEP_SUMMARY
           if [ -f ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ]; then
