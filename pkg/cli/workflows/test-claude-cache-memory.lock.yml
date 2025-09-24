@@ -182,7 +182,7 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
-          mkdir -p /tmp/aw-prompts
+          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Test Claude with Cache Memory File Share
           
@@ -223,6 +223,12 @@ jobs:
           - Works with Claude engine and file operations
           - Integrates with other tools like GitHub
           
+          EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
           
           ---
           
@@ -244,14 +250,14 @@ jobs:
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           EOF
       - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:

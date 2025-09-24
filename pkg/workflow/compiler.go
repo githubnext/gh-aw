@@ -2080,17 +2080,17 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string
 
 // splitContentIntoChunks splits markdown content into chunks that fit within GitHub Actions script size limits
 func splitContentIntoChunks(content string) []string {
-	const maxChunkSize = 20900 // 21000 - 100 character buffer
+	const maxChunkSize = 20900        // 21000 - 100 character buffer
 	const indentSpaces = "          " // 10 spaces added to each line
-	
+
 	lines := strings.Split(content, "\n")
 	var chunks []string
 	var currentChunk []string
 	currentSize := 0
-	
+
 	for _, line := range lines {
 		lineSize := len(indentSpaces) + len(line) + 1 // +1 for newline
-		
+
 		// If adding this line would exceed the limit, start a new chunk
 		if currentSize+lineSize > maxChunkSize && len(currentChunk) > 0 {
 			chunks = append(chunks, strings.Join(currentChunk, "\n"))
@@ -2101,32 +2101,32 @@ func splitContentIntoChunks(content string) []string {
 			currentSize += lineSize
 		}
 	}
-	
+
 	// Add the last chunk if there's content
 	if len(currentChunk) > 0 {
 		chunks = append(chunks, strings.Join(currentChunk, "\n"))
 	}
-	
+
 	return chunks
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Clean the markdown content
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
-	
+
 	// Split content into manageable chunks
 	chunks := splitContentIntoChunks(cleanedMarkdownContent)
-	
+
 	// Create the initial prompt file step
-	yaml.WriteString("      - name: Create prompt (part 1)\n")
+	yaml.WriteString("      - name: Create prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	}
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/aw-prompts\n")
-	
+	yaml.WriteString("          mkdir -p $(dirname \"$GITHUB_AW_PROMPT\")\n")
+
 	if len(chunks) > 0 {
 		yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
 		for _, line := range strings.Split(chunks[0], "\n") {
@@ -2136,7 +2136,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	} else {
 		yaml.WriteString("          touch $GITHUB_AW_PROMPT\n")
 	}
-	
+
 	// Create additional steps for remaining chunks
 	for i, chunk := range chunks[1:] {
 		stepNum := i + 2
@@ -2150,13 +2150,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 		yaml.WriteString("          EOF\n")
 	}
-	
+
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
-	
+
 	// Add safe outputs prompt as separate step if enabled
 	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
-	
+
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        env:\n")
