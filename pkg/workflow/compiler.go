@@ -1210,8 +1210,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 	// If frontmatter cannot be read, we'll fall back to the basic permission check logic
 
-	// Generate job name from workflow name
-	jobName := c.generateJobName(data.Name)
+	// Main job ID is always "agent"
 
 	// Build check-membership job if needed (validates team membership levels)
 	// Team membership checks are specifically for command workflows
@@ -1255,7 +1254,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName, activationJobCreated)
+	mainJob, err := c.buildMainJob(data, activationJobCreated)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1264,7 +1263,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build safe outputs jobs if configured
-	if err := c.buildSafeOutputsJobs(data, jobName, activationJobCreated, frontmatter, markdownPath); err != nil {
+	if err := c.buildSafeOutputsJobs(data, "agent", activationJobCreated, frontmatter, markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 	// Build additional custom jobs from frontmatter jobs section
@@ -1501,7 +1500,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJobCreated bool) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
 	var steps []string
 
 	var jobCondition = data.If
@@ -1537,7 +1536,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJo
 	}
 
 	job := &Job{
-		Name:        jobName,
+		Name:        "agent",
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),

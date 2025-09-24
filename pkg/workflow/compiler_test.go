@@ -1884,7 +1884,7 @@ This is a test workflow with nested env.
 		"  contents: read",
 		"  models: read",
 		"jobs:",
-		"  test-workflow:",
+		"  agent:",
 		"    runs-on: ubuntu-latest",
 	}
 
@@ -4233,7 +4233,7 @@ This workflow should get default permissions applied automatically.
 	// Find the main job (should be the one with the workflow name converted to kebab-case)
 	var mainJob map[string]any
 	for jobName, job := range jobsMap {
-		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
+		if jobName == "agent" { // The workflow name "Test Workflow" becomes "test-workflow"
 			if jobMap, ok := job.(map[string]any); ok {
 				mainJob = jobMap
 				break
@@ -4330,7 +4330,7 @@ This workflow has custom permissions that should override defaults.
 	// Find the main job (should be the one with the workflow name converted to kebab-case)
 	var mainJob map[string]any
 	for jobName, job := range jobsMap {
-		if jobName == "test-workflow" { // The workflow name "Test Workflow" becomes "test-workflow"
+		if jobName == "agent" { // The workflow name "Test Workflow" becomes "test-workflow"
 			if jobMap, ok := job.(map[string]any); ok {
 				mainJob = jobMap
 				break

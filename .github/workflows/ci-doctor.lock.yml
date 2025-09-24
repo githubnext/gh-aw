@@ -28,7 +28,7 @@ jobs:
     steps:
       - run: echo "Activation success"
 
-  ci-failure-doctor:
+  agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
@@ -2007,7 +2007,7 @@ jobs:
           if-no-files-found: warn
 
   create_issue:
-    needs: ci-failure-doctor
+    needs: agent
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2021,7 +2021,7 @@ jobs:
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.ci-failure-doctor.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_ISSUE_TITLE_PREFIX: "${{ github.workflow }}"
         with:
           script: |
@@ -2165,7 +2165,7 @@ jobs:
             })();
 
   create_issue_comment:
-    needs: ci-failure-doctor
+    needs: agent
     if: github.event.issue.number || github.event.pull_request.number
     runs-on: ubuntu-latest
     permissions:
@@ -2181,7 +2181,7 @@ jobs:
         id: add_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.ci-failure-doctor.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
         with:
           script: |
             async function main() {

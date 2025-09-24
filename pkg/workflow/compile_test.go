@@ -280,7 +280,7 @@ This workflow tests the create-issue job generation.
 	}
 
 	// Verify job dependencies
-	if !strings.Contains(lockContent, "needs: test-output-issue") {
+	if !strings.Contains(lockContent, "needs: agent") {
 		t.Error("Expected create_issue job to depend on main job")
 	}
 
@@ -579,7 +579,7 @@ This workflow tests the create_issue_comment job generation.
 	}
 
 	// Verify job dependencies
-	if !strings.Contains(lockContent, "needs: test-output-issue-comment") {
+	if !strings.Contains(lockContent, "needs: agent") {
 		t.Error("Expected create_issue_comment job to depend on main job")
 	}
 
@@ -824,7 +824,7 @@ This workflow tests the create_pull_request job generation.
 	}
 
 	// Verify job dependencies
-	if !strings.Contains(lockContentStr, "needs: test-output-pull-request-job-generation") {
+	if !strings.Contains(lockContentStr, "needs: agent") {
 		t.Error("Expected create_pull_request job to depend on main job")
 	}
 
@@ -1122,7 +1122,7 @@ This workflow tests the add_labels job generation.
 	}
 
 	// Verify job dependencies
-	if !strings.Contains(lockContent, "needs: test-output-label-job-generation") {
+	if !strings.Contains(lockContent, "needs: agent") {
 		t.Error("Expected add_labels job to depend on main job")
 	}
 
