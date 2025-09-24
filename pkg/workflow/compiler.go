@@ -1508,9 +1508,9 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Team membership checks are specifically for command workflows
 	// Non-command workflows use general role checks instead
 	var checkMembershipJobCreated bool
-	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
+	needsPermissionCheck := c.needsRoleCheck(data, frontmatter) || data.Command != ""
 
-	if needsPermissionCheck || data.Command != "" {
+	if needsPermissionCheck {
 		checkMembershipJob, err := c.buildCheckMembershipJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build check-membership job: %w", err)
@@ -1548,7 +1548,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName, activationJobCreated, checkMembershipJobCreated, frontmatter)
+	mainJob, err := c.buildMainJob(data, jobName, activationJobCreated, frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1794,7 +1794,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJobCreated bool, checkMembershipJobCreated bool, frontmatter map[string]any) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
 
 	// Permission checks are now handled by the separate check-membership job
