@@ -1,9 +1,6 @@
 package workflow
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
@@ -23,10 +20,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingTool != nil
 }
 
-// HasSafeJobsEnabled checks if any safe-jobs are enabled at the top level
-func HasSafeJobsEnabled(safeJobs map[string]*SafeJobConfig) bool {
-	return len(safeJobs) > 0
-}
+
 
 // generateSafeOutputsPromptSection generates the safe-outputs instruction section for prompts
 // when safe-outputs are configured, informing the agent about available output capabilities
@@ -391,185 +385,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	return config
 }
 
-// parseSafeJobsConfig parses the safe-jobs configuration from top-level frontmatter
-func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*SafeJobConfig {
-	safeJobsSection, exists := frontmatter["safe-jobs"]
-	if !exists {
-		return nil
-	}
-	
-	safeJobsMap, ok := safeJobsSection.(map[string]any)
-	if !ok {
-		return nil
-	}
-	
-	result := make(map[string]*SafeJobConfig)
-	
-	for jobName, jobValue := range safeJobsMap {
-		jobConfig, ok := jobValue.(map[string]any)
-		if !ok {
-			continue
-		}
-		
-		safeJob := &SafeJobConfig{}
-		
-		// Parse standard GitHub Actions job properties
-		if runsOn, exists := jobConfig["runs-on"]; exists {
-			safeJob.RunsOn = runsOn
-		}
-		
-		if ifCond, exists := jobConfig["if"]; exists {
-			if ifStr, ok := ifCond.(string); ok {
-				safeJob.If = ifStr
-			}
-		}
-		
-		if needs, exists := jobConfig["needs"]; exists {
-			if needsList, ok := needs.([]any); ok {
-				for _, need := range needsList {
-					if needStr, ok := need.(string); ok {
-						safeJob.Needs = append(safeJob.Needs, needStr)
-					}
-				}
-			} else if needStr, ok := needs.(string); ok {
-				safeJob.Needs = append(safeJob.Needs, needStr)
-			}
-		}
-		
-		if steps, exists := jobConfig["steps"]; exists {
-			if stepsList, ok := steps.([]any); ok {
-				safeJob.Steps = stepsList
-			}
-		}
-		
-		if env, exists := jobConfig["env"]; exists {
-			if envMap, ok := env.(map[string]any); ok {
-				safeJob.Env = make(map[string]string)
-				for key, value := range envMap {
-					if valueStr, ok := value.(string); ok {
-						safeJob.Env[key] = valueStr
-					}
-				}
-			}
-		}
-		
-		if permissions, exists := jobConfig["permissions"]; exists {
-			if permsMap, ok := permissions.(map[string]any); ok {
-				safeJob.Permissions = make(map[string]string)
-				for key, value := range permsMap {
-					if valueStr, ok := value.(string); ok {
-						safeJob.Permissions[key] = valueStr
-					}
-				}
-			}
-		}
-		
-		if githubToken, exists := jobConfig["github-token"]; exists {
-			if tokenStr, ok := githubToken.(string); ok {
-				safeJob.GitHubToken = tokenStr
-			}
-		}
-		
-		if output, exists := jobConfig["output"]; exists {
-			if outputStr, ok := output.(string); ok {
-				safeJob.Output = outputStr
-			}
-		}
-		
-		// Parse inputs (workflow_dispatch syntax)
-		if inputs, exists := jobConfig["inputs"]; exists {
-			if inputsMap, ok := inputs.(map[string]any); ok {
-				safeJob.Inputs = make(map[string]*SafeJobInput)
-				for inputName, inputValue := range inputsMap {
-					if inputConfig, ok := inputValue.(map[string]any); ok {
-						input := &SafeJobInput{}
-						
-						if desc, exists := inputConfig["description"]; exists {
-							if descStr, ok := desc.(string); ok {
-								input.Description = descStr
-							}
-						}
-						
-						if required, exists := inputConfig["required"]; exists {
-							if reqBool, ok := required.(bool); ok {
-								input.Required = reqBool
-							}
-						}
-						
-						if defaultVal, exists := inputConfig["default"]; exists {
-							if defaultStr, ok := defaultVal.(string); ok {
-								input.Default = defaultStr
-							}
-						}
-						
-						if inputType, exists := inputConfig["type"]; exists {
-							if typeStr, ok := inputType.(string); ok {
-								input.Type = typeStr
-							}
-						}
-						
-						if options, exists := inputConfig["options"]; exists {
-							if optionsList, ok := options.([]any); ok {
-								for _, option := range optionsList {
-									if optionStr, ok := option.(string); ok {
-										input.Options = append(input.Options, optionStr)
-									}
-								}
-							}
-						}
-						
-						safeJob.Inputs[inputName] = input
-					}
-				}
-			}
-		}
-		
-		result[jobName] = safeJob
-	}
-	
-	return result
-}
 
-// extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map
-func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
-	safeJobs, exists := frontmatter["safe-jobs"]
-	if !exists {
-		return make(map[string]*SafeJobConfig)
-	}
 
-	if safeJobsMap, ok := safeJobs.(map[string]any); ok {
-		c := &Compiler{} // Create a temporary compiler for parsing
-		frontmatterCopy := map[string]any{"safe-jobs": safeJobsMap}
-		return c.parseSafeJobsConfig(frontmatterCopy)
-	}
 
-	return make(map[string]*SafeJobConfig)
-}
-
-// mergeSafeJobs merges safe-jobs from multiple sources and detects name conflicts
-func mergeSafeJobs(base map[string]*SafeJobConfig, additional map[string]*SafeJobConfig) (map[string]*SafeJobConfig, error) {
-	if len(additional) == 0 {
-		return base, nil
-	}
-
-	if base == nil {
-		base = make(map[string]*SafeJobConfig)
-	}
-
-	result := make(map[string]*SafeJobConfig)
-	
-	// Copy base safe-jobs
-	for name, config := range base {
-		result[name] = config
-	}
-
-	// Check for conflicts and merge additional safe-jobs
-	for name, config := range additional {
-		if _, exists := result[name]; exists {
-			return nil, fmt.Errorf("safe-job name conflict: '%s' is defined in both main workflow and included files", name)
-		}
-		result[name] = config
-	}
-
-	return result, nil
-}

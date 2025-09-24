@@ -175,30 +175,7 @@ type SafeOutputsConfig struct {
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 }
 
-// SafeJobConfig holds configuration for a custom safe-output job
-type SafeJobConfig struct {
-	// Standard GitHub Actions job properties
-	RunsOn      any               `yaml:"runs-on,omitempty"`
-	If          string            `yaml:"if,omitempty"`
-	Needs       []string          `yaml:"needs,omitempty"`
-	Steps       []any             `yaml:"steps,omitempty"`
-	Env         map[string]string `yaml:"env,omitempty"`
-	Permissions map[string]string `yaml:"permissions,omitempty"`
-	
-	// Additional safe-job specific properties
-	Inputs      map[string]*SafeJobInput `yaml:"inputs,omitempty"`
-	GitHubToken string                   `yaml:"github-token,omitempty"`
-	Output      string                   `yaml:"output,omitempty"`
-}
 
-// SafeJobInput defines an input parameter for a safe job, using workflow_dispatch syntax
-type SafeJobInput struct {
-	Description string   `yaml:"description,omitempty"`
-	Required    bool     `yaml:"required,omitempty"`
-	Default     string   `yaml:"default,omitempty"`
-	Type        string   `yaml:"type,omitempty"`
-	Options     []string `yaml:"options,omitempty"`
-}
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
@@ -1536,12 +1513,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, mainJobName string) error {
 		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
 		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s\" >> $GITHUB_ENV\n", OutputArtifactName))
 
-		// Add custom environment variables from safe-outputs.env
-		if data.SafeOutputs != nil && data.SafeOutputs.Env != nil {
-			for key, value := range data.SafeOutputs.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
-			}
-		}
+
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {
