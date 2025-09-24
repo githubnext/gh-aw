@@ -1741,7 +1741,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 	if needsRoleCheck || data.Command != "" {
 		// Workflows that need role checks or have commands have a check-membership job, so depend on it and validate membership
 		taskNeeds = []string{"check-membership"}
-		membershipCondition := "needs.check-membership.outputs.result == 'authorized'"
+		membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
 		if data.If != "" {
 			taskCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
 		} else {
@@ -1811,7 +1811,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 
 		// If we have a check-membership job but no task job, add membership validation
 		if checkMembershipJobCreated && !taskJobCreated {
-			membershipCondition := "needs.check-membership.outputs.result == 'authorized'"
+			membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
 			jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, commandConditionStr)
 		} else {
 			jobCondition = commandConditionStr
@@ -1821,7 +1821,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		if checkMembershipJobCreated && !taskJobCreated {
 			needsRoleCheck := c.needsRoleCheck(data, frontmatter)
 			if needsRoleCheck {
-				membershipCondition := "needs.check-membership.outputs.result == 'authorized'"
+				membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
 				if data.If != "" {
 					jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
 				} else {
