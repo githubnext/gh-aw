@@ -324,9 +324,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 	return nil, nil
 }
 
-	return configs, nil
-}
-
 // ParseMCPConfig parses MCP configuration from various formats (map or JSON string)
 func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) (MCPServerConfig, error) {
 	config := MCPServerConfig{
