@@ -466,8 +466,6 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			}
 		}
 
-
-
 	case "http":
 		if url, hasURL := mcpConfig["url"]; hasURL {
 			if urlStr, ok := url.(string); ok {
