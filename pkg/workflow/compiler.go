@@ -2116,21 +2116,21 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string
 // validateMarkdownSizeForGitHubActions validates that markdown content stays within GitHub Actions script size limits
 // GitHub Actions has a limit of approximately 21,000 characters for inline shell scripts
 func validateMarkdownSizeForGitHubActions(content string) error {
-	const maxCharacters = 21000 // Leave some buffer below the actual limit
+	const maxCharacters = 21000       // Leave some buffer below the actual limit
 	const indentSpaces = "          " // 10 spaces added to each line
-	
+
 	// Calculate the content size including indentation
 	lines := strings.Split(content, "\n")
 	estimatedSize := 0
 	for _, line := range lines {
 		estimatedSize += len(indentSpaces) + len(line) + 1 // +1 for newline
 	}
-	
+
 	// If the content fits, validation passes
 	if estimatedSize <= maxCharacters {
 		return nil
 	}
-	
+
 	// Return error with detailed information about the limit
 	return fmt.Errorf("workflow markdown content is too large (%d characters when rendered) and exceeds GitHub Actions script size limit of %d characters. Please reduce the content size to stay within the limit", estimatedSize, maxCharacters)
 }
@@ -2153,7 +2153,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add markdown content with proper indentation (removing XML comments)
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
-	
+
 	for _, line := range strings.Split(cleanedMarkdownContent, "\n") {
 		yaml.WriteString("          " + line + "\n")
 	}

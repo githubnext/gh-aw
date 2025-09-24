@@ -268,15 +268,15 @@ func TestValidateMarkdownSizeForGitHubActions(t *testing.T) {
 	// Test content that exceeds the limit - should fail validation
 	longContent := strings.Repeat("This is a very long line of content that will be repeated many times to exceed the character limit.\n", 500)
 	err = validateMarkdownSizeForGitHubActions(longContent)
-	
+
 	if err == nil {
 		t.Error("Long content should fail validation")
 	}
-	
+
 	if !strings.Contains(err.Error(), "exceeds GitHub Actions script size limit") {
 		t.Error("Error message should mention GitHub Actions script size limit")
 	}
-	
+
 	if !strings.Contains(err.Error(), "characters when rendered") {
 		t.Error("Error message should mention rendered character count")
 	}
