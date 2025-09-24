@@ -7,11 +7,9 @@ engine: claude
 network: defaults
 tools:
   markitdown:
-    mcp:
-      type: stdio
-      registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
-      command: npx
-      args: ["-y", "@microsoft/markitdown"]
+    registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
+    command: npx
+    args: ["-y", "@microsoft/markitdown"]
 ---
 
 # Test Claude Markitdown MCP
