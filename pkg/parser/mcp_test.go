@@ -692,9 +692,43 @@ func TestParseMCPConfig(t *testing.T) {
 		},
 		// Error cases
 		{
-			name:        "Missing type field",
-			toolName:    "no-type",
-			mcpSection:  map[string]any{"command": "server"},
+			name:       "Type inferred from command field",
+			toolName:   "inferred-stdio",
+			mcpSection: map[string]any{"command": "server"},
+			toolConfig: map[string]any{},
+			expected: MCPServerConfig{
+				Name:    "inferred-stdio",
+				Type:    "stdio",
+				Command: "server",
+				Args:    nil,
+				Env:     map[string]string{},
+				Allowed: nil,
+			},
+		},
+		{
+			name:     "Stdio with proxy_args",
+			toolName: "proxy-server",
+			mcpSection: map[string]any{
+				"type":       "stdio",
+				"command":    "docker",
+				"args":       []any{"run", "myserver"},
+				"proxy_args": []any{"--proxy-arg1", "--proxy-arg2"},
+			},
+			toolConfig: map[string]any{},
+			expected: MCPServerConfig{
+				Name:      "proxy-server",
+				Type:      "stdio",
+				Command:   "docker",
+				Args:      []string{"run", "myserver"},
+				ProxyArgs: []string{"--proxy-arg1", "--proxy-arg2"},
+				Env:       map[string]string{},
+				Allowed:   []string{},
+			},
+		},
+		{
+			name:        "Missing type and no inferrable fields",
+			toolName:    "no-type-no-fields",
+			mcpSection:  map[string]any{"env": map[string]any{"KEY": "value"}},
 			toolConfig:  map[string]any{},
 			expectError: true,
 		},
@@ -831,6 +865,18 @@ func TestParseMCPConfig(t *testing.T) {
 			if !reflect.DeepEqual(actualAllowed, expectedAllowed) {
 				t.Errorf("Expected allowed %v, got %v", expectedAllowed, actualAllowed)
 			}
+			// Compare proxy args, handling nil vs empty slice equivalence
+			actualProxyArgs := result.ProxyArgs
+			if actualProxyArgs == nil {
+				actualProxyArgs = []string{}
+			}
+			expectedProxyArgs := tt.expected.ProxyArgs
+			if expectedProxyArgs == nil {
+				expectedProxyArgs = []string{}
+			}
+			if !reflect.DeepEqual(actualProxyArgs, expectedProxyArgs) {
+				t.Errorf("Expected proxy_args %v, got %v", expectedProxyArgs, actualProxyArgs)
+			}
 		})
 	}
 }
@@ -839,13 +885,14 @@ func TestParseMCPConfig(t *testing.T) {
 func TestMCPConfigTypes(t *testing.T) {
 	// Test that our structs can be properly marshaled/unmarshaled
 	config := MCPServerConfig{
-		Name:    "test-server",
-		Type:    "stdio",
-		Command: "test-command",
-		Args:    []string{"arg1", "arg2"},
-		Env:     map[string]string{"KEY": "value"},
-		Headers: map[string]string{"Content-Type": "application/json"},
-		Allowed: []string{"tool1", "tool2"},
+		Name:      "test-server",
+		Type:      "stdio",
+		Command:   "test-command",
+		Args:      []string{"arg1", "arg2"},
+		ProxyArgs: []string{"--proxy-test"},
+		Env:       map[string]string{"KEY": "value"},
+		Headers:   map[string]string{"Content-Type": "application/json"},
+		Allowed:   []string{"tool1", "tool2"},
 	}
 
 	// Marshal to JSON

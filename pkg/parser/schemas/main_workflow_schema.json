@@ -1781,6 +1781,13 @@
           "additionalProperties": false,
           "description": "Permissions configuration for container-based MCP servers"
         },
+        "proxy_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Custom proxy arguments for container-based MCP servers"
+        },
         "allowed": {
           "type": "array",
           "description": "List of allowed tool functions",
