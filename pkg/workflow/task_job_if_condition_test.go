@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestTaskJobWithIfConditionHasDummyStep(t *testing.T) {
+func TestActivationJobWithIfConditionHasDummyStep(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "task-job-if-test*")
 	if err != nil {
@@ -56,38 +56,38 @@ Check the failed workflow and provide analysis.`
 
 	lockContentStr := string(lockContent)
 
-	// Test 1: Verify task job exists
-	if !strings.Contains(lockContentStr, "task:") {
-		t.Error("Expected task job to be present in generated workflow")
+	// Test 1: Verify activation job exists
+	if !strings.Contains(lockContentStr, "activation:") {
+		t.Error("Expected activation job to be present in generated workflow")
 	}
 
-	// Test 2: Verify task job has the if condition
+	// Test 2: Verify activation job has the if condition
 	if !strings.Contains(lockContentStr, "if: ${{ github.event.workflow_run.conclusion == 'failure' }}") {
-		t.Error("Expected task job to have the if condition")
+		t.Error("Expected activation job to have the if condition")
 	}
 
-	// Test 3: Verify task job has steps (specifically the dummy step)
+	// Test 3: Verify activation job has steps (specifically the dummy step)
 	if !strings.Contains(lockContentStr, "steps:") {
-		t.Error("Task job should contain steps section")
+		t.Error("Activation job should contain steps section")
 	}
 
-	// Test 4: Verify the dummy step is present
-	if !strings.Contains(lockContentStr, "Task job condition barrier") {
-		t.Error("Task job should contain the dummy step 'Task job condition barrier'")
+	// Test 4: Verify the dummy step has the run command (no name field anymore)
+	if !strings.Contains(lockContentStr, "run: echo \"Activation success\"") {
+		t.Error("Activation job should contain the dummy step run command")
 	}
 
-	// Test 5: Verify the dummy step has a run command
-	if !strings.Contains(lockContentStr, "run: echo \"Task job executed - conditions satisfied\"") {
-		t.Error("Task job should contain the dummy step run command")
+	// Test 5: Verify no name field is present for the step (we removed it)
+	if strings.Contains(lockContentStr, "name: Task job condition barrier") {
+		t.Error("Activation job should not contain the old step name")
 	}
 
-	// Test 6: Verify main job depends on task job
-	if !strings.Contains(lockContentStr, "needs: task") {
-		t.Error("Main job should depend on task job")
+	// Test 6: Verify main job depends on activation job
+	if !strings.Contains(lockContentStr, "needs: activation") {
+		t.Error("Main job should depend on activation job")
 	}
 
-	// Test 7: Verify the generated YAML is valid (no empty task job)
-	// Check that there's no task job section that has only "if:" and "runs-on:" without steps
+	// Test 7: Verify the generated YAML is valid (no empty activation job)
+	// Check that there's no activation job section that has only "if:" and "runs-on:" without steps
 	lines := strings.Split(lockContentStr, "\n")
 	inTaskJob := false
 	hasSteps := false

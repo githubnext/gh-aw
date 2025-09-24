@@ -7,15 +7,15 @@ import (
 	"testing"
 )
 
-func TestTaskAndAddReactionJobsPermissions(t *testing.T) {
-	// Test that task and add_reaction jobs do not have contents permissions and checkout steps
+func TestActivationAndAddReactionJobsPermissions(t *testing.T) {
+	// Test that activation and add_reaction jobs do not have contents permissions and checkout steps
 	tmpDir, err := os.MkdirTemp("", "permissions-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create a test workflow with both task job and add_reaction job
+	// Create a test workflow with both activation job and add_reaction job
 	testContent := `---
 on:
   issues:
@@ -29,9 +29,9 @@ engine: claude
 
 # Test Workflow for Task and Add Reaction
 
-This workflow should generate both task and add_reaction jobs without contents permissions.
+This workflow should generate both activation and add_reaction jobs without contents permissions.
 
-The task job references text output: "${{ needs.task.outputs.text }}"
+The activation job references text output: "${{ needs.activation.outputs.text }}"
 `
 
 	testFile := filepath.Join(tmpDir, "test-permissions.md")
@@ -58,20 +58,20 @@ The task job references text output: "${{ needs.task.outputs.text }}"
 
 	lockContentStr := string(lockContent)
 
-	// Test 1: Verify task job exists and has no contents permission
-	if !strings.Contains(lockContentStr, "task:") {
-		t.Error("Expected task job to be present in generated workflow")
+	// Test 1: Verify activation job exists and has no contents permission
+	if !strings.Contains(lockContentStr, "activation:") {
+		t.Error("Expected activation job to be present in generated workflow")
 	}
 
-	// Test 2: Verify task job has no checkout step
-	taskJobSection := extractJobSection(lockContentStr, "task")
-	if strings.Contains(taskJobSection, "actions/checkout") {
-		t.Error("Task job should not contain actions/checkout step")
+	// Test 2: Verify activation job has no checkout step
+	activationJobSection := extractJobSection(lockContentStr, "activation")
+	if strings.Contains(activationJobSection, "actions/checkout") {
+		t.Error("Activation job should not contain actions/checkout step")
 	}
 
-	// Test 3: Verify task job has no contents permission
-	if strings.Contains(taskJobSection, "contents:") {
-		t.Error("Task job should not have contents permission")
+	// Test 3: Verify activation job has no contents permission
+	if strings.Contains(activationJobSection, "contents:") {
+		t.Error("Activation job should not have contents permission")
 	}
 
 	// Test 4: Verify add_reaction job exists and has no contents permission

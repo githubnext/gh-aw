@@ -19,38 +19,29 @@ concurrency:
 run-name: "dev"
 
 jobs:
-  task:
+  check-membership:
     runs-on: ubuntu-latest
-    permissions:
-      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
+    outputs:
+      error_message: ${{ steps.check-membership.outputs.error_message }}
+      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
+      result: ${{ steps.check-membership.outputs.result }}
+      user_permission: ${{ steps.check-membership.outputs.user_permission }}
     steps:
       - name: Check team membership for workflow
-        id: check-team-member
+        id: check-membership
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
-            async function setCancelled(message) {
-              try {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  run_id: context.runId,
-                });
-                core.info(`Cancellation requested for this workflow run: ${message}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to cancel workflow run: ${errorMessage}`);
-                core.setFailed(message); // Fallback if API call fails
-              }
-            }
             async function main() {
               const { eventName } = context;
               // skip check for safe events
               const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
               if (safeEvents.includes(eventName)) {
                 core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
                 return;
               }
               const actor = context.actor;
@@ -58,8 +49,10 @@ jobs:
               const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
               const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
               if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.error("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                await setCancelled("Configuration error: Required permissions not specified");
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
                 return;
               }
               // Check if the actor has the required repository permissions
@@ -77,26 +70,40 @@ jobs:
                 for (const requiredPerm of requiredPermissions) {
                   if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
                     core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
                     return;
                   }
                 }
                 core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
               } catch (repoError) {
                 const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
                 core.warning(`Repository permission check failed: ${errorMessage}`);
-                await setCancelled(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
                 return;
               }
-              // Cancel the workflow when permission check fails
-              core.warning(
-                `Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-              );
-              await setCancelled(`Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
             }
             await main();
 
+  activation:
+    needs: check-membership
+    if: needs.check-membership.outputs.is_team_member == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Activation success"
+
   dev:
-    needs: task
+    needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
     outputs:

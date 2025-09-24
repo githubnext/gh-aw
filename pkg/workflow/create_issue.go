@@ -149,15 +149,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	// Set base permissions
 	permissions := "permissions:\n      contents: read\n      issues: write"
 
-	// Add actions: write permission if team member checks are present for command workflows
-	_, hasExplicitRoles := frontmatter["roles"]
-	requiresWorkflowCancellation := data.Command != "" ||
-		(!taskJobCreated && c.needsRoleCheck(data, frontmatter) && hasExplicitRoles)
-
-	if requiresWorkflowCancellation {
-		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read\n      issues: write"
-	}
-
 	job := &Job{
 		Name:           "create_issue",
 		If:             jobCondition,
