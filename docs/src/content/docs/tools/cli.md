@@ -28,6 +28,15 @@ gh aw run weekly-research --repeat 3600                     # Execute workflow e
 gh aw logs weekly-research                                   # View execution logs
 ```
 
+## Global Flags
+
+All `gh aw` commands support the following global flags:
+
+- **`--verbose` / `-v`**: Enable verbose output showing detailed information about operations, including debugging details, step-by-step execution, and additional context
+- **`--help` / `-h`**: Show help information for the command
+
+These flags can be used with any command to get more detailed output or help information.
+
 ## 📝 Workflow Creation and Management  
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
@@ -44,28 +53,28 @@ gh aw new issue-handler --force
 **Adding Workflows from Samples:**
 ```bash
 # Add a workflow from the official samples repository
-gh aw add weekly-research -r githubnext/agentics
+gh aw add samples/weekly-research.md -r githubnext/agentics
 
 # Add multiple workflows at once
-gh aw add ci-doctor daily-perf-improver -r githubnext/agentics
+gh aw add samples/ci-doctor.md samples/daily-perf-improver.md -r githubnext/agentics
 
 # Add workflow with custom name
-gh aw add weekly-research -r githubnext/agentics --name my-custom-research
+gh aw add samples/weekly-research.md -r githubnext/agentics --name my-custom-research
 
 # Add workflow and create pull request for review
-gh aw add issue-triage -r githubnext/agentics --pr
+gh aw add samples/issue-triage.md -r githubnext/agentics --pr
 
 # Overwrite existing workflow files
-gh aw add weekly-research --force
+gh aw add samples/weekly-research.md --force
 
 # Create multiple numbered copies of a workflow
-gh aw add weekly-research --number 3
+gh aw add samples/weekly-research.md --number 3
 
 # Override AI engine for the added workflow
-gh aw add weekly-research --engine codex
+gh aw add samples/weekly-research.md --engine codex
 
 # Add workflow from local repository (shortcut for install + add)
-gh aw add weekly-research -r githubnext/agentics
+gh aw add samples/weekly-research.md -r githubnext/agentics
 ```
 
 **Workflow Removal:**
@@ -162,9 +171,6 @@ gh aw run weekly-research --input priority=high
 # Show status of all agentic workflows
 gh aw status
 
-# Show status with verbose output (includes detailed information)
-gh aw status --verbose
-
 # Show status of workflows matching a pattern
 gh aw status WorkflowPrefix
 gh aw status path/to/workflow.lock.yml
@@ -172,18 +178,12 @@ gh aw status path/to/workflow.lock.yml
 # Enable all agentic workflows for automatic execution
 gh aw enable
 
-# Enable with verbose output to see detailed operations
-gh aw enable --verbose
-
 # Enable specific workflows matching a pattern
 gh aw enable WorkflowPrefix
 gh aw enable path/to/workflow.lock.yml
 
 # Disable all agentic workflows to prevent execution and cancel in-progress runs
 gh aw disable
-
-# Disable with verbose output to see detailed operations
-gh aw disable --verbose
 
 # Disable specific workflows matching a pattern  
 gh aw disable WorkflowPrefix
@@ -202,7 +202,6 @@ The `status` command shows comprehensive information about your agentic workflow
 - **`enable`**: Activates workflows in GitHub Actions for automatic execution based on their triggers
 - **`disable`**: Stops workflows from executing automatically and cancels any currently running workflow instances
 - Both commands support pattern matching to operate on multiple workflows at once
-- Use `--verbose` flag to see detailed information about the operations being performed
 
 ## 📊 Log Analysis and Monitoring
 
@@ -325,7 +324,7 @@ gh aw mcp add weekly-research server-name --registry https://custom.registry.com
 # Launch MCP server exposing gh-aw CLI tools
 gh aw mcp serve
 
-# Serve with verbose logging
+# Serve with detailed logging
 gh aw mcp serve -v
 
 # Serve with only specific tools enabled
