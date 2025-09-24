@@ -242,7 +242,7 @@ func TestBuildSafeJobs(t *testing.T) {
 	
 	// Check that environment setup step includes input variables
 	stepsContent := strings.Join(job.Steps, "")
-	if !strings.Contains(stepsContent, "SAFE_JOB_ENVIRONMENT") {
+	if !strings.Contains(stepsContent, "GITHUB_AW_SAFE_JOB_ENVIRONMENT") {
 		t.Error("Expected environment variable for input 'environment' to be set")
 	}
 	

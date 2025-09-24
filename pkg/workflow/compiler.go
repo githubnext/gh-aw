@@ -1495,7 +1495,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, mainJobName string) error {
 		// Export inputs as environment variables
 		if len(jobConfig.Inputs) > 0 {
 			for inputName, inputConfig := range jobConfig.Inputs {
-				envVarName := fmt.Sprintf("SAFE_JOB_%s", strings.ToUpper(strings.ReplaceAll(inputName, "-", "_")))
+				envVarName := fmt.Sprintf("GITHUB_AW_SAFE_JOB_%s", strings.ToUpper(strings.ReplaceAll(inputName, "-", "_")))
 				defaultValue := inputConfig.Default
 				if defaultValue == "" && inputConfig.Required {
 					defaultValue = "REQUIRED_INPUT_NOT_PROVIDED"

@@ -20,7 +20,7 @@ safe-jobs:
         default: "Hello from safe-job!"
     steps:
       - name: Echo message
-        run: echo "${{ env.SAFE_JOB_MESSAGE }}"
+        run: echo "${{ env.GITHUB_AW_SAFE_JOB_MESSAGE }}"
 ---
 summarize and publish to issue:
 
