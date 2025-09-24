@@ -376,7 +376,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"json-server": map[string]any{
-						"mcp": `{"type": "stdio", "command": "python", "args": ["-m", "server"]}`,
+						"type": "stdio", "command": "test",
 					},
 				},
 			},
