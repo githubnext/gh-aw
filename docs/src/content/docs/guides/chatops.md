@@ -54,4 +54,6 @@ Analyze this content: "${{ needs.task.outputs.text }}"
 
 The sanitized context automatically filters out potential security issues like unauthorized mentions, malicious links, and excessive content while preserving the essential information your automation needs.
 
+**Security Caution**: While sanitization reduces many risks, the content may still contain prompt injection attempts. Always treat user-provided content as potentially untrusted and design your automation to be resilient against malicious instructions embedded in issue descriptions, comments, or pull request content.
+
 Start with simple, high-value commands and expand based on team needs. Each command should solve real problems and integrate naturally into existing development conversations.
