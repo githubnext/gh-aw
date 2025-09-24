@@ -1744,15 +1744,7 @@
               "additionalProperties": false
             },
             "permissions": {
-              "type": "object",
-              "description": "Job-specific permissions",
-              "patternProperties": {
-                "^[a-z-]+$": {
-                  "type": "string",
-                  "enum": ["read", "write", "none"]
-                }
-              },
-              "additionalProperties": false
+              "$ref": "#/properties/permissions"
             },
             "github-token": {
               "type": "string",
@@ -1803,8 +1795,7 @@
               "type": "array",
               "description": "Custom steps to execute in the safe job",
               "items": {
-                "type": "object",
-                "description": "GitHub Actions step configuration"
+                "$ref": "#/properties/githubActionsStep"
               }
             }
           },
@@ -1831,6 +1822,66 @@
           },
           "minItems": 1
         }
+      ]
+    },
+    "githubActionsStep": {
+      "type": "object",
+      "description": "GitHub Actions workflow step",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A name for your step to display on GitHub"
+        },
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for the step"
+        },
+        "if": {
+          "type": "string",
+          "description": "Conditional expression to determine if step should run"
+        },
+        "uses": {
+          "type": "string",
+          "description": "Selects an action to run as part of a step in your job"
+        },
+        "run": {
+          "type": "string",
+          "description": "Runs command-line programs using the operating system's shell"
+        },
+        "with": {
+          "type": "object",
+          "description": "Input parameters defined by the action",
+          "additionalProperties": true
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the step",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "continue-on-error": {
+          "type": "boolean",
+          "description": "Prevents a job from failing when a step fails"
+        },
+        "timeout-minutes": {
+          "type": "number",
+          "description": "The maximum number of minutes to run the step before killing the process"
+        },
+        "working-directory": {
+          "type": "string",
+          "description": "Working directory for the step"
+        },
+        "shell": {
+          "type": "string",
+          "description": "Shell to use for the run command"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {"required": ["uses"]},
+        {"required": ["run"]}
       ]
     }
   },
