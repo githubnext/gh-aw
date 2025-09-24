@@ -914,297 +914,6 @@ func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
 	return ""
 }
 
-// applyDefaults applies default values for missing workflow sections
-func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
-	// Check if this is a command trigger workflow (by checking if user specified "on.command")
-	isCommandTrigger := false
-	if data.On == "" {
-		// Check the original frontmatter for command trigger
-		content, err := os.ReadFile(markdownPath)
-		if err == nil {
-			result, err := parser.ExtractFrontmatterFromContent(string(content))
-			if err == nil {
-				if onValue, exists := result.Frontmatter["on"]; exists {
-					// Check for new format: on.command
-					if onMap, ok := onValue.(map[string]any); ok {
-						if _, hasCommand := onMap["command"]; hasCommand {
-							isCommandTrigger = true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if data.On == "" {
-		if isCommandTrigger {
-			// Generate command-specific GitHub Actions events (updated to include reopened and pull_request)
-			commandEvents := `on:
-  issues:
-    types: [opened, edited, reopened]
-  issue_comment:
-    types: [created, edited]
-  pull_request:
-    types: [opened, edited, reopened]
-  pull_request_review_comment:
-    types: [created, edited]`
-
-			// Check if there are other events to merge
-			if len(data.CommandOtherEvents) > 0 {
-				// Merge command events with other events
-				commandEventsMap := map[string]any{
-					"issues": map[string]any{
-						"types": []string{"opened", "edited", "reopened"},
-					},
-					"issue_comment": map[string]any{
-						"types": []string{"created", "edited"},
-					},
-					"pull_request": map[string]any{
-						"types": []string{"opened", "edited", "reopened"},
-					},
-					"pull_request_review_comment": map[string]any{
-						"types": []string{"created", "edited"},
-					},
-				}
-
-				// Merge other events into command events
-				for key, value := range data.CommandOtherEvents {
-					commandEventsMap[key] = value
-				}
-
-				// Convert merged events to YAML
-				mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
-				if err == nil {
-					data.On = strings.TrimSuffix(string(mergedEventsYAML), "\n")
-				} else {
-					// If conversion fails, just use command events
-					data.On = commandEvents
-				}
-			} else {
-				data.On = commandEvents
-			}
-
-			// Add conditional logic to check for command in issue content
-			// Use event-aware condition that only applies command checks to comment-related events
-			hasOtherEvents := len(data.CommandOtherEvents) > 0
-			commandConditionTree := buildEventAwareCommandCondition(data.Command, hasOtherEvents)
-
-			if data.If == "" {
-				data.If = commandConditionTree.Render()
-			}
-		} else {
-			data.On = `on:
-  # Start either every 10 minutes, or when some kind of human event occurs.
-  # Because of the implicit "concurrency" section, only one instance of this
-  # workflow will run at a time.
-  schedule:
-    - cron: "0/10 * * * *"
-  issues:
-    types: [opened, edited, closed]
-  issue_comment:
-    types: [created, edited]
-  pull_request:
-    types: [opened, edited, closed]
-  push:
-    branches:
-      - main
-  workflow_dispatch:`
-		}
-	}
-
-	if data.Permissions == "" {
-		// Default behavior: use read-all permissions
-		data.Permissions = `permissions: read-all`
-	}
-
-	// Generate concurrency configuration using the dedicated concurrency module
-	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger)
-
-	if data.RunName == "" {
-		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)
-	}
-
-	if data.TimeoutMinutes == "" {
-		data.TimeoutMinutes = `timeout_minutes: 5`
-	}
-
-	if data.RunsOn == "" {
-		data.RunsOn = "runs-on: ubuntu-latest"
-	}
-	// Apply default tools
-	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
-}
-
-// applyPullRequestDraftFilter applies draft filter conditions for pull_request triggers
-func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter map[string]any) {
-	// Check if there's an "on" section in the frontmatter
-	onValue, hasOn := frontmatter["on"]
-	if !hasOn {
-		return
-	}
-
-	// Check if "on" is an object (not a string)
-	onMap, isOnMap := onValue.(map[string]any)
-	if !isOnMap {
-		return
-	}
-
-	// Check if there's a pull_request section
-	prValue, hasPR := onMap["pull_request"]
-	if !hasPR {
-		return
-	}
-
-	// Check if pull_request is an object with draft settings
-	prMap, isPRMap := prValue.(map[string]any)
-	if !isPRMap {
-		return
-	}
-
-	// Check if draft is specified
-	draftValue, hasDraft := prMap["draft"]
-	if !hasDraft {
-		return
-	}
-
-	// Check if draft is a boolean
-	draftBool, isDraftBool := draftValue.(bool)
-	if !isDraftBool {
-		// If draft is not a boolean, don't add filter
-		return
-	}
-
-	// Generate conditional logic based on draft value using expression nodes
-	var draftCondition ConditionNode
-	if draftBool {
-		// draft: true - include only draft PRs
-		// The condition should be true for non-pull_request events or for draft pull_requests
-		notPullRequestEvent := BuildNotEquals(
-			BuildPropertyAccess("github.event_name"),
-			BuildStringLiteral("pull_request"),
-		)
-		isDraftPR := BuildEquals(
-			BuildPropertyAccess("github.event.pull_request.draft"),
-			BuildBooleanLiteral(true),
-		)
-		draftCondition = &OrNode{
-			Left:  notPullRequestEvent,
-			Right: isDraftPR,
-		}
-	} else {
-		// draft: false - exclude draft PRs
-		// The condition should be true for non-pull_request events or for non-draft pull_requests
-		notPullRequestEvent := BuildNotEquals(
-			BuildPropertyAccess("github.event_name"),
-			BuildStringLiteral("pull_request"),
-		)
-		isNotDraftPR := BuildEquals(
-			BuildPropertyAccess("github.event.pull_request.draft"),
-			BuildBooleanLiteral(false),
-		)
-		draftCondition = &OrNode{
-			Left:  notPullRequestEvent,
-			Right: isNotDraftPR,
-		}
-	}
-
-	// Build condition tree and render
-	existingCondition := data.If
-	conditionTree := buildConditionTree(existingCondition, draftCondition.Render())
-	data.If = conditionTree.Render()
-}
-
-// applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
-// Supports "forks: []string" with glob patterns
-func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter map[string]any) {
-	// Check if there's an "on" section in the frontmatter
-	onValue, hasOn := frontmatter["on"]
-	if !hasOn {
-		return
-	}
-
-	// Check if "on" is an object (not a string)
-	onMap, isOnMap := onValue.(map[string]any)
-	if !isOnMap {
-		return
-	}
-
-	// Check if there's a pull_request section
-	prValue, hasPR := onMap["pull_request"]
-	if !hasPR {
-		return
-	}
-
-	// Check if pull_request is an object with fork settings
-	prMap, isPRMap := prValue.(map[string]any)
-	if !isPRMap {
-		return
-	}
-
-	// Check for "forks" field (string or array)
-	forksValue, hasForks := prMap["forks"]
-
-	if !hasForks {
-		return
-	}
-
-	// Convert forks value to []string, handling both string and array formats
-	var allowedForks []string
-
-	// Handle string format (e.g., forks: "*" or forks: "org/*")
-	if forksStr, isForksStr := forksValue.(string); isForksStr {
-		allowedForks = []string{forksStr}
-	} else if forksArray, isForksArray := forksValue.([]any); isForksArray {
-		// Handle array format (e.g., forks: ["*", "org/repo"])
-		for _, fork := range forksArray {
-			if forkStr, isForkStr := fork.(string); isForkStr {
-				allowedForks = append(allowedForks, forkStr)
-			}
-		}
-	} else {
-		// Invalid forks format, skip
-		return
-	}
-
-	// If "*" wildcard is present, skip fork filtering (allow all forks)
-	for _, pattern := range allowedForks {
-		if pattern == "*" {
-			return // No fork filtering needed
-		}
-	}
-
-	// Build condition for allowed forks with glob support
-	notPullRequestEvent := BuildNotEquals(
-		BuildPropertyAccess("github.event_name"),
-		BuildStringLiteral("pull_request"),
-	)
-	allowedForksCondition := BuildFromAllowedForks(allowedForks)
-
-	forkCondition := &OrNode{
-		Left:  notPullRequestEvent,
-		Right: allowedForksCondition,
-	}
-
-	// Build condition tree and render
-	existingCondition := data.If
-	conditionTree := buildConditionTree(existingCondition, forkCondition.Render())
-	data.If = conditionTree.Render()
-}
-
-// extractToolsFromFrontmatter extracts tools section from frontmatter map
-func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
-	tools, exists := frontmatter["tools"]
-	if !exists {
-		return make(map[string]any)
-	}
-
-	if toolsMap, ok := tools.(map[string]any); ok {
-		return toolsMap
-	}
-
-	return make(map[string]any)
-}
-
 // mergeTools merges two tools maps, combining allowed arrays when keys coincide
 func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
 	if includedToolsJSON == "" || includedToolsJSON == "{}" {
@@ -1507,7 +1216,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Build check-membership job if needed (validates team membership levels)
 	// Team membership checks are specifically for command workflows
 	// Non-command workflows use general role checks instead
-	var checkMembershipJobCreated bool
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 
 	if needsPermissionCheck {
@@ -1518,15 +1226,14 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		if err := c.jobManager.AddJob(checkMembershipJob); err != nil {
 			return fmt.Errorf("failed to add check-membership job: %w", err)
 		}
-		checkMembershipJobCreated = true
 	}
 
 	// Build activation job if needed (preamble job that handles runtime conditions)
 	// If check-membership job exists, activation job is ALWAYS created and depends on it
 	var activationJobCreated bool
 
-	if c.isActivationJobNeeded(data, needsPermissionCheck) || checkMembershipJobCreated {
-		activationJob, err := c.buildActivationJob(data, checkMembershipJobCreated)
+	if c.isActivationJobNeeded(data, needsPermissionCheck) {
+		activationJob, err := c.buildActivationJob(data, needsPermissionCheck)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -1797,6 +1504,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJobCreated bool) (*Job, error) {
 	var steps []string
 
+	var jobCondition = data.If
+	if activationJobCreated {
+		jobCondition = "" // Main job depends on activation job, so no need for inline condition
+	}
 	// Permission checks are now handled by the separate check-membership job
 	// No role checks needed in the main job
 
@@ -1827,7 +1538,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJo
 
 	job := &Job{
 		Name:        jobName,
-		If:          data.If,
+		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
