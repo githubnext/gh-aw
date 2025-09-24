@@ -20,8 +20,6 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -52,7 +50,7 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
-          mkdir -p /tmp/aw-prompts
+          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Test Codex Add Issue Comment
           
@@ -62,14 +60,14 @@ jobs:
           
           EOF
       - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:
