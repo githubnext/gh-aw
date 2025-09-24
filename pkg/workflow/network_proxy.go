@@ -100,8 +100,7 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 	yaml.WriteString("          \n")
 
 	// Extract custom proxy args from MCP config if present
-	var customProxyArgs []string
-	// Note: proxy_args is not currently supported in the structured config
+	customProxyArgs := mcpConfig.ProxyArgs
 
 	// Generate docker-compose.yml inline
 	fmt.Fprintf(yaml, "          # Generate Docker Compose configuration for %s\n", toolName)

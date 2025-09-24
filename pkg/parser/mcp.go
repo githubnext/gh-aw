@@ -63,6 +63,7 @@ type MCPServerConfig struct {
 	URL       string            `json:"url"`       // for http
 	Headers   map[string]string `json:"headers"`   // for http
 	Env       map[string]string `json:"env"`       // environment variables
+	ProxyArgs []string          `json:"proxy_args"` // custom proxy arguments for container-based tools
 	Allowed   []string          `json:"allowed"`   // allowed tools
 }
 
@@ -418,6 +419,17 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 				for key, value := range envMap {
 					if valueStr, ok := value.(string); ok {
 						config.Env[key] = valueStr
+					}
+				}
+			}
+		}
+
+		// Extract proxy arguments for stdio (container-based tools)
+		if proxyArgs, hasProxyArgs := mcpConfig["proxy_args"]; hasProxyArgs {
+			if proxyArgsSlice, ok := proxyArgs.([]any); ok {
+				for _, arg := range proxyArgsSlice {
+					if argStr, ok := arg.(string); ok {
+						config.ProxyArgs = append(config.ProxyArgs, argStr)
 					}
 				}
 			}
