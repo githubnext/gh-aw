@@ -187,7 +187,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 // ToolConfig represents a tool configuration interface for type safety
 type ToolConfig interface {
 	GetString(key string) (string, bool)
-	GetStringArray(key string) ([]string, bool) 
+	GetStringArray(key string) ([]string, bool)
 	GetStringMap(key string) (map[string]string, bool)
 	GetAny(key string) (any, bool)
 }
@@ -321,23 +321,21 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		// Transform container field to docker command and args
 		result.Command = "docker"
 		result.Args = []string{"run", "--rm", "-i"}
-		
+
 		// Add environment variables as -e flags
 		for envKey := range result.Env {
 			result.Args = append(result.Args, "-e", envKey)
 		}
-		
+
 		// Add the container image as the last argument
 		result.Args = append(result.Args, result.Container)
-		
+
 		// Clear the container field since it's now part of the command
 		result.Container = ""
 	}
 
 	return result, nil
 }
-
-
 
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
@@ -529,7 +527,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	// Validate 'type' property - allow inference from other fields
 	mcpType, hasType := mcpConfig["type"]
 	var typeStr string
-	
+
 	if hasType {
 		// Explicit type provided
 		if err := validateStringProperty(toolName, "type", mcpType, hasType); err != nil {
