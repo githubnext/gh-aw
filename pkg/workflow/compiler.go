@@ -2105,12 +2105,8 @@ func (c *Compiler) validateMarkdownSizeForGitHubActions(content string) error {
 		return nil
 	}
 
-	if c.verbose {
-		fmt.Println(console.FormatErrorMessage(fmt.Sprintf("Estimated markdown content size when rendered: %d characters (exceeds GitHub Actions limit of %d characters)", estimatedSize, maxCharacters)))
-	}
-
 	// Return error with detailed information about the limit
-	return fmt.Errorf("workflow markdown content is too large (%d characters when rendered) and exceeds GitHub Actions script size limit of %d characters. Please reduce the content size to stay within the limit", estimatedSize, maxCharacters)
+	return fmt.Errorf("workflow markdown content is too large (%d characters when rendered) and exceeds GitHub Actions script size limit of %d characters", estimatedSize, maxCharacters)
 }
 
 func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
