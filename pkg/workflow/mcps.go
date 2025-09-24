@@ -83,13 +83,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Pull each tool's container image if specified, and bring up squid service
 		for _, toolName := range proxyTools {
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if mcpConf, err := getMCPConfig(toolConfig, toolName); err == nil {
-					if containerVal, hasContainer := mcpConf["container"]; hasContainer {
-						if containerStr, ok := containerVal.(string); ok && containerStr != "" {
-							fmt.Fprintf(yaml, "          echo 'Pulling %s for tool %s'\n", containerStr, toolName)
-							fmt.Fprintf(yaml, "          docker pull %s\n", containerStr)
-						}
-					}
+				if mcpConf, err := getMCPConfig(toolConfig, toolName); err == nil && mcpConf.Container != "" {
+					fmt.Fprintf(yaml, "          echo 'Pulling %s for tool %s'\n", mcpConf.Container, toolName)
+					fmt.Fprintf(yaml, "          docker pull %s\n", mcpConf.Container)
 				}
 				fmt.Fprintf(yaml, "          echo 'Starting squid-proxy service for %s'\n", toolName)
 				fmt.Fprintf(yaml, "          docker compose -f docker-compose-%s.yml up -d squid-proxy\n", toolName)

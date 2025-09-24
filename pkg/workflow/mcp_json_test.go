@@ -1,16 +1,17 @@
 package workflow
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 func TestGetMCPConfig(t *testing.T) {
 	tests := []struct {
 		name       string
 		toolConfig map[string]any
-		expected   map[string]any
+		expected   *parser.MCPServerConfig
 		wantErr    bool
 	}{
 		{
@@ -20,10 +21,43 @@ func TestGetMCPConfig(t *testing.T) {
 				"command": "python",
 				"args":    []any{"-m", "test"},
 			},
-			expected: map[string]any{
-				"type":    "stdio",
+			expected: &parser.MCPServerConfig{
+				Name:    "test",
+				Type:    "stdio",
+				Command: "python",
+				Args:    []string{"-m", "test"},
+				Env:     make(map[string]string),
+				Headers: make(map[string]string),
+			},
+			wantErr: false,
+		},
+		{
+			name: "inferred stdio type from command",
+			toolConfig: map[string]any{
 				"command": "python",
 				"args":    []any{"-m", "test"},
+			},
+			expected: &parser.MCPServerConfig{
+				Name:    "test",
+				Type:    "stdio",
+				Command: "python",
+				Args:    []string{"-m", "test"},
+				Env:     make(map[string]string),
+				Headers: make(map[string]string),
+			},
+			wantErr: false,
+		},
+		{
+			name: "inferred http type from url",
+			toolConfig: map[string]any{
+				"url": "https://example.com",
+			},
+			expected: &parser.MCPServerConfig{
+				Name:    "test",
+				Type:    "http",
+				URL:     "https://example.com",
+				Env:     make(map[string]string),
+				Headers: make(map[string]string),
 			},
 			wantErr: false,
 		},
@@ -32,8 +66,8 @@ func TestGetMCPConfig(t *testing.T) {
 			toolConfig: map[string]any{
 				"allowed": []any{"tool1"},
 			},
-			expected: map[string]any{},
-			wantErr:  false,
+			expected: nil,
+			wantErr:  true,
 		},
 	}
 
@@ -47,12 +81,22 @@ func TestGetMCPConfig(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				// Convert expected to JSON and back to ensure proper comparison
-				expectedJSON, _ := json.Marshal(tt.expected)
-				resultJSON, _ := json.Marshal(result)
-
-				if string(expectedJSON) != string(resultJSON) {
-					t.Errorf("getMCPConfig() = %v, want %v", result, tt.expected)
+				// Compare struct fields
+				if result.Name != tt.expected.Name ||
+					result.Type != tt.expected.Type ||
+					result.Command != tt.expected.Command ||
+					result.URL != tt.expected.URL ||
+					len(result.Args) != len(tt.expected.Args) ||
+					len(result.Env) != len(tt.expected.Env) ||
+					len(result.Headers) != len(tt.expected.Headers) {
+					t.Errorf("getMCPConfig() = %+v, want %+v", result, tt.expected)
+				}
+				
+				// Check args array
+				for i, arg := range result.Args {
+					if i < len(tt.expected.Args) && arg != tt.expected.Args[i] {
+						t.Errorf("getMCPConfig() args[%d] = %v, want %v", i, arg, tt.expected.Args[i])
+					}
 				}
 			}
 		})

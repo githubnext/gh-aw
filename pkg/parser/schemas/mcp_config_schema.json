@@ -74,7 +74,12 @@
       "description": "Permissions configuration for container-based MCP servers"
     }
   },
-  "required": ["type"],
+  "anyOf": [
+    {"required": ["type"]},
+    {"required": ["url"]},
+    {"required": ["command"]},
+    {"required": ["container"]}
+  ],
   "additionalProperties": false,
   "allOf": [
     {

@@ -265,13 +265,23 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 				continue
 			}
 
-			// Check if it has MCP configuration
+			// Check if it has MCP configuration (either explicit type or inferable from fields)
 			var mcpSection any
 			var hasMcp bool
 
-			// Check for direct type field
+			// Check for MCP fields (either explicit type or inferable from url/command/container)
 			if _, hasType := toolConfig["type"]; hasType {
-				// If we have a direct type field, create an MCP section from all direct fields
+				hasMcp = true
+			} else if _, hasURL := toolConfig["url"]; hasURL {
+				hasMcp = true
+			} else if _, hasCommand := toolConfig["command"]; hasCommand {
+				hasMcp = true
+			} else if _, hasContainer := toolConfig["container"]; hasContainer {
+				hasMcp = true
+			}
+
+			if hasMcp {
+				// Create an MCP section from all direct fields
 				mcpFields := map[string]any{}
 				for _, field := range []string{"type", "url", "command", "container", "args", "env", "headers"} {
 					if value, exists := toolConfig[field]; exists {
@@ -279,7 +289,6 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					}
 				}
 				mcpSection = mcpFields
-				hasMcp = true
 			}
 
 			if !hasMcp {
@@ -336,7 +345,7 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 		return config, fmt.Errorf("invalid mcp configuration format")
 	}
 
-	// Extract type (required)
+	// Extract type (explicit or inferred)
 	if typeVal, hasType := mcpConfig["type"]; hasType {
 		if typeStr, ok := typeVal.(string); ok {
 			config.Type = typeStr
@@ -344,7 +353,16 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			return config, fmt.Errorf("type must be a string")
 		}
 	} else {
-		return config, fmt.Errorf("missing required 'type' field")
+		// Infer type from presence of fields
+		if _, hasURL := mcpConfig["url"]; hasURL {
+			config.Type = "http"
+		} else if _, hasCommand := mcpConfig["command"]; hasCommand {
+			config.Type = "stdio"
+		} else if _, hasContainer := mcpConfig["container"]; hasContainer {
+			config.Type = "stdio"
+		} else {
+			return config, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
+		}
 	}
 
 	// Extract configuration based on type
