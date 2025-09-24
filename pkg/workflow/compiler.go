@@ -1520,15 +1520,21 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, mainJobName string) error {
 		// Build job steps
 		var steps []string
 
+		// Add step to download agent output artifact
+		steps = append(steps, "      - name: Download agent output artifact\n")
+		steps = append(steps, "        continue-on-error: true\n")
+		steps = append(steps, "        uses: actions/download-artifact@v5\n")
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          name: %s\n", OutputArtifactName))
+		steps = append(steps, "          path: /tmp/safe-jobs/\n")
+
 		// Add environment variables step
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
 		
-
-
-		// Add main job output as environment variable
-		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=${{ needs.%s.outputs.output }}\" >> $GITHUB_ENV\n", mainJobName))
+		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
+		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s\" >> $GITHUB_ENV\n", OutputArtifactName))
 
 		// Add custom environment variables from safe-outputs.env
 		if data.SafeOutputs != nil && data.SafeOutputs.Env != nil {

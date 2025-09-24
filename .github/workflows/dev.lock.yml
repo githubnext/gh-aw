@@ -2578,10 +2578,16 @@ jobs:
     needs: dev
     runs-on: ubuntu-latest
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: safe_output.jsonl
+          path: /tmp/safe-jobs/
       - name: Setup Safe Job Environment Variables
         run: |
           echo "Setting up environment for safe job"
-          echo "GITHUB_AW_AGENT_OUTPUT=${{ needs.dev.outputs.output }}" >> $GITHUB_ENV
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/safe_output.jsonl" >> $GITHUB_ENV
       - name: Echo message
         run: |-
           if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
