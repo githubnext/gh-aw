@@ -1161,20 +1161,6 @@
           },
           {
             "$ref": "#/$defs/http_mcp_tool"
-          },
-          {
-            "type": "object",
-            "description": "Non-MCP tool configuration",
-            "properties": {
-              "allowed": {
-                "type": "array",
-                "description": "List of allowed tool functions",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "additionalProperties": false
           }
         ]
       }
@@ -1803,7 +1789,6 @@
           }
         }
       },
-      "required": ["type"],
       "additionalProperties": false,
       "anyOf": [
         {"required": ["command"]},
@@ -1857,7 +1842,7 @@
           }
         }
       },
-      "required": ["type", "url"],
+      "required": ["url"],
       "additionalProperties": false
     }
   }

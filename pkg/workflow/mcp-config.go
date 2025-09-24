@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // MCPConfigRenderer contains configuration options for rendering MCP config
@@ -27,12 +28,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 
 	// Determine properties based on type
 	var propertyOrder []string
-	mcpType := "stdio" // default
-	if serverType, exists := mcpConfig["type"]; exists {
-		if typeStr, ok := serverType.(string); ok {
-			mcpType = typeStr
-		}
-	}
+	mcpType := mcpConfig.Type
 
 	switch mcpType {
 	case "stdio":
@@ -61,8 +57,27 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	// Find which properties actually exist in this config
 	var existingProperties []string
 	for _, prop := range propertyOrder {
-		if _, exists := mcpConfig[prop]; exists {
-			existingProperties = append(existingProperties, prop)
+		switch prop {
+		case "command":
+			if mcpConfig.Command != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "args":
+			if len(mcpConfig.Args) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "env":
+			if len(mcpConfig.Env) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "url":
+			if mcpConfig.URL != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "headers":
+			if len(mcpConfig.Headers) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
 		}
 	}
 
@@ -77,232 +92,239 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 
 		switch property {
 		case "command":
-			if command, exists := mcpConfig["command"]; exists {
-				if cmdStr, ok := command.(string); ok {
-					if renderer.Format == "toml" {
-						fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, cmdStr)
-					} else {
-						comma := ","
-						if isLast {
-							comma = ""
-						}
-						fmt.Fprintf(yaml, "%s\"command\": \"%s\"%s\n", renderer.IndentLevel, cmdStr, comma)
-					}
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, mcpConfig.Command)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
 				}
+				fmt.Fprintf(yaml, "%s\"command\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Command, comma)
 			}
 		case "args":
-			if args, exists := mcpConfig["args"]; exists {
-				if argsSlice, ok := args.([]any); ok {
-					if renderer.Format == "toml" {
-						fmt.Fprintf(yaml, "%sargs = [\n", renderer.IndentLevel)
-						for _, arg := range argsSlice {
-							if argStr, ok := arg.(string); ok {
-								fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, argStr)
-							}
-						}
-						fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
-					} else {
-						comma := ","
-						if isLast {
-							comma = ""
-						}
-						fmt.Fprintf(yaml, "%s\"args\": [\n", renderer.IndentLevel)
-						for argIndex, arg := range argsSlice {
-							if argStr, ok := arg.(string); ok {
-								argComma := ","
-								if argIndex == len(argsSlice)-1 {
-									argComma = ""
-								}
-								fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, argStr, argComma)
-							}
-						}
-						fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-					}
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%sargs = [\n", renderer.IndentLevel)
+				for _, arg := range mcpConfig.Args {
+					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
 				}
+				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"args\": [\n", renderer.IndentLevel)
+				for argIndex, arg := range mcpConfig.Args {
+					argComma := ","
+					if argIndex == len(mcpConfig.Args)-1 {
+						argComma = ""
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
+				}
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
 		case "env":
-			if env, exists := mcpConfig["env"]; exists {
-				if envMap, ok := env.(map[string]any); ok {
-					if renderer.Format == "toml" {
-						fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)
-						first := true
-						for envKey, envValue := range envMap {
-							if !first {
-								yaml.WriteString(", ")
-							}
-							if envStr, ok := envValue.(string); ok {
-								fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, envStr)
-							}
-							first = false
-						}
-						yaml.WriteString(" }\n")
-					} else {
-						comma := ","
-						if isLast {
-							comma = ""
-						}
-						fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
-						envKeys := make([]string, 0, len(envMap))
-						for key := range envMap {
-							envKeys = append(envKeys, key)
-						}
-						for envIndex, envKey := range envKeys {
-							if envValue, ok := envMap[envKey].(string); ok {
-								envComma := ","
-								if envIndex == len(envKeys)-1 {
-									envComma = ""
-								}
-								fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, envValue, envComma)
-							}
-						}
-						fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)
+				first := true
+				for envKey, envValue := range mcpConfig.Env {
+					if !first {
+						yaml.WriteString(", ")
 					}
+					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, envValue)
+					first = false
 				}
+				yaml.WriteString(" }\n")
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
+				envKeys := make([]string, 0, len(mcpConfig.Env))
+				for key := range mcpConfig.Env {
+					envKeys = append(envKeys, key)
+				}
+				for envIndex, envKey := range envKeys {
+					envComma := ","
+					if envIndex == len(envKeys)-1 {
+						envComma = ""
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, mcpConfig.Env[envKey], envComma)
+				}
+				fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 			}
 		case "url":
-			if url, exists := mcpConfig["url"]; exists {
-				if urlStr, ok := url.(string); ok {
-					comma := ","
-					if isLast {
-						comma = ""
-					}
-					fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, urlStr, comma)
-				}
+			comma := ","
+			if isLast {
+				comma = ""
 			}
+			fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.URL, comma)
 		case "headers":
-			if headers, exists := mcpConfig["headers"]; exists {
-				if headersMap, ok := headers.(map[string]any); ok {
-					comma := ","
-					if isLast {
-						comma = ""
-					}
-					fmt.Fprintf(yaml, "%s\"headers\": {\n", renderer.IndentLevel)
-					headerKeys := make([]string, 0, len(headersMap))
-					for key := range headersMap {
-						headerKeys = append(headerKeys, key)
-					}
-					for headerIndex, headerKey := range headerKeys {
-						if headerValue, ok := headersMap[headerKey].(string); ok {
-							headerComma := ","
-							if headerIndex == len(headerKeys)-1 {
-								headerComma = ""
-							}
-							fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma)
-						}
-					}
-					fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
-				}
+			comma := ","
+			if isLast {
+				comma = ""
 			}
+			fmt.Fprintf(yaml, "%s\"headers\": {\n", renderer.IndentLevel)
+			headerKeys := make([]string, 0, len(mcpConfig.Headers))
+			for key := range mcpConfig.Headers {
+				headerKeys = append(headerKeys, key)
+			}
+			for headerIndex, headerKey := range headerKeys {
+				headerComma := ","
+				if headerIndex == len(headerKeys)-1 {
+					headerComma = ""
+				}
+				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, mcpConfig.Headers[headerKey], headerComma)
+			}
+			fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 		}
 	}
 
 	return nil
 }
 
-// getMCPConfig extracts MCP configuration from a tool config
-func getMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, error) {
-	result := make(map[string]any)
+// ToolConfig represents a tool configuration interface for type safety
+type ToolConfig interface {
+	GetString(key string) (string, bool)
+	GetStringArray(key string) ([]string, bool) 
+	GetStringMap(key string) (map[string]string, bool)
+	GetAny(key string) (any, bool)
+}
 
-	// List of MCP fields that can be direct children of the tool config
-	// Note: "permissions" stays at the tool level, not an MCP field
-	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers"}
+// MapToolConfig implements ToolConfig for map[string]any
+type MapToolConfig map[string]any
 
-	// Check for direct fields in tool config
-	for _, field := range mcpFields {
-		if value, exists := toolConfig[field]; exists {
-			result[field] = value
+func (m MapToolConfig) GetString(key string) (string, bool) {
+	if value, exists := m[key]; exists {
+		if str, ok := value.(string); ok {
+			return str, true
+		}
+	}
+	return "", false
+}
+
+func (m MapToolConfig) GetStringArray(key string) ([]string, bool) {
+	if value, exists := m[key]; exists {
+		if arr, ok := value.([]any); ok {
+			result := make([]string, 0, len(arr))
+			for _, item := range arr {
+				if str, ok := item.(string); ok {
+					result = append(result, str)
+				}
+			}
+			return result, true
+		}
+		if arr, ok := value.([]string); ok {
+			return arr, true
+		}
+	}
+	return nil, false
+}
+
+func (m MapToolConfig) GetStringMap(key string) (map[string]string, bool) {
+	if value, exists := m[key]; exists {
+		if mapVal, ok := value.(map[string]any); ok {
+			result := make(map[string]string)
+			for k, v := range mapVal {
+				if str, ok := v.(string); ok {
+					result[k] = str
+				}
+			}
+			return result, true
+		}
+		if mapVal, ok := value.(map[string]string); ok {
+			return mapVal, true
+		}
+	}
+	return nil, false
+}
+
+func (m MapToolConfig) GetAny(key string) (any, bool) {
+	value, exists := m[key]
+	return value, exists
+}
+
+// getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
+func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
+	config := MapToolConfig(toolConfig)
+	result := &parser.MCPServerConfig{
+		Name:    toolName,
+		Env:     make(map[string]string),
+		Headers: make(map[string]string),
+	}
+
+	// Infer type from fields if not explicitly provided
+	if typeStr, hasType := config.GetString("type"); hasType {
+		result.Type = typeStr
+	} else {
+		// Infer type from presence of fields
+		if _, hasURL := config.GetString("url"); hasURL {
+			result.Type = "http"
+		} else if _, hasCommand := config.GetString("command"); hasCommand {
+			result.Type = "stdio"
+		} else if _, hasContainer := config.GetString("container"); hasContainer {
+			result.Type = "stdio"
+		} else {
+			return nil, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
 		}
 	}
 
-	// Only apply transformations if we have MCP configuration
-	if len(result) > 0 {
-		// Check if this container needs proxy support
-		if _, hasContainer := result["container"]; hasContainer {
-			if hasNetPerms, _ := hasNetworkPermissions(toolConfig); hasNetPerms {
-				// Mark this configuration as proxy-enabled
-				result["__uses_proxy"] = true
-			}
+	// Extract fields based on type
+	switch result.Type {
+	case "stdio":
+		if command, hasCommand := config.GetString("command"); hasCommand {
+			result.Command = command
 		}
+		if container, hasContainer := config.GetString("container"); hasContainer {
+			result.Container = container
+		}
+		if args, hasArgs := config.GetStringArray("args"); hasArgs {
+			result.Args = args
+		}
+		if env, hasEnv := config.GetStringMap("env"); hasEnv {
+			result.Env = env
+		}
+	case "http":
+		if url, hasURL := config.GetString("url"); hasURL {
+			result.URL = url
+		} else {
+			return nil, fmt.Errorf("http MCP tool '%s' missing required 'url' field", toolName)
+		}
+		if headers, hasHeaders := config.GetStringMap("headers"); hasHeaders {
+			result.Headers = headers
+		}
+	default:
+		return nil, fmt.Errorf("unsupported MCP type '%s' for tool '%s'", result.Type, toolName)
+	}
 
-		// Transform container field to docker command if present
-		if err := transformContainerToDockerCommand(result, toolName); err != nil {
-			return nil, err
+	// Extract allowed tools
+	if allowed, hasAllowed := config.GetStringArray("allowed"); hasAllowed {
+		result.Allowed = allowed
+	}
+
+	// Handle container transformation for stdio type
+	if result.Type == "stdio" && result.Container != "" {
+		// Transform container field to docker command and args
+		result.Command = "docker"
+		result.Args = []string{"run", "--rm", "-i"}
+		
+		// Add environment variables as -e flags
+		for envKey := range result.Env {
+			result.Args = append(result.Args, "-e", envKey)
 		}
+		
+		// Add the container image as the last argument
+		result.Args = append(result.Args, result.Container)
+		
+		// Clear the container field since it's now part of the command
+		result.Container = ""
 	}
 
 	return result, nil
 }
 
-// transformContainerToDockerCommand converts a container field to docker command and args
-// For proxy-enabled containers, it sets special markers instead of docker commands
-func transformContainerToDockerCommand(mcpConfig map[string]any, toolName string) error {
-	container, hasContainer := mcpConfig["container"]
-	if !hasContainer {
-		return nil // No container field, nothing to transform
-	}
 
-	// Ensure container is a string
-	containerStr, ok := container.(string)
-	if !ok {
-		return fmt.Errorf("'container' must be a string")
-	}
-
-	// Check for conflicting command field
-	if _, hasCommand := mcpConfig["command"]; hasCommand {
-		return fmt.Errorf("cannot specify both 'container' and 'command' fields")
-	}
-
-	// Check if this is a proxy-enabled container (has special marker)
-	if _, hasProxyFlag := mcpConfig["__uses_proxy"]; hasProxyFlag {
-		// For proxy-enabled containers, use docker compose run to connect to the MCP server
-		mcpConfig["command"] = "docker"
-		if toolName != "" {
-			mcpConfig["args"] = []any{"compose", "-f", fmt.Sprintf("docker-compose-%s.yml", toolName), "run", "--rm", toolName}
-		}
-		// Keep the container field for compose file generation
-		return nil
-	}
-
-	// Set docker command
-	mcpConfig["command"] = "docker"
-
-	// Build args
-	args := []any{"run", "--rm", "-i"}
-
-	// Add environment variable flags
-	if env, hasEnv := mcpConfig["env"]; hasEnv {
-		if envMap, ok := env.(map[string]any); ok {
-			// Sort env keys for consistent output
-			var envKeys []string
-			for envKey := range envMap {
-				envKeys = append(envKeys, envKey)
-			}
-			// Sort for consistent output
-			for i := 0; i < len(envKeys)-1; i++ {
-				for j := i + 1; j < len(envKeys); j++ {
-					if envKeys[i] > envKeys[j] {
-						envKeys[i], envKeys[j] = envKeys[j], envKeys[i]
-					}
-				}
-			}
-
-			for _, envKey := range envKeys {
-				args = append(args, "-e", envKey)
-			}
-		}
-	}
-
-	// Add container name as the last argument
-	args = append(args, containerStr)
-
-	// Set the args
-	mcpConfig["args"] = args
-
-	// Remove the container field as it's been transformed
-	delete(mcpConfig, "container")
-
-	return nil
-}
 
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
@@ -487,16 +509,31 @@ func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
 
 // validateMCPRequirements validates the specific requirements for MCP configuration
 func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConfig map[string]any) error {
-	// Validate 'type' property
+	// Validate 'type' property - allow inference from other fields
 	mcpType, hasType := mcpConfig["type"]
-	if err := validateStringProperty(toolName, "type", mcpType, hasType); err != nil {
-		return err
-	}
-
-	typeStr, ok := mcpType.(string)
-	if !ok {
-		// This should never happen since validateStringProperty passed, but be defensive
-		return fmt.Errorf("tool '%s' mcp configuration 'type' validation error", toolName)
+	var typeStr string
+	
+	if hasType {
+		// Explicit type provided
+		if err := validateStringProperty(toolName, "type", mcpType, hasType); err != nil {
+			return err
+		}
+		var ok bool
+		typeStr, ok = mcpType.(string)
+		if !ok {
+			return fmt.Errorf("tool '%s' mcp configuration 'type' validation error", toolName)
+		}
+	} else {
+		// Infer type from presence of fields
+		if _, hasURL := mcpConfig["url"]; hasURL {
+			typeStr = "http"
+		} else if _, hasCommand := mcpConfig["command"]; hasCommand {
+			typeStr = "stdio"
+		} else if _, hasContainer := mcpConfig["container"]; hasContainer {
+			typeStr = "stdio"
+		} else {
+			return fmt.Errorf("tool '%s' unable to determine MCP type: missing type, url, command, or container", toolName)
+		}
 	}
 
 	// Validate type is one of the supported types
