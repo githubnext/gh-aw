@@ -22,7 +22,7 @@ run-name: "CI Failure Doctor"
 # Cache configuration from frontmatter was processed and added to the main job steps
 
 jobs:
-  task:
+  activation:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     steps:
@@ -30,7 +30,7 @@ jobs:
         run: echo "Task job executed - conditions satisfied"
 
   ci-failure-doctor:
-    needs: task
+    needs: activation
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     permissions: read-all
