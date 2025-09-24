@@ -1548,7 +1548,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName, activationJobCreated, frontmatter)
+	mainJob, err := c.buildMainJob(data, jobName, activationJobCreated)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1794,7 +1794,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJobCreated bool, frontmatter map[string]any) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJobCreated bool) (*Job, error) {
 	var steps []string
 
 	// Permission checks are now handled by the separate check-membership job
@@ -1825,30 +1825,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJo
 		}
 	}
 
-	// Determine the job condition for command workflows
-	var jobCondition string
-	if activationJobCreated {
-		// If activation job exists, it already handles command filtering and membership validation
-		// Main job only needs to apply the original If condition (if any)
-		jobCondition = data.If
-	} else if data.Command != "" {
-		// Build the command trigger condition (only when no activation job)
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		if data.If != "" {
-			// Combine command condition with existing If condition
-			ifExpr := &ExpressionNode{Expression: data.If}
-			combinedExpr := &AndNode{Left: commandCondition, Right: ifExpr}
-			jobCondition = combinedExpr.Render()
-		} else {
-			jobCondition = commandCondition.Render()
-		}
-	} else {
-		jobCondition = data.If // Use the original If condition from the workflow data
-	}
-
 	job := &Job{
 		Name:        jobName,
-		If:          jobCondition,
+		If:          data.If,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Steps:       steps,
