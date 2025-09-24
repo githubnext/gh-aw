@@ -28,6 +28,15 @@ gh aw run weekly-research --repeat 3600                     # Execute workflow e
 gh aw logs weekly-research                                   # View execution logs
 ```
 
+## Global Flags
+
+All `gh aw` commands support the following global flags:
+
+- **`--verbose` / `-v`**: Enable verbose output showing detailed information about operations, including debugging details, step-by-step execution, and additional context
+- **`--help` / `-h`**: Show help information for the command
+
+These flags can be used with any command to get more detailed output or help information.
+
 ## 📝 Workflow Creation and Management  
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
@@ -46,11 +55,26 @@ gh aw new issue-handler --force
 # Add a workflow from the official samples repository
 gh aw add samples/weekly-research.md -r githubnext/agentics
 
+# Add multiple workflows at once
+gh aw add samples/ci-doctor.md samples/daily-perf-improver.md -r githubnext/agentics
+
+# Add workflow with custom name
+gh aw add samples/weekly-research.md -r githubnext/agentics --name my-custom-research
+
 # Add workflow and create pull request for review
 gh aw add samples/issue-triage.md -r githubnext/agentics --pr
 
-# Add workflow to a specific directory
-gh aw add samples/daily-standup.md -r githubnext/agentics --output .github/workflows/
+# Overwrite existing workflow files
+gh aw add samples/weekly-research.md --force
+
+# Create multiple numbered copies of a workflow
+gh aw add samples/weekly-research.md --number 3
+
+# Override AI engine for the added workflow
+gh aw add samples/weekly-research.md --engine codex
+
+# Add workflow from local repository (shortcut for install + add)
+gh aw add samples/weekly-research.md -r githubnext/agentics
 ```
 
 **Workflow Removal:**
@@ -71,11 +95,19 @@ The `compile` command transforms natural language workflow markdown files into e
 # Compile all workflows in .github/workflows/
 gh aw compile
 
+# Compile specific workflows by name or path
+gh aw compile weekly-research
+gh aw compile weekly-research daily-plan
+gh aw compile workflow.md
+
 # Compile with detailed output for debugging
 gh aw compile --verbose
 
 # Compile with schema validation to catch errors early
 gh aw compile --validate
+
+# Validate without generating lock files (dry-run)
+gh aw compile --no-emit
 
 # Override the AI engine for specific compilation
 gh aw compile --engine codex
@@ -85,6 +117,9 @@ gh aw compile --instructions
 
 # Compile all workflows and remove orphaned .lock.yml files
 gh aw compile --purge
+
+# Compile from custom workflows directory
+gh aw compile --workflows-dir custom/workflows
 ```
 
 **Development Features:**
@@ -147,13 +182,26 @@ gh aw enable
 gh aw enable WorkflowPrefix
 gh aw enable path/to/workflow.lock.yml
 
-# Disable all agentic workflows to prevent execution
+# Disable all agentic workflows to prevent execution and cancel in-progress runs
 gh aw disable
 
 # Disable specific workflows matching a pattern  
 gh aw disable WorkflowPrefix
 gh aw disable path/to/workflow.lock.yml
 ```
+
+**Status Information Provided:**
+The `status` command shows comprehensive information about your agentic workflows:
+- Workflow names and their corresponding GitHub Actions workflow files
+- Current enabled/disabled state of each workflow
+- Last execution status and timestamp
+- Compilation status (whether .md and .lock.yml files are in sync)
+- Error information for workflows that failed to compile or execute
+
+**Enable/Disable Behavior:**
+- **`enable`**: Activates workflows in GitHub Actions for automatic execution based on their triggers
+- **`disable`**: Stops workflows from executing automatically and cancels any currently running workflow instances
+- Both commands support pattern matching to operate on multiple workflows at once
 
 ## 📊 Log Analysis and Monitoring
 
@@ -176,11 +224,32 @@ gh aw logs -o ./workflow-analysis
 # Limit number of runs and filter by date range
 gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31
 
+# Filter by relative time periods using delta syntax
+gh aw logs --start-date -1w          # Last week's runs
+gh aw logs --end-date -1d            # Up to yesterday
+gh aw logs --start-date -1mo         # Last month's runs
+
+# Filter by AI engine type
+gh aw logs --engine claude           # Only Claude workflows
+gh aw logs --engine codex            # Only Codex workflows
+
+# Filter by branch name
+gh aw logs --branch main             # Only runs from main branch
+gh aw logs --branch feature-xyz      # Only runs from feature branch
+
+# Filter by run ID range
+gh aw logs --after-run-id 1000       # Runs after ID 1000
+gh aw logs --before-run-id 2000      # Runs before ID 2000
+gh aw logs --after-run-id 1000 --before-run-id 2000  # Runs in range
+
+# Exclude staged workflow runs
+gh aw logs --no-staged               # Filter out staged runs
+
+# Generate tool usage analysis
+gh aw logs --tool-graph              # Generate Mermaid tool sequence graph
+
 # Analyze recent performance with verbose output
 gh aw logs weekly-research -c 5 --verbose
-
-# Export logs for external analysis tools
-gh aw logs --format json -o ./exports/
 ```
 
 **Metrics Included:**
@@ -234,15 +303,61 @@ gh aw mcp inspect workflow-name --verbose
 gh aw mcp inspect workflow-name --inspector
 ```
 
+### MCP Server Management
+
+```bash
+# List available MCP servers from the registry
+gh aw mcp add
+
+# Add an MCP server to a workflow from the registry
+gh aw mcp add weekly-research makenotion/notion-mcp-server
+
+# Add MCP server with specific transport preference
+gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio
+
+# Add MCP server with custom tool ID
+gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion
+
+# Use custom MCP registry
+gh aw mcp add weekly-research server-name --registry https://custom.registry.com/v1
+
+# Launch MCP server exposing gh-aw CLI tools
+gh aw mcp serve
+
+# Serve with detailed logging
+gh aw mcp serve -v
+
+# Serve with only specific tools enabled
+gh aw mcp serve --allowed-tools compile,logs,run
+```
+
+### MCP Server Development
+
+The `mcp serve` command launches an MCP server that exposes gh-aw CLI functionality as MCP tools, making them available to AI assistants and other MCP clients:
+
+**Available MCP Tools:**
+- `compile` - Compile markdown workflow files to YAML
+- `logs` - Download and analyze agentic workflow logs  
+- `mcp_inspect` - Inspect MCP servers and tools
+- `mcp_list` - List MCP server configurations
+- `mcp_add` - Add MCP tools to workflows
+- `run` - Execute workflows on GitHub Actions
+- `enable` - Enable workflow execution
+- `disable` - Disable workflow execution  
+- `status` - Show workflow status
+
 **Key Features:**
 - **`mcp list`**: Quick overview of MCP servers across workflows with structured table output
 - **`mcp inspect`**: Deep inspection with server connection testing and tool capability analysis
+- **`mcp add`**: Registry-based MCP server addition with automatic workflow compilation
+- **`mcp serve`**: Expose gh-aw functionality as MCP tools for AI assistants
 - Server discovery and connection testing
 - Tool and capability inspection
 - Detailed tool information with `--tool` flag
 - Permission analysis
 - Multi-protocol support (stdio, Docker, HTTP)
 - Web inspector integration
+- Registry integration with GitHub's MCP registry (https://api.mcp.github.com/v0)
 
 For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](/gh-aw/guides/mcps/#debugging-and-troubleshooting).
 
