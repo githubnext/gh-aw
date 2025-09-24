@@ -149,6 +149,14 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
+              },
+              "markitdown": {
+                "command": "npx",
+                "args": [
+                  "-y",
+                  "@microsoft/markitdown"
+                ],
+                "registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
               }
             }
           }
