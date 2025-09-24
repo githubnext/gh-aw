@@ -1484,9 +1484,25 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Generate job name from workflow name
 	jobName := c.generateJobName(data.Name)
 
-	// Build task job if needed (preamble job that handles runtime conditions and permission checks)
-	var taskJobCreated bool
+	// Build check-membership job if needed (validates team membership levels)
+	// Team membership checks are specifically for command workflows
+	// Non-command workflows use general role checks instead
+	var checkMembershipJobCreated bool
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
+
+	if data.Command != "" {
+		checkMembershipJob, err := c.buildCheckMembershipJob(data, frontmatter)
+		if err != nil {
+			return fmt.Errorf("failed to build check-membership job: %w", err)
+		}
+		if err := c.jobManager.AddJob(checkMembershipJob); err != nil {
+			return fmt.Errorf("failed to add check-membership job: %w", err)
+		}
+		checkMembershipJobCreated = true
+	}
+
+	// Build task job if needed (preamble job that handles runtime conditions)
+	var taskJobCreated bool
 
 	if c.isTaskJobNeeded(data, needsPermissionCheck) {
 		taskJob, err := c.buildTaskJob(data, frontmatter)
@@ -1511,7 +1527,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated, frontmatter)
+	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated, checkMembershipJobCreated, frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1663,15 +1679,41 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 	return nil
 }
 
+// buildCheckMembershipJob creates the check-membership job that validates team membership levels
+func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
+	outputs := map[string]string{
+		"is_team_member":          "${{ steps.check-membership.outputs.is_team_member }}",
+		"membership_check_result": "${{ steps.check-membership.outputs.membership_check_result }}",
+		"user_permission":         "${{ steps.check-membership.outputs.user_permission }}",
+		"error_message":           "${{ steps.check-membership.outputs.error_message }}",
+	}
+	var steps []string
+
+	// Add team member check that only sets outputs
+	steps = c.generateMembershipCheck(data, steps)
+
+	job := &Job{
+		Name:        "check-membership",
+		If:          data.If, // Use the existing condition (which may include alias checks)
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "", // No special permissions needed - just reading repo permissions
+		Steps:       steps,
+		Outputs:     outputs,
+	}
+
+	return job, nil
+}
+
 // buildTaskJob creates the preamble task job that acts as a barrier for runtime conditions
 func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
-	// Add team member check based on new permission requirements (issue #567)
+	// For command workflows, team member check is handled by the check-membership job
+	// For non-command workflows, we still need to add role checks inline if needed
 	needsRoleCheck := c.needsRoleCheck(data, frontmatter)
-
-	if needsRoleCheck || data.Command != "" {
+	if needsRoleCheck && data.Command == "" {
+		// Non-command workflows that need role checks get them inline in the task job
 		steps = c.generateRoleCheck(data, steps)
 	}
 
@@ -1697,32 +1739,55 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 		steps = append(steps, "        run: echo \"Task job executed - conditions satisfied\"\n")
 	}
 
-	job := &Job{
-		Name:        "task",
-		If:          data.If, // Use the existing condition (which may include alias checks)
-		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "", // Will be set below based on permission check needs
-		Steps:       steps,
-		Outputs:     outputs,
+	// Build the conditional expression that validates membership and other conditions
+	var taskCondition string
+	var taskNeeds []string
+	if data.Command != "" {
+		// Command workflows have a check-membership job, so depend on it and validate membership
+		taskNeeds = []string{"check-membership"}
+		membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+		if data.If != "" {
+			taskCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
+		} else {
+			taskCondition = membershipCondition
+		}
+	} else if needsRoleCheck {
+		// Non-command workflows that need role checks still get the old inline behavior
+		// This preserves the existing behavior for non-command workflows
+		taskCondition = data.If
+	} else {
+		// No membership check needed
+		taskCondition = data.If
 	}
 
-	// Add actions: write permission if team member checks are present
-	// Any workflow that needs permission checks will use setCancelled() which requires actions: write
-	requiresWorkflowCancellation := data.Command != "" || needsRoleCheck
+	// Set permissions based on whether we have inline role checks
+	var permissions string
+	if needsRoleCheck && data.Command == "" {
+		// Non-command workflows with inline role checks need actions: write permission
+		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()"
+	}
 
-	if requiresWorkflowCancellation {
-		job.Permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()"
+	job := &Job{
+		Name:        "task",
+		If:          taskCondition,
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: permissions,
+		Steps:       steps,
+		Outputs:     outputs,
+		Needs:       taskNeeds, // Depend on check-membership job if it exists
 	}
 
 	return job, nil
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool, checkMembershipJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
 
-	// Add permission checks if no task job was created but permission checks are needed
-	if !taskJobCreated {
+	// Permission checks are now handled by the check-membership job
+	// No need to add role checks to the main job
+	// Legacy code kept for workflows that don't use the new structure
+	if !taskJobCreated && !checkMembershipJobCreated {
 		needsRoleCheck := c.needsRoleCheck(data, frontmatter)
 
 		if needsRoleCheck {
@@ -1744,6 +1809,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	var depends []string
 	if taskJobCreated {
 		depends = []string{"task"} // Depend on the task job only if it exists
+	} else if checkMembershipJobCreated {
+		depends = []string{"check-membership"} // Depend on check-membership if no task job
 	}
 
 	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
@@ -1761,9 +1828,31 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
-		jobCondition = commandConditionStr
+
+		// If we have a check-membership job but no task job, add membership validation
+		if checkMembershipJobCreated && !taskJobCreated {
+			membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+			jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, commandConditionStr)
+		} else {
+			jobCondition = commandConditionStr
+		}
 	} else {
-		jobCondition = data.If // Use the original If condition from the workflow data
+		// If we have a check-membership job but no task job, add membership validation
+		if checkMembershipJobCreated && !taskJobCreated {
+			needsRoleCheck := c.needsRoleCheck(data, frontmatter)
+			if needsRoleCheck {
+				membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+				if data.If != "" {
+					jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
+				} else {
+					jobCondition = membershipCondition
+				}
+			} else {
+				jobCondition = data.If
+			}
+		} else {
+			jobCondition = data.If // Use the original If condition from the workflow data
+		}
 	}
 
 	job := &Job{
