@@ -590,10 +590,6 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
 	}
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Generated lock file YAML syntax validation passed"))
-	}
-
 	return nil
 }
 func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, workflowDir string, writeInstructions bool, noEmit bool, purge bool) error {
@@ -738,9 +734,6 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 
 	// Compile each file
 	for _, file := range mdFiles {
-		if verbose {
-			fmt.Printf("Compiling: %s\n", file)
-		}
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
 			return err
 		}
