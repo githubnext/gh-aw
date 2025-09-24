@@ -1,8 +1,13 @@
 ---
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+  command:
 engine: claude
 safe-outputs:
+    staged: true
     create-issue:
+    add-labels:
+      - dev
 ---
 summarize and publish to issue:
 
