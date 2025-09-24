@@ -223,13 +223,10 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		})
 		return errors.New(formattedErr)
 	}
-	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage("Expression safety validation passed"))
-	}
 
 	// Validate markdown content size for GitHub Actions script limits
 	cleanedMarkdownContent := removeXMLComments(workflowData.MarkdownContent)
-	if err := validateMarkdownSizeForGitHubActions(cleanedMarkdownContent); err != nil {
+	if err := c.validateMarkdownSizeForGitHubActions(cleanedMarkdownContent); err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
 			Position: console.ErrorPosition{
 				File:   markdownPath,
@@ -243,7 +240,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	}
 
 	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage("Successfully parsed frontmatter and markdown content"))
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow name: %s", workflowData.Name)))
 		if len(workflowData.Tools) > 0 {
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Tools configured: %d", len(workflowData.Tools))))
@@ -257,9 +253,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// instead of using a shared action file
 
 	// Generate the YAML content
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage("Generating GitHub Actions YAML..."))
-	}
 	yamlContent, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
@@ -272,10 +265,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			Message: fmt.Sprintf("failed to generate YAML: %v", err),
 		})
 		return errors.New(formattedErr)
-	}
-
-	if c.verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Generated YAML content (%d bytes)", len(yamlContent))))
 	}
 
 	// Validate against GitHub Actions schema (unless skipped)
@@ -294,10 +283,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 				Message: fmt.Sprintf("workflow schema validation failed: %v", err),
 			})
 			return errors.New(formattedErr)
-		}
-
-		if c.verbose {
-			fmt.Println(console.FormatSuccessMessage("GitHub Actions schema validation passed"))
 		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
@@ -402,7 +387,6 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("File size: %d bytes", len(content))))
-		fmt.Println(console.FormatInfoMessage("Extracting frontmatter..."))
 	}
 
 	// Parse frontmatter and markdown
@@ -435,8 +419,8 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Frontmatter length: %d characters", len(result.Frontmatter))))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Markdown content length: %d characters", len(result.Markdown))))
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Frontmatter: %d characters, Markdown content length: %d characters",
+			len(result.Frontmatter), len(result.Markdown))))
 	}
 
 	markdownDir := filepath.Dir(markdownPath)
@@ -2105,7 +2089,7 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string
 
 // validateMarkdownSizeForGitHubActions validates that markdown content stays within GitHub Actions script size limits
 // GitHub Actions has a limit of approximately 21,000 characters for inline shell scripts
-func validateMarkdownSizeForGitHubActions(content string) error {
+func (c *Compiler) validateMarkdownSizeForGitHubActions(content string) error {
 	const maxCharacters = 21000       // Leave some buffer below the actual limit
 	const indentSpaces = "          " // 10 spaces added to each line
 
@@ -2119,6 +2103,10 @@ func validateMarkdownSizeForGitHubActions(content string) error {
 	// If the content fits, validation passes
 	if estimatedSize <= maxCharacters {
 		return nil
+	}
+
+	if c.verbose {
+		fmt.Println(console.FormatErrorMessage(fmt.Sprintf("Estimated markdown content size when rendered: %d characters (exceeds GitHub Actions limit of %d characters)", estimatedSize, maxCharacters)))
 	}
 
 	// Return error with detailed information about the limit
