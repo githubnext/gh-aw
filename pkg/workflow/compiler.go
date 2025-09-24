@@ -1501,23 +1501,24 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		checkMembershipJobCreated = true
 	}
 
-	// Build task job if needed (preamble job that handles runtime conditions)
-	var taskJobCreated bool
+	// Build activation job if needed (preamble job that handles runtime conditions)
+	// If check-membership job exists, activation job is ALWAYS created and depends on it
+	var activationJobCreated bool
 
-	if c.isTaskJobNeeded(data, needsPermissionCheck) {
-		taskJob, err := c.buildTaskJob(data, frontmatter)
+	if c.isTaskJobNeeded(data, needsPermissionCheck) || checkMembershipJobCreated {
+		activationJob, err := c.buildActivationJob(data, frontmatter, checkMembershipJobCreated)
 		if err != nil {
-			return fmt.Errorf("failed to build task job: %w", err)
+			return fmt.Errorf("failed to build activation job: %w", err)
 		}
-		if err := c.jobManager.AddJob(taskJob); err != nil {
-			return fmt.Errorf("failed to add task job: %w", err)
+		if err := c.jobManager.AddJob(activationJob); err != nil {
+			return fmt.Errorf("failed to add activation job: %w", err)
 		}
-		taskJobCreated = true
+		activationJobCreated = true
 	}
 
 	// Build add_reaction job only if ai-reaction is configured
 	if data.AIReaction != "" {
-		addReactionJob, err := c.buildAddReactionJob(data, taskJobCreated, frontmatter)
+		addReactionJob, err := c.buildAddReactionJob(data, activationJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build add_reaction job: %w", err)
 		}
@@ -1527,7 +1528,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, jobName, taskJobCreated, checkMembershipJobCreated, frontmatter)
+	mainJob, err := c.buildMainJob(data, jobName, activationJobCreated, checkMembershipJobCreated, frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1536,7 +1537,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build safe outputs jobs if configured
-	if err := c.buildSafeOutputsJobs(data, jobName, taskJobCreated, frontmatter, markdownPath); err != nil {
+	if err := c.buildSafeOutputsJobs(data, jobName, activationJobCreated, frontmatter, markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 	// Build additional custom jobs from frontmatter jobs section
@@ -1704,8 +1705,8 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[s
 	return job, nil
 }
 
-// buildTaskJob creates the preamble task job that acts as a barrier for runtime conditions
-func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
+// buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
+func (c *Compiler) buildActivationJob(data *WorkflowData, frontmatter map[string]any, checkMembershipJobCreated bool) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
@@ -1737,19 +1738,21 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 	// Build the conditional expression that validates membership and other conditions
 	var taskCondition string
 	var taskNeeds []string
-	needsRoleCheck := c.needsRoleCheck(data, frontmatter)
-	if needsRoleCheck || data.Command != "" {
-		// Workflows that need role checks or have commands have a check-membership job, so depend on it and validate membership
-		taskNeeds = []string{"check-membership"}
+	var activationNeeds []string
+	var activationCondition string
+
+	if checkMembershipJobCreated {
+		// Activation job is the only job that can rely on check-membership
+		activationNeeds = []string{"check-membership"}
 		membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
 		if data.If != "" {
-			taskCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
+			activationCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
 		} else {
-			taskCondition = membershipCondition
+			activationCondition = membershipCondition
 		}
 	} else {
 		// No membership check needed
-		taskCondition = data.If
+		activationCondition = data.If
 	}
 
 	// No special permissions needed since role checks are handled by separate job
@@ -1757,12 +1760,12 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 
 	job := &Job{
 		Name:        "activation",
-		If:          taskCondition,
+		If:          activationCondition,
 		RunsOn:      "runs-on: ubuntu-latest",
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
-		Needs:       taskNeeds, // Depend on check-membership job if it exists
+		Needs:       activationNeeds, // Depend on check-membership job if it exists
 	}
 
 	return job, nil
