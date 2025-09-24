@@ -41,7 +41,7 @@ Test workflow content.`,
 			expectTeamMemberCheck: true,
 		},
 		{
-			name: "non-command workflow should not include team member check",
+			name: "non-command workflow with unsafe event should include team member check",
 			frontmatter: `---
 on:
   push:
@@ -54,7 +54,7 @@ tools:
 # Non-Alias Workflow
 Test workflow content.`,
 			filename:              "non-alias-workflow.md",
-			expectTeamMemberCheck: false,
+			expectTeamMemberCheck: true,
 		},
 		{
 			name: "schedule workflow should not include team member check",

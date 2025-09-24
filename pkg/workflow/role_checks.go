@@ -82,7 +82,7 @@ func (c *Compiler) generateMembershipCheckScript(requiredPermissions []string) s
 	if len(requiredPermissions) == 1 && requiredPermissions[0] == "all" {
 		return `
 core.setOutput("is_team_member", "true");
-core.setOutput("membership_check_result", "roles_all");
+core.setOutput("result", "roles_all");
 console.log("Permission check skipped - 'roles: all' specified");`
 	}
 

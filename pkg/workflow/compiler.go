@@ -1490,7 +1490,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var checkMembershipJobCreated bool
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 
-	if data.Command != "" {
+	if needsPermissionCheck || data.Command != "" {
 		checkMembershipJob, err := c.buildCheckMembershipJob(data, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build check-membership job: %w", err)
@@ -1682,10 +1682,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 // buildCheckMembershipJob creates the check-membership job that validates team membership levels
 func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
 	outputs := map[string]string{
-		"is_team_member":          "${{ steps.check-membership.outputs.is_team_member }}",
-		"membership_check_result": "${{ steps.check-membership.outputs.membership_check_result }}",
-		"user_permission":         "${{ steps.check-membership.outputs.user_permission }}",
-		"error_message":           "${{ steps.check-membership.outputs.error_message }}",
+		"is_team_member":  "${{ steps.check-membership.outputs.is_team_member }}",
+		"result":          "${{ steps.check-membership.outputs.result }}",
+		"user_permission": "${{ steps.check-membership.outputs.user_permission }}",
+		"error_message":   "${{ steps.check-membership.outputs.error_message }}",
 	}
 	var steps []string
 
@@ -1709,13 +1709,8 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 	outputs := map[string]string{}
 	var steps []string
 
-	// For command workflows, team member check is handled by the check-membership job
-	// For non-command workflows, we still need to add role checks inline if needed
-	needsRoleCheck := c.needsRoleCheck(data, frontmatter)
-	if needsRoleCheck && data.Command == "" {
-		// Non-command workflows that need role checks get them inline in the task job
-		steps = c.generateRoleCheck(data, steps)
-	}
+	// Team member check is now handled by the separate check-membership job
+	// No inline role checks needed in the task job anymore
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
@@ -1742,30 +1737,23 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 	// Build the conditional expression that validates membership and other conditions
 	var taskCondition string
 	var taskNeeds []string
-	if data.Command != "" {
-		// Command workflows have a check-membership job, so depend on it and validate membership
+	needsRoleCheck := c.needsRoleCheck(data, frontmatter)
+	if needsRoleCheck || data.Command != "" {
+		// Workflows that need role checks or have commands have a check-membership job, so depend on it and validate membership
 		taskNeeds = []string{"check-membership"}
-		membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+		membershipCondition := "needs.check-membership.outputs.result == 'authorized'"
 		if data.If != "" {
 			taskCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
 		} else {
 			taskCondition = membershipCondition
 		}
-	} else if needsRoleCheck {
-		// Non-command workflows that need role checks still get the old inline behavior
-		// This preserves the existing behavior for non-command workflows
-		taskCondition = data.If
 	} else {
 		// No membership check needed
 		taskCondition = data.If
 	}
 
-	// Set permissions based on whether we have inline role checks
+	// No special permissions needed since role checks are handled by separate job
 	var permissions string
-	if needsRoleCheck && data.Command == "" {
-		// Non-command workflows with inline role checks need actions: write permission
-		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()"
-	}
 
 	job := &Job{
 		Name:        "task",
@@ -1784,16 +1772,8 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool, checkMembershipJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
 
-	// Permission checks are now handled by the check-membership job
-	// No need to add role checks to the main job
-	// Legacy code kept for workflows that don't use the new structure
-	if !taskJobCreated && !checkMembershipJobCreated {
-		needsRoleCheck := c.needsRoleCheck(data, frontmatter)
-
-		if needsRoleCheck {
-			steps = c.generateRoleCheck(data, steps)
-		}
-	}
+	// Permission checks are now handled by the separate check-membership job
+	// No role checks needed in the main job
 
 	// Build step content using the generateMainJobSteps helper method
 	// but capture it into a string instead of writing directly
@@ -1831,7 +1811,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 
 		// If we have a check-membership job but no task job, add membership validation
 		if checkMembershipJobCreated && !taskJobCreated {
-			membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+			membershipCondition := "needs.check-membership.outputs.result == 'authorized'"
 			jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, commandConditionStr)
 		} else {
 			jobCondition = commandConditionStr
@@ -1841,7 +1821,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		if checkMembershipJobCreated && !taskJobCreated {
 			needsRoleCheck := c.needsRoleCheck(data, frontmatter)
 			if needsRoleCheck {
-				membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+				membershipCondition := "needs.check-membership.outputs.result == 'authorized'"
 				if data.If != "" {
 					jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
 				} else {

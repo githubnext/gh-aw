@@ -6,7 +6,7 @@ async function main() {
   if (safeEvents.includes(eventName)) {
     core.info(`✅ Event ${eventName} does not require validation`);
     core.setOutput("is_team_member", "true");
-    core.setOutput("membership_check_result", "safe_event");
+    core.setOutput("result", "safe_event");
     return;
   }
 
@@ -18,7 +18,7 @@ async function main() {
   if (!requiredPermissions || requiredPermissions.length === 0) {
     core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
     core.setOutput("is_team_member", "false");
-    core.setOutput("membership_check_result", "config_error");
+    core.setOutput("result", "config_error");
     core.setOutput("error_message", "Configuration error: Required permissions not specified");
     return;
   }
@@ -42,7 +42,7 @@ async function main() {
       if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
         core.info(`✅ User has ${permission} access to repository`);
         core.setOutput("is_team_member", "true");
-        core.setOutput("membership_check_result", "authorized");
+        core.setOutput("result", "authorized");
         core.setOutput("user_permission", permission);
         return;
       }
@@ -50,7 +50,7 @@ async function main() {
 
     core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
     core.setOutput("is_team_member", "false");
-    core.setOutput("membership_check_result", "insufficient_permissions");
+    core.setOutput("result", "insufficient_permissions");
     core.setOutput("user_permission", permission);
     core.setOutput(
       "error_message",
@@ -60,7 +60,7 @@ async function main() {
     const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
     core.setOutput("is_team_member", "false");
-    core.setOutput("membership_check_result", "api_error");
+    core.setOutput("result", "api_error");
     core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
     return;
   }
