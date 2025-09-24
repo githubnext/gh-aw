@@ -795,13 +795,11 @@ func TestGenerateCustomMCPCodexWorkflowConfig(t *testing.T) {
 		{
 			name: "valid stdio mcp server",
 			toolConfig: map[string]any{
-				"mcp": map[string]any{
-					"type":    "stdio",
-					"command": "custom-mcp-server",
-					"args":    []any{"--option", "value"},
-					"env": map[string]any{
-						"CUSTOM_TOKEN": "${CUSTOM_TOKEN}",
-					},
+				"type":    "stdio",
+				"command": "custom-mcp-server",
+				"args":    []any{"--option", "value"},
+				"env": map[string]any{
+					"CUSTOM_TOKEN": "${CUSTOM_TOKEN}",
 				},
 			},
 			expected: []string{
@@ -815,10 +813,8 @@ func TestGenerateCustomMCPCodexWorkflowConfig(t *testing.T) {
 		{
 			name: "server with http type should be ignored for codex",
 			toolConfig: map[string]any{
-				"mcp": map[string]any{
-					"type":    "http",
-					"command": "should-be-ignored",
-				},
+				"type": "http",
+				"url":  "https://example.com/api",
 			},
 			expected: []string{},
 			wantErr:  false,
@@ -860,13 +856,11 @@ func TestGenerateCustomMCPClaudeWorkflowConfig(t *testing.T) {
 		{
 			name: "valid stdio mcp server",
 			toolConfig: map[string]any{
-				"mcp": map[string]any{
-					"type":    "stdio",
-					"command": "custom-mcp-server",
-					"args":    []any{"--option", "value"},
-					"env": map[string]any{
-						"CUSTOM_TOKEN": "${CUSTOM_TOKEN}",
-					},
+				"type":    "stdio",
+				"command": "custom-mcp-server",
+				"args":    []any{"--option", "value"},
+				"env": map[string]any{
+					"CUSTOM_TOKEN": "${CUSTOM_TOKEN}",
 				},
 			},
 			isLast: true,
@@ -882,10 +876,8 @@ func TestGenerateCustomMCPClaudeWorkflowConfig(t *testing.T) {
 		{
 			name: "not last server",
 			toolConfig: map[string]any{
-				"mcp": map[string]any{
-					"type":    "stdio",
-					"command": "valid-server",
-				},
+				"type":    "stdio",
+				"command": "valid-server",
 			},
 			isLast: false,
 			expected: []string{
@@ -896,9 +888,11 @@ func TestGenerateCustomMCPClaudeWorkflowConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "mcp config as JSON string",
+			name: "mcp config with direct fields",
 			toolConfig: map[string]any{
-				"mcp": `{"type": "stdio", "command": "python", "args": ["-m", "trello_mcp"]}`,
+				"type":    "stdio",
+				"command": "python",
+				"args":    []any{"-m", "trello_mcp"},
 			},
 			isLast: true,
 			expected: []string{
@@ -1664,7 +1658,7 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 		},
 		"tools": map[string]any{
 			"notionApi": map[string]any{
-				"mcp":     map[string]any{"type": "stdio"},
+				"type": "stdio",
 				"command": "docker",
 				"args": []any{
 					"run",
@@ -4667,11 +4661,9 @@ func TestAccessLogUploadConditional(t *testing.T) {
 			name: "tool with container but no network permissions - no access log steps",
 			tools: map[string]any{
 				"simple": map[string]any{
-					"mcp": map[string]any{
-						"type":      "stdio",
-						"container": "simple/tool",
-					},
-					"allowed": []any{"test"},
+					"type":      "stdio",
+					"container": "simple/tool",
+					"allowed":   []any{"test"},
 				},
 			},
 			expectSteps: false,
@@ -4680,10 +4672,8 @@ func TestAccessLogUploadConditional(t *testing.T) {
 			name: "tool with container and network permissions - access log steps generated",
 			tools: map[string]any{
 				"fetch": map[string]any{
-					"mcp": map[string]any{
-						"type":      "stdio",
-						"container": "mcp/fetch",
-					},
+					"type":      "stdio",
+					"container": "mcp/fetch",
 					"permissions": map[string]any{
 						"network": map[string]any{
 							"allowed": []any{"example.com"},

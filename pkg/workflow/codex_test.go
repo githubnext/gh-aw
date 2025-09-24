@@ -300,12 +300,11 @@ tools:
   github:
     allowed: [get_issue, create_issue]
   custom-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_server"]
-      env:
-        API_KEY: "${{ secrets.API_KEY }}"
+    type: stdio
+    command: "python"
+    args: ["-m", "my_server"]
+    env:
+      API_KEY: "${{ secrets.API_KEY }}"
     allowed: ["*"]
 ---`,
 			expectedAI:           "codex",

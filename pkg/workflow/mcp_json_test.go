@@ -202,15 +202,15 @@ func TestValidateMCPConfigs(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "new format: missing required type field",
+			name: "new format: missing type and no inferrable fields",
 			tools: map[string]any{
 				"no-type": map[string]any{
-					"command": "python",
+					"env":     map[string]any{"KEY": "value"},
 					"allowed": []any{"tool1"},
 				},
 			},
 			wantErr: true,
-			errMsg:  "missing property 'type'",
+			errMsg:  "unable to determine MCP type",
 		},
 		{
 			name: "new format: invalid type value",
@@ -263,62 +263,37 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "valid MCP configs",
 			tools: map[string]any{
 				"trelloApi": map[string]any{
-					"mcp": map[string]any{
-						"type":    "stdio",
-						"command": "python",
-					},
+					"type":    "stdio",
+					"command": "python",
 					"allowed": []any{"create_card"},
 				},
 				"notionApi": map[string]any{
-					"mcp":     `{"type": "http", "url": "https://mcp.notion.com"}`,
+					"type":    "http",
+					"url":     "https://mcp.notion.com",
 					"allowed": []any{"*"},
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "invalid JSON in MCP config",
+			name: "invalid type value",
 			tools: map[string]any{
 				"badApi": map[string]any{
-					"mcp":     `{"type": "stdio", "command": "test", invalid json`,
+					"type":    "invalid",
+					"command": "test",
 					"allowed": []any{"*"},
 				},
 			},
 			wantErr: true,
-			errMsg:  "invalid JSON in mcp configuration",
+			errMsg:  "value must be one of: stdio, http, local",
 		},
-		{
-			name: "missing type in MCP config",
-			tools: map[string]any{
-				"missingType": map[string]any{
-					"mcp": map[string]any{
-						"command": "python",
-					},
-					"allowed": []any{"tool1"},
-				},
-			},
-			wantErr: true,
-			errMsg:  "missing property 'type'",
-		},
-		{
-			name: "missing type in JSON string MCP config",
-			tools: map[string]any{
-				"missingTypeJson": map[string]any{
-					"mcp":     `{"command": "python"}`,
-					"allowed": []any{"tool1"},
-				},
-			},
-			wantErr: true,
-			errMsg:  "missing property 'type'",
-		},
+
 		{
 			name: "invalid type in MCP config",
 			tools: map[string]any{
 				"invalidType": map[string]any{
-					"mcp": map[string]any{
-						"type":    "invalid",
-						"command": "python",
-					},
+					"type":    "invalid",
+					"command": "python",
 					"allowed": []any{"tool1"},
 				},
 			},

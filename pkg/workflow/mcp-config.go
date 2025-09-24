@@ -256,7 +256,12 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	// Infer type from fields if not explicitly provided
 	if typeStr, hasType := config.GetString("type"); hasType {
-		result.Type = typeStr
+		// Normalize "local" to "stdio"
+		if typeStr == "local" {
+			result.Type = "stdio"
+		} else {
+			result.Type = typeStr
+		}
 	} else {
 		// Infer type from presence of fields
 		if _, hasURL := config.GetString("url"); hasURL {
@@ -268,6 +273,11 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		} else {
 			return nil, fmt.Errorf("unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
 		}
+	}
+
+	// Extract common fields (available for both stdio and http)
+	if registry, hasRegistry := config.GetString("registry"); hasRegistry {
+		result.Registry = registry
 	}
 
 	// Extract fields based on type
@@ -284,6 +294,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		}
 		if env, hasEnv := config.GetStringMap("env"); hasEnv {
 			result.Env = env
+		}
+		if proxyArgs, hasProxyArgs := config.GetStringArray("proxy-args"); hasProxyArgs {
+			result.ProxyArgs = proxyArgs
 		}
 	case "http":
 		if url, hasURL := config.GetString("url"); hasURL {
@@ -329,7 +342,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
 	switch typeStr {
-	case "stdio", "http":
+	case "stdio", "http", "local":
 		return true
 	default:
 		return false
@@ -341,6 +354,10 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 	// Check for direct type field
 	if mcpType, hasType := toolConfig["type"]; hasType {
 		if typeStr, ok := mcpType.(string); ok && isMCPType(typeStr) {
+			// Normalize "local" to "stdio" for consistency
+			if typeStr == "local" {
+				return true, "stdio"
+			}
 			return true, typeStr
 		}
 	}
@@ -536,9 +553,14 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		}
 	}
 
+	// Normalize "local" to "stdio" for validation
+	if typeStr == "local" {
+		typeStr = "stdio"
+	}
+
 	// Validate type is one of the supported types
 	if !isMCPType(typeStr) {
-		return fmt.Errorf("tool '%s' mcp configuration 'type' value must be one of: stdio, http", toolName)
+		return fmt.Errorf("tool '%s' mcp configuration 'type' value must be one of: stdio, http, local", toolName)
 	}
 
 	// Validate network permissions usage first
