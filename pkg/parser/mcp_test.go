@@ -697,6 +697,19 @@ func TestParseMCPConfig(t *testing.T) {
 		},
 		// Error cases
 		{
+			name:       "Stdio with headers (invalid)",
+			toolName:   "stdio-invalid-headers",
+			mcpSection: map[string]any{
+				"type":    "stdio",
+				"command": "server",
+				"headers": map[string]any{
+					"Authorization": "Bearer token",
+				},
+			},
+			toolConfig:  map[string]any{},
+			expectError: true,
+		},
+		{
 			name:       "Type inferred from command field",
 			toolName:   "inferred-stdio",
 			mcpSection: map[string]any{"command": "server"},

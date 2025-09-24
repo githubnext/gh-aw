@@ -135,6 +135,33 @@
     },
     {
       "if": {
+        "properties": {
+          "type": {
+            "enum": ["stdio", "local"]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": ["headers"]
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {"required": ["command"]},
+          {"required": ["container"]}
+        ]
+      },
+      "then": {
+        "not": {
+          "required": ["headers"]
+        }
+      }
+    },
+    {
+      "if": {
         "required": ["container"]
       },
       "then": {
