@@ -82,7 +82,7 @@ tools:
     type: stdio
     container: "mcp/notion"
     env:
-      NOTION_TOKEN: "${secrets.NOTION_TOKEN}"
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
     allowed: ["create_page", "search_pages"]
 ```
 

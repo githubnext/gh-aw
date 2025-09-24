@@ -5,7 +5,7 @@ permissions:
   contents: read
 engine: claude
 network: defaults
-tools:
+mcp-servers:
   markitdown:
     registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
     command: npx

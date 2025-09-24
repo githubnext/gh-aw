@@ -4,7 +4,7 @@ permissions:
   contents: read
   issues: write
 engine: claude
-tools:
+mcp-servers:
   # New direct field format - stdio with command
   my-stdio-server:
     type: stdio

@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -33,9 +32,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	switch mcpType {
 	case "stdio":
 		if renderer.Format == "toml" {
-			propertyOrder = []string{"command", "args", "env"}
+			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
 		} else {
-			propertyOrder = []string{"command", "args", "env"}
+			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -43,7 +42,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has type '%s', but %s only supports 'stdio'. Ignoring this server.", toolName, mcpType, renderer.Format)))
 			return nil
 		} else {
-			propertyOrder = []string{"url", "headers"}
+			propertyOrder = []string{"url", "headers", "registry"}
 		}
 	default:
 		if renderer.Format == "toml" {
@@ -76,6 +75,14 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 		case "headers":
 			if len(mcpConfig.Headers) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "proxy-args":
+			if len(mcpConfig.ProxyArgs) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "registry":
+			if mcpConfig.Registry != "" {
 				existingProperties = append(existingProperties, prop)
 			}
 		}
@@ -178,6 +185,38 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, mcpConfig.Headers[headerKey], headerComma)
 			}
 			fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
+		case "proxy-args":
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%sproxy_args = [\n", renderer.IndentLevel)
+				for _, arg := range mcpConfig.ProxyArgs {
+					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
+				}
+				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"proxy-args\": [\n", renderer.IndentLevel)
+				for argIndex, arg := range mcpConfig.ProxyArgs {
+					argComma := ","
+					if argIndex == len(mcpConfig.ProxyArgs)-1 {
+						argComma = ""
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
+				}
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
+			}
+		case "registry":
+			if renderer.Format == "toml" {
+				fmt.Fprintf(yaml, "%sregistry = \"%s\"\n", renderer.IndentLevel, mcpConfig.Registry)
+			} else {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"registry\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Registry, comma)
+			}
 		}
 	}
 
@@ -252,6 +291,26 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		Name:    toolName,
 		Env:     make(map[string]string),
 		Headers: make(map[string]string),
+	}
+
+	// Validate known properties - fail if unknown properties are found
+	knownProperties := map[string]bool{
+		"type":       true,
+		"command":    true,
+		"container":  true,
+		"args":       true,
+		"env":        true,
+		"proxy-args": true,
+		"url":        true,
+		"headers":    true,
+		"registry":   true,
+		"allowed":    true,
+	}
+
+	for key := range toolConfig {
+		if !knownProperties[key] {
+			return nil, fmt.Errorf("unknown property '%s' in MCP configuration for tool '%s'", key, toolName)
+		}
 	}
 
 	// Infer type from fields if not explicitly provided
@@ -396,36 +455,9 @@ func getRawMCPConfig(toolConfig map[string]any, toolName string) (map[string]any
 	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers"}
 
 	// Check new format: direct fields in tool config
-	hasDirectFields := false
 	for _, field := range mcpFields {
 		if value, exists := toolConfig[field]; exists {
 			result[field] = value
-			hasDirectFields = true
-		}
-	}
-
-	// If we have direct fields, use them and skip legacy format
-	if hasDirectFields {
-		return result, nil
-	}
-
-	// Fall back to legacy format: mcp.type, mcp.url, mcp.command, etc.
-	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
-		if mcpMap, ok := mcpSection.(map[string]any); ok {
-			// Copy all MCP properties
-			for key, value := range mcpMap {
-				result[key] = value
-			}
-		} else if mcpString, ok := mcpSection.(string); ok {
-			// Handle JSON string format
-			var parsedMcp map[string]any
-			if err := json.Unmarshal([]byte(mcpString), &parsedMcp); err != nil {
-				return nil, fmt.Errorf("invalid JSON in mcp configuration: %w", err)
-			}
-			// Copy all MCP properties from parsed JSON
-			for key, value := range parsedMcp {
-				result[key] = value
-			}
 		}
 	}
 

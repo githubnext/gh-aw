@@ -210,7 +210,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		// Handle GitHub MCP server - always use Docker by default
 		config := MCPServerConfig{
 			Name:    "github",
-			Type:    "docker", // GitHub defaults to Docker (local containerized)  
+			Type:    "docker", // GitHub defaults to Docker (local containerized)
 			Command: "docker",
 			Args: []string{
 				"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -257,61 +257,61 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 		return &config, nil
 	} else if toolName == "playwright" {
-				// Handle Playwright MCP server - always use Docker by default
-				config := MCPServerConfig{
-					Name:    "playwright",
-					Type:    "docker", // Playwright defaults to Docker (containerized)
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"mcr.microsoft.com/playwright:latest",
-					},
-					Env: make(map[string]string),
+		// Handle Playwright MCP server - always use Docker by default
+		config := MCPServerConfig{
+			Name:    "playwright",
+			Type:    "docker", // Playwright defaults to Docker (containerized)
+			Command: "docker",
+			Args: []string{
+				"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+				"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+				"mcr.microsoft.com/playwright:latest",
+			},
+			Env: make(map[string]string),
+		}
+
+		// Set default allowed domains to localhost with all port variations (matches implementation)
+		allowedDomains := constants.DefaultAllowedDomains
+
+		// Check for custom Playwright configuration
+		if toolConfig, ok := toolValue.(map[string]any); ok {
+			// Handle allowed_domains configuration with bundle resolution
+			if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
+				// For now, we'll use a simple conversion. In a full implementation,
+				// we'd need to use the same domain bundle resolution as the compiler
+				var customDomains []string
+				switch domains := domainsConfig.(type) {
+				case []string:
+					customDomains = domains
+				case []any:
+					customDomains = make([]string, len(domains))
+					for i, domain := range domains {
+						if domainStr, ok := domain.(string); ok {
+							customDomains[i] = domainStr
+						}
+					}
+				case string:
+					customDomains = []string{domains}
 				}
 
-				// Set default allowed domains to localhost with all port variations (matches implementation)
-				allowedDomains := constants.DefaultAllowedDomains
+				// Ensure localhost domains are always included
+				allowedDomains = EnsureLocalhostDomains(customDomains)
+			}
 
-				// Check for custom Playwright configuration
-				if toolConfig, ok := toolValue.(map[string]any); ok {
-					// Handle allowed_domains configuration with bundle resolution
-					if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
-						// For now, we'll use a simple conversion. In a full implementation,
-						// we'd need to use the same domain bundle resolution as the compiler
-						var customDomains []string
-						switch domains := domainsConfig.(type) {
-						case []string:
-							customDomains = domains
-						case []any:
-							customDomains = make([]string, len(domains))
-							for i, domain := range domains {
-								if domainStr, ok := domain.(string); ok {
-									customDomains[i] = domainStr
-								}
-							}
-						case string:
-							customDomains = []string{domains}
-						}
-
-						// Ensure localhost domains are always included
-						allowedDomains = EnsureLocalhostDomains(customDomains)
-					}
-
-					// Check for custom Docker image version
-					if version, exists := toolConfig["docker_image_version"]; exists {
-						if versionStr, ok := version.(string); ok {
-							dockerImage := "mcr.microsoft.com/playwright:" + versionStr
-							// Update the Docker image in args
-							for i, arg := range config.Args {
-								if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
-									config.Args[i] = dockerImage
-									break
-								}
-							}
+			// Check for custom Docker image version
+			if version, exists := toolConfig["docker_image_version"]; exists {
+				if versionStr, ok := version.(string); ok {
+					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
+					// Update the Docker image in args
+					for i, arg := range config.Args {
+						if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
+							config.Args[i] = dockerImage
+							break
 						}
 					}
 				}
+			}
+		}
 
 		config.Env["PLAYWRIGHT_ALLOWED_DOMAINS"] = strings.Join(allowedDomains, ",")
 		if len(allowedDomains) == 0 {
@@ -322,9 +322,6 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 	}
 
 	return nil, nil
-}
-
-	return configs, nil
 }
 
 // ParseMCPConfig parses MCP configuration from various formats (map or JSON string)
