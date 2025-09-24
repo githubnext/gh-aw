@@ -706,13 +706,13 @@ func TestParseMCPConfig(t *testing.T) {
 			},
 		},
 		{
-			name:     "Stdio with proxy_args",
+			name:     "Stdio with proxy-args",
 			toolName: "proxy-server",
 			mcpSection: map[string]any{
 				"type":       "stdio",
 				"command":    "docker",
 				"args":       []any{"run", "myserver"},
-				"proxy_args": []any{"--proxy-arg1", "--proxy-arg2"},
+				"proxy-args": []any{"--proxy-arg1", "--proxy-arg2"},
 			},
 			toolConfig: map[string]any{},
 			expected: MCPServerConfig{
@@ -875,7 +875,7 @@ func TestParseMCPConfig(t *testing.T) {
 				expectedProxyArgs = []string{}
 			}
 			if !reflect.DeepEqual(actualProxyArgs, expectedProxyArgs) {
-				t.Errorf("Expected proxy_args %v, got %v", expectedProxyArgs, actualProxyArgs)
+				t.Errorf("Expected proxy-args %v, got %v", expectedProxyArgs, actualProxyArgs)
 			}
 		})
 	}
