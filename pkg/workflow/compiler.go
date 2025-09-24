@@ -1459,9 +1459,9 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	return yaml.String(), nil
 }
 
-// isTaskJobNeeded determines if the task job is required
-func (c *Compiler) isTaskJobNeeded(data *WorkflowData, needsPermissionCheck bool) bool {
-	// Task job is needed if:
+// isActivationJobNeeded determines if the activation job is required
+func (c *Compiler) isActivationJobNeeded(data *WorkflowData, needsPermissionCheck bool) bool {
+	// Activation job is needed if:
 	// 1. Command is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
@@ -1505,7 +1505,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// If check-membership job exists, activation job is ALWAYS created and depends on it
 	var activationJobCreated bool
 
-	if c.isTaskJobNeeded(data, needsPermissionCheck) || checkMembershipJobCreated {
+	if c.isActivationJobNeeded(data, needsPermissionCheck) || checkMembershipJobCreated {
 		activationJob, err := c.buildActivationJob(data, frontmatter, checkMembershipJobCreated)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
@@ -1736,8 +1736,6 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, frontmatter map[string
 	}
 
 	// Build the conditional expression that validates membership and other conditions
-	var taskCondition string
-	var taskNeeds []string
 	var activationNeeds []string
 	var activationCondition string
 
