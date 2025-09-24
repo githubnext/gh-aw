@@ -56,16 +56,16 @@ func EnsureLocalhostDomains(domains []string) []string {
 // MCPServerConfig represents a parsed MCP server configuration
 type MCPServerConfig struct {
 	Name      string            `json:"name"`
-	Type      string            `json:"type"`      // stdio, http, docker
-	Registry  string            `json:"registry"`  // URI to installation location from registry
-	Command   string            `json:"command"`   // for stdio
-	Args      []string          `json:"args"`      // for stdio
-	Container string            `json:"container"` // for docker
-	URL       string            `json:"url"`       // for http
-	Headers   map[string]string `json:"headers"`   // for http
-	Env       map[string]string `json:"env"`       // environment variables
+	Type      string            `json:"type"`       // stdio, http, docker
+	Registry  string            `json:"registry"`   // URI to installation location from registry
+	Command   string            `json:"command"`    // for stdio
+	Args      []string          `json:"args"`       // for stdio
+	Container string            `json:"container"`  // for docker
+	URL       string            `json:"url"`        // for http
+	Headers   map[string]string `json:"headers"`    // for http
+	Env       map[string]string `json:"env"`        // environment variables
 	ProxyArgs []string          `json:"proxy-args"` // custom proxy arguments for container-based tools
-	Allowed   []string          `json:"allowed"`   // allowed tools
+	Allowed   []string          `json:"allowed"`    // allowed tools
 }
 
 // MCPServerInfo contains the inspection results for an MCP server

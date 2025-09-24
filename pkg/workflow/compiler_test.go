@@ -1658,7 +1658,7 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 		},
 		"tools": map[string]any{
 			"notionApi": map[string]any{
-				"type": "stdio",
+				"type":    "stdio",
 				"command": "docker",
 				"args": []any{
 					"run",

@@ -91,7 +91,7 @@ func TestGetMCPConfig(t *testing.T) {
 					len(result.Headers) != len(tt.expected.Headers) {
 					t.Errorf("getMCPConfig() = %+v, want %+v", result, tt.expected)
 				}
-				
+
 				// Check args array
 				for i, arg := range result.Args {
 					if i < len(tt.expected.Args) && arg != tt.expected.Args[i] {
@@ -304,10 +304,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "non-string type in MCP config",
 			tools: map[string]any{
 				"nonStringType": map[string]any{
-					"type": "stdio", "command": "test",
-						"type":    123,
-						"command": "python",
-					},
+					"type":    123,
+					"command": "python",
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -340,10 +338,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http type with non-string URL",
 			tools: map[string]any{
 				"httpNonStringUrl": map[string]any{
-					"type": "stdio", "command": "test",
-						"type": "http",
-						"url":  123,
-					},
+					"type":    "http",
+					"url":     123,
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -354,10 +350,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "stdio type with non-string command",
 			tools: map[string]any{
 				"stdioNonStringCommand": map[string]any{
-					"type": "stdio", "command": "test",
-						"type":    "stdio",
-						"command": []string{"python"},
-					},
+					"type":    "stdio",
+					"command": []string{"python"},
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -382,14 +376,13 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "mixed valid and invalid MCP configs",
 			tools: map[string]any{
 				"goodApi": map[string]any{
-					"type": "stdio", "command": "test",
+					"type":    "stdio",
+					"command": "test",
 					"allowed": []any{"tool1"},
 				},
 				"badApi": map[string]any{
-					"type": "stdio", "command": "test",
-						"type": "http",
-						// missing url
-					},
+					"type": "http",
+					// missing url
 					"allowed": []any{"tool2"},
 				},
 			},

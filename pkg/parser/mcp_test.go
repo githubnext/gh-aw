@@ -697,8 +697,8 @@ func TestParseMCPConfig(t *testing.T) {
 		},
 		// Error cases
 		{
-			name:       "Stdio with headers (invalid)",
-			toolName:   "stdio-invalid-headers",
+			name:     "Stdio with headers (invalid)",
+			toolName: "stdio-invalid-headers",
 			mcpSection: map[string]any{
 				"type":    "stdio",
 				"command": "server",
