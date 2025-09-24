@@ -2254,7 +2254,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Agent Output (JSONL)\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo \"## Safe Outputs (JSONL)\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          echo '``````json' >> $GITHUB_STEP_SUMMARY\n")
 	yaml.WriteString("          if [ -f ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ]; then\n")
