@@ -45,7 +45,7 @@ You can customize access using the `roles:` configuration, but using `roles: all
 
 ## Accessing Context Information
 
-ChatOps workflows have access to sanitized context from the triggering event through `needs.task.outputs.text`. This provides safe access to issue content, pull request details, or comment text without security risks.
+ChatOps workflows have access to sanitized context from the triggering event through `needs.task.outputs.text`. This provides safer access to issue content, pull request details, or comment text with reduced security risks.
 
 ```yaml
 # In your workflow content, reference the sanitized text:
