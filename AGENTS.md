@@ -9,6 +9,11 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 make agent-finish  # Runs build, test, recompile, fmt, lint
 ```
 
+**ALWAYS RUN RECOMPILE BEFORE COMMITTING CHANGES:**
+```bash
+make recompile     # Recompile all workflow files after code changes
+```
+
 **NEVER ADD LOCK FILES TO .GITIGNORE** - `.lock.yml` files are compiled workflows that must be tracked.
 
 ## Quick Setup
