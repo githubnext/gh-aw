@@ -1729,10 +1729,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, frontmatter map[string
 	}
 
 	// If no steps have been added, add a dummy step to make the job valid
-	// This can happen when the task job is created only for an if condition
+	// This can happen when the activation job is created only for an if condition
 	if len(steps) == 0 {
-		steps = append(steps, "      - name: Task job condition barrier\n")
-		steps = append(steps, "        run: echo \"Task job executed - conditions satisfied\"\n")
+		steps = append(steps, "      - run: echo \"Activation success\"\n")
 	}
 
 	// Build the conditional expression that validates membership and other conditions
