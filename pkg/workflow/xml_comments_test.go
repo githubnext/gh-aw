@@ -257,34 +257,49 @@ Final content.`,
 	}
 }
 
-func TestValidateMarkdownSizeForGitHubActions(t *testing.T) {
-	// Test short content - should pass validation
+func TestSplitContentIntoChunks(t *testing.T) {
+	// Test short content - should result in single chunk
 	shortContent := "# Short content\n\nThis is a brief workflow description."
-	err := validateMarkdownSizeForGitHubActions(shortContent)
-	if err != nil {
-		t.Error("Short content should pass validation")
+	chunks := splitContentIntoChunks(shortContent)
+	if len(chunks) != 1 {
+		t.Errorf("Short content should result in 1 chunk, got %d", len(chunks))
+	}
+	if chunks[0] != shortContent {
+		t.Error("Short content should be unchanged in single chunk")
 	}
 
-	// Test content that exceeds the limit - should fail validation
-	longContent := strings.Repeat("This is a very long line of content that will be repeated many times to exceed the character limit.\n", 500)
-	err = validateMarkdownSizeForGitHubActions(longContent)
-
-	if err == nil {
-		t.Error("Long content should fail validation")
+	// Test content that exceeds the limit - should result in multiple chunks
+	longLine := "This is a very long line of content that will be repeated many times to exceed the character limit."
+	longContent := strings.Repeat(longLine+"\n", 400)
+	chunks = splitContentIntoChunks(longContent)
+	
+	if len(chunks) <= 1 {
+		t.Errorf("Long content should result in multiple chunks, got %d", len(chunks))
 	}
-
-	if !strings.Contains(err.Error(), "exceeds GitHub Actions script size limit") {
-		t.Error("Error message should mention GitHub Actions script size limit")
+	
+	// Verify that each chunk stays within the size limit
+	const maxChunkSize = 20900
+	for i, chunk := range chunks {
+		lines := strings.Split(chunk, "\n")
+		estimatedSize := 0
+		for _, line := range lines {
+			estimatedSize += 10 + len(line) + 1 // 10 spaces indentation + line + newline
+		}
+		if estimatedSize > maxChunkSize {
+			t.Errorf("Chunk %d exceeds size limit: %d > %d", i, estimatedSize, maxChunkSize)
+		}
 	}
-
-	if !strings.Contains(err.Error(), "characters when rendered") {
-		t.Error("Error message should mention rendered character count")
+	
+	// Verify that joining chunks recreates original content (minus potential trailing newline)
+	rejoined := strings.Join(chunks, "\n")
+	if strings.TrimSuffix(rejoined, "\n") != strings.TrimSuffix(longContent, "\n") {
+		t.Error("Joined chunks should recreate original content")
 	}
 }
 
-func TestCompileWorkflowWithCharacterLimitEnforcement(t *testing.T) {
+func TestCompileWorkflowWithChunking(t *testing.T) {
 	// Create temporary directory for test files
-	tmpDir, err := os.MkdirTemp("", "character-limit-test")
+	tmpDir, err := os.MkdirTemp("", "chunking-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +307,7 @@ func TestCompileWorkflowWithCharacterLimitEnforcement(t *testing.T) {
 
 	compiler := NewCompiler(false, "", "test")
 
-	// Test that normal-sized content compiles successfully
+	// Test that normal-sized content compiles successfully with single step
 	normalContent := `---
 on:
   issues:
@@ -319,7 +334,7 @@ This is a normal-sized workflow that should compile successfully.`
 		t.Errorf("Normal workflow should compile successfully, got error: %v", err)
 	}
 
-	// Test that oversized content fails compilation
+	// Test that oversized content now compiles successfully with chunking
 	longContent := "---\n" +
 		"on:\n" +
 		"  issues:\n" +
@@ -332,7 +347,7 @@ This is a normal-sized workflow that should compile successfully.`
 		"engine: claude\n" +
 		"---\n\n" +
 		"# Very Long Workflow\n\n" +
-		strings.Repeat("This is a very long line that will be repeated many times to test the character limit enforcement in GitHub Actions prompt generation.\n", 400)
+		strings.Repeat("This is a very long line that will be repeated many times to test the chunking functionality in GitHub Actions prompt generation.\n", 400)
 
 	longFile := filepath.Join(tmpDir, "long-workflow.md")
 	if err := os.WriteFile(longFile, []byte(longContent), 0644); err != nil {
@@ -340,11 +355,23 @@ This is a normal-sized workflow that should compile successfully.`
 	}
 
 	err = compiler.CompileWorkflow(longFile)
-	if err == nil {
-		t.Error("Long workflow should fail compilation due to size limit")
+	if err != nil {
+		t.Errorf("Long workflow should now compile successfully with chunking, got error: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "exceeds GitHub Actions script size limit") {
-		t.Errorf("Error should mention GitHub Actions script size limit, got: %v", err)
+	// Verify that the generated lock file contains multiple prompt steps
+	lockFile := filepath.Join(tmpDir, "long-workflow.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockString := string(lockContent)
+	if !strings.Contains(lockString, "Create prompt (part 1)") {
+		t.Error("Expected 'Create prompt (part 1)' step in generated workflow")
+	}
+
+	if !strings.Contains(lockString, "Append prompt (part 2)") {
+		t.Error("Expected 'Append prompt (part 2)' step in generated workflow for large content")
 	}
 }
