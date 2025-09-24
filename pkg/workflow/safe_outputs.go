@@ -20,8 +20,6 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.MissingTool != nil
 }
 
-
-
 // generateSafeOutputsPromptSection generates the safe-outputs instruction section for prompts
 // when safe-outputs are configured, informing the agent about available output capabilities
 func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOutputsConfig) {
@@ -324,8 +322,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingTool = missingToolConfig
 			}
 
-
-
 			// Handle staged flag
 			if staged, exists := outputMap["staged"]; exists {
 				if stagedBool, ok := staged.(bool); ok {
@@ -384,7 +380,3 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 	return config
 }
-
-
-
-

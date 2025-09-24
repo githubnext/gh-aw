@@ -138,11 +138,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					break
 				}
 			}
-			
+
 			if config == nil {
 				newConfig := MCPServerConfig{
-					Name: "safe-outputs",
-					Type: "stdio",
+					Name:    "safe-outputs",
+					Type:    "stdio",
 					Command: "node",
 					Env:     make(map[string]string),
 				}
