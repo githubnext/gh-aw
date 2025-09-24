@@ -1742,11 +1742,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, frontmatter map[string
 	if checkMembershipJobCreated {
 		// Activation job is the only job that can rely on check-membership
 		activationNeeds = []string{"check-membership"}
-		membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+		membershipExpr := BuildEquals(
+			BuildPropertyAccess("needs.check-membership.outputs.is_team_member"),
+			BuildStringLiteral("true"),
+		)
 		if data.If != "" {
-			activationCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
+			ifExpr := &ExpressionNode{Expression: data.If}
+			combinedExpr := &AndNode{Left: membershipExpr, Right: ifExpr}
+			activationCondition = combinedExpr.Render()
 		} else {
-			activationCondition = membershipCondition
+			activationCondition = membershipExpr.Render()
 		}
 	} else {
 		// No membership check needed
@@ -1770,7 +1775,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, frontmatter map[string
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreated bool, checkMembershipJobCreated bool, frontmatter map[string]any) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJobCreated bool, checkMembershipJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
 
 	// Permission checks are now handled by the separate check-membership job
@@ -1788,10 +1793,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 	}
 
 	var depends []string
-	if taskJobCreated {
+	if activationJobCreated {
 		depends = []string{"activation"} // Depend on the activation job only if it exists
 	} else if checkMembershipJobCreated {
-		depends = []string{"check-membership"} // Depend on check-membership if no task job
+		depends = []string{"check-membership"} // Depend on check-membership if no activation job
 	}
 
 	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
@@ -1810,23 +1815,32 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		commandConditionStr := commandCondition.Render()
 
-		// If we have a check-membership job but no task job, add membership validation
-		if checkMembershipJobCreated && !taskJobCreated {
-			membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
-			jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, commandConditionStr)
+		// If we have a check-membership job but no activation job, add membership validation
+		if checkMembershipJobCreated && !activationJobCreated {
+			membershipExpr := BuildEquals(
+				BuildPropertyAccess("needs.check-membership.outputs.is_team_member"),
+				BuildStringLiteral("true"),
+			)
+			combinedExpr := &AndNode{Left: membershipExpr, Right: commandCondition}
+			jobCondition = combinedExpr.Render()
 		} else {
 			jobCondition = commandConditionStr
 		}
 	} else {
-		// If we have a check-membership job but no task job, add membership validation
-		if checkMembershipJobCreated && !taskJobCreated {
+		// If we have a check-membership job but no activation job, add membership validation
+		if checkMembershipJobCreated && !activationJobCreated {
 			needsRoleCheck := c.needsRoleCheck(data, frontmatter)
 			if needsRoleCheck {
-				membershipCondition := "needs.check-membership.outputs.is_team_member == 'true'"
+				membershipExpr := BuildEquals(
+					BuildPropertyAccess("needs.check-membership.outputs.is_team_member"),
+					BuildStringLiteral("true"),
+				)
 				if data.If != "" {
-					jobCondition = fmt.Sprintf("(%s) && (%s)", membershipCondition, data.If)
+					ifExpr := &ExpressionNode{Expression: data.If}
+					combinedExpr := &AndNode{Left: membershipExpr, Right: ifExpr}
+					jobCondition = combinedExpr.Render()
 				} else {
-					jobCondition = membershipCondition
+					jobCondition = membershipExpr.Render()
 				}
 			} else {
 				jobCondition = data.If
