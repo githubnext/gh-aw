@@ -1756,7 +1756,7 @@ func (c *Compiler) buildTaskJob(data *WorkflowData, frontmatter map[string]any) 
 	var permissions string
 
 	job := &Job{
-		Name:        "task",
+		Name:        "activation",
 		If:          taskCondition,
 		RunsOn:      "runs-on: ubuntu-latest",
 		Permissions: permissions,
@@ -1788,7 +1788,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, taskJobCreat
 
 	var depends []string
 	if taskJobCreated {
-		depends = []string{"task"} // Depend on the task job only if it exists
+		depends = []string{"activation"} // Depend on the activation job only if it exists
 	} else if checkMembershipJobCreated {
 		depends = []string{"check-membership"} // Depend on check-membership if no task job
 	}
