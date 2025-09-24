@@ -20,7 +20,13 @@ safe-jobs:
         default: "Hello from safe-job!"
     steps:
       - name: Echo message
-        run: echo "${{ env.GITHUB_AW_SAFE_JOB_MESSAGE }}"
+        run: |
+          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "echo") | .message // "Hello from safe-job!"')
+            echo "Echoing message: $MESSAGE"
+          else
+            echo "No agent output found, using default: Hello from safe-job!"
+          fi
 ---
 summarize and publish to issue:
 

@@ -240,10 +240,10 @@ func TestBuildSafeJobs(t *testing.T) {
 		t.Error("Expected steps to be generated")
 	}
 	
-	// Check that environment setup step includes input variables
+	// Check that environment setup step is created but no longer includes input variables
 	stepsContent := strings.Join(job.Steps, "")
-	if !strings.Contains(stepsContent, "GITHUB_AW_SAFE_JOB_ENVIRONMENT") {
-		t.Error("Expected environment variable for input 'environment' to be set")
+	if strings.Contains(stepsContent, "GITHUB_AW_SAFE_JOB_ENVIRONMENT") {
+		t.Error("Input-specific environment variables should no longer be set (inputs should be processed from agent output via jq)")
 	}
 	
 	if !strings.Contains(stepsContent, "GITHUB_AW_AGENT_OUTPUT") {

@@ -2581,8 +2581,13 @@ jobs:
       - name: Setup Safe Job Environment Variables
         run: |
           echo "Setting up environment for safe job"
-          echo "GITHUB_AW_SAFE_JOB_MESSAGE=Hello from safe-job!" >> $GITHUB_ENV
           echo "GITHUB_AW_AGENT_OUTPUT=${{ needs.dev.outputs.output }}" >> $GITHUB_ENV
       - name: Echo message
-        run: echo "${{ env.GITHUB_AW_SAFE_JOB_MESSAGE }}"
+        run: |-
+          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "echo") | .message // "Hello from safe-job!"')
+            echo "Echoing message: $MESSAGE"
+          else
+            echo "No agent output found, using default: Hello from safe-job!"
+          fi
 
