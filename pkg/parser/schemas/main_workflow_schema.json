@@ -950,6 +950,23 @@
         }
       }
     },
+    "mcp-servers": {
+      "type": "object", 
+      "description": "MCP server definitions",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/stdio_mcp_tool"
+            },
+            {
+              "$ref": "#/$defs/http_mcp_tool"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "tools": {
       "type": "object",
       "description": "Tools configuration for the workflow",
@@ -1150,19 +1167,8 @@
         }
       },
       "additionalProperties": {
-        "description": "Custom tool configuration",
-        "oneOf": [
-          {
-            "type": "string",
-            "description": "Simple tool string"
-          },
-          {
-            "$ref": "#/$defs/stdio_mcp_tool"
-          },
-          {
-            "$ref": "#/$defs/http_mcp_tool"
-          }
-        ]
+        "description": "Simple tool string",
+        "type": "string"
       }
     },
     "command": {

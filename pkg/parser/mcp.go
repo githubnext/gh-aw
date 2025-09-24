@@ -127,76 +127,136 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		}
 	}
 
-	// Get tools section from frontmatter
-	toolsSection, hasTools := frontmatter["tools"]
-	if !hasTools {
-		return configs, nil // No tools configured, but we might have safe-outputs
+	// Get mcp-servers section from frontmatter
+	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
+	if !hasMCPServers {
+		// Also check tools section for built-in MCP tools (github, playwright)
+		toolsSection, hasTools := frontmatter["tools"]
+		if hasTools {
+			if tools, ok := toolsSection.(map[string]any); ok {
+				for toolName, toolValue := range tools {
+					// Only handle built-in MCP tools (github and playwright)
+					if toolName == "github" || toolName == "playwright" {
+						config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
+						if err != nil {
+							return nil, err
+						}
+						if config != nil {
+							configs = append(configs, *config)
+						}
+					}
+				}
+			}
+		}
+		return configs, nil // No mcp-servers configured, but we might have safe-outputs and built-in tools
 	}
 
-	tools, ok := toolsSection.(map[string]any)
+	mcpServers, ok := mcpServersSection.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("tools section is not a valid map")
+		return nil, fmt.Errorf("mcp-servers section is not a valid map")
 	}
 
-	for toolName, toolValue := range tools {
-		// Handle built-in MCP tools (github and playwright)
-		if toolName == "github" || toolName == "playwright" {
-			// Apply server filter if specified
-			if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
-				continue
+	// Process built-in MCP tools from tools section
+	toolsSection, hasTools := frontmatter["tools"]
+	if hasTools {
+		if tools, ok := toolsSection.(map[string]any); ok {
+			for toolName, toolValue := range tools {
+				// Only handle built-in MCP tools (github and playwright)
+				if toolName == "github" || toolName == "playwright" {
+					config, err := processBuiltinMCPTool(toolName, toolValue, serverFilter)
+					if err != nil {
+						return nil, err
+					}
+					if config != nil {
+						configs = append(configs, *config)
+					}
+				}
+			}
+		}
+	}
+
+	// Process custom MCP servers from mcp-servers section
+	for serverName, serverValue := range mcpServers {
+		// Apply server filter if specified
+		if serverFilter != "" && !strings.Contains(strings.ToLower(serverName), strings.ToLower(serverFilter)) {
+			continue
+		}
+
+		// Handle custom MCP tools (those with explicit MCP configuration)
+		toolConfig, ok := serverValue.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		config, err := ParseMCPConfig(serverName, toolConfig, toolConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse MCP config for %s: %w", serverName, err)
+		}
+
+		configs = append(configs, config)
+	}
+
+	return configs, nil
+}
+
+// processBuiltinMCPTool handles built-in MCP tools (github and playwright)
+func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) (*MCPServerConfig, error) {
+	// Apply server filter if specified
+	if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
+		return nil, nil
+	}
+
+	if toolName == "github" {
+		// Handle GitHub MCP server - always use Docker by default
+		config := MCPServerConfig{
+			Name:    "github",
+			Type:    "docker", // GitHub defaults to Docker (local containerized)  
+			Command: "docker",
+			Args: []string{
+				"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+				"ghcr.io/github/github-mcp-server:sha-09deac4",
+			},
+			Env: make(map[string]string),
+		}
+
+		// Try to get GitHub token, but don't fail if it's not available
+		// This allows tests to run without GitHub authentication
+		if githubToken, err := GetGitHubToken(); err == nil {
+			config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
+		} else {
+			// Set a placeholder that will be validated later during connection
+			config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
+		}
+
+		// Check for custom GitHub configuration
+		if toolConfig, ok := toolValue.(map[string]any); ok {
+			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
+				if allowedSlice, ok := allowed.([]any); ok {
+					for _, item := range allowedSlice {
+						if str, ok := item.(string); ok {
+							config.Allowed = append(config.Allowed, str)
+						}
+					}
+				}
 			}
 
-			if toolName == "github" {
-				// Handle GitHub MCP server - always use Docker by default
-				config := MCPServerConfig{
-					Name:    "github",
-					Type:    "docker", // GitHub defaults to Docker (local containerized)
-					Command: "docker",
-					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:sha-09deac4",
-					},
-					Env: make(map[string]string),
-				}
-
-				// Try to get GitHub token, but don't fail if it's not available
-				// This allows tests to run without GitHub authentication
-				if githubToken, err := GetGitHubToken(); err == nil {
-					config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
-				} else {
-					// Set a placeholder that will be validated later during connection
-					config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
-				}
-
-				// Check for custom GitHub configuration
-				if toolConfig, ok := toolValue.(map[string]any); ok {
-					if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
-						if allowedSlice, ok := allowed.([]any); ok {
-							for _, item := range allowedSlice {
-								if str, ok := item.(string); ok {
-									config.Allowed = append(config.Allowed, str)
-								}
-							}
-						}
-					}
-
-					// Check for custom Docker image version
-					if version, exists := toolConfig["docker_image_version"]; exists {
-						if versionStr, ok := version.(string); ok {
-							dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
-							// Update the Docker image in args
-							for i, arg := range config.Args {
-								if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
-									config.Args[i] = dockerImage
-									break
-								}
-							}
+			// Check for custom Docker image version
+			if version, exists := toolConfig["docker_image_version"]; exists {
+				if versionStr, ok := version.(string); ok {
+					dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
+					// Update the Docker image in args
+					for i, arg := range config.Args {
+						if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
+							config.Args[i] = dockerImage
+							break
 						}
 					}
 				}
+			}
+		}
 
-				configs = append(configs, config)
-			} else if toolName == "playwright" {
+		return &config, nil
+	} else if toolName == "playwright" {
 				// Handle Playwright MCP server - always use Docker by default
 				config := MCPServerConfig{
 					Name:    "playwright",
@@ -253,63 +313,16 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 					}
 				}
 
-				config.Env["PLAYWRIGHT_ALLOWED_DOMAINS"] = strings.Join(allowedDomains, ",")
-				if len(allowedDomains) == 0 {
-					config.Env["PLAYWRIGHT_BLOCK_ALL_DOMAINS"] = "true"
-				}
-
-				configs = append(configs, config)
-			}
-		} else {
-			// Handle custom MCP tools (those with explicit MCP configuration)
-			toolConfig, ok := toolValue.(map[string]any)
-			if !ok {
-				continue
-			}
-
-			// Check if it has MCP configuration (either explicit type or inferable from fields)
-			var mcpSection any
-			var hasMcp bool
-
-			// Check for MCP fields (either explicit type or inferable from url/command/container)
-			if _, hasType := toolConfig["type"]; hasType {
-				hasMcp = true
-			} else if _, hasURL := toolConfig["url"]; hasURL {
-				hasMcp = true
-			} else if _, hasCommand := toolConfig["command"]; hasCommand {
-				hasMcp = true
-			} else if _, hasContainer := toolConfig["container"]; hasContainer {
-				hasMcp = true
-			}
-
-			if hasMcp {
-				// Create an MCP section from all direct fields
-				mcpFields := map[string]any{}
-				for _, field := range []string{"type", "url", "command", "container", "args", "env", "headers"} {
-					if value, exists := toolConfig[field]; exists {
-						mcpFields[field] = value
-					}
-				}
-				mcpSection = mcpFields
-			}
-
-			if !hasMcp {
-				continue
-			}
-
-			config, err := ParseMCPConfig(toolName, mcpSection, toolConfig)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse MCP config for %s: %w", toolName, err)
-			}
-
-			// Apply server filter if specified
-			if serverFilter != "" && !strings.Contains(strings.ToLower(toolName), strings.ToLower(serverFilter)) {
-				continue
-			}
-
-			configs = append(configs, config)
+		config.Env["PLAYWRIGHT_ALLOWED_DOMAINS"] = strings.Join(allowedDomains, ",")
+		if len(allowedDomains) == 0 {
+			config.Env["PLAYWRIGHT_BLOCK_ALL_DOMAINS"] = "true"
 		}
+
+		return &config, nil
 	}
+
+	return nil, nil
+}
 
 	return configs, nil
 }
