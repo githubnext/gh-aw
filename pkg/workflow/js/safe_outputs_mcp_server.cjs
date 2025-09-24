@@ -460,11 +460,89 @@ const ALL_TOOLS = [
 debug(`v${SERVER_INFO.version} ready on stdio`);
 debug(`  output file: ${outputFile}`);
 debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
-if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
-const TOOLS = Object.fromEntries(
-  ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [tool.name, tool])
-);
+
+// Create a comprehensive tools map including both predefined tools and dynamic safe-jobs
+const TOOLS = {};
+
+// Add predefined tools that are enabled in configuration
+ALL_TOOLS.forEach(tool => {
+  if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
+    TOOLS[tool.name] = tool;
+  }
+});
+
+// Add safe-jobs as dynamic tools
+Object.keys(safeOutputsConfig).forEach(configKey => {
+  const normalizedKey = normTool(configKey);
+
+  // Skip if it's already a predefined tool
+  if (TOOLS[normalizedKey]) {
+    return;
+  }
+
+  // Check if this is a safe-job (not in ALL_TOOLS)
+  if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
+    const jobConfig = safeOutputsConfig[configKey];
+
+    // Create a dynamic tool for this safe-job
+    const dynamicTool = {
+      name: normalizedKey,
+      description: `Custom safe-job: ${configKey}`,
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: true, // Allow any properties for flexibility
+      },
+      handler: args => {
+        // Create a generic safe-job output entry
+        const entry = {
+          type: normalizedKey,
+          ...args,
+        };
+
+        // Write the entry to the output file
+        const entryJSON = JSON.stringify(entry);
+        fs.appendFileSync(outputFile, entryJSON + "\n");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`,
+            },
+          ],
+        };
+      },
+    };
+
+    // Add input schema based on job configuration if available
+    if (jobConfig && jobConfig.inputs) {
+      dynamicTool.inputSchema.properties = {};
+      dynamicTool.inputSchema.required = [];
+
+      Object.keys(jobConfig.inputs).forEach(inputName => {
+        const inputDef = jobConfig.inputs[inputName];
+        const propSchema = {
+          type: inputDef.type || "string",
+          description: inputDef.description || `Input parameter: ${inputName}`,
+        };
+
+        if (inputDef.options && Array.isArray(inputDef.options)) {
+          propSchema.enum = inputDef.options;
+        }
+
+        dynamicTool.inputSchema.properties[inputName] = propSchema;
+
+        if (inputDef.required) {
+          dynamicTool.inputSchema.required.push(inputName);
+        }
+      });
+    }
+
+    TOOLS[normalizedKey] = dynamicTool;
+  }
+});
+
 debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
 if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
 

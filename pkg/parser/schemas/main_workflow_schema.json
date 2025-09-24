@@ -1705,6 +1705,106 @@
           "minimum": 1,
           "maximum": 10240,
           "default": 1024
+        },
+        "safe-jobs": {
+          "type": "object",
+          "description": "Custom safe-output jobs that can be executed based on agentic workflow output",
+          "patternProperties": {
+            "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+              "type": "object",
+              "description": "Custom safe-output job configuration",
+              "properties": {
+                "runs-on": {
+                  "description": "Runner specification for this job",
+                  "oneOf": [
+                    {"type": "string"},
+                    {"type": "array", "items": {"type": "string"}}
+                  ]
+                },
+                "if": {
+                  "type": "string",
+                  "description": "Conditional expression for job execution"
+                },
+                "needs": {
+                  "description": "Job dependencies beyond the main job",
+                  "oneOf": [
+                    {"type": "string"},
+                    {"type": "array", "items": {"type": "string"}}
+                  ]
+                },
+                "env": {
+                  "type": "object",
+                  "description": "Job-specific environment variables",
+                  "patternProperties": {
+                    "^[A-Za-z_][A-Za-z0-9_]*$": {"type": "string"}
+                  },
+                  "additionalProperties": false
+                },
+                "permissions": {
+                  "type": "object",
+                  "description": "Job-specific permissions",
+                  "patternProperties": {
+                    "^[a-z-]+$": {
+                      "type": "string",
+                      "enum": ["read", "write", "none"]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token for this specific job"
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Input parameters for the safe job (workflow_dispatch syntax)",
+                  "patternProperties": {
+                    "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "description": "Input parameter description"
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether this input is required",
+                          "default": false
+                        },
+                        "default": {
+                          "type": "string",
+                          "description": "Default value for the input"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": ["string", "boolean", "choice"],
+                          "description": "Input parameter type",
+                          "default": "string"
+                        },
+                        "options": {
+                          "type": "array",
+                          "description": "Available options for choice type inputs",
+                          "items": {"type": "string"}
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "steps": {
+                  "type": "array",
+                  "description": "Custom steps to execute in the safe job",
+                  "items": {
+                    "type": "object",
+                    "description": "GitHub Actions step configuration"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

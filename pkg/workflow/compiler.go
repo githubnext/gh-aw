@@ -167,11 +167,36 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
+	SafeJobs                        map[string]*SafeJobConfig              `yaml:"safe-jobs,omitempty"`      // Custom safe-output jobs
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
+}
+
+// SafeJobConfig holds configuration for a custom safe-output job
+type SafeJobConfig struct {
+	// Standard GitHub Actions job properties
+	RunsOn      any               `yaml:"runs-on,omitempty"`
+	If          string            `yaml:"if,omitempty"`
+	Needs       []string          `yaml:"needs,omitempty"`
+	Steps       []any             `yaml:"steps,omitempty"`
+	Env         map[string]string `yaml:"env,omitempty"`
+	Permissions map[string]string `yaml:"permissions,omitempty"`
+	
+	// Additional safe-job specific properties
+	Inputs      map[string]*SafeJobInput `yaml:"inputs,omitempty"`
+	GitHubToken string                   `yaml:"github-token,omitempty"`
+}
+
+// SafeJobInput defines an input parameter for a safe job, using workflow_dispatch syntax
+type SafeJobInput struct {
+	Description string   `yaml:"description,omitempty"`
+	Required    bool     `yaml:"required,omitempty"`
+	Default     string   `yaml:"default,omitempty"`
+	Type        string   `yaml:"type,omitempty"`
+	Options     []string `yaml:"options,omitempty"`
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1404,6 +1429,123 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
+	// Build safe-jobs if configured
+	if err := c.buildSafeJobs(data, jobName); err != nil {
+		return fmt.Errorf("failed to build safe-jobs: %w", err)
+	}
+
+	return nil
+}
+
+// buildSafeJobs creates custom safe-output jobs defined in safe-outputs.safe-jobs
+func (c *Compiler) buildSafeJobs(data *WorkflowData, mainJobName string) error {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.SafeJobs) == 0 {
+		return nil
+	}
+
+	for jobName, jobConfig := range data.SafeOutputs.SafeJobs {
+		job := &Job{
+			Name: fmt.Sprintf("safe_job_%s", jobName),
+		}
+
+		// Add dependency on main job
+		job.Needs = append(job.Needs, mainJobName)
+		
+		// Add any additional dependencies from the config
+		job.Needs = append(job.Needs, jobConfig.Needs...)
+
+		// Set runs-on
+		if jobConfig.RunsOn != nil {
+			if runsOnStr, ok := jobConfig.RunsOn.(string); ok {
+				job.RunsOn = fmt.Sprintf("runs-on: %s", runsOnStr)
+			} else if runsOnList, ok := jobConfig.RunsOn.([]any); ok {
+				// Handle array format
+				var runsOnItems []string
+				for _, item := range runsOnList {
+					if itemStr, ok := item.(string); ok {
+						runsOnItems = append(runsOnItems, fmt.Sprintf("      - %s", itemStr))
+					}
+				}
+				if len(runsOnItems) > 0 {
+					job.RunsOn = fmt.Sprintf("runs-on:\n%s", strings.Join(runsOnItems, "\n"))
+				}
+			}
+		} else {
+			job.RunsOn = "runs-on: ubuntu-latest" // Default
+		}
+
+		// Set if condition
+		if jobConfig.If != "" {
+			job.If = c.extractExpressionFromIfString(jobConfig.If)
+		}
+
+		// Build job steps
+		var steps []string
+
+		// Add environment variables step
+		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
+		
+		// Export inputs as environment variables
+		if len(jobConfig.Inputs) > 0 {
+			for inputName, inputConfig := range jobConfig.Inputs {
+				envVarName := fmt.Sprintf("SAFE_JOB_%s", strings.ToUpper(strings.ReplaceAll(inputName, "-", "_")))
+				defaultValue := inputConfig.Default
+				if defaultValue == "" && inputConfig.Required {
+					defaultValue = "REQUIRED_INPUT_NOT_PROVIDED"
+				}
+				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", envVarName, defaultValue))
+			}
+		}
+
+		// Add main job output as environment variable
+		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=${{ needs.%s.outputs.output }}\" >> $GITHUB_ENV\n", mainJobName))
+
+		// Add custom environment variables from safe-outputs.env
+		if data.SafeOutputs.Env != nil {
+			for key, value := range data.SafeOutputs.Env {
+				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
+			}
+		}
+
+		// Add job-specific environment variables
+		if jobConfig.Env != nil {
+			for key, value := range jobConfig.Env {
+				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
+			}
+		}
+
+		// Add custom steps from the job configuration
+		if len(jobConfig.Steps) > 0 {
+			for _, step := range jobConfig.Steps {
+				if stepMap, ok := step.(map[string]any); ok {
+					stepYAML, err := c.convertStepToYAML(stepMap)
+					if err != nil {
+						return fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
+					}
+					steps = append(steps, stepYAML)
+				}
+			}
+		}
+
+		job.Steps = steps
+
+		// Set permissions if specified
+		if len(jobConfig.Permissions) > 0 {
+			var perms []string
+			for perm, level := range jobConfig.Permissions {
+				perms = append(perms, fmt.Sprintf("      %s: %s", perm, level))
+			}
+			job.Permissions = fmt.Sprintf("permissions:\n%s", strings.Join(perms, "\n"))
+		}
+
+		// Add the job to the job manager
+		if err := c.jobManager.AddJob(job); err != nil {
+			return fmt.Errorf("failed to add safe job %s: %w", jobName, err)
+		}
+	}
+
 	return nil
 }
 
@@ -2244,6 +2386,36 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		safeOutputsConfig["missing-tool"] = missingToolConfig
 	}
+	
+	// Add safe-jobs configuration
+	if len(data.SafeOutputs.SafeJobs) > 0 {
+		for jobName, jobConfig := range data.SafeOutputs.SafeJobs {
+			safeJobConfig := map[string]any{}
+			
+			// Add inputs information
+			if len(jobConfig.Inputs) > 0 {
+				inputsConfig := make(map[string]any)
+				for inputName, inputDef := range jobConfig.Inputs {
+					inputConfig := map[string]any{
+						"type": inputDef.Type,
+						"description": inputDef.Description,
+						"required": inputDef.Required,
+					}
+					if inputDef.Default != "" {
+						inputConfig["default"] = inputDef.Default
+					}
+					if len(inputDef.Options) > 0 {
+						inputConfig["options"] = inputDef.Options
+					}
+					inputsConfig[inputName] = inputConfig
+				}
+				safeJobConfig["inputs"] = inputsConfig
+			}
+			
+			safeOutputsConfig[jobName] = safeJobConfig
+		}
+	}
+	
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	return string(configJSON)
 }

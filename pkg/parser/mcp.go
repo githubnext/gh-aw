@@ -117,6 +117,19 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						config.Allowed = append(config.Allowed, "push-to-pull-request-branch")
 					case "missing-tool":
 						config.Allowed = append(config.Allowed, "missing-tool")
+					case "safe-jobs":
+						// Handle safe-jobs by adding each individual job as a tool
+						if safeJobsSection, ok := safeOutputsMap["safe-jobs"].(map[string]any); ok {
+							for jobName := range safeJobsSection {
+								config.Allowed = append(config.Allowed, jobName)
+							}
+						}
+					default:
+						// Check if this might be a direct safe-job name (when safe-jobs section is expanded)
+						if _, exists := safeOutputsMap["safe-jobs"]; exists {
+							// This could be a safe-job name, add it to allowed tools
+							config.Allowed = append(config.Allowed, toolType)
+						}
 					}
 				}
 			}
