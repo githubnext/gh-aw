@@ -73,7 +73,7 @@
       "additionalProperties": false,
       "description": "Permissions configuration for container-based MCP servers"
     },
-    "proxy_args": {
+    "proxy-args": {
       "type": "array",
       "items": {
         "type": "string"
