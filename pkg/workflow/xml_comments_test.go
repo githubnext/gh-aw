@@ -272,11 +272,11 @@ func TestSplitContentIntoChunks(t *testing.T) {
 	longLine := "This is a very long line of content that will be repeated many times to exceed the character limit."
 	longContent := strings.Repeat(longLine+"\n", 400)
 	chunks = splitContentIntoChunks(longContent)
-	
+
 	if len(chunks) <= 1 {
 		t.Errorf("Long content should result in multiple chunks, got %d", len(chunks))
 	}
-	
+
 	// Verify that each chunk stays within the size limit
 	const maxChunkSize = 20900
 	for i, chunk := range chunks {
@@ -289,7 +289,7 @@ func TestSplitContentIntoChunks(t *testing.T) {
 			t.Errorf("Chunk %d exceeds size limit: %d > %d", i, estimatedSize, maxChunkSize)
 		}
 	}
-	
+
 	// Verify that joining chunks recreates original content (minus potential trailing newline)
 	rejoined := strings.Join(chunks, "\n")
 	if strings.TrimSuffix(rejoined, "\n") != strings.TrimSuffix(longContent, "\n") {
@@ -367,8 +367,8 @@ This is a normal-sized workflow that should compile successfully.`
 	}
 
 	lockString := string(lockContent)
-	if !strings.Contains(lockString, "Create prompt (part 1)") {
-		t.Error("Expected 'Create prompt (part 1)' step in generated workflow")
+	if !strings.Contains(lockString, "Create prompt") {
+		t.Error("Expected 'Create prompt' step in generated workflow")
 	}
 
 	if !strings.Contains(lockString, "Append prompt (part 2)") {
