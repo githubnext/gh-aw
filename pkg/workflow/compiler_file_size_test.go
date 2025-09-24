@@ -58,7 +58,7 @@ This is a normal workflow that should compile successfully.
 	t.Run("file size validation logic", func(t *testing.T) {
 		// Test the validation by creating a temporary compiler with modified constant
 		// Since normal workflows don't exceed 1MB, we'll test the validation path differently
-		
+
 		// Create a normal workflow
 		testContent := `---
 timeout_minutes: 10
@@ -107,35 +107,35 @@ This workflow tests the file size validation logic.
 	t.Run("test file size validation error message", func(t *testing.T) {
 		// Test that our validation produces the correct error message format
 		// by simulating the error condition
-		
+
 		testFile := filepath.Join(tmpDir, "size-validation-test.md")
 		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
-		
+
 		// Create a mock file that exceeds the size limit
 		largeSize := int64(MaxLockFileSize + 1000000) // 1MB over the limit
 		mockContent := strings.Repeat("x", int(largeSize))
-		
+
 		if err := os.WriteFile(lockFile, []byte(mockContent), 0644); err != nil {
 			t.Fatal(err)
 		}
-		
+
 		// Verify the file exceeds the limit
 		info, err := os.Stat(lockFile)
 		if err != nil {
 			t.Fatalf("Failed to stat mock file: %v", err)
 		}
-		
+
 		if info.Size() <= MaxLockFileSize {
 			t.Fatalf("Mock file size %d should exceed limit %d", info.Size(), MaxLockFileSize)
 		}
-		
+
 		// Test our validation logic by checking what the error message would look like
 		lockSize := pretty.FormatFileSize(info.Size())
 		maxSize := pretty.FormatFileSize(MaxLockFileSize)
 		expectedMessage := fmt.Sprintf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
-		
+
 		t.Logf("Generated error message would be: %s", expectedMessage)
-		
+
 		// Verify the message contains expected elements
 		if !strings.Contains(expectedMessage, "exceeds maximum allowed size") {
 			t.Error("Error message should contain 'exceeds maximum allowed size'")
@@ -143,7 +143,7 @@ This workflow tests the file size validation logic.
 		if !strings.Contains(expectedMessage, "MB") {
 			t.Error("Error message should contain size in MB")
 		}
-		
+
 		// Clean up
 		os.Remove(lockFile)
 	})

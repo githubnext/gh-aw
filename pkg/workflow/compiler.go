@@ -298,7 +298,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			})
 			return errors.New(formattedErr)
 		}
-		
+
 		// Validate file size after writing
 		if lockFileInfo, err := os.Stat(lockFile); err == nil {
 			if lockFileInfo.Size() > MaxLockFileSize {
