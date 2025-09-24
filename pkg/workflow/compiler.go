@@ -1827,8 +1827,12 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJo
 
 	// Determine the job condition for command workflows
 	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
+	if activationJobCreated {
+		// If activation job exists, it already handles command filtering and membership validation
+		// Main job only needs to apply the original If condition (if any)
+		jobCondition = data.If
+	} else if data.Command != "" {
+		// Build the command trigger condition (only when no activation job)
 		commandCondition := buildCommandOnlyCondition(data.Command)
 		if data.If != "" {
 			// Combine command condition with existing If condition
