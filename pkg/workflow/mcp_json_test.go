@@ -318,9 +318,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http type missing URL",
 			tools: map[string]any{
 				"httpMissingUrl": map[string]any{
-					"type": "stdio", "command": "test",
-						"type": "http",
-					},
+					"type":    "http",
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -331,9 +329,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "stdio type missing command",
 			tools: map[string]any{
 				"stdioMissingCommand": map[string]any{
-					"type": "stdio", "command": "test",
-						"type": "stdio",
-					},
+					"type":    "stdio",
 					"allowed": []any{"tool1"},
 				},
 			},
