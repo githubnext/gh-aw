@@ -6,13 +6,13 @@ import (
 )
 
 // buildAddReactionJob creates the add_reaction job
-func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
+func (c *Compiler) buildAddReactionJob(data *WorkflowData, activationJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
 	var steps []string
 
-	// Add permission checks if no task job was created but permission checks are needed
-	if !taskJobCreated && c.needsRoleCheck(data, frontmatter) {
+	// Add permission checks if no activation job was created but permission checks are needed
+	if !activationJobCreated && c.needsRoleCheck(data, frontmatter) {
 		// Add team member check step
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 		steps = append(steps, "        id: check-team-member\n")
@@ -58,8 +58,8 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 	}
 
 	var depends []string
-	if taskJobCreated {
-		depends = []string{"task"} // Depend on the task job only if it exists
+	if activationJobCreated {
+		depends = []string{"activation"} // Depend on the activation job only if it exists
 	}
 
 	// Set base permissions
@@ -68,7 +68,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, taskJobCreated bool, 
 	// Add actions: write permission if team member checks are present for command workflows
 	_, hasExplicitRoles := frontmatter["roles"]
 	requiresWorkflowCancellation := data.Command != "" ||
-		(!taskJobCreated && c.needsRoleCheck(data, frontmatter) && hasExplicitRoles)
+		(!activationJobCreated && c.needsRoleCheck(data, frontmatter) && hasExplicitRoles)
 
 	if requiresWorkflowCancellation {
 		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      issues: write\n      pull-requests: write\n      contents: read"
