@@ -4,8 +4,12 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["stdio", "http"],
-      "description": "MCP connection type"
+      "enum": ["stdio", "http", "local"],
+      "description": "MCP connection type (local is an alias for stdio)"
+    },
+    "registry": {
+      "type": "string",
+      "description": "URI to the installation location when MCP is installed from a registry"
     },
     "url": {
       "type": "string",
@@ -72,9 +76,21 @@
       },
       "additionalProperties": false,
       "description": "Permissions configuration for container-based MCP servers"
+    },
+    "proxy-args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Custom proxy arguments for container-based MCP servers"
     }
   },
-  "required": ["type"],
+  "anyOf": [
+    {"required": ["type"]},
+    {"required": ["url"]},
+    {"required": ["command"]},
+    {"required": ["container"]}
+  ],
   "additionalProperties": false,
   "allOf": [
     {
@@ -114,6 +130,33 @@
             {"required": ["command"]},
             {"required": ["container"]}
           ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": ["stdio", "local"]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": ["headers"]
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {"required": ["command"]},
+          {"required": ["container"]}
+        ]
+      },
+      "then": {
+        "not": {
+          "required": ["headers"]
         }
       }
     },

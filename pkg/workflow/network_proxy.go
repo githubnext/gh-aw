@@ -18,8 +18,7 @@ func needsProxy(toolConfig map[string]any) (bool, []string) {
 	}
 
 	// Check if it has a container field
-	_, hasContainer := mcpConfig["container"]
-	if !hasContainer {
+	if mcpConfig.Container == "" {
 		return false, nil
 	}
 
@@ -62,27 +61,18 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 		return
 	}
 
-	containerImage, hasContainer := mcpConfig["container"]
-	if !hasContainer {
+	if mcpConfig.Container == "" {
 		if c.verbose {
 			fmt.Printf("Proxy-enabled tool '%s' missing container configuration\n", toolName)
 		}
 		return
 	}
 
-	containerStr, ok := containerImage.(string)
-	if !ok {
-		if c.verbose {
-			fmt.Printf("Container image must be a string for tool %s\n", toolName)
-		}
-		return
-	}
+	containerStr := mcpConfig.Container
 
-	var envVars map[string]any
-	if env, hasEnv := mcpConfig["env"]; hasEnv {
-		if envMap, ok := env.(map[string]any); ok {
-			envVars = envMap
-		}
+	envVars := make(map[string]any)
+	for k, v := range mcpConfig.Env {
+		envVars[k] = v
 	}
 
 	if c.verbose {
@@ -110,16 +100,7 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 	yaml.WriteString("          \n")
 
 	// Extract custom proxy args from MCP config if present
-	var customProxyArgs []string
-	if proxyArgsInterface, hasProxyArgs := mcpConfig["proxy_args"]; hasProxyArgs {
-		if proxyArgsSlice, ok := proxyArgsInterface.([]any); ok {
-			for _, arg := range proxyArgsSlice {
-				if argStr, ok := arg.(string); ok {
-					customProxyArgs = append(customProxyArgs, argStr)
-				}
-			}
-		}
-	}
+	customProxyArgs := mcpConfig.ProxyArgs
 
 	// Generate docker-compose.yml inline
 	fmt.Fprintf(yaml, "          # Generate Docker Compose configuration for %s\n", toolName)

@@ -505,14 +505,17 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract tools from the main file
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 
+	// Extract mcp-servers from the main file and merge them into tools
+	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
+
 	// Process @include directives to extract additional tools
 	includedTools, err := parser.ExpandIncludes(result.Markdown, markdownDir, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
 
-	// Merge tools
-	tools, err = c.mergeTools(topTools, includedTools)
+	// Merge tools including mcp-servers
+	tools, err = c.mergeToolsAndMCPServers(topTools, mcpServers, includedTools)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge tools: %w", err)

@@ -27,12 +27,11 @@ tools:
     allowed: [get_issue, add_issue_comment]
   
   trello:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "trello_mcp"]
-      env:
-        TRELLO_TOKEN: "${secrets.TRELLO_TOKEN}"
+    type: stdio
+    command: "python"
+    args: ["-m", "trello_mcp"]
+    env:
+      TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
     allowed: ["list_boards"]
 ---
 
@@ -62,13 +61,12 @@ Direct command execution with stdin/stdout communication:
 ```yaml
 tools:
   python-service:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_mcp_server"]
-      env:
-        API_KEY: "${secrets.MY_API_KEY}"
-        DEBUG: "false"
+    type: stdio
+    command: "python"
+    args: ["-m", "my_mcp_server"]
+    env:
+      API_KEY: "${{ secrets.MY_API_KEY }}"
+      DEBUG: "false"
     allowed: ["process_data", "generate_report"]
 ```
 
@@ -81,11 +79,10 @@ Containerized MCP servers for isolation and portability:
 ```yaml
 tools:
   notion:
-    mcp:
-      type: stdio
-      container: "mcp/notion"
-      env:
-        NOTION_TOKEN: "${secrets.NOTION_TOKEN}"
+    type: stdio
+    container: "mcp/notion"
+    env:
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
     allowed: ["create_page", "search_pages"]
 ```
 
@@ -102,36 +99,15 @@ Remote MCP servers accessible via HTTP (Claude engine only):
 ```yaml
 tools:
   remote-api:
-    mcp:
-      type: http
-      url: "https://api.example.com/mcp"
-      headers:
-        Authorization: "Bearer ${secrets.API_TOKEN}"
-        Content-Type: "application/json"
+    type: http
+    url: "https://api.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
+      Content-Type: "application/json"
     allowed: ["query_data", "update_records"]
 ```
 
 **Use cases**: Cloud services, remote APIs, shared infrastructure
-
-### 4. JSON String Format
-
-Alternative format for complex configurations:
-
-```yaml
-tools:
-  complex-server:
-    mcp: |
-      {
-        "type": "stdio",
-        "command": "python",
-        "args": ["-m", "complex_mcp"],
-        "env": {
-          "API_KEY": "${secrets.API_KEY}",
-          "DEBUG": "true"
-        }
-      }
-    allowed: ["process_data", "generate_report"]
-```
 
 ## GitHub MCP Integration
 
@@ -157,10 +133,9 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), you ca
 ```yaml
 tools:
   custom-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_server"]
+    type: stdio
+    command: "python"
+    args: ["-m", "my_server"]
     allowed: ["tool1", "tool2", "tool3"]
 ```
 
@@ -175,10 +150,9 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 ```yaml
 tools:
   custom-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_server"]
+    type: stdio
+    command: "python"
+    args: ["-m", "my_server"]
     allowed: ["*"]  # Allow ALL tools from this server
 ```
 
@@ -189,27 +163,26 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 ```yaml
 tools:
   remote-api:
-    mcp:
-      type: http
-      url: "https://api.service.com"
-      headers:
-        Authorization: "Bearer ${secrets.API_TOKEN}"
-        X-Custom-Key: "${secrets.CUSTOM_KEY}"
+    type: http
+    url: "https://api.service.com"
+    headers:
+      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
+      X-Custom-Key: "${{ secrets.CUSTOM_KEY }}"
 ```
 
 ## Network Egress Permissions
 
-Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `mcp.permissions.network.allowed`.
+Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `permissions.network.allowed`.
 
 ```yaml
 tools:
   fetch:
-    mcp:
-      container: mcp/fetch
-      permissions:
-        network:
-          allowed:
-            - "example.com"
+    type: stdio
+    container: mcp/fetch
+    permissions:
+      network:
+        allowed:
+          - "example.com"
     allowed: ["fetch"]
 ```
 
