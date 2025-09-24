@@ -302,6 +302,47 @@ Create a comprehensive investigation report that connects the dots between diffe
 
 This advanced pattern demonstrates how ChatOps can provide sophisticated analysis that would be time-consuming for humans to perform manually. The AI agent becomes a research assistant that can quickly synthesize information from across the project.
 
+## Access Control and Role Restrictions
+
+ChatOps workflows include built-in security controls that restrict who can trigger commands. By default, GitHub Agentic Workflows limit command execution to users with administrative privileges in the repository.
+
+**Default Security Behavior:**
+Command workflows automatically restrict execution to users with `admin` or `maintainer` repository permissions. This prevents unauthorized users from triggering potentially sensitive automation. Permission checks happen at runtime, with failed checks automatically canceling the workflow. All permission check results are visible in the Actions tab for audit purposes.
+
+**Customizing Access Control:**
+```yaml
+---
+on:
+  command:
+    name: deploy
+roles: [admin, maintainer]  # Default - most secure
+permissions:
+  contents: read
+safe-outputs:
+  add-comment:
+---
+```
+
+For workflows that need broader access, you can configure different role requirements:
+
+```yaml
+---
+on:
+  command:
+    name: status
+roles: [admin, maintainer, write]  # Allow contributors with write access
+permissions:
+  contents: read
+safe-outputs:
+  add-comment:
+---
+```
+
+**Security Considerations:**
+Using `roles: all` removes access restrictions entirely, which creates significant security risks, especially in public repositories where any authenticated user can potentially trigger workflows through issues, comments, or pull requests. This configuration should be avoided unless absolutely necessary and only in carefully controlled environments.
+
+The default admin/maintainer restriction ensures that only trusted team members can trigger ChatOps automation, maintaining security while enabling powerful interactive workflows. This is particularly important for commands that analyze sensitive code, access repository metadata, or create issues and comments.
+
 ## Best Practices and Patterns
 
 Successful ChatOps implementation follows several key principles that ensure reliability, security, and user adoption.
