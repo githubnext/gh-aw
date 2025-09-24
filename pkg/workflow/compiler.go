@@ -20,6 +20,8 @@ import (
 const (
 	// OutputArtifactName is the standard name for GITHUB_AW_SAFE_OUTPUTS artifact
 	OutputArtifactName = "safe_output.jsonl"
+	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (1MB)
+	MaxLockFileSize = 1048576 // 1MB in bytes
 )
 
 //go:embed schemas/github-workflow.json
@@ -295,6 +297,24 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 				Message: fmt.Sprintf("failed to write lock file: %v", err),
 			})
 			return errors.New(formattedErr)
+		}
+
+		// Validate file size after writing
+		if lockFileInfo, err := os.Stat(lockFile); err == nil {
+			if lockFileInfo.Size() > MaxLockFileSize {
+				lockSize := pretty.FormatFileSize(lockFileInfo.Size())
+				maxSize := pretty.FormatFileSize(MaxLockFileSize)
+				formattedErr := console.FormatError(console.CompilerError{
+					Position: console.ErrorPosition{
+						File:   lockFile,
+						Line:   1,
+						Column: 1,
+					},
+					Type:    "error",
+					Message: fmt.Sprintf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize),
+				})
+				return errors.New(formattedErr)
+			}
 		}
 	}
 
