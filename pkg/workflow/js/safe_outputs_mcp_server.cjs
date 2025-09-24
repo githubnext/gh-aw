@@ -504,11 +504,16 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
         const entryJSON = JSON.stringify(entry);
         fs.appendFileSync(outputFile, entryJSON + "\n");
 
+        // Use output from safe-job config if available
+        const outputText = jobConfig && jobConfig.output 
+          ? jobConfig.output 
+          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+
         return {
           content: [
             {
               type: "text",
-              text: `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`,
+              text: outputText,
             },
           ],
         };

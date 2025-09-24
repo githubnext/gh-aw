@@ -9,7 +9,7 @@ func TestParseSafeJobsConfig(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 	
 	// Test basic safe-jobs configuration
-	outputMap := map[string]any{
+	frontmatter := map[string]any{
 		"safe-jobs": map[string]any{
 			"deploy": map[string]any{
 				"runs-on": "ubuntu-latest",
@@ -47,7 +47,7 @@ func TestParseSafeJobsConfig(t *testing.T) {
 		},
 	}
 	
-	result := c.parseSafeJobsConfig(outputMap)
+	result := c.parseSafeJobsConfig(frontmatter)
 	
 	if result == nil {
 		t.Fatal("Expected safe-jobs config to be parsed, got nil")
@@ -141,25 +141,25 @@ func TestParseSafeJobsConfig(t *testing.T) {
 	}
 }
 
-func TestHasSafeOutputsEnabledWithSafeJobs(t *testing.T) {
-	// Test that safe-jobs are detected by HasSafeOutputsEnabled
-	config := &SafeOutputsConfig{
-		SafeJobs: map[string]*SafeJobConfig{
-			"deploy": &SafeJobConfig{
-				RunsOn: "ubuntu-latest",
-			},
+func TestHasSafeJobsEnabled(t *testing.T) {
+	// Test that safe-jobs are detected by HasSafeJobsEnabled
+	safeJobs := map[string]*SafeJobConfig{
+		"deploy": &SafeJobConfig{
+			RunsOn: "ubuntu-latest",
 		},
 	}
 	
-	if !HasSafeOutputsEnabled(config) {
-		t.Error("Expected HasSafeOutputsEnabled to return true when safe-jobs are configured")
+	if !HasSafeJobsEnabled(safeJobs) {
+		t.Error("Expected HasSafeJobsEnabled to return true when safe-jobs are configured")
 	}
 	
-	// Test combined with other safe-outputs
-	config.CreateIssues = &CreateIssuesConfig{}
+	// Test empty safe-jobs
+	if HasSafeJobsEnabled(nil) {
+		t.Error("Expected HasSafeJobsEnabled to return false when safe-jobs are nil")
+	}
 	
-	if !HasSafeOutputsEnabled(config) {
-		t.Error("Expected HasSafeOutputsEnabled to return true with both safe-jobs and create-issues")
+	if HasSafeJobsEnabled(map[string]*SafeJobConfig{}) {
+		t.Error("Expected HasSafeJobsEnabled to return false when safe-jobs are empty")
 	}
 }
 
@@ -168,30 +168,30 @@ func TestBuildSafeJobs(t *testing.T) {
 	
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		SafeOutputs: &SafeOutputsConfig{
-			SafeJobs: map[string]*SafeJobConfig{
-				"deploy": &SafeJobConfig{
-					RunsOn: "ubuntu-latest",
-					If:     "github.event.issue.number",
-					Env: map[string]string{
-						"DEPLOY_ENV": "production",
+		SafeJobs: map[string]*SafeJobConfig{
+			"deploy": &SafeJobConfig{
+				RunsOn: "ubuntu-latest",
+				If:     "github.event.issue.number",
+				Env: map[string]string{
+					"DEPLOY_ENV": "production",
+				},
+				Inputs: map[string]*SafeJobInput{
+					"environment": &SafeJobInput{
+						Description: "Target deployment environment",
+						Required:    true,
+						Type:        "choice",
+						Options:     []string{"staging", "production"},
 					},
-					Inputs: map[string]*SafeJobInput{
-						"environment": &SafeJobInput{
-							Description: "Target deployment environment",
-							Required:    true,
-							Type:        "choice",
-							Options:     []string{"staging", "production"},
-						},
-					},
-					Steps: []any{
-						map[string]any{
-							"name": "Deploy",
-							"run":  "echo 'Deploying'",
-						},
+				},
+				Steps: []any{
+					map[string]any{
+						"name": "Deploy",
+						"run":  "echo 'Deploying'",
 					},
 				},
 			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
 			Env: map[string]string{
 				"GLOBAL_VAR": "global_value",
 			},
@@ -258,24 +258,22 @@ func TestBuildSafeJobs(t *testing.T) {
 func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 	
-	// Test with no SafeOutputs
+	// Test with no SafeJobs
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
 	
 	err := c.buildSafeJobs(workflowData, "main_job")
 	if err != nil {
-		t.Errorf("Expected no error with no safe-outputs, got %v", err)
+		t.Errorf("Expected no error with no safe-jobs, got %v", err)
 	}
 	
-	// Test with SafeOutputs but no SafeJobs
-	workflowData.SafeOutputs = &SafeOutputsConfig{
-		CreateIssues: &CreateIssuesConfig{},
-	}
+	// Test with empty SafeJobs
+	workflowData.SafeJobs = map[string]*SafeJobConfig{}
 	
 	err = c.buildSafeJobs(workflowData, "main_job")
 	if err != nil {
-		t.Errorf("Expected no error with safe-outputs but no safe-jobs, got %v", err)
+		t.Errorf("Expected no error with empty safe-jobs, got %v", err)
 	}
 	
 	jobs := c.jobManager.GetAllJobs()
@@ -288,26 +286,24 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 	
 	workflowData := &WorkflowData{
-		SafeOutputs: &SafeOutputsConfig{
-			SafeJobs: map[string]*SafeJobConfig{
-				"deploy": &SafeJobConfig{
-					Inputs: map[string]*SafeJobInput{
-						"environment": &SafeJobInput{
-							Description: "Target deployment environment",
-							Required:    true,
-							Type:        "choice",
-							Options:     []string{"staging", "production"},
-						},
+		SafeJobs: map[string]*SafeJobConfig{
+			"deploy": &SafeJobConfig{
+				Inputs: map[string]*SafeJobInput{
+					"environment": &SafeJobInput{
+						Description: "Target deployment environment",
+						Required:    true,
+						Type:        "choice",
+						Options:     []string{"staging", "production"},
 					},
 				},
-				"notify": &SafeJobConfig{
-					Inputs: map[string]*SafeJobInput{
-						"message": &SafeJobInput{
-							Description: "Notification message",
-							Required:    false,
-							Type:        "string",
-							Default:     "Deployment completed",
-						},
+			},
+			"notify": &SafeJobConfig{
+				Inputs: map[string]*SafeJobInput{
+					"message": &SafeJobInput{
+						Description: "Notification message",
+						Required:    false,
+						Type:        "string",
+						Default:     "Deployment completed",
 					},
 				},
 			},

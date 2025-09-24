@@ -149,9 +149,10 @@ type WorkflowData struct {
 	Cache              string              // cache configuration
 	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions *NetworkPermissions // parsed network permissions
-	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
-	Roles              []string            // permission levels required to trigger workflow
-	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
+	SafeOutputs        *SafeOutputsConfig            // output configuration for automatic output routes
+	SafeJobs           map[string]*SafeJobConfig     // custom safe-output jobs at top level
+	Roles              []string                      // permission levels required to trigger workflow
+	CacheMemoryConfig  *CacheMemoryConfig            // parsed cache-memory configuration
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -167,7 +168,6 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
-	SafeJobs                        map[string]*SafeJobConfig              `yaml:"safe-jobs,omitempty"`      // Custom safe-output jobs
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
@@ -188,6 +188,7 @@ type SafeJobConfig struct {
 	// Additional safe-job specific properties
 	Inputs      map[string]*SafeJobInput `yaml:"inputs,omitempty"`
 	GitHubToken string                   `yaml:"github-token,omitempty"`
+	Output      string                   `yaml:"output,omitempty"`
 }
 
 // SafeJobInput defines an input parameter for a safe job, using workflow_dispatch syntax
@@ -641,6 +642,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
+	
+	// Extract safe-jobs from top level
+	workflowData.SafeJobs = c.parseSafeJobsConfig(result.Frontmatter)
 
 	// Parse the "on" section for command triggers, reactions, and other events
 	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
@@ -1292,6 +1296,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if err := c.buildSafeOutputsJobs(data, jobName, activationJobCreated, frontmatter, markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
+	
+	// Build safe-jobs if configured
+	if err := c.buildSafeJobs(data, jobName); err != nil {
+		return fmt.Errorf("failed to build safe-jobs: %w", err)
+	}
+	
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -1429,21 +1439,16 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build safe-jobs if configured
-	if err := c.buildSafeJobs(data, jobName); err != nil {
-		return fmt.Errorf("failed to build safe-jobs: %w", err)
-	}
-
 	return nil
 }
 
-// buildSafeJobs creates custom safe-output jobs defined in safe-outputs.safe-jobs
+// buildSafeJobs creates custom safe-output jobs defined at top level
 func (c *Compiler) buildSafeJobs(data *WorkflowData, mainJobName string) error {
-	if data.SafeOutputs == nil || len(data.SafeOutputs.SafeJobs) == 0 {
+	if len(data.SafeJobs) == 0 {
 		return nil
 	}
 
-	for jobName, jobConfig := range data.SafeOutputs.SafeJobs {
+	for jobName, jobConfig := range data.SafeJobs {
 		job := &Job{
 			Name: fmt.Sprintf("safe_job_%s", jobName),
 		}
@@ -2323,15 +2328,18 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	// Pass the safe-outputs configuration for validation
-	if data.SafeOutputs == nil {
+	if data.SafeOutputs == nil && len(data.SafeJobs) == 0 {
 		return ""
 	}
 	// Create a simplified config object for validation
 	safeOutputsConfig := make(map[string]any)
-	if data.SafeOutputs.CreateIssues != nil {
-		safeOutputsConfig["create-issue"] = map[string]any{}
-	}
-	if data.SafeOutputs.AddComments != nil {
+	
+	// Handle safe-outputs configuration if present
+	if data.SafeOutputs != nil {
+		if data.SafeOutputs.CreateIssues != nil {
+			safeOutputsConfig["create-issue"] = map[string]any{}
+		}
+		if data.SafeOutputs.AddComments != nil {
 		commentConfig := map[string]any{}
 		if data.SafeOutputs.AddComments.Target != "" {
 			commentConfig["target"] = data.SafeOutputs.AddComments.Target
@@ -2386,10 +2394,11 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		safeOutputsConfig["missing-tool"] = missingToolConfig
 	}
+	}
 	
 	// Add safe-jobs configuration
-	if len(data.SafeOutputs.SafeJobs) > 0 {
-		for jobName, jobConfig := range data.SafeOutputs.SafeJobs {
+	if len(data.SafeJobs) > 0 {
+		for jobName, jobConfig := range data.SafeJobs {
 			safeJobConfig := map[string]any{}
 			
 			// Add inputs information

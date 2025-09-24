@@ -17,8 +17,12 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
-		safeOutputs.MissingTool != nil ||
-		len(safeOutputs.SafeJobs) > 0
+		safeOutputs.MissingTool != nil
+}
+
+// HasSafeJobsEnabled checks if any safe-jobs are enabled at the top level
+func HasSafeJobsEnabled(safeJobs map[string]*SafeJobConfig) bool {
+	return len(safeJobs) > 0
 }
 
 // generateSafeOutputsPromptSection generates the safe-outputs instruction section for prompts
@@ -323,11 +327,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingTool = missingToolConfig
 			}
 
-			// Handle safe-jobs
-			safeJobsConfig := c.parseSafeJobsConfig(outputMap)
-			if safeJobsConfig != nil {
-				config.SafeJobs = safeJobsConfig
-			}
+
 
 			// Handle staged flag
 			if staged, exists := outputMap["staged"]; exists {
@@ -388,9 +388,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	return config
 }
 
-// parseSafeJobsConfig parses the safe-jobs configuration from frontmatter
-func (c *Compiler) parseSafeJobsConfig(outputMap map[string]any) map[string]*SafeJobConfig {
-	safeJobsSection, exists := outputMap["safe-jobs"]
+// parseSafeJobsConfig parses the safe-jobs configuration from top-level frontmatter
+func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*SafeJobConfig {
+	safeJobsSection, exists := frontmatter["safe-jobs"]
 	if !exists {
 		return nil
 	}
@@ -464,6 +464,12 @@ func (c *Compiler) parseSafeJobsConfig(outputMap map[string]any) map[string]*Saf
 		if githubToken, exists := jobConfig["github-token"]; exists {
 			if tokenStr, ok := githubToken.(string); ok {
 				safeJob.GitHubToken = tokenStr
+			}
+		}
+		
+		if output, exists := jobConfig["output"]; exists {
+			if outputStr, ok := output.(string); ok {
+				safeJob.Output = outputStr
 			}
 		}
 		
