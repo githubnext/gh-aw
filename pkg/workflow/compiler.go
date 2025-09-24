@@ -1830,7 +1830,14 @@ func (c *Compiler) buildMainJob(data *WorkflowData, jobName string, activationJo
 	if data.Command != "" {
 		// Build the command trigger condition
 		commandCondition := buildCommandOnlyCondition(data.Command)
-		jobCondition = commandCondition.Render()
+		if data.If != "" {
+			// Combine command condition with existing If condition
+			ifExpr := &ExpressionNode{Expression: data.If}
+			combinedExpr := &AndNode{Left: commandCondition, Right: ifExpr}
+			jobCondition = combinedExpr.Render()
+		} else {
+			jobCondition = commandCondition.Render()
+		}
 	} else {
 		jobCondition = data.If // Use the original If condition from the workflow data
 	}
