@@ -2,6 +2,7 @@
 on: 
   workflow_dispatch:
   command:
+  reaction: "eyes"
 engine: claude
 safe-outputs:
     staged: true
