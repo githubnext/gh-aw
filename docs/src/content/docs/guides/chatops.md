@@ -3,13 +3,13 @@ title: Implementing ChatOps with Agentic Workflows
 description: A guide to building interactive automation using command triggers and safe outputs for ChatOps-style workflows.
 ---
 
-ChatOps revolutionizes development workflows by bringing automation directly into conversations. Team members can trigger sophisticated automation by typing slash commands like `/review` or `/deploy` directly in GitHub issues and pull requests.
+ChatOps provides an easy and secure way to bring automation directly into development conversations. Team members can trigger automation by typing simple slash commands like `/review` or `/deploy` directly in GitHub issues and pull requests.
 
 GitHub Agentic Workflows makes ChatOps natural and secure through command triggers that respond to slash commands, and safe outputs that handle results securely without granting write permissions to AI agents.
 
 ## How ChatOps Works
 
-Command triggers transform any GitHub repository into a responsive automation system. When you configure a command trigger, your workflow automatically listens for specific slash commands in issues, pull requests, and comments.
+Command triggers make any GitHub repository responsive to automation commands. When you configure a command trigger, your workflow automatically listens for specific slash commands in issues, pull requests, and comments.
 
 ```yaml
 ---
