@@ -249,7 +249,7 @@ The following GitHub Actions context expressions are permitted in the markdown c
 - `${{ github.workspace }}` - The default working directory on the runner for steps
 
 ### Special Pattern Expressions
-- `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
+- `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.activation.outputs.text }}`)
 - `${{ steps.* }}` - Any outputs from previous steps in the same job
 - `${{ github.event.inputs.* }}` - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.name }}`)
 
