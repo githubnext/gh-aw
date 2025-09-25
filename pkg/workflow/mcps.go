@@ -111,8 +111,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		return
 	}
 
-	// Write safe-outputs MCP server if enabled
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	// Write safe-outputs MCP server if enabled (either safe-outputs or safe-jobs)
+	hasSafeOutputs := workflowData != nil && 
+		((workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)) ||
+		 (workflowData.SafeJobs != nil && HasSafeJobsEnabled(workflowData.SafeJobs)))
 	if hasSafeOutputs {
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
 		yaml.WriteString("        run: |\n")
@@ -136,7 +138,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("        env:\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-			if workflowData.SafeOutputs.UploadAssets != nil {
+			if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
 				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
 				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
 				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
