@@ -1,6 +1,11 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+)
 
 // SafeJobConfig defines a safe job configuration with GitHub Actions job properties
 type SafeJobConfig struct {
@@ -177,6 +182,112 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 	}
 
 	return result
+}
+
+// buildSafeJobs creates custom safe-output jobs defined at top level
+func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
+	if len(data.SafeJobs) == 0 {
+		return nil
+	}
+
+	for jobName, jobConfig := range data.SafeJobs {
+		job := &Job{
+			Name: jobName,
+		}
+
+		// Set custom job name if specified
+		if jobConfig.Name != "" {
+			job.DisplayName = jobConfig.Name
+		}
+
+		// Add dependency on main job
+		job.Needs = append(job.Needs, constants.AgentJobName)
+
+		// Add any additional dependencies from the config
+		job.Needs = append(job.Needs, jobConfig.Needs...)
+
+		// Set runs-on
+		if jobConfig.RunsOn != nil {
+			if runsOnStr, ok := jobConfig.RunsOn.(string); ok {
+				job.RunsOn = fmt.Sprintf("runs-on: %s", runsOnStr)
+			} else if runsOnList, ok := jobConfig.RunsOn.([]any); ok {
+				// Handle array format
+				var runsOnItems []string
+				for _, item := range runsOnList {
+					if itemStr, ok := item.(string); ok {
+						runsOnItems = append(runsOnItems, fmt.Sprintf("      - %s", itemStr))
+					}
+				}
+				if len(runsOnItems) > 0 {
+					job.RunsOn = fmt.Sprintf("runs-on:\n%s", strings.Join(runsOnItems, "\n"))
+				}
+			}
+		} else {
+			job.RunsOn = "runs-on: ubuntu-latest" // Default
+		}
+
+		// Set if condition
+		if jobConfig.If != "" {
+			job.If = c.extractExpressionFromIfString(jobConfig.If)
+		}
+
+		// Build job steps
+		var steps []string
+
+		// Add step to download agent output artifact
+		steps = append(steps, "      - name: Download agent output artifact\n")
+		steps = append(steps, "        continue-on-error: true\n")
+		steps = append(steps, "        uses: actions/download-artifact@v5\n")
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          name: %s\n", constants.AgentOutputArtifactName))
+		steps = append(steps, "          path: /tmp/safe-jobs/\n")
+
+		// Add environment variables step
+		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
+
+		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
+		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName, constants.AgentOutputArtifactName))
+
+		// Add job-specific environment variables
+		if jobConfig.Env != nil {
+			for key, value := range jobConfig.Env {
+				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
+			}
+		}
+
+		// Add custom steps from the job configuration
+		if len(jobConfig.Steps) > 0 {
+			for _, step := range jobConfig.Steps {
+				if stepMap, ok := step.(map[string]any); ok {
+					stepYAML, err := c.convertStepToYAML(stepMap)
+					if err != nil {
+						return fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
+					}
+					steps = append(steps, stepYAML)
+				}
+			}
+		}
+
+		job.Steps = steps
+
+		// Set permissions if specified
+		if len(jobConfig.Permissions) > 0 {
+			var perms []string
+			for perm, level := range jobConfig.Permissions {
+				perms = append(perms, fmt.Sprintf("      %s: %s", perm, level))
+			}
+			job.Permissions = fmt.Sprintf("permissions:\n%s", strings.Join(perms, "\n"))
+		}
+
+		// Add the job to the job manager
+		if err := c.jobManager.AddJob(job); err != nil {
+			return fmt.Errorf("failed to add safe job %s: %w", jobName, err)
+		}
+	}
+
+	return nil
 }
 
 // extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map

@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	// OutputArtifactName is the standard name for GITHUB_AW_SAFE_OUTPUTS artifact
-	OutputArtifactName = "safe_output.jsonl"
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (1MB)
 	MaxLockFileSize = 1048576 // 1MB in bytes
 )
@@ -1452,112 +1450,6 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 	return nil
 }
 
-// buildSafeJobs creates custom safe-output jobs defined at top level
-func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
-	if len(data.SafeJobs) == 0 {
-		return nil
-	}
-
-	for jobName, jobConfig := range data.SafeJobs {
-		job := &Job{
-			Name: jobName,
-		}
-
-		// Set custom job name if specified
-		if jobConfig.Name != "" {
-			job.DisplayName = jobConfig.Name
-		}
-
-		// Add dependency on main job
-		job.Needs = append(job.Needs, constants.AgentJobName)
-
-		// Add any additional dependencies from the config
-		job.Needs = append(job.Needs, jobConfig.Needs...)
-
-		// Set runs-on
-		if jobConfig.RunsOn != nil {
-			if runsOnStr, ok := jobConfig.RunsOn.(string); ok {
-				job.RunsOn = fmt.Sprintf("runs-on: %s", runsOnStr)
-			} else if runsOnList, ok := jobConfig.RunsOn.([]any); ok {
-				// Handle array format
-				var runsOnItems []string
-				for _, item := range runsOnList {
-					if itemStr, ok := item.(string); ok {
-						runsOnItems = append(runsOnItems, fmt.Sprintf("      - %s", itemStr))
-					}
-				}
-				if len(runsOnItems) > 0 {
-					job.RunsOn = fmt.Sprintf("runs-on:\n%s", strings.Join(runsOnItems, "\n"))
-				}
-			}
-		} else {
-			job.RunsOn = "runs-on: ubuntu-latest" // Default
-		}
-
-		// Set if condition
-		if jobConfig.If != "" {
-			job.If = c.extractExpressionFromIfString(jobConfig.If)
-		}
-
-		// Build job steps
-		var steps []string
-
-		// Add step to download agent output artifact
-		steps = append(steps, "      - name: Download agent output artifact\n")
-		steps = append(steps, "        continue-on-error: true\n")
-		steps = append(steps, "        uses: actions/download-artifact@v5\n")
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          name: %s\n", OutputArtifactName))
-		steps = append(steps, "          path: /tmp/safe-jobs/\n")
-
-		// Add environment variables step
-		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
-
-		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s\" >> $GITHUB_ENV\n", OutputArtifactName))
-
-		// Add job-specific environment variables
-		if jobConfig.Env != nil {
-			for key, value := range jobConfig.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
-			}
-		}
-
-		// Add custom steps from the job configuration
-		if len(jobConfig.Steps) > 0 {
-			for _, step := range jobConfig.Steps {
-				if stepMap, ok := step.(map[string]any); ok {
-					stepYAML, err := c.convertStepToYAML(stepMap)
-					if err != nil {
-						return fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
-					}
-					steps = append(steps, stepYAML)
-				}
-			}
-		}
-
-		job.Steps = steps
-
-		// Set permissions if specified
-		if len(jobConfig.Permissions) > 0 {
-			var perms []string
-			for perm, level := range jobConfig.Permissions {
-				perms = append(perms, fmt.Sprintf("      %s: %s", perm, level))
-			}
-			job.Permissions = fmt.Sprintf("permissions:\n%s", strings.Join(perms, "\n"))
-		}
-
-		// Add the job to the job manager
-		if err := c.jobManager.AddJob(job); err != nil {
-			return fmt.Errorf("failed to add safe job %s: %w", jobName, err)
-		}
-	}
-
-	return nil
-}
-
 // buildCheckMembershipJob creates the check-membership job that validates team membership levels
 func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
 	outputs := map[string]string{
@@ -2458,7 +2350,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", OutputArtifactName)
+	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
 	yaml.WriteString("          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
