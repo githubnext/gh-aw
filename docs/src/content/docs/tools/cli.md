@@ -448,8 +448,8 @@ gh aw uninstall org/repo --local
 
 ## Related Documentation
 
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and file organization
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - Configuration options for workflows
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Secure output processing including issue updates
-- [Tools Configuration](/gh-aw/reference/tools/) - GitHub and MCP server configuration
-- [Include Directives](/gh-aw/reference/include-directives/) - Modularizing workflows with includes
+- [Workflow Structure](workflow-structure.md) - Directory layout and file organization
+- [Frontmatter Options](frontmatter.md) - Configuration options for workflows
+- [Tools Configuration](tools.md) - GitHub and MCP server configuration
+- [Include Directives](include-directives.md) - Modularizing workflows with includes
+- [Secrets Management](secrets.md) - Managing secrets and environment variables
