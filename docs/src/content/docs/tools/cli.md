@@ -305,8 +305,12 @@ gh aw mcp inspect workflow-name --inspector
 
 ### MCP Server Management
 
+The MCP commands help you discover, add, and manage MCP servers from the GitHub MCP registry.
+
+#### Adding MCP Servers from Registry
+
 ```bash
-# List available MCP servers from the registry
+# List available MCP servers from the GitHub MCP registry
 gh aw mcp add
 
 # Add an MCP server to a workflow from the registry
@@ -320,7 +324,18 @@ gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion
 
 # Use custom MCP registry
 gh aw mcp add weekly-research server-name --registry https://custom.registry.com/v1
+```
 
+**Key Features:**
+- **Automatic Configuration**: Uses the modern `mcp-servers:` format in your workflow frontmatter
+- **Registry Integration**: Connects to GitHub's MCP registry at `https://api.mcp.github.com/v0` by default
+- **Automatic Compilation**: Compiles the workflow after adding the MCP server
+- **Transport Selection**: Supports stdio, HTTP, and Docker transports
+- **Custom Registries**: Can connect to private or custom MCP registries
+
+#### MCP Server Development
+
+```bash
 # Launch MCP server exposing gh-aw CLI tools
 gh aw mcp serve
 

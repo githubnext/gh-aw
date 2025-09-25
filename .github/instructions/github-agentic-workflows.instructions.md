@@ -462,6 +462,19 @@ tools:
 ```
 
 ### Custom MCP Tools
+
+**Modern `mcp-servers:` format (recommended):**
+```yaml
+mcp-servers:
+  my-custom-tool:
+    command: "node"
+    args: ["path/to/mcp-server.js"]
+    allowed:
+      - custom_function_1
+      - custom_function_2
+```
+
+**Legacy `tools:` format (still supported):**
 ```yaml
 tools:
   my-custom-tool:

@@ -105,25 +105,67 @@ tools:
 **Available Ecosystem Identifiers:**
 Same as `network:` configuration: `defaults`, `github`, `node`, `python`, `containers`, `java`, `rust`, `playwright`, etc.
 
-## Custom MCP Tools
+## MCP Server Integration
 
-Add custom Model Context Protocol servers for specialized integrations:
+### Modern MCP Configuration (Recommended)
+
+Use the dedicated `mcp-servers:` section for MCP server configuration:
+
+```yaml
+# In your workflow frontmatter
+mcp-servers:
+  custom-api:
+    command: "node"
+    args: ["custom-mcp-server.js"]
+    env:
+      API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
+
+# Separate tools section for built-in capabilities
+tools:
+  github:
+    allowed: [create_issue, update_issue]
+  playwright:
+    allowed_domains: ["github.com"]
+```
+
+### Legacy MCP Configuration
+
+The legacy approach nests MCP servers under the `tools:` section:
 
 ```yaml
 tools:
   custom-api:
     mcp:
-      command: "node"
+      command: "node"  
       args: ["custom-mcp-server.js"]
       env:
         API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
 ```
 
-**Tool Execution:**
-- Tools are configured as MCP servers that run alongside the AI engine
-- Each tool provides specific capabilities (APIs, browser automation, etc.)
-- Tools run in isolated environments with controlled access
-- Domain restrictions apply to network-enabled tools like Playwright
+> [!TIP]
+> **Migration Guidance**: Use `mcp-servers:` for new workflows to clearly separate MCP servers from built-in tools. The legacy `tools:` → `mcp:` format is still supported but not recommended for new workflows.
+
+### Adding MCP Servers from Registry
+
+The easiest way to add MCP servers is from the GitHub MCP registry:
+
+```bash
+# List available MCP servers
+gh aw mcp add
+
+# Add a specific server to your workflow  
+gh aw mcp add my-workflow makenotion/notion-mcp-server
+
+# The command automatically uses the modern mcp-servers: format
+```
+
+See the [MCP Integration Guide](/gh-aw/guides/mcps/) for comprehensive MCP server setup and configuration.
+
+**MCP Server Execution:**
+- MCP servers run alongside the AI engine to provide specialized capabilities
+- Each server provides specific tools (APIs, database access, etc.)
+- Servers run in isolated environments with controlled access
+- Domain restrictions apply to network-enabled servers
 
 ## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
 
