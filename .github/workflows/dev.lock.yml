@@ -1743,7 +1743,7 @@ jobs:
           if-no-files-found: ignore
       - name: Clean up engine output files
         run: |
-          rm -f /tmp/.copilot/logs/
+          rm -rf /tmp/.copilot/logs/
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
