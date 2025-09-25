@@ -39,16 +39,6 @@ Respond with a helpful comment that guides the user on next steps or provides im
 
 This workflow creates an intelligent issue triage system that automatically responds to new issues with contextual guidance and assistance.
 
-## Key Benefits of Issue Ops
-
-**Immediate Response**: Issues get instant acknowledgment and initial triage, improving user experience even outside business hours.
-
-**Consistent Quality**: Every issue receives the same level of analysis and appropriate response, regardless of maintainer availability.
-
-**Resource Efficiency**: Maintainers can focus on complex issues while routine triage and initial responses are handled automatically.
-
-**Pattern Recognition**: AI agents can identify common issue patterns and provide standardized responses or routing.
-
 ## Safe Output Architecture
 
 Issue Ops workflows use the `add-comment` safe output to ensure secure comment creation:
@@ -96,12 +86,12 @@ permissions:
   contents: read
   actions: read
 safe-outputs:
-  add-comment:
+  add-labels:
 ---
 
 # Bug Report Triage
 
-Analyze new issues to identify bug reports and guide users through the reporting process.
+Analyze new issues to identify bug reports and automatically add appropriate labels.
 
 Look for:
 - Steps to reproduce
@@ -109,129 +99,6 @@ Look for:
 - Environment information (OS, browser, version)
 - Error messages or stack traces
 
-If the issue appears to be a bug report but is missing key information, respond with a helpful comment requesting the missing details. Use a friendly tone and provide specific guidance on what information would be helpful.
-
-If the issue has sufficient detail, acknowledge it as a properly formatted bug report and indicate next steps.
+If the issue appears to be a bug report, add the "bug" label. If it's missing key information, also add the "needs-info" label to help maintainers identify issues that need follow-up.
 ```
 
-### Feature Request Classification
-
-```yaml
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read
-safe-outputs:
-  add-comment:
----
-
-# Feature Request Handler
-
-Identify and respond to feature requests with appropriate guidance.
-
-Analyze the issue content for:
-- New functionality requests
-- Enhancement suggestions  
-- API or integration requests
-- User experience improvements
-
-For feature requests, provide a welcoming response that:
-- Acknowledges the suggestion
-- Explains the review process
-- Links to contribution guidelines if appropriate
-- Suggests community discussion if relevant
-
-Maintain an encouraging tone while setting appropriate expectations about review timelines.
-```
-
-### Question and Support Routing
-
-```yaml
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read
-safe-outputs:
-  add-comment:
----
-
-# Support Question Router
-
-Identify support questions and provide immediate assistance or appropriate routing.
-
-Look for:
-- "How do I..." questions
-- Configuration help requests
-- Usage examples requests
-- Troubleshooting questions
-
-For questions that can be answered immediately, provide a helpful response with:
-- Direct answers when possible
-- Links to relevant documentation
-- Code examples if appropriate
-- Suggestions for further learning
-
-For complex questions that need maintainer attention, acknowledge the question and explain the support process.
-```
-
-## Advanced Issue Ops Techniques
-
-### Multi-Stage Response
-
-```yaml
-safe-outputs:
-  add-comment:
-    max: 3    # Allow multiple comments for complex workflows
-```
-
-Use multiple comments for workflows that need to:
-- Provide immediate acknowledgment  
-- Follow up with detailed analysis
-- Add additional context after processing
-
-### Cross-Repository Integration
-
-```yaml
-safe-outputs:
-  add-comment:
-    target: "*"    # Allow comments on any issue (requires issue_number in agent output)
-```
-
-For workflows that need to comment on issues in other repositories or reference external issues, use the flexible target configuration.
-
-### Scheduled Issue Analysis
-
-```yaml
-on:
-  schedule:
-    - cron: "0 9 * * 1"    # Weekly analysis
-  issues:
-    types: [opened]        # Also respond to new issues
-```
-
-Combine issue triggers with scheduled analysis for comprehensive issue management that handles both real-time responses and periodic review.
-
-## Security and Access Control
-
-Issue Ops workflows automatically have access to issue content, but follow these security practices:
-
-**Content Validation**: Always validate and sanitize user input before processing
-**Permission Boundaries**: Use minimal permissions and rely on safe outputs for write operations  
-**Rate Limiting**: Configure appropriate `max` values to prevent abuse
-**Context Awareness**: Remember that issue content is public and potentially untrusted
-
-## Getting Started with Issue Ops
-
-1. **Start Simple**: Begin with basic acknowledgment workflows before adding complex logic
-2. **Test Thoroughly**: Use private repositories to test workflows before deploying to public projects
-3. **Monitor Performance**: Review workflow logs to ensure responses are helpful and appropriate
-4. **Iterate Based on Feedback**: Adjust workflows based on user and maintainer feedback
-5. **Document Expectations**: Let users know what automated responses they can expect
-
-Issue Ops transforms issue management from reactive to proactive, providing immediate value to users while reducing maintenance burden. Start with one pattern and expand based on your project's specific needs.
