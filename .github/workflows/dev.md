@@ -1,13 +1,12 @@
 ---
 on: 
   workflow_dispatch:
-  reaction: "eyes"
   push:
     branches:
-      - copilot/*
+      - copilot*
 engine: copilot
 safe-outputs:
   create-issue:
   staged: true
 ---
-Summarize the issue.
+Summarize the issue and post the summary in a comment.
