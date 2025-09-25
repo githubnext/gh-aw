@@ -119,11 +119,45 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 						config.Allowed = append(config.Allowed, "push-to-pull-request-branch")
 					case "missing-tool":
 						config.Allowed = append(config.Allowed, "missing-tool")
+
 					}
 				}
 			}
 
 			configs = append(configs, config)
+		}
+	}
+
+	// Check for top-level safe-jobs configuration
+	if safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]; hasSafeJobs {
+		// Apply server filter if specified
+		if serverFilter == "" || strings.Contains("safe-outputs", strings.ToLower(serverFilter)) {
+			// Find existing safe-outputs config or create new one
+			var config *MCPServerConfig
+			for i := range configs {
+				if configs[i].Name == "safe-outputs" {
+					config = &configs[i]
+					break
+				}
+			}
+
+			if config == nil {
+				newConfig := MCPServerConfig{
+					Name:    "safe-outputs",
+					Type:    "stdio",
+					Command: "node",
+					Env:     make(map[string]string),
+				}
+				configs = append(configs, newConfig)
+				config = &configs[len(configs)-1]
+			}
+
+			// Add each safe-job as a tool
+			if safeJobsMap, ok := safeJobsSection.(map[string]any); ok {
+				for jobName := range safeJobsMap {
+					config.Allowed = append(config.Allowed, jobName)
+				}
+			}
 		}
 	}
 

@@ -5,41 +5,20 @@
 
 name: "Dev"
 "on":
-  issue_comment:
-    types:
-    - created
-    - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request_review_comment:
-    types:
-    - created
-    - edited
+  push:
+    branches:
+    - copilot/*
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
 run-name: "Dev"
 
 jobs:
   check-membership:
-    if: >
-      ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/dev')) ||
-      (contains(github.event.comment.body, '/dev'))) || (contains(github.event.pull_request.body, '/dev')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment'))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -47,7 +26,7 @@ jobs:
       result: ${{ steps.check-membership.outputs.result }}
       user_permission: ${{ steps.check-membership.outputs.user_permission }}
     steps:
-      - name: Check team membership for command workflow
+      - name: Check team membership for workflow
         id: check-membership
         uses: actions/github-script@v8
         env:
@@ -117,12 +96,7 @@ jobs:
 
   activation:
     needs: check-membership
-    if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/dev')) ||
-      (contains(github.event.comment.body, '/dev'))) || (contains(github.event.pull_request.body, '/dev')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment')))
+    if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     steps:
       - run: echo "Activation success"
@@ -135,10 +109,8 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
-      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
       issues: write
       pull-requests: write
-      contents: read
     outputs:
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
@@ -147,7 +119,6 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REACTION: eyes
-          GITHUB_AW_COMMAND: dev
         with:
           script: |
             async function main() {
@@ -831,11 +802,69 @@ jobs:
             debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);
             debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-            const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
-            if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
-            const TOOLS = Object.fromEntries(
-              ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [tool.name, tool])
-            );
+            const TOOLS = {};
+            ALL_TOOLS.forEach(tool => {
+              if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
+                TOOLS[tool.name] = tool;
+              }
+            });
+            Object.keys(safeOutputsConfig).forEach(configKey => {
+              const normalizedKey = normTool(configKey);
+              if (TOOLS[normalizedKey]) {
+                return;
+              }
+              if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
+                const jobConfig = safeOutputsConfig[configKey];
+                const dynamicTool = {
+                  name: normalizedKey,
+                  description: `Custom safe-job: ${configKey}`,
+                  inputSchema: {
+                    type: "object",
+                    properties: {},
+                    additionalProperties: true, 
+                  },
+                  handler: args => {
+                    const entry = {
+                      type: normalizedKey,
+                      ...args,
+                    };
+                    const entryJSON = JSON.stringify(entry);
+                    fs.appendFileSync(outputFile, entryJSON + "\n");
+                    const outputText =
+                      jobConfig && jobConfig.output
+                        ? jobConfig.output
+                        : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                    return {
+                      content: [
+                        {
+                          type: "text",
+                          text: outputText,
+                        },
+                      ],
+                    };
+                  },
+                };
+                if (jobConfig && jobConfig.inputs) {
+                  dynamicTool.inputSchema.properties = {};
+                  dynamicTool.inputSchema.required = [];
+                  Object.keys(jobConfig.inputs).forEach(inputName => {
+                    const inputDef = jobConfig.inputs[inputName];
+                    const propSchema = {
+                      type: inputDef.type || "string",
+                      description: inputDef.description || `Input parameter: ${inputName}`,
+                    };
+                    if (inputDef.options && Array.isArray(inputDef.options)) {
+                      propSchema.enum = inputDef.options;
+                    }
+                    dynamicTool.inputSchema.properties[inputName] = propSchema;
+                    if (inputDef.required) {
+                      dynamicTool.inputSchema.required.push(inputName);
+                    }
+                  });
+                }
+                TOOLS[normalizedKey] = dynamicTool;
+              }
+            });
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
             function handleMessage(req) {
@@ -923,7 +952,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-labels\":{},\"create-issue\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -964,7 +993,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          summarize and publish to issue:
+          Summarize and use print the message using the `print` tool.
           
           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
           
@@ -977,17 +1006,9 @@ jobs:
           
           ---
           
-          ## Creating an IssueAdding Labels to Issues or Pull Requests, Reporting Missing Tools or Functionality
+          ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Creating an Issue**
-          
-          To create an issue, use the create-issue tool from the safe-outputs MCP
-          
-          **Adding Labels to Issues or Pull Requests**
-          
-          To add labels to an issue or a pull request, use the add-labels tool from the safe-outputs MCP
           
           EOF
       - name: Print prompt to step summary
@@ -1155,7 +1176,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-labels\":{},\"create-issue\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         with:
           script: |
             async function main() {
@@ -1469,6 +1490,7 @@ jobs:
                     errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
                     continue;
                   }
+                  core.info(`Line ${i + 1}: type '${itemType}'`);
                   switch (itemType) {
                     case "create-issue":
                       if (!item.title || typeof item.title !== "string") {
@@ -1721,8 +1743,12 @@ jobs:
                       }
                       break;
                     default:
-                      errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
-                      continue;
+                      const jobOutputType = expectedOutputTypes[itemType];
+                      if (!jobOutputType) {
+                        errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
+                        continue;
+                      }
+                      break;
                   }
                   core.info(`Line ${i + 1}: Valid ${itemType} item`);
                   parsedItems.push(item);
@@ -2174,342 +2200,30 @@ jobs:
           path: /tmp/dev.log
           if-no-files-found: warn
 
-  create_issue:
+  print:
     needs: agent
-    if: >
-      contains(github.event.issue.body, '/dev') || contains(github.event.comment.body, '/dev') ||
-      contains(github.event.pull_request.body, '/dev')
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
-      - name: Create Output Issue
-        id: create_issue
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
         with:
-          script: |
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
-                return;
-              }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
-                );
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
-                }
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
-                if (!title) {
-                  title = createIssueItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                if (parentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
-                  bodyLines.push(`Related to #${parentIssueNumber}`);
-                }
-                const runId = context.runId;
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;
-                bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  if (parentIssueNumber) {
-                    try {
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: parentIssueNumber,
-                        body: `Created related issue: #${issue.number}`,
-                      });
-                      core.info("Added comment to parent issue #" + parentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
-                    }
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                    continue;
-                  }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
-                  throw error;
-                }
-              }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
-            }
-            (async () => {
-              await main();
-            })();
-
-  add_labels:
-    needs: agent
-    if: >
-      (contains(github.event.issue.body, '/dev') || contains(github.event.comment.body, '/dev') || contains(github.event.pull_request.body, '/dev')) &&
-      (github.event.issue.number || github.event.pull_request.number)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      labels_added: ${{ steps.add_labels.outputs.labels_added }}
-    steps:
-      - name: Add Labels
-        id: add_labels
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_LABELS_ALLOWED: "autogenerated"
-          GITHUB_AW_LABELS_MAX_COUNT: 3
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-        with:
-          script: |
-            async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.debug(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
-                return;
-              }
-              core.debug(`Found add-labels item with ${labelsItem.labels.length} labels`);
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
-                summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
-                if (labelsItem.issue_number) {
-                  summaryContent += `**Target Issue:** #${labelsItem.issue_number}\n\n`;
-                } else {
-                  summaryContent += `**Target:** Current issue/PR\n\n`;
-                }
-                if (labelsItem.labels && labelsItem.labels.length > 0) {
-                  summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Label addition preview written to step summary");
-                return;
-              }
-              const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
-              const allowedLabels = allowedLabelsEnv
-                ? allowedLabelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : undefined;
-              if (allowedLabels) {
-                core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
-              } else {
-                core.debug("No label restrictions - any labels are allowed");
-              }
-              const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-                return;
-              }
-              core.debug(`Max count: ${maxCount}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              if (!isIssueContext && !isPRContext) {
-                core.setFailed("Not running in issue or pull request context, skipping label addition");
-                return;
-              }
-              let issueNumber;
-              let contextType;
-              if (isIssueContext) {
-                if (context.payload.issue) {
-                  issueNumber = context.payload.issue.number;
-                  contextType = "issue";
-                } else {
-                  core.setFailed("Issue context detected but no issue found in payload");
-                  return;
-                }
-              } else if (isPRContext) {
-                if (context.payload.pull_request) {
-                  issueNumber = context.payload.pull_request.number;
-                  contextType = "pull request";
-                } else {
-                  core.setFailed("Pull request context detected but no pull request found in payload");
-                  return;
-                }
-              }
-              if (!issueNumber) {
-                core.setFailed("Could not determine issue or pull request number");
-                return;
-              }
-              const requestedLabels = labelsItem.labels || [];
-              core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-              for (const label of requestedLabels) {
-                if (label.startsWith("-")) {
-                  core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
-                  return;
-                }
-              }
-              let validLabels;
-              if (allowedLabels) {
-                validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
-              } else {
-                validLabels = requestedLabels;
-              }
-              let uniqueLabels = [...new Set(validLabels)];
-              if (uniqueLabels.length > maxCount) {
-                core.debug(`too many labels, keep ${maxCount}`);
-                uniqueLabels = uniqueLabels.slice(0, maxCount);
-              }
-              if (uniqueLabels.length === 0) {
-                core.info("No labels to add");
-                core.setOutput("labels_added", "");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
-            `
-                  )
-                  .write();
-                return;
-              }
-              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`);
-              try {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  labels: uniqueLabels,
-                });
-                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
-                core.setOutput("labels_added", uniqueLabels.join("\n"));
-                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${issueNumber}:
-            ${labelsListMarkdown}
-            `
-                  )
-                  .write();
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to add labels: ${errorMessage}`);
-                core.setFailed(`Failed to add labels: ${errorMessage}`);
-              }
-            }
-            await main();
+          name: agent_output.json
+          path: /tmp/safe-jobs/
+      - name: Setup Safe Job Environment Variables
+        run: |
+          echo "Setting up environment for safe job"
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
+      - name: See artifacts
+        run: cd /tmp/safe-jobs && ls -lR
+      - name: print message
+        run: |-
+          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
+            echo "print: $MESSAGE"
+            echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
+          else
+            echo "No agent output found, using default: Hello from safe-job!"
+          fi
 

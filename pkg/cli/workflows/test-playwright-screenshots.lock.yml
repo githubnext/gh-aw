@@ -666,11 +666,69 @@ jobs:
             debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);
             debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
-            const unknownTools = Object.keys(safeOutputsConfig).filter(name => !ALL_TOOLS.find(t => t.name === normTool(name)));
-            if (unknownTools.length) throw new Error(`Unknown tools in configuration: ${unknownTools.join(", ")}`);
-            const TOOLS = Object.fromEntries(
-              ALL_TOOLS.filter(({ name }) => Object.keys(safeOutputsConfig).find(config => normTool(config) === name)).map(tool => [tool.name, tool])
-            );
+            const TOOLS = {};
+            ALL_TOOLS.forEach(tool => {
+              if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
+                TOOLS[tool.name] = tool;
+              }
+            });
+            Object.keys(safeOutputsConfig).forEach(configKey => {
+              const normalizedKey = normTool(configKey);
+              if (TOOLS[normalizedKey]) {
+                return;
+              }
+              if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
+                const jobConfig = safeOutputsConfig[configKey];
+                const dynamicTool = {
+                  name: normalizedKey,
+                  description: `Custom safe-job: ${configKey}`,
+                  inputSchema: {
+                    type: "object",
+                    properties: {},
+                    additionalProperties: true, 
+                  },
+                  handler: args => {
+                    const entry = {
+                      type: normalizedKey,
+                      ...args,
+                    };
+                    const entryJSON = JSON.stringify(entry);
+                    fs.appendFileSync(outputFile, entryJSON + "\n");
+                    const outputText =
+                      jobConfig && jobConfig.output
+                        ? jobConfig.output
+                        : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                    return {
+                      content: [
+                        {
+                          type: "text",
+                          text: outputText,
+                        },
+                      ],
+                    };
+                  },
+                };
+                if (jobConfig && jobConfig.inputs) {
+                  dynamicTool.inputSchema.properties = {};
+                  dynamicTool.inputSchema.required = [];
+                  Object.keys(jobConfig.inputs).forEach(inputName => {
+                    const inputDef = jobConfig.inputs[inputName];
+                    const propSchema = {
+                      type: inputDef.type || "string",
+                      description: inputDef.description || `Input parameter: ${inputName}`,
+                    };
+                    if (inputDef.options && Array.isArray(inputDef.options)) {
+                      propSchema.enum = inputDef.options;
+                    }
+                    dynamicTool.inputSchema.properties[inputName] = propSchema;
+                    if (inputDef.required) {
+                      dynamicTool.inputSchema.required.push(inputName);
+                    }
+                  });
+                }
+                TOOLS[normalizedKey] = dynamicTool;
+              }
+            });
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
             function handleMessage(req) {
@@ -1394,6 +1452,7 @@ jobs:
                     errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
                     continue;
                   }
+                  core.info(`Line ${i + 1}: type '${itemType}'`);
                   switch (itemType) {
                     case "create-issue":
                       if (!item.title || typeof item.title !== "string") {
@@ -1646,8 +1705,12 @@ jobs:
                       }
                       break;
                     default:
-                      errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
-                      continue;
+                      const jobOutputType = expectedOutputTypes[itemType];
+                      if (!jobOutputType) {
+                        errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
+                        continue;
+                      }
+                      break;
                   }
                   core.info(`Line ${i + 1}: Valid ${itemType} item`);
                   parsedItems.push(item);

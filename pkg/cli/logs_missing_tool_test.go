@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestExtractMissingToolsFromRun tests extracting missing tools from safe output artifact files
@@ -110,7 +112,7 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create the safe output artifact file
-			safeOutputFile := filepath.Join(tmpDir, "agent_output.json")
+			safeOutputFile := filepath.Join(tmpDir, constants.AgentOutputArtifactName)
 			err := os.WriteFile(safeOutputFile, []byte(tt.safeOutputContent), 0644)
 			if err != nil {
 				t.Fatalf("Failed to create test safe output file: %v", err)

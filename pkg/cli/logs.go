@@ -810,7 +810,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 		}
 		// If the file is not already in the logDir root, copy it for convenience
 		if filepath.Dir(agentOutputPath) != logDir {
-			rootCopy := filepath.Join(logDir, "agent_output.json")
+			rootCopy := filepath.Join(logDir, constants.AgentOutputArtifactName)
 			if _, err := os.Stat(rootCopy); errors.Is(err, os.ErrNotExist) {
 				if copyErr := copyFileSimple(agentOutputPath, rootCopy); copyErr == nil && verbose {
 					fmt.Println(console.FormatInfoMessage("Copied agent_output.json to run root for easy access"))
@@ -1250,7 +1250,7 @@ func findAgentOutputFile(logDir string) (string, bool) {
 		if err != nil || info == nil {
 			return nil
 		}
-		if !info.IsDir() && strings.EqualFold(info.Name(), "agent_output.json") {
+		if !info.IsDir() && strings.EqualFold(info.Name(), constants.AgentOutputArtifactName) {
 			foundPath = path
 			return errors.New("stop") // sentinel to stop walking early
 		}
@@ -1375,7 +1375,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
-	agentOutputPath := filepath.Join(runDir, "agent_output.json")
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
 	if _, err := os.Stat(agentOutputPath); err == nil {
 		// Read the safe output artifact file
 		content, readErr := os.ReadFile(agentOutputPath)

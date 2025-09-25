@@ -1703,6 +1703,102 @@
       },
       "additionalProperties": false
     },
+    "safe-jobs": {
+      "type": "object",
+      "description": "Custom safe-output jobs that can be executed based on agentic workflow output",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+          "type": "object",
+          "description": "Custom safe-output job configuration",
+          "properties": {
+            "runs-on": {
+              "description": "Runner specification for this job",
+              "oneOf": [
+                {"type": "string"},
+                {"type": "array", "items": {"type": "string"}}
+              ]
+            },
+            "if": {
+              "type": "string",
+              "description": "Conditional expression for job execution"
+            },
+            "needs": {
+              "description": "Job dependencies beyond the main job",
+              "oneOf": [
+                {"type": "string"},
+                {"type": "array", "items": {"type": "string"}}
+              ]
+            },
+            "env": {
+              "type": "object",
+              "description": "Job-specific environment variables",
+              "patternProperties": {
+                "^[A-Za-z_][A-Za-z0-9_]*$": {"type": "string"}
+              },
+              "additionalProperties": false
+            },
+            "permissions": {
+              "$ref": "#/properties/permissions"
+            },
+            "github-token": {
+              "type": "string",
+              "description": "GitHub token for this specific job"
+            },
+            "output": {
+              "type": "string",
+              "description": "Output configuration for the safe job"
+            },
+            "inputs": {
+              "type": "object",
+              "description": "Input parameters for the safe job (workflow_dispatch syntax) - REQUIRED: at least one input must be defined",
+              "minProperties": 1,
+              "patternProperties": {
+                "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+                  "type": "object",
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                      "description": "Input parameter description"
+                    },
+                    "required": {
+                      "type": "boolean",
+                      "description": "Whether this input is required",
+                      "default": false
+                    },
+                    "default": {
+                      "type": "string",
+                      "description": "Default value for the input"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": ["string", "boolean", "choice"],
+                      "description": "Input parameter type",
+                      "default": "string"
+                    },
+                    "options": {
+                      "type": "array",
+                      "description": "Available options for choice type inputs",
+                      "items": {"type": "string"}
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "steps": {
+              "type": "array",
+              "description": "Custom steps to execute in the safe job",
+              "items": {
+                "$ref": "#/properties/githubActionsStep"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "roles": {
       "description": "Permission levels required to trigger workflow. Use 'all' to allow any user, or specify permission levels like [admin, maintainer, write, triage]",
       "oneOf": [
@@ -1721,6 +1817,66 @@
           },
           "minItems": 1
         }
+      ]
+    },
+    "githubActionsStep": {
+      "type": "object",
+      "description": "GitHub Actions workflow step",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A name for your step to display on GitHub"
+        },
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for the step"
+        },
+        "if": {
+          "type": "string",
+          "description": "Conditional expression to determine if step should run"
+        },
+        "uses": {
+          "type": "string",
+          "description": "Selects an action to run as part of a step in your job"
+        },
+        "run": {
+          "type": "string",
+          "description": "Runs command-line programs using the operating system's shell"
+        },
+        "with": {
+          "type": "object",
+          "description": "Input parameters defined by the action",
+          "additionalProperties": true
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the step",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "continue-on-error": {
+          "type": "boolean",
+          "description": "Prevents a job from failing when a step fails"
+        },
+        "timeout-minutes": {
+          "type": "number",
+          "description": "The maximum number of minutes to run the step before killing the process"
+        },
+        "working-directory": {
+          "type": "string",
+          "description": "Working directory for the step"
+        },
+        "shell": {
+          "type": "string",
+          "description": "Shell to use for the run command"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {"required": ["uses"]},
+        {"required": ["run"]}
       ]
     }
   },

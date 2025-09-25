@@ -492,6 +492,7 @@ async function main() {
         continue;
       }
 
+      core.info(`Line ${i + 1}: type '${itemType}'`);
       // Basic validation based on type
       switch (itemType) {
         case "create-issue":
@@ -792,8 +793,13 @@ async function main() {
           break;
 
         default:
-          errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
-          continue;
+          const jobOutputType = expectedOutputTypes[itemType];
+          if (!jobOutputType) {
+            errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
+            continue;
+          }
+          // TODO: validate inputs and apply sanitizations based on the inputs schema
+          break;
       }
 
       core.info(`Line ${i + 1}: Valid ${itemType} item`);

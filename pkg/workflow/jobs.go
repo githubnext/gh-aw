@@ -11,6 +11,7 @@ import (
 // Job represents a GitHub Actions job with all its properties
 type Job struct {
 	Name           string
+	DisplayName    string // Optional display name for the job (name property in YAML)
 	RunsOn         string
 	If             string
 	Permissions    string
@@ -146,6 +147,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 	var yaml strings.Builder
 
 	yaml.WriteString(fmt.Sprintf("  %s:\n", job.Name))
+
+	// Add display name if present
+	if job.DisplayName != "" {
+		yaml.WriteString(fmt.Sprintf("    name: %s\n", job.DisplayName))
+	}
 
 	// Add needs clause if there are dependencies
 	if len(job.Needs) > 0 {

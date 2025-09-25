@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	// OutputArtifactName is the standard name for GITHUB_AW_SAFE_OUTPUTS artifact
-	OutputArtifactName = "safe_output.jsonl"
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (1MB)
 	MaxLockFileSize = 1048576 // 1MB in bytes
 )
@@ -142,16 +140,17 @@ type WorkflowData struct {
 	AI                 string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig       *EngineConfig // Extended engine configuration
 	StopTime           string
-	Command            string              // for /command trigger support
-	CommandOtherEvents map[string]any      // for merging command with other events
-	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
-	Jobs               map[string]any      // custom job configurations with dependencies
-	Cache              string              // cache configuration
-	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.activation.outputs.text }}
-	NetworkPermissions *NetworkPermissions // parsed network permissions
-	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
-	Roles              []string            // permission levels required to trigger workflow
-	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
+	Command            string                    // for /command trigger support
+	CommandOtherEvents map[string]any            // for merging command with other events
+	AIReaction         string                    // AI reaction type like "eyes", "heart", etc.
+	Jobs               map[string]any            // custom job configurations with dependencies
+	Cache              string                    // cache configuration
+	NeedsTextOutput    bool                      // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions *NetworkPermissions       // parsed network permissions
+	SafeOutputs        *SafeOutputsConfig        // output configuration for automatic output routes
+	SafeJobs           map[string]*SafeJobConfig // custom safe-output jobs at top level
+	Roles              []string                  // permission levels required to trigger workflow
+	CacheMemoryConfig  *CacheMemoryConfig        // parsed cache-memory configuration
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes
@@ -620,6 +619,18 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
+	// Extract safe-jobs from top level and process includes
+	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
+
+	// Process @include directives to extract additional safe-jobs (reuse the same includedTools JSON)
+	// Since ExpandIncludes extracts all frontmatter as JSON, we can use the same result
+	includedSafeJobs, err := c.mergeSafeJobsFromIncludes(topSafeJobs, includedTools)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
+	}
+
+	workflowData.SafeJobs = includedSafeJobs
+
 	// Parse the "on" section for command triggers, reactions, and other events
 	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
 	if err != nil {
@@ -934,6 +945,30 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 	return mergedTools, nil
+}
+
+// mergeSafeJobsFromIncludes merges safe-jobs from included files and detects conflicts
+func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConfig, includedContentJSON string) (map[string]*SafeJobConfig, error) {
+	if includedContentJSON == "" || includedContentJSON == "{}" {
+		return topSafeJobs, nil
+	}
+
+	// Parse the included content as frontmatter to extract safe-jobs
+	var includedContent map[string]any
+	if err := json.Unmarshal([]byte(includedContentJSON), &includedContent); err != nil {
+		return topSafeJobs, nil // Return original safe-jobs if parsing fails
+	}
+
+	// Extract safe-jobs from the included content
+	includedSafeJobs := extractSafeJobsFromFrontmatter(includedContent)
+
+	// Merge with conflict detection
+	mergedSafeJobs, err := mergeSafeJobs(topSafeJobs, includedSafeJobs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge safe-jobs: %w", err)
+	}
+
+	return mergedSafeJobs, nil
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
@@ -1266,9 +1301,15 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build safe outputs jobs if configured
-	if err := c.buildSafeOutputsJobs(data, "agent", activationJobCreated, frontmatter, markdownPath); err != nil {
+	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, activationJobCreated, frontmatter, markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
+
+	// Build safe-jobs if configured
+	if err := c.buildSafeJobs(data); err != nil {
+		return fmt.Errorf("failed to build safe-jobs: %w", err)
+	}
+
 	// Build additional custom jobs from frontmatter jobs section
 	if err := c.buildCustomJobs(data); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
@@ -2183,69 +2224,103 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	// Pass the safe-outputs configuration for validation
-	if data.SafeOutputs == nil {
+	if data.SafeOutputs == nil && len(data.SafeJobs) == 0 {
 		return ""
 	}
 	// Create a simplified config object for validation
 	safeOutputsConfig := make(map[string]any)
-	if data.SafeOutputs.CreateIssues != nil {
-		safeOutputsConfig["create-issue"] = map[string]any{}
-	}
-	if data.SafeOutputs.AddComments != nil {
-		commentConfig := map[string]any{}
-		if data.SafeOutputs.AddComments.Target != "" {
-			commentConfig["target"] = data.SafeOutputs.AddComments.Target
+
+	// Handle safe-outputs configuration if present
+	if data.SafeOutputs != nil {
+		if data.SafeOutputs.CreateIssues != nil {
+			safeOutputsConfig["create-issue"] = map[string]any{}
 		}
-		safeOutputsConfig["add-comment"] = commentConfig
-	}
-	if data.SafeOutputs.CreateDiscussions != nil {
-		discussionConfig := map[string]any{}
-		if data.SafeOutputs.CreateDiscussions.Max > 0 {
-			discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
+		if data.SafeOutputs.AddComments != nil {
+			commentConfig := map[string]any{}
+			if data.SafeOutputs.AddComments.Target != "" {
+				commentConfig["target"] = data.SafeOutputs.AddComments.Target
+			}
+			safeOutputsConfig["add-comment"] = commentConfig
 		}
-		safeOutputsConfig["create-discussion"] = discussionConfig
-	}
-	if data.SafeOutputs.CreatePullRequests != nil {
-		safeOutputsConfig["create-pull-request"] = map[string]any{}
-	}
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		prReviewCommentConfig := map[string]any{}
-		if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
-			prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
+		if data.SafeOutputs.CreateDiscussions != nil {
+			discussionConfig := map[string]any{}
+			if data.SafeOutputs.CreateDiscussions.Max > 0 {
+				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
+			}
+			safeOutputsConfig["create-discussion"] = discussionConfig
 		}
-		safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
-	}
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		// Security reports typically have unlimited max, but check if configured
-		securityReportConfig := map[string]any{}
-		if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-			securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
+		if data.SafeOutputs.CreatePullRequests != nil {
+			safeOutputsConfig["create-pull-request"] = map[string]any{}
 		}
-		safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
-	}
-	if data.SafeOutputs.AddLabels != nil {
-		safeOutputsConfig["add-labels"] = map[string]any{}
-	}
-	if data.SafeOutputs.UpdateIssues != nil {
-		safeOutputsConfig["update-issue"] = map[string]any{}
-	}
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		pushToBranchConfig := map[string]any{}
-		if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
-			pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			prReviewCommentConfig := map[string]any{}
+			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
+				prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
+			}
+			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
 		}
-		safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
-	}
-	if data.SafeOutputs.UploadAssets != nil {
-		safeOutputsConfig["upload-asset"] = map[string]any{}
-	}
-	if data.SafeOutputs.MissingTool != nil {
-		missingToolConfig := map[string]any{}
-		if data.SafeOutputs.MissingTool.Max > 0 {
-			missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+			// Security reports typically have unlimited max, but check if configured
+			securityReportConfig := map[string]any{}
+			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
+				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
+			}
+			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
 		}
-		safeOutputsConfig["missing-tool"] = missingToolConfig
+		if data.SafeOutputs.AddLabels != nil {
+			safeOutputsConfig["add-labels"] = map[string]any{}
+		}
+		if data.SafeOutputs.UpdateIssues != nil {
+			safeOutputsConfig["update-issue"] = map[string]any{}
+		}
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			pushToBranchConfig := map[string]any{}
+			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
+				pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
+			}
+			safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
+		}
+		if data.SafeOutputs.UploadAssets != nil {
+			safeOutputsConfig["upload-asset"] = map[string]any{}
+		}
+		if data.SafeOutputs.MissingTool != nil {
+			missingToolConfig := map[string]any{}
+			if data.SafeOutputs.MissingTool.Max > 0 {
+				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			}
+			safeOutputsConfig["missing-tool"] = missingToolConfig
+		}
 	}
+
+	// Add safe-jobs configuration
+	if len(data.SafeJobs) > 0 {
+		for jobName, jobConfig := range data.SafeJobs {
+			safeJobConfig := map[string]any{}
+
+			// Add inputs information
+			if len(jobConfig.Inputs) > 0 {
+				inputsConfig := make(map[string]any)
+				for inputName, inputDef := range jobConfig.Inputs {
+					inputConfig := map[string]any{
+						"type":        inputDef.Type,
+						"description": inputDef.Description,
+						"required":    inputDef.Required,
+					}
+					if inputDef.Default != "" {
+						inputConfig["default"] = inputDef.Default
+					}
+					if len(inputDef.Options) > 0 {
+						inputConfig["options"] = inputDef.Options
+					}
+					inputsConfig[inputName] = inputConfig
+				}
+				safeJobConfig["inputs"] = inputsConfig
+			}
+
+			safeOutputsConfig[jobName] = safeJobConfig
+		}
+	}
+
 	configJSON, _ := json.Marshal(safeOutputsConfig)
 	return string(configJSON)
 }
@@ -2275,7 +2350,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", OutputArtifactName)
+	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
 	yaml.WriteString("          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
