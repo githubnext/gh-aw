@@ -52,15 +52,15 @@ tools:
 When someone mentions /summarize-issue in an issue or comment, 
 analyze and provide a helpful summary.
 
-The current context text is: "${{ needs.task.outputs.text }}"
+The current context text is: "${{ needs.activation.outputs.text }}"
 ```
 
-## Context Text (`needs.task.outputs.text`)
+## Context Text (`needs.activation.outputs.text`)
 
-All workflows have access to a special computed `needs.task.outputs.text` value that provides **sanitized** context based on the triggering event:
+All workflows have access to a special computed `needs.activation.outputs.text` value that provides **sanitized** context based on the triggering event:
 
 ```markdown
-# Analyze this content: "${{ needs.task.outputs.text }}"
+# Analyze this content: "${{ needs.activation.outputs.text }}"
 ```
 
 **How `text` is computed:**
@@ -73,7 +73,7 @@ All workflows have access to a special computed `needs.task.outputs.text` value 
 
 **Why use sanitized context text instead of raw `github.event` values?**
 
-The `needs.task.outputs.text` provides critical security protections that raw context values lack:
+The `needs.activation.outputs.text` provides critical security protections that raw context values lack:
 
 - **@mention neutralization**: Prevents unintended notifications by converting `@user` to `` `@user` ``
 - **Bot trigger safety**: Protects against accidental bot commands by converting `fixes #123` to `` `fixes #123` ``
@@ -85,7 +85,7 @@ The `needs.task.outputs.text` provides critical security protections that raw co
 **Comparison:**
 ```markdown
 # RECOMMENDED: Secure sanitized context
-Analyze this issue: "${{ needs.task.outputs.text }}"
+Analyze this issue: "${{ needs.activation.outputs.text }}"
 
 # DISCOURAGED: Raw context values (security risks)
 Title: "${{ github.event.issue.title }}"

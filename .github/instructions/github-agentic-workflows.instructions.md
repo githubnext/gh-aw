@@ -372,17 +372,17 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.workspace }}`** - The default working directory on the runner for steps
 
 #### Special Pattern Expressions
-- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
+- **`${{ needs.* }}`** - Any outputs from previous jobs (e.g., `${{ needs.activation.outputs.text }}`)
 - **`${{ steps.* }}`** - Any outputs from previous steps (e.g., `${{ steps.my-step.outputs.result }}`)
 - **`${{ github.event.inputs.* }}`** - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.environment }}`)
 
 All other expressions are dissallowed.
 
-### Sanitized Context Text (`needs.task.outputs.text`)
+### Sanitized Context Text (`needs.activation.outputs.text`)
 
-**RECOMMENDED**: Use `${{ needs.task.outputs.text }}` instead of individual `github.event` fields for accessing issue/PR content.
+**RECOMMENDED**: Use `${{ needs.activation.outputs.text }}` instead of individual `github.event` fields for accessing issue/PR content.
 
-The `needs.task.outputs.text` value provides automatically sanitized content based on the triggering event:
+The `needs.activation.outputs.text` value provides automatically sanitized content based on the triggering event:
 
 - **Issues**: `title + "\n\n" + body`
 - **Pull Requests**: `title + "\n\n" + body`  
@@ -402,7 +402,7 @@ The `needs.task.outputs.text` value provides automatically sanitized content bas
 **Example Usage:**
 ```markdown
 # RECOMMENDED: Use sanitized context text
-Analyze this content: "${{ needs.task.outputs.text }}"
+Analyze this content: "${{ needs.activation.outputs.text }}"
 
 # Less secure alternative (use only when specific fields are needed)
 Issue number: ${{ github.event.issue.number }}
@@ -411,7 +411,7 @@ Repository: ${{ github.repository }}
 
 ### Accessing Individual Context Fields
 
-While `needs.task.outputs.text` is recommended for content access, you can still use individual context fields for metadata:
+While `needs.activation.outputs.text` is recommended for content access, you can still use individual context fields for metadata:
 
 ### Security Validation
 
@@ -422,12 +422,12 @@ Expression safety is automatically validated during compilation. If unauthorized
 # Valid expressions - RECOMMENDED: Use sanitized context text for security
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue content is: "${{ needs.task.outputs.text }}"
+The issue content is: "${{ needs.activation.outputs.text }}"
 
 # Alternative approach using individual fields (less secure)
 The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
 
-Using output from previous task: "${{ needs.task.outputs.text }}"
+Using output from previous task: "${{ needs.activation.outputs.text }}"
 
 Deploy to environment: "${{ github.event.inputs.environment }}"
 
@@ -462,12 +462,12 @@ tools:
 ```
 
 ### Custom MCP Tools
+
 ```yaml
-tools:
+mcp-servers:
   my-custom-tool:
-    mcp:
-      command: "node"
-      args: ["path/to/mcp-server.js"]
+    command: "node"
+    args: ["path/to/mcp-server.js"]
     allowed:
       - custom_function_1
       - custom_function_2
@@ -925,7 +925,7 @@ Agentic workflows compile to GitHub Actions YAML:
 9. **Use specific tool permissions** rather than broad access
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
-12. **Prefer sanitized context text** - Use `${{ needs.task.outputs.text }}` instead of raw `github.event` fields for security
+12. **Prefer sanitized context text** - Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for security
 
 ## Validation
 

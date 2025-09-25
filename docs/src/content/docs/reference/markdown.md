@@ -92,14 +92,14 @@ Use sanitized context text and GitHub Actions expressions to provide secure, rel
 # RECOMMENDED: Use sanitized context text for security
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The content to analyze: "${{ needs.task.outputs.text }}"
+The content to analyze: "${{ needs.activation.outputs.text }}"
 
 # DISCOURAGED: Raw context fields (security risks from untrusted content)
 The issue title is: "${{ github.event.issue.title }}"
 The issue body is: "${{ github.event.issue.body }}"
 ```
 
-**Why prefer `needs.task.outputs.text`?**
+**Why prefer `needs.activation.outputs.text`?**
 - Automatically sanitizes @mentions, bot triggers, XML tags, and malicious URIs
 - Prevents prompt injection attacks through user-controlled content
 - Limits content size to prevent DoS through excessive text
@@ -249,7 +249,7 @@ The following GitHub Actions context expressions are permitted in the markdown c
 - `${{ github.workspace }}` - The default working directory on the runner for steps
 
 ### Special Pattern Expressions
-- `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.task.outputs.text }}`)
+- `${{ needs.* }}` - Any outputs from previous jobs (e.g., `${{ needs.activation.outputs.text }}`)
 - `${{ steps.* }}` - Any outputs from previous steps in the same job
 - `${{ github.event.inputs.* }}` - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.name }}`)
 
@@ -285,7 +285,7 @@ allowed: [github.repository, github.actor, github.workflow, ...]
 Repository: ${{ github.repository }}
 Triggered by: ${{ github.actor }}  
 Issue number: ${{ github.event.issue.number }}
-Content to analyze: "${{ needs.task.outputs.text }}"
+Content to analyze: "${{ needs.activation.outputs.text }}"
 User input: ${{ github.event.inputs.environment }}
 Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}
 
@@ -301,7 +301,7 @@ Complex: ${{ toJson(github.workflow) }}
 
 ## Best Practices
 
-- **Use sanitized context text**: Prefer `${{ needs.task.outputs.text }}` over raw `github.event.*` fields for user content
+- **Use sanitized context text**: Prefer `${{ needs.activation.outputs.text }}` over raw `github.event.*` fields for user content
 - **Use allowed expressions**: Stick to the permitted GitHub context expressions
 - **Reference event metadata**: Use `${{ github.event.* }}` for IDs, numbers, and other non-user-controlled metadata  
 - **Leverage workflow context**: Use `${{ github.repository }}`, `${{ github.actor }}` for basic context

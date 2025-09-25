@@ -39,7 +39,7 @@ func TestValidateExpressionSafety(t *testing.T) {
 		},
 		{
 			name:        "allowed_needs_task_outputs_text",
-			content:     "Task output: ${{ needs.task.outputs.text }}",
+			content:     "Task output: ${{ needs.activation.outputs.text }}",
 			expectError: false,
 		},
 		{
@@ -89,7 +89,7 @@ func TestValidateExpressionSafety(t *testing.T) {
 		},
 		{
 			name:        "multiple_allowed_expressions",
-			content:     "Workflow: ${{ github.workflow }}, Repository: ${{ github.repository }}, Output: ${{ needs.task.outputs.text }}",
+			content:     "Workflow: ${{ github.workflow }}, Repository: ${{ github.repository }}, Output: ${{ needs.activation.outputs.text }}",
 			expectError: false,
 		},
 		{

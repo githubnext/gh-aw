@@ -1150,15 +1150,15 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
 }
 
-// detectTextOutputUsage checks if the markdown content uses ${{ needs.task.outputs.text }}
+// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 	// Check for the specific GitHub Actions expression
-	hasUsage := strings.Contains(markdownContent, "${{ needs.task.outputs.text }}")
+	hasUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
 	if c.verbose {
 		if hasUsage {
-			fmt.Println(console.FormatInfoMessage("Detected usage of task.outputs.text - compute-text step will be included"))
+			fmt.Println(console.FormatInfoMessage("Detected usage of activation.outputs.text - compute-text step will be included"))
 		} else {
-			fmt.Println(console.FormatInfoMessage("No usage of task.outputs.text found - compute-text step will be skipped"))
+			fmt.Println(console.FormatInfoMessage("No usage of activation.outputs.text found - compute-text step will be skipped"))
 		}
 	}
 	return hasUsage

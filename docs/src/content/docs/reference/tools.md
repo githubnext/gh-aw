@@ -105,25 +105,46 @@ tools:
 **Available Ecosystem Identifiers:**
 Same as `network:` configuration: `defaults`, `github`, `node`, `python`, `containers`, `java`, `rust`, `playwright`, etc.
 
-## Custom MCP Tools
+## MCP Server Integration
 
-Add custom Model Context Protocol servers for specialized integrations:
+Use the dedicated `mcp-servers:` section for MCP server configuration:
 
 ```yaml
-tools:
+# In your workflow frontmatter
+mcp-servers:
   custom-api:
-    mcp:
-      command: "node"
-      args: ["custom-mcp-server.js"]
-      env:
-        API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
+    command: "node"
+    args: ["custom-mcp-server.js"]
+    env:
+      API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
+
+# Separate tools section for built-in capabilities
+tools:
+  github:
+    allowed: [create_issue, update_issue]
+  playwright:
+    allowed_domains: ["github.com"]
 ```
 
-**Tool Execution:**
-- Tools are configured as MCP servers that run alongside the AI engine
-- Each tool provides specific capabilities (APIs, browser automation, etc.)
-- Tools run in isolated environments with controlled access
-- Domain restrictions apply to network-enabled tools like Playwright
+### Adding MCP Servers from Registry
+
+The easiest way to add MCP servers is from the GitHub MCP registry:
+
+```bash
+# List available MCP servers
+gh aw mcp add
+
+# Add a specific server to your workflow  
+gh aw mcp add my-workflow makenotion/notion-mcp-server
+```
+
+See the [MCP Integration Guide](/gh-aw/guides/mcps/) for comprehensive MCP server setup and configuration.
+
+**MCP Server Execution:**
+- MCP servers run alongside the AI engine to provide specialized capabilities
+- Each server provides specific tools (APIs, database access, etc.)
+- Servers run in isolated environments with controlled access
+- Domain restrictions apply to network-enabled servers
 
 ## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
 
