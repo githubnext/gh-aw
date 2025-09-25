@@ -462,12 +462,12 @@ tools:
 ```
 
 ### Custom MCP Tools
+
 ```yaml
-tools:
+mcp-servers:
   my-custom-tool:
-    mcp:
-      command: "node"
-      args: ["path/to/mcp-server.js"]
+    command: "node"
+    args: ["path/to/mcp-server.js"]
     allowed:
       - custom_function_1
       - custom_function_2

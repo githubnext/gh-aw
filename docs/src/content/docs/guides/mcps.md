@@ -18,30 +18,67 @@ Model Context Protocol (MCP) is a standardized protocol that allows AI agents to
 
 ### Basic MCP Configuration
 
-Add MCP servers to your workflow's frontmatter:
+Add MCP servers to your workflow's frontmatter using the `mcp-servers:` section:
 
 ```yaml
 ---
-tools:
-  github:
-    allowed: [get_issue, add_issue_comment]
-  
+on: issues
+permissions:
+  contents: read
+  issues: write
+engine: claude
+mcp-servers:
   trello:
-    type: stdio
     command: "python"
     args: ["-m", "trello_mcp"]
     env:
       TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
-    allowed: ["list_boards"]
+    allowed: ["list_boards", "create_card"]
+  
+  notion:
+    registry: https://api.mcp.github.com/v0/servers/makenotion/notion-mcp-server
+    command: npx
+    args: ["-y", "@makenotion/notion-mcp-server"]
+    env:
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
+    allowed: ["search_pages", "create_page"]
 ---
 
 # Your workflow content here
 ```
 
 > [!TIP]
-> You can inspect test your MCP configuration by running <br/>
+> You can inspect and test your MCP configuration by running <br/>
 > `gh aw mcp inspect <workflow-file>`
 
+
+### Adding MCP Servers from the Registry
+
+The easiest way to add MCP servers is using the GitHub MCP registry with the `gh aw mcp add` command:
+
+```bash
+# List available MCP servers from the registry
+gh aw mcp add
+
+# Add a specific MCP server to your workflow
+gh aw mcp add my-workflow makenotion/notion-mcp-server
+
+# Add with specific transport preference
+gh aw mcp add my-workflow makenotion/notion-mcp-server --transport stdio
+
+# Add with custom tool ID
+gh aw mcp add my-workflow makenotion/notion-mcp-server --tool-id my-notion
+
+# Use a custom registry
+gh aw mcp add my-workflow server-name --registry https://custom.registry.com/v1
+```
+
+This command automatically:
+- Searches the MCP registry for the specified server
+- Adds the server configuration to your workflow's `mcp-servers:` section (using the modern format)
+- Compiles the workflow to generate the `.lock.yml` file
+
+**Default Registry**: `https://api.mcp.github.com/v0`
 
 ### Engine Compatibility
 
@@ -59,9 +96,8 @@ Different AI engines support different MCP features:
 Direct command execution with stdin/stdout communication:
 
 ```yaml
-tools:
+mcp-servers:
   python-service:
-    type: stdio
     command: "python"
     args: ["-m", "my_mcp_server"]
     env:
@@ -77,9 +113,8 @@ tools:
 Containerized MCP servers for isolation and portability:
 
 ```yaml
-tools:
+mcp-servers:
   notion:
-    type: stdio
     container: "mcp/notion"
     env:
       NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
@@ -97,9 +132,8 @@ The `container` field automatically generates:
 Remote MCP servers accessible via HTTP (Claude engine only):
 
 ```yaml
-tools:
+mcp-servers:
   remote-api:
-    type: http
     url: "https://api.example.com/mcp"
     headers:
       Authorization: "Bearer ${{ secrets.API_TOKEN }}"
@@ -108,6 +142,21 @@ tools:
 ```
 
 **Use cases**: Cloud services, remote APIs, shared infrastructure
+
+### 4. Registry-based MCP Servers
+
+MCP servers that reference entries in the GitHub MCP registry:
+
+```yaml
+mcp-servers:
+  markitdown:
+    registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
+    command: npx
+    args: ["-y", "@microsoft/markitdown"]
+    allowed: ["convert_html", "convert_pdf"]
+```
+
+**Registry Reference**: The `registry` field provides metadata about the MCP server's origin and can help with tooling and documentation.
 
 ## GitHub MCP Integration
 
@@ -131,9 +180,8 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), you ca
 ### Specific Tools
 
 ```yaml
-tools:
+mcp-servers:
   custom-server:
-    type: stdio
     command: "python"
     args: ["-m", "my_server"]
     allowed: ["tool1", "tool2", "tool3"]
@@ -148,9 +196,8 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 ### Wildcard Access
 
 ```yaml
-tools:
+mcp-servers:
   custom-server:
-    type: stdio
     command: "python"
     args: ["-m", "my_server"]
     allowed: ["*"]  # Allow ALL tools from this server
@@ -160,10 +207,11 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 
 ### HTTP Headers
 
+HTTP headers can be configured for remote MCP servers:
+
 ```yaml
-tools:
+mcp-servers:
   remote-api:
-    type: http
     url: "https://api.service.com"
     headers:
       Authorization: "Bearer ${{ secrets.API_TOKEN }}"
@@ -175,9 +223,8 @@ tools:
 Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `permissions.network.allowed`.
 
 ```yaml
-tools:
+mcp-servers:
   fetch:
-    type: stdio
     container: mcp/fetch
     permissions:
       network:
@@ -201,8 +248,8 @@ Notes:
 
 The compiler enforces these network permission rules:
 
-- ❌ **HTTP servers**: `network egress permissions do not apply to remote 'type: http' servers`
-- ❌ **Non-container stdio**: `network egress permissions only apply to stdio MCP servers that specify a 'container'`  
+- ❌ **HTTP servers**: `network egress permissions do not apply to remote HTTP MCP servers`
+- ❌ **Non-container stdio**: `network egress permissions only apply to containerized MCP servers`  
 - ✅ **Container stdio**: Network permissions work correctly
 
 ## Debugging and Troubleshooting
