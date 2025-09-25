@@ -193,7 +193,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "expression with tabs and newlines", 
+			name:     "expression with tabs and newlines",
 			input:    "a\t&&\tb\n||\nc",
 			expected: "((a) && (b)) || (c)",
 			wantErr:  false,
@@ -281,7 +281,7 @@ func TestParseExpressionComprehensive(t *testing.T) {
 			errorString: "unexpected token '||'",
 		},
 
-		// Error cases - NOT operator issues  
+		// Error cases - NOT operator issues
 		{
 			name:        "NOT at end without operand",
 			input:       "a && !",
@@ -402,7 +402,7 @@ func TestExpressionParserEdgeCases(t *testing.T) {
 			description: "Single quotes inside double quotes should not terminate the string",
 		},
 		{
-			name:        "double quotes inside single quotes", 
+			name:        "double quotes inside single quotes",
 			input:       "github.workflow == 'hello \"world\"' && github.repository",
 			shouldError: false,
 			description: "Double quotes inside single quotes should not terminate the string",
@@ -426,7 +426,7 @@ func TestExpressionParserEdgeCases(t *testing.T) {
 	}
 }
 
-// TestExpressionSafetyComprehensive tests comprehensive expression safety validation  
+// TestExpressionSafetyComprehensive tests comprehensive expression safety validation
 func TestExpressionSafetyComprehensive(t *testing.T) {
 	tests := []struct {
 		name        string
