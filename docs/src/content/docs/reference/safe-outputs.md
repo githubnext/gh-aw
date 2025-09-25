@@ -311,9 +311,9 @@ Analyze the latest commit and suggest improvements.
 
 If your workflow consistently falls back to creating issues instead of pull requests, check:
 
-1. **Organization Settings**: Navigate to Organization Settings → Actions → General → Workflow permissions
+1. **Organization Settings** (requires admin privileges): Navigate to Organization Settings → Actions → General, then scroll to the 'Workflow permissions' section
 2. **Enable PR Creation**: Ensure "Allow GitHub Actions to create and approve pull requests" is enabled
-3. **Repository Settings**: For repositories, check Settings → Actions → General → Workflow permissions for similar restrictions
+3. **Repository Settings**: Repository admins can check Repository Settings → Actions → General → Workflow permissions. Note that repository settings can only be more restrictive than organization defaults, not more permissive
 4. **Branch Protection**: Some branch protection rules may prevent automated PR creation
 
 When fallback occurs, the created issue will contain:
