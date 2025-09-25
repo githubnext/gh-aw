@@ -345,50 +345,14 @@ The `mcp add` command:
 - Automatically compiles the workflow to generate the `.lock.yml` file
 - Prevents adding duplicate servers to the same workflow
 
-**Serving gh-aw as MCP Server:**
-```bash
-# Launch MCP server exposing all gh-aw CLI functionality
-gh aw mcp serve
 
-# Serve with detailed logging and connection information
-gh aw mcp serve --verbose
-
-# Serve with only specific tools enabled (comma-separated list)
-gh aw mcp serve --allowed-tools compile,logs,run,status
-```
-
-**Available CLI-to-MCP Tools:**
-When using `gh aw mcp serve`, the following gh-aw CLI commands become available as MCP tools:
-- `compile` - Compile markdown workflow files to YAML
-- `logs` - Download and analyze agentic workflow logs
-- `mcp_inspect` - Inspect MCP servers and tools in workflows
-- `mcp_list` - List MCP server configurations
-- `mcp_add` - Add MCP tools to workflows from registry
-- `run` - Execute workflows on GitHub Actions
-- `enable` - Enable workflow execution
-- `disable` - Disable workflow execution
-- `status` - Show workflow status
 
 ### MCP Server Development
-
-The `mcp serve` command launches an MCP server that exposes gh-aw CLI functionality as MCP tools, making them available to AI assistants and other MCP clients:
-
-**Available MCP Tools:**
-- `compile` - Compile markdown workflow files to YAML
-- `logs` - Download and analyze agentic workflow logs  
-- `mcp_inspect` - Inspect MCP servers and tools
-- `mcp_list` - List MCP server configurations
-- `mcp_add` - Add MCP tools to workflows
-- `run` - Execute workflows on GitHub Actions
-- `enable` - Enable workflow execution
-- `disable` - Disable workflow execution  
-- `status` - Show workflow status
 
 **Key Features:**
 - **`mcp list`**: Quick overview of MCP servers across workflows with structured table output
 - **`mcp inspect`**: Deep inspection with server connection testing and tool capability analysis
 - **`mcp add`**: Registry-based MCP server addition with automatic workflow compilation
-- **`mcp serve`**: Expose gh-aw functionality as MCP tools for AI assistants
 - Server discovery and connection testing
 - Tool and capability inspection
 - Detailed tool information with `--tool` flag

@@ -259,33 +259,6 @@ gh aw mcp add weekly-research server-name --registry https://custom.registry.com
 - **Transport Selection**: Automatically chooses best available transport (stdio preferred)
 - **Automatic Compilation**: Compiles workflow after adding MCP server
 
-### Exposing gh-aw as MCP Server
-
-Launch an MCP server that exposes gh-aw CLI functionality to AI assistants:
-
-```bash
-# Launch MCP server exposing all gh-aw tools
-gh aw mcp serve
-
-# Launch with verbose logging
-gh aw mcp serve --verbose
-
-# Launch with only specific tools enabled
-gh aw mcp serve --allowed-tools compile,logs,run
-```
-
-**Available MCP Tools:**
-- `compile` - Compile markdown workflow files to YAML
-- `logs` - Download and analyze agentic workflow logs
-- `mcp_inspect` - Inspect MCP servers and tools
-- `mcp_list` - List MCP server configurations
-- `mcp_add` - Add MCP tools to workflows
-- `run` - Execute workflows on GitHub Actions
-- `enable` - Enable workflow execution
-- `disable` - Disable workflow execution
-- `status` - Show workflow status
-
-This enables AI assistants to manage GitHub Agentic Workflows through the standardized MCP protocol.
 
 ## Debugging and Troubleshooting
 
