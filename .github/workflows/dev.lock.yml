@@ -1213,7 +1213,7 @@ jobs:
                 return sanitized.trim();
                 function sanitizeUrlDomains(s) {
                   return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
-                    const urlAfterProtocol = match.slice(8); 
+                    const urlAfterProtocol = match.slice(8);
                     const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
                     const isAllowed = allowedDomains.some(allowedDomain => {
                       const normalizedAllowed = allowedDomain.toLowerCase();
@@ -1246,29 +1246,29 @@ jobs:
                 }
                 switch (itemType) {
                   case "create-issue":
-                    return 1; 
+                    return 1;
                   case "add-comment":
-                    return 1; 
+                    return 1;
                   case "create-pull-request":
-                    return 1; 
+                    return 1;
                   case "create-pull-request-review-comment":
-                    return 1; 
+                    return 1;
                   case "add-labels":
-                    return 5; 
+                    return 5;
                   case "update-issue":
-                    return 1; 
+                    return 1;
                   case "push-to-pull-request-branch":
-                    return 1; 
+                    return 1;
                   case "create-discussion":
-                    return 1; 
+                    return 1;
                   case "missing-tool":
-                    return 1000; 
+                    return 1000;
                   case "create-code-scanning-alert":
-                    return 1000; 
+                    return 1000;
                   case "upload-asset":
-                    return 10; 
+                    return 10;
                   default:
-                    return 1; 
+                    return 1;
                 }
               }
               function repairJson(jsonStr) {
@@ -1468,7 +1468,7 @@ jobs:
               const errors = [];
               for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
-                if (line === "") continue; 
+                if (line === "") continue;
                 try {
                   const item = parseJsonWithRepair(line);
                   if (item === undefined) {
@@ -1504,7 +1504,7 @@ jobs:
                       item.title = sanitizeContent(item.title);
                       item.body = sanitizeContent(item.body);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map( label => (typeof label === "string" ? sanitizeContent(label) : label));
+                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
                       break;
                     case "add-comment":
@@ -1514,7 +1514,7 @@ jobs:
                       }
                       const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
                       if (!issueNumValidation.isValid) {
-                        errors.push(issueNumValidation.error);
+                        if (issueNumValidation.error) errors.push(issueNumValidation.error);
                         continue;
                       }
                       item.body = sanitizeContent(item.body);
@@ -1536,7 +1536,7 @@ jobs:
                       item.body = sanitizeContent(item.body);
                       item.branch = sanitizeContent(item.branch);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map( label => (typeof label === "string" ? sanitizeContent(label) : label));
+                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
                       break;
                     case "add-labels":
@@ -1544,16 +1544,16 @@ jobs:
                         errors.push(`Line ${i + 1}: add_labels requires a 'labels' array field`);
                         continue;
                       }
-                      if (item.labels.some( label => typeof label !== "string")) {
+                      if (item.labels.some(label => typeof label !== "string")) {
                         errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                       }
                       const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
                       if (!labelsIssueNumValidation.isValid) {
-                        errors.push(labelsIssueNumValidation.error);
+                        if (labelsIssueNumValidation.error) errors.push(labelsIssueNumValidation.error);
                         continue;
                       }
-                      item.labels = item.labels.map( label => sanitizeContent(label));
+                      item.labels = item.labels.map(label => sanitizeContent(label));
                       break;
                     case "update-issue":
                       const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
@@ -1583,7 +1583,7 @@ jobs:
                       }
                       const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update-issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
-                        errors.push(updateIssueNumValidation.error);
+                        if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
                         continue;
                       }
                       break;
@@ -1604,7 +1604,7 @@ jobs:
                         i + 1
                       );
                       if (!pushPRNumValidation.isValid) {
-                        errors.push(pushPRNumValidation.error);
+                        if (pushPRNumValidation.error) errors.push(pushPRNumValidation.error);
                         continue;
                       }
                       break;
@@ -1615,7 +1615,7 @@ jobs:
                       }
                       const lineValidation = validatePositiveInteger(item.line, "create-pull-request-review-comment 'line'", i + 1);
                       if (!lineValidation.isValid) {
-                        errors.push(lineValidation.error);
+                        if (lineValidation.error) errors.push(lineValidation.error);
                         continue;
                       }
                       const lineNumber = lineValidation.normalizedValue;
@@ -1630,7 +1630,7 @@ jobs:
                         i + 1
                       );
                       if (!startLineValidation.isValid) {
-                        errors.push(startLineValidation.error);
+                        if (startLineValidation.error) errors.push(startLineValidation.error);
                         continue;
                       }
                       if (
@@ -1699,7 +1699,9 @@ jobs:
                       }
                       const alertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
                       if (!alertLineValidation.isValid) {
-                        errors.push(alertLineValidation.error);
+                        if (alertLineValidation.error) {
+                          errors.push(alertLineValidation.error);
+                        }
                         continue;
                       }
                       if (!item.severity || typeof item.severity !== "string") {
@@ -1719,7 +1721,7 @@ jobs:
                       }
                       const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
                       if (!columnValidation.isValid) {
-                        errors.push(columnValidation.error);
+                        if (columnValidation.error) errors.push(columnValidation.error);
                         continue;
                       }
                       if (item.ruleIdSuffix !== undefined) {

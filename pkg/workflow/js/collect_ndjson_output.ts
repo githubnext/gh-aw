@@ -1,4 +1,5 @@
-import type { SafeOutputItems } from "./types/safe-outputs";
+import type { SafeOutputItem, SafeOutputItems } from "./types/safe-outputs";
+import type { SafeOutputConfigs } from "./types/safe-outputs-config";
 
 async function main() {
   const fs = require("fs");
@@ -70,7 +71,7 @@ async function main() {
      * @param {string} s - The string to process
      * @returns {string} The string with unknown domains redacted
      */
-    function sanitizeUrlDomains(s) {
+    function sanitizeUrlDomains(s: string) {
       return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
         // Extract just the URL part after https://
         const urlAfterProtocol = match.slice(8); // Remove 'https://'
@@ -143,7 +144,7 @@ async function main() {
    * @param {any} config - The safe-outputs configuration
    * @returns {number} The maximum allowed count
    */
-  function getMaxAllowedForType(itemType: string, config) {
+  function getMaxAllowedForType(itemType: string, config: SafeOutputConfigs) {
     // Check if max is explicitly specified in config
     if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
       return config[itemType].max;
@@ -457,8 +458,8 @@ async function main() {
 
   // Parse JSONL content
   const lines = outputContent.trim().split("\n");
-  const parsedItems = [];
-  const errors = [];
+  const parsedItems: SafeOutputItem[] = [];
+  const errors: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -523,7 +524,7 @@ async function main() {
           // Validate optional issue_number field
           const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
           if (!issueNumValidation.isValid) {
-            errors.push(issueNumValidation.error);
+            if (issueNumValidation.error) errors.push(issueNumValidation.error);
             continue;
           }
           // Sanitize text content
@@ -565,7 +566,7 @@ async function main() {
           // Validate optional issue_number field
           const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
           if (!labelsIssueNumValidation.isValid) {
-            errors.push(labelsIssueNumValidation.error);
+            if (labelsIssueNumValidation.error) errors.push(labelsIssueNumValidation.error);
             continue;
           }
           // Sanitize label strings
@@ -605,7 +606,7 @@ async function main() {
           // Validate issue_number if provided (for target "*")
           const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update-issue 'issue_number'", i + 1);
           if (!updateIssueNumValidation.isValid) {
-            errors.push(updateIssueNumValidation.error);
+            if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
             continue;
           }
           break;
@@ -631,7 +632,7 @@ async function main() {
             i + 1
           );
           if (!pushPRNumValidation.isValid) {
-            errors.push(pushPRNumValidation.error);
+            if (pushPRNumValidation.error) errors.push(pushPRNumValidation.error);
             continue;
           }
           break;
@@ -644,7 +645,7 @@ async function main() {
           // Validate required line field
           const lineValidation = validatePositiveInteger(item.line, "create-pull-request-review-comment 'line'", i + 1);
           if (!lineValidation.isValid) {
-            errors.push(lineValidation.error);
+            if (lineValidation.error) errors.push(lineValidation.error);
             continue;
           }
           // lineValidation.normalizedValue is guaranteed to be defined when isValid is true
@@ -663,7 +664,7 @@ async function main() {
             i + 1
           );
           if (!startLineValidation.isValid) {
-            errors.push(startLineValidation.error);
+            if (startLineValidation.error) errors.push(startLineValidation.error);
             continue;
           }
           if (
@@ -742,7 +743,9 @@ async function main() {
           }
           const alertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
           if (!alertLineValidation.isValid) {
-            errors.push(alertLineValidation.error);
+            if (alertLineValidation.error) {
+              errors.push(alertLineValidation.error);
+            }
             continue;
           }
           if (!item.severity || typeof item.severity !== "string") {
@@ -766,7 +769,7 @@ async function main() {
           // Validate optional column field
           const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
           if (!columnValidation.isValid) {
-            errors.push(columnValidation.error);
+            if (columnValidation.error) errors.push(columnValidation.error);
             continue;
           }
 

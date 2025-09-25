@@ -27,7 +27,7 @@ var createCodeScanningAlertScript string
 //go:embed js/compute_text.cjs
 var computeTextScript string
 
-//go:embed js/collect_ndjson_output.cjs
+//go:embed js/collect_ndjson_output.js
 var collectJSONLOutputScript string
 
 //go:embed js/add_labels.js
