@@ -34,6 +34,11 @@ func TestValidateEngine(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name:      "valid copilot engine",
+			engine:    "copilot",
+			expectErr: false,
+		},
+		{
 			name:       "invalid engine",
 			engine:     "gpt4",
 			expectErr:  true,
@@ -75,7 +80,7 @@ func TestValidateEngine(t *testing.T) {
 					return
 				}
 
-				if tt.errMessage != "" && err.Error() != fmt.Sprintf("invalid engine value '%s'. Must be 'claude' or 'codex'", tt.engine) {
+				if tt.errMessage != "" && err.Error() != fmt.Sprintf("invalid engine value '%s'. Must be 'copilot', 'claude' or 'codex'", tt.engine) {
 					t.Errorf("validateEngine(%q) error message = %v, want to contain %v", tt.engine, err.Error(), tt.errMessage)
 				}
 			} else {

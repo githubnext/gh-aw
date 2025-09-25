@@ -116,7 +116,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				"engine": "invalid-engine",
 			},
 			wantErr:     true,
-			errContains: "value must be one of 'claude', 'codex'",
+			errContains: "value must be one of 'copilot', 'claude', 'codex', 'custom'",
 		},
 		{
 			name: "invalid engine object format - invalid id",
@@ -127,7 +127,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "value must be one of 'claude', 'codex'",
+			errContains: "value must be one of 'claude', 'codex', 'custom'",
 		},
 		{
 			name: "invalid engine object format - missing id",
