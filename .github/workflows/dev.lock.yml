@@ -813,7 +813,7 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/.copilot/mcpconfig << 'EOF'
+          cat > /tmp/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
               "GitHub": {
@@ -825,6 +825,7 @@ jobs:
                 ]
               },
               "safe_outputs": {
+                "type": "local",
                 "command": "node",
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"],
                 "env": {

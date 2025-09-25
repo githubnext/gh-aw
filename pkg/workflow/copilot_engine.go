@@ -181,7 +181,7 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/.copilot/mcpconfig << 'EOF'\n")
+	yaml.WriteString("          cat > /tmp/.copilot/mcp-config.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -297,6 +297,7 @@ func (e *CopilotEngine) renderCacheMemoryCopilotMCPConfig(yaml *strings.Builder,
 // renderSafeOutputsCopilotMCPConfig generates the Safe Outputs MCP server configuration for Copilot CLI
 func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
 	yaml.WriteString("              \"safe_outputs\": {\n")
+	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"node\",\n")
 	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
