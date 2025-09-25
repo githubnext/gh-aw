@@ -14,6 +14,8 @@ import type {
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   MissingToolConfig,
+  SafeJobInput,
+  SafeJobConfig,
 } from "./types/safe-outputs-config";
 
 async function main() {
@@ -408,6 +410,135 @@ async function main() {
     }
 
     return { isValid: true };
+  }
+
+  /**
+   * Validates and sanitizes a field value based on SafeJobInput schema
+   * @param {any} value - The value to validate
+   * @param {string} fieldName - The name of the field
+   * @param {SafeJobInput} inputSchema - The input schema to validate against
+   * @param {number} lineNum - The line number for error reporting
+   * @returns {{isValid: boolean, error?: string, normalizedValue?: any}} Validation result
+   */
+  function validateFieldWithInputSchema(value: any, fieldName: string, inputSchema: SafeJobInput, lineNum: number) {
+    // If field is required and value is missing
+    if (inputSchema.required && (value === undefined || value === null)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${fieldName} is required`,
+      };
+    }
+
+    // If value is undefined and field is not required, use default or return valid
+    if (value === undefined || value === null) {
+      return {
+        isValid: true,
+        normalizedValue: inputSchema.default || undefined,
+      };
+    }
+
+    // Validate type
+    const inputType = inputSchema.type || "string";
+    let normalizedValue = value;
+
+    switch (inputType) {
+      case "string":
+        if (typeof value !== "string") {
+          return {
+            isValid: false,
+            error: `Line ${lineNum}: ${fieldName} must be a string`,
+          };
+        }
+        // Apply sanitization for string types
+        normalizedValue = sanitizeContent(value);
+        break;
+
+      case "boolean":
+        if (typeof value !== "boolean") {
+          return {
+            isValid: false,
+            error: `Line ${lineNum}: ${fieldName} must be a boolean`,
+          };
+        }
+        break;
+
+      case "number":
+        if (typeof value !== "number") {
+          return {
+            isValid: false,
+            error: `Line ${lineNum}: ${fieldName} must be a number`,
+          };
+        }
+        break;
+
+      case "choice":
+        if (typeof value !== "string") {
+          return {
+            isValid: false,
+            error: `Line ${lineNum}: ${fieldName} must be a string for choice type`,
+          };
+        }
+        if (inputSchema.options && !inputSchema.options.includes(value)) {
+          return {
+            isValid: false,
+            error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
+          };
+        }
+        // Apply sanitization for string-based choice types
+        normalizedValue = sanitizeContent(value);
+        break;
+
+      default:
+        // For unknown types, treat as string and sanitize
+        if (typeof value === "string") {
+          normalizedValue = sanitizeContent(value);
+        }
+        break;
+    }
+
+    return {
+      isValid: true,
+      normalizedValue,
+    };
+  }
+
+  /**
+   * Validates an item using SafeJobConfig inputs schema
+   * @param {any} item - The item to validate
+   * @param {SafeJobConfig} jobConfig - The safe job configuration
+   * @param {number} lineNum - The line number for error reporting
+   * @returns {{isValid: boolean, errors: string[], normalizedItem: any}} Validation result
+   */
+  function validateItemWithSafeJobConfig(item: any, jobConfig: SafeJobConfig, lineNum: number) {
+    const errors: string[] = [];
+    const normalizedItem = { ...item };
+
+    if (!jobConfig.inputs) {
+      // No input schema defined, return item as-is
+      return {
+        isValid: true,
+        errors: [],
+        normalizedItem: item,
+      };
+    }
+
+    // Validate each field defined in the inputs schema
+    for (const [fieldName, inputSchema] of Object.entries(jobConfig.inputs)) {
+      const fieldValue = item[fieldName];
+      const validation = validateFieldWithInputSchema(fieldValue, fieldName, inputSchema, lineNum);
+
+      if (!validation.isValid && validation.error) {
+        errors.push(validation.error);
+      } else if (validation.normalizedValue !== undefined) {
+        normalizedItem[fieldName] = validation.normalizedValue;
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      normalizedItem,
+    };
   }
 
   /**
@@ -816,7 +947,21 @@ async function main() {
             errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
             continue;
           }
-          // TODO: validate inputs and apply sanitizations based on the inputs schema
+          
+          // Check if this is a SafeJobConfig with inputs schema
+          const safeJobConfig = jobOutputType as SafeJobConfig;
+          if (safeJobConfig && safeJobConfig.inputs) {
+            // Use SafeJobConfig inputs schema to validate and sanitize fields
+            const validation = validateItemWithSafeJobConfig(item, safeJobConfig, i + 1);
+            
+            if (!validation.isValid) {
+              errors.push(...validation.errors);
+              continue;
+            }
+            
+            // Update item with normalized/sanitized values
+            Object.assign(item, validation.normalizedItem);
+          }
           break;
       }
 
