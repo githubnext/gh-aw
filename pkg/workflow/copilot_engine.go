@@ -120,7 +120,7 @@ copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 	env := map[string]string{
 		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment
 		"XDG_STATE_HOME":      tempFolder, // copilot cache environment
-		"GITHUB_TOKEN":        "${{ secrets.GITHUB_COPILOT_CLI_TOKEN }}",
+		"GITHUB_TOKEN":        "${{ secrets.COPILOT_CLI_TOKEN }}",
 		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
 

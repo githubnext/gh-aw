@@ -43,7 +43,7 @@ engine: copilot
 
 #### Secrets
 
-- `GITHUB_COPILOT_CLI_TOKEN` secret is required for authentication.
+- `COPILOT_CLI_TOKEN` secret is required for authentication.
 
 ### OpenAI Codex (Experimental)
 
