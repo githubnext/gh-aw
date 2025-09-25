@@ -2572,7 +2572,7 @@ jobs:
             await main();
 
   safe_job_echo:
-    needs: dev
+    needs: agent
     runs-on: ubuntu-latest
     steps:
       - name: Download agent output artifact
