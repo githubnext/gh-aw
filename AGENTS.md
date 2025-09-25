@@ -116,6 +116,28 @@ For JavaScript files in `pkg/workflow/js/*.cjs`:
 - `make test`: ~4s
 - `make lint`: ~5.5s
 
+### Documentation
+
+The documentation for this project is available in the `docs/` directory. It includes information on how to use the CLI, API references, and examples.
+It uses the Astro Starlight system.
+
+- neutral tone, not promotional
+- avoid "we", "our", "us"
+- avoid "Key Features" section
+- avoid long list of bullet points
+- use the `aw` language for agentic workflows snippets. It handles YAML frontmatter and markdown content.
+
+    ```aw
+    ---
+    on: push
+    ---
+    # Your workflow steps here
+    ```
+
+### Legacy Support
+
+This project is still in an experimental phase. When you are requested to make a change, do not add fallback or legacy support unless explicitly instructed.
+
 ## Key Features
 
 ### MCP Server Management
