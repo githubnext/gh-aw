@@ -22,10 +22,11 @@ safe-jobs:
         run: cd /tmp/safe-jobs && ls -lR
       - name: print message
         run: |
-          cat "$GITHUB_AW_AGENT_OUTPUT"
           if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
             MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
-            echo "Echoing message: $MESSAGE"
+            echo "print: $MESSAGE"
+            echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
           else
             echo "No agent output found, using default: Hello from safe-job!"
           fi
