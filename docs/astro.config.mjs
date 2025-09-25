@@ -6,6 +6,45 @@ import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 // import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
+// Define custom language for agentic workflows (frontmatter + markdown)
+const awLanguageDefinition = {
+	id: "aw",
+	scopeName: "source.aw",
+	aliases: ["agentic-workflow"],
+	grammar: {
+		name: "Agentic Workflow",
+		scopeName: "source.aw",
+		fileTypes: ["aw"],
+		patterns: [
+			{
+				// Match YAML frontmatter block
+				name: "meta.frontmatter.yaml",
+				begin: "\\A(---)\\s*$",
+				end: "^(---)\\s*$",
+				beginCaptures: {
+					"1": { name: "punctuation.definition.tag.begin.yaml" }
+				},
+				endCaptures: {
+					"1": { name: "punctuation.definition.tag.end.yaml" }
+				},
+				contentName: "source.yaml",
+				patterns: [
+					{ include: "source.yaml" }
+				]
+			},
+			{
+				// Match everything after frontmatter as markdown
+				name: "text.html.markdown",
+				begin: "(?<=^---\\s*$\\s)",
+				end: "\\z",
+				patterns: [
+					{ include: "text.html.markdown" }
+				]
+			}
+		]
+	}
+};
+
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://githubnext.github.io/gh-aw/',
@@ -20,53 +59,11 @@ export default defineConfig({
 			expressiveCode: {
 				shiki: {
 					langs: [
-						'markdown',
-						'yaml',
-						{
-							id: 'aw',
-							scopeName: 'source.aw',
-							aliases: ['agentic-workflow', 'frontmatter-markdown'],
-							grammar: {
-								name: 'Agentic Workflow',
-								scopeName: 'source.aw',
-								fileTypes: ['aw'],
-								patterns: [
-									{
-										name: 'meta.frontmatter.aw',
-										begin: '^(---\\s*)$',
-										end: '^(---\\s*)$',
-										beginCaptures: {
-											'1': {
-												name: 'punctuation.definition.tag.begin.yaml'
-											}
-										},
-										endCaptures: {
-											'1': {
-												name: 'punctuation.definition.tag.end.yaml'
-											}
-										},
-										contentName: 'source.yaml',
-										patterns: [
-											{
-												include: 'source.yaml'
-											}
-										]
-									},
-									{
-										begin: '^(?!---)',
-										end: '\\z',
-										name: 'text.html.markdown',
-										patterns: [
-											{
-												include: 'text.html.markdown'
-											}
-										]
-									}
-								]
-							}
-						}
-					]
-				}
+						"markdown",
+						"yaml",
+						awLanguageDefinition
+					],
+				},
 			},
 			plugins: [
 				// starlightChangelogs(), // Temporarily disabled for testing
