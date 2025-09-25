@@ -240,7 +240,7 @@ Protect against model manipulation through layered defenses:
 
 #### Sanitized Context Text Usage
 
-**CRITICAL**: Always use `${{ needs.task.outputs.text }}` instead of raw `github.event` fields when accessing user-controlled content.
+**CRITICAL**: Always use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields when accessing user-controlled content.
 
 Raw context fields like `${{ github.event.issue.title }}`, `${{ github.event.issue.body }}`, and `${{ github.event.comment.body }}` contain unsanitized user input that can:
 - Inject malicious prompts to manipulate AI behavior
@@ -248,7 +248,7 @@ Raw context fields like `${{ github.event.issue.title }}`, `${{ github.event.iss
 - Include XML/HTML content that could affect output processing
 - Contain excessive content leading to resource exhaustion
 
-The `needs.task.outputs.text` provides the same content but with security protections:
+The `needs.activation.outputs.text` provides the same content but with security protections:
 - @mentions are neutralized: `@user` becomes `` `@user` ``
 - Bot triggers are escaped: `fixes #123` becomes `` `fixes #123` ``
 - XML tags converted to safe parentheses format
@@ -258,7 +258,7 @@ The `needs.task.outputs.text` provides the same content but with security protec
 
 ```markdown
 # SECURE: Use sanitized context
-Analyze this content: "${{ needs.task.outputs.text }}"
+Analyze this content: "${{ needs.activation.outputs.text }}"
 
 # INSECURE: Raw user input (vulnerable to injection)
 Title: "${{ github.event.issue.title }}"

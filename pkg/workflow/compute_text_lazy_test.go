@@ -35,7 +35,7 @@ tools:
 
 # Test Workflow With Text Output
 
-This workflow uses the text output: "${{ needs.task.outputs.text }}"
+This workflow uses the text output: "${{ needs.activation.outputs.text }}"
 
 Please analyze this issue and provide a helpful response.`
 
@@ -148,7 +148,7 @@ func TestDetectTextOutputUsage(t *testing.T) {
 	}{
 		{
 			name:          "with_text_usage",
-			content:       "Analyze this: \"${{ needs.task.outputs.text }}\"",
+			content:       "Analyze this: \"${{ needs.activation.outputs.text }}\"",
 			expectedUsage: true,
 		},
 		{
@@ -168,7 +168,7 @@ func TestDetectTextOutputUsage(t *testing.T) {
 		},
 		{
 			name:          "with_multiple_usages",
-			content:       "First: \"${{ needs.task.outputs.text }}\" and second: \"${{ needs.task.outputs.text }}\"",
+			content:       "First: \"${{ needs.activation.outputs.text }}\" and second: \"${{ needs.activation.outputs.text }}\"",
 			expectedUsage: true,
 		},
 	}
