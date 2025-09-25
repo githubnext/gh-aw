@@ -65,43 +65,126 @@ The YAML frontmatter supports these fields:
   - Object format for extended configuration:
     ```yaml
     engine:
-      id: claude                        # Required: agent CLI identifier (claude, codex)
-      version: beta                     # Optional: version of the action
-      model: claude-3-5-sonnet-20241022 # Optional: LLM model to use
+      id: claude                        # Required: coding agent identifier (claude, codex, custom)
+      version: beta                     # Optional: version of the action (has sensible default)
+      model: claude-3-5-sonnet-20241022 # Optional: LLM model to use (has sensible default)
+      max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
+    ```
+  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **Custom engine format** (⚠️ experimental):
+    ```yaml
+    engine:
+      id: custom                        # Required: custom engine identifier
+      max-turns: 10                     # Optional: maximum iterations (for consistency)
+      steps:                            # Required: array of custom GitHub Actions steps
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: "18"
+        - name: Run tests
+          run: npm test
+    ```
+    The `custom` engine allows you to define your own GitHub Actions steps instead of using an AI processor. Each step in the `steps` array follows standard GitHub Actions step syntax with `name`, `uses`/`run`, `with`, `env`, etc. This is useful for deterministic workflows that don't require AI processing.
+
+    **Environment Variables Available to Custom Engines:**
+    
+    Custom engine steps have access to the following environment variables:
+    
+    - **`$GITHUB_AW_PROMPT`**: Path to the generated prompt file (`/tmp/aw-prompts/prompt.txt`) containing the markdown content from the workflow. This file contains the natural language instructions that would normally be sent to an AI processor. Custom engines can read this file to access the workflow's markdown content programmatically.
+    - **`$GITHUB_AW_SAFE_OUTPUTS`**: Path to the safe outputs file (when safe-outputs are configured). Used for writing structured output that gets processed automatically.
+    - **`$GITHUB_AW_MAX_TURNS`**: Maximum number of turns/iterations (when max-turns is configured in engine config).
+    
+    Example of accessing the prompt content:
+    ```bash
+    # Read the workflow prompt content
+    cat $GITHUB_AW_PROMPT
+    
+    # Process the prompt content in a custom step
+    - name: Process workflow instructions
+      run: |
+        echo "Workflow instructions:"
+        cat $GITHUB_AW_PROMPT
+        # Add your custom processing logic here
+    ```
+
+- **`network:`** - Network access control for Claude Code engine (top-level field)
+  - String format: `"defaults"` (curated allow-list of development domains)  
+  - Empty object format: `{}` (no network access)
+  - Object format for custom permissions:
+    ```yaml
+    network:
+      allowed:
+        - "example.com"
+        - "*.trusted-domain.com"
     ```
   
-- **`tools:`** - Tool configuration for AI agent
+- **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
-  - `claude:` - Claude-specific tools  
+  - `edit:` - File editing tools
+  - `web-fetch:` - Web content fetching tools
+  - `web-search:` - Web search tools
+  - `bash:` - Shell command tools
+  - `playwright:` - Browser automation tools
   - Custom tool names for MCP servers
 
-- **`output:`** - Output processing configuration
-  - `issue:` - Automatic GitHub issue creation from agent output
+- **`safe-outputs:`** - Safe output processing configuration
+  - `create-issue:` - Safe GitHub issue creation
     ```yaml
-    output:
-      issue:
+    safe-outputs:
+      create-issue:
         title-prefix: "[ai] "           # Optional: prefix for issue titles  
-        labels: [automation, ai-agent]  # Optional: labels to attach to issues
+        labels: [automation, agentic]    # Optional: labels to attach to issues
+        max: 5                          # Optional: maximum number of issues (default: 1)
     ```
-    **Important**: When using `output.issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
-  - `comment:` - Automatic comment creation on issues/PRs from agent output
+    When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
+  - `add-comment:` - Safe comment creation on issues/PRs
     ```yaml
-    output:
-      comment: {}
+    safe-outputs:
+      add-comment:
+        max: 3                          # Optional: maximum number of comments (default: 1)
+        target: "*"                     # Optional: target for comments (default: "triggering")
     ```
-    **Important**: When using `output.comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
-  - `pull-request:` - Automatic pull request creation from agent output with git patches
+    When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
+  - `create-pull-request:` - Safe pull request creation with git patches
     ```yaml
-    output:
-      pull-request:
+    safe-outputs:
+      create-pull-request:
         title-prefix: "[ai] "           # Optional: prefix for PR titles
         labels: [automation, ai-agent]  # Optional: labels to attach to PRs
+        draft: true                     # Optional: create as draft PR (defaults to true)
     ```
-    **Important**: When using `output.pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions. The agent must create git patches in `/tmp/aw.patch`.
+    When using `output.create-pull-request`, the main job does **not** need `contents: write` or `pull-requests: write` permissions since PR creation is handled by a separate job with appropriate permissions.
+  - `create-pull-request-review-comment:` - Safe PR review comment creation on code lines
+    ```yaml
+    safe-outputs:
+      create-pull-request-review-comment:
+        max: 3                          # Optional: maximum number of review comments (default: 1)
+        side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
+    ```
+    When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
+  - `update-issue:` - Safe issue updates 
+    ```yaml
+    safe-outputs:
+      update-issue:
+        status: true                    # Optional: allow updating issue status (open/closed)
+        target: "*"                     # Optional: target for updates (default: "triggering")
+        title: true                     # Optional: allow updating issue title
+        body: true                      # Optional: allow updating issue body
+        max: 3                          # Optional: maximum number of issues to update (default: 1)
+    ```
+    When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
+
+  **Global Safe Output Configuration:**
+  - `github-token:` - Custom GitHub token for all safe output jobs
+    ```yaml
+    safe-outputs:
+      create-issue:
+      add-comment:
+      github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+    ```
+    Useful when you need additional permissions or want to perform actions across repositories.
   
-- **`max-turns:`** - Maximum chat iterations per run (integer)
-- **`stop-time:`** - Deadline for workflow. Can be absolute timestamp ("YYYY-MM-DD HH:MM:SS") or relative delta (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
-- **`command:`** - Trigger for /mention commands (string)
+- **`alias:`** - Alternative workflow name (string)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
 
@@ -222,23 +305,6 @@ on:
   workflow_dispatch:    # Manual trigger
 ```
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< HEAD
-### Commands (/mentions)
-=======
-<<<<<<< HEAD
-### Alias Triggers (@mentions)
->>>>>>> main
-```yaml
-on:
-  command:
-    name: my-bot  # Responds to @my-bot in issues/comments
-```
-
-This automatically creates conditions to match `@my-bot` mentions in issue bodies and comments.
-=======
->>>>>>> Stashed changes
 ### Command Triggers (/mentions)
 ```yaml
 on:
