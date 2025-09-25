@@ -57,7 +57,7 @@ Issue Ops workflows use the `add-comment` safe output to ensure secure comment c
 safe-outputs:
   add-comment:
     max: 3                    # Optional: allow multiple comments (default: 1)
-    target: "triggering"      # Default: comment on the triggering issue
+    target: "triggering"      # Default: comment on the triggering issue/PR
 ```
 
 **Security Benefits**:
@@ -200,7 +200,7 @@ Use multiple comments for workflows that need to:
 ```yaml
 safe-outputs:
   add-comment:
-    target: "*"    # Allow comments on any issue (requires issue_number in output)
+    target: "*"    # Allow comments on any issue (requires issue_number in agent output)
 ```
 
 For workflows that need to comment on issues in other repositories or reference external issues, use the flexible target configuration.
