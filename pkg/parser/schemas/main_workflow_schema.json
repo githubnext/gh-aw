@@ -815,11 +815,12 @@
         {
           "type": "string",
           "enum": [
+            "copilot",
             "claude",
             "codex",
             "custom"
           ],
-          "description": "Simple engine name (claude, codex, or custom)"
+          "description": "Agentic engine (copilot, claude, codex, or custom)"
         },
         {
           "type": "object",

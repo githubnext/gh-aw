@@ -20,8 +20,8 @@ var verbose bool
 
 // validateEngine validates the engine flag value
 func validateEngine(engine string) error {
-	if engine != "" && engine != "claude" && engine != "codex" {
-		return fmt.Errorf("invalid engine value '%s'. Must be 'claude' or 'codex'", engine)
+	if engine != "" && engine != "claude" && engine != "codex" && engine != "copilot" {
+		return fmt.Errorf("invalid engine value '%s'. Must be 'copilot', 'claude' or 'codex'", engine)
 	}
 	return nil
 }

@@ -137,7 +137,7 @@ type WorkflowData struct {
 	RunsOn             string
 	Tools              map[string]any
 	MarkdownContent    string
-	AI                 string        // "claude" or "codex" (for backwards compatibility)
+	AI                 string        // "copilot", "claude" or "codex" (for backwards compatibility)
 	EngineConfig       *EngineConfig // Extended engine configuration
 	StopTime           string
 	Command            string                    // for /command trigger support

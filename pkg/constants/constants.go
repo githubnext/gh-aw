@@ -68,3 +68,5 @@ var AllowedExpressions = []string{
 const AgentJobName = "agent"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
+
+var AgenticEngines = []string{"claude", "codex", "copilot"}
