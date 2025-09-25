@@ -12,4 +12,4 @@ safe-outputs:
   staged: true
 ---
 
-Improve README.md and push the changes to a pull request.
+Create a new poem and save it to file poem.txt, then push the changes to a pull request.

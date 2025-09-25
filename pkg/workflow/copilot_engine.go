@@ -97,7 +97,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs = []string{"--log-level", "debug", "--log-dir", logsFolder}
+	var copilotArgs = []string{"--log-level", "debug", "--log-dir", logsFolder, "--add-dir", "/tmp/"}
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {

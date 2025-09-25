@@ -860,7 +860,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Improve README.md and push the changes to a pull request.
+          Create a new poem and save it to file poem.txt, then push the changes to a pull request.
           
           EOF
       - name: Append cache memory instructions to prompt
@@ -975,7 +975,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --log-level debug --log-dir /tmp/.copilot/logs/ --add-dir /tmp/cache-memory/ --allow-all-tools --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
+          copilot --log-level debug --log-dir /tmp/.copilot/logs/ --add-dir /tmp/ --add-dir /tmp/cache-memory/ --allow-all-tools --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
