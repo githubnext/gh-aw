@@ -87,6 +87,8 @@ permissions:
   actions: read
 safe-outputs:
   add-labels:
+    allowed: [bug, needs-info, enhancement, question, documentation]  # Restrict to specific labels
+    max: 2                                                            # Maximum 2 labels per issue
 ---
 
 # Bug Report Triage
@@ -99,6 +101,12 @@ Look for:
 - Environment information (OS, browser, version)
 - Error messages or stack traces
 
-If the issue appears to be a bug report, add the "bug" label. If it's missing key information, also add the "needs-info" label to help maintainers identify issues that need follow-up.
+Based on your analysis:
+- If the issue appears to be a bug report, add the "bug" label
+- If it's missing key information, also add the "needs-info" label
+- For feature requests, add the "enhancement" label
+- For questions or documentation issues, use the "question" or "documentation" labels
+
+You can only add labels from the allowed list and a maximum of 2 labels per issue.
 ```
 
