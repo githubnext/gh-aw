@@ -6,7 +6,8 @@ import (
 	"strings"
 )
 
-const logsFolder = "/tmp/.copilot/logs/"
+const tempFolder = "/tmp/.copilot/"
+const logsFolder = tempFolder + "logs/"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
@@ -112,6 +113,8 @@ INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 
 	env := map[string]string{
+		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment
+		"XDG_STATE_HOME":      tempFolder, // copilot cache environment
 		"GITHUB_TOKEN":        "${{ secrets.GITHUB_COPILOT_CLI_TOKEN }}",
 		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
