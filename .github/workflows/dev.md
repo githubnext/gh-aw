@@ -8,7 +8,8 @@ engine: copilot
 tools:
   cache-memory: true
 safe-outputs:
-  create-issue:
+  create-pull-request:
   staged: true
 ---
-Summarize the issue and post the summary in a comment.
+
+Improve README.md and push the changes to a pull request.

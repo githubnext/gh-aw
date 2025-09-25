@@ -109,6 +109,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/cache-memory/")
 	}
 
+	// TODO: tool allow list generation
+	copilotArgs = append(copilotArgs, "--allow-all-tools")
+
 	copilotArgs = append(copilotArgs, "--prompt", "\"$INSTRUCTION\"")
 	command := fmt.Sprintf(`set -o pipefail
 
