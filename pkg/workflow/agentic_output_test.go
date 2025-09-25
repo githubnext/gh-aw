@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestAgenticOutputCollection(t *testing.T) {
@@ -109,8 +111,8 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify that both artifacts are uploaded
-	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", SafeOutputArtifactName)) {
-		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS artifact name to be '%s'", SafeOutputArtifactName)
+	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", constants.SafeOutputArtifactName)) {
+		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS artifact name to be '%s'", constants.SafeOutputArtifactName)
 	}
 
 	t.Log("Claude workflow correctly includes both GITHUB_AW_SAFE_OUTPUTS and engine output collection")
@@ -187,8 +189,8 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Error("Codex workflow should reference GITHUB_AW_SAFE_OUTPUTS environment variable")
 	}
 
-	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", SafeOutputArtifactName)) {
-		t.Errorf("Codex workflow should reference %s artifact (GITHUB_AW_SAFE_OUTPUTS)", SafeOutputArtifactName)
+	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", constants.SafeOutputArtifactName)) {
+		t.Errorf("Codex workflow should reference %s artifact (GITHUB_AW_SAFE_OUTPUTS)", constants.SafeOutputArtifactName)
 	}
 
 	// Verify that job outputs section includes output for GITHUB_AW_SAFE_OUTPUTS

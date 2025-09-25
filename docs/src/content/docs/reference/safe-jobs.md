@@ -214,7 +214,7 @@ Please backup the user database using the database-backup safe-job.
 Safe-jobs compile to standard GitHub Actions jobs with automatic setup:
 
 ```yaml
-safe_job_deploy:
+deploy:
   needs: main-job
   runs-on: ubuntu-latest
   steps:

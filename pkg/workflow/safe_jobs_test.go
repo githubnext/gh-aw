@@ -198,7 +198,7 @@ func TestBuildSafeJobs(t *testing.T) {
 		},
 	}
 
-	err := c.buildSafeJobs(workflowData, "main_job")
+	err := c.buildSafeJobs(workflowData)
 	if err != nil {
 		t.Fatalf("Unexpected error building safe jobs: %v", err)
 	}
@@ -215,8 +215,8 @@ func TestBuildSafeJobs(t *testing.T) {
 	}
 
 	// Check job name
-	if job.Name != "safe_job_deploy" {
-		t.Errorf("Expected job name to be 'safe_job_deploy', got %s", job.Name)
+	if job.Name != "deploy" {
+		t.Errorf("Expected job name to be 'deploy', got %s", job.Name)
 	}
 
 	// Check dependencies - should include main job and any additional needs
@@ -263,7 +263,7 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 		Name: "test-workflow",
 	}
 
-	err := c.buildSafeJobs(workflowData, "main_job")
+	err := c.buildSafeJobs(workflowData)
 	if err != nil {
 		t.Errorf("Expected no error with no safe-jobs, got %v", err)
 	}
@@ -271,7 +271,7 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 	// Test with empty SafeJobs
 	workflowData.SafeJobs = map[string]*SafeJobConfig{}
 
-	err = c.buildSafeJobs(workflowData, "main_job")
+	err = c.buildSafeJobs(workflowData)
 	if err != nil {
 		t.Errorf("Expected no error with empty safe-jobs, got %v", err)
 	}
