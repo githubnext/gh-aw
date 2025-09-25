@@ -927,7 +927,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --log-level debug --log-dir /tmp/.copilot/logs --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
+          copilot --log-level debug --log-dir /tmp/.copilot/logs/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -1694,6 +1694,16 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
+      - name: Upload engine output files
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/.copilot/logs/
+          if-no-files-found: ignore
+      - name: Clean up engine output files
+        run: |
+          rm -f /tmp/.copilot/logs/
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4

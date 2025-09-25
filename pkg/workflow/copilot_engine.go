@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const logsFolder = "/tmp/.copilot/logs/"
+
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
 	BaseEngine
@@ -73,6 +75,10 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	return steps
 }
 
+func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
+	return []string{logsFolder}
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
@@ -90,7 +96,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs []string = []string{"--log-level", "debug", "--log-dir", "/tmp/.copilot/logs"}
+	var copilotArgs []string = []string{"--log-level", "debug", "--log-dir", logsFolder}
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
