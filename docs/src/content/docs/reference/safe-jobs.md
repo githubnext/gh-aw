@@ -9,12 +9,17 @@ The `safe-jobs:` element of your workflow's frontmatter enables you to define cu
 
 **How It Works:**
 1. Safe-jobs are defined as a top-level frontmatter property, completely independent from safe-outputs
-2. Each safe-job has access to all standard GitHub Actions job properties (runs-on, if, needs, env, permissions, steps)
-3. Safe-jobs automatically download the agent output artifact and can process it using jq
-4. Safe-jobs become available as callable tools in the safe-outputs MCP server
-5. Safe-jobs can be imported from included workflows with automatic conflict detection
+2. Each safe-job **must have an "inputs" section with at least one input** - these inputs become the arguments of the MCP tool
+3. Each safe-job has access to all standard GitHub Actions job properties (runs-on, if, needs, env, permissions, steps)
+4. Safe-jobs automatically download the agent output artifact and can process it using jq
+5. Safe-jobs become available as callable tools in the safe-outputs MCP server
+6. Safe-jobs can be imported from included workflows with automatic conflict detection
+
+**Important Requirement**: Every safe-job definition must include an `inputs` section with at least one input parameter. These inputs define the MCP tool's arguments and enable the agentic workflow to call the safe-job with appropriate parameters.
 
 ## Basic Usage
+
+**Note**: All safe-jobs must have an `inputs` section with at least one input parameter.
 
 ```yaml
 ---
@@ -23,9 +28,19 @@ engine: claude
 safe-jobs:
   deploy:
     runs-on: ubuntu-latest
+    inputs:
+      environment:
+        description: "Target deployment environment"
+        required: true
+        type: choice
+        options: ["staging", "production"]
     steps:
       - name: Deploy application
-        run: echo "Deploying based on agent analysis"
+        run: |
+          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+            ENV=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .environment // "staging"')
+            echo "Deploying to $ENV based on agent analysis"
+          fi
 ---
 
 # Deployment Workflow
@@ -61,14 +76,20 @@ safe-jobs:
       deployments: write
     env:
       DEPLOY_ENV: production
+    inputs:
+      confirm:
+        description: "Confirm deployment"
+        required: true
+        type: boolean
+        default: "false"
     steps:
       - name: Deploy
         run: echo "Deploying..."
 ```
 
-### Workflow Dispatch Inputs
+### Workflow Dispatch Inputs (Required)
 
-Define inputs using workflow_dispatch syntax for parameterization:
+**Every safe-job must define inputs** using workflow_dispatch syntax for parameterization. The inputs become the MCP tool arguments:
 
 ```yaml
 safe-jobs:

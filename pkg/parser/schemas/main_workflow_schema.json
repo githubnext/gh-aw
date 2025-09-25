@@ -1750,7 +1750,8 @@
             },
             "inputs": {
               "type": "object",
-              "description": "Input parameters for the safe job (workflow_dispatch syntax)",
+              "description": "Input parameters for the safe job (workflow_dispatch syntax) - REQUIRED: at least one input must be defined",
+              "minProperties": 1,
               "patternProperties": {
                 "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
                   "type": "object",
