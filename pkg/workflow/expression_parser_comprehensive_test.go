@@ -395,6 +395,18 @@ func TestExpressionParserEdgeCases(t *testing.T) {
 			shouldError: false,
 			description: "Parser should handle mixed quote types",
 		},
+		{
+			name:        "single quotes inside double quotes",
+			input:       "github.workflow == \"hello 'world'\" && github.repository",
+			shouldError: false,
+			description: "Single quotes inside double quotes should not terminate the string",
+		},
+		{
+			name:        "double quotes inside single quotes", 
+			input:       "github.workflow == 'hello \"world\"' && github.repository",
+			shouldError: false,
+			description: "Double quotes inside single quotes should not terminate the string",
+		},
 	}
 
 	for _, tt := range tests {
