@@ -104,7 +104,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 
 	env := map[string]string{
-		"GITHUB_TOKEN":        "${{ secrets.COPILOT_CLI_TOKEN }}",
+		"GITHUB_TOKEN":        "${{ secrets.GITHUB_COPILOT_CLI_TOKEN }}",
 		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
 
