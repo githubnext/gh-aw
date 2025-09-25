@@ -1,0 +1,191 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "agentic-workflow",
+  "scopeName": "source.agentic-workflow",
+  "fileTypes": ["md"],
+  "foldingStartMarker": "^(---|```)",
+  "foldingStopMarker": "^(---|```)",
+  "patterns": [
+    {
+      "include": "#frontmatter"
+    },
+    {
+      "include": "#markdown-content"
+    }
+  ],
+  "repository": {
+    "frontmatter": {
+      "begin": "\\A(---)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.yaml"
+        }
+      },
+      "end": "^(---)\\s*$",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.end.yaml"
+        }
+      },
+      "name": "meta.frontmatter.agentic-workflow",
+      "contentName": "source.yaml.embedded.agentic-workflow",
+      "patterns": [
+        {
+          "include": "source.yaml"
+        },
+        {
+          "include": "#yaml-agentic-specific"
+        }
+      ]
+    },
+    "yaml-agentic-specific": {
+      "patterns": [
+        {
+          "match": "^\\s*(engine)\\s*(:)\\s*(claude|codex|custom)\\s*$",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.yaml"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.yaml"
+            },
+            "3": {
+              "name": "constant.language.agentic-workflow.engine"
+            }
+          }
+        },
+        {
+          "match": "^\\s*(tools|permissions|safe-outputs|mcp-servers|network)\\s*(:)",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.yaml.agentic-workflow"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.yaml"
+            }
+          }
+        },
+        {
+          "match": "^\\s*(timeout_minutes|max-turns)\\s*(:)\\s*([0-9]+)\\s*$",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.yaml"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.yaml"
+            },
+            "3": {
+              "name": "constant.numeric.yaml"
+            }
+          }
+        },
+        {
+          "match": "^\\s*(on)\\s*(:)",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.yaml.github-actions"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.yaml"
+            }
+          }
+        },
+        {
+          "match": "^\\s*(command|issues|pull_request|push|schedule|workflow_dispatch)\\s*(:)",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.yaml.github-trigger"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.yaml"
+            }
+          }
+        },
+        {
+          "match": "^\\s*(allowed|github|edit|web-fetch|web-search|bash|playwright)\\s*(:)",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.yaml.agentic-tools"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.yaml"
+            }
+          }
+        },
+        {
+          "match": "^\\s*(create-issue|add-comment|create-pull-request|update-issue)\\s*(:)",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.yaml.safe-outputs"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.yaml"
+            }
+          }
+        }
+      ]
+    },
+    "markdown-content": {
+      "begin": "^(---)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.end.yaml"
+        }
+      },
+      "end": "\\Z",
+      "name": "meta.markdown-content.agentic-workflow",
+      "patterns": [
+        {
+          "include": "#include-directive"
+        },
+        {
+          "include": "#github-context-expression"
+        },
+        {
+          "include": "text.html.markdown"
+        }
+      ]
+    },
+    "include-directive": {
+      "patterns": [
+        {
+          "match": "^\\s*(@include(\\?)?\\s+)([^\\s#]+)(#[^\\s]+)?\\s*$",
+          "captures": {
+            "1": {
+              "name": "keyword.control.include.agentic-workflow"
+            },
+            "2": {
+              "name": "keyword.operator.optional.agentic-workflow"
+            },
+            "3": {
+              "name": "string.unquoted.path.agentic-workflow"
+            },
+            "4": {
+              "name": "entity.name.section.agentic-workflow"
+            }
+          },
+          "name": "meta.include.agentic-workflow"
+        }
+      ]
+    },
+    "github-context-expression": {
+      "patterns": [
+        {
+          "match": "(\\$\\{\\{)\\s*([^}]+)\\s*(\\}\\})",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.template-expression.begin.agentic-workflow"
+            },
+            "2": {
+              "name": "variable.other.github-context.agentic-workflow"
+            },
+            "3": {
+              "name": "punctuation.definition.template-expression.end.agentic-workflow"
+            }
+          },
+          "name": "meta.template-expression.github-context.agentic-workflow"
+        }
+      ]
+    }
+  }
+}

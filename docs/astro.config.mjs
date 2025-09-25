@@ -4,14 +4,18 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 // import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
-// NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
-// Shiki did not register it and builds produced a warning: language "aw" not found.
-// For now we alias `aw` -> `markdown` which removes the warning and still gives
-// reasonable highlighting for examples that combine frontmatter + markdown.
-// If richer highlighting is needed later, implement a proper TextMate grammar
-// in a separate JSON file and load it here (ensure required embedded scopes exist).
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load the custom TextMate grammar for agentic workflows
+const agenticWorkflowGrammar = JSON.parse(
+	readFileSync(join(__dirname, '../grammars/agentic-workflow.tmLanguage.json'), 'utf-8')
+);
 
 // https://astro.build/config
 export default defineConfig({
@@ -28,9 +32,10 @@ export default defineConfig({
 				shiki: {
 						langs: /** @type {any[]} */ ([
 							"markdown",
-							"yaml"
+							"yaml",
+							agenticWorkflowGrammar
 						]),
-						langAlias: { aw: "markdown" }
+						langAlias: { aw: "agentic-workflow" }
 				},
 			},
 			plugins: [
