@@ -971,6 +971,17 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
+              },
+              "safe_outputs": {
+                "command": "node",
+                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "env": {
+                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
+                  "GITHUB_AW_ASSETS_BRANCH": "${{ env.GITHUB_AW_ASSETS_BRANCH }}",
+                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}",
+                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}"
+                }
               }
             }
           }
