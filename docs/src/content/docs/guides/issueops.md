@@ -23,9 +23,7 @@ safe-outputs:
   add-comment:
     max: 2
 ---
-```
 
-```markdown
 # Issue Triage Assistant
 
 When a new issue is created, analyze the issue content and provide helpful guidance.
@@ -92,9 +90,7 @@ safe-outputs:
     allowed: [bug, needs-info, enhancement, question, documentation]  # Restrict to specific labels
     max: 2                                                            # Maximum 2 labels per issue
 ---
-```
 
-```markdown
 # Bug Report Triage
 
 Analyze new issues to identify bug reports and automatically add appropriate labels.
