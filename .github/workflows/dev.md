@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - copilot/*
-engine: claude
+engine: copilot
 safe-outputs:
     staged: true
 safe-jobs:

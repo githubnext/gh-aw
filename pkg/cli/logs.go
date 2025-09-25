@@ -359,7 +359,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				if detectedEngine != nil {
 					// Get the engine ID to compare with the filter
 					registry := workflow.GetGlobalEngineRegistry()
-					for _, supportedEngine := range []string{"claude", "codex"} {
+					for _, supportedEngine := range constants.AgenticEngines {
 						if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
 							engineMatches = (supportedEngine == engine)
 							break
@@ -373,7 +373,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 						if detectedEngine != nil {
 							// Try to get a readable name for the detected engine
 							registry := workflow.GetGlobalEngineRegistry()
-							for _, supportedEngine := range []string{"claude", "codex"} {
+							for _, supportedEngine := range constants.AgenticEngines {
 								if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
 									engineName = supportedEngine
 									break

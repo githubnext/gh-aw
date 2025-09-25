@@ -232,6 +232,7 @@ gh aw logs --start-date -1mo         # Last month's runs
 # Filter by AI engine type
 gh aw logs --engine claude           # Only Claude workflows
 gh aw logs --engine codex            # Only Codex workflows
+gh aw logs --engine copilot          # Only Copilot workflows
 
 # Filter by branch name
 gh aw logs --branch main             # Only runs from main branch

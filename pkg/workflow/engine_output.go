@@ -30,6 +30,6 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 	yaml.WriteString("      - name: Clean up engine output files\n")
 	yaml.WriteString("        run: |\n")
 	for _, file := range outputFiles {
-		yaml.WriteString("          rm -f " + file + "\n")
+		yaml.WriteString("          rm -fr " + file + "\n")
 	}
 }
