@@ -94,7 +94,20 @@ The agentic part of your workflow should describe the comment(s) it wants posted
 
 **Example natural language to generate the output:**
 
-```markdown
+```aw
+---
+on:
+  issues:
+    types: [opened, edited]
+permissions:
+  contents: read
+  actions: read
+engine: claude
+safe-outputs:
+  add-comment:
+    max: 3
+---
+
 # Issue/PR Analysis Agent
 
 Analyze the issue or pull request and provide feedback.
@@ -161,7 +174,22 @@ The agentic part of your workflow should analyze the issue and determine what up
 
 **Example natural language to generate the output:**
 
-```markdown
+```aw
+---
+on:
+  issues:
+    types: [opened, edited]
+permissions:
+  contents: read
+  actions: read
+engine: claude
+safe-outputs:
+  update-issue:
+    status: true
+    title: true
+    body: true
+---
+
 # Issue Update Agent
 
 Analyze the issue and update its status, title, or body as needed.
@@ -253,7 +281,22 @@ The agentic part of your workflow should instruct to:
 
 **Example natural language to generate the output:**
 
-```markdown
+```aw
+---
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  actions: read
+engine: claude
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[ai] "
+    labels: [automation, code-improvement]
+    draft: true
+---
+
 # Code Improvement Agent
 
 Analyze the latest commit and suggest improvements.
@@ -284,7 +327,21 @@ The agentic part of your workflow should describe the review comment(s) it wants
 
 **Example natural language to generate the output:**
 
-```markdown
+```aw
+---
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+permissions:
+  contents: read
+  actions: read
+engine: claude
+safe-outputs:
+  create-pull-request-review-comment:
+    max: 3
+    side: "RIGHT"
+---
+
 # Code Review Agent
 
 Analyze the pull request changes and provide line-specific feedback.
@@ -392,7 +449,21 @@ The agentic part of your workflow should describe the changes to be pushed and o
 
 **Example natural language to generate the output:**
 
-```markdown
+```aw
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+  actions: read
+engine: claude
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
+    if-no-changes: "warn"
+---
+
 # Code Update Agent
 
 Analyze the pull request and make necessary code improvements.
@@ -475,7 +546,20 @@ The agentic part of your workflow can report missing tools or functionality that
 
 **Example natural language to generate the output:**
 
-```markdown
+```aw
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+engine: claude
+safe-outputs:
+  missing-tool:
+    max: 10
+---
+
 # Development Task Agent
 
 Analyze the repository and implement the requested feature. If you encounter missing tools, capabilities, or permissions that prevent completion, report them so the user can address these limitations.

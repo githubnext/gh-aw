@@ -4,7 +4,44 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
-import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
+// import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
+
+// Define custom language for agentic workflows (frontmatter + markdown)
+const awLanguageDefinition = {
+	id: "aw",
+	scopeName: "source.aw",
+	aliases: ["agentic-workflow", "frontmatter-markdown"],
+	grammar: {
+		name: "Agentic Workflow",
+		scopeName: "source.aw",
+		fileTypes: ["aw"],
+		patterns: [
+			{
+				// YAML frontmatter block
+				name: "meta.embedded.block.frontmatter",
+				begin: "^(---)\\s*$",
+				beginCaptures: {
+					"1": { name: "punctuation.definition.tag.begin.yaml" }
+				},
+				end: "^(---)\\s*$",
+				endCaptures: {
+					"1": { name: "punctuation.definition.tag.end.yaml" }
+				},
+				patterns: [
+					{ include: "source.yaml" }
+				]
+			},
+			{
+				// Markdown content after frontmatter
+				begin: "(?<=^---\\s*$\\s*)",
+				end: "\\z",
+				patterns: [
+					{ include: "text.html.markdown" }
+				]
+			}
+		]
+	}
+};
 
 // https://astro.build/config
 export default defineConfig({
@@ -17,8 +54,17 @@ export default defineConfig({
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
 				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/pkg/cli/templates/instructions.md' }
 			],
+			expressiveCode: {
+				shiki: {
+					langs: [
+						"markdown",
+						"yaml",
+						awLanguageDefinition
+					],
+				},
+			},
 			plugins: [
-				starlightChangelogs(),
+				// starlightChangelogs(),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
@@ -61,9 +107,9 @@ export default defineConfig({
 					label: 'Application Areas',
 					autogenerate: { directory: 'samples' },
 				},
-				...makeChangelogsSidebarLinks([
-					{ type: 'all', base: 'changelog', label: 'Changelog' }
-				]),
+				// ...makeChangelogsSidebarLinks([
+				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
+				// ]),
 			],
 		}),
 	],
