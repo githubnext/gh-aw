@@ -229,19 +229,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
 func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
-	yaml.WriteString("              \"GitHub\": {\n")
-	yaml.WriteString("                \"type\": \"http\",\n")
-	yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp\",\n")
-	yaml.WriteString("                \"headers\": {},\n")
-	yaml.WriteString("                \"tools\": [\n")
-	yaml.WriteString("                  \"*\"\n")
-	yaml.WriteString("                ]\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	// GitHub is builtin
 }
 
 // renderCopilotMCPConfig generates custom MCP server configuration for a single tool in Copilot CLI mcpconfig
