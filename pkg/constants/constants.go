@@ -64,3 +64,5 @@ var AllowedExpressions = []string{
 	"github.workflow",
 	"github.workspace",
 } // needs., steps. already allowed
+
+const AgentJobName = "agent"

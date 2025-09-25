@@ -1303,12 +1303,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build safe outputs jobs if configured
-	if err := c.buildSafeOutputsJobs(data, "agent", activationJobCreated, frontmatter, markdownPath); err != nil {
+	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, activationJobCreated, frontmatter, markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 
 	// Build safe-jobs if configured
-	if err := c.buildSafeJobs(data, "agent"); err != nil {
+	if err := c.buildSafeJobs(data); err != nil {
 		return fmt.Errorf("failed to build safe-jobs: %w", err)
 	}
 
@@ -1453,18 +1453,18 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 }
 
 // buildSafeJobs creates custom safe-output jobs defined at top level
-func (c *Compiler) buildSafeJobs(data *WorkflowData, mainJobName string) error {
+func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
 	if len(data.SafeJobs) == 0 {
 		return nil
 	}
 
 	for jobName, jobConfig := range data.SafeJobs {
 		job := &Job{
-			Name: fmt.Sprintf("safe_job_%s", jobName),
+			Name: jobName,
 		}
 
 		// Add dependency on main job
-		job.Needs = append(job.Needs, mainJobName)
+		job.Needs = append(job.Needs, constants.AgentJobName)
 
 		// Add any additional dependencies from the config
 		job.Needs = append(job.Needs, jobConfig.Needs...)

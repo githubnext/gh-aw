@@ -2571,7 +2571,7 @@ jobs:
             }
             await main();
 
-  safe_job_echo:
+  echo:
     needs: agent
     runs-on: ubuntu-latest
     steps:
