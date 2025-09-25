@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Create Pull Request Review Comment"
 
 jobs:
-  test-claude-create-pull-request-review-comment:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

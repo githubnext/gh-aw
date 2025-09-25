@@ -314,7 +314,7 @@ jobs:
             }
             await main();
 
-  comprehensive-test-agentic-workflow-poem-bot:
+  agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -2594,7 +2594,7 @@ jobs:
           if-no-files-found: ignore
 
   create_issue:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2608,7 +2608,7 @@ jobs:
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
           GITHUB_AW_ISSUE_LABELS: "poetry,automation,ai-generated,test"
         with:
@@ -2754,7 +2754,7 @@ jobs:
             })();
 
   create_issue_comment:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -2770,7 +2770,7 @@ jobs:
         id: add_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_COMMENT_TARGET: "*"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -2920,7 +2920,7 @@ jobs:
             await main();
 
   create_pr_review_comment:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
     runs-on: ubuntu-latest
     permissions:
@@ -2935,7 +2935,7 @@ jobs:
         id: create_pr_review_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -3113,7 +3113,7 @@ jobs:
             await main();
 
   create_pull_request:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -3147,8 +3147,8 @@ jobs:
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "comprehensive-test-agentic-workflow-poem-bot"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_WORKFLOW_ID: "agent"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_TITLE_PREFIX: "[🎨 POETRY] "
           GITHUB_AW_PR_LABELS: "poetry,automation,creative-writing"
@@ -3443,7 +3443,7 @@ jobs:
             await main();
 
   add_labels:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     if: github.event.issue.number || github.event.pull_request.number
     runs-on: ubuntu-latest
     permissions:
@@ -3458,7 +3458,7 @@ jobs:
         id: add_labels
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,test,epic,haiku,sonnet,limerick"
           GITHUB_AW_LABELS_MAX_COUNT: 5
         with:
@@ -3619,7 +3619,7 @@ jobs:
             await main();
 
   update_issue:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -3634,7 +3634,7 @@ jobs:
         id: update_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_UPDATE_STATUS: true
           GITHUB_AW_UPDATE_TITLE: true
           GITHUB_AW_UPDATE_BODY: true
@@ -3812,7 +3812,7 @@ jobs:
             await main();
 
   push_to_pull_request_branch:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
     runs-on: ubuntu-latest
     permissions:
@@ -3845,7 +3845,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_TOKEN: ${{ github.token }}
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
@@ -4072,7 +4072,7 @@ jobs:
             await main();
 
   missing_tool:
-    needs: comprehensive-test-agentic-workflow-poem-bot
+    needs: agent
     if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
@@ -4086,7 +4086,7 @@ jobs:
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.comprehensive-test-agentic-workflow-poem-bot.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

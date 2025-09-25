@@ -1,61 +1,73 @@
 package workflow
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-func TestGetMCPConfigJSONString(t *testing.T) {
+func TestGetMCPConfig(t *testing.T) {
 	tests := []struct {
 		name       string
 		toolConfig map[string]any
-		expected   map[string]any
+		expected   *parser.MCPServerConfig
 		wantErr    bool
 	}{
 		{
-			name: "mcp as map",
+			name: "direct fields",
 			toolConfig: map[string]any{
-				"mcp": map[string]any{
-					"type":    "stdio",
-					"command": "python",
-					"args":    []any{"-m", "test"},
-				},
-			},
-			expected: map[string]any{
 				"type":    "stdio",
 				"command": "python",
 				"args":    []any{"-m", "test"},
 			},
+			expected: &parser.MCPServerConfig{
+				Name:    "test",
+				Type:    "stdio",
+				Command: "python",
+				Args:    []string{"-m", "test"},
+				Env:     make(map[string]string),
+				Headers: make(map[string]string),
+			},
 			wantErr: false,
 		},
 		{
-			name: "mcp as JSON string",
+			name: "inferred stdio type from command",
 			toolConfig: map[string]any{
-				"mcp": `{"type": "stdio", "command": "python", "args": ["-m", "test"]}`,
-			},
-			expected: map[string]any{
-				"type":    "stdio",
 				"command": "python",
 				"args":    []any{"-m", "test"},
 			},
+			expected: &parser.MCPServerConfig{
+				Name:    "test",
+				Type:    "stdio",
+				Command: "python",
+				Args:    []string{"-m", "test"},
+				Env:     make(map[string]string),
+				Headers: make(map[string]string),
+			},
 			wantErr: false,
 		},
 		{
-			name: "mcp as invalid JSON string",
+			name: "inferred http type from url",
 			toolConfig: map[string]any{
-				"mcp": `{"type": "stdio", "command": "python", invalid`,
+				"url": "https://example.com",
 			},
-			expected: nil,
-			wantErr:  true,
+			expected: &parser.MCPServerConfig{
+				Name:    "test",
+				Type:    "http",
+				URL:     "https://example.com",
+				Env:     make(map[string]string),
+				Headers: make(map[string]string),
+			},
+			wantErr: false,
 		},
 		{
-			name: "no mcp section",
+			name: "no MCP fields",
 			toolConfig: map[string]any{
 				"allowed": []any{"tool1"},
 			},
-			expected: map[string]any{},
-			wantErr:  false,
+			expected: nil,
+			wantErr:  true,
 		},
 	}
 
@@ -69,19 +81,29 @@ func TestGetMCPConfigJSONString(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				// Convert expected to JSON and back to ensure proper comparison
-				expectedJSON, _ := json.Marshal(tt.expected)
-				resultJSON, _ := json.Marshal(result)
+				// Compare struct fields
+				if result.Name != tt.expected.Name ||
+					result.Type != tt.expected.Type ||
+					result.Command != tt.expected.Command ||
+					result.URL != tt.expected.URL ||
+					len(result.Args) != len(tt.expected.Args) ||
+					len(result.Env) != len(tt.expected.Env) ||
+					len(result.Headers) != len(tt.expected.Headers) {
+					t.Errorf("getMCPConfig() = %+v, want %+v", result, tt.expected)
+				}
 
-				if string(expectedJSON) != string(resultJSON) {
-					t.Errorf("getMCPConfig() = %v, want %v", result, tt.expected)
+				// Check args array
+				for i, arg := range result.Args {
+					if i < len(tt.expected.Args) && arg != tt.expected.Args[i] {
+						t.Errorf("getMCPConfig() args[%d] = %v, want %v", i, arg, tt.expected.Args[i])
+					}
 				}
 			}
 		})
 	}
 }
 
-func TestHasMCPConfigJSONString(t *testing.T) {
+func TestHasMCPConfig(t *testing.T) {
 	tests := []struct {
 		name       string
 		toolConfig map[string]any
@@ -89,41 +111,23 @@ func TestHasMCPConfigJSONString(t *testing.T) {
 		mcpType    string
 	}{
 		{
-			name: "mcp as map with valid type",
+			name: "direct type field with valid type",
 			toolConfig: map[string]any{
-				"mcp": map[string]any{
-					"type": "stdio",
-				},
+				"type": "stdio",
 			},
 			expected: true,
 			mcpType:  "stdio",
 		},
 		{
-			name: "mcp as JSON string with valid type",
+			name: "direct type field with invalid type",
 			toolConfig: map[string]any{
-				"mcp": `{"type": "stdio", "command": "python"}`,
-			},
-			expected: true,
-			mcpType:  "stdio",
-		},
-		{
-			name: "mcp as JSON string with invalid type",
-			toolConfig: map[string]any{
-				"mcp": `{"type": "invalid", "command": "python"}`,
+				"type": "invalid",
 			},
 			expected: false,
 			mcpType:  "",
 		},
 		{
-			name: "mcp as invalid JSON string",
-			toolConfig: map[string]any{
-				"mcp": `{"type": "stdio", invalid`,
-			},
-			expected: false,
-			mcpType:  "",
-		},
-		{
-			name: "no mcp section",
+			name: "no type field",
 			toolConfig: map[string]any{
 				"allowed": []any{"tool1"},
 			},
@@ -155,65 +159,156 @@ func TestValidateMCPConfigs(t *testing.T) {
 		errMsg  string
 	}{
 		{
+			name: "new format: valid stdio with direct fields",
+			tools: map[string]any{
+				"test-server": map[string]any{
+					"type":    "stdio",
+					"command": "python",
+					"args":    []any{"-m", "server"},
+					"env": map[string]any{
+						"DEBUG": "true",
+					},
+					"allowed": []any{"tool1", "tool2"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "new format: valid http with direct fields",
+			tools: map[string]any{
+				"http-server": map[string]any{
+					"type": "http",
+					"url":  "https://api.example.com/mcp",
+					"headers": map[string]any{
+						"Authorization": "Bearer token123",
+					},
+					"allowed": []any{"query", "update"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "new format: stdio with container",
+			tools: map[string]any{
+				"container-server": map[string]any{
+					"type":      "stdio",
+					"container": "mcp/server:latest",
+					"env": map[string]any{
+						"API_KEY": "secret",
+					},
+					"allowed": []any{"process"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "new format: stdio with container and network config",
+			tools: map[string]any{
+				"network-server": map[string]any{
+					"type":      "stdio",
+					"container": "mcp/network-server:latest",
+					"network": map[string]any{
+						"allowed":    []any{"example.com", "api.example.com"},
+						"proxy-args": []any{"--proxy-test"},
+					},
+					"allowed": []any{"fetch", "post"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "new format: missing type and no inferrable fields",
+			tools: map[string]any{
+				"no-type": map[string]any{
+					"env":     map[string]any{"KEY": "value"},
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "unable to determine MCP type",
+		},
+		{
+			name: "new format: invalid type value",
+			tools: map[string]any{
+				"bad-type": map[string]any{
+					"type":    "invalid",
+					"command": "python",
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "must be one of: stdio, http",
+		},
+		{
+			name: "new format: http missing url",
+			tools: map[string]any{
+				"http-no-url": map[string]any{
+					"type":    "http",
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "missing property 'url'",
+		},
+		{
+			name: "new format: stdio missing command and container",
+			tools: map[string]any{
+				"stdio-incomplete": map[string]any{
+					"type":    "stdio",
+					"allowed": []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "must specify either 'command' or 'container'",
+		},
+		{
+			name: "new format: both command and container specified",
+			tools: map[string]any{
+				"both-cmd-container": map[string]any{
+					"type":      "stdio",
+					"command":   "python",
+					"container": "mcp/server",
+					"allowed":   []any{"tool1"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "cannot specify both 'container' and 'command'",
+		},
+		{
 			name: "valid MCP configs",
 			tools: map[string]any{
 				"trelloApi": map[string]any{
-					"mcp": map[string]any{
-						"type":    "stdio",
-						"command": "python",
-					},
+					"type":    "stdio",
+					"command": "python",
 					"allowed": []any{"create_card"},
 				},
 				"notionApi": map[string]any{
-					"mcp":     `{"type": "http", "url": "https://mcp.notion.com"}`,
+					"type":    "http",
+					"url":     "https://mcp.notion.com",
 					"allowed": []any{"*"},
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "invalid JSON in MCP config",
+			name: "invalid type value",
 			tools: map[string]any{
 				"badApi": map[string]any{
-					"mcp":     `{"type": "stdio", "command": "test", invalid json`,
+					"type":    "invalid",
+					"command": "test",
 					"allowed": []any{"*"},
 				},
 			},
 			wantErr: true,
-			errMsg:  "invalid JSON in mcp configuration",
+			errMsg:  "value must be one of: stdio, http, local",
 		},
-		{
-			name: "missing type in MCP config",
-			tools: map[string]any{
-				"missingType": map[string]any{
-					"mcp": map[string]any{
-						"command": "python",
-					},
-					"allowed": []any{"tool1"},
-				},
-			},
-			wantErr: true,
-			errMsg:  "missing property 'type'",
-		},
-		{
-			name: "missing type in JSON string MCP config",
-			tools: map[string]any{
-				"missingTypeJson": map[string]any{
-					"mcp":     `{"command": "python"}`,
-					"allowed": []any{"tool1"},
-				},
-			},
-			wantErr: true,
-			errMsg:  "missing property 'type'",
-		},
+
 		{
 			name: "invalid type in MCP config",
 			tools: map[string]any{
 				"invalidType": map[string]any{
-					"mcp": map[string]any{
-						"type":    "invalid",
-						"command": "python",
-					},
+					"type":    "invalid",
+					"command": "python",
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -224,10 +319,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "non-string type in MCP config",
 			tools: map[string]any{
 				"nonStringType": map[string]any{
-					"mcp": map[string]any{
-						"type":    123,
-						"command": "python",
-					},
+					"type":    123,
+					"command": "python",
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -238,9 +331,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http type missing URL",
 			tools: map[string]any{
 				"httpMissingUrl": map[string]any{
-					"mcp": map[string]any{
-						"type": "http",
-					},
+					"type":    "http",
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -251,9 +342,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "stdio type missing command",
 			tools: map[string]any{
 				"stdioMissingCommand": map[string]any{
-					"mcp": map[string]any{
-						"type": "stdio",
-					},
+					"type":    "stdio",
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -264,10 +353,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "http type with non-string URL",
 			tools: map[string]any{
 				"httpNonStringUrl": map[string]any{
-					"mcp": map[string]any{
-						"type": "http",
-						"url":  123,
-					},
+					"type":    "http",
+					"url":     123,
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -278,10 +365,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "stdio type with non-string command",
 			tools: map[string]any{
 				"stdioNonStringCommand": map[string]any{
-					"mcp": map[string]any{
-						"type":    "stdio",
-						"command": []string{"python"},
-					},
+					"type":    "stdio",
+					"command": []string{"python"},
 					"allowed": []any{"tool1"},
 				},
 			},
@@ -306,14 +391,13 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "mixed valid and invalid MCP configs",
 			tools: map[string]any{
 				"goodApi": map[string]any{
-					"mcp":     `{"type": "stdio", "command": "good"}`,
+					"type":    "stdio",
+					"command": "test",
 					"allowed": []any{"tool1"},
 				},
 				"badApi": map[string]any{
-					"mcp": map[string]any{
-						"type": "http",
-						// missing url
-					},
+					"type": "http",
+					// missing url
 					"allowed": []any{"tool2"},
 				},
 			},
@@ -324,14 +408,10 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "network permissions with HTTP type should fail",
 			tools: map[string]any{
 				"httpWithNetPerms": map[string]any{
-					"mcp": map[string]any{
-						"type": "http",
-						"url":  "https://example.com",
-					},
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"type": "http",
+					"url":  "https://example.com",
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -343,14 +423,10 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "network permissions with stdio non-container should fail",
 			tools: map[string]any{
 				"stdioNonContainerWithNetPerms": map[string]any{
-					"mcp": map[string]any{
-						"type":    "stdio",
-						"command": "python",
-					},
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"type":    "stdio",
+					"command": "python",
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -362,14 +438,10 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "network permissions with stdio container should pass",
 			tools: map[string]any{
 				"stdioContainerWithNetPerms": map[string]any{
-					"mcp": map[string]any{
-						"type":      "stdio",
-						"container": "mcp/fetch",
-					},
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"type":      "stdio",
+					"container": "mcp/fetch",
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -380,14 +452,10 @@ func TestValidateMCPConfigs(t *testing.T) {
 			name: "network permissions in mcp section with HTTP type should fail",
 			tools: map[string]any{
 				"httpWithMcpNetPerms": map[string]any{
-					"mcp": map[string]any{
-						"type": "http",
-						"url":  "https://example.com",
-						"permissions": map[string]any{
-							"network": map[string]any{
-								"allowed": []any{"example.com"},
-							},
-						},
+					"type": "http",
+					"url":  "https://example.com",
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},

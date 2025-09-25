@@ -20,7 +20,7 @@ concurrency:
 run-name: "Test Claude with Cache Memory File Share"
 
 jobs:
-  test-claude-with-cache-memory-file-share:
+  agent:
     runs-on: ubuntu-latest
     permissions: read-all
     steps:

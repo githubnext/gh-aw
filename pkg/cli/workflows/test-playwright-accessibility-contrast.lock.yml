@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Playwright Accessibility Contrast"
 
 jobs:
-  test-playwright-accessibility-contrast:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -2010,7 +2010,7 @@ jobs:
           if-no-files-found: warn
 
   create_issue:
-    needs: test-playwright-accessibility-contrast
+    needs: agent
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2024,7 +2024,7 @@ jobs:
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-playwright-accessibility-contrast.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[Accessibility] "
           GITHUB_AW_ISSUE_LABELS: "accessibility,contrast"
         with:

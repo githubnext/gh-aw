@@ -14,6 +14,11 @@ make agent-finish  # Runs build, test, recompile, fmt, lint
 make recompile     # Recompile all workflow files after code changes
 ```
 
+**ALWAYS RUN MAKE RECOMPILE TO ENSURE JAVASCRIPT IS PROPERLY FORMATTED:**
+```bash
+make recompile     # Ensures JavaScript is properly formatted and workflows are compiled
+```
+
 **NEVER ADD LOCK FILES TO .GITIGNORE** - `.lock.yml` files are compiled workflows that must be tracked.
 
 ## Quick Setup
@@ -142,9 +147,10 @@ tools:
 ## Testing Strategy
 - **Unit tests**: All packages have coverage - run with `make test-unit` for fast feedback during development
 - **Integration tests**: Command behavior and binary compilation - run with `make test-integration`
-- **Combined testing**: Use `make test` to run all tests (unit + integration)
+- **Combined testing**: Use `make test` to run all tests (unit + integration) 
 - **Workflow compilation tests**: Markdown to YAML conversion
 - **Manual validation**: Always test after changes
+- **Test agentic workflows**: Should be added to `pkg/cli/workflows` directory
 
 **Recommended workflow**: Run `make test-unit` first for quick validation, then `make test-integration` or `make test` for complete coverage.
 

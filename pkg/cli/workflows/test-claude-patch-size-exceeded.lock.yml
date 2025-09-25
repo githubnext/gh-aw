@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Patch Size Limit Exceeded"
 
 jobs:
-  test-claude-patch-size-limit-exceeded:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -2089,7 +2089,7 @@ jobs:
           if-no-files-found: ignore
 
   push_to_pull_request_branch:
-    needs: test-claude-patch-size-limit-exceeded
+    needs: agent
     if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
     runs-on: ubuntu-latest
     permissions:
@@ -2122,7 +2122,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_TOKEN: ${{ github.token }}
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-patch-size-limit-exceeded.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1
         with:

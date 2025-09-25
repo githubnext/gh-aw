@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test AI Inference GitHub Models"
 
 jobs:
-  test-ai-inference-github-models:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       contents: read

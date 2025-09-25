@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Update Issue"
 
 jobs:
-  test-claude-update-issue:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       issues: write

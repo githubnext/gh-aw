@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude MCP"
 
 jobs:
-  test-claude-mcp:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       contents: read

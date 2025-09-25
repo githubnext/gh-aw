@@ -4,8 +4,12 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["stdio", "http"],
-      "description": "MCP connection type"
+      "enum": ["stdio", "http", "local"],
+      "description": "MCP connection type (local is an alias for stdio)"
+    },
+    "registry": {
+      "type": "string",
+      "description": "URI to the installation location when MCP is installed from a registry"
     },
     "url": {
       "type": "string",
@@ -47,34 +51,39 @@
       "additionalProperties": false,
       "description": "HTTP headers for HTTP MCP connections"
     },
-    "permissions": {
+    "network": {
       "type": "object",
       "properties": {
-        "network": {
-          "type": "object",
-          "properties": {
-            "allowed": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
-                "description": "Allowed domain name"
-              },
-              "minItems": 1,
-              "uniqueItems": true,
-              "description": "List of allowed domain names for network access"
-            }
+        "allowed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
+            "description": "Allowed domain name"
           },
-          "required": ["allowed"],
-          "additionalProperties": false,
-          "description": "Network access permissions"
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "List of allowed domain names for network access"
+        },
+        "proxy-args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Custom proxy arguments for container-based MCP servers"
         }
       },
       "additionalProperties": false,
-      "description": "Permissions configuration for container-based MCP servers"
-    }
+      "description": "Network configuration for container-based MCP servers"
+    },
+
   },
-  "required": ["type"],
+  "anyOf": [
+    {"required": ["type"]},
+    {"required": ["url"]},
+    {"required": ["command"]},
+    {"required": ["container"]}
+  ],
   "additionalProperties": false,
   "allOf": [
     {
@@ -91,7 +100,7 @@
           "anyOf": [
             {"required": ["command"]},
             {"required": ["container"]},
-            {"required": ["permissions"]}
+            {"required": ["network"]}
           ]
         }
       }
@@ -119,6 +128,33 @@
     },
     {
       "if": {
+        "properties": {
+          "type": {
+            "enum": ["stdio", "local"]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": ["headers"]
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {"required": ["command"]},
+          {"required": ["container"]}
+        ]
+      },
+      "then": {
+        "not": {
+          "required": ["headers"]
+        }
+      }
+    },
+    {
+      "if": {
         "required": ["container"]
       },
       "then": {
@@ -131,7 +167,7 @@
     },
     {
       "if": {
-        "required": ["permissions"]
+        "required": ["network"]
       },
       "then": {
         "required": ["container"],

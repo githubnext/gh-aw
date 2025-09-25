@@ -90,9 +90,8 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			name: "custom mcp servers with new format",
 			tools: map[string]any{
 				"custom_server": map[string]any{
-					"mcp": map[string]any{
-						"type": "stdio",
-					},
+					"type":    "stdio",
+					"command": "server",
 					"allowed": []any{"tool1", "tool2"},
 				},
 			},
@@ -102,9 +101,8 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			name: "mcp server with wildcard access",
 			tools: map[string]any{
 				"notion": map[string]any{
-					"mcp": map[string]any{
-						"type": "stdio",
-					},
+					"type":    "stdio",
+					"command": "notion-server",
 					"allowed": []any{"*"},
 				},
 			},
@@ -114,7 +112,8 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			name: "mixed mcp servers - one with wildcard, one with specific tools",
 			tools: map[string]any{
 				"notion": map[string]any{
-					"mcp":     map[string]any{"type": "stdio"},
+					"type":    "stdio",
+					"command": "notion-server",
 					"allowed": []any{"*"},
 				},
 				"github": map[string]any{
