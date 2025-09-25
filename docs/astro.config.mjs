@@ -4,18 +4,9 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 // import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load the custom TextMate grammar for agentic workflows
-const agenticWorkflowGrammar = JSON.parse(
-	readFileSync(join(__dirname, '../grammars/agentic-workflow.tmLanguage.json'), 'utf-8')
-);
+import agenticWorkflowGrammar from '../pkg/parser/schemas/agentic-workflow.tmLanguage.json' assert { type: 'json' };
 
 // https://astro.build/config
 export default defineConfig({

@@ -13,7 +13,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-//go:embed schemas/main_workflow_schema.json
+//go:embed schemas/agentic_workflow_schema.json
 var mainWorkflowSchema string
 
 //go:embed schemas/included_file_schema.json
