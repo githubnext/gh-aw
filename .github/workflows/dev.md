@@ -5,6 +5,8 @@ on:
     branches:
       - copilot*
 engine: copilot
+tools:
+  cache-memory: true
 safe-outputs:
   create-issue:
   staged: true

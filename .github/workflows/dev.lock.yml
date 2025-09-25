@@ -110,6 +110,26 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/cache-memory
+          echo "Cache memory directory created at /tmp/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory
+          path: /tmp/cache-memory
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -846,6 +866,31 @@ jobs:
           Summarize the issue and post the summary in a comment.
           
           EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/cache-memory/history.log` - activity history and logs
+          - `/tmp/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          EOF
       - name: Append safe outputs instructions to prompt
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -928,7 +973,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --log-level debug --log-dir /tmp/.copilot/logs/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
+          copilot --log-level debug --log-dir /tmp/.copilot/logs/ --add-dir /tmp/cache-memory/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

@@ -104,6 +104,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
+	// if cache-memory tool is used, --add-dir
+	if workflowData.CacheMemoryConfig != nil {
+		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/cache-memory/")
+	}
+
 	copilotArgs = append(copilotArgs, "--prompt", "\"$INSTRUCTION\"")
 	command := fmt.Sprintf(`set -o pipefail
 
