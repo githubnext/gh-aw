@@ -947,18 +947,18 @@ async function main() {
             errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
             continue;
           }
-          
+
           // Check if this is a SafeJobConfig with inputs schema
           const safeJobConfig = jobOutputType as SafeJobConfig;
           if (safeJobConfig && safeJobConfig.inputs) {
             // Use SafeJobConfig inputs schema to validate and sanitize fields
             const validation = validateItemWithSafeJobConfig(item, safeJobConfig, i + 1);
-            
+
             if (!validation.isValid) {
               errors.push(...validation.errors);
               continue;
             }
-            
+
             // Update item with normalized/sanitized values
             Object.assign(item, validation.normalizedItem);
           }
