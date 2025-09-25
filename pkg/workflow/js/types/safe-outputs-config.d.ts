@@ -113,6 +113,35 @@ interface MissingToolConfig extends SafeOutputConfig {
   "github-token"?: string;
 }
 
+// === Safe Job Configuration Interfaces ===
+
+/**
+ * Safe job input parameter configuration
+ */
+interface SafeJobInput {
+  description?: string;
+  required?: boolean;
+  default?: string;
+  type?: string;
+  options?: string[];
+}
+
+/**
+ * Safe job configuration item
+ */
+interface SafeJobConfig {
+  name?: string;
+  "runs-on"?: any;
+  if?: string;
+  needs?: string[];
+  steps?: any[];
+  env?: Record<string, string>;
+  permissions?: Record<string, string>;
+  inputs?: Record<string, SafeJobInput>;
+  "github-token"?: string;
+  output?: string;
+}
+
 // Union type of all specific safe output configurations
 type SpecificSafeOutputConfig =
   | CreateIssueConfig
@@ -145,4 +174,7 @@ export {
   UploadAssetConfig,
   MissingToolConfig,
   SpecificSafeOutputConfig,
+  // Safe job configuration types
+  SafeJobInput,
+  SafeJobConfig,
 };
