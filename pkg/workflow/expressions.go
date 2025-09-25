@@ -469,10 +469,11 @@ func (p *ExpressionParser) tokenize(expression string) ([]token, error) {
 				ch := expression[i]
 
 				// Handle quoted strings - skip everything inside quotes
-				if ch == '\'' {
+				if ch == '\'' || ch == '"' {
+					quote := ch
 					i++ // skip opening quote
 					for i < len(expression) {
-						if expression[i] == '\'' {
+						if expression[i] == quote {
 							i++ // skip closing quote
 							break
 						}
