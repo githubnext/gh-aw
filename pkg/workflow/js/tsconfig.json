@@ -37,7 +37,6 @@
     "add_reaction_and_edit_comment.cjs",
     "check_permissions.cjs",
     "check_team_member.cjs",
-    "collect_ndjson_output.cjs",
     "compute_text.cjs",
     "create_code_scanning_alert.cjs",
     "add_comment.cjs",

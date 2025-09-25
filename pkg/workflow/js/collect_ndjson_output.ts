@@ -1,3 +1,5 @@
+import type { SafeOutputItems } from "./types/safe-outputs";
+
 async function main() {
   const fs = require("fs");
 
@@ -6,7 +8,7 @@ async function main() {
    * @param {string} content - The content to sanitize
    * @returns {string} The sanitized content
    */
-  function sanitizeContent(content) {
+  function sanitizeContent(content: string) {
     if (!content || typeof content !== "string") {
       return "";
     }
@@ -91,7 +93,7 @@ async function main() {
      * @param {string} s - The string to process
      * @returns {string} The string with non-https protocols redacted
      */
-    function sanitizeUrlProtocols(s) {
+    function sanitizeUrlProtocols(s: string) {
       // Match protocol:// patterns (URLs) and standalone protocol: patterns that look like URLs
       // Avoid matching command line flags like -v:10 or z3 -memory:high
       return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
@@ -105,7 +107,7 @@ async function main() {
      * @param {string} s - The string to process
      * @returns {string} The string with neutralized mentions
      */
-    function neutralizeMentions(s) {
+    function neutralizeMentions(s: string) {
       // Replace @name or @org/team outside code with `@name`
       return s.replace(
         /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
@@ -118,7 +120,7 @@ async function main() {
      * @param {string} s - The string to process
      * @returns {string} The string with XML comments removed
      */
-    function removeXmlComments(s) {
+    function removeXmlComments(s: string) {
       // Remove XML/HTML comments including malformed ones that might be used to hide content
       // Matches: <!-- ... --> and <!--- ... --> and <!--- ... --!> variations
       return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
@@ -129,7 +131,7 @@ async function main() {
      * @param {string} s - The string to process
      * @returns {string} The string with neutralized bot triggers
      */
-    function neutralizeBotTriggers(s) {
+    function neutralizeBotTriggers(s: string) {
       // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
       return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
     }
@@ -141,7 +143,7 @@ async function main() {
    * @param {any} config - The safe-outputs configuration
    * @returns {number} The maximum allowed count
    */
-  function getMaxAllowedForType(itemType, config) {
+  function getMaxAllowedForType(itemType: string, config) {
     // Check if max is explicitly specified in config
     if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
       return config[itemType].max;
@@ -181,7 +183,7 @@ async function main() {
    * @param {string} jsonStr - The potentially malformed JSON string
    * @returns {string} The repaired JSON string
    */
-  function repairJson(jsonStr) {
+  function repairJson(jsonStr: string): string {
     let repaired = jsonStr.trim();
 
     // remove invalid control characters like
@@ -189,7 +191,7 @@ async function main() {
     // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
     // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
     /** @type {Record<number, string>} */
-    const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
+    const _ctrl: Record<number, string> = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
     repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
       const c = ch.charCodeAt(0);
       return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
@@ -249,7 +251,7 @@ async function main() {
    * @param {number} lineNum - The line number for error reporting
    * @returns {{isValid: boolean, error?: string, normalizedValue?: number}} Validation result
    */
-  function validatePositiveInteger(value, fieldName, lineNum) {
+  function validatePositiveInteger(value: unknown, fieldName: string, lineNum: number) {
     if (value === undefined || value === null) {
       // Match the original error format for create-code-scanning-alert
       if (fieldName.includes("create-code-scanning-alert 'line'")) {
@@ -321,7 +323,7 @@ async function main() {
    * @param {number} lineNum - The line number for error reporting
    * @returns {{isValid: boolean, error?: string, normalizedValue?: number}} Validation result
    */
-  function validateOptionalPositiveInteger(value, fieldName, lineNum) {
+  function validateOptionalPositiveInteger(value: unknown, fieldName: string, lineNum: number) {
     if (value === undefined) {
       return { isValid: true };
     }
@@ -377,7 +379,7 @@ async function main() {
    * @param {number} lineNum - The line number for error reporting
    * @returns {{isValid: boolean, error?: string}} Validation result
    */
-  function validateIssueOrPRNumber(value, fieldName, lineNum) {
+  function validateIssueOrPRNumber(value: unknown, fieldName: string, lineNum: number) {
     if (value === undefined) {
       return { isValid: true };
     }
@@ -397,7 +399,7 @@ async function main() {
    * @param {string} jsonStr - The JSON string to parse
    * @returns {Object|undefined} The parsed JSON object, or undefined if parsing fails
    */
-  function parseJsonWithRepair(jsonStr) {
+  function parseJsonWithRepair(jsonStr: string) {
     try {
       // First, try normal JSON.parse
       return JSON.parse(jsonStr);
