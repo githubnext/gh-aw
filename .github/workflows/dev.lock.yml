@@ -1241,8 +1241,9 @@ jobs:
                 }
               }
               function getMaxAllowedForType(itemType, config) {
-                if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
-                  return config[itemType].max;
+                const itemConfig = config?.[itemType];
+                if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
+                  return itemConfig.max;
                 }
                 switch (itemType) {
                   case "create-issue":
