@@ -41,7 +41,7 @@
     "yaml-agentic-specific": {
       "patterns": [
         {
-          "match": "^\\s*(engine)\\s*(:)\\s*(claude|codex|custom)\\s*$",
+          "match": "^\\s*(engine)\\s*(:)\\s*([a-zA-Z][a-zA-Z0-9_-]*)\\s*$",
           "captures": {
             "1": {
               "name": "entity.name.tag.yaml"
@@ -102,7 +102,7 @@
           }
         },
         {
-          "match": "^\\s*(allowed|github|edit|web-fetch|web-search|bash|playwright)\\s*(:)",
+          "match": "^\\s*(allowed|github|edit|web-fetch|web-search|bash|playwright|[a-zA-Z][a-zA-Z0-9_-]*)\\s*(:)",
           "captures": {
             "1": {
               "name": "entity.name.tag.yaml.agentic-tools"
@@ -113,7 +113,7 @@
           }
         },
         {
-          "match": "^\\s*(create-issue|add-comment|create-pull-request|update-issue)\\s*(:)",
+          "match": "^\\s*(create-issue|add-comment|create-pull-request|update-issue|create-pull-request-review-comment|upload-assets|[a-zA-Z][a-zA-Z0-9_-]*)\\s*(:)",
           "captures": {
             "1": {
               "name": "entity.name.tag.yaml.safe-outputs"
