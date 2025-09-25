@@ -144,7 +144,7 @@ func TestParseSafeJobsConfig(t *testing.T) {
 func TestHasSafeJobsEnabled(t *testing.T) {
 	// Test that safe-jobs are detected by HasSafeJobsEnabled
 	safeJobs := map[string]*SafeJobConfig{
-		"deploy": &SafeJobConfig{
+		"deploy": {
 			RunsOn: "ubuntu-latest",
 		},
 	}
@@ -169,14 +169,14 @@ func TestBuildSafeJobs(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeJobs: map[string]*SafeJobConfig{
-			"deploy": &SafeJobConfig{
+			"deploy": {
 				RunsOn: "ubuntu-latest",
 				If:     "github.event.issue.number",
 				Env: map[string]string{
 					"DEPLOY_ENV": "production",
 				},
 				Inputs: map[string]*SafeJobInput{
-					"environment": &SafeJobInput{
+					"environment": {
 						Description: "Target deployment environment",
 						Required:    true,
 						Type:        "choice",
@@ -287,9 +287,9 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 
 	workflowData := &WorkflowData{
 		SafeJobs: map[string]*SafeJobConfig{
-			"deploy": &SafeJobConfig{
+			"deploy": {
 				Inputs: map[string]*SafeJobInput{
-					"environment": &SafeJobInput{
+					"environment": {
 						Description: "Target deployment environment",
 						Required:    true,
 						Type:        "choice",
@@ -297,9 +297,9 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 					},
 				},
 			},
-			"notify": &SafeJobConfig{
+			"notify": {
 				Inputs: map[string]*SafeJobInput{
-					"message": &SafeJobInput{
+					"message": {
 						Description: "Notification message",
 						Required:    false,
 						Type:        "string",
@@ -370,13 +370,13 @@ func TestExtractSafeJobsFromFrontmatter(t *testing.T) {
 
 func TestMergeSafeJobs(t *testing.T) {
 	base := map[string]*SafeJobConfig{
-		"deploy": &SafeJobConfig{
+		"deploy": {
 			RunsOn: "ubuntu-latest",
 		},
 	}
 
 	additional := map[string]*SafeJobConfig{
-		"test": &SafeJobConfig{
+		"test": {
 			RunsOn: "ubuntu-latest",
 		},
 	}
@@ -393,7 +393,7 @@ func TestMergeSafeJobs(t *testing.T) {
 
 	// Test conflict detection
 	conflicting := map[string]*SafeJobConfig{
-		"deploy": &SafeJobConfig{
+		"deploy": {
 			RunsOn: "windows-latest",
 		},
 	}
@@ -412,7 +412,7 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
 	topSafeJobs := map[string]*SafeJobConfig{
-		"deploy": &SafeJobConfig{
+		"deploy": {
 			RunsOn: "ubuntu-latest",
 		},
 	}
