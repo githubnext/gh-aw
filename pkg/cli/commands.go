@@ -517,6 +517,17 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 
 		// Process content for numbered workflows
 		content := string(sourceContent)
+		
+		// Inject source field if this is from a package
+		if sourceInfo.IsPackage {
+			processedContent, err := injectSourceField(content, sourceInfo, workflowPath, verbose)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to inject source field: %v", err)))
+			} else {
+				content = processedContent
+			}
+		}
+		
 		if number > 1 {
 			// Update H1 title to include number
 			content = updateWorkflowTitle(content, i)
@@ -2673,6 +2684,95 @@ func readCommitSHAFromMetadata(packagePath string) string {
 	}
 
 	return "" // commit_sha not found in metadata
+}
+
+// injectSourceField adds a source field to the frontmatter of a workflow when it comes from a package
+func injectSourceField(content string, sourceInfo *WorkflowSourceInfo, originalWorkflowPath string, verbose bool) (string, error) {
+	// Only inject source for package workflows
+	if !sourceInfo.IsPackage {
+		return content, nil
+	}
+
+	// Parse the frontmatter and markdown content
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return content, fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	// Extract org/repo from package path
+	// Package path format: ~/.aw/packages/{org}/{repo} or ./.aw/packages/{org}/{repo}
+	packagePathParts := strings.Split(filepath.Clean(sourceInfo.PackagePath), string(filepath.Separator))
+	var org, repo string
+	
+	// Find the "packages" directory and extract org/repo from the path after it
+	for i, part := range packagePathParts {
+		if part == "packages" && i+2 < len(packagePathParts) {
+			org = packagePathParts[i+1]
+			repo = packagePathParts[i+2]
+			break
+		}
+	}
+
+	if org == "" || repo == "" {
+		if verbose {
+			fmt.Printf("Warning: Could not extract org/repo from package path: %s\n", sourceInfo.PackagePath)
+		}
+		// Fallback: don't add source field if we can't determine it
+		return content, nil
+	}
+
+	// Get commit SHA from metadata
+	commitSHA := readCommitSHAFromMetadata(sourceInfo.PackagePath)
+	if commitSHA == "" {
+		if verbose {
+			fmt.Printf("Warning: Could not read commit SHA from package metadata\n")
+		}
+		// Use "main" as fallback ref
+		commitSHA = "main"
+	}
+
+	// Get relative path from the source path
+	relativePath, err := filepath.Rel(sourceInfo.PackagePath, sourceInfo.SourcePath)
+	if err != nil {
+		if verbose {
+			fmt.Printf("Warning: Could not determine relative path, using original workflow path: %v\n", err)
+		}
+		// Fallback to original workflow path
+		relativePath = originalWorkflowPath
+	}
+
+	// Construct source field: "org/repo ref path"
+	sourceField := fmt.Sprintf("%s/%s %s %s", org, repo, commitSHA, relativePath)
+
+	// Add source field to frontmatter
+	if result.Frontmatter == nil {
+		result.Frontmatter = make(map[string]any)
+	}
+	result.Frontmatter["source"] = sourceField
+
+	// Convert frontmatter back to YAML
+	yamlBytes, err := yaml.Marshal(result.Frontmatter)
+	if err != nil {
+		return content, fmt.Errorf("failed to marshal frontmatter: %w", err)
+	}
+
+	// Reconstruct the complete workflow content
+	var lines []string
+	lines = append(lines, "---")
+	yamlStr := strings.TrimSuffix(string(yamlBytes), "\n")
+	if yamlStr != "" {
+		lines = append(lines, strings.Split(yamlStr, "\n")...)
+	}
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, result.Markdown)
+	}
+
+	if verbose {
+		fmt.Printf("Added source field: %s\n", sourceField)
+	}
+
+	return strings.Join(lines, "\n"), nil
 }
 
 // resolveWorkflowFile resolves a file or workflow name to an actual file path
