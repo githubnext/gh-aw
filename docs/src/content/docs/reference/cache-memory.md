@@ -29,7 +29,7 @@ When `cache-memory` is enabled, the workflow compiler automatically:
 
 Enable cache-memory with default settings:
 
-```yaml
+```aw wrap
 ---
 engine: claude
 tools:
@@ -52,7 +52,7 @@ The cache folder is accessible to AI agents and provides file system access for 
 
 The AI agent can store information using standard file operations:
 
-```
+```aw wrap
 Please save this information to a file in the cache folder: "User prefers verbose error messages when debugging."
 ```
 
@@ -60,7 +60,7 @@ Please save this information to a file in the cache folder: "User prefers verbos
 
 The AI agent can read files from the cache folder:
 
-```
+```aw wrap
 Check what information I have stored in the cache folder from previous runs.
 ```
 
@@ -76,7 +76,7 @@ The AI agent can organize files as needed:
 
 You can customize cache key and artifact retention:
 
-```yaml
+```aw wrap
 ---
 engine: claude
 tools:
@@ -92,7 +92,7 @@ tools:
 
 Configure how long cache data artifacts are retained:
 
-```yaml
+```aw wrap
 ---
 engine: claude
 tools:
@@ -230,7 +230,7 @@ Be mindful of cache usage:
 
 Enable verbose logging to debug cache-memory issues:
 
-```yaml
+```aw wrap
 ---
 engine: claude
 tools:
@@ -267,7 +267,7 @@ Please debug the cache-memory functionality by:
 
 ### Basic File Storage
 
-```yaml
+```aw wrap
 ---
 engine: claude
 on:
@@ -297,7 +297,7 @@ Store and retrieve information using simple file operations.
 
 ### Project-Specific Cache
 
-```yaml
+```aw wrap
 ---
 engine: claude
 tools:
@@ -315,7 +315,7 @@ Store progress, preferences, and notes in organized files.
 
 ### Multi-Workflow File Sharing
 
-```yaml
+```aw wrap
 ---
 engine: claude
 tools:

@@ -20,7 +20,7 @@ Model Context Protocol (MCP) is a standardized protocol that allows AI agents to
 
 Add MCP servers to your workflow's frontmatter using the `mcp-servers:` section:
 
-```yaml
+```aw wrap
 ---
 on: issues
 permissions:

@@ -256,7 +256,7 @@ The `needs.activation.outputs.text` provides the same content but with security 
 - Content size limited to 0.5MB and 65k lines maximum
 - Control characters and ANSI sequences removed
 
-```markdown
+```aw wrap
 # SECURE: Use sanitized context
 Analyze this content: "${{ needs.activation.outputs.text }}"
 

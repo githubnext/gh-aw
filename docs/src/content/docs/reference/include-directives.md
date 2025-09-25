@@ -9,7 +9,7 @@ Include directives allow you to modularize and reuse workflow components across 
 
 ## Basic Include Syntax
 
-```markdown
+```aw wrap
 @include relative/path/to/file.md
 ```
 
@@ -17,7 +17,7 @@ Includes files relative to the current markdown file's location.
 
 ## Optional Include Syntax
 
-```markdown
+```aw wrap
 @include? relative/path/to/file.md
 ```
 
@@ -25,7 +25,7 @@ Includes files optionally - if the file doesn't exist, no error occurs and a fri
 
 ## Section-Specific Includes
 
-```markdown
+```aw wrap
 @include filename.md#Section
 ```
 
@@ -37,7 +37,7 @@ Includes only a specific section from a markdown file using the section header.
 - **Tool merging**: `allowed:` tools are merged across all included files
 
 ### Example Tool Merging
-```markdown
+```aw wrap
 # Base workflow
 ---
 tools:
@@ -48,7 +48,7 @@ tools:
 @include shared/extra-tools.md  # Adds more GitHub tools
 ```
 
-```markdown
+```aw wrap
 # shared/extra-tools.md
 ---
 tools:

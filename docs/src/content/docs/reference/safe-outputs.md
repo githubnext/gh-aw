@@ -94,7 +94,7 @@ The agentic part of your workflow should describe the comment(s) it wants posted
 
 **Example natural language to generate the output:**
 
-```aw
+```aw wrap
 ---
 on:
   issues:
@@ -138,7 +138,7 @@ The agentic part of your workflow should analyze the issue content and determine
 
 **Example of natural language to generate the output:**
 
-```markdown
+```aw wrap
 # Issue Labeling Agent
 
 Analyze the issue content and add appropriate labels to the issue.
@@ -174,7 +174,7 @@ The agentic part of your workflow should analyze the issue and determine what up
 
 **Example natural language to generate the output:**
 
-```aw
+```aw wrap
 ---
 on:
   issues:
@@ -284,7 +284,7 @@ The agentic part of your workflow should instruct to:
 
 **Example natural language to generate the output:**
 
-```aw
+```aw wrap
 ---
 on:
   push:
@@ -345,7 +345,7 @@ The agentic part of your workflow should describe the review comment(s) it wants
 
 **Example natural language to generate the output:**
 
-```aw
+```aw wrap
 ---
 on:
   pull_request:
@@ -406,7 +406,7 @@ The agentic part of your workflow should describe the security findings it wants
 
 **Example natural language to generate the output:**
 
-```markdown
+```aw wrap
 # Security Analysis Agent
 
 Analyze the codebase for security vulnerabilities and create repository security advisories.
@@ -467,7 +467,7 @@ The agentic part of your workflow should describe the changes to be pushed and o
 
 **Example natural language to generate the output:**
 
-```aw
+```aw wrap
 ---
 on:
   pull_request:
@@ -564,7 +564,7 @@ The agentic part of your workflow can report missing tools or functionality that
 
 **Example natural language to generate the output:**
 
-```aw
+```aw wrap
 ---
 on:
   issues:

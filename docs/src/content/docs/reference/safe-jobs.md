@@ -21,7 +21,7 @@ The `safe-jobs:` element of your workflow's frontmatter enables you to define cu
 
 **Note**: All safe-jobs must have an `inputs` section with at least one input parameter.
 
-```yaml
+```aw wrap
 ---
 on: issues
 engine: claude
@@ -154,7 +154,7 @@ safe-jobs:
 Safe-jobs can be imported from included workflows with automatic conflict detection:
 
 **Main workflow:**
-```yaml
+```aw wrap
 ---
 safe-jobs:
   deploy:
@@ -168,7 +168,7 @@ safe-jobs:
 ```
 
 **Included file (shared/common-jobs.md):**
-```yaml
+```aw wrap
 ---
 safe-jobs:
   test:

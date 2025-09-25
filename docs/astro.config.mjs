@@ -6,42 +6,12 @@ import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 // import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
-// Define custom language for agentic workflows (frontmatter + markdown)
-const awLanguageDefinition = {
-	id: "aw",
-	scopeName: "source.aw",
-	aliases: ["agentic-workflow", "frontmatter-markdown"],
-	grammar: {
-		name: "Agentic Workflow",
-		scopeName: "source.aw",
-		fileTypes: ["aw"],
-		patterns: [
-			{
-				// YAML frontmatter block
-				name: "meta.embedded.block.frontmatter",
-				begin: "^(---)\\s*$",
-				beginCaptures: {
-					"1": { name: "punctuation.definition.tag.begin.yaml" }
-				},
-				end: "^(---)\\s*$",
-				endCaptures: {
-					"1": { name: "punctuation.definition.tag.end.yaml" }
-				},
-				patterns: [
-					{ include: "source.yaml" }
-				]
-			},
-			{
-				// Markdown content after frontmatter
-				begin: "(?<=^---\\s*$\\s*)",
-				end: "\\z",
-				patterns: [
-					{ include: "text.html.markdown" }
-				]
-			}
-		]
-	}
-};
+// NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
+// Shiki did not register it and builds produced a warning: language "aw" not found.
+// For now we alias `aw` -> `markdown` which removes the warning and still gives
+// reasonable highlighting for examples that combine frontmatter + markdown.
+// If richer highlighting is needed later, implement a proper TextMate grammar
+// in a separate JSON file and load it here (ensure required embedded scopes exist).
 
 // https://astro.build/config
 export default defineConfig({
@@ -56,11 +26,11 @@ export default defineConfig({
 			],
 			expressiveCode: {
 				shiki: {
-					langs: [
-						"markdown",
-						"yaml",
-						awLanguageDefinition
-					],
+						langs: /** @type {any[]} */ ([
+							"markdown",
+							"yaml"
+						]),
+						langAlias: { aw: "markdown" }
 				},
 			},
 			plugins: [
