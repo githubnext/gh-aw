@@ -1819,6 +1819,10 @@
         }
       ]
     },
+    "source": {
+      "type": "string",
+      "description": "Source information about where the workflow was installed from. Format: '<org>/<repo> <ref> <path>' (similar to go.mod)"
+    },
     "githubActionsStep": {
       "type": "object",
       "description": "GitHub Actions workflow step",

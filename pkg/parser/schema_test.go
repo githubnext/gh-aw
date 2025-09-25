@@ -33,6 +33,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				"engine":          "claude",
 				"tools":           map[string]any{"github": "test"},
 				"command":         "test-workflow",
+				"source":          "githubnext/agentics abc123def456 weekly-research.md",
 			},
 			wantErr: false,
 		},
@@ -43,6 +44,25 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				"engine": "claude",
 			},
 			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with source field",
+			frontmatter: map[string]any{
+				"on":     "push",
+				"engine": "claude",
+				"source": "githubnext/agentics abc123def456 weekly-research.md",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid frontmatter with non-string source field",
+			frontmatter: map[string]any{
+				"on":     "push",
+				"engine": "claude",
+				"source": 123, // Should be string
+			},
+			wantErr:     true,
+			errContains: "type",
 		},
 		{
 			name:        "empty frontmatter",
