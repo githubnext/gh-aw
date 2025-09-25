@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
-import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
+// import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // https://astro.build/config
 export default defineConfig({
@@ -17,8 +17,59 @@ export default defineConfig({
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
 				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/pkg/cli/templates/instructions.md' }
 			],
+			expressiveCode: {
+				shiki: {
+					langs: [
+						'markdown',
+						'yaml',
+						{
+							id: 'aw',
+							scopeName: 'source.aw',
+							aliases: ['agentic-workflow', 'frontmatter-markdown'],
+							grammar: {
+								name: 'Agentic Workflow',
+								scopeName: 'source.aw',
+								fileTypes: ['aw'],
+								patterns: [
+									{
+										name: 'meta.frontmatter.aw',
+										begin: '^(---\\s*)$',
+										end: '^(---\\s*)$',
+										beginCaptures: {
+											'1': {
+												name: 'punctuation.definition.tag.begin.yaml'
+											}
+										},
+										endCaptures: {
+											'1': {
+												name: 'punctuation.definition.tag.end.yaml'
+											}
+										},
+										contentName: 'source.yaml',
+										patterns: [
+											{
+												include: 'source.yaml'
+											}
+										]
+									},
+									{
+										begin: '^(?!---)',
+										end: '\\z',
+										name: 'text.html.markdown',
+										patterns: [
+											{
+												include: 'text.html.markdown'
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				}
+			},
 			plugins: [
-				starlightChangelogs(),
+				// starlightChangelogs(), // Temporarily disabled for testing
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
@@ -61,9 +112,9 @@ export default defineConfig({
 					label: 'Application Areas',
 					autogenerate: { directory: 'samples' },
 				},
-				...makeChangelogsSidebarLinks([
-					{ type: 'all', base: 'changelog', label: 'Changelog' }
-				]),
+				// ...makeChangelogsSidebarLinks([
+				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
+				// ]),
 			],
 		}),
 	],
