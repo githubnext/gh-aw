@@ -18,8 +18,11 @@ safe-jobs:
         required: true
         type: string
     steps:
+      - name: See artifacts
+        run: cd /tmp/safe-jobs && find . -mindepth 1 -maxdepth 3 -type f
       - name: print message
         run: |
+          
           if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
             MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "echo") | .message // "Hello from safe-job!"')
             echo "Echoing message: $MESSAGE"
