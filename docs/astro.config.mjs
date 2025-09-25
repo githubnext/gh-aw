@@ -10,32 +10,30 @@ import starlightGitHubAlerts from 'starlight-github-alerts';
 const awLanguageDefinition = {
 	id: "aw",
 	scopeName: "source.aw",
-	aliases: ["agentic-workflow"],
+	aliases: ["agentic-workflow", "frontmatter-markdown"],
 	grammar: {
 		name: "Agentic Workflow",
 		scopeName: "source.aw",
 		fileTypes: ["aw"],
 		patterns: [
 			{
-				// Match YAML frontmatter block
-				name: "meta.frontmatter.yaml",
-				begin: "\\A(---)\\s*$",
-				end: "^(---)\\s*$",
+				// YAML frontmatter block
+				name: "meta.embedded.block.frontmatter",
+				begin: "^(---)\\s*$",
 				beginCaptures: {
 					"1": { name: "punctuation.definition.tag.begin.yaml" }
 				},
+				end: "^(---)\\s*$",
 				endCaptures: {
 					"1": { name: "punctuation.definition.tag.end.yaml" }
 				},
-				contentName: "source.yaml",
 				patterns: [
 					{ include: "source.yaml" }
 				]
 			},
 			{
-				// Match everything after frontmatter as markdown
-				name: "text.html.markdown",
-				begin: "(?<=^---\\s*$\\s)",
+				// Markdown content after frontmatter
+				begin: "(?<=^---\\s*$\\s*)",
 				end: "\\z",
 				patterns: [
 					{ include: "text.html.markdown" }
@@ -66,7 +64,7 @@ export default defineConfig({
 				},
 			},
 			plugins: [
-				// starlightChangelogs(), // Temporarily disabled for testing
+				// starlightChangelogs(),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
