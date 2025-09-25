@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Add Issue Comment"
 
 jobs:
-  test-claude-add-issue-comment:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       issues: write

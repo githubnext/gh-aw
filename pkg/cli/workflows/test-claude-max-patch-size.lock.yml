@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Patch Size Validation"
 
 jobs:
-  test-claude-patch-size-validation:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -2029,7 +2029,7 @@ jobs:
           if-no-files-found: ignore
 
   create_pull_request:
-    needs: test-claude-patch-size-validation
+    needs: agent
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -2063,8 +2063,8 @@ jobs:
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.test-claude-patch-size-validation.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "test-claude-patch-size-validation"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_WORKFLOW_ID: "agent"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_TITLE_PREFIX: "[PATCH-SIZE-TEST] "
           GITHUB_AW_PR_DRAFT: "true"

@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Push to PR Branch"
 
 jobs:
-  test-claude-push-to-pr-branch:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       contents: write

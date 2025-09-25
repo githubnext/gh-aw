@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Codex Command"
 
 jobs:
-  test-codex-command:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       contents: read

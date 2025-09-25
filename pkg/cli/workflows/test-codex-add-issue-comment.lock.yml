@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Codex Add Issue Comment"
 
 jobs:
-  test-codex-add-issue-comment:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       issues: write

@@ -305,6 +305,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"headers":    true,
 		"registry":   true,
 		"allowed":    true,
+		"network":    true,
 	}
 
 	for key := range toolConfig {
@@ -460,8 +461,7 @@ func getRawMCPConfig(toolConfig map[string]any, toolName string) (map[string]any
 	result := make(map[string]any)
 
 	// List of MCP fields that can be direct children of the tool config
-	// Note: "permissions" stays at the tool level, not an MCP field
-	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers"}
+	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers", "network"}
 
 	// Check new format: direct fields in tool config
 	for _, field := range mcpFields {
@@ -512,15 +512,7 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 
 // hasNetworkPermissions checks if a tool configuration has network permissions
 func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
-	extract := func(perms any) (bool, []string) {
-		permsMap, ok := perms.(map[string]any)
-		if !ok {
-			return false, nil
-		}
-		network, hasNetwork := permsMap["network"]
-		if !hasNetwork {
-			return false, nil
-		}
+	extract := func(network any) (bool, []string) {
 		networkMap, ok := network.(map[string]any)
 		if !ok {
 			return false, nil
@@ -542,18 +534,11 @@ func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
 		return len(domains) > 0, domains
 	}
 
-	// First, check top-level permissions
-	if permissions, hasPerms := toolConfig["permissions"]; hasPerms {
-		if ok, domains := extract(permissions); ok {
-			return true, domains
-		}
-	}
-
-	// Then, check permissions nested under mcp (alternate schema used in some configs)
+	// New format: check direct network field under mcp
 	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
 		if m, ok := mcpSection.(map[string]any); ok {
-			if permissions, hasPerms := m["permissions"]; hasPerms {
-				if ok, domains := extract(permissions); ok {
+			if network, hasNetwork := m["network"]; hasNetwork {
+				if ok, domains := extract(network); ok {
 					return true, domains
 				}
 			}

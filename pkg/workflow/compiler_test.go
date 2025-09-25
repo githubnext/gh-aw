@@ -4680,10 +4680,8 @@ func TestAccessLogUploadConditional(t *testing.T) {
 				"fetch": map[string]any{
 					"type":      "stdio",
 					"container": "mcp/fetch",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"fetch"},
 				},

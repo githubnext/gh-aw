@@ -202,6 +202,21 @@ func TestValidateMCPConfigs(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "new format: stdio with container and network config",
+			tools: map[string]any{
+				"network-server": map[string]any{
+					"type":      "stdio",
+					"container": "mcp/network-server:latest",
+					"network": map[string]any{
+						"allowed":    []any{"example.com", "api.example.com"},
+						"proxy-args": []any{"--proxy-test"},
+					},
+					"allowed": []any{"fetch", "post"},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "new format: missing type and no inferrable fields",
 			tools: map[string]any{
 				"no-type": map[string]any{
@@ -395,10 +410,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"httpWithNetPerms": map[string]any{
 					"type": "http",
 					"url":  "https://example.com",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -412,10 +425,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"stdioNonContainerWithNetPerms": map[string]any{
 					"type":    "stdio",
 					"command": "python",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -429,10 +440,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"stdioContainerWithNetPerms": map[string]any{
 					"type":      "stdio",
 					"container": "mcp/fetch",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},
@@ -445,10 +454,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 				"httpWithMcpNetPerms": map[string]any{
 					"type": "http",
 					"url":  "https://example.com",
-					"permissions": map[string]any{
-						"network": map[string]any{
-							"allowed": []any{"example.com"},
-						},
+					"network": map[string]any{
+						"allowed": []any{"example.com"},
 					},
 					"allowed": []any{"tool1"},
 				},

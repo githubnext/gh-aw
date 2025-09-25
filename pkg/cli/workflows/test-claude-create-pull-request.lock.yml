@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Create Pull Request"
 
 jobs:
-  test-claude-create-pull-request:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       contents: write

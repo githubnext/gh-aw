@@ -450,12 +450,17 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 			}
 		}
 
-		// Extract proxy arguments for stdio (container-based tools)
-		if proxyArgs, hasProxyArgs := mcpConfig["proxy-args"]; hasProxyArgs {
-			if proxyArgsSlice, ok := proxyArgs.([]any); ok {
-				for _, arg := range proxyArgsSlice {
-					if argStr, ok := arg.(string); ok {
-						config.ProxyArgs = append(config.ProxyArgs, argStr)
+		// Extract network configuration for stdio (container-based tools)
+		if network, hasNetwork := mcpConfig["network"]; hasNetwork {
+			if networkMap, ok := network.(map[string]any); ok {
+				// Extract proxy arguments from network config
+				if proxyArgs, hasProxyArgs := networkMap["proxy-args"]; hasProxyArgs {
+					if proxyArgsSlice, ok := proxyArgs.([]any); ok {
+						for _, arg := range proxyArgsSlice {
+							if argStr, ok := arg.(string); ok {
+								config.ProxyArgs = append(config.ProxyArgs, argStr)
+							}
+						}
 					}
 				}
 			}

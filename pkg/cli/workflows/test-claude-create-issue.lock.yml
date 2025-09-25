@@ -15,7 +15,7 @@ concurrency:
 run-name: "Test Claude Create Issue"
 
 jobs:
-  test-claude-create-issue:
+  agent:
     runs-on: ubuntu-latest
     permissions:
       issues: write

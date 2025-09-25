@@ -97,7 +97,7 @@ jobs:
     steps:
       - run: echo "Activation success"
 
-  test-workflow:
+  agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
@@ -258,16 +258,10 @@ jobs:
                 "registry": "https://registry.example.com/servers/my-http-server"
               },
               "my-stdio-server": {
-                "command": "python",
+                "command": "npx",
                 "args": [
-                  "-m",
-                  "my_server"
-                ],
-                "env": {
-                  "API_KEY": "secret123"
-                },
-                "proxy-args": [
-                  "--custom-arg"
+                  "-y",
+                  "my-server"
                 ],
                 "registry": "https://registry.example.com/servers/my-stdio-server"
               }
