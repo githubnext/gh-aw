@@ -1,5 +1,20 @@
 import type { SafeOutputItem, SafeOutputItems } from "./types/safe-outputs";
-import type { SafeOutputConfigs } from "./types/safe-outputs-config";
+import type {
+  SafeOutputConfigs,
+  SafeOutputConfig,
+  SpecificSafeOutputConfig,
+  CreateIssueConfig,
+  CreateDiscussionConfig,
+  AddCommentConfig,
+  CreatePullRequestConfig,
+  CreatePullRequestReviewCommentConfig,
+  CreateCodeScanningAlertConfig,
+  AddLabelsConfig,
+  UpdateIssueConfig,
+  PushToPullRequestBranchConfig,
+  UploadAssetConfig,
+  MissingToolConfig,
+} from "./types/safe-outputs-config";
 
 async function main() {
   const fs = require("fs");
@@ -141,13 +156,14 @@ async function main() {
   /**
    * Gets the maximum allowed count for a given output type
    * @param {string} itemType - The output item type
-   * @param {any} config - The safe-outputs configuration
+   * @param {SafeOutputConfigs} config - The safe-outputs configuration
    * @returns {number} The maximum allowed count
    */
-  function getMaxAllowedForType(itemType: string, config: SafeOutputConfigs) {
+  function getMaxAllowedForType(itemType: string, config: SafeOutputConfigs): number {
     // Check if max is explicitly specified in config
-    if (config && config[itemType] && typeof config[itemType] === "object" && config[itemType].max) {
-      return config[itemType].max;
+    const itemConfig = config?.[itemType];
+    if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
+      return itemConfig.max;
     }
 
     // Use default limits for plural-supported types
@@ -191,7 +207,6 @@ async function main() {
     // U+0014 (DC4) — represented here as "\u0014"
     // Escape control characters not allowed in JSON strings (U+0000 through U+001F)
     // Preserve common JSON escapes for \b, \f, \n, \r, \t and use \uXXXX for the rest.
-    /** @type {Record<number, string>} */
     const _ctrl: Record<number, string> = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
     repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
       const c = ch.charCodeAt(0);
@@ -398,9 +413,9 @@ async function main() {
   /**
    * Attempts to parse JSON with repair fallback
    * @param {string} jsonStr - The JSON string to parse
-   * @returns {Object|undefined} The parsed JSON object, or undefined if parsing fails
+   * @returns {any|undefined} The parsed JSON object, or undefined if parsing fails
    */
-  function parseJsonWithRepair(jsonStr: string) {
+  function parseJsonWithRepair(jsonStr: string): any | undefined {
     try {
       // First, try normal JSON.parse
       return JSON.parse(jsonStr);
@@ -444,11 +459,10 @@ async function main() {
   core.info(`Raw output content length: ${outputContent.length}`);
 
   // Parse the safe-outputs configuration
-  /** @type {any} */
-  let expectedOutputTypes = {};
+  let expectedOutputTypes: SafeOutputConfigs = {};
   if (safeOutputsConfig) {
     try {
-      expectedOutputTypes = JSON.parse(safeOutputsConfig);
+      expectedOutputTypes = JSON.parse(safeOutputsConfig) as SafeOutputConfigs;
       core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -465,8 +479,7 @@ async function main() {
     const line = lines[i].trim();
     if (line === "") continue; // Skip empty lines
     try {
-      /** @type {any} */
-      const item = parseJsonWithRepair(line);
+      const item = parseJsonWithRepair(line) as any;
 
       // If item is undefined (failed to parse), add error and process next line
       if (item === undefined) {
@@ -512,7 +525,7 @@ async function main() {
           item.body = sanitizeContent(item.body);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(/** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label));
+            item.labels = item.labels.map((label: any) => (typeof label === "string" ? sanitizeContent(label) : label));
           }
           break;
 
@@ -550,7 +563,7 @@ async function main() {
           item.branch = sanitizeContent(item.branch);
           // Sanitize labels if present
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(/** @param {any} label */ label => (typeof label === "string" ? sanitizeContent(label) : label));
+            item.labels = item.labels.map((label: any) => (typeof label === "string" ? sanitizeContent(label) : label));
           }
           break;
 
@@ -559,7 +572,7 @@ async function main() {
             errors.push(`Line ${i + 1}: add_labels requires a 'labels' array field`);
             continue;
           }
-          if (item.labels.some(/** @param {any} label */ label => typeof label !== "string")) {
+          if (item.labels.some((label: any) => typeof label !== "string")) {
             errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
             continue;
           }
@@ -570,7 +583,7 @@ async function main() {
             continue;
           }
           // Sanitize label strings
-          item.labels = item.labels.map(/** @param {any} label */ label => sanitizeContent(label));
+          item.labels = item.labels.map((label: any) => sanitizeContent(label));
           break;
 
         case "update-issue":
