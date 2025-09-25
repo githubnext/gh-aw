@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -90,10 +89,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 	}
 
-	// TODO: handle logs folder
-	logDir := filepath.Dir(logFile)
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs []string = []string{"--log-level", "debug", "--log-dir", logDir}
+	var copilotArgs []string = []string{"--log-level", "debug", "--log-dir", "/tmp/.copilot/logs"}
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
@@ -101,7 +98,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	copilotArgs = append(copilotArgs, "--prompt", "\"$INSTRUCTION\"")
-	command := fmt.Sprintf(`INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+	command := fmt.Sprintf(`set -o pipefail
+
+INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 
 # Run copilot CLI with log capture
 copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)

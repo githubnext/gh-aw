@@ -922,10 +922,12 @@ jobs:
         id: agentic_execution
         timeout-minutes: 5
         run: |
+          set -o pipefail
+          
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot -p "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
+          copilot --log-level debug --log-dir /tmp/.copilot/logs --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
