@@ -1308,7 +1308,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build safe-jobs if configured
-	if err := c.buildSafeJobs(data, jobName); err != nil {
+	if err := c.buildSafeJobs(data, "agent"); err != nil {
 		return fmt.Errorf("failed to build safe-jobs: %w", err)
 	}
 
