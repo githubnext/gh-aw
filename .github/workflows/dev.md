@@ -10,7 +10,7 @@ safe-outputs:
     staged: true
 safe-jobs:
   echo:
-    name: "Echo the message to the terminal"
+    #name: "Echo the message to the terminal"
     runs-on: ubuntu-latest
     inputs:
       message:
