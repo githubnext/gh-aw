@@ -267,69 +267,107 @@ The `mcp` command provides comprehensive tools for discovering, listing, and ins
 
 ### MCP Server Discovery
 
+**Basic Listing:**
 ```bash
 # List all workflows that contain MCP server configurations
 gh aw mcp list
 
-# List all workflows with detailed MCP server information
+# List with detailed MCP server information (shows server types, commands, allowed tools)
 gh aw mcp list --verbose
 
-# List MCP servers in a specific workflow
+# List MCP servers in a specific workflow only
 gh aw mcp list workflow-name
 
 # List MCP servers in a specific workflow with detailed configuration
 gh aw mcp list workflow-name --verbose
 ```
 
+**Output Details:**
+- **Basic mode**: Shows workflow names and MCP server counts
+- **Verbose mode**: Includes server names, types (stdio/http/docker), commands/URLs, arguments, allowed tools, and environment variables
+- **Single workflow**: Displays detailed table of all MCP servers in that workflow
+
 ### MCP Server Inspection
 
+**Deep Analysis and Connection Testing:**
 ```bash
-# List all workflows that contain MCP server configurations
+# List all workflows that have MCP server configurations (same as mcp list)
 gh aw mcp inspect
 
-# Inspect all MCP servers in a specific workflow
+# Inspect and test connections to all MCP servers in a specific workflow
 gh aw mcp inspect workflow-name
 
-# Filter inspection to specific servers by name
+# Filter inspection to a specific MCP server by name
 gh aw mcp inspect workflow-name --server server-name
 
-# Show detailed information about a specific tool (requires --server)
+# Show detailed information about a specific tool (requires --server flag)
 gh aw mcp inspect workflow-name --server server-name --tool tool-name
 
-# Enable verbose output with connection details
+# Enable verbose output with detailed connection logs and debugging info
 gh aw mcp inspect workflow-name --verbose
 
-# Launch the official @modelcontextprotocol/inspector web interface
+# Launch the official @modelcontextprotocol/inspector web interface for interactive debugging
 gh aw mcp inspect workflow-name --inspector
 ```
 
+**Inspection Features:**
+- **Connection Testing**: Attempts to start and connect to each MCP server
+- **Capability Discovery**: Lists available tools, resources, and prompts from connected servers
+- **Tool Details**: With `--tool` flag, shows parameter schemas, descriptions, and metadata
+- **Protocol Support**: Works with stdio, Docker container, and HTTP MCP servers
+- **Web Inspector**: Launches browser-based MCP debugging interface for interactive exploration
+- **Permission Analysis**: Shows which tools are allowed vs. available
+
 ### MCP Server Management
 
+**Adding MCP Servers from Registry:**
 ```bash
-# List available MCP servers from the registry
+# Show available MCP servers from GitHub's MCP registry
 gh aw mcp add
 
 # Add an MCP server to a workflow from the registry
 gh aw mcp add weekly-research makenotion/notion-mcp-server
 
-# Add MCP server with specific transport preference
+# Add MCP server with specific transport preference (stdio/docker)
 gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio
 
-# Add MCP server with custom tool ID
+# Add MCP server with custom tool ID for the workflow
 gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion
 
-# Use custom MCP registry
+# Use custom MCP registry instead of default GitHub registry
 gh aw mcp add weekly-research server-name --registry https://custom.registry.com/v1
+```
 
-# Launch MCP server exposing gh-aw CLI tools
+The `mcp add` command:
+- Searches the MCP registry for servers by name (fuzzy matching)
+- Automatically selects the best available transport (stdio preferred over docker)
+- Adds the MCP server configuration to the workflow's tools section
+- Automatically compiles the workflow to generate the `.lock.yml` file
+- Prevents adding duplicate servers to the same workflow
+
+**Serving gh-aw as MCP Server:**
+```bash
+# Launch MCP server exposing all gh-aw CLI functionality
 gh aw mcp serve
 
-# Serve with detailed logging
-gh aw mcp serve -v
+# Serve with detailed logging and connection information
+gh aw mcp serve --verbose
 
-# Serve with only specific tools enabled
-gh aw mcp serve --allowed-tools compile,logs,run
+# Serve with only specific tools enabled (comma-separated list)
+gh aw mcp serve --allowed-tools compile,logs,run,status
 ```
+
+**Available CLI-to-MCP Tools:**
+When using `gh aw mcp serve`, the following gh-aw CLI commands become available as MCP tools:
+- `compile` - Compile markdown workflow files to YAML
+- `logs` - Download and analyze agentic workflow logs
+- `mcp_inspect` - Inspect MCP servers and tools in workflows
+- `mcp_list` - List MCP server configurations
+- `mcp_add` - Add MCP tools to workflows from registry
+- `run` - Execute workflows on GitHub Actions
+- `enable` - Enable workflow execution
+- `disable` - Disable workflow execution
+- `status` - Show workflow status
 
 ### MCP Server Development
 

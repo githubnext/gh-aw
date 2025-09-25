@@ -205,6 +205,88 @@ The compiler enforces these network permission rules:
 - ❌ **Non-container stdio**: `network egress permissions only apply to stdio MCP servers that specify a 'container'`  
 - ✅ **Container stdio**: Network permissions work correctly
 
+## MCP Server Management with CLI
+
+GitHub Agentic Workflows provides comprehensive CLI tools for managing MCP servers in your workflows.
+
+### Discovering and Listing MCP Servers
+
+List MCP servers across all workflows or within specific workflows:
+
+```bash
+# List all workflows that contain MCP server configurations
+gh aw mcp list
+
+# List with detailed MCP server information
+gh aw mcp list --verbose
+
+# List MCP servers in a specific workflow
+gh aw mcp list weekly-research
+
+# List with detailed configuration
+gh aw mcp list weekly-research --verbose
+```
+
+The `mcp list` command shows:
+- Workflow names containing MCP servers
+- Server count per workflow
+- In verbose mode: server names, types, commands/URLs, and allowed tools
+
+### Adding MCP Servers from Registry
+
+Add MCP servers to workflows directly from the GitHub MCP registry:
+
+```bash
+# Show available MCP servers from registry
+gh aw mcp add
+
+# Add an MCP server to a workflow
+gh aw mcp add weekly-research makenotion/notion-mcp-server
+
+# Add with specific transport preference (stdio/docker)
+gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio
+
+# Add with a custom tool ID
+gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion
+
+# Use a custom MCP registry
+gh aw mcp add weekly-research server-name --registry https://custom.registry.com/v1
+```
+
+**Registry Features:**
+- **Default Registry**: Uses GitHub's MCP registry at `https://api.mcp.github.com/v0`
+- **Server Search**: Fuzzy matching by server name
+- **Transport Selection**: Automatically chooses best available transport (stdio preferred)
+- **Automatic Compilation**: Compiles workflow after adding MCP server
+
+### Exposing gh-aw as MCP Server
+
+Launch an MCP server that exposes gh-aw CLI functionality to AI assistants:
+
+```bash
+# Launch MCP server exposing all gh-aw tools
+gh aw mcp serve
+
+# Launch with verbose logging
+gh aw mcp serve --verbose
+
+# Launch with only specific tools enabled
+gh aw mcp serve --allowed-tools compile,logs,run
+```
+
+**Available MCP Tools:**
+- `compile` - Compile markdown workflow files to YAML
+- `logs` - Download and analyze agentic workflow logs
+- `mcp_inspect` - Inspect MCP servers and tools
+- `mcp_list` - List MCP server configurations
+- `mcp_add` - Add MCP tools to workflows
+- `run` - Execute workflows on GitHub Actions
+- `enable` - Enable workflow execution
+- `disable` - Disable workflow execution
+- `status` - Show workflow status
+
+This enables AI assistants to manage GitHub Agentic Workflows through the standardized MCP protocol.
+
 ## Debugging and Troubleshooting
 
 ### MCP Server Inspection

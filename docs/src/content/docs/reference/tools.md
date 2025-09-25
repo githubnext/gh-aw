@@ -107,7 +107,7 @@ Same as `network:` configuration: `defaults`, `github`, `node`, `python`, `conta
 
 ## Custom MCP Tools
 
-Add custom Model Context Protocol servers for specialized integrations:
+Add custom Model Context Protocol servers for specialized integrations. MCP enables AI workflows to connect to external tools, databases, and services in a secure and standardized way.
 
 ```yaml
 tools:
@@ -119,11 +119,9 @@ tools:
         API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
 ```
 
-**Tool Execution:**
-- Tools are configured as MCP servers that run alongside the AI engine
-- Each tool provides specific capabilities (APIs, browser automation, etc.)
-- Tools run in isolated environments with controlled access
-- Domain restrictions apply to network-enabled tools like Playwright
+> **📘 Complete MCP Guide**: For comprehensive MCP server setup, configuration examples, server types (stdio, Docker, HTTP), network permissions, debugging, and troubleshooting, see the [MCP Integration Guide](/gh-aw/guides/mcps/).
+
+> **🔧 MCP CLI Tools**: Use `gh aw mcp list`, `gh aw mcp inspect`, and `gh aw mcp add` commands for managing MCP servers. See [CLI Commands](/gh-aw/tools/cli/#mcp-server-management) for details.
 
 ## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
 
