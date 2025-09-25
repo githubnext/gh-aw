@@ -1,5 +1,5 @@
 ---
-title: Implementing ChatOps with Agentic Workflows
+title: ChatOps
 description: A guide to building interactive automation using command triggers and safe outputs for ChatOps-style workflows.
 ---
 
