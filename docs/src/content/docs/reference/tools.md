@@ -136,7 +136,7 @@ The legacy approach nests MCP servers under the `tools:` section:
 tools:
   custom-api:
     mcp:
-      command: "node"  
+      command: "node"
       args: ["custom-mcp-server.js"]
       env:
         API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
