@@ -792,6 +792,12 @@ async function main() {
           break;
 
         default:
+          const jobOutputType = expectedOutputTypes[itemType];
+          if (!jobOutputType) {
+            // TODO: validate inputs
+            core.info(`Line ${i + 1}: No validation rules for output type '${itemType}'`);
+            continue;
+          }
           errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
           continue;
       }
