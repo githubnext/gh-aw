@@ -517,7 +517,7 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 
 		// Process content for numbered workflows
 		content := string(sourceContent)
-		
+
 		// Inject source field if this is from a package
 		if sourceInfo.IsPackage {
 			processedContent, err := injectSourceField(content, sourceInfo, workflowPath, verbose)
@@ -527,7 +527,7 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 				content = processedContent
 			}
 		}
-		
+
 		if number > 1 {
 			// Update H1 title to include number
 			content = updateWorkflowTitle(content, i)
@@ -2703,7 +2703,7 @@ func injectSourceField(content string, sourceInfo *WorkflowSourceInfo, originalW
 	// Package path format: ~/.aw/packages/{org}/{repo} or ./.aw/packages/{org}/{repo}
 	packagePathParts := strings.Split(filepath.Clean(sourceInfo.PackagePath), string(filepath.Separator))
 	var org, repo string
-	
+
 	// Find the "packages" directory and extract org/repo from the path after it
 	for i, part := range packagePathParts {
 		if part == "packages" && i+2 < len(packagePathParts) {

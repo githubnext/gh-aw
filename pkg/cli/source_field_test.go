@@ -10,6 +10,11 @@ import (
 )
 
 func TestInjectSourceField(t *testing.T) {
+	const (
+		testCommitSHA = "abc123def456"
+		fallbackRef   = "main"
+	)
+	
 	tests := []struct {
 		name                 string
 		content              string
@@ -34,7 +39,7 @@ This is a test workflow.`,
 				SourcePath:  "/home/user/.aw/packages/testorg/testrepo/test-workflow.md",
 			},
 			originalWorkflowPath: "test-workflow.md",
-			expectedSource:       "testorg/testrepo main test-workflow.md",
+			expectedSource:       "testorg/testrepo " + testCommitSHA + " test-workflow.md",
 		},
 		{
 			name: "no injection for non-package workflow",
@@ -71,7 +76,7 @@ This is a test with existing frontmatter.`,
 				SourcePath:  "/home/user/.aw/packages/github/awesome-workflows/ci-doctor.md",
 			},
 			originalWorkflowPath: "ci-doctor.md",
-			expectedSource:       "github/awesome-workflows main ci-doctor.md",
+			expectedSource:       "github/awesome-workflows " + testCommitSHA + " ci-doctor.md",
 		},
 		{
 			name: "inject source field with no frontmatter",
@@ -84,7 +89,7 @@ This workflow has no frontmatter.`,
 				SourcePath:  "/tmp/.aw/packages/myorg/myrepo/simple.md",
 			},
 			originalWorkflowPath: "simple.md",
-			expectedSource:       "myorg/myrepo main simple.md",
+			expectedSource:       "myorg/myrepo " + testCommitSHA + " simple.md",
 		},
 	}
 
@@ -108,7 +113,7 @@ This workflow has no frontmatter.`,
 
 				// Create metadata file
 				metadataFile := filepath.Join(packagePath, ".aw-metadata")
-				metadataContent := "commit_sha=abc123def456\nother_field=value\n"
+				metadataContent := "commit_sha=" + testCommitSHA + "\nother_field=value\n"
 				err = os.WriteFile(metadataFile, []byte(metadataContent), 0644)
 				if err != nil {
 					t.Fatalf("Failed to create metadata file: %v", err)
@@ -118,14 +123,7 @@ This workflow has no frontmatter.`,
 				tt.sourceInfo.PackagePath = packagePath
 				tt.sourceInfo.SourcePath = filepath.Join(packagePath, filepath.Base(tt.originalWorkflowPath))
 
-				// Update expected source with actual commit SHA
-				if tt.expectedSource != "" {
-					parts := strings.Split(tt.expectedSource, " ")
-					if len(parts) >= 3 {
-						parts[1] = "abc123def456" // Replace "main" with actual commit SHA
-						tt.expectedSource = strings.Join(parts, " ")
-					}
-				}
+				// Expected source already has the correct commit SHA from constants
 			}
 
 			result, err := injectSourceField(tt.content, tt.sourceInfo, tt.originalWorkflowPath, false)
@@ -206,29 +204,29 @@ invalid yaml: [
 
 func TestReadCommitSHAFromMetadata(t *testing.T) {
 	tests := []struct {
-		name           string
+		name            string
 		metadataContent string
-		expectedSHA    string
+		expectedSHA     string
 	}{
 		{
-			name:           "valid metadata with commit_sha",
+			name:            "valid metadata with commit_sha",
 			metadataContent: "commit_sha=abc123def456\nother_field=value\n",
-			expectedSHA:    "abc123def456",
+			expectedSHA:     "abc123def456",
 		},
 		{
-			name:           "metadata without commit_sha",
+			name:            "metadata without commit_sha",
 			metadataContent: "other_field=value\nyet_another=test\n",
-			expectedSHA:    "",
+			expectedSHA:     "",
 		},
 		{
-			name:           "empty metadata",
+			name:            "empty metadata",
 			metadataContent: "",
-			expectedSHA:    "",
+			expectedSHA:     "",
 		},
 		{
-			name:           "metadata with spaces",
+			name:            "metadata with spaces",
 			metadataContent: "  commit_sha=def789ghi012  \nother=value\n",
-			expectedSHA:    "def789ghi012",
+			expectedSHA:     "def789ghi012",
 		},
 	}
 
