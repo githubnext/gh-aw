@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+const tempFolder = "/tmp/.copilot/"
+const logsFolder = tempFolder + "logs/"
+
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
 	BaseEngine
@@ -59,26 +62,22 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 			"          node-version: '22'",
 		},
 		{
-			"      - name: Setup NPM Registry for GitHub Packages",
-			"        run: |",
-			"          cat > ~/.npmrc << 'EOF'",
-			"          //npm.pkg.github.com/:_authToken=${{ secrets.PACKAGES_TOKEN }}",
-			"          @github:registry=https://npm.pkg.github.com/",
-			"          EOF",
-		},
-		{
 			"      - name: Install GitHub Copilot CLI",
 			fmt.Sprintf("        run: %s", installCmd),
 		},
 		{
 			"      - name: Setup Copilot CLI MCP Configuration",
 			"        run: |",
-			"          mkdir -p ~/.copilot",
+			"          mkdir -p /tmp/.copilot",
 		},
 	}
 
 	steps = append(steps, installationSteps...)
 	return steps
+}
+
+func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
+	return []string{logsFolder}
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
@@ -98,21 +97,30 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs []string
-	copilotArgs = append(copilotArgs, "-p", "\"$INSTRUCTION\"")
+	var copilotArgs []string = []string{"--log-level", "debug", "--log-dir", logsFolder}
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
-	command := fmt.Sprintf(`INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+	// if cache-memory tool is used, --add-dir
+	if workflowData.CacheMemoryConfig != nil {
+		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/cache-memory/")
+	}
+
+	copilotArgs = append(copilotArgs, "--prompt", "\"$INSTRUCTION\"")
+	command := fmt.Sprintf(`set -o pipefail
+
+INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 
 # Run copilot CLI with log capture
 copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 
 	env := map[string]string{
-		"GITHUB_TOKEN":        "${{ secrets.COPILOT_CLI_TOKEN }}",
+		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment
+		"XDG_STATE_HOME":      tempFolder, // copilot cache environment
+		"GITHUB_TOKEN":        "${{ secrets.GITHUB_COPILOT_CLI_TOKEN }}",
 		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
 
@@ -178,7 +186,7 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > ~/.copilot/mcpconfig << 'EOF'\n")
+	yaml.WriteString("          cat > /tmp/.copilot/mcp-config.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -266,12 +274,13 @@ func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, 
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
 	yaml.WriteString("              \"playwright\": {\n")
+	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"npx\",\n")
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString("                  \"--allowed-origins\",\n")
-		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ",") + "\"\n")
+		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"\n")
 	}
 	yaml.WriteString("                ]\n")
 
@@ -294,6 +303,7 @@ func (e *CopilotEngine) renderCacheMemoryCopilotMCPConfig(yaml *strings.Builder,
 // renderSafeOutputsCopilotMCPConfig generates the Safe Outputs MCP server configuration for Copilot CLI
 func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
 	yaml.WriteString("              \"safe_outputs\": {\n")
+	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"node\",\n")
 	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")

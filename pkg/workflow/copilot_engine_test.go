@@ -40,8 +40,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	// Test with no version
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
-	if len(steps) != 4 {
-		t.Errorf("Expected 4 installation steps, got %d", len(steps))
+	if len(steps) != 3 {
+		t.Errorf("Expected 3 installation steps, got %d", len(steps))
 	}
 
 	// Test with version
@@ -49,8 +49,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: "1.0.0"},
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	if len(stepsWithVersion) != 4 {
-		t.Errorf("Expected 4 installation steps with version, got %d", len(stepsWithVersion))
+	if len(stepsWithVersion) != 3 {
+		t.Errorf("Expected 3 installation steps with version, got %d", len(stepsWithVersion))
 	}
 }
 
@@ -72,15 +72,15 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "copilot -p") {
-		t.Errorf("Expected command to contain 'copilot -p' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "copilot --log-level debug --log-dir") {
+		t.Errorf("Expected command to contain 'copilot --log-level debug --log-dir' in step content:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "/tmp/test.log") {
 		t.Errorf("Expected command to contain log file name in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}") {
+	if !strings.Contains(stepContent, "GITHUB_TOKEN: ${{ secrets.GITHUB_COPILOT_CLI_TOKEN }}") {
 		t.Errorf("Expected GITHUB_TOKEN environment variable in step content:\n%s", stepContent)
 	}
 
