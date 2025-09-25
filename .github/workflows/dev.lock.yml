@@ -2213,9 +2213,9 @@ jobs:
       - name: Setup Safe Job Environment Variables
         run: |
           echo "Setting up environment for safe job"
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json/agent_output.json" >> $GITHUB_ENV
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
       - name: See artifacts
-        run: cd /tmp/safe-jobs && find . -mindepth 1 -maxdepth 3 -type f
+        run: cd /tmp/safe-jobs && ls -lR
       - name: print message
         run: |-
 

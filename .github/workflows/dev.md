@@ -19,7 +19,7 @@ safe-jobs:
         type: string
     steps:
       - name: See artifacts
-        run: cd /tmp/safe-jobs && find . -mindepth 1 -maxdepth 3 -type f
+        run: cd /tmp/safe-jobs && ls -lR
       - name: print message
         run: |
           

@@ -248,7 +248,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
 		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
 
 		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName, constants.AgentOutputArtifactName))
+		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {
