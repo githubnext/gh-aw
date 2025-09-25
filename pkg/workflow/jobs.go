@@ -11,6 +11,7 @@ import (
 // Job represents a GitHub Actions job with all its properties
 type Job struct {
 	Name           string
+	DisplayName    string // Optional display name for the job (name property in YAML)
 	RunsOn         string
 	If             string
 	Permissions    string

@@ -5,6 +5,7 @@ import "fmt"
 // SafeJobConfig defines a safe job configuration with GitHub Actions job properties
 type SafeJobConfig struct {
 	// Standard GitHub Actions job properties
+	Name        string            `yaml:"name,omitempty"`
 	RunsOn      any               `yaml:"runs-on,omitempty"`
 	If          string            `yaml:"if,omitempty"`
 	Needs       []string          `yaml:"needs,omitempty"`

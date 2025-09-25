@@ -1463,6 +1463,11 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
 			Name: jobName,
 		}
 
+		// Set custom job name if specified
+		if jobConfig.Name != "" {
+			job.DisplayName = jobConfig.Name
+		}
+
 		// Add dependency on main job
 		job.Needs = append(job.Needs, constants.AgentJobName)
 
