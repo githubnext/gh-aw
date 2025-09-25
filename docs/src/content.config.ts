@@ -8,7 +8,7 @@ export const collections = {
 	changelogs: defineCollection({
 		loader: changelogsLoader([
 			{
-				enabled: !(process.env.npm_lifecycle_event === 'dev' || process.env.npm_lifecycle_event === 'start'), // disable in dev mode
+				enabled: !(process.env.npm_lifecycle_event === 'dev' || process.env.npm_lifecycle_event === 'start'), // disable in dev mode (detects npm run dev/start)
 				provider: 'github',       // use GitHub releases as changelog source
 				base: 'changelog',        // base path for changelog pages
 				owner: 'githubnext',      // GitHub org/user
