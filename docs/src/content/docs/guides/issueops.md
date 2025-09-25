@@ -58,11 +58,11 @@ safe-outputs:
 
 ## Accessing Issue Context
 
-Issue Ops workflows have access to sanitized issue content through the `needs.task.outputs.text` variable:
+Issue Ops workflows have access to sanitized issue content through the `needs.activation.outputs.text` variable:
 
 ```yaml
 # In your workflow instructions:
-Analyze this issue: "${{ needs.task.outputs.text }}"
+Analyze this issue: "${{ needs.activation.outputs.text }}"
 ```
 
 The sanitized context provides:

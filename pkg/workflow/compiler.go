@@ -147,7 +147,7 @@ type WorkflowData struct {
 	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
 	Jobs               map[string]any      // custom job configurations with dependencies
 	Cache              string              // cache configuration
-	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
+	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.activation.outputs.text }}
 	NetworkPermissions *NetworkPermissions // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
@@ -1113,15 +1113,15 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
 }
 
-// detectTextOutputUsage checks if the markdown content uses ${{ needs.task.outputs.text }}
+// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 	// Check for the specific GitHub Actions expression
-	hasUsage := strings.Contains(markdownContent, "${{ needs.task.outputs.text }}")
+	hasUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
 	if c.verbose {
 		if hasUsage {
-			fmt.Println(console.FormatInfoMessage("Detected usage of task.outputs.text - compute-text step will be included"))
+			fmt.Println(console.FormatInfoMessage("Detected usage of activation.outputs.text - compute-text step will be included"))
 		} else {
-			fmt.Println(console.FormatInfoMessage("No usage of task.outputs.text found - compute-text step will be skipped"))
+			fmt.Println(console.FormatInfoMessage("No usage of activation.outputs.text found - compute-text step will be skipped"))
 		}
 	}
 	return hasUsage

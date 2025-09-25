@@ -1,5 +1,5 @@
 ---
-title: Implementing ChatOps with Agentic Workflows
+title: ChatOps
 description: A guide to building interactive automation using command triggers and safe outputs for ChatOps-style workflows.
 ---
 
@@ -45,11 +45,11 @@ You can customize access using the `roles:` configuration, but using `roles: all
 
 ## Accessing Context Information
 
-ChatOps workflows have access to sanitized context from the triggering event through `needs.task.outputs.text`. This provides safer access to issue content, pull request details, or comment text with reduced security risks.
+ChatOps workflows have access to sanitized context from the triggering event through `needs.activation.outputs.text`. This provides safer access to issue content, pull request details, or comment text with reduced security risks.
 
 ```yaml
 # In your workflow content, reference the sanitized text:
-Analyze this content: "${{ needs.task.outputs.text }}"
+Analyze this content: "${{ needs.activation.outputs.text }}"
 ```
 
 The sanitized context automatically filters out potential security issues like unauthorized mentions, malicious links, and excessive content while preserving the essential information your automation needs.
