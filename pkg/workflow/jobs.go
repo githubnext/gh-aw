@@ -148,6 +148,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 
 	yaml.WriteString(fmt.Sprintf("  %s:\n", job.Name))
 
+	// Add display name if present
+	if job.DisplayName != "" {
+		yaml.WriteString(fmt.Sprintf("    name: %s\n", job.DisplayName))
+	}
+
 	// Add needs clause if there are dependencies
 	if len(job.Needs) > 0 {
 		if len(job.Needs) == 1 {
