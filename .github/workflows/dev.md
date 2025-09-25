@@ -24,7 +24,7 @@ safe-jobs:
         run: |
           cat "$GITHUB_AW_AGENT_OUTPUT"   
           if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "print") | .message)
+            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "print") | .message')
             echo "Echoing message: $MESSAGE"
           else
             echo "No agent output found, using default: Hello from safe-job!"
