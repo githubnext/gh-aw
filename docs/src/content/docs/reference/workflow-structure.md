@@ -16,7 +16,7 @@ The markdown content is where you write natural language instructions for the AI
 
 Create a markdown file in `.github/workflows/` with the following structure:
 
-```markdown
+```aw
 ---
 on:
   issues:

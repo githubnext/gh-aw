@@ -11,7 +11,7 @@ GitHub Agentic Workflows makes ChatOps natural and secure through command trigge
 
 Command triggers make any GitHub repository responsive to automation commands. When you configure a command trigger, your workflow automatically listens for specific slash commands in issues, pull requests, and comments.
 
-```yaml
+```aw
 ---
 on:
   command:
@@ -47,7 +47,7 @@ You can customize access using the `roles:` configuration, but using `roles: all
 
 ChatOps workflows have access to sanitized context from the triggering event through `needs.activation.outputs.text`. This provides safer access to issue content, pull request details, or comment text with reduced security risks.
 
-```yaml
+```markdown
 # In your workflow content, reference the sanitized text:
 Analyze this content: "${{ needs.activation.outputs.text }}"
 ```
