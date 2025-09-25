@@ -1,8 +1,10 @@
 ---
 on: 
   workflow_dispatch:
-  command:
   reaction: "eyes"
+  push:
+    branches:
+      - copilot/*
 engine: claude
 safe-outputs:
     staged: true

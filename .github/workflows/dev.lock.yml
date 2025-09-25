@@ -5,41 +5,20 @@
 
 name: "Dev"
 "on":
-  issue_comment:
-    types:
-    - created
-    - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request_review_comment:
-    types:
-    - created
-    - edited
+  push:
+    branches:
+    - copilot/*
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
 run-name: "Dev"
 
 jobs:
   check-membership:
-    if: >
-      ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/dev')) ||
-      (contains(github.event.comment.body, '/dev'))) || (contains(github.event.pull_request.body, '/dev')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment'))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -47,7 +26,7 @@ jobs:
       result: ${{ steps.check-membership.outputs.result }}
       user_permission: ${{ steps.check-membership.outputs.user_permission }}
     steps:
-      - name: Check team membership for command workflow
+      - name: Check team membership for workflow
         id: check-membership
         uses: actions/github-script@v8
         env:
@@ -117,12 +96,7 @@ jobs:
 
   activation:
     needs: check-membership
-    if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/dev')) ||
-      (contains(github.event.comment.body, '/dev'))) || (contains(github.event.pull_request.body, '/dev')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment')))
+    if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     steps:
       - run: echo "Activation success"
@@ -135,10 +109,8 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
-      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
       issues: write
       pull-requests: write
-      contents: read
     outputs:
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
@@ -147,7 +119,6 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REACTION: eyes
-          GITHUB_AW_COMMAND: dev
         with:
           script: |
             async function main() {
@@ -2234,9 +2205,6 @@ jobs:
 
   create_issue:
     needs: agent
-    if: >
-      contains(github.event.issue.body, '/dev') || contains(github.event.comment.body, '/dev') ||
-      contains(github.event.pull_request.body, '/dev')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2395,9 +2363,7 @@ jobs:
 
   add_labels:
     needs: agent
-    if: >
-      (contains(github.event.issue.body, '/dev') || contains(github.event.comment.body, '/dev') || contains(github.event.pull_request.body, '/dev')) &&
-      (github.event.issue.number || github.event.pull_request.number)
+    if: github.event.issue.number || github.event.pull_request.number
     runs-on: ubuntu-latest
     permissions:
       contents: read
