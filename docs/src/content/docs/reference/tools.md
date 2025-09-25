@@ -107,8 +107,6 @@ Same as `network:` configuration: `defaults`, `github`, `node`, `python`, `conta
 
 ## MCP Server Integration
 
-### Modern MCP Configuration (Recommended)
-
 Use the dedicated `mcp-servers:` section for MCP server configuration:
 
 ```yaml
@@ -128,23 +126,6 @@ tools:
     allowed_domains: ["github.com"]
 ```
 
-### Legacy MCP Configuration
-
-The legacy approach nests MCP servers under the `tools:` section:
-
-```yaml
-tools:
-  custom-api:
-    mcp:
-      command: "node"
-      args: ["custom-mcp-server.js"]
-      env:
-        API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
-```
-
-> [!TIP]
-> **Migration Guidance**: Use `mcp-servers:` for new workflows to clearly separate MCP servers from built-in tools. The legacy `tools:` → `mcp:` format is still supported but not recommended for new workflows.
-
 ### Adding MCP Servers from Registry
 
 The easiest way to add MCP servers is from the GitHub MCP registry:
@@ -155,8 +136,6 @@ gh aw mcp add
 
 # Add a specific server to your workflow  
 gh aw mcp add my-workflow makenotion/notion-mcp-server
-
-# The command automatically uses the modern mcp-servers: format
 ```
 
 See the [MCP Integration Guide](/gh-aw/guides/mcps/) for comprehensive MCP server setup and configuration.

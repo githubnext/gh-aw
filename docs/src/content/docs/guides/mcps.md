@@ -16,13 +16,9 @@ Model Context Protocol (MCP) is a standardized protocol that allows AI agents to
 
 ## Quick Start
 
-### MCP Server Configuration Formats
+### Basic MCP Configuration
 
-GitHub Agentic Workflows supports two formats for configuring MCP servers:
-
-#### Recommended: Top-Level `mcp-servers:` Format
-
-The modern approach uses a dedicated `mcp-servers:` section at the top level of your frontmatter:
+Add MCP servers to your workflow's frontmatter using the `mcp-servers:` section:
 
 ```yaml
 ---
@@ -50,32 +46,6 @@ mcp-servers:
 
 # Your workflow content here
 ```
-
-#### Legacy: Nested `tools:` Format 
-
-The legacy approach nests MCP servers under the `tools:` section:
-
-```yaml
----
-tools:
-  github:
-    allowed: [get_issue, add_issue_comment]
-  
-  trello:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "trello_mcp"]
-      env:
-        TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
-    allowed: ["list_boards"]
----
-
-# Your workflow content here
-```
-
-> [!TIP]
-> **Migration Guidance**: The `mcp-servers:` format is preferred for new workflows as it provides cleaner separation between built-in tools and MCP servers. Both formats are supported, but consider migrating to `mcp-servers:` for better maintainability.
 
 > [!TIP]
 > You can inspect and test your MCP configuration by running <br/>
@@ -123,9 +93,7 @@ Different AI engines support different MCP features:
 
 ### 1. Stdio MCP Servers
 
-Direct command execution with stdin/stdout communication.
-
-**Modern `mcp-servers:` format (recommended):**
+Direct command execution with stdin/stdout communication:
 
 ```yaml
 mcp-servers:
@@ -138,28 +106,11 @@ mcp-servers:
     allowed: ["process_data", "generate_report"]
 ```
 
-**Legacy `tools:` format:**
-
-```yaml
-tools:
-  python-service:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_mcp_server"]
-      env:
-        API_KEY: "${{ secrets.MY_API_KEY }}"
-        DEBUG: "false"
-    allowed: ["process_data", "generate_report"]
-```
-
 **Use cases**: Python modules, Node.js scripts, local executables
 
 ### 2. Docker Container MCP Servers
 
-Containerized MCP servers for isolation and portability.
-
-**Modern `mcp-servers:` format (recommended):**
+Containerized MCP servers for isolation and portability:
 
 ```yaml
 mcp-servers:
@@ -167,19 +118,6 @@ mcp-servers:
     container: "mcp/notion"
     env:
       NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-    allowed: ["create_page", "search_pages"]
-```
-
-**Legacy `tools:` format:**
-
-```yaml
-tools:
-  notion:
-    mcp:
-      type: stdio
-      container: "mcp/notion"
-      env:
-        NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
     allowed: ["create_page", "search_pages"]
 ```
 
@@ -191,9 +129,7 @@ The `container` field automatically generates:
 
 ### 3. HTTP MCP Servers
 
-Remote MCP servers accessible via HTTP (Claude engine only).
-
-**Modern `mcp-servers:` format (recommended):**
+Remote MCP servers accessible via HTTP (Claude engine only):
 
 ```yaml
 mcp-servers:
@@ -205,27 +141,11 @@ mcp-servers:
     allowed: ["query_data", "update_records"]
 ```
 
-**Legacy `tools:` format:**
-
-```yaml
-tools:
-  remote-api:
-    mcp:
-      type: http
-      url: "https://api.example.com/mcp"
-      headers:
-        Authorization: "Bearer ${{ secrets.API_TOKEN }}"
-        Content-Type: "application/json"
-    allowed: ["query_data", "update_records"]
-```
-
 **Use cases**: Cloud services, remote APIs, shared infrastructure
 
 ### 4. Registry-based MCP Servers
 
-MCP servers that reference entries in the GitHub MCP registry.
-
-**Modern `mcp-servers:` format (recommended):**
+MCP servers that reference entries in the GitHub MCP registry:
 
 ```yaml
 mcp-servers:
@@ -259,25 +179,11 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), you ca
 
 ### Specific Tools
 
-**Modern `mcp-servers:` format (recommended):**
-
 ```yaml
 mcp-servers:
   custom-server:
     command: "python"
     args: ["-m", "my_server"]
-    allowed: ["tool1", "tool2", "tool3"]
-```
-
-**Legacy `tools:` format:**
-
-```yaml
-tools:
-  custom-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_server"]
     allowed: ["tool1", "tool2", "tool3"]
 ```
 
@@ -289,8 +195,6 @@ When using an agentic engine that allows tool whitelisting (e.g. Claude), this g
 
 ### Wildcard Access
 
-**Modern `mcp-servers:` format (recommended):**
-
 ```yaml
 mcp-servers:
   custom-server:
@@ -299,25 +203,11 @@ mcp-servers:
     allowed: ["*"]  # Allow ALL tools from this server
 ```
 
-**Legacy `tools:` format:**
-
-```yaml
-tools:
-  custom-server:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "my_server"]
-    allowed: ["*"]  # Allow ALL tools from this server
-```
-
 When using an agentic engine that allows tool whitelisting (e.g. Claude), this generates: `mcp__servername` (access to all server tools)
 
 ### HTTP Headers
 
-HTTP headers can be configured for remote MCP servers in both formats.
-
-**Modern `mcp-servers:` format (recommended):**
+HTTP headers can be configured for remote MCP servers:
 
 ```yaml
 mcp-servers:
@@ -328,24 +218,9 @@ mcp-servers:
       X-Custom-Key: "${{ secrets.CUSTOM_KEY }}"
 ```
 
-**Legacy `tools:` format:**
-
-```yaml
-tools:
-  remote-api:
-    mcp:
-      type: http
-      url: "https://api.service.com"
-      headers:
-        Authorization: "Bearer ${{ secrets.API_TOKEN }}"
-        X-Custom-Key: "${{ secrets.CUSTOM_KEY }}"
-```
-
 ## Network Egress Permissions
 
 Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `permissions.network.allowed`.
-
-**Modern `mcp-servers:` format (recommended):**
 
 ```yaml
 mcp-servers:
@@ -355,21 +230,6 @@ mcp-servers:
       network:
         allowed:
           - "example.com"
-    allowed: ["fetch"]
-```
-
-**Legacy `tools:` format:**
-
-```yaml
-tools:
-  fetch:
-    mcp:
-      type: stdio
-      container: mcp/fetch
-      permissions:
-        network:
-          allowed:
-            - "example.com"
     allowed: ["fetch"]
 ```
 
@@ -391,8 +251,6 @@ The compiler enforces these network permission rules:
 - ❌ **HTTP servers**: `network egress permissions do not apply to remote HTTP MCP servers`
 - ❌ **Non-container stdio**: `network egress permissions only apply to containerized MCP servers`  
 - ✅ **Container stdio**: Network permissions work correctly
-
-These rules apply to both `mcp-servers:` and `tools:` configuration formats.
 
 ## Debugging and Troubleshooting
 
