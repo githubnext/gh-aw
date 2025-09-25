@@ -1794,6 +1794,7 @@ jobs:
                     errors.push(`Line ${i + 1}: Too many items of type '${itemType}'. Maximum allowed: ${maxAllowed}.`);
                     continue;
                   }
+                  core.info(`Line ${i + 1}: type '${itemType}'`);
                   switch (itemType) {
                     case "create-issue":
                       if (!item.title || typeof item.title !== "string") {
@@ -2048,11 +2049,10 @@ jobs:
                     default:
                       const jobOutputType = expectedOutputTypes[itemType];
                       if (!jobOutputType) {
-                        core.info(`Line ${i + 1}: No validation rules for output type '${itemType}'`);
+                        errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
                         continue;
                       }
-                      errors.push(`Line ${i + 1}: Unknown output type '${itemType}'`);
-                      continue;
+                      break;
                   }
                   core.info(`Line ${i + 1}: Valid ${itemType} item`);
                   parsedItems.push(item);
