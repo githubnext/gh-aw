@@ -462,7 +462,6 @@ tools:
 ```
 
 ### Custom MCP Tools
-
 ```yaml
 mcp-servers:
   my-custom-tool:
