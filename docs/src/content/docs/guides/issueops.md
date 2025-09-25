@@ -11,7 +11,7 @@ GitHub Agentic Workflows makes Issue Ops natural through issue creation triggers
 
 Issue Ops workflows activate automatically when new issues are created in your repository. The AI agent analyzes the issue content, applies your defined logic, and provides intelligent responses through automated comments.
 
-```yaml
+```aw wrap
 ---
 on:
   issues:
@@ -77,7 +77,7 @@ The sanitized context provides:
 
 ### Automated Bug Report Triage
 
-```yaml
+```aw wrap
 ---
 on:
   issues:

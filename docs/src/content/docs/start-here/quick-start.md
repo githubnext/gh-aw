@@ -73,12 +73,11 @@ Once the run is complete, a new issue will be created in your repository with a 
 
 Let's look at what you just added. The weekly research workflow automatically triages new issues:
 
-```markdown
+```aw wrap
 ---
 on:
   schedule:
     - cron: "0 9 * * 1"  # Every Monday at 9 AM
-
 safe-outputs:
   create-issue:
 ---

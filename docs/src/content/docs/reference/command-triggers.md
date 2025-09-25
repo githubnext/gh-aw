@@ -7,7 +7,7 @@ sidebar:
 
 GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
 
-```yaml
+```yaml wrap
 on:
   command:
     name: my-bot  # Optional: defaults to filename without .md extension
@@ -20,7 +20,7 @@ This automatically creates:
 
 You can combine `command:` with other events like `workflow_dispatch` or `schedule`:
 
-```yaml
+```yaml wrap
 on:
   command:
     name: my-bot
@@ -35,7 +35,7 @@ on:
 
 ### Example command workflow
 
-```markdown
+```aw wrap
 ---
 on:
   command:
@@ -59,7 +59,7 @@ The current context text is: "${{ needs.activation.outputs.text }}"
 
 All workflows have access to a special computed `needs.activation.outputs.text` value that provides **sanitized** context based on the triggering event:
 
-```markdown
+```aw wrap
 # Analyze this content: "${{ needs.activation.outputs.text }}"
 ```
 
@@ -83,7 +83,7 @@ The `needs.activation.outputs.text` provides critical security protections that 
 - **ANSI sanitization**: Strips escape sequences that could manipulate terminal output
 
 **Comparison:**
-```markdown
+```aw wrap
 # RECOMMENDED: Secure sanitized context
 Analyze this issue: "${{ needs.activation.outputs.text }}"
 

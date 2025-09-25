@@ -37,7 +37,7 @@ Every agentic workflow has two main parts:
 1. **Frontmatter (YAML)** — Configuration that defines triggers, permissions, and available tools
 2. **Instructions (Markdown)** — Natural language description of what the AI should do
 
-```markdown
+```aw warp
 ---
 on: ...
 permissions: ...

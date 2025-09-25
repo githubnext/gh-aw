@@ -16,7 +16,7 @@ Effective agentic markdown combines clear instructions, contextual information, 
 #### Be Clear and Specific
 Write instructions as if you're explaining the task to a new team member. Avoid ambiguity and provide concrete examples.
 
-```markdown
+```aw wrap
 # Good: Specific and actionable
 Analyze issue #${{ github.event.issue.number }} and add appropriate labels from the repository's label list. Focus on categorizing the issue type (bug, feature, documentation) and priority level (high, medium, low).
 
@@ -27,7 +27,7 @@ Look at the issue and do something useful with labels.
 #### Provide Context
 Give the AI agent background information about your project, team preferences, and relevant constraints.
 
-```markdown
+```aw wrap
 # Project Context
 This repository follows semantic versioning and uses GitHub Flow for branching. 
 When reviewing pull requests, ensure:
@@ -39,7 +39,7 @@ When reviewing pull requests, ensure:
 #### Structure with Headings
 Use markdown headings to organize instructions into logical sections that guide the agent's workflow.
 
-```markdown
+```aw wrap
 # Weekly Research Report
 
 ## Research Areas
@@ -60,7 +60,7 @@ Create a structured report with:
 #### Use Action-Oriented Language
 Start instructions with clear action verbs and specify expected outcomes.
 
-```markdown
+```aw wrap
 # Effective action verbs
 - "Analyze the pull request and identify potential issues"
 - "Create a summary of recent issues tagged as 'bug'"
@@ -71,7 +71,7 @@ Start instructions with clear action verbs and specify expected outcomes.
 #### Include Decision Criteria
 Help the agent make consistent decisions by providing clear criteria and examples.
 
-```markdown
+```aw wrap
 # Issue Labeling Criteria
 Apply labels based on these guidelines:
 - `bug`: Reports of incorrect behavior with steps to reproduce
@@ -88,7 +88,7 @@ Priority levels:
 #### Reference Context Appropriately
 Use sanitized context text and GitHub Actions expressions to provide secure, relevant context from the triggering event.
 
-```markdown
+```aw wrap
 # RECOMMENDED: Use sanitized context text for security
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
@@ -108,7 +108,7 @@ The issue body is: "${{ github.event.issue.body }}"
 #### Handle Edge Cases
 Anticipate and provide guidance for unusual situations or error conditions.
 
-```markdown
+```aw wrap
 # Error Handling
 If the workflow fails to complete any step:
 1. Create an issue documenting the failure
@@ -122,7 +122,7 @@ If the workflow fails to complete any step:
 #### Sequential Workflows
 For multi-step processes, use numbered lists or clear sequential structure.
 
-```markdown
+```aw wrap
 # Code Review Process
 
 1. **Initial Analysis**
@@ -141,7 +141,7 @@ For multi-step processes, use numbered lists or clear sequential structure.
 #### Conditional Logic
 Use clear conditional statements to guide agent decision-making.
 
-```markdown
+```aw wrap
 # Issue Triage Logic
 
 If the issue contains error messages or stack traces:
@@ -162,7 +162,7 @@ Otherwise:
 #### Template Patterns
 Provide templates for consistent output formatting.
 
-```markdown
+```aw wrap
 # Weekly Status Report Template
 
 Use this format for the status report:
@@ -280,7 +280,7 @@ allowed: [github.repository, github.actor, github.workflow, ...]
 
 ## Example Valid Usage
 
-```markdown
+```aw wrap
 # RECOMMENDED: Use sanitized context text for user content
 Repository: ${{ github.repository }}
 Triggered by: ${{ github.actor }}  
