@@ -3,7 +3,9 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -364,7 +366,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
-		
+
 		// Skip empty lines
 		if trimmedLine == "" {
 			continue
@@ -406,7 +408,8 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 				if executionSeconds, err := strconv.ParseFloat(timeMatch[1], 64); err == nil {
 					// Simple cost estimation based on execution time (placeholder)
 					// This would need to be refined based on actual Copilot CLI pricing
-					metrics.EstimatedCost += executionSeconds * 0.001 // $0.001 per second as placeholder
+					const placeholderCostPerSecond = 0.001 // TODO: Replace with actual Copilot CLI pricing
+					metrics.EstimatedCost += executionSeconds * placeholderCostPerSecond
 				}
 			}
 		}
@@ -423,19 +426,19 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		}
 
 		// Count errors with more specific patterns
-		if strings.Contains(line, "[ERROR]") || 
-		   strings.Contains(line, "copilot: error:") ||
-		   strings.Contains(line, "Fatal error:") ||
-		   strings.Contains(line, "npm ERR!") ||
-		   strings.Contains(line, "Shell command failed:") {
+		if strings.Contains(line, "[ERROR]") ||
+			strings.Contains(line, "copilot: error:") ||
+			strings.Contains(line, "Fatal error:") ||
+			strings.Contains(line, "npm ERR!") ||
+			strings.Contains(line, "Shell command failed:") {
 			metrics.ErrorCount++
 		}
 
 		// Count warnings with more specific patterns
-		if strings.Contains(line, "[WARNING]") || 
-		   strings.Contains(line, "[WARN]") ||
-		   strings.Contains(line, "Warning:") ||
-		   strings.Contains(line, "MCP server connection timeout") {
+		if strings.Contains(line, "[WARNING]") ||
+			strings.Contains(line, "[WARN]") ||
+			strings.Contains(line, "Warning:") ||
+			strings.Contains(line, "MCP server connection timeout") {
 			metrics.WarningCount++
 		}
 	}
@@ -690,7 +693,7 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 		},
 		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[ERROR\]\s+Shell command failed:\s*(.+)`,
-			LevelGroup:   0, // No level group, will be inferred as "error" 
+			LevelGroup:   0, // No level group, will be inferred as "error"
 			MessageGroup: 2, // error message is in the second capture group
 			Description:  "Copilot CLI shell command execution errors",
 		},

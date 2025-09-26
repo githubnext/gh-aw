@@ -143,11 +143,13 @@ copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/logs --prompt "Analyze 
 
       const result = parseCopilotLog(copilotLog);
 
-      expect(result).toContain("🚀 **Command:** `copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/logs --prompt \"Analyze this repository\"`");
+      expect(result).toContain(
+        '🚀 **Command:** `copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/logs --prompt "Analyze this repository"`'
+      );
       expect(result).toContain("🔗 **MCP Server Connected:** github");
       expect(result).toContain("🔗 **MCP Server Connected:** safe_outputs");
       expect(result).toContain("🛠️ **Available Tools:** shell, write, github_create_issue");
-      expect(result).toContain("✅ `find /tmp -name \"*.md\" | head -5`");
+      expect(result).toContain('✅ `find /tmp -name "*.md" | head -5`');
       expect(result).toContain("**Execution Time:** 6.67 seconds");
       expect(result).toContain("**Tools Used:** shell, write, github_create_issue");
       expect(result).toContain("**Commands Executed:** 2");
@@ -183,8 +185,10 @@ This repository contains important documentation.
 
       expect(result).toContain("**Suggestion: I'll analyze the repository structure and create a comprehensive summary.**");
       expect(result).toContain("Let me start by examining the directory structure:");
-      expect(result).toContain("```bash\nfind /tmp -type f -name \"*.md\" | head -10\n```");
-      expect(result).toContain("```markdown\n# Repository Analysis Summary\n\n## Overview\nThis repository contains important documentation.\n```");
+      expect(result).toContain('```bash\nfind /tmp -type f -name "*.md" | head -10\n```');
+      expect(result).toContain(
+        "```markdown\n# Repository Analysis Summary\n\n## Overview\nThis repository contains important documentation.\n```"
+      );
       expect(result).toContain("Now let me create a summary document:");
     });
 
@@ -228,7 +232,7 @@ Fatal error: Unable to complete workflow execution
       const result = parseCopilotLog(copilotLog);
 
       expect(result).toContain("❌ `nonexistent-command --help`");
-      expect(result).toContain("✅ `echo \"Hello World\"`");
+      expect(result).toContain('✅ `echo "Hello World"`');
       expect(result).toContain("**Tools Used:** shell");
     });
 
@@ -279,7 +283,7 @@ copilot --add-dir /tmp/ --log-level debug --prompt "Test task"
 
       // Check that markdown was added to summary
       const markdownCall = mockCore.summary.addRaw.mock.calls[0];
-      expect(markdownCall[0]).toContain("🚀 **Command:** `copilot --add-dir /tmp/ --log-level debug --prompt \"Test task\"`");
+      expect(markdownCall[0]).toContain('🚀 **Command:** `copilot --add-dir /tmp/ --log-level debug --prompt "Test task"`');
       expect(markdownCall[0]).toContain("🔗 **MCP Server Connected:** github");
     });
 
@@ -340,7 +344,7 @@ copilot --add-dir /tmp/ --log-level debug --prompt "Test task"
 
       const result = parseCopilotLog(copilotLog);
 
-      expect(result).toContain("✅ `echo \"hello world\" && ls -la && pwd`");
+      expect(result).toContain('✅ `echo "hello world" && ls -la && pwd`');
     });
 
     it("should handle empty commands", () => {

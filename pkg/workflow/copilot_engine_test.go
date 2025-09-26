@@ -451,14 +451,14 @@ func TestCopilotEngineErrorPatterns(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Invalid regex pattern '%s': %v", pattern.Pattern, err)
 					}
-					
+
 					matches := re.FindStringSubmatch(tt.sampleText)
 					if tt.expectedMatch && len(matches) == 0 {
 						t.Errorf("Pattern '%s' should match text '%s' but didn't", pattern.Pattern, tt.sampleText)
 					} else if !tt.expectedMatch && len(matches) > 0 {
 						t.Errorf("Pattern '%s' should not match text '%s' but did", pattern.Pattern, tt.sampleText)
 					}
-					
+
 					// Test that message extraction works correctly
 					if tt.expectedMatch && len(matches) > 0 {
 						messageGroup := pattern.MessageGroup

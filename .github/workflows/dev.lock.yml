@@ -1797,22 +1797,111 @@ jobs:
             function parseCopilotLog(logContent) {
               try {
                 const lines = logContent.split("\n");
-                let markdown = "## 🤖 GitHub Copilot CLI Execution\n\n";
-                let hasOutput = false;
+                let markdown = "## 🤖 Commands and Tools\n\n";
+                const commandSummary = [];
+                const errors = [];
+                const warnings = [];
+                let executionTime = null;
+                let toolsUsed = [];
+                let hasSignificantOutput = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  const trimmedLine = line.trim();
+                  if (trimmedLine.includes("copilot --") || trimmedLine.includes("github copilot")) {
+                    commandSummary.push(`* 🚀 **Command:** \`${trimmedLine}\``);
+                    hasSignificantOutput = true;
+                  }
+                  if (trimmedLine.includes("[DEBUG] Executing shell command:") || trimmedLine.includes("[INFO] Shell command executed")) {
+                    const cmdMatch = line.match(/Executing shell command:\s*(.+)$/);
+                    if (cmdMatch) {
+                      const command = formatBashCommand(cmdMatch[1]);
+                      let statusIcon = "❓";
+                      for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes("executed successfully") || nextLine.includes("[INFO] Shell command executed")) {
+                          statusIcon = "✅";
+                          break;
+                        } else if (nextLine.includes("failed") || nextLine.includes("error")) {
+                          statusIcon = "❌";
+                          break;
+                        }
+                      }
+                      commandSummary.push(`* ${statusIcon} \`${command}\``);
+                      toolsUsed.push("shell");
+                      hasSignificantOutput = true;
+                    }
+                  }
+                  if (trimmedLine.includes("Connected to") && trimmedLine.includes("MCP server")) {
+                    const serverMatch = line.match(/Connected to (\w+) MCP server/);
+                    if (serverMatch) {
+                      commandSummary.push(`* 🔗 **MCP Server Connected:** ${serverMatch[1]}`);
+                      hasSignificantOutput = true;
+                    }
+                  }
+                  if (trimmedLine.includes("Available tools:")) {
+                    const toolsMatch = line.match(/Available tools:\s*(.+)$/);
+                    if (toolsMatch) {
+                      const tools = toolsMatch[1].split(",").map(t => t.trim());
+                      toolsUsed.push(...tools);
+                      commandSummary.push(`* 🛠️ **Available Tools:** ${tools.join(", ")}`);
+                      hasSignificantOutput = true;
+                    }
+                  }
+                  if (trimmedLine.includes("Total execution time:")) {
+                    const timeMatch = line.match(/Total execution time:\s*([\d.]+)\s*seconds/);
+                    if (timeMatch) {
+                      executionTime = timeMatch[1];
+                    }
+                  }
+                  if (
+                    trimmedLine.match(/\[(ERROR|CRITICAL)\]/) ||
+                    trimmedLine.includes("copilot: error:") ||
+                    trimmedLine.includes("Fatal error:") ||
+                    trimmedLine.includes("npm ERR!")
+                  ) {
+                    let errorMsg = trimmedLine;
+                    errorMsg = errorMsg.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s*\[(ERROR|CRITICAL)\]\s*/, "");
+                    errorMsg = errorMsg.replace(/^copilot:\s*error:\s*/, "");
+                    errorMsg = errorMsg.replace(/^Fatal error:\s*/, "");
+                    errorMsg = errorMsg.replace(/^npm ERR!\s*/, "");
+                    if (errorMsg) {
+                      errors.push(errorMsg);
+                      hasSignificantOutput = true;
+                    }
+                  }
+                  if (trimmedLine.match(/\[(WARN|WARNING)\]/) || trimmedLine.includes("Warning:")) {
+                    let warnMsg = trimmedLine;
+                    warnMsg = warnMsg.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s*\[(WARN|WARNING)\]\s*/, "");
+                    warnMsg = warnMsg.replace(/^Warning:\s*/, "");
+                    if (warnMsg) {
+                      warnings.push(warnMsg);
+                      hasSignificantOutput = true;
+                    }
+                  }
+                }
+                if (commandSummary.length > 0) {
+                  for (const cmd of commandSummary) {
+                    markdown += `${cmd}\n`;
+                  }
+                  markdown += "\n";
+                }
                 let inCodeBlock = false;
                 let currentCodeBlock = "";
                 let currentLanguage = "";
+                let inSuggestionOutput = false;
+                markdown += "## 📋 Execution Output\n\n";
                 for (const line of lines) {
-                  if (line.trim().startsWith("```")) {
+                  const trimmedLine = line.trim();
+                  if (trimmedLine.startsWith("```")) {
                     if (!inCodeBlock) {
                       inCodeBlock = true;
-                      currentLanguage = line.trim().substring(3);
+                      currentLanguage = trimmedLine.substring(3);
                       currentCodeBlock = "";
                     } else {
                       inCodeBlock = false;
                       if (currentCodeBlock.trim()) {
                         markdown += `\`\`\`${currentLanguage}\n${currentCodeBlock}\`\`\`\n\n`;
-                        hasOutput = true;
+                        hasSignificantOutput = true;
                       }
                       currentCodeBlock = "";
                       currentLanguage = "";
@@ -1823,52 +1912,78 @@ jobs:
                     currentCodeBlock += line + "\n";
                     continue;
                   }
-                  if (line.includes("copilot -p") || line.includes("github copilot")) {
-                    markdown += `**Command:** \`${line.trim()}\`\n\n`;
-                    hasOutput = true;
+                  if (trimmedLine.startsWith("Suggestion:") || trimmedLine.startsWith("Response:")) {
+                    markdown += `**${trimmedLine}**\n\n`;
+                    inSuggestionOutput = true;
+                    hasSignificantOutput = true;
+                    continue;
                   }
-                  if (line.includes("Suggestion:") || line.includes("Response:")) {
-                    markdown += `**${line.trim()}**\n\n`;
-                    hasOutput = true;
-                  }
-                  if (line.toLowerCase().includes("error:")) {
-                    markdown += `❌ **Error:** ${line.trim()}\n\n`;
-                    hasOutput = true;
-                  } else if (line.toLowerCase().includes("warning:")) {
-                    markdown += `⚠️ **Warning:** ${line.trim()}\n\n`;
-                    hasOutput = true;
-                  }
-                  const trimmedLine = line.trim();
                   if (
-                    trimmedLine &&
-                    !trimmedLine.startsWith("$") &&
-                    !trimmedLine.startsWith("#") &&
-                    !trimmedLine.match(/^\d{4}-\d{2}-\d{2}/) && 
-                    trimmedLine.length > 10
+                    inSuggestionOutput ||
+                    (trimmedLine.length > 20 &&
+                      !trimmedLine.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/) &&
+                      !trimmedLine.startsWith("[DEBUG]") &&
+                      !trimmedLine.startsWith("[INFO]") &&
+                      !trimmedLine.startsWith("$") &&
+                      !trimmedLine.startsWith("#"))
                   ) {
-                    if (
-                      trimmedLine.includes("copilot") ||
-                      trimmedLine.includes("suggestion") ||
-                      trimmedLine.includes("generate") ||
-                      trimmedLine.includes("explain")
-                    ) {
+                    if (trimmedLine === "" || trimmedLine.includes("execution completed")) {
+                      inSuggestionOutput = false;
+                    }
+                    if (trimmedLine !== "") {
                       markdown += `${trimmedLine}\n\n`;
-                      hasOutput = true;
+                      hasSignificantOutput = true;
                     }
                   }
                 }
                 if (inCodeBlock && currentCodeBlock.trim()) {
                   markdown += `\`\`\`${currentLanguage}\n${currentCodeBlock}\`\`\`\n\n`;
-                  hasOutput = true;
+                  hasSignificantOutput = true;
                 }
-                if (!hasOutput) {
-                  markdown += "*No significant output captured from Copilot CLI execution.*\n";
+                markdown += "## 📊 Information\n\n";
+                if (executionTime) {
+                  markdown += `**Execution Time:** ${executionTime} seconds\n\n`;
+                }
+                if (toolsUsed.length > 0) {
+                  const uniqueTools = [...new Set(toolsUsed)];
+                  markdown += `**Tools Used:** ${uniqueTools.join(", ")}\n\n`;
+                }
+                if (commandSummary.length > 0) {
+                  markdown += `**Commands Executed:** ${commandSummary.filter(cmd => cmd.includes("`")).length}\n\n`;
+                }
+                if (errors.length > 0) {
+                  markdown += "## ❌ Errors\n\n";
+                  for (const error of errors) {
+                    markdown += `* ${error}\n`;
+                  }
+                  markdown += "\n";
+                }
+                if (warnings.length > 0) {
+                  markdown += "## ⚠️ Warnings\n\n";
+                  for (const warning of warnings) {
+                    markdown += `* ${warning}\n`;
+                  }
+                  markdown += "\n";
+                }
+                if (!hasSignificantOutput) {
+                  markdown += "*No significant output captured from GitHub Copilot CLI execution.*\n";
                 }
                 return markdown;
               } catch (error) {
                 console.error("Error parsing Copilot log:", error);
                 return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${error.message}*\n`;
               }
+            }
+            function formatBashCommand(command) {
+              if (!command) return "";
+              let formatted = command
+                .replace(/\n\s*/g, " ") 
+                .replace(/\s+/g, " ") 
+                .trim();
+              if (formatted.length > 80) {
+                formatted = formatted.substring(0, 77) + "...";
+              }
+              return formatted;
             }
             main();
       - name: Upload agent logs
@@ -1883,7 +1998,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/dev.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"}]"
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[ERROR\\\\]\\\\s+Shell command failed:\\\\s*(.+)\",\"level_group\":0,\"message_group\":2,\"description\":\"Copilot CLI shell command execution errors\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[ERROR\\\\]\\\\s+Failed to connect to\\\\s+(.+)\\\\s+MCP server\",\"level_group\":0,\"message_group\":2,\"description\":\"Copilot CLI MCP server connection errors\"}]"
         with:
           script: |
             function main() {
