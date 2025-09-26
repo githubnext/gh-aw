@@ -129,4 +129,12 @@ var DefaultGitHubTools = []string{
 	"list_secret_scanning_alerts",
 	// users
 	"search_users",
+	// additional unique tools (previously duplicated block extras)
+	"get_latest_release",
+	"get_pull_request_review_comments",
+	"get_release_by_tag",
+	"list_issue_types",
+	"list_releases",
+	"list_starred_repositories",
+	"list_sub_issues",
 }
