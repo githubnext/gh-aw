@@ -212,7 +212,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 		playwrightMCP := map[string]any{
 			"allowed": GetCopilotAgentPlaywrightTools(),
 		}
-		// If the original playwright tool has additional configuration (like docker_image_version),
+		// If the original playwright tool has additional configuration (like version),
 		// preserve it while adding the allowed tools
 		if playwrightConfig, ok := tools["playwright"].(map[string]any); ok {
 			for key, value := range playwrightConfig {

@@ -44,7 +44,7 @@ or the extended form:
 tools:
   github:
     allowed: [create_issue, update_issue, add_issue_comment]  # Optional: specific permissions
-    docker_image_version: "latest"                          # Optional: MCP server version
+    version: "latest"                          # Optional: MCP server version
 ```
 
 The system automatically includes comprehensive default read-only GitHub tools. These defaults are merged with your custom `allowed` tools, providing comprehensive repository access.
@@ -76,7 +76,7 @@ tools:
 ```yaml
 tools:
   playwright:
-    docker_image_version: "latest"                    # Optional: Playwright Docker image version
+    version: "latest"                    # Optional: Playwright version
     allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
 ```
 

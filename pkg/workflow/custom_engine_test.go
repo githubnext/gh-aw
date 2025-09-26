@@ -285,8 +285,8 @@ func TestCustomEngineRenderPlaywrightMCPConfigWithDomainConfiguration(t *testing
 
 	tools := map[string]any{
 		"playwright": map[string]any{
-			"docker_image_version": "v1.40.0",
-			"allowed_domains":      []string{"example.com", "*.github.com"},
+			"version":         "v1.40.0",
+			"allowed_domains": []string{"example.com", "*.github.com"},
 		},
 	}
 
@@ -336,7 +336,7 @@ func TestCustomEngineRenderPlaywrightMCPConfigDefaultDomains(t *testing.T) {
 
 	tools := map[string]any{
 		"playwright": map[string]any{
-			"docker_image_version": "v1.40.0",
+			"version": "v1.40.0",
 			// No allowed_domains specified - should default to localhost
 		},
 	}

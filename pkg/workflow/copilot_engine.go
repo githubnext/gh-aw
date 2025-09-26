@@ -322,7 +322,7 @@ func (e *CopilotEngine) buildCopilotMCPServer(toolName string, toolConfig map[st
 func (e *CopilotEngine) buildPlaywrightCopilotMCPServer(playwrightTool any, networkPermissions *NetworkPermissions) CopilotMCPServer {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
-	// Use the version from docker args (which handles docker_image_version configuration)
+	// Use the version from docker args (which handles version configuration)
 	playwrightPackage := "@playwright/mcp@" + args.ImageVersion
 
 	server := CopilotMCPServer{

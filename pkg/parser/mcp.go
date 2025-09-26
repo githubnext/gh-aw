@@ -275,7 +275,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			}
 
 			// Check for custom Docker image version
-			if version, exists := toolConfig["docker_image_version"]; exists {
+			if version, exists := toolConfig["version"]; exists {
 				if versionStr, ok := version.(string); ok {
 					dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
 					// Update the Docker image in args
@@ -333,7 +333,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			}
 
 			// Check for custom Docker image version
-			if version, exists := toolConfig["docker_image_version"]; exists {
+			if version, exists := toolConfig["version"]; exists {
 				if versionStr, ok := version.(string); ok {
 					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
 					// Update the Docker image in args
