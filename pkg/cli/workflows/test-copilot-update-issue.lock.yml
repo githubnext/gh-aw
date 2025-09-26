@@ -129,8 +129,8 @@ jobs:
         env:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /tmp/.copilot/
-          XDG_STATE_HOME: /tmp/.copilot/
+          XDG_CONFIG_HOME: /tmp/.copilot
+          XDG_STATE_HOME: /tmp/.copilot
       - name: Ensure log file exists
         if: always()
         run: |
