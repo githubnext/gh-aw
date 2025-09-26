@@ -145,21 +145,13 @@ jobs:
           cat > /tmp/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
-              "GitHub": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp",
-                "headers": {},
-                "tools": [
-                  "*"
-                ]
-              },
               "markitdown": {
+                "type": "local",
                 "command": "npx",
                 "args": [
                   "-y",
                   "@microsoft/markitdown"
-                ],
-                "registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
+                ]
               }
             }
           }
