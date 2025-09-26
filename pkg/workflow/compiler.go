@@ -148,7 +148,6 @@ type WorkflowData struct {
 	NeedsTextOutput    bool                      // whether the workflow uses ${{ needs.task.outputs.text }}
 	NetworkPermissions *NetworkPermissions       // parsed network permissions
 	SafeOutputs        *SafeOutputsConfig        // output configuration for automatic output routes
-	SafeJobs           map[string]*SafeJobConfig // custom safe-output jobs at top level
 	Roles              []string                  // permission levels required to trigger workflow
 	CacheMemoryConfig  *CacheMemoryConfig        // parsed cache-memory configuration
 }
@@ -630,11 +629,11 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
 
-	// Set SafeJobs from the merged result (this will be used until we fully transition to using safeOutputs.Jobs)
-	workflowData.SafeJobs = includedSafeJobs
-
-	// Also populate the Jobs field in SafeOutputs if not already populated
-	if workflowData.SafeOutputs != nil && len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
+	// Ensure SafeOutputs exists and populate the Jobs field
+	if workflowData.SafeOutputs == nil {
+		workflowData.SafeOutputs = &SafeOutputsConfig{}
+	}
+	if len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs.Jobs = includedSafeJobs
 	}
 
@@ -2171,9 +2170,7 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	// Pass the safe-outputs configuration for validation
-	hasOldSafeJobs := len(data.SafeJobs) > 0
-	hasNewSafeJobs := data.SafeOutputs != nil && len(data.SafeOutputs.Jobs) > 0
-	if data.SafeOutputs == nil && !hasOldSafeJobs && !hasNewSafeJobs {
+	if data.SafeOutputs == nil {
 		return ""
 	}
 	// Create a simplified config object for validation
@@ -2241,26 +2238,9 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
-	// Add safe-jobs configuration from both old location (data.SafeJobs) and new location (data.SafeOutputs.Jobs)
-	safeJobsToProcess := make(map[string]*SafeJobConfig)
-
-	// Add from old location (backwards compatibility)
-	if len(data.SafeJobs) > 0 {
-		for jobName, jobConfig := range data.SafeJobs {
-			safeJobsToProcess[jobName] = jobConfig
-		}
-	}
-
-	// Add from new location (preferred)
-	if data.SafeOutputs != nil && len(data.SafeOutputs.Jobs) > 0 {
+	// Add safe-jobs configuration from SafeOutputs.Jobs
+	if len(data.SafeOutputs.Jobs) > 0 {
 		for jobName, jobConfig := range data.SafeOutputs.Jobs {
-			safeJobsToProcess[jobName] = jobConfig
-		}
-	}
-
-	// Process all safe-jobs
-	if len(safeJobsToProcess) > 0 {
-		for jobName, jobConfig := range safeJobsToProcess {
 			safeJobConfig := map[string]any{}
 
 			// Add inputs information

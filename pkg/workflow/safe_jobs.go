@@ -184,13 +184,13 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 	return result
 }
 
-// buildSafeJobs creates custom safe-output jobs defined at top level
+// buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
 func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
-	if len(data.SafeJobs) == 0 {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
 		return nil
 	}
 
-	for jobName, jobConfig := range data.SafeJobs {
+	for jobName, jobConfig := range data.SafeOutputs.Jobs {
 		job := &Job{
 			Name: jobName,
 		}
