@@ -109,8 +109,16 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 	hasOutput := workflowData.SafeOutputs != nil
 	if hasOutput {
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-		// needs to be properly serialized to JSON
 		env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = "${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}"
+
+		// Add step to write GITHUB_AW_SAFE_OUTPUTS_CONFIG to file
+		writeConfigStep := GitHubActionStep{
+			"      - name: Write safe outputs config to file",
+			"        run: |",
+			"          mkdir -p /tmp/safe-outputs",
+			"          echo '${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}' > /tmp/safe-outputs/config.json",
+		}
+		steps = append(steps, writeConfigStep)
 	}
 
 	// Add custom environment variables from engine config

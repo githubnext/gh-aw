@@ -122,6 +122,7 @@ jobs:
               let safeOutputsConfigRaw;
               try {
                 const configFile = readFileSync("/tmp/safe-outputs/config.json", "utf8");
+                core.info(`found config.json: ${configFile.length} chars`);
                 safeOutputsConfigRaw = JSON.parse(configFile);
               } catch (e) {
                 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
@@ -819,6 +820,10 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
+      - name: Write safe outputs config to file
+        run: |
+          mkdir -p /tmp/safe-outputs
+          echo '${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}' > /tmp/safe-outputs/config.json
       - name: Upload config
         if: always()
         uses: actions/upload-artifact@v4

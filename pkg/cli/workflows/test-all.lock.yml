@@ -548,6 +548,7 @@ jobs:
               let safeOutputsConfigRaw;
               try {
                 const configFile = readFileSync("/tmp/safe-outputs/config.json", "utf8");
+                core.info(`found config.json: ${configFile.length} chars`);
                 safeOutputsConfigRaw = JSON.parse(configFile);
               } catch (e) {
                 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
