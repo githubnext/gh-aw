@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-const tempFolder = "/tmp/.copilot/"
-const logsFolder = tempFolder + "logs/"
+const tempFolder = "/tmp/.copilot"
+const logsFolder = tempFolder + "/logs/"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
