@@ -54,11 +54,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	var steps []GitHubActionStep
 
-	// Check if network permissions are configured (only for Copilot engine)
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		// TODO
-	}
-
 	installationSteps := []GitHubActionStep{
 		{
 			"      - name: Setup Node.js",
