@@ -873,6 +873,11 @@ jobs:
           echo "-------START MCP CONFIG-----------"
           cat /home/runner/.copilot/mcp-config.json
           echo "-------END MCP CONFIG-----------"
+          echo "HOME: $HOME"
+          echo "-------~/-----------"
+          find ~
+          echo "-------/home/runner/.copilot-----------"
+          find /home/runner/.copilot
       - name: Create prompt
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
