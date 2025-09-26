@@ -43,38 +43,6 @@ type Compiler struct {
 	fileTracker    FileTracker     // Optional file tracker for tracking created files
 }
 
-// generateSafeFileName converts a workflow name to a safe filename for logs
-func generateSafeFileName(name string) string {
-	// Replace spaces and special characters with hyphens
-	result := strings.ReplaceAll(name, " ", "-")
-	result = strings.ReplaceAll(result, "/", "-")
-	result = strings.ReplaceAll(result, "\\", "-")
-	result = strings.ReplaceAll(result, ":", "-")
-	result = strings.ReplaceAll(result, "*", "-")
-	result = strings.ReplaceAll(result, "?", "-")
-	result = strings.ReplaceAll(result, "\"", "-")
-	result = strings.ReplaceAll(result, "<", "-")
-	result = strings.ReplaceAll(result, ">", "-")
-	result = strings.ReplaceAll(result, "|", "-")
-	result = strings.ReplaceAll(result, "@", "-")
-	result = strings.ToLower(result)
-
-	// Remove multiple consecutive hyphens
-	for strings.Contains(result, "--") {
-		result = strings.ReplaceAll(result, "--", "-")
-	}
-
-	// Trim leading/trailing hyphens
-	result = strings.Trim(result, "-")
-
-	// Ensure it's not empty
-	if result == "" {
-		result = "workflow"
-	}
-
-	return result
-}
-
 // NewCompiler creates a new workflow compiler with optional configuration
 func NewCompiler(verbose bool, engineOverride string, version string) *Compiler {
 	c := &Compiler{
