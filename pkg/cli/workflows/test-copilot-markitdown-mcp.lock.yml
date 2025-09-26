@@ -145,21 +145,13 @@ jobs:
           cat > /tmp/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
-              "GitHub": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp",
-                "headers": {},
-                "tools": [
-                  "*"
-                ]
-              },
               "markitdown": {
+                "type": "local",
                 "command": "npx",
                 "args": [
                   "-y",
                   "@microsoft/markitdown"
-                ],
-                "registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
+                ]
               }
             }
           }
@@ -238,6 +230,8 @@ jobs:
           if-no-files-found: warn
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool markitdown
         timeout-minutes: 5
         run: |
           set -o pipefail
@@ -245,7 +239,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-markitdown-mcp.log
+          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool markitdown --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-markitdown-mcp.log
         env:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}

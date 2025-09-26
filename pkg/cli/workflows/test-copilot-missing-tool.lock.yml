@@ -754,21 +754,15 @@ jobs:
           cat > /tmp/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
-              "GitHub": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp",
-                "headers": {},
-                "tools": [
-                  "*"
-                ]
-              },
               "safe_outputs": {
                 "type": "local",
                 "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "args": [
+                  "/tmp/safe-outputs/mcp-server.cjs"
+                ],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}"
                 }
               }
             }
@@ -921,6 +915,8 @@ jobs:
           if-no-files-found: warn
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool safe_outputs
         timeout-minutes: 5
         run: |
           set -o pipefail
@@ -928,7 +924,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --add-dir /tmp/cache-memory/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
+          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --add-dir /tmp/cache-memory/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

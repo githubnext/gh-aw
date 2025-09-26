@@ -1,0 +1,60 @@
+name: Tidy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tidy:
+    name: Install Dependencies, Format, and Commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          cache-dependency-path: pkg/workflow/js/package-lock.json
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+      - name: Install dependencies
+        run: make deps
+        
+      - name: Format code
+        run: make fmt
+        
+      - name: Recompile workflows
+        run: make recompile
+        
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changes=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected:"
+            git status --short
+          else
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected"
+          fi
+          
+      - name: Commit changes
+        if: steps.check-changes.outputs.changes == 'true'
+        run: |
+          git add .
+          git commit -m "Automated tidy: dependencies, formatting, and recompilation"
+          git push

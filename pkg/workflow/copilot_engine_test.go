@@ -120,131 +120,217 @@ func TestCopilotEngineGetLogParserScript(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineMCPConfigGeneration(t *testing.T) {
+func TestCopilotEngineComputeToolArguments(t *testing.T) {
 	engine := NewCopilotEngine()
 
-	// Test with GitHub tool (should be skipped since it's built-in)
-	tools := map[string]any{
-		"github": map[string]any{
-			"allowed": []any{"get_issue", "create_issue"},
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		safeOutputs *SafeOutputsConfig
+		safeJobs    map[string]*SafeJobConfig
+		expected    []string
+	}{
+		{
+			name:     "empty tools",
+			tools:    map[string]any{},
+			expected: []string{},
 		},
-	}
-	mcpTools := []string{"github"}
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-	}
-
-	var yaml strings.Builder
-	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
-
-	output := yaml.String()
-
-	// Check that it contains the cat command for JSON creation
-	if !strings.Contains(output, "cat > /tmp/.copilot/mcp-config.json << 'EOF'") {
-		t.Errorf("Expected cat command for JSON creation in output:\n%s", output)
-	}
-
-	// GitHub MCP should NOT be in the output since it's built-in to Copilot CLI
-	if strings.Contains(output, "\"GitHub\"") {
-		t.Errorf("Expected GitHub server to NOT be in output (it's built-in):\n%s", output)
-	}
-
-	// Should have empty mcpServers since GitHub is built-in
-	if !strings.Contains(output, "\"mcpServers\": {}") {
-		t.Errorf("Expected empty mcpServers object in output:\n%s", output)
-	}
-
-	// Check that it ends with EOF
-	if !strings.Contains(output, "EOF") {
-		t.Errorf("Expected EOF marker in output:\n%s", output)
-	}
-}
-
-func TestCopilotEngineMCPConfigWithMultipleTools(t *testing.T) {
-	engine := NewCopilotEngine()
-
-	// Test with multiple tools including custom MCP tool
-	tools := map[string]any{
-		"github": map[string]any{
-			"allowed": []any{"get_issue"},
-		},
-		"playwright": map[string]any{
-			"allowed_domains": []any{"example.com"},
-		},
-		"custom-server": map[string]any{
-			"type":    "stdio",
-			"command": "python",
-			"args":    []any{"-m", "my_server"},
-			"env": map[string]any{
-				"API_KEY": "secret",
+		{
+			name: "bash with specific commands",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
 			},
-			"allowed": []any{"*"},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)"},
+		},
+		{
+			name: "bash with wildcard",
+			tools: map[string]any{
+				"bash": []any{":*"},
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "bash with nil (all commands allowed)",
+			tools: map[string]any{
+				"bash": nil,
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "edit tool",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "write"},
+		},
+		{
+			name:  "safe outputs without write (uses MCP)",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"--allow-tool", "safe_outputs"},
+		},
+		{
+			name: "mixed tools",
+			tools: map[string]any{
+				"bash": []any{"git status", "npm test"},
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+		},
+		{
+			name: "bash with star wildcard",
+			tools: map[string]any{
+				"bash": []any{"*"},
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "comprehensive with multiple tools",
+			tools: map[string]any{
+				"bash": []any{"git status", "npm test"},
+				"edit": nil,
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"--allow-tool", "safe_outputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+		},
+		{
+			name:  "safe outputs with safe_outputs config",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"--allow-tool", "safe_outputs"},
+		},
+		{
+			name:  "safe outputs with safe jobs",
+			tools: map[string]any{},
+			safeJobs: map[string]*SafeJobConfig{
+				"my-job": {Name: "test job"},
+			},
+			expected: []string{"--allow-tool", "safe_outputs"},
+		},
+		{
+			name:  "safe outputs with both safe_outputs and safe jobs",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			safeJobs: map[string]*SafeJobConfig{
+				"my-job": {Name: "test job"},
+			},
+			expected: []string{"--allow-tool", "safe_outputs"},
 		},
 	}
-	mcpTools := []string{"github", "playwright", "custom-server"}
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-	}
 
-	var yaml strings.Builder
-	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, tt.safeJobs)
 
-	output := yaml.String()
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d arguments, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
 
-	// GitHub should NOT be in the output since it's built-in
-	if strings.Contains(output, "\"GitHub\"") {
-		t.Errorf("Expected GitHub server to NOT be in output (it's built-in):\n%s", output)
-	}
-
-	if !strings.Contains(output, "\"playwright\"") {
-		t.Errorf("Expected playwright server in output:\n%s", output)
-	}
-
-	if !strings.Contains(output, "\"custom-server\"") {
-		t.Errorf("Expected custom-server in output:\n%s", output)
-	}
-
-	// Check custom server configuration - should use "local" instead of "stdio"
-	if !strings.Contains(output, "\"type\": \"local\"") {
-		t.Errorf("Expected 'local' type for custom server (stdio converted) in output:\n%s", output)
-	}
-
-	if !strings.Contains(output, "\"command\": \"python\"") {
-		t.Errorf("Expected python command for custom server in output:\n%s", output)
-	}
-
-	if !strings.Contains(output, "\"API_KEY\": \"secret\"") {
-		t.Errorf("Expected environment variable for custom server in output:\n%s", output)
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected argument %d to be '%s', got '%s'", i, expected, result[i])
+				}
+			}
+		})
 	}
 }
 
-func TestCopilotEnginePlaywrightVersionHandling(t *testing.T) {
+func TestCopilotEngineGenerateToolArgumentsComment(t *testing.T) {
 	engine := NewCopilotEngine()
 
-	// Test with Playwright tool with custom version
-	tools := map[string]any{
-		"playwright": map[string]any{
-			"docker_image_version": "v1.40.0",
-			"allowed_domains":      []any{"example.com"},
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		safeOutputs *SafeOutputsConfig
+		safeJobs    map[string]*SafeJobConfig
+		indent      string
+		expected    string
+	}{
+		{
+			name:     "empty tools",
+			tools:    map[string]any{},
+			indent:   "  ",
+			expected: "",
+		},
+		{
+			name: "bash with commands",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
+			},
+			indent:   "        ",
+			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool shell(echo)\n        # --allow-tool shell(ls)\n",
+		},
+		{
+			name: "edit tool",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			indent:   "        ",
+			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool write\n",
 		},
 	}
-	mcpTools := []string{"playwright"}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.generateCopilotToolArgumentsComment(tt.tools, tt.safeOutputs, tt.safeJobs, tt.indent)
+
+			if result != tt.expected {
+				t.Errorf("Expected comment:\n%s\nGot:\n%s", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
+	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"echo", "git status"},
+			"edit": nil,
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Copilot CLI execution with tools, got %d", len(steps))
 	}
 
-	var yaml strings.Builder
-	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+	// Check the execution step contains tool arguments
+	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	output := yaml.String()
-
-	// Check that custom version is used
-	if !strings.Contains(output, "@playwright/mcp@v1.40.0") {
-		t.Errorf("Expected custom Playwright version v1.40.0 in output:\n%s", output)
+	// Should contain the tool arguments in the command line
+	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
+		t.Errorf("Expected step to contain '--allow-tool shell(echo)' in command:\n%s", stepContent)
 	}
 
-	// Should not contain the default "latest"
-	if strings.Contains(output, "@playwright/mcp@latest") {
-		t.Errorf("Expected NOT to find default 'latest' when custom version is specified:\n%s", output)
+	if !strings.Contains(stepContent, "--allow-tool shell(git status)") {
+		t.Errorf("Expected step to contain '--allow-tool shell(git status)' in command:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "--allow-tool write") {
+		t.Errorf("Expected step to contain '--allow-tool write' in command:\n%s", stepContent)
+	}
+
+	// Should contain the comment showing the tool arguments
+	if !strings.Contains(stepContent, "# Copilot CLI tool arguments (sorted):") {
+		t.Errorf("Expected step to contain tool arguments comment:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "# --allow-tool shell(echo)") {
+		t.Errorf("Expected step to contain comment for shell(echo):\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "# --allow-tool write") {
+		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
 	}
 }
