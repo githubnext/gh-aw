@@ -1,3 +1,4 @@
+import type { SafeJobConfig, SafeOutputConfig, SafeOutputConfigs, SpecificSafeOutputConfig } from "./types/safe-outputs-config";
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -6,7 +7,7 @@ const encoder = new TextEncoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
 const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])) as SafeOutputConfigs;
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
 const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
@@ -488,7 +489,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
 
   // Check if this is a safe-job (not in ALL_TOOLS)
   if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
-    const jobConfig = safeOutputsConfig[configKey];
+    const jobConfig = safeOutputsConfig[configKey] as SafeJobConfig
 
     // Create a dynamic tool for this safe-job
     const dynamicTool = {
@@ -498,6 +499,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
         type: "object",
         properties: {},
         additionalProperties: true, // Allow any properties for flexibility
+        required: [] as string[],
       },
       handler: args => {
         // Create a generic safe-job output entry
@@ -532,8 +534,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
       dynamicTool.inputSchema.properties = {};
       dynamicTool.inputSchema.required = [];
 
-      Object.keys(jobConfig.inputs).forEach(inputName => {
-        const inputDef = jobConfig.inputs[inputName];
+      Object.entries(jobConfig.inputs).forEach(([inputName, inputDef]) => {
         const propSchema = {
           type: inputDef.type || "string",
           description: inputDef.description || `Input parameter: ${inputName}`,

@@ -154,9 +154,10 @@ type SpecificSafeOutputConfig =
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
-  | MissingToolConfig;
+  | MissingToolConfig
+  | SafeJobConfig;
 
-type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
+type SafeOutputConfigs = Record<string, SpecificSafeOutputConfig>;
 
 export {
   SafeOutputConfig,

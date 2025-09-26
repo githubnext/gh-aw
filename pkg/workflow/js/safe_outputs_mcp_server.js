@@ -20,6 +20,10 @@ function writeMessage(obj) {
     fs.writeSync(1, bytes);
 }
 class ReadBuffer {
+    _buffer;
+    constructor() {
+        this._buffer = undefined;
+    }
     append(chunk) {
         this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
     }
@@ -565,3 +569,4 @@ process.stdin.on("data", onData);
 process.stdin.on("error", err => debug(`stdin error: ${err}`));
 process.stdin.resume();
 debug(`listening...`);
+export {};
