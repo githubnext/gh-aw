@@ -185,6 +185,17 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 			expected: []string{"--allow-tool", "shell"},
 		},
+		{
+			name: "comprehensive with multiple tools",
+			tools: map[string]any{
+				"bash": []any{"git status", "npm test"},
+				"edit": nil,
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+		},
 	}
 
 	for _, tt := range tests {
