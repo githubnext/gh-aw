@@ -14,6 +14,8 @@ type MCPConfigRenderer struct {
 	IndentLevel string
 	// Format specifies the output format ("json" for JSON-like, "toml" for TOML-like)
 	Format string
+	// RequiresCopilotFields indicates if the engine requires "type" and "tools" fields (true for copilot engine)
+	RequiresCopilotFields bool
 }
 
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
@@ -34,7 +36,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		if renderer.Format == "toml" {
 			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
 		} else {
-			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
+			// JSON format - include copilot fields if required
+			if renderer.RequiresCopilotFields {
+				propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
+			} else {
+				propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
+			}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -42,7 +49,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has type '%s', but %s only supports 'stdio'. Ignoring this server.", toolName, mcpType, renderer.Format)))
 			return nil
 		} else {
-			propertyOrder = []string{"url", "headers", "registry"}
+			// JSON format - include copilot fields if required
+			if renderer.RequiresCopilotFields {
+				propertyOrder = []string{"type", "url", "headers", "tools"}
+			} else {
+				propertyOrder = []string{"url", "headers"}
+			}
 		}
 	default:
 		if renderer.Format == "toml" {
@@ -57,6 +69,16 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	var existingProperties []string
 	for _, prop := range propertyOrder {
 		switch prop {
+		case "type":
+			// Include type field only for engines that require copilot fields
+			if renderer.RequiresCopilotFields {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "tools":
+			// Include tools field only for engines that require copilot fields
+			if renderer.RequiresCopilotFields {
+				existingProperties = append(existingProperties, prop)
+			}
 		case "command":
 			if mcpConfig.Command != "" {
 				existingProperties = append(existingProperties, prop)
@@ -98,6 +120,40 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		isLast := propIndex == len(existingProperties)-1
 
 		switch property {
+		case "type":
+			// Render type field for JSON format (copilot engine)
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			// For copilot CLI, convert "stdio" to "local"
+			typeValue := mcpConfig.Type
+			if typeValue == "stdio" {
+				typeValue = "local"
+			}
+			fmt.Fprintf(yaml, "%s\"type\": \"%s\"%s\n", renderer.IndentLevel, typeValue, comma)
+		case "tools":
+			// Render tools field for JSON format (copilot engine) - default to all tools
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			// Check if allowed tools are specified, otherwise default to "*"
+			if len(mcpConfig.Allowed) > 0 {
+				fmt.Fprintf(yaml, "%s\"tools\": [\n", renderer.IndentLevel)
+				for toolIndex, tool := range mcpConfig.Allowed {
+					toolComma := ","
+					if toolIndex == len(mcpConfig.Allowed)-1 {
+						toolComma = ""
+					}
+					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, tool, toolComma)
+				}
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
+			} else {
+				fmt.Fprintf(yaml, "%s\"tools\": [\n", renderer.IndentLevel)
+				fmt.Fprintf(yaml, "%s  \"*\"\n", renderer.IndentLevel)
+				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
+			}
 		case "command":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, mcpConfig.Command)

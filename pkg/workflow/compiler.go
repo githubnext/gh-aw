@@ -238,6 +238,11 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 				Type:    "error",
 				Message: fmt.Sprintf("workflow schema validation failed: %v", err),
 			})
+			// Write the invalid YAML to a .invalid.yml file for inspection
+			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+			}
 			return errors.New(formattedErr)
 		}
 	} else if c.verbose {
