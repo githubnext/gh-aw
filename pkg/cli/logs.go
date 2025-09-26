@@ -1093,10 +1093,10 @@ func displayLogsOverview(runs []WorkflowRun) {
 		// Format relative path
 		relPath, _ := filepath.Rel(".", run.LogsPath)
 
-		// Format status with outcome for completed runs
+		// Format status - show conclusion directly for completed runs
 		statusStr := run.Status
 		if run.Status == "completed" && run.Conclusion != "" {
-			statusStr = fmt.Sprintf("%s (%s)", run.Status, run.Conclusion)
+			statusStr = run.Conclusion
 		}
 
 		row := []string{
