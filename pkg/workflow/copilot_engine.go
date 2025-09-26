@@ -97,7 +97,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs = []string{"--add-dir", "/tmp/", "--log-level", "debug", "--log-dir", logsFolder}
+	var copilotArgs = []string{"--add-dir", "/tmp/", "--log-level", "all", "--log-dir", logsFolder}
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
@@ -322,7 +322,7 @@ func (e *CopilotEngine) buildCopilotMCPServer(toolName string, toolConfig map[st
 func (e *CopilotEngine) buildPlaywrightCopilotMCPServer(playwrightTool any, networkPermissions *NetworkPermissions) CopilotMCPServer {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
-	// Use the version from docker args (which handles docker_image_version configuration)
+	// Use the version from docker args (which handles version configuration)
 	playwrightPackage := "@playwright/mcp@" + args.ImageVersion
 
 	server := CopilotMCPServer{

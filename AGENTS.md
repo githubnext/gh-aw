@@ -150,12 +150,12 @@ gh aw mcp inspect --inspector     # Web-based inspector
 **Default MCP Registry**: Uses GitHub's MCP registry at `https://api.mcp.github.com/v0` by default.
 
 ### AI Engine Support
-```yaml
+```aw
 ---
 engine: claude  # Options: claude, codex, custom
 tools:
   playwright:
-    docker_image_version: "v1.41.0"
+    version: "v1.41.0"
     allowed_domains: ["github.com"]
 ---
 ```

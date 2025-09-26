@@ -149,9 +149,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := "sha-09deac4" // Default Docker image version
-	// Extract docker_image_version setting from tool properties
+	// Extract version setting from tool properties
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+		if versionSetting, exists := toolConfig["version"]; exists {
 			if stringValue, ok := versionSetting.(string); ok {
 				githubDockerImageVersion = stringValue
 			}
@@ -162,9 +162,9 @@ func getGitHubDockerImageVersion(githubTool any) string {
 
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
-	// Extract docker_image_version setting from tool properties
+	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+		if versionSetting, exists := toolConfig["version"]; exists {
 			if stringValue, ok := versionSetting.(string); ok {
 				playwrightDockerImageVersion = stringValue
 			}
