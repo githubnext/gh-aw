@@ -122,7 +122,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --prompt '"$INSTRUCTION"' 2>&1 | tee /tmp/test-copilot-add-issue-comment.log
+          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-add-issue-comment.log
         env:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
