@@ -219,18 +219,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
-	// Add the log capture step (simplified since we're already writing to logFile)
-	logCaptureLines := []string{
-		"      - name: Ensure log file exists",
-		"        if: always()",
-		"        run: |",
-		"          # Ensure log file exists",
-		"          touch " + logFile,
-		"          # Show last few lines for debugging",
-		"          echo \"=== Last 10 lines of Claude execution log ===\"",
-		"          tail -10 " + logFile + " || echo \"No log content available\"",
-	}
-	steps = append(steps, GitHubActionStep(logCaptureLines))
+	// Add the log capture step using shared helper function
+	steps = append(steps, generateLogCaptureStep("Claude", logFile))
 
 	return steps
 }
