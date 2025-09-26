@@ -489,7 +489,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
 	// This includes both safeOutputs config and safeJobs
 	if safeOutputs != nil || len(safeJobs) > 0 {
-		args = append(args, "--allow-tool", "safe_outputs(*)")
+		args = append(args, "--allow-tool", "safe_outputs")
 	}
 
 	// Built-in tool names that should be skipped when processing MCP servers
