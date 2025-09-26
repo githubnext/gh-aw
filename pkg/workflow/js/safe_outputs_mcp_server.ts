@@ -7,7 +7,9 @@ const encoder = new TextEncoder();
 const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
 if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
 const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])) as SafeOutputConfigs;
+const safeOutputsConfig = Object.fromEntries(
+  Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])
+) as SafeOutputConfigs;
 const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
 if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
 const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
@@ -83,7 +85,7 @@ function replyResult(id, result) {
   const res = { jsonrpc: "2.0", id, result };
   writeMessage(res);
 }
-function replyError(id: string, code: string, message: string, data?: unknown) {
+function replyError(id: string, code: number, message: string, data?: unknown) {
   // Don't send error responses for notifications (id is null/undefined)
   if (id === undefined || id === null) {
     debug(`Error for notification: ${message}`);
@@ -227,7 +229,22 @@ const uploadAssetHandler = args => {
 };
 
 const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
-const ALL_TOOLS = [
+
+type McpTool = {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: string;
+    required?: string[];
+    properties: Record<string, any>;
+    additionalProperties?: boolean;
+  };
+  handler?: (args: any) => {
+    content?: { type: string; text: string }[];
+  };
+};
+
+const ALL_TOOLS: McpTool[] = [
   {
     name: "create_issue",
     description: "Create a new GitHub issue",
@@ -469,7 +486,7 @@ debug(`  output file: ${outputFile}`);
 debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
 
 // Create a comprehensive tools map including both predefined tools and dynamic safe-jobs
-const TOOLS = {};
+const TOOLS: Record<string, McpTool> = {};
 
 // Add predefined tools that are enabled in configuration
 ALL_TOOLS.forEach(tool => {
@@ -489,7 +506,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
 
   // Check if this is a safe-job (not in ALL_TOOLS)
   if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
-    const jobConfig = safeOutputsConfig[configKey] as SafeJobConfig
+    const jobConfig = safeOutputsConfig[configKey] as SafeJobConfig;
 
     // Create a dynamic tool for this safe-job
     const dynamicTool = {
@@ -541,7 +558,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
         };
 
         if (inputDef.options && Array.isArray(inputDef.options)) {
-          propSchema.enum = inputDef.options;
+          (propSchema as any).enum = inputDef.options;
         }
 
         dynamicTool.inputSchema.properties[inputName] = propSchema;
@@ -593,7 +610,11 @@ function handleMessage(req) {
       };
       replyResult(id, result);
     } else if (method === "tools/list") {
-      const list = [];
+      const list: {
+        name: string;
+        description: string;
+        inputSchema: object;
+      }[] = [];
       Object.values(TOOLS).forEach(tool => {
         list.push({
           name: tool.name,

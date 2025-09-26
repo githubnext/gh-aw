@@ -258,7 +258,7 @@ jobs:
             const encoder = new TextEncoder();
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
-            const safeOutputsConfigRaw = JSON.parse(configEnv); 
+            const safeOutputsConfigRaw = JSON.parse(configEnv);
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
             if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
@@ -272,6 +272,10 @@ jobs:
               fs.writeSync(1, bytes);
             }
             class ReadBuffer {
+              _buffer;
+              constructor() {
+                this._buffer = undefined;
+              }
               append(chunk) {
                 this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
               }
@@ -286,7 +290,7 @@ jobs:
                 const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
                 this._buffer = this._buffer.subarray(index + 1);
                 if (line.trim() === "") {
-                  return this.readMessage(); 
+                  return this.readMessage();
                 }
                 try {
                   return JSON.parse(line);
@@ -315,7 +319,7 @@ jobs:
               }
             }
             function replyResult(id, result) {
-              if (id === undefined || id === null) return; 
+              if (id === undefined || id === null) return;
               const res = { jsonrpc: "2.0", id, result };
               writeMessage(res);
             }
@@ -378,18 +382,14 @@ jobs:
               const stats = fs.statSync(filePath);
               const sizeBytes = stats.size;
               const sizeKB = Math.ceil(sizeBytes / 1024);
-              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
+              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
               if (sizeKB > maxSizeKB) {
                 throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
               }
               const ext = path.extname(filePath).toLowerCase();
               const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
                 ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
-                : [
-                    ".png",
-                    ".jpg",
-                    ".jpeg",
-                  ];
+                : [".png", ".jpg", ".jpeg"];
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
@@ -685,7 +685,8 @@ jobs:
                   inputSchema: {
                     type: "object",
                     properties: {},
-                    additionalProperties: true, 
+                    additionalProperties: true,
+                    required: [],
                   },
                   handler: args => {
                     const entry = {
@@ -711,8 +712,7 @@ jobs:
                 if (jobConfig && jobConfig.inputs) {
                   dynamicTool.inputSchema.properties = {};
                   dynamicTool.inputSchema.required = [];
-                  Object.keys(jobConfig.inputs).forEach(inputName => {
-                    const inputDef = jobConfig.inputs[inputName];
+                  Object.entries(jobConfig.inputs).forEach(([inputName, inputDef]) => {
                     const propSchema = {
                       type: inputDef.type || "string",
                       description: inputDef.description || `Input parameter: ${inputName}`,
