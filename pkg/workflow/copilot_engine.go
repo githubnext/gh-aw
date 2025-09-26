@@ -224,8 +224,9 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			server = e.buildPlaywrightCopilotMCPServer(playwrightTool, workflowData.NetworkPermissions)
 			serverName = toolName
 		case "cache-memory":
-			server = e.buildCacheMemoryCopilotMCPServer(workflowData)
-			serverName = toolName
+			// Cache-memory is handled as a simple file share, not an MCP server
+			// Skip adding it to the MCP configuration since no server is needed
+			continue
 		case "safe-outputs":
 			server = e.buildSafeOutputsCopilotMCPServer()
 			serverName = "safe_outputs"
@@ -262,10 +263,9 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 // buildGitHubCopilotMCPServer builds the GitHub MCP server configuration for Copilot CLI
 func (e *CopilotEngine) buildGitHubCopilotMCPServer(githubTool any) CopilotMCPServer {
 	return CopilotMCPServer{
-		Type:    "http",
-		URL:     "https://api.githubcopilot.com/mcp",
-		Headers: make(map[string]string),
-		Tools:   []string{"*"},
+		Type:  "http",
+		URL:   "https://api.githubcopilot.com/mcp",
+		Tools: []string{"*"},
 	}
 }
 
