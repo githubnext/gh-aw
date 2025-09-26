@@ -267,9 +267,6 @@ jobs:
           node-version: '22'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot
-      - name: Setup Copilot CLI MCP Configuration
-        run: |
-          mkdir -p /tmp/.copilot
       - name: Setup agent output
         id: setup_agent_output
         uses: actions/github-script@v8
@@ -856,23 +853,26 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/.copilot/mcp-config.json << 'EOF'
+          mkdir -p ~/.copilot
+          cat > ~/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
               "safe_outputs": {
                 "type": "local",
                 "command": "node",
-                "args": [
-                  "/tmp/safe-outputs/mcp-server.cjs"
-                ],
+                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "tools": ["*"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}"
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
                 }
               }
             }
           }
           EOF
+          echo "-------START MCP CONFIG-----------"
+          cat ~/.copilot/mcp-config.json
+          echo "-------END MCP CONFIG-----------"
       - name: Create prompt
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -977,8 +977,6 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /tmp/.copilot
-          XDG_STATE_HOME: /tmp/.copilot
       - name: Ensure log file exists
         if: always()
         run: |
