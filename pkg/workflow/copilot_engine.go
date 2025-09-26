@@ -259,15 +259,6 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("\n          EOF\n")
 }
 
-// buildGitHubCopilotMCPServer builds the GitHub MCP server configuration for Copilot CLI
-func (e *CopilotEngine) buildGitHubCopilotMCPServer(githubTool any) CopilotMCPServer {
-	return CopilotMCPServer{
-		Type:  "http",
-		URL:   "https://api.githubcopilot.com/mcp",
-		Tools: []string{"*"},
-	}
-}
-
 // buildCopilotMCPServer builds custom MCP server configuration for a single tool in Copilot CLI
 func (e *CopilotEngine) buildCopilotMCPServer(toolName string, toolConfig map[string]any) (CopilotMCPServer, error) {
 	// Get MCP configuration using the shared logic
@@ -328,16 +319,6 @@ func (e *CopilotEngine) buildPlaywrightCopilotMCPServer(playwrightTool any, netw
 	}
 
 	return server
-}
-
-// buildCacheMemoryCopilotMCPServer handles cache-memory configuration without MCP server mounting
-// Cache-memory is now a simple file share, not an MCP server
-func (e *CopilotEngine) buildCacheMemoryCopilotMCPServer(workflowData *WorkflowData) CopilotMCPServer {
-	// Cache-memory no longer uses MCP server mounting
-	// The cache folder is available as a simple file share at /tmp/cache-memory/
-	// The folder is created by the cache step and is accessible to all tools
-	// No MCP configuration is needed for simple file access
-	return CopilotMCPServer{}
 }
 
 // buildSafeOutputsCopilotMCPServer builds the Safe Outputs MCP server configuration for Copilot CLI

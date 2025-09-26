@@ -967,13 +967,6 @@ jobs:
           cat > /tmp/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
-              "GitHub": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp",
-                "tools": [
-                  "*"
-                ]
-              },
               "safe_outputs": {
                 "type": "local",
                 "command": "node",
