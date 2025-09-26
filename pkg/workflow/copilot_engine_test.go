@@ -363,12 +363,12 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps, got %d", len(steps))
 	}
 
-	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	// Get the full command from the execution step (step 1 is the copilot execution)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Find the line that contains the copilot command
 	lines := strings.Split(stepContent, "\n")
@@ -408,12 +408,12 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps, got %d", len(steps))
 	}
 
-	// Get the full command from the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	// Get the full command from the execution step (step 1 is the copilot execution)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Find the line that contains the copilot command
 	lines := strings.Split(stepContent, "\n")
