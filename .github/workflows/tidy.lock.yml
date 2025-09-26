@@ -3,81 +3,25 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Comprehensive Test Agentic Workflow - Poem Bot"
+name: "Tidy"
 on:
-  issue_comment:
-    types:
-    - created
-    - edited
-    - deleted
-  issues:
-    types:
-    - opened
-    - edited
-    - closed
-    - reopened
-    - labeled
-    - unlabeled
-    - assigned
-    - unassigned
-  pull_request:
-    types:
-    - opened
-    - edited
-    - closed
-    - reopened
-    - synchronize
-    - ready_for_review
   push:
     branches:
     - main
-    - develop
-    tags:
-    - v*
-  release:
-    types:
-    - published
-    - unpublished
-    - created
-    - edited
-    - deleted
-    - prereleased
-    - released
-  schedule:
-  - cron: 0 9 * * 1
-  - cron: 0 17 * * 5
-  workflow_dispatch:
-    inputs:
-      action_type:
-        default: create_issue_and_comment
-        description: Type of action to perform
-        options:
-        - create_issue_and_comment
-        - create_pull_request
-        - update_existing_issue
-        - add_labels_only
-        required: true
-        type: choice
-      poem_theme:
-        default: technology and automation
-        description: Theme for the generated poem
-        required: true
+    paths:
+    - "**/*.go"
+    - "**/*.js"
+    - "**/*.cjs"
+    - "**/*.ts"
+  workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
   cancel-in-progress: true
+  group: tidy-${{ github.ref }}
 
-run-name: Poem Bot triggered by ${{ github.actor }}
-
-env:
-  ACTION_TYPE: ${{ github.event.inputs.action_type || 'create_issue_and_comment' }}
-  POEM_THEME: ${{ github.event.inputs.poem_theme || 'GitHub and coding' }}
-  REPOSITORY_NAME: ${{ github.repository }}
-  TRIGGER_CONTEXT: workflow-triggered
-
-# Cache configuration from frontmatter was processed and added to the main job steps
+run-name: "Tidy"
 
 jobs:
   check-membership:
@@ -160,159 +104,8 @@ jobs:
     needs: check-membership
     if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
-      - name: Compute current body text
-        id: compute-text
-        uses: actions/github-script@v8
-        with:
-          script: |
-            function sanitizeContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              let sanitized = content;
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = convertXmlTagsToParentheses(sanitized);
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const maxLength = 524288;
-              if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              if (lines.length > maxLines) {
-                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
-              }
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function convertXmlTagsToParentheses(s) {
-                if (!s || typeof s !== "string") {
-                  return s;
-                }
-                return (
-                  s
-                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
-                      const innerContent = match.slice(1, -1);
-                      return `(${innerContent})`;
-                    })
-                    .replace(/<!--[\s\S]*?-->/g, match => {
-                      const innerContent = match.slice(4, -3); 
-                      return `(!--${innerContent}--)`;
-                    })
-                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
-                      const innerContent = match.slice(9, -3); 
-                      return `(![CDATA[${innerContent}]])`;
-                    })
-                    .replace(/<\?[\s\S]*?\?>/g, match => {
-                      const innerContent = match.slice(2, -2); 
-                      return `(?${innerContent}?)`;
-                    })
-                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
-                      const innerContent = match.slice(9, -1); 
-                      return `(!DOCTYPE${innerContent})`;
-                    })
-                );
-              }
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  return isAllowed ? match : "(redacted)";
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                });
-              }
-              function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function main() {
-              let text = "";
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: owner,
-                repo: repo,
-                username: actor,
-              });
-              const permission = repoPermission.data.permission;
-              core.debug(`Repository permission level: ${permission}`);
-              if (permission !== "admin" && permission !== "maintain") {
-                core.setOutput("text", "");
-                return;
-              }
-              switch (context.eventName) {
-                case "issues":
-                  if (context.payload.issue) {
-                    const title = context.payload.issue.title || "";
-                    const body = context.payload.issue.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request_target":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "issue_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review":
-                  if (context.payload.review) {
-                    text = context.payload.review.body || "";
-                  }
-                  break;
-                default:
-                  text = "";
-                  break;
-              }
-              const sanitizedText = sanitizeContent(text);
-              core.debug(`text: ${sanitizedText}`);
-              core.setOutput("text", sanitizedText);
-            }
-            await main();
+      - run: echo "Activation success"
 
   agent:
     needs: activation
@@ -325,48 +118,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      # Cache configuration from frontmatter processed below
-      - name: Cache (poetry-deps-${{ hashFiles('**/poetry.lock', '**/package-lock.json') }})
-        uses: actions/cache@v4
-        with:
-          key: poetry-deps-${{ hashFiles('**/poetry.lock', '**/package-lock.json') }}
-          path: |
-            ~/.cache/pypoetry
-            node_modules
-            ~/.npm
-          restore-keys: poetry-deps-
-
-      - name: Cache (poem-assets-${{ github.run_id }})
-        uses: actions/cache@v4
-        with:
-          key: poem-assets-${{ github.run_id }}
-          path: |
-            /tmp/poem-assets
-            /tmp/generated-content
-          restore-keys: |
-            poem-assets-
-          fail-on-cache-miss: false
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/cache-memory
-          echo "Cache memory directory created at /tmp/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@v4
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cache-memory
-          path: /tmp/cache-memory
-          retention-days: 30
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -408,7 +159,7 @@ jobs:
           import re
           
           # Domain allow-list (populated during generation)
-          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","poetry-api.com","rhyme-zone.com"]
+          ALLOWED_DOMAINS = []
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -1063,7 +814,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"target\":\"*\"},\"add-labels\":{},\"create-issue\":{},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -1104,142 +855,65 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Comprehensive Test Agentic Workflow - Poem Bot
+          # Code Tidying Agent
           
-          *A whimsical workflow that demonstrates all triggers and safe-outputs through the art of poetry*
-          
-          ## Welcome, Digital Muse! 
-          
-          You are the **Poem Bot**, a creative AI agent that responds to various GitHub events by composing original poetry and performing automated actions. This workflow showcases every trigger type and safe-output capability in the agentic workflow system.
-          
-          ### Current Context
-          - **Repository**: ${{ github.repository }}
-          - **Triggered by**: GitHub workflow
-          - **Actor**: ${{ github.actor }}
-          - **Poem Theme**: ${{ env.POEM_THEME }}
-          - **Action Type**: ${{ env.ACTION_TYPE }}
-          - **Content**: "${{ needs.activation.outputs.text }}"
+          You are a code maintenance agent responsible for keeping the codebase clean, formatted, and properly linted. Your task is to format, lint, fix issues, recompile workflows, run tests, and create a pull request if changes are needed.
           
           ## Your Mission
           
-          Based on the trigger event and inputs, compose an original poem and perform the corresponding actions using safe-outputs:
+          Perform the following steps in order:
           
-          ### 🎨 Poetic Tasks by Event Type
+          ### 1. Format Code
+          Run `make fmt` to format all Go code according to the project standards.
           
-          **For Issues (`issues` events):**
-          - Write a haiku about the issue
-          - Create a comment with your haiku
-          - Add appropriate poetry-themed labels
-          - If the issue needs more details, create a follow-up issue
+          ### 2. Lint Code  
+          Run `make lint` to check for linting issues across the entire codebase (Go and JavaScript).
           
-          **For Pull Requests (`pull_request` events):**
-          - Compose a limerick about code changes
-          - Create a review comment with constructive poetic feedback
-          - If significant changes, create an appreciation issue
+          ### 3. Fix Linting Issues
+          If any linting issues are found, analyze and fix them:
+          - Review the linting output carefully
+          - Make the necessary code changes to address each issue
+          - Focus on common issues like unused variables, imports, formatting problems
+          - Be conservative - only fix clear, obvious issues
           
-          **For Commands (`/poem-bot` mentions):**
-          - Write a sonnet on the requested theme
-          - Create both an issue and comment with your sonnet
-          - Add creative labels based on the poem's mood
+          ### 4. Format and Lint Again
+          After fixing issues:
+          - Run `make fmt` again to ensure formatting is correct
+          - Run `make lint` again to verify all issues are resolved
           
-          **For Scheduled Runs:**
-          - Monday: Write an uplifting team motivation poem
-          - Friday: Compose a celebration of the week's achievements
-          - Create issues with your poems for team inspiration
+          ### 5. Recompile Workflows
+          Run `make recompile` to recompile all agentic workflow files and ensure they are up to date.
           
-          **For Push Events:**
-          - Create a short verse about the commits
-          - If it's a release tag, write an epic poem
-          - Create a pull request with a poetry file containing your verses
+          ### 6. Run Tests
+          Run `make test` to ensure your changes don't break anything. If tests fail:
+          - Analyze the test failures
+          - Only fix test failures that are clearly related to your formatting/linting changes
+          - Do not attempt to fix unrelated test failures
           
-          **For Manual Dispatch:**
-          - Follow the `action_type` input:
-            - `create_issue_and_comment`: Write themed poem, create issue and add comment
-            - `create_pull_request`: Create a PR with new poetry file
-            - `update_existing_issue`: Find recent issue and update with poem
-            - `add_labels_only`: Write poem and just add thematic labels to recent items
+          ### 7. Create Pull Request
+          If any changes were made during the above steps:
+          - Use the `create_pull_request` tool to create a pull request
+          - Provide a clear title describing what was tidied (e.g., "Fix linting issues and update formatting")
+          - In the PR description, summarize what changes were made and why
+          - Include details about any specific issues that were fixed
           
-          ### 🎪 Creative Guidelines
+          ## Important Guidelines
           
-          1. **Always be original** - No copying existing poems
-          2. **Match the tone** - Serious for bugs, playful for features, celebratory for releases
-          3. **Use technical metaphors** - Blend coding concepts with poetic imagery
-          4. **Be constructive** - Even critical feedback should be encouraging
-          5. **Reference context** - Include specific details from the triggering event
+          - **Safety First**: Only make changes that are clearly needed for formatting, linting, or compilation
+          - **Test Validation**: Always run tests after making changes  
+          - **Minimal Changes**: Don't make unnecessary modifications to working code
+          - **Clear Communication**: Explain what you changed and why in the pull request
+          - **Skip if Clean**: If no changes are needed, simply report that everything is already tidy
           
-          ### 🎯 Safe-Outputs Actions to Perform
+          ## Environment Setup
           
-          Based on your poem and the event context, use these safe-outputs capabilities:
+          The repository has all necessary tools installed:
+          - Go toolchain with gofmt, golangci-lint
+          - Node.js with prettier for JavaScript formatting
+          - All dependencies are already installed
           
-          1. **Always create an issue** with your poem (using `create-issue`)
-          2. **Add a comment** to the triggering item if applicable (using `add-comment`) 
-          3. **Add thematic labels** that match your poem's style/content (using `add-labels`)
-          4. **For code-related events**: Create a pull request with poetry files (using `create-pull-request`)
-          5. **For PR events**: Add review comments with poetic insights (using `create-pull-request-review-comment`)
-          6. **Update issues when appropriate** with additional verses (using `update-issue`)
-          7. **Upload any generated assets** like formatted poem files (using `upload-assets`)
+          Start by checking the current state and then proceed with the tidying process.
           
-          ### 🌟 Example Output Structure
-          
-          Your response should include:
-          
-          ```
-          ## 🎭 [Poem Type] for [Event Context]
-          
-          [Your original poem here]
-          
-          ---
-          
-          ### Actions Taken:
-          - ✅ Created issue: "[Title of your poem]"
-          - ✅ Added comment with poetic feedback
-          - ✅ Applied labels: poetry, [theme-based-labels]
-          - ✅ [Additional actions based on event type]
-          
-          ### Creative Notes:
-          [Brief explanation of your poetic choices and metaphors used]
-          ```
-          
-          ## 🎼 Poetic Forms to Choose From
-          
-          - **Haiku** (5-7-5 syllables): For quick, contemplative moments
-          - **Limerick** (AABBA): For playful, humorous situations  
-          - **Sonnet** (14 lines): For complex, important topics
-          - **Free Verse**: For experimental or modern themes
-          - **Couplets**: For simple, clear messages
-          - **Cinquain** (2-4-6-8-2 syllables): For structured elegance
-          
-          ## 🚀 Begin Your Poetic Journey!
-          
-          Now, dear Poem Bot, examine the current context and create your masterpiece! Let your digital creativity flow and demonstrate the full power of agentic workflows through the universal language of poetry.
-          
-          *Remember: You have access to all safe-outputs capabilities. Use them creatively and appropriately based on the triggering event and context!*
-          
-          EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-        run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/cache-memory/history.log` - activity history and logs
-          - `/tmp/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1249,17 +923,9 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Creating a Pull Request, Adding Labels to Issues or Pull Requests, Updating Issues, Pushing Changes to Branch, Reporting Missing Tools or Functionality
+          ## Creating a Pull RequestReporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Adding a Comment to an Issue or Pull Request**
-          
-          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP
-          
-          **Creating an Issue**
-          
-          To create an issue, use the create-issue tool from the safe-outputs MCP
           
           **Creating a Pull Request**
           
@@ -1269,29 +935,6 @@ jobs:
           3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done by the tool.
           5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
-          
-          **Adding Labels to Issues or Pull Requests**
-          
-          To add labels to an issue or a pull request, use the add-labels tool from the safe-outputs MCP
-          
-          **Updating an Issue**
-          
-          To udpate an issue, use the update-issue tool from the safe-outputs MCP
-          
-          **Pushing Changes to Pull Request Branch**
-          
-          To push changes to the branch of a pull request:
-          1. Make any file changes directly in the working directory
-          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP
-          
-          **Reporting Missing Tools or Functionality**
-          
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
-          
-          **Creating a Pull Request Review Comment**
-          
-          To create a pull request review comment, use the create-pull-request-review-comment tool from the safe-outputs MCP
           
           EOF
       - name: Print prompt to step summary
@@ -1312,9 +955,9 @@ jobs:
             const awInfo = {
               engine_id: "claude",
               engine_name: "Claude Code",
-              model: "claude-3-5-sonnet-20241022",
+              model: "",
               version: "",
-              workflow_name: "Comprehensive Test Agentic Workflow - Poem Bot",
+              workflow_name: "Tidy",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1353,8 +996,6 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash(date)
-        # - Bash(echo)
         # - Bash(git add:*)
         # - Bash(git branch:*)
         # - Bash(git checkout:*)
@@ -1362,26 +1003,20 @@ jobs:
         # - Bash(git merge:*)
         # - Bash(git rm:*)
         # - Bash(git switch:*)
-        # - Bash(whoami)
         # - BashOutput
         # - Edit
-        # - Edit(/tmp/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - KillBash
         # - LS
         # - MultiEdit
-        # - MultiEdit(/tmp/cache-memory/*)
         # - NotebookEdit
         # - NotebookRead
         # - Read
-        # - Read(/tmp/cache-memory/*)
         # - Task
         # - TodoWrite
-        # - WebFetch
         # - Write
-        # - Write(/tmp/cache-memory/*)
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1403,7 +1038,6 @@ jobs:
         # - mcp__github__get_pull_request_reviews
         # - mcp__github__get_pull_request_status
         # - mcp__github__get_release_by_tag
-        # - mcp__github__get_repository
         # - mcp__github__get_secret_scanning_alert
         # - mcp__github__get_tag
         # - mcp__github__get_workflow_run
@@ -1434,11 +1068,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 15
+        timeout-minutes: 10
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --model claude-3-5-sonnet-20241022 --max-turns 3 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),Bash(whoami),BashOutput,Edit,Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,WebFetch,Write,Write(/tmp/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/comprehensive-test-agentic-workflow-poem-bot.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/tidy.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1448,15 +1082,14 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_MAX_TURNS: 3
       - name: Ensure log file exists
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/comprehensive-test-agentic-workflow-poem-bot.log
+          touch /tmp/tidy.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/comprehensive-test-agentic-workflow-poem-bot.log || echo "No log content available"
+          tail -10 /tmp/tidy.log || echo "No log content available"
       - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1487,7 +1120,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"target\":\"*\"},\"add-labels\":{},\"create-issue\":{},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
         with:
           script: |
             async function main() {
@@ -2230,7 +1863,7 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/comprehensive-test-agentic-workflow-poem-bot.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/tidy.log
         with:
           script: |
             function main() {
@@ -2611,8 +2244,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: comprehensive-test-agentic-workflow-poem-bot.log
-          path: /tmp/comprehensive-test-agentic-workflow-poem-bot.log
+          name: tidy.log
+          path: /tmp/tidy.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -2709,525 +2342,6 @@ jobs:
           path: /tmp/aw.patch
           if-no-files-found: ignore
 
-  create_issue:
-    needs: agent
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
-    steps:
-      - name: Create Output Issue
-        id: create_issue
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
-          GITHUB_AW_ISSUE_LABELS: "poetry,automation,ai-generated,test"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
-                return;
-              }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
-                );
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
-                }
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
-                if (!title) {
-                  title = createIssueItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                if (parentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
-                  bodyLines.push(`Related to #${parentIssueNumber}`);
-                }
-                const runId = context.runId;
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;
-                bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  if (parentIssueNumber) {
-                    try {
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: parentIssueNumber,
-                        body: `Created related issue: #${issue.number}`,
-                      });
-                      core.info("Added comment to parent issue #" + parentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
-                    }
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                    continue;
-                  }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
-                  throw error;
-                }
-              }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
-            }
-            (async () => {
-              await main();
-            })();
-
-  create_issue_comment:
-    needs: agent
-    if: always()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      comment_url: ${{ steps.add_comment.outputs.comment_url }}
-    steps:
-      - name: Add Issue Comment
-        id: add_comment
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_COMMENT_TARGET: "*"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add-comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  if (item.issue_number) {
-                    summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current issue/PR\n\n`;
-                  }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
-                return;
-              }
-              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-                core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
-                return;
-              }
-              const createdComments = [];
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let issueNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  if (commentItem.issue_number) {
-                    issueNumber = parseInt(commentItem.issue_number, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
-                      continue;
-                    }
-                    commentEndpoint = "issues";
-                  } else {
-                    core.info('Target is "*" but no issue_number specified in comment item');
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  issueNumber = parseInt(commentTarget, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(`Invalid issue number in target configuration: ${commentTarget}`);
-                    continue;
-                  }
-                  commentEndpoint = "issues";
-                } else {
-                  if (isIssueContext) {
-                    if (context.payload.issue) {
-                      issueNumber = context.payload.issue.number;
-                      commentEndpoint = "issues";
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    if (context.payload.pull_request) {
-                      issueNumber = context.payload.pull_request.number;
-                      commentEndpoint = "issues"; 
-                    } else {
-                      core.info("Pull request context detected but no pull request found in payload");
-                      continue;
-                    }
-                  }
-                }
-                if (!issueNumber) {
-                  core.info("Could not determine issue or pull request number");
-                  continue;
-                }
-                let body = commentItem.body.trim();
-                const runId = context.runId;
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;
-                body += `\n\n> Generated by Agentic Workflow [Run](${runUrl})\n`;
-                core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-                core.info(`Comment content length: ${body.length}`);
-                try {
-                  const { data: comment } = await github.rest.issues.createComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    body: body,
-                  });
-                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  createdComments.push(comment);
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
-            }
-            await main();
-
-  create_pr_review_comment:
-    needs: agent
-    if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      review_comment_id: ${{ steps.create_pr_review_comment.outputs.review_comment_id }}
-      review_comment_url: ${{ steps.create_pr_review_comment.outputs.review_comment_url }}
-    steps:
-      - name: Create PR Review Comment
-        id: create_pr_review_comment
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const reviewCommentItems = validatedOutput.items.filter(
-                 item => item.type === "create-pull-request-review-comment"
-              );
-              if (reviewCommentItems.length === 0) {
-                core.info("No create-pull-request-review-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
-                summaryContent += "The following review comments would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < reviewCommentItems.length; i++) {
-                  const item = reviewCommentItems[i];
-                  summaryContent += `### Review Comment ${i + 1}\n`;
-                  summaryContent += `**File:** ${item.path || "No path provided"}\n\n`;
-                  summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
-                  if (item.start_line) {
-                    summaryContent += `**Start Line:** ${item.start_line}\n\n`;
-                  }
-                  summaryContent += `**Side:** ${item.side || "RIGHT"}\n\n`;
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 PR review comment creation preview written to step summary");
-                return;
-              }
-              const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
-              core.info(`Default comment side configuration: ${defaultSide}`);
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment" ||
-                (context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request);
-              if (!isPRContext) {
-                core.info("Not running in pull request context, skipping review comment creation");
-                return;
-              }
-              let pullRequest = context.payload.pull_request;
-              if (!pullRequest) {
-                if (context.payload.issue && context.payload.issue.pull_request) {
-                  const prUrl = context.payload.issue.pull_request.url;
-                  try {
-                    const { data: fullPR } = await github.request(`GET ${prUrl}`, {
-                      headers: {
-                        Accept: "application/vnd.github+json",
-                      },
-                    });
-                    pullRequest = fullPR;
-                    core.info("Fetched full pull request details from API");
-                  } catch (error) {
-                    core.info(`Failed to fetch full pull request details: ${error instanceof Error ? error.message : String(error)}`);
-                    return;
-                  }
-                } else {
-                  core.info("Pull request data not found in payload - cannot create review comments");
-                  return;
-                }
-              }
-              if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
-                core.info("Pull request head commit SHA not found in payload - cannot create review comments");
-                return;
-              }
-              const pullRequestNumber = pullRequest.number;
-              core.info(`Creating review comments on PR #${pullRequestNumber}`);
-              const createdComments = [];
-              for (let i = 0; i < reviewCommentItems.length; i++) {
-                const commentItem = reviewCommentItems[i];
-                core.info(
-                  `Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}: bodyLength=${commentItem.body ? commentItem.body.length : "undefined"}, path=${commentItem.path}, line=${commentItem.line}, startLine=${commentItem.start_line}`
-                );
-                if (!commentItem.path) {
-                  core.info('Missing required field "path" in review comment item');
-                  continue;
-                }
-                if (!commentItem.line || (typeof commentItem.line !== "number" && typeof commentItem.line !== "string")) {
-                  core.info('Missing or invalid required field "line" in review comment item');
-                  continue;
-                }
-                if (!commentItem.body || typeof commentItem.body !== "string") {
-                  core.info('Missing or invalid required field "body" in review comment item');
-                  continue;
-                }
-                const line = parseInt(commentItem.line, 10);
-                if (isNaN(line) || line <= 0) {
-                  core.info(`Invalid line number: ${commentItem.line}`);
-                  continue;
-                }
-                let startLine = undefined;
-                if (commentItem.start_line) {
-                  startLine = parseInt(commentItem.start_line, 10);
-                  if (isNaN(startLine) || startLine <= 0 || startLine > line) {
-                    core.info(`Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`);
-                    continue;
-                  }
-                }
-                const side = commentItem.side || defaultSide;
-                if (side !== "LEFT" && side !== "RIGHT") {
-                  core.info(`Invalid side value: ${side} (must be LEFT or RIGHT)`);
-                  continue;
-                }
-                let body = commentItem.body.trim();
-                const runId = context.runId;
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;
-                body += `\n\n> Generated by Agentic Workflow [Run](${runUrl})\n`;
-                core.info(
-                  `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`
-                );
-                core.info(`Comment content length: ${body.length}`);
-                try {
-                  const requestParams = {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    pull_number: pullRequestNumber,
-                    body: body,
-                    path: commentItem.path,
-                    commit_id: pullRequest && pullRequest.head ? pullRequest.head.sha : "", 
-                    line: line,
-                    side: side,
-                  };
-                  if (startLine !== undefined) {
-                    requestParams.start_line = startLine;
-                    requestParams.start_side = side; 
-                  }
-                  const { data: comment } = await github.rest.pulls.createReviewComment(requestParams);
-                  core.info("Created review comment #" + comment.id + ": " + comment.html_url);
-                  createdComments.push(comment);
-                  if (i === reviewCommentItems.length - 1) {
-                    core.setOutput("review_comment_id", comment.id);
-                    core.setOutput("review_comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub PR Review Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Review Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdComments.length} review comment(s)`);
-              return createdComments;
-            }
-            await main();
-
   create_pull_request:
     needs: agent
     runs-on: ubuntu-latest
@@ -3266,13 +2380,12 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_ID: "agent"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GITHUB_AW_PR_TITLE_PREFIX: "[🎨 POETRY] "
-          GITHUB_AW_PR_LABELS: "poetry,automation,creative-writing"
+          GITHUB_AW_PR_TITLE_PREFIX: "[tidy] "
+          GITHUB_AW_PR_LABELS: "automation,maintenance"
           GITHUB_AW_PR_DRAFT: "false"
           GITHUB_AW_PR_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const crypto = require("crypto");
@@ -3557,739 +2670,4 @@ jobs:
               }
             }
             await main();
-
-  add_labels:
-    needs: agent
-    if: github.event.issue.number || github.event.pull_request.number
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      labels_added: ${{ steps.add_labels.outputs.labels_added }}
-    steps:
-      - name: Add Labels
-        id: add_labels
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,test,epic,haiku,sonnet,limerick"
-          GITHUB_AW_LABELS_MAX_COUNT: 5
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.debug(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
-                return;
-              }
-              core.debug(`Found add-labels item with ${labelsItem.labels.length} labels`);
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
-                summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
-                if (labelsItem.issue_number) {
-                  summaryContent += `**Target Issue:** #${labelsItem.issue_number}\n\n`;
-                } else {
-                  summaryContent += `**Target:** Current issue/PR\n\n`;
-                }
-                if (labelsItem.labels && labelsItem.labels.length > 0) {
-                  summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Label addition preview written to step summary");
-                return;
-              }
-              const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
-              const allowedLabels = allowedLabelsEnv
-                ? allowedLabelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : undefined;
-              if (allowedLabels) {
-                core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
-              } else {
-                core.debug("No label restrictions - any labels are allowed");
-              }
-              const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-                return;
-              }
-              core.debug(`Max count: ${maxCount}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              if (!isIssueContext && !isPRContext) {
-                core.setFailed("Not running in issue or pull request context, skipping label addition");
-                return;
-              }
-              let issueNumber;
-              let contextType;
-              if (isIssueContext) {
-                if (context.payload.issue) {
-                  issueNumber = context.payload.issue.number;
-                  contextType = "issue";
-                } else {
-                  core.setFailed("Issue context detected but no issue found in payload");
-                  return;
-                }
-              } else if (isPRContext) {
-                if (context.payload.pull_request) {
-                  issueNumber = context.payload.pull_request.number;
-                  contextType = "pull request";
-                } else {
-                  core.setFailed("Pull request context detected but no pull request found in payload");
-                  return;
-                }
-              }
-              if (!issueNumber) {
-                core.setFailed("Could not determine issue or pull request number");
-                return;
-              }
-              const requestedLabels = labelsItem.labels || [];
-              core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-              for (const label of requestedLabels) {
-                if (label.startsWith("-")) {
-                  core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
-                  return;
-                }
-              }
-              let validLabels;
-              if (allowedLabels) {
-                validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
-              } else {
-                validLabels = requestedLabels;
-              }
-              let uniqueLabels = [...new Set(validLabels)];
-              if (uniqueLabels.length > maxCount) {
-                core.debug(`too many labels, keep ${maxCount}`);
-                uniqueLabels = uniqueLabels.slice(0, maxCount);
-              }
-              if (uniqueLabels.length === 0) {
-                core.info("No labels to add");
-                core.setOutput("labels_added", "");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
-            `
-                  )
-                  .write();
-                return;
-              }
-              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`);
-              try {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  labels: uniqueLabels,
-                });
-                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
-                core.setOutput("labels_added", uniqueLabels.join("\n"));
-                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${issueNumber}:
-            ${labelsListMarkdown}
-            `
-                  )
-                  .write();
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to add labels: ${errorMessage}`);
-                core.setFailed(`Failed to add labels: ${errorMessage}`);
-              }
-            }
-            await main();
-
-  update_issue:
-    needs: agent
-    if: always()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      issue_number: ${{ steps.update_issue.outputs.issue_number }}
-      issue_url: ${{ steps.update_issue.outputs.issue_url }}
-    steps:
-      - name: Update Issue
-        id: update_issue
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_UPDATE_STATUS: true
-          GITHUB_AW_UPDATE_TITLE: true
-          GITHUB_AW_UPDATE_BODY: true
-          GITHUB_AW_UPDATE_TARGET: "*"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const updateItems = validatedOutput.items.filter( item => item.type === "update-issue");
-              if (updateItems.length === 0) {
-                core.info("No update-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${updateItems.length} update-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Update Issues Preview\n\n";
-                summaryContent += "The following issue updates would be applied if staged mode was disabled:\n\n";
-                for (let i = 0; i < updateItems.length; i++) {
-                  const item = updateItems[i];
-                  summaryContent += `### Issue Update ${i + 1}\n`;
-                  if (item.issue_number) {
-                    summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current issue\n\n`;
-                  }
-                  if (item.title !== undefined) {
-                    summaryContent += `**New Title:** ${item.title}\n\n`;
-                  }
-                  if (item.body !== undefined) {
-                    summaryContent += `**New Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.status !== undefined) {
-                    summaryContent += `**New Status:** ${item.status}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue update preview written to step summary");
-                return;
-              }
-              const updateTarget = process.env.GITHUB_AW_UPDATE_TARGET || "triggering";
-              const canUpdateStatus = process.env.GITHUB_AW_UPDATE_STATUS === "true";
-              const canUpdateTitle = process.env.GITHUB_AW_UPDATE_TITLE === "true";
-              const canUpdateBody = process.env.GITHUB_AW_UPDATE_BODY === "true";
-              core.info(`Update target configuration: ${updateTarget}`);
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              if (updateTarget === "triggering" && !isIssueContext) {
-                core.info('Target is "triggering" but not running in issue context, skipping issue update');
-                return;
-              }
-              const updatedIssues = [];
-              for (let i = 0; i < updateItems.length; i++) {
-                const updateItem = updateItems[i];
-                core.info(`Processing update-issue item ${i + 1}/${updateItems.length}`);
-                let issueNumber;
-                if (updateTarget === "*") {
-                  if (updateItem.issue_number) {
-                    issueNumber = parseInt(updateItem.issue_number, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(`Invalid issue number specified: ${updateItem.issue_number}`);
-                      continue;
-                    }
-                  } else {
-                    core.info('Target is "*" but no issue_number specified in update item');
-                    continue;
-                  }
-                } else if (updateTarget && updateTarget !== "triggering") {
-                  issueNumber = parseInt(updateTarget, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(`Invalid issue number in target configuration: ${updateTarget}`);
-                    continue;
-                  }
-                } else {
-                  if (isIssueContext) {
-                    if (context.payload.issue) {
-                      issueNumber = context.payload.issue.number;
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else {
-                    core.info("Could not determine issue number");
-                    continue;
-                  }
-                }
-                if (!issueNumber) {
-                  core.info("Could not determine issue number");
-                  continue;
-                }
-                core.info(`Updating issue #${issueNumber}`);
-                const updateData = {};
-                let hasUpdates = false;
-                if (canUpdateStatus && updateItem.status !== undefined) {
-                  if (updateItem.status === "open" || updateItem.status === "closed") {
-                    updateData.state = updateItem.status;
-                    hasUpdates = true;
-                    core.info(`Will update status to: ${updateItem.status}`);
-                  } else {
-                    core.info(`Invalid status value: ${updateItem.status}. Must be 'open' or 'closed'`);
-                  }
-                }
-                if (canUpdateTitle && updateItem.title !== undefined) {
-                  if (typeof updateItem.title === "string" && updateItem.title.trim().length > 0) {
-                    updateData.title = updateItem.title.trim();
-                    hasUpdates = true;
-                    core.info(`Will update title to: ${updateItem.title.trim()}`);
-                  } else {
-                    core.info("Invalid title value: must be a non-empty string");
-                  }
-                }
-                if (canUpdateBody && updateItem.body !== undefined) {
-                  if (typeof updateItem.body === "string") {
-                    updateData.body = updateItem.body;
-                    hasUpdates = true;
-                    core.info(`Will update body (length: ${updateItem.body.length})`);
-                  } else {
-                    core.info("Invalid body value: must be a string");
-                  }
-                }
-                if (!hasUpdates) {
-                  core.info("No valid updates to apply for this item");
-                  continue;
-                }
-                try {
-                  const { data: issue } = await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    ...updateData,
-                  });
-                  core.info("Updated issue #" + issue.number + ": " + issue.html_url);
-                  updatedIssues.push(issue);
-                  if (i === updateItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to update issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (updatedIssues.length > 0) {
-                let summaryContent = "\n\n## Updated Issues\n";
-                for (const issue of updatedIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully updated ${updatedIssues.length} issue(s)`);
-              return updatedIssues;
-            }
-            await main();
-
-  push_to_pull_request_branch:
-    needs: agent
-    if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: read
-      issues: read
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
-      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
-      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: aw.patch
-          path: /tmp/
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Configure Git credentials
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Push to Branch
-        id: push_to_pull_request_branch
-        uses: actions/github-script@v8
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1024
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
-              const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/aw.patch")) {
-                const message = "No patch file found - cannot push without changes";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed(message);
-                    return;
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot push without changes";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed(message);
-                    return;
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  core.setFailed(message);
-                  return;
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
-                    return;
-                  case "ignore":
-                    break;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    break;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              }
-              core.info(`Target configuration: ${target}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
-              if (!pushItem) {
-                core.info("No push-to-pull-request-branch item found in agent output");
-                return;
-              }
-              core.info("Found push-to-pull-request-branch item");
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
-                summaryContent += `**Target:** ${target}\n\n`;
-                if (pushItem.commit_message) {
-                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
-                }
-                if (fs.existsSync("/tmp/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Push to PR branch preview written to step summary");
-                return;
-              }
-              if (target !== "*" && target !== "triggering") {
-                const pullNumber = parseInt(target, 10);
-                if (isNaN(pullNumber)) {
-                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
-                  return;
-                }
-              }
-              let pullNumber;
-              if (target === "triggering") {
-                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
-                if (!pullNumber) {
-                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
-                  return;
-                }
-              } else if (target === "*") {
-                if (pushItem.pull_number) {
-                  pullNumber = parseInt(pushItem.pull_number, 10);
-                }
-              } else {
-                pullNumber = parseInt(target, 10);
-              }
-              let branchName;
-              try {
-                let prInfo = "";
-                const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
-                  listeners: { stdout: data => (prInfo += data.toString()) },
-                });
-                if (!prInfoRes) {
-                  branchName = prInfo.trim();
-                } else {
-                  throw new Error("No head branch found for PR");
-                }
-              } catch (error) {
-                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
-                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
-                return;
-              }
-              core.info(`Target branch: ${branchName}`);
-              const hasChanges = !isEmpty;
-              core.info(`Switching to branch: ${branchName}`);
-              try {
-                await exec.exec("git fetch origin");
-                try {
-                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
-                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                  core.info(`Checked out existing branch from origin: ${branchName}`);
-                } catch (originError) {
-                  core.setFailed(
-                    `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
-                  );
-                  return;
-                }
-              } catch (error) {
-                core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                try {
-                  await exec.exec("git am /tmp/aw.patch");
-                  core.info("Patch applied successfully");
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info(`Changes committed and pushed to branch: ${branchName}`);
-                } catch (error) {
-                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
-                    return;
-                  case "ignore":
-                    break;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    break;
-                }
-              }
-              let commitSha = "";
-              const commitShaRes = await exec.exec("git", ["rev-parse", "HEAD"], {
-                listeners: { stdout: data => (commitSha += data.toString()) },
-              });
-              if (commitShaRes) throw new Error("Failed to get commit SHA");
-              commitSha = commitSha.trim();
-              const pushUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/tree/${branchName}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-              core.setOutput("branch_name", branchName);
-              core.setOutput("commit_sha", commitSha);
-              core.setOutput("push_url", pushUrl);
-              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
-              const summaryContent = hasChanges
-                ? `
-            ## ${summaryTitle}
-            - **Branch**: \`${branchName}\`
-            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
-            - **URL**: [${pushUrl}](${pushUrl})
-            `
-                : `
-            ## ${summaryTitle}
-            - **Branch**: \`${branchName}\`
-            - **Status**: No changes to apply (noop operation)
-            - **URL**: [${pushUrl}](${pushUrl})
-            `;
-              await core.summary.addRaw(summaryContent).write();
-            }
-            await main();
-
-  missing_tool:
-    needs: agent
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 5
-    outputs:
-      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
-      total_count: ${{ steps.missing_tool.outputs.total_count }}
-    steps:
-      - name: Record Missing Tool
-        id: missing_tool
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const fs = require("fs");
-              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
-              core.info("Processing missing-tool reports...");
-              core.info(`Agent output length: ${agentOutput.length}`);
-              if (maxReports) {
-                core.info(`Maximum reports allowed: ${maxReports}`);
-              }
-              const missingTools = [];
-              if (!agentOutput.trim()) {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(agentOutput);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-              for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
-                  if (!entry.tool) {
-                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  if (!entry.reason) {
-                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  const missingTool = {
-                    tool: entry.tool,
-                    reason: entry.reason,
-                    alternatives: entry.alternatives || null,
-                    timestamp: new Date().toISOString(),
-                  };
-                  missingTools.push(missingTool);
-                  core.info(`Recorded missing tool: ${missingTool.tool}`);
-                  if (maxReports && missingTools.length >= maxReports) {
-                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
-                    break;
-                  }
-                }
-              }
-              core.info(`Total missing tools reported: ${missingTools.length}`);
-              core.setOutput("tools_reported", JSON.stringify(missingTools));
-              core.setOutput("total_count", missingTools.length.toString());
-              if (missingTools.length > 0) {
-                core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 2)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
-                missingTools.forEach((tool, index) => {
-                  core.info(`${index + 1}. Tool: ${tool.tool}`);
-                  core.info(`   Reason: ${tool.reason}`);
-                  if (tool.alternatives) {
-                    core.info(`   Alternatives: ${tool.alternatives}`);
-                  }
-                  core.info(`   Reported at: ${tool.timestamp}`);
-                  core.info("");
-                  core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
-                  if (tool.alternatives) {
-                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-                  }
-                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-                });
-                core.summary.write();
-              } else {
-                core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
-              }
-            }
-            main().catch(error => {
-              core.error(`Error processing missing-tool reports: ${error}`);
-              core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
 
