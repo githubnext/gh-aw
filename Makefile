@@ -11,7 +11,7 @@ LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
 .PHONY: all
 all: build
 
-# Build the binary
+# Build the binary, run make deps before this
 .PHONY: build
 build: js fmt-cjs
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
@@ -91,6 +91,7 @@ deps:
 	go mod tidy
 	go install golang.org/x/tools/gopls@latest
 	go install github.com/rhysd/actionlint/cmd/actionlint@latest
+	npm install -g prettier
 
 # Install development tools (including linter)
 .PHONY: deps-dev
