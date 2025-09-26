@@ -144,16 +144,7 @@ jobs:
           mkdir -p /tmp/mcp-config
           cat > /tmp/.copilot/mcp-config.json << 'EOF'
           {
-            "mcpServers": {
-              "GitHub": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp",
-                "headers": {},
-                "tools": [
-                  "*"
-                ]
-              }
-            }
+            "mcpServers": {}
           }
           EOF
       - name: Create prompt

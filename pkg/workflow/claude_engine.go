@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // ClaudeEngine represents the Claude Code agentic engine
@@ -515,6 +517,11 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 									}
 								}
 							}
+						}
+					} else if toolName == "github" {
+						// For GitHub tools without explicit allowed list, use default GitHub tools
+						for _, defaultTool := range constants.DefaultGitHubTools {
+							allowedTools = append(allowedTools, fmt.Sprintf("mcp__github__%s", defaultTool))
 						}
 					}
 				}
