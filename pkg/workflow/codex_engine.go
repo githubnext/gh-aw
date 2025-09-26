@@ -185,6 +185,19 @@ codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearc
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
+	// Add the log capture step (same pattern as Claude engine)
+	logCaptureLines := []string{
+		"      - name: Ensure log file exists",
+		"        if: always()",
+		"        run: |",
+		"          # Ensure log file exists",
+		"          touch " + logFile,
+		"          # Show last few lines for debugging",
+		"          echo \"=== Last 10 lines of Codex execution log ===\"",
+		"          tail -10 " + logFile + " || echo \"No log content available\"",
+	}
+	steps = append(steps, GitHubActionStep(logCaptureLines))
+
 	return steps
 }
 
