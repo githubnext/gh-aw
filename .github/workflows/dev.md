@@ -1,7 +1,6 @@
 ---
 on: 
   workflow_dispatch:
-  reaction: "eyes"
   push:
     branches:
       - copilot/*
