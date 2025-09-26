@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and Claude-specific tools.
+This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and engine-specific tools.
 
 ## Overview
 

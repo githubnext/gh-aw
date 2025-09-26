@@ -1,6 +1,6 @@
 ---
 title: AI Engines
-description: Complete guide to AI engines available in GitHub Agentic Workflows, including Claude, Codex, and custom engines with their specific configuration options.
+description: Complete guide to AI engines available in GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
 sidebar:
   order: 1
 ---
@@ -35,15 +35,37 @@ engine:
 
 ### GitHub Copilot (Experimental)
 
-[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) 
+[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) with MCP server support. Designed for conversational AI workflows with access to GitHub repositories and development tools.
 
 ```yaml
 engine: copilot
 ```
 
+**Extended configuration:**
+```yaml
+engine:
+  id: copilot
+  version: latest
+  model: gpt-5
+  env:
+    GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+    DEBUG_MODE: "true"
+```
+
+**Features:**
+- Conversational AI engine powered by GitHub Copilot
+- Uses GitHub Copilot CLI (`@github/copilot`) for natural language processing
+- Supports MCP servers for tool integration
+- Works with file directories and project contexts
+- Integrates with GitHub API and repositories
+
+**Copilot-specific fields:**
+- **`model`** (optional): Specific GPT model to use (e.g., `gpt-5`)
+- **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
+
 #### Secrets
 
-- `COPILOT_CLI_TOKEN ` secret is required for authentication.
+- `COPILOT_CLI_TOKEN` secret is required for authentication.
 
 ### OpenAI Codex (Experimental)
 
@@ -134,7 +156,7 @@ engine:
 
 ### Error Patterns
 
-Both Claude and Codex engines support custom error pattern recognition for enhanced log validation:
+Claude, Copilot, and Codex engines support custom error pattern recognition for enhanced log validation:
 
 ```yaml
 engine:
@@ -208,6 +230,56 @@ mode = "strict"
 4. **Document purpose**: Include comments in your TOML to explain custom settings
 5. **Test thoroughly**: Validate that your custom configuration works as expected
 
+## Copilot CLI Configuration
+
+The Copilot engine provides comprehensive configuration options for the GitHub Copilot CLI integration, including model selection, directory context, and MCP server management.
+
+### Available Models
+
+The Copilot engine supports the following models:
+
+- `gpt-5` - Latest GPT-5 model with enhanced reasoning capabilities
+
+### Advanced Configuration Example
+
+```yaml
+engine:
+  id: copilot
+  version: latest
+  model: gpt-5
+  env:
+    GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+    XDG_CONFIG_HOME: /tmp/.copilot
+    XDG_STATE_HOME: /tmp/.copilot
+    DEBUG_MODE: "true"
+```
+
+### CLI Arguments and Options
+
+The Copilot engine automatically configures the GitHub Copilot CLI with optimal settings:
+
+- `--add-dir /tmp/` - Adds project directory context
+- `--log-level debug` - Enables detailed logging
+- `--log-dir /tmp/.copilot/logs/` - Configures log output directory
+- `--model <model>` - Specifies the AI model (when configured)
+
+### MCP Server Integration
+
+Copilot works seamlessly with MCP servers for tool integration. The engine automatically:
+- Generates MCP configuration at `/tmp/.copilot/mcp-config.json`
+- Uses "local" type for stdio-based MCP servers (Copilot CLI convention)
+- Supports HTTP-based MCP servers for distributed tool access
+- Provides built-in GitHub tools without additional MCP configuration
+
+### Installation and Setup
+
+The Copilot engine handles installation automatically:
+1. Sets up Node.js 22 environment
+2. Installs `@github/copilot` CLI globally via npm
+3. Configures authentication using `COPILOT_CLI_TOKEN`
+4. Sets up MCP server configurations
+5. Creates necessary directory structures
+
 ## Engine Selection Guidelines
 
 **Choose Claude when:**
@@ -215,6 +287,13 @@ mode = "strict"
 - Working with complex code review or documentation tasks
 - Performing multi-step reasoning workflows
 - You want the most stable and well-tested engine
+
+**Choose Copilot when:**
+- You want conversational AI with GitHub integration
+- Working with repository analysis and development workflows  
+- Need access to latest GPT models (gpt-5)
+- Prefer GitHub's native AI tooling and ecosystem
+- You're comfortable with experimental features
 
 **Choose Codex when:**
 - You need code-specific AI capabilities
@@ -233,20 +312,22 @@ mode = "strict"
 Switching between engines is straightforward - just change the `engine` field in your frontmatter:
 
 ```yaml
-# From Claude to Codex
+# From Claude to Copilot
 engine: claude  # Old
-engine: codex   # New
+engine: copilot # New
+
+# From Codex to Copilot
+engine: codex   # Old  
+engine: copilot # New
 
 # With configuration preservation
 engine:
-  id: codex     # Changed from claude
-  model: gpt-4  # Add codex-specific options
-  config: |     # Codex-only feature
-    [custom]
-    setting = "value"
+  id: copilot   # Changed from claude/codex
+  model: gpt-5  # Add copilot-specific options
+  version: latest
 ```
 
-Note that engine-specific features (like `config` for Codex or `max-turns` for Claude) may not be available when switching engines.
+Note that engine-specific features (like `config` for Codex, `max-turns` for Claude, or `model` for Copilot) may not be available when switching engines.
 
 ## Related Documentation
 

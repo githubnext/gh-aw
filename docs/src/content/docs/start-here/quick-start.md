@@ -13,7 +13,7 @@ This guide will get you from zero to a running agentic workflow in minutes. You'
 
 - A repository you are a maintainer of, can push to (or a fork) and have permission to add Actions secrets.
 
-- A Claude or OpenAI API key. 
+- A Claude, GitHub Copilot, or OpenAI API key. 
 
 **Step 1 — Install the extension**
 
