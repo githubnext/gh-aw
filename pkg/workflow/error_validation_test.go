@@ -115,6 +115,68 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 			t.Errorf("ClaudeEngine should return empty error patterns, got %d", len(patterns))
 		}
 	})
+
+	// Test CopilotEngine error validation support
+	t.Run("CopilotEngine_error_validation", func(t *testing.T) {
+		engine := NewCopilotEngine()
+
+		patterns := engine.GetErrorPatterns()
+		if len(patterns) == 0 {
+			t.Error("CopilotEngine should return error patterns")
+		}
+
+		// Verify patterns have expected content
+		foundTimestampedError := false
+		foundTimestampedWarning := false
+		foundBracketedError := false
+		foundGenericError := false
+		foundNpmError := false
+
+		for _, pattern := range patterns {
+			if pattern.Description == "Copilot CLI timestamped ERROR messages" {
+				foundTimestampedError = true
+				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
+					t.Errorf("Copilot timestamped error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
+				}
+			} else if pattern.Description == "Copilot CLI timestamped WARNING messages" {
+				foundTimestampedWarning = true
+				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
+					t.Errorf("Copilot timestamped warning pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
+				}
+			} else if pattern.Description == "Copilot CLI bracketed critical/error messages with timestamp" {
+				foundBracketedError = true
+				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
+					t.Errorf("Copilot bracketed error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
+				}
+			} else if pattern.Description == "Generic error messages from Copilot CLI or Node.js" {
+				foundGenericError = true
+				if pattern.LevelGroup != 1 || pattern.MessageGroup != 2 {
+					t.Errorf("Copilot generic error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
+				}
+			} else if pattern.Description == "NPM error messages during Copilot CLI installation or execution" {
+				foundNpmError = true
+				if pattern.LevelGroup != 0 || pattern.MessageGroup != 1 {
+					t.Errorf("Copilot npm error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
+				}
+			}
+		}
+
+		if !foundTimestampedError {
+			t.Error("CopilotEngine should have timestamped error pattern")
+		}
+		if !foundTimestampedWarning {
+			t.Error("CopilotEngine should have timestamped warning pattern")
+		}
+		if !foundBracketedError {
+			t.Error("CopilotEngine should have bracketed error pattern")
+		}
+		if !foundGenericError {
+			t.Error("CopilotEngine should have generic error pattern")
+		}
+		if !foundNpmError {
+			t.Error("CopilotEngine should have npm error pattern")
+		}
+	})
 }
 
 func TestErrorPatternSerialization(t *testing.T) {

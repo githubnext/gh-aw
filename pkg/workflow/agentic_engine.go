@@ -310,3 +310,19 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 
 	return result.String(), nil
 }
+
+// generateLogCaptureStep creates a shared log capture step for any engine
+// This reduces code duplication across engines and ensures consistency
+func generateLogCaptureStep(engineName, logFile string) GitHubActionStep {
+	logCaptureLines := []string{
+		"      - name: Ensure log file exists",
+		"        if: always()",
+		"        run: |",
+		"          # Ensure log file exists",
+		"          touch " + logFile,
+		"          # Show last few lines for debugging",
+		fmt.Sprintf("          echo \"=== Last 10 lines of %s execution log ===\"", engineName),
+		"          tail -10 " + logFile + " || echo \"No log content available\"",
+	}
+	return GitHubActionStep(logCaptureLines)
+}

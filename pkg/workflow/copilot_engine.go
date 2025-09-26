@@ -189,6 +189,9 @@ copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
+	// Add the log capture step using shared helper function
+	steps = append(steps, generateLogCaptureStep("Copilot", logFile))
+
 	return steps
 }
 
@@ -565,4 +568,64 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 	}
 
 	return comment.String()
+}
+
+// GetErrorPatterns returns regex patterns for extracting error messages from Copilot CLI logs
+func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
+	return []ErrorPattern{
+		{
+			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(ERROR)\]\s+(.+)`,
+			LevelGroup:   2, // "ERROR" is in the second capture group
+			MessageGroup: 3, // error message is in the third capture group
+			Description:  "Copilot CLI timestamped ERROR messages",
+		},
+		{
+			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(WARN|WARNING)\]\s+(.+)`,
+			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
+			MessageGroup: 3, // warning message is in the third capture group
+			Description:  "Copilot CLI timestamped WARNING messages",
+		},
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\]\s+(CRITICAL|ERROR):\s+(.+)`,
+			LevelGroup:   2, // "CRITICAL" or "ERROR" is in the second capture group
+			MessageGroup: 3, // error message is in the third capture group
+			Description:  "Copilot CLI bracketed critical/error messages with timestamp",
+		},
+		{
+			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\]\s+(WARNING):\s+(.+)`,
+			LevelGroup:   2, // "WARNING" is in the second capture group
+			MessageGroup: 3, // warning message is in the third capture group
+			Description:  "Copilot CLI bracketed warning messages with timestamp",
+		},
+		{
+			Pattern:      `(Error):\s+(.+)`,
+			LevelGroup:   1, // "Error" is in the first capture group
+			MessageGroup: 2, // error message is in the second capture group
+			Description:  "Generic error messages from Copilot CLI or Node.js",
+		},
+		{
+			Pattern:      `npm ERR!\s+(.+)`,
+			LevelGroup:   0, // No level group, will be inferred as "error"
+			MessageGroup: 1, // error message is in the first capture group
+			Description:  "NPM error messages during Copilot CLI installation or execution",
+		},
+		{
+			Pattern:      `(Warning):\s+(.+)`,
+			LevelGroup:   1, // "Warning" is in the first capture group
+			MessageGroup: 2, // warning message is in the second capture group
+			Description:  "Generic warning messages from Copilot CLI",
+		},
+		{
+			Pattern:      `(Fatal error):\s+(.+)`,
+			LevelGroup:   1, // "Fatal error" is in the first capture group (will be treated as error)
+			MessageGroup: 2, // error message is in the second capture group
+			Description:  "Fatal error messages from Copilot CLI",
+		},
+		{
+			Pattern:      `copilot:\s+(error):\s+(.+)`,
+			LevelGroup:   1, // "error" is in the first capture group
+			MessageGroup: 2, // error message is in the second capture group
+			Description:  "Copilot CLI command-level error messages",
+		},
+	}
 }
