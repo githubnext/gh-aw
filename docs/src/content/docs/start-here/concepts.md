@@ -7,7 +7,7 @@ sidebar:
 
 GitHub Agentic Workflows represent a new paradigm where AI agents can perform complex, multi-step tasks in conjunction with your team automatically. They combine the power of AI with GitHub's collaboration platform to enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — the systematic, automated application of AI to software collaboration.
 
-GitHub Agentic Workflows are both revolutionary and yet familiar: they build on top of GitHub Actions, and use familiar AI engines such as Claude Code and Codex to interpret natural language instructions.
+GitHub Agentic Workflows are both revolutionary and yet familiar: they build on top of GitHub Actions, and use familiar AI engines such as Claude Code, GitHub Copilot, and Codex to interpret natural language instructions.
 
 ## What makes a workflow "agentic"?
 
@@ -58,6 +58,7 @@ See [Workflow Structure](/gh-aw/reference/workflow-structure/) and [Frontmatter 
 Agentic workflows are powered by different agentic AI engines:
 
 - **Claude Code** (default) — Anthropic's AI engine, excellent for reasoning and code analysis
+- **GitHub Copilot CLI** (experimental) — GitHub's conversational AI engine with repository integration
 - **Codex** (experimental) — OpenAI's code-focused engine
 
 The engine interprets your natural language instructions and executes them using the tools and permissions you've configured.

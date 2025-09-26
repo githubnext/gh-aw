@@ -41,7 +41,7 @@ copilot --prompt "your natural language instruction"
 copilot --add-dir /path/to/project \
         --log-level debug \
         --log-dir /tmp/logs \
-        --model gpt-4 \
+        --model gpt-5 \
         --prompt "instruction"
 ```
 
@@ -129,7 +129,7 @@ engine: copilot
 engine:
   id: copilot
   version: latest
-  model: gpt-4  # if supported
+  model: gpt-5  # defaults to claude-sonnet-4 if not specified
 ```
 
 ### Tool Integration
@@ -139,7 +139,9 @@ engine:
 - Custom tools require proper MCP server configuration
 
 ### Authentication
-- Use `COPILOT_CLI_TOKEN` secret for GitHub token
+- Use `COPILOT_CLI_TOKEN` secret for GitHub token (NOT the default GITHUB_TOKEN)
+- GitHub Actions default token is incompatible with Copilot CLI
+- Must use Personal Access Token (PAT)
 - Ensure token has appropriate permissions for repository access
 - Token is passed via environment variables to CLI
 
@@ -208,9 +210,10 @@ copilot --add-dir /tmp/ \
 - Try reinstalling: `npm uninstall -g @github/copilot && npm install -g @github/copilot`
 
 ### Authentication Issues
-- Verify token validity: `echo $GITHUB_TOKEN`
-- Check token permissions for repository access
-- Try using `COPILOT_CLI_TOKEN` instead of `GITHUB_TOKEN`
+- **GitHub Actions Token Incompatibility**: The default `GITHUB_TOKEN` does NOT work with Copilot CLI
+- Verify you're using a Personal Access Token in `COPILOT_CLI_TOKEN` secret
+- Verify the token is associated with a Copilot-enabled GitHub account
+- For GitHub Enterprise, contact admin for Copilot CLI token access
 
 ### MCP Server Issues
 - Validate JSON configuration syntax
