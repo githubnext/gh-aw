@@ -43,7 +43,7 @@ engine: copilot
 
 #### Secrets
 
-- `COPILOT_TOKEN ` secret is required for authentication.
+- `COPILOT_CLI_TOKEN ` secret is required for authentication.
 
 ### OpenAI Codex (Experimental)
 
