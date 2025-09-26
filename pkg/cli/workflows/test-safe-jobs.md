@@ -8,28 +8,28 @@ on:
 engine: claude
 safe-outputs:
     staged: true
-safe-jobs:
-  print:
-    #name: "print the message"
-    runs-on: ubuntu-latest
-    inputs:
-      message:
-        description: "Message to print"
-        required: true
-        type: string
-    steps:
-      - name: See artifacts
-        run: cd /tmp/safe-jobs && ls -lR
-      - name: print message
-        run: |
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
-            echo "print: $MESSAGE"
-            echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
-            echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
-          else
-            echo "No agent output found, using default: Hello from safe-job!"
-          fi
+    jobs:
+      print:
+        #name: "print the message"
+        runs-on: ubuntu-latest
+        inputs:
+          message:
+            description: "Message to print"
+            required: true
+            type: string
+        steps:
+          - name: See artifacts
+            run: cd /tmp/safe-jobs && ls -lR
+          - name: print message
+            run: |
+              if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+                MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
+                echo "print: $MESSAGE"
+                echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
+                echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
+              else
+                echo "No agent output found, using default: Hello from safe-job!"
+              fi
 ---
 Summarize and use print the message using the `print` tool.
 
