@@ -40,8 +40,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	// Test with no version
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
-	if len(steps) != 3 {
-		t.Errorf("Expected 3 installation steps, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Errorf("Expected 2 installation steps, got %d", len(steps))
 	}
 
 	// Test with version
@@ -49,8 +49,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: "1.0.0"},
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	if len(stepsWithVersion) != 3 {
-		t.Errorf("Expected 3 installation steps with version, got %d", len(stepsWithVersion))
+	if len(stepsWithVersion) != 2 {
+		t.Errorf("Expected 2 installation steps with version, got %d", len(stepsWithVersion))
 	}
 }
 
@@ -72,8 +72,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "copilot --add-dir /tmp/ --log-level debug --log-dir") {
-		t.Errorf("Expected command to contain 'copilot --add-dir /tmp/ --log-level debug --log-dir' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "npx @github/copilot --add-dir /tmp/ --log-level debug --log-dir") {
+		t.Errorf("Expected command to contain 'npx @github/copilot --add-dir /tmp/ --log-level debug --log-dir' in step content:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "/tmp/test.log") {
@@ -108,6 +108,29 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	// Test that GITHUB_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
 	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
 		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithVersion(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Version: "1.0.0",
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps for Copilot CLI execution with version (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Test that the command uses npx with the specified version
+	if !strings.Contains(stepContent, "npx @github/copilot@1.0.0 --add-dir /tmp/ --log-level debug --log-dir") {
+		t.Errorf("Expected command to contain 'npx @github/copilot@1.0.0 --add-dir /tmp/ --log-level debug --log-dir' in step content:\n%s", stepContent)
 	}
 }
 

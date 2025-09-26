@@ -46,12 +46,6 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	// Build the npm install command, optionally with version
-	installCmd := "npm install -g @github/copilot"
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		installCmd = fmt.Sprintf("npm install -g @github/copilot@%s", workflowData.EngineConfig.Version)
-	}
-
 	var steps []GitHubActionStep
 
 	installationSteps := []GitHubActionStep{
@@ -60,10 +54,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 			"        uses: actions/setup-node@v4",
 			"        with:",
 			"          node-version: '22'",
-		},
-		{
-			"      - name: Install GitHub Copilot CLI",
-			fmt.Sprintf("        run: %s", installCmd),
 		},
 		{
 			"      - name: Setup Copilot CLI MCP Configuration",
@@ -114,12 +104,19 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	copilotArgs = append(copilotArgs, "--prompt", "\"$INSTRUCTION\"")
+
+	// Build the npx command with optional version
+	copilotPackage := "@github/copilot"
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		copilotPackage = fmt.Sprintf("@github/copilot@%s", workflowData.EngineConfig.Version)
+	}
+
 	command := fmt.Sprintf(`set -o pipefail
 
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 
 # Run copilot CLI with log capture
-copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
+npx %s %s 2>&1 | tee %s`, copilotPackage, strings.Join(copilotArgs, " "), logFile)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment

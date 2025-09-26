@@ -265,8 +265,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
       - name: Setup Copilot CLI MCP Configuration
         run: |
           mkdir -p /tmp/.copilot
@@ -965,7 +963,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
+          npx @github/copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --prompt "$INSTRUCTION" 2>&1 | tee /tmp/dev.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
