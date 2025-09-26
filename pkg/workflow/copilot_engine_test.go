@@ -119,3 +119,104 @@ func TestCopilotEngineGetLogParserScript(t *testing.T) {
 		t.Errorf("Expected 'parse_copilot_log', got '%s'", script)
 	}
 }
+
+func TestCopilotEngineMCPConfigGeneration(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with GitHub tool
+	tools := map[string]any{
+		"github": map[string]any{
+			"allowed": []any{"get_issue", "create_issue"},
+		},
+	}
+	mcpTools := []string{"github"}
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	var yaml strings.Builder
+	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+	output := yaml.String()
+
+	// Check that it contains the cat command for JSON creation
+	if !strings.Contains(output, "cat > /tmp/.copilot/mcp-config.json << 'EOF'") {
+		t.Errorf("Expected cat command for JSON creation in output:\n%s", output)
+	}
+
+	// Check that it contains the GitHub server configuration
+	if !strings.Contains(output, "\"GitHub\"") {
+		t.Errorf("Expected GitHub server name in output:\n%s", output)
+	}
+
+	if !strings.Contains(output, "\"type\": \"http\"") {
+		t.Errorf("Expected HTTP type for GitHub server in output:\n%s", output)
+	}
+
+	if !strings.Contains(output, "\"url\": \"https://api.githubcopilot.com/mcp\"") {
+		t.Errorf("Expected GitHub API URL in output:\n%s", output)
+	}
+
+	if !strings.Contains(output, "\"tools\": [") || !strings.Contains(output, "\"*\"") {
+		t.Errorf("Expected tools array with wildcard in output:\n%s", output)
+	}
+
+	// Check that it ends with EOF
+	if !strings.Contains(output, "EOF") {
+		t.Errorf("Expected EOF marker in output:\n%s", output)
+	}
+}
+
+func TestCopilotEngineMCPConfigWithMultipleTools(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Test with multiple tools including custom MCP tool
+	tools := map[string]any{
+		"github": map[string]any{
+			"allowed": []any{"get_issue"},
+		},
+		"playwright": map[string]any{
+			"allowed_domains": []any{"example.com"},
+		},
+		"custom-server": map[string]any{
+			"type":    "stdio",
+			"command": "python",
+			"args":    []any{"-m", "my_server"},
+			"env": map[string]any{
+				"API_KEY": "secret",
+			},
+			"allowed": []any{"*"},
+		},
+	}
+	mcpTools := []string{"github", "playwright", "custom-server"}
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	var yaml strings.Builder
+	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+
+	output := yaml.String()
+
+	// Check for multiple servers
+	if !strings.Contains(output, "\"GitHub\"") {
+		t.Errorf("Expected GitHub server in output:\n%s", output)
+	}
+
+	if !strings.Contains(output, "\"playwright\"") {
+		t.Errorf("Expected playwright server in output:\n%s", output)
+	}
+
+	if !strings.Contains(output, "\"custom-server\"") {
+		t.Errorf("Expected custom-server in output:\n%s", output)
+	}
+
+	// Check custom server configuration
+	if !strings.Contains(output, "\"command\": \"python\"") {
+		t.Errorf("Expected python command for custom server in output:\n%s", output)
+	}
+
+	if !strings.Contains(output, "\"API_KEY\": \"secret\"") {
+		t.Errorf("Expected environment variable for custom server in output:\n%s", output)
+	}
+}
