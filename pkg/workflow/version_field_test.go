@@ -20,10 +20,10 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 			t.Errorf("Expected v2.0.0, got %s", result)
 		}
 
-		// Test legacy "version" field
+		// Test legacy "docker_image_version" field
 		githubToolLegacy := map[string]any{
-			"allowed": []any{"create_issue"},
-			"version": "v1.5.0",
+			"allowed":              []any{"create_issue"},
+			"docker_image_version": "v1.5.0",
 		}
 		result = getGitHubDockerImageVersion(githubToolLegacy)
 		if result != "v1.5.0" {
@@ -63,10 +63,10 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 			t.Errorf("Expected v1.41.0, got %s", result)
 		}
 
-		// Test legacy "version" field
+		// Test legacy "docker_image_version" field
 		playwrightToolLegacy := map[string]any{
-			"allowed_domains": []any{"example.com"},
-			"version":         "v1.40.0",
+			"allowed_domains":      []any{"example.com"},
+			"docker_image_version": "v1.40.0",
 		}
 		result = getPlaywrightDockerImageVersion(playwrightToolLegacy)
 		if result != "v1.40.0" {
@@ -126,12 +126,12 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 			t.Errorf("Expected to find v2.0.0 in args, got: %v", configs[0].Args)
 		}
 
-		// Test GitHub tool with legacy "version" field
+		// Test GitHub tool with legacy "docker_image_version" field
 		frontmatterLegacy := map[string]any{
 			"tools": map[string]any{
 				"github": map[string]any{
-					"allowed": []any{"create_issue"},
-					"version": "v1.5.0",
+					"allowed":              []any{"create_issue"},
+					"docker_image_version": "v1.5.0",
 				},
 			},
 		}

@@ -991,9 +991,13 @@
                     "type": "string"
                   }
                 },
+                "version": {
+                  "type": "string",
+                  "description": "Version for GitHub MCP server"
+                },
                 "docker_image_version": {
                   "type": "string",
-                  "description": "Docker image version for GitHub MCP server"
+                  "description": "Docker image version for GitHub MCP server (legacy, use 'version' instead)"
                 }
               },
               "additionalProperties": false
@@ -1112,9 +1116,13 @@
               "type": "object",
               "description": "Playwright tool configuration object",
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Version for Playwright container"
+                },
                 "docker_image_version": {
                   "type": "string",
-                  "description": "Docker image version for Playwright container"
+                  "description": "Docker image version for Playwright container (legacy, use 'version' instead)"
                 },
                 "allowed_domains": {
                   "description": "Domains allowed for Playwright network access (defaults to localhost only)",
