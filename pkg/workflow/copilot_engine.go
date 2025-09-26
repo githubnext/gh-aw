@@ -256,9 +256,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	//GITHUB_COPILOT_CLI_MODE
 	yaml.WriteString("          echo \"HOME: $HOME\"\n")
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
-	// Actually just dump the whole environment
-	yaml.WriteString("          echo \"-------env-----------\"\n")
-	yaml.WriteString("          set\n")
+	//yaml.WriteString("          echo \"GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\"")
 
 }
 
