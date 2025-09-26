@@ -269,10 +269,10 @@ jobs:
             const encoder = new TextEncoder();
             let safeOutputsConfigRaw;
             let configSource;
-            const configFilePath = path.join(__dirname, 'safe-outputs.config.json');
+            const configFilePath = path.join(__dirname, "safe-outputs.config.json");
             try {
               if (fs.existsSync(configFilePath)) {
-                const configFileContent = fs.readFileSync(configFilePath, 'utf8');
+                const configFileContent = fs.readFileSync(configFilePath, "utf8");
                 safeOutputsConfigRaw = JSON.parse(configFileContent);
                 configSource = `file: ${configFilePath}`;
               } else {

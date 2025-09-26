@@ -538,7 +538,7 @@ func TestSafeOutputsMCPServer_ConfigFile(t *testing.T) {
 	// Set up environment without GITHUB_AW_SAFE_OUTPUTS_CONFIG
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", tempFile))
-	
+
 	// Add required environment variables for upload_asset tool
 	env = append(env, "GITHUB_AW_ASSETS_BRANCH=test-assets")
 	env = append(env, "GITHUB_AW_ASSETS_MAX_SIZE_KB=10240")
