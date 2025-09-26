@@ -61,12 +61,12 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps for Copilot CLI execution (execution + log capture), got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture), got %d", len(steps))
 	}
 
-	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	// Check the execution step (second step)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	if !strings.Contains(stepContent, "name: Execute GitHub Copilot CLI") {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
@@ -98,12 +98,12 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps for Copilot CLI execution with output (execution + log capture), got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture) with output, got %d", len(steps))
 	}
 
-	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	// Check the execution step (second step)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Test that GITHUB_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
 	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
@@ -301,12 +301,30 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps for Copilot CLI execution with tools (execution + log capture), got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture), got %d", len(steps))
 	}
 
-	// Check the execution step contains tool arguments
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	// Check the upload config step (first step)
+	uploadStepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(uploadStepContent, "name: Upload config") {
+		t.Errorf("Expected first step to be upload config step:\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "uses: actions/upload-artifact@v4") {
+		t.Errorf("Expected upload step to use actions/upload-artifact@v4:\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "name: config") {
+		t.Errorf("Expected artifact name to be 'config':\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "path: /tmp/.copilot/") {
+		t.Errorf("Expected artifact path to be '/tmp/.copilot/':\n%s", uploadStepContent)
+	}
+
+	// Check the execution step contains tool arguments (second step)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
 	// Should contain the tool arguments in the command line
 	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
@@ -332,5 +350,44 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 
 	if !strings.Contains(stepContent, "# --allow-tool write") {
 		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineUploadConfigStep(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture), got %d", len(steps))
+	}
+
+	// Check the upload config step is present and correct
+	uploadStepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(uploadStepContent, "name: Upload config") {
+		t.Errorf("Expected upload config step name in:\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "if: always()") {
+		t.Errorf("Expected upload config step to have 'if: always()' condition in:\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "uses: actions/upload-artifact@v4") {
+		t.Errorf("Expected upload config step to use 'actions/upload-artifact@v4' in:\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "name: config") {
+		t.Errorf("Expected artifact name 'config' in:\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "path: /tmp/.copilot/") {
+		t.Errorf("Expected artifact path '/tmp/.copilot/' in:\n%s", uploadStepContent)
+	}
+
+	if !strings.Contains(uploadStepContent, "if-no-files-found: ignore") {
+		t.Errorf("Expected 'if-no-files-found: ignore' in:\n%s", uploadStepContent)
 	}
 }
