@@ -365,22 +365,22 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 
 func TestGenerateCleanupStep(t *testing.T) {
 	// Test the generateCleanupStep function directly to demonstrate its testability
-	
+
 	// Test case 1: Only /tmp/ files - should not generate cleanup step
 	tmpOnlyFiles := []string{"/tmp/logs/debug.log", "/tmp/.cache/data.json"}
 	cleanupYaml, hasCleanup := generateCleanupStep(tmpOnlyFiles)
-	
+
 	if hasCleanup {
 		t.Error("Expected no cleanup step for /tmp/ only files")
 	}
 	if cleanupYaml != "" {
 		t.Error("Expected empty cleanup YAML for /tmp/ only files")
 	}
-	
+
 	// Test case 2: Only workspace files - should generate cleanup step
 	workspaceOnlyFiles := []string{"output.txt", "build/artifacts.zip"}
 	cleanupYaml, hasCleanup = generateCleanupStep(workspaceOnlyFiles)
-	
+
 	if !hasCleanup {
 		t.Error("Expected cleanup step for workspace files")
 	}
@@ -390,11 +390,11 @@ func TestGenerateCleanupStep(t *testing.T) {
 	if !strings.Contains(cleanupYaml, "rm -fr build/artifacts.zip") {
 		t.Error("Expected cleanup YAML to contain 'rm -fr build/artifacts.zip'")
 	}
-	
+
 	// Test case 3: Mixed files - should generate cleanup step only for workspace files
 	mixedFiles := []string{"/tmp/debug.log", "workspace/output.txt", "/tmp/.cache/data.json"}
 	cleanupYaml, hasCleanup = generateCleanupStep(mixedFiles)
-	
+
 	if !hasCleanup {
 		t.Error("Expected cleanup step for mixed files containing workspace files")
 	}
@@ -407,17 +407,17 @@ func TestGenerateCleanupStep(t *testing.T) {
 	if !strings.Contains(cleanupYaml, "rm -fr workspace/output.txt") {
 		t.Error("Expected cleanup YAML to contain workspace files")
 	}
-	
+
 	// Test case 4: Empty input - should not generate cleanup step
 	emptyFiles := []string{}
 	cleanupYaml, hasCleanup = generateCleanupStep(emptyFiles)
-	
+
 	if hasCleanup {
 		t.Error("Expected no cleanup step for empty files list")
 	}
 	if cleanupYaml != "" {
 		t.Error("Expected empty cleanup YAML for empty files list")
 	}
-	
+
 	t.Log("Successfully verified generateCleanupStep function behavior in all scenarios")
 }
