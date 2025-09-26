@@ -69,8 +69,8 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected 'Ingest agent output' step to be in generated workflow")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload agentic output file") {
-		t.Error("Expected 'Upload agentic output file' step to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Upload Safe Outputs") {
+		t.Error("Expected 'Upload Safe Outputs' step to be in generated workflow")
 	}
 
 	if !strings.Contains(lockContent, "- name: Upload sanitized agent output") {
@@ -101,13 +101,13 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Claude workflow should NOT reference 'agent_outputs' artifact (Claude CLI no longer produces output.txt)")
 	}
 
-	// Verify Print Agent output step has file existence check
+	// Verify Print Safe Outputs step has file existence check
 	if !strings.Contains(lockContent, "if [ -f ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ]; then") {
-		t.Error("Expected Print Agent output step to check if output file exists before reading it")
+		t.Error("Expected Print Safe Outputs step to check if output file exists before reading it")
 	}
 
 	if !strings.Contains(lockContent, "No agent output file found") {
-		t.Error("Expected Print Agent output step to provide message when no output file found")
+		t.Error("Expected Print Safe Outputs step to provide message when no output file found")
 	}
 
 	// Verify that both artifacts are uploaded
@@ -177,8 +177,8 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Error("Codex workflow should have 'Ingest agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
 	}
 
-	if !strings.Contains(lockContent, "- name: Upload agentic output file") {
-		t.Error("Codex workflow should have 'Upload agentic output file' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
+	if !strings.Contains(lockContent, "- name: Upload Safe Outputs") {
+		t.Error("Codex workflow should have 'Upload Safe Outputs' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Upload sanitized agent output") {
