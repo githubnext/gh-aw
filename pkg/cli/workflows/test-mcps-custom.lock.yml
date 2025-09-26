@@ -254,8 +254,7 @@ jobs:
                 "url": "https://api.example.com/mcp",
                 "headers": {
                   "Authorization": "Bearer ${{ secrets.API_TOKEN }}"
-                },
-                "registry": "https://registry.example.com/servers/my-http-server"
+                }
               },
               "my-stdio-server": {
                 "command": "npx",
