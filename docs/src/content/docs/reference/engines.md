@@ -46,7 +46,7 @@ engine: copilot
 engine:
   id: copilot
   version: latest
-  model: gpt-4o
+  model: gpt-5                          # Optional: uses claude-sonnet-4 by default
   env:
     GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
     DEBUG_MODE: "true"
@@ -60,8 +60,11 @@ engine:
 - Integrates with GitHub API and repositories
 
 **Copilot-specific fields:**
-- **`model`** (optional): Specific AI model to use (e.g., `gpt-4o`, `gpt-4`, `o1-preview`, `o1-mini`)
+- **`model`** (optional): AI model to use (`gpt-5` or defaults to `claude-sonnet-4`)
 - **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
+
+**Environment Variables:**
+- **`COPILOT_MODEL`**: Alternative way to set the model (e.g., `gpt-5`)
 
 #### Secrets
 
@@ -257,14 +260,16 @@ The Copilot engine provides comprehensive configuration options for the GitHub C
 
 ### Available Models
 
-The Copilot engine supports the following models as supported by GitHub Copilot CLI:
+GitHub Copilot CLI supports the following models:
 
-- `gpt-4o` - GPT-4 Omni model with multimodal capabilities
-- `gpt-4` - GPT-4 model for general-purpose tasks
-- `o1-preview` - OpenAI's reasoning model (preview)
-- `o1-mini` - Smaller, faster version of the reasoning model
+- **Default**: `claude-sonnet-4` - Claude Sonnet 4 model (used when no model is specified)
+- **Alternative**: `gpt-5` - GPT-5 model (set via `COPILOT_MODEL` environment variable or `--model` argument)
 
-> **Note**: Model availability may vary based on your GitHub Copilot subscription and regional settings. Refer to the [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli#model-usage) for the most current model availability.
+> **Important**: 
+> - The default model used by GitHub Copilot CLI is Claude Sonnet 4. GitHub reserves the right to change this model.
+> - Each workflow execution counts as one premium request against your monthly quota. For information about premium requests, see [Requests in GitHub Copilot](https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests).
+> - Model availability may vary based on your GitHub Copilot subscription and regional settings. 
+> - Refer to the [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli#model-usage) for the most current model availability.
 
 ### Advanced Configuration Example
 
@@ -272,9 +277,10 @@ The Copilot engine supports the following models as supported by GitHub Copilot 
 engine:
   id: copilot
   version: latest
-  model: gpt-4o
+  model: gpt-5                          # Optional: defaults to claude-sonnet-4
   env:
     GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+    COPILOT_MODEL: gpt-5                # Alternative way to set model
     XDG_CONFIG_HOME: /tmp/.copilot
     XDG_STATE_HOME: /tmp/.copilot
     DEBUG_MODE: "true"
@@ -287,7 +293,7 @@ The Copilot engine automatically configures the GitHub Copilot CLI with optimal 
 - `--add-dir /tmp/` - Adds project directory context
 - `--log-level debug` - Enables detailed logging
 - `--log-dir /tmp/.copilot/logs/` - Configures log output directory
-- `--model <model>` - Specifies the AI model (when configured)
+- `--model <model>` - Specifies the AI model (e.g., `gpt-5`; defaults to `claude-sonnet-4`)
 
 ### MCP Server Integration
 
@@ -317,7 +323,7 @@ The Copilot engine handles installation automatically:
 **Choose Copilot when:**
 - You want conversational AI with GitHub integration
 - Working with repository analysis and development workflows  
-- Need access to latest OpenAI models (GPT-4o, o1-preview)
+- Need access to Claude Sonnet 4 (default) or GPT-5 models
 - Prefer GitHub's native AI tooling and ecosystem
 - You're comfortable with experimental features
 
@@ -349,7 +355,7 @@ engine: copilot # New
 # With configuration preservation
 engine:
   id: copilot   # Changed from claude/codex
-  model: gpt-4o # Add copilot-specific options
+  model: gpt-5  # Add copilot-specific options (optional; defaults to claude-sonnet-4)
   version: latest
 ```
 

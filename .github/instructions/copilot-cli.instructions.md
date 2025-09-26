@@ -41,7 +41,7 @@ copilot --prompt "your natural language instruction"
 copilot --add-dir /path/to/project \
         --log-level debug \
         --log-dir /tmp/logs \
-        --model gpt-4o \
+        --model gpt-5 \
         --prompt "instruction"
 ```
 
@@ -129,7 +129,7 @@ engine: copilot
 engine:
   id: copilot
   version: latest
-  model: gpt-4o # if supported
+  model: gpt-5  # defaults to claude-sonnet-4 if not specified
 ```
 
 ### Tool Integration
