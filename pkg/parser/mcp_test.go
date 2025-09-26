@@ -196,8 +196,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"github": map[string]any{
-						"allowed":              []any{"issue_create", "pull_request_list"},
-						"docker_image_version": "latest",
+						"allowed": []any{"issue_create", "pull_request_list"},
+						"version": "latest",
 					},
 				},
 			},
@@ -243,8 +243,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{
-						"allowed_domains":      []any{"example.com"},
-						"docker_image_version": "v1.41.0",
+						"allowed_domains": []any{"example.com"},
+						"version":         "v1.41.0",
 					},
 				},
 			},

@@ -22,7 +22,7 @@ func TestCodexEnginePlaywrightToolsExpansion(t *testing.T) {
 			name: "playwright with config preserves config and adds tools",
 			input: map[string]any{
 				"playwright": map[string]any{
-					"docker_image_version": "v1.40.0",
+					"version": "v1.40.0",
 				},
 			},
 			expected: 21, // Should still expand to all 21 tools

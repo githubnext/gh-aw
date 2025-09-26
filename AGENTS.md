@@ -155,7 +155,7 @@ gh aw mcp inspect --inspector     # Web-based inspector
 engine: claude  # Options: claude, codex, custom
 tools:
   playwright:
-    docker_image_version: "v1.41.0"
+    version: "v1.41.0"
     allowed_domains: ["github.com"]
 ---
 ```
