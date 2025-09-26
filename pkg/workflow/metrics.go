@@ -253,3 +253,74 @@ func ExtractMCPServer(toolName string) string {
 	// For non-MCP tools, return the tool name as-is
 	return toolName
 }
+
+// ErrorWarningCounts represents the counts of errors and warnings
+type ErrorWarningCounts struct {
+	ErrorCount   int
+	WarningCount int
+}
+
+// CountErrorsAndWarningsWithPatterns counts errors and warnings using regex patterns
+// This is more accurate than simple string matching and uses the same logic as validate_errors.cjs
+func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPattern) ErrorWarningCounts {
+	counts := ErrorWarningCounts{}
+	
+	if len(patterns) == 0 {
+		return counts
+	}
+	
+	lines := strings.Split(logContent, "\n")
+	
+	for _, pattern := range patterns {
+		regex, err := regexp.Compile(pattern.Pattern)
+		if err != nil {
+			// Skip invalid patterns
+			continue
+		}
+		
+		for _, line := range lines {
+			matches := regex.FindAllStringSubmatch(line, -1)
+			for _, match := range matches {
+				level := extractLevelFromMatch(match, pattern)
+				
+				if strings.ToLower(level) == "error" {
+					counts.ErrorCount++
+				} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
+					counts.WarningCount++
+				}
+			}
+		}
+	}
+	
+	return counts
+}
+
+// extractLevelFromMatch extracts the error level from a regex match using the pattern configuration
+func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
+	// If level group is specified and valid, use it
+	if pattern.LevelGroup > 0 && pattern.LevelGroup < len(match) && match[pattern.LevelGroup] != "" {
+		levelText := strings.ToLower(match[pattern.LevelGroup])
+		// Normalize common error/warning keywords
+		if strings.Contains(levelText, "err") || strings.Contains(levelText, "error") || 
+		   strings.Contains(levelText, "fail") || strings.Contains(levelText, "fatal") {
+			return "error"
+		} else if strings.Contains(levelText, "warn") || strings.Contains(levelText, "warning") {
+			return "warning"
+		}
+		// Return the original level text if it doesn't match common patterns
+		return match[pattern.LevelGroup]
+	}
+	
+	// Try to infer level from the full match content
+	if len(match) > 0 {
+		fullMatch := strings.ToLower(match[0])
+		if strings.Contains(fullMatch, "error") || strings.Contains(fullMatch, "err") ||
+		   strings.Contains(fullMatch, "fail") || strings.Contains(fullMatch, "fatal") {
+			return "error"
+		} else if strings.Contains(fullMatch, "warn") || strings.Contains(fullMatch, "warning") {
+			return "warning"
+		}
+	}
+	
+	return "unknown"
+}

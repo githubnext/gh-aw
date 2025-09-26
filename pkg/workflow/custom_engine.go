@@ -330,6 +330,16 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			continue
 		}
 
+		// Custom engine continues with basic processing
+	}
+
+	// Count errors and warnings - Custom engine doesn't have its own patterns,
+	// so use simple string matching as fallback
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
 		// Count errors and warnings
 		lowerLine := strings.ToLower(line)
 		if strings.Contains(lowerLine, "error") {
