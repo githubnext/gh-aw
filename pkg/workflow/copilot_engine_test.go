@@ -61,8 +61,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (upload config + copilot execution), got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture), got %d", len(steps))
 	}
 
 	// Check the execution step (second step)
@@ -98,8 +98,8 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (upload config + copilot execution) with output, got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture) with output, got %d", len(steps))
 	}
 
 	// Check the execution step (second step)
@@ -301,8 +301,8 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (upload config + copilot execution), got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture), got %d", len(steps))
 	}
 
 	// Check the upload config step (first step)
@@ -360,8 +360,8 @@ func TestCopilotEngineUploadConfigStep(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (upload config + copilot execution), got %d", len(steps))
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture), got %d", len(steps))
 	}
 
 	// Check the upload config step is present and correct
