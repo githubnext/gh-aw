@@ -91,7 +91,7 @@ var ErrNoArtifacts = errors.New("no artifacts found for this run")
 // fetchJobStatuses gets job information for a workflow run and counts failed jobs
 func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 	args := []string{"api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}"}
-	
+
 	if verbose {
 		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Fetching job statuses for run %d", runID)))
 	}
@@ -113,7 +113,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		
+
 		var job JobInfo
 		if err := json.Unmarshal([]byte(line), &job); err != nil {
 			if verbose {
@@ -121,7 +121,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 			}
 			continue
 		}
-		
+
 		// Count jobs with failure conclusions as errors
 		if job.Conclusion == "failure" || job.Conclusion == "cancelled" || job.Conclusion == "timed_out" {
 			failedJobs++
@@ -130,7 +130,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 			}
 		}
 	}
-	
+
 	return failedJobs, nil
 }
 

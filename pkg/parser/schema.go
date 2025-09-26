@@ -212,7 +212,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 				// Rewrite "additional properties not allowed" errors to be more friendly
 				message := rewriteAdditionalPropertiesError(primaryPath.Message)
-				
+
 				// Add schema-based suggestions
 				suggestions := generateSchemaBasedSuggestions(schemaJSON, primaryPath.Message, primaryPath.Path)
 				if suggestions != "" {
@@ -240,7 +240,7 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 
 		// Rewrite "additional properties not allowed" errors to be more friendly
 		message := rewriteAdditionalPropertiesError(errorMsg)
-		
+
 		// Add schema-based suggestions for fallback case
 		suggestions := generateSchemaBasedSuggestions(schemaJSON, errorMsg, "")
 		if suggestions != "" {
@@ -393,6 +393,14 @@ func findFrontmatterBounds(lines []string) (startIdx int, endIdx int, frontmatte
 	return startIdx, endIdx, frontmatterContent
 }
 
+// Constants for suggestion limits and field generation
+const (
+	maxClosestMatches = 3  // Maximum number of closest matches to find
+	maxSuggestions    = 5  // Maximum number of suggestions to show
+	maxAcceptedFields = 10 // Maximum number of accepted fields to display
+	maxExampleFields  = 3  // Maximum number of fields to include in example JSON
+)
+
 // generateSchemaBasedSuggestions generates helpful suggestions based on the schema and error type
 func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath string) string {
 	// Parse the schema to extract information for suggestions
@@ -405,7 +413,7 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath string) s
 	if strings.Contains(strings.ToLower(errorMessage), "additional propert") && strings.Contains(strings.ToLower(errorMessage), "not allowed") {
 		invalidProps := extractAdditionalPropertyNames(errorMessage)
 		acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
-		
+
 		if len(acceptedFields) > 0 {
 			return generateFieldSuggestions(invalidProps, acceptedFields)
 		}
@@ -510,12 +518,12 @@ func resolveSchemaWithOneOf(schema map[string]any) map[string]any {
 
 // generateFieldSuggestions creates a helpful suggestion message for invalid field names
 func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
-	if len(acceptedFields) == 0 {
+	if len(acceptedFields) == 0 || len(invalidProps) == 0 {
 		return ""
 	}
 
 	var suggestion strings.Builder
-	
+
 	if len(invalidProps) == 1 {
 		suggestion.WriteString("Did you mean one of: ")
 	} else {
@@ -525,7 +533,7 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	// Find closest matches using simple string distance
 	var suggestions []string
 	for _, invalidProp := range invalidProps {
-		closest := findClosestMatches(invalidProp, acceptedFields, 3)
+		closest := findClosestMatches(invalidProp, acceptedFields, maxClosestMatches)
 		suggestions = append(suggestions, closest...)
 	}
 
@@ -533,18 +541,18 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 	if len(suggestions) > 0 {
 		// Remove duplicates
 		uniqueSuggestions := removeDuplicates(suggestions)
-		if len(uniqueSuggestions) <= 5 {
+		if len(uniqueSuggestions) <= maxSuggestions {
 			suggestion.WriteString(strings.Join(uniqueSuggestions, ", "))
 		} else {
-			suggestion.WriteString(strings.Join(uniqueSuggestions[:5], ", "))
+			suggestion.WriteString(strings.Join(uniqueSuggestions[:maxSuggestions], ", "))
 			suggestion.WriteString(", ...")
 		}
 	} else {
 		// Show all accepted fields if no close matches
-		if len(acceptedFields) <= 10 {
+		if len(acceptedFields) <= maxAcceptedFields {
 			suggestion.WriteString(strings.Join(acceptedFields, ", "))
 		} else {
-			suggestion.WriteString(strings.Join(acceptedFields[:10], ", "))
+			suggestion.WriteString(strings.Join(acceptedFields[:maxAcceptedFields], ", "))
 			suggestion.WriteString(", ...")
 		}
 	}
@@ -565,7 +573,7 @@ func findClosestMatches(target string, candidates []string, maxResults int) []st
 	for _, candidate := range candidates {
 		candidateLower := strings.ToLower(candidate)
 		score := calculateSimilarityScore(targetLower, candidateLower)
-		
+
 		// Only include if there's some similarity
 		if score > 0 {
 			matches = append(matches, match{value: candidate, score: score})
@@ -588,32 +596,41 @@ func findClosestMatches(target string, candidates []string, maxResults int) []st
 
 // calculateSimilarityScore calculates a simple similarity score between two strings
 func calculateSimilarityScore(a, b string) int {
+	// Early exit for obviously poor matches (length difference > 2x shorter string length)
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+	lengthDiff := abs(len(a) - len(b))
+	if lengthDiff > minLen*2 && minLen > 0 {
+		return 0
+	}
+
 	// Simple heuristics for string similarity
 	score := 0
-	
+
 	// Bonus for substring matches
 	if strings.Contains(b, a) || strings.Contains(a, b) {
 		score += 10
 	}
-	
+
 	// Bonus for common prefixes
 	commonPrefix := 0
 	for i := 0; i < len(a) && i < len(b) && a[i] == b[i]; i++ {
 		commonPrefix++
 	}
 	score += commonPrefix * 2
-	
+
 	// Bonus for common suffixes
 	commonSuffix := 0
 	for i := 0; i < len(a) && i < len(b) && a[len(a)-1-i] == b[len(b)-1-i]; i++ {
 		commonSuffix++
 	}
 	score += commonSuffix * 2
-	
+
 	// Penalty for length difference
-	lengthDiff := abs(len(a) - len(b))
 	score -= lengthDiff
-	
+
 	return score
 }
 
@@ -694,11 +711,10 @@ func generateExampleFromSchema(schema map[string]any) any {
 
 			// Add a few example properties (prioritize required ones)
 			count := 0
-			maxFields := 3
 
 			// First, add required fields
 			for propName, propSchema := range properties {
-				if requiredFields[propName] && count < maxFields {
+				if requiredFields[propName] && count < maxExampleFields {
 					if propSchemaMap, ok := propSchema.(map[string]any); ok {
 						result[propName] = generateExampleFromSchema(propSchemaMap)
 						count++
@@ -708,7 +724,7 @@ func generateExampleFromSchema(schema map[string]any) any {
 
 			// Then add some optional fields if we have room
 			for propName, propSchema := range properties {
-				if !requiredFields[propName] && count < maxFields {
+				if !requiredFields[propName] && count < maxExampleFields {
 					if propSchemaMap, ok := propSchema.(map[string]any); ok {
 						result[propName] = generateExampleFromSchema(propSchemaMap)
 						count++
@@ -726,14 +742,14 @@ func generateExampleFromSchema(schema map[string]any) any {
 func removeDuplicates(strings []string) []string {
 	seen := make(map[string]bool)
 	var result []string
-	
+
 	for _, str := range strings {
 		if !seen[str] {
 			seen[str] = true
 			result = append(result, str)
 		}
 	}
-	
+
 	return result
 }
 
