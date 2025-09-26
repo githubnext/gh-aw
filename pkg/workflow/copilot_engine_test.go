@@ -164,12 +164,12 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "write"},
 		},
 		{
-			name: "safe outputs enables write",
+			name: "safe outputs without write (uses MCP)",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safe_outputs(*)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "safe_outputs(*)"},
 		},
 		{
 			name: "mixed tools",
@@ -203,7 +203,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safe_outputs(*)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "safe_outputs(*)"},
 		},
 		{
 			name: "safe outputs with safe jobs",
@@ -222,7 +222,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeJobs: map[string]*SafeJobConfig{
 				"my-job": &SafeJobConfig{Name: "test job"},
 			},
-			expected: []string{"--allow-tool", "safe_outputs(*)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "safe_outputs(*)"},
 		},
 	}
 

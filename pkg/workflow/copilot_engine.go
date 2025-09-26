@@ -480,16 +480,9 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		}
 	}
 
-	// Handle edit tools and SafeOutputs requirement for file write access
-	needsWrite := false
+	// Handle edit tools requirement for file write access
+	// Note: safe-outputs do not need write permission as they use MCP
 	if _, hasEdit := tools["edit"]; hasEdit {
-		needsWrite = true
-	}
-	if safeOutputs != nil {
-		needsWrite = true
-	}
-	
-	if needsWrite {
 		args = append(args, "--allow-tool", "write")
 	}
 
@@ -536,29 +529,20 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		}
 	}
 
-	// Sort arguments for consistent output (keeping flag-value pairs together)
-	// Group arguments into pairs for sorting
-	type flagValuePair struct {
-		flag  string
-		value string
-	}
-	
-	var pairs []flagValuePair
-	for i := 0; i < len(args); i += 2 {
-		if i+1 < len(args) {
-			pairs = append(pairs, flagValuePair{flag: args[i], value: args[i+1]})
+	// Simple sort - extract values, sort them, and rebuild args
+	if len(args) > 0 {
+		var values []string
+		for i := 1; i < len(args); i += 2 {
+			values = append(values, args[i])
 		}
-	}
-	
-	// Sort pairs by value
-	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].value < pairs[j].value
-	})
-	
-	// Rebuild args array from sorted pairs
-	args = args[:0] // Clear the slice
-	for _, pair := range pairs {
-		args = append(args, pair.flag, pair.value)
+		sort.Strings(values)
+		
+		// Rebuild args with sorted values
+		newArgs := make([]string, 0, len(args))
+		for _, value := range values {
+			newArgs = append(newArgs, "--allow-tool", value)
+		}
+		args = newArgs
 	}
 
 	return args
