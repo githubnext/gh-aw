@@ -185,6 +185,9 @@ codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearc
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
+	// Add the log capture step using shared helper function
+	steps = append(steps, generateLogCaptureStep("Codex", logFile))
+
 	return steps
 }
 
