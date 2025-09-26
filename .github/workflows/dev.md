@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - copilot/*
+      - copilot*          
 engine: copilot
 safe-outputs:
     staged: true
