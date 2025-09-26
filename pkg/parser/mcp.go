@@ -274,20 +274,8 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				}
 			}
 
-			// Check for custom Docker image version (supports both "version" and "docker_image_version" for backward compatibility)
+			// Check for custom Docker image version
 			if version, exists := toolConfig["version"]; exists {
-				if versionStr, ok := version.(string); ok {
-					dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
-					// Update the Docker image in args
-					for i, arg := range config.Args {
-						if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
-							config.Args[i] = dockerImage
-							break
-						}
-					}
-				}
-			} else if version, exists := toolConfig["docker_image_version"]; exists {
-				// Fall back to legacy "docker_image_version" field for backward compatibility
 				if versionStr, ok := version.(string); ok {
 					dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
 					// Update the Docker image in args
@@ -344,20 +332,8 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				allowedDomains = EnsureLocalhostDomains(customDomains)
 			}
 
-			// Check for custom Docker image version (supports both "version" and "docker_image_version" for backward compatibility)
+			// Check for custom Docker image version
 			if version, exists := toolConfig["version"]; exists {
-				if versionStr, ok := version.(string); ok {
-					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
-					// Update the Docker image in args
-					for i, arg := range config.Args {
-						if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
-							config.Args[i] = dockerImage
-							break
-						}
-					}
-				}
-			} else if version, exists := toolConfig["docker_image_version"]; exists {
-				// Fall back to legacy "docker_image_version" field for backward compatibility
 				if versionStr, ok := version.(string); ok {
 					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
 					// Update the Docker image in args

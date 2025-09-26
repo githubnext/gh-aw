@@ -7,41 +7,20 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-func TestVersionFieldBackwardCompatibility(t *testing.T) {
+func TestVersionField(t *testing.T) {
 	// Test GitHub tool version extraction
 	t.Run("GitHub version field extraction", func(t *testing.T) {
-		// Test new "version" field
-		githubToolNew := map[string]any{
+		// Test "version" field
+		githubTool := map[string]any{
 			"allowed": []any{"create_issue"},
 			"version": "v2.0.0",
 		}
-		result := getGitHubDockerImageVersion(githubToolNew)
+		result := getGitHubDockerImageVersion(githubTool)
 		if result != "v2.0.0" {
 			t.Errorf("Expected v2.0.0, got %s", result)
 		}
 
-		// Test legacy "docker_image_version" field
-		githubToolLegacy := map[string]any{
-			"allowed":              []any{"create_issue"},
-			"docker_image_version": "v1.5.0",
-		}
-		result = getGitHubDockerImageVersion(githubToolLegacy)
-		if result != "v1.5.0" {
-			t.Errorf("Expected v1.5.0, got %s", result)
-		}
-
-		// Test precedence: "version" should override "docker_image_version"
-		githubToolBoth := map[string]any{
-			"allowed":              []any{"create_issue"},
-			"version":              "v3.0.0",
-			"docker_image_version": "v1.5.0",
-		}
-		result = getGitHubDockerImageVersion(githubToolBoth)
-		if result != "v3.0.0" {
-			t.Errorf("Expected v3.0.0 (version should take precedence), got %s", result)
-		}
-
-		// Test default value when neither field is present
+		// Test default value when version field is not present
 		githubToolDefault := map[string]any{
 			"allowed": []any{"create_issue"},
 		}
@@ -53,38 +32,17 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 
 	// Test Playwright tool version extraction
 	t.Run("Playwright version field extraction", func(t *testing.T) {
-		// Test new "version" field
-		playwrightToolNew := map[string]any{
+		// Test "version" field
+		playwrightTool := map[string]any{
 			"allowed_domains": []any{"example.com"},
 			"version":         "v1.41.0",
 		}
-		result := getPlaywrightDockerImageVersion(playwrightToolNew)
+		result := getPlaywrightDockerImageVersion(playwrightTool)
 		if result != "v1.41.0" {
 			t.Errorf("Expected v1.41.0, got %s", result)
 		}
 
-		// Test legacy "docker_image_version" field
-		playwrightToolLegacy := map[string]any{
-			"allowed_domains":      []any{"example.com"},
-			"docker_image_version": "v1.40.0",
-		}
-		result = getPlaywrightDockerImageVersion(playwrightToolLegacy)
-		if result != "v1.40.0" {
-			t.Errorf("Expected v1.40.0, got %s", result)
-		}
-
-		// Test precedence: "version" should override "docker_image_version"
-		playwrightToolBoth := map[string]any{
-			"allowed_domains":      []any{"example.com"},
-			"version":              "v1.42.0",
-			"docker_image_version": "v1.40.0",
-		}
-		result = getPlaywrightDockerImageVersion(playwrightToolBoth)
-		if result != "v1.42.0" {
-			t.Errorf("Expected v1.42.0 (version should take precedence), got %s", result)
-		}
-
-		// Test default value when neither field is present
+		// Test default value when version field is not present
 		playwrightToolDefault := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
@@ -96,8 +54,8 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 
 	// Test MCP parser integration
 	t.Run("MCP parser version field integration", func(t *testing.T) {
-		// Test GitHub tool with new "version" field
-		frontmatterNew := map[string]any{
+		// Test GitHub tool with "version" field
+		frontmatter := map[string]any{
 			"tools": map[string]any{
 				"github": map[string]any{
 					"allowed": []any{"create_issue"},
@@ -106,9 +64,9 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 			},
 		}
 
-		configs, err := parser.ExtractMCPConfigurations(frontmatterNew, "")
+		configs, err := parser.ExtractMCPConfigurations(frontmatter, "")
 		if err != nil {
-			t.Fatalf("Error parsing with new field: %v", err)
+			t.Fatalf("Error parsing with version field: %v", err)
 		}
 
 		if len(configs) == 0 {
@@ -126,38 +84,8 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 			t.Errorf("Expected to find v2.0.0 in args, got: %v", configs[0].Args)
 		}
 
-		// Test GitHub tool with legacy "docker_image_version" field
-		frontmatterLegacy := map[string]any{
-			"tools": map[string]any{
-				"github": map[string]any{
-					"allowed":              []any{"create_issue"},
-					"docker_image_version": "v1.5.0",
-				},
-			},
-		}
-
-		configs, err = parser.ExtractMCPConfigurations(frontmatterLegacy, "")
-		if err != nil {
-			t.Fatalf("Error parsing with legacy field: %v", err)
-		}
-
-		if len(configs) == 0 {
-			t.Fatal("No configs returned")
-		}
-
-		found = false
-		for _, arg := range configs[0].Args {
-			if strings.Contains(arg, "ghcr.io/github/github-mcp-server:v1.5.0") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected to find v1.5.0 in args, got: %v", configs[0].Args)
-		}
-
-		// Test Playwright tool with new "version" field
-		frontmatterPlaywrightNew := map[string]any{
+		// Test Playwright tool with "version" field
+		frontmatterPlaywright := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
 					"allowed_domains": []any{"example.com"},
@@ -166,9 +94,9 @@ func TestVersionFieldBackwardCompatibility(t *testing.T) {
 			},
 		}
 
-		configs, err = parser.ExtractMCPConfigurations(frontmatterPlaywrightNew, "")
+		configs, err = parser.ExtractMCPConfigurations(frontmatterPlaywright, "")
 		if err != nil {
-			t.Fatalf("Error parsing Playwright with new field: %v", err)
+			t.Fatalf("Error parsing Playwright with version field: %v", err)
 		}
 
 		if len(configs) == 0 {
