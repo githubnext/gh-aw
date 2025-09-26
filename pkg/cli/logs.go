@@ -988,28 +988,28 @@ func displayLogsOverview(runs []WorkflowRun) {
 
 	for _, run := range runs {
 		// Format duration
-		durationStr := "N/A"
+		durationStr := ""
 		if run.Duration > 0 {
 			durationStr = formatDuration(run.Duration)
 			totalDuration += run.Duration
 		}
 
 		// Format cost
-		costStr := "N/A"
+		costStr := ""
 		if run.EstimatedCost > 0 {
 			costStr = fmt.Sprintf("%.3f", run.EstimatedCost)
 			totalCost += run.EstimatedCost
 		}
 
 		// Format tokens
-		tokensStr := "N/A"
+		tokensStr := ""
 		if run.TokenUsage > 0 {
 			tokensStr = formatNumber(run.TokenUsage)
 			totalTokens += run.TokenUsage
 		}
 
 		// Format turns
-		turnsStr := "N/A"
+		turnsStr := ""
 		if run.Turns > 0 {
 			turnsStr = fmt.Sprintf("%d", run.Turns)
 			totalTurns += run.Turns
