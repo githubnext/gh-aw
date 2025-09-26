@@ -209,7 +209,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			name:  "safe outputs with safe jobs",
 			tools: map[string]any{},
 			safeJobs: map[string]*SafeJobConfig{
-				"my-job": &SafeJobConfig{Name: "test job"},
+				"my-job": {Name: "test job"},
 			},
 			expected: []string{"--allow-tool", "safe_outputs"},
 		},
@@ -220,7 +220,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				CreateIssues: &CreateIssuesConfig{},
 			},
 			safeJobs: map[string]*SafeJobConfig{
-				"my-job": &SafeJobConfig{Name: "test job"},
+				"my-job": {Name: "test job"},
 			},
 			expected: []string{"--allow-tool", "safe_outputs"},
 		},
