@@ -474,7 +474,7 @@ to interact with GitHub Agentic Workflows functionality. The server exposes the 
   mcp_add        - Add MCP tools to agentic workflows
   run            - Run agentic workflows on GitHub Actions
   enable         - Enable workflows
-  disable        - Disable workflows  
+  disable        - Disable workflows
   status         - Show status of natural language action files and workflows
   documentation  - Get GitHub Agentic Workflows documentation and instructions
 
