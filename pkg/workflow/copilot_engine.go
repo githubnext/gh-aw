@@ -104,6 +104,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
+	// Add tool permission arguments based on configuration
+	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs)
+	copilotArgs = append(copilotArgs, toolArgs...)
+
 	// if cache-memory tool is used, --add-dir
 	if workflowData.CacheMemoryConfig != nil {
 		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/cache-memory/")
@@ -143,6 +147,14 @@ copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
 	stepLines = append(stepLines, "        id: agentic_execution")
+
+	// Add tool arguments comment before the run section
+	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, "        ")
+	if toolArgsComment != "" {
+		// Split the comment into lines and add each line
+		commentLines := strings.Split(strings.TrimSuffix(toolArgsComment, "\n"), "\n")
+		stepLines = append(stepLines, commentLines...)
+	}
 
 	// Add timeout at step level (GitHub Actions standard)
 	if workflowData.TimeoutMinutes != "" {
@@ -429,4 +441,110 @@ func (e *CopilotEngine) parseCopilotToolCallsWithSequence(line string, toolCallM
 // GetLogParserScript returns the JavaScript script name for parsing Copilot logs
 func (e *CopilotEngine) GetLogParserScriptId() string {
 	return "parse_copilot_log"
+}
+
+// computeCopilotToolArguments generates Copilot CLI tool permission arguments from workflow tools configuration
+func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig) []string {
+	if tools == nil {
+		tools = make(map[string]any)
+	}
+
+	var args []string
+
+	// Handle bash/shell tools
+	if bashConfig, hasBash := tools["bash"]; hasBash {
+		if bashCommands, ok := bashConfig.([]any); ok {
+			// Check for :* wildcard first - if present, allow all shell commands
+			for _, cmd := range bashCommands {
+				if cmdStr, ok := cmd.(string); ok {
+					if cmdStr == ":*" || cmdStr == "*" {
+						// Allow all shell commands
+						args = append(args, "--allow-tool", "shell")
+						goto nextTool
+					}
+				}
+			}
+			// Add specific shell commands
+			for _, cmd := range bashCommands {
+				if cmdStr, ok := cmd.(string); ok {
+					args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
+				}
+			}
+		} else {
+			// Bash with no specific commands or null value - allow all shell
+			args = append(args, "--allow-tool", "shell")
+		}
+	}
+
+	nextTool:
+
+	// Handle edit tools (file writing permissions)
+	if _, hasEdit := tools["edit"]; hasEdit {
+		args = append(args, "--allow-tool", "write")
+	}
+
+	// Handle SafeOutputs requirement for file write access
+	if safeOutputs != nil {
+		// Always allow write access for safe outputs
+		args = append(args, "--allow-tool", "write")
+	}
+
+	// Handle MCP server tools
+	for toolName, toolConfig := range tools {
+		// Skip built-in tools we've already handled
+		if toolName == "bash" || toolName == "edit" || toolName == "web-fetch" || 
+		   toolName == "web-search" || toolName == "playwright" || toolName == "github" {
+			continue
+		}
+
+		// Check if this is an MCP server configuration
+		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
+			if hasMcp, _ := hasMCPConfig(toolConfigMap); hasMcp {
+				// Allow the entire MCP server
+				args = append(args, "--allow-tool", toolName)
+				
+				// If it has specific allowed tools, add them individually
+				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
+					if allowedList, ok := allowed.([]any); ok {
+						for _, allowedTool := range allowedList {
+							if toolStr, ok := allowedTool.(string); ok {
+								args = append(args, "--allow-tool", fmt.Sprintf("%s(%s)", toolName, toolStr))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Sort arguments for consistent output (keeping flag-value pairs together)
+	sort.Slice(args, func(i, j int) bool {
+		// Compare only the values (every second element), keep flag-value pairs together
+		if i%2 == 0 && j%2 == 0 {
+			return args[i+1] < args[j+1]
+		}
+		return i < j
+	})
+
+	return args
+}
+
+// generateCopilotToolArgumentsComment generates a multi-line comment showing each tool argument
+func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, indent string) string {
+	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs)
+	if len(toolArgs) == 0 {
+		return ""
+	}
+
+	var comment strings.Builder
+	comment.WriteString(indent + "# Copilot CLI tool arguments (sorted):\n")
+	
+	// Group flag-value pairs for better readability
+	for i := 0; i < len(toolArgs); i += 2 {
+		if i+1 < len(toolArgs) {
+			comment.WriteString(fmt.Sprintf("%s# %s %s\n", indent, toolArgs[i], toolArgs[i+1]))
+		}
+	}
+
+	return comment.String()
 }

@@ -119,3 +119,178 @@ func TestCopilotEngineGetLogParserScript(t *testing.T) {
 		t.Errorf("Expected 'parse_copilot_log', got '%s'", script)
 	}
 }
+
+func TestCopilotEngineComputeToolArguments(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		safeOutputs *SafeOutputsConfig
+		expected    []string
+	}{
+		{
+			name:     "empty tools",
+			tools:    map[string]any{},
+			expected: []string{},
+		},
+		{
+			name: "bash with specific commands",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
+			},
+			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)"},
+		},
+		{
+			name: "bash with wildcard",
+			tools: map[string]any{
+				"bash": []any{":*"},
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "bash with nil (all commands allowed)",
+			tools: map[string]any{
+				"bash": nil,
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+		{
+			name: "edit tool",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "write"},
+		},
+		{
+			name: "safe outputs enables write",
+			tools: map[string]any{},
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expected: []string{"--allow-tool", "write"},
+		},
+		{
+			name: "mixed tools",
+			tools: map[string]any{
+				"bash": []any{"git status", "npm test"},
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+		},
+		{
+			name: "bash with star wildcard",
+			tools: map[string]any{
+				"bash": []any{"*"},
+			},
+			expected: []string{"--allow-tool", "shell"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs)
+			
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d arguments, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected argument %d to be '%s', got '%s'", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineGenerateToolArgumentsComment(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		safeOutputs *SafeOutputsConfig
+		indent      string
+		expected    string
+	}{
+		{
+			name:     "empty tools",
+			tools:    map[string]any{},
+			indent:   "  ",
+			expected: "",
+		},
+		{
+			name: "bash with commands",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls"},
+			},
+			indent:   "        ",
+			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool shell(echo)\n        # --allow-tool shell(ls)\n",
+		},
+		{
+			name: "edit tool",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			indent:   "        ",
+			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool write\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.generateCopilotToolArgumentsComment(tt.tools, tt.safeOutputs, tt.indent)
+			
+			if result != tt.expected {
+				t.Errorf("Expected comment:\n%s\nGot:\n%s", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"echo", "git status"},
+			"edit": nil,
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Copilot CLI execution with tools, got %d", len(steps))
+	}
+
+	// Check the execution step contains tool arguments
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Should contain the tool arguments in the command line
+	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
+		t.Errorf("Expected step to contain '--allow-tool shell(echo)' in command:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "--allow-tool shell(git status)") {
+		t.Errorf("Expected step to contain '--allow-tool shell(git status)' in command:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "--allow-tool write") {
+		t.Errorf("Expected step to contain '--allow-tool write' in command:\n%s", stepContent)
+	}
+
+	// Should contain the comment showing the tool arguments
+	if !strings.Contains(stepContent, "# Copilot CLI tool arguments (sorted):") {
+		t.Errorf("Expected step to contain tool arguments comment:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "# --allow-tool shell(echo)") {
+		t.Errorf("Expected step to contain comment for shell(echo):\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "# --allow-tool write") {
+		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
+	}
+}
