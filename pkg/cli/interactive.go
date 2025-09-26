@@ -127,6 +127,7 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 // promptForEngine asks the user to select the AI engine
 func (b *InteractiveWorkflowBuilder) promptForEngine() error {
 	engineOptions := []huh.Option[string]{
+		huh.NewOption("copilot - GitHub Copilot CLI", "copilot"),
 		huh.NewOption("claude - Anthropic Claude Code coding agent", "claude"),
 		huh.NewOption("codex - OpenAI Codex engine", "codex"),
 		huh.NewOption("custom - Custom engine configuration", "custom"),

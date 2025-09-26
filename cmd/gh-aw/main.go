@@ -20,8 +20,8 @@ var verbose bool
 
 // validateEngine validates the engine flag value
 func validateEngine(engine string) error {
-	if engine != "" && engine != "claude" && engine != "codex" {
-		return fmt.Errorf("invalid engine value '%s'. Must be 'claude' or 'codex'", engine)
+	if engine != "" && engine != "claude" && engine != "codex" && engine != "copilot" {
+		return fmt.Errorf("invalid engine value '%s'. Must be 'claude', 'codex', or 'copilot'", engine)
 	}
 	return nil
 }
@@ -285,7 +285,7 @@ func init() {
 	uninstallCmd.Flags().BoolP("local", "l", false, "Uninstall packages from local .aw/packages instead of global ~/.aw/packages")
 
 	// Add AI flag to compile and add commands
-	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex)")
+	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot)")
 	compileCmd.Flags().Bool("validate", true, "Enable GitHub Actions workflow schema validation (default: true)")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")

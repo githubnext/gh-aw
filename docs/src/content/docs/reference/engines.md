@@ -7,9 +7,9 @@ sidebar:
 
 GitHub Agentic Workflows support multiple AI engines to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
-## Available Engines
+## Agentic Engines
 
-### Claude (Default)
+### Anthropic Claude Code (Default)
 
 Claude Code is the default and recommended AI engine for most workflows. It excels at reasoning, code analysis, and understanding complex contexts.
 
@@ -29,13 +29,23 @@ engine:
     DEBUG_MODE: "true"
 ```
 
-**Features:**
-- Excellent reasoning and code analysis capabilities
-- Supports max-turns for cost control
-- Uses MCP servers for tool integration
-- Generates `mcp-servers.json` configuration
+#### Secrets
 
-### Codex (Experimental)
+- `ANTHROPIC_API_KEY` secret is required for authentication.
+
+### GitHub Copilot (Experimental)
+
+[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) 
+
+```yaml
+engine: copilot
+```
+
+#### Secrets
+
+- `COPILOT_CLI_TOKEN ` secret is required for authentication.
+
+### OpenAI Codex (Experimental)
 
 OpenAI Codex CLI with MCP server support. Designed for code-focused tasks and integration scenarios.
 
@@ -71,6 +81,10 @@ engine:
 **Codex-specific fields:**
 - **`user-agent`** (optional): Custom user agent string for GitHub MCP server configuration
 - **`config`** (optional): Additional TOML configuration text appended to generated config.toml
+
+#### Secrets
+
+- `OPENAI_API_KEY` secret is required for authentication.
 
 ### Custom Engine
 

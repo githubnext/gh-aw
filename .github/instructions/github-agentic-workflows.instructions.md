@@ -795,6 +795,7 @@ gh aw logs weekly-research
 # Filter logs by AI engine type
 gh aw logs --engine claude           # Only Claude workflows
 gh aw logs --engine codex            # Only Codex workflows
+gh aw logs --engine copilot          # Only Copilot workflows
 
 # Limit number of runs and filter by date (absolute dates)
 gh aw logs -c 10 --start-date 2024-01-01 --end-date 2024-01-31

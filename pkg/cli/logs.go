@@ -159,6 +159,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
   ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
   ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
+  ` + constants.CLIExtensionPrefix + ` logs --engine copilot          # Filter logs by copilot engine
+  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
   ` + constants.CLIExtensionPrefix + ` logs --branch main             # Filter logs by branch name
   ` + constants.CLIExtensionPrefix + ` logs --branch feature-xyz      # Filter logs by feature branch
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
@@ -257,7 +259,7 @@ Examples:
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex)")
+	logsCmd.Flags().String("engine", "", "Filter logs by agentic engine type (claude, codex, copilot)")
 	logsCmd.Flags().String("branch", "", "Filter runs by branch name (e.g., main, feature-branch)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
@@ -357,7 +359,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				if detectedEngine != nil {
 					// Get the engine ID to compare with the filter
 					registry := workflow.GetGlobalEngineRegistry()
-					for _, supportedEngine := range []string{"claude", "codex"} {
+					for _, supportedEngine := range constants.AgenticEngines {
 						if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
 							engineMatches = (supportedEngine == engine)
 							break
@@ -371,7 +373,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 						if detectedEngine != nil {
 							// Try to get a readable name for the detected engine
 							registry := workflow.GetGlobalEngineRegistry()
-							for _, supportedEngine := range []string{"claude", "codex"} {
+							for _, supportedEngine := range constants.AgenticEngines {
 								if testEngine, err := registry.GetEngine(supportedEngine); err == nil && testEngine == detectedEngine {
 									engineName = supportedEngine
 									break

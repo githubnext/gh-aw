@@ -63,6 +63,9 @@ var parseClaudeLogScript string
 //go:embed js/parse_codex_log.cjs
 var parseCodexLogScript string
 
+//go:embed js/parse_copilot_log.cjs
+var parseCopilotLogScript string
+
 //go:embed js/validate_errors.cjs
 var validateErrorsScript string
 
@@ -430,6 +433,8 @@ func GetLogParserScript(name string) string {
 		return parseClaudeLogScript
 	case "parse_codex_log":
 		return parseCodexLogScript
+	case "parse_copilot_log":
+		return parseCopilotLogScript
 	case "validate_errors":
 		return validateErrorsScript
 	default:
