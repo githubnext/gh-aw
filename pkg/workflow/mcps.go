@@ -149,9 +149,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := "sha-09deac4" // Default Docker image version
-	// Extract docker_image_version setting from tool properties
+	// Extract version setting from tool properties (supports both "version" and "docker_image_version" for backward compatibility)
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+		// Try new "version" field first
+		if versionSetting, exists := toolConfig["version"]; exists {
+			if stringValue, ok := versionSetting.(string); ok {
+				githubDockerImageVersion = stringValue
+			}
+		} else if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+			// Fall back to legacy "docker_image_version" field for backward compatibility
 			if stringValue, ok := versionSetting.(string); ok {
 				githubDockerImageVersion = stringValue
 			}
@@ -162,9 +168,15 @@ func getGitHubDockerImageVersion(githubTool any) string {
 
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
-	// Extract docker_image_version setting from tool properties
+	// Extract version setting from tool properties (supports both "version" and "docker_image_version" for backward compatibility)
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+		// Try new "version" field first
+		if versionSetting, exists := toolConfig["version"]; exists {
+			if stringValue, ok := versionSetting.(string); ok {
+				playwrightDockerImageVersion = stringValue
+			}
+		} else if versionSetting, exists := toolConfig["docker_image_version"]; exists {
+			// Fall back to legacy "docker_image_version" field for backward compatibility
 			if stringValue, ok := versionSetting.(string); ok {
 				playwrightDockerImageVersion = stringValue
 			}

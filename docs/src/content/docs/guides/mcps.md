@@ -167,11 +167,11 @@ You can configure the docker image version for GitHub tools:
 ```yaml
 tools:
   github:
-    docker_image_version: "sha-09deac4"  # Optional: specify version
+    version: "sha-09deac4"  # Optional: specify version
 ```
 
 **Configuration Options**:
-- `docker_image_version`: Docker image version (default: `"sha-09deac4"`)
+- `version`: Version (default: `"sha-09deac4"`)
 
 ## Tool Allow-listing
 

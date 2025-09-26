@@ -292,7 +292,7 @@ tools:
 			frontmatter: `---
 tools:
   github:
-    docker_image_version: "v2.0.0"
+    version: "v2.0.0"
     allowed: [list_issues, create_issue]
   custom_tool:
     type: "stdio"
