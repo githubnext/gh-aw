@@ -64,15 +64,17 @@ describe("setup_agent_output.cjs", () => {
   });
 
   afterEach(() => {
-    // Clean up any test files
-    const files = fs.readdirSync("/tmp").filter(file => file.startsWith("aw_output_"));
-    files.forEach(file => {
-      try {
-        fs.unlinkSync(path.join("/tmp", file));
-      } catch (e) {
-        // Ignore cleanup errors
+    // Clean up the fixed output file
+    try {
+      if (fs.existsSync("/tmp/safe-outputs/raw.jsonl")) {
+        fs.unlinkSync("/tmp/safe-outputs/raw.jsonl");
       }
-    });
+      if (fs.existsSync("/tmp/safe-outputs")) {
+        fs.rmdirSync("/tmp/safe-outputs");
+      }
+    } catch (e) {
+      // Ignore cleanup errors
+    }
 
     // Clean up globals
     delete global.fs;
@@ -83,11 +85,8 @@ describe("setup_agent_output.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${setupScript} })()`);
 
-      // Check that exportVariable was called with the correct pattern
-      expect(mockCore.exportVariable).toHaveBeenCalledWith(
-        "GITHUB_AW_SAFE_OUTPUTS",
-        expect.stringMatching(/^\/tmp\/aw_output_[0-9a-f]{16}\.txt$/)
-      );
+      // Check that exportVariable was called with the fixed path
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_SAFE_OUTPUTS", "/tmp/safe-outputs/raw.jsonl");
 
       // Check that setOutput was called with the same file path
       const exportCall = mockCore.exportVariable.mock.calls[0];
@@ -104,7 +103,7 @@ describe("setup_agent_output.cjs", () => {
       // expect(content).toBe("");
     });
 
-    it("should create unique output file names on multiple runs", async () => {
+    it("should use consistent output file name on multiple runs", async () => {
       // Execute the script multiple times
       await eval(`(async () => { ${setupScript} })()`);
       const firstFile = mockCore.exportVariable.mock.calls[0][1];
@@ -116,12 +115,9 @@ describe("setup_agent_output.cjs", () => {
       await eval(`(async () => { ${setupScript} })()`);
       const secondFile = mockCore.exportVariable.mock.calls[0][1];
 
-      // Files should be different
-      expect(firstFile).not.toBe(secondFile);
-
-      // Both files should exist
-      // expect(fs.existsSync(firstFile)).toBe(true);
-      // expect(fs.existsSync(secondFile)).toBe(true);
+      // Files should be the same (consistent fixed path)
+      expect(firstFile).toBe(secondFile);
+      expect(firstFile).toBe("/tmp/safe-outputs/raw.jsonl");
     });
   });
 });
