@@ -216,9 +216,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 
 		switch toolName {
 		case "github":
-			githubTool := tools["github"]
-			server = e.buildGitHubCopilotMCPServer(githubTool)
-			serverName = "GitHub" // Copilot CLI expects "GitHub" (capital G)
+			// GitHub MCP is built-in to Copilot CLI, so skip adding it to configuration
+			continue
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			server = e.buildPlaywrightCopilotMCPServer(playwrightTool, workflowData.NetworkPermissions)
@@ -277,8 +276,14 @@ func (e *CopilotEngine) buildCopilotMCPServer(toolName string, toolConfig map[st
 		return CopilotMCPServer{}, fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
+	// Copilot CLI expects "local" instead of "stdio"
+	serverType := mcpConfig.Type
+	if serverType == "stdio" {
+		serverType = "local"
+	}
+
 	server := CopilotMCPServer{
-		Type: mcpConfig.Type,
+		Type: serverType,
 	}
 
 	// Set fields based on type
@@ -309,10 +314,13 @@ func (e *CopilotEngine) buildCopilotMCPServer(toolName string, toolConfig map[st
 func (e *CopilotEngine) buildPlaywrightCopilotMCPServer(playwrightTool any, networkPermissions *NetworkPermissions) CopilotMCPServer {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
+	// Use the version from docker args (which handles docker_image_version configuration)
+	playwrightPackage := "@playwright/mcp@" + args.ImageVersion
+
 	server := CopilotMCPServer{
 		Type:    "local",
 		Command: "npx",
-		Args:    []string{"@playwright/mcp@latest"},
+		Args:    []string{playwrightPackage},
 	}
 
 	if len(args.AllowedDomains) > 0 {
