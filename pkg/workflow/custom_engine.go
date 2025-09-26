@@ -330,6 +330,17 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			continue
 		}
 
+		// Count errors and warnings using engine patterns (moved to end for efficiency)
+	}
+
+	// Count errors and warnings - Custom engine doesn't have its own patterns,
+	// but keep the simple string matching for fallback cases
+	logLines := strings.Split(logContent, "\n")
+	for _, line := range logLines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
 		// Count errors and warnings
 		lowerLine := strings.ToLower(line)
 		if strings.Contains(lowerLine, "error") {

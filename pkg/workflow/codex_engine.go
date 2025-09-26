@@ -320,14 +320,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 			totalTokenUsage += tokenUsage
 		}
 
-		// Count errors and warnings
-		lowerLine := strings.ToLower(line)
-		if strings.Contains(lowerLine, "error") {
-			metrics.ErrorCount++
-		}
-		if strings.Contains(lowerLine, "warning") {
-			metrics.WarningCount++
-		}
+		// Count errors and warnings using engine patterns (moved to end for efficiency)
 	}
 
 	// Add final sequence if any
@@ -347,6 +340,14 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	sort.Slice(metrics.ToolCalls, func(i, j int) bool {
 		return metrics.ToolCalls[i].Name < metrics.ToolCalls[j].Name
 	})
+
+	// Count errors and warnings using pattern matching for better accuracy
+	errorPatterns := e.GetErrorPatterns()
+	if len(errorPatterns) > 0 {
+		counts := CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
+		metrics.ErrorCount = counts.ErrorCount
+		metrics.WarningCount = counts.WarningCount
+	}
 
 	return metrics
 }
