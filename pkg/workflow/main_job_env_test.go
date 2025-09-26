@@ -69,16 +69,16 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				RunsOn:      "ubuntu-latest",
 				Permissions: "contents: read",
 			}
-			
+
 			// Parse safe-outputs configuration
 			data.SafeOutputs = compiler.extractSafeOutputsConfig(tt.frontmatter)
-			
+
 			// Build the main job
 			job, err := compiler.buildMainJob(data, false)
 			if err != nil {
 				t.Fatalf("Failed to build main job: %v", err)
 			}
-			
+
 			// Check if env section should exist
 			if !tt.shouldHaveEnv {
 				if job.Env != nil && len(job.Env) > 0 {
@@ -86,25 +86,25 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if job.Env == nil || len(job.Env) == 0 {
 				t.Fatal("Expected environment variables to be present")
 			}
-			
+
 			// Create job manager and render to YAML to test the output
 			jobManager := NewJobManager()
 			if err := jobManager.AddJob(job); err != nil {
 				t.Fatalf("Failed to add job to manager: %v", err)
 			}
-			
+
 			yamlOutput := jobManager.RenderToYAML()
 			t.Logf("Generated YAML:\n%s", yamlOutput)
-			
+
 			// Check that env section exists in YAML
 			if !strings.Contains(yamlOutput, "    env:\n") {
 				t.Error("Expected 'env:' section in job YAML")
 			}
-			
+
 			// Check each expected environment variable
 			for _, expectedEnvVar := range tt.expectedEnvVars {
 				if !strings.Contains(yamlOutput, "      "+expectedEnvVar) {

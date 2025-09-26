@@ -1502,17 +1502,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	var env map[string]string
 	if data.SafeOutputs != nil {
 		env = make(map[string]string)
-		
+
 		// Set GITHUB_AW_SAFE_OUTPUTS to reference the output from the setup step
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ steps.setup_agent_output.outputs.output_file }}"
-		
+
 		// Set GITHUB_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := c.generateSafeOutputsConfig(data)
 		if safeOutputConfig != "" {
 			// The JSON string needs to be properly quoted for YAML
 			env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 		}
-		
+
 		// Add custom environment variables from safe-outputs.env
 		if len(data.SafeOutputs.Env) > 0 {
 			for key, value := range data.SafeOutputs.Env {
