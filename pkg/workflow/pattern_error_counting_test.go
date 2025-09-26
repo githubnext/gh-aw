@@ -116,7 +116,7 @@ Another warning message`,
 				},
 			},
 			expectedErrors: 2, // npm ERR! + random error
-			expectedWarns:  2,  // npm WARN + warning message
+			expectedWarns:  2, // npm WARN + warning message
 		},
 		{
 			name: "invalid regex pattern",
@@ -150,11 +150,11 @@ warning: be careful`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			counts := CountErrorsAndWarningsWithPatterns(tt.logContent, tt.patterns)
-			
+
 			if counts.ErrorCount != tt.expectedErrors {
 				t.Errorf("Expected %d errors, got %d", tt.expectedErrors, counts.ErrorCount)
 			}
-			
+
 			if counts.WarningCount != tt.expectedWarns {
 				t.Errorf("Expected %d warnings, got %d", tt.expectedWarns, counts.WarningCount)
 			}
