@@ -379,3 +379,45 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 		t.Errorf("Expected 'shell(git commit:*)' to be single-quoted in command: %s", copilotCommand)
 	}
 }
+
+func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"git status"},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	}
+
+	// Get the full command from the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	
+	// Find the line that contains the copilot command
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot ") && strings.Contains(line, "--prompt") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+	}
+
+	// The $INSTRUCTION should NOT be wrapped in additional single quotes
+	if strings.Contains(copilotCommand, `'"$INSTRUCTION"'`) {
+		t.Errorf("$INSTRUCTION should not be wrapped in single quotes: %s", copilotCommand)
+	}
+	
+	// The $INSTRUCTION should remain double-quoted for variable expansion
+	if !strings.Contains(copilotCommand, `"$INSTRUCTION"`) {
+		t.Errorf("$INSTRUCTION should remain double-quoted: %s", copilotCommand)
+	}
+}

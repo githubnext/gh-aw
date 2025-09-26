@@ -48,6 +48,26 @@ func TestShellEscapeArg(t *testing.T) {
 			input:    "--allow-tool",
 			expected: "--allow-tool",
 		},
+		{
+			name:     "already double-quoted argument should not be escaped",
+			input:    "\"$INSTRUCTION\"",
+			expected: "\"$INSTRUCTION\"",
+		},
+		{
+			name:     "already single-quoted argument should not be escaped",
+			input:    "'hello world'",
+			expected: "'hello world'",
+		},
+		{
+			name:     "partial double quote should be escaped",
+			input:    "hello\"world",
+			expected: "'hello\"world'",
+		},
+		{
+			name:     "empty double quotes should not be escaped",
+			input:    "\"\"",
+			expected: "\"\"",
+		},
 	}
 
 	for _, tt := range tests {
@@ -80,6 +100,11 @@ func TestShellJoinArgs(t *testing.T) {
 			name:     "mixed arguments",
 			input:    []string{"copilot", "--add-dir", "/tmp/", "--allow-tool", "shell(*.txt)"},
 			expected: "copilot --add-dir /tmp/ --allow-tool 'shell(*.txt)'",
+		},
+		{
+			name:     "prompt with pre-quoted instruction should not be escaped",
+			input:    []string{"copilot", "--add-dir", "/tmp/", "--prompt", "\"$INSTRUCTION\""},
+			expected: "copilot --add-dir /tmp/ --prompt \"$INSTRUCTION\"",
 		},
 	}
 
