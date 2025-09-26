@@ -139,7 +139,9 @@ engine:
 - Custom tools require proper MCP server configuration
 
 ### Authentication
-- Use `COPILOT_CLI_TOKEN` secret for GitHub token
+- Use `COPILOT_CLI_TOKEN` secret for GitHub token (NOT the default GITHUB_TOKEN)
+- GitHub Actions default token is incompatible with Copilot CLI
+- Must use Personal Access Token (PAT) with repo and copilot scopes
 - Ensure token has appropriate permissions for repository access
 - Token is passed via environment variables to CLI
 
@@ -208,9 +210,11 @@ copilot --add-dir /tmp/ \
 - Try reinstalling: `npm uninstall -g @github/copilot && npm install -g @github/copilot`
 
 ### Authentication Issues
-- Verify token validity: `echo $GITHUB_TOKEN`
-- Check token permissions for repository access
-- Try using `COPILOT_CLI_TOKEN` instead of `GITHUB_TOKEN`
+- **GitHub Actions Token Incompatibility**: The default `GITHUB_TOKEN` does NOT work with Copilot CLI
+- Verify you're using a Personal Access Token in `COPILOT_CLI_TOKEN` secret
+- Check token validity and ensure it has `repo` and `copilot` scopes
+- Verify the token is associated with a Copilot-enabled GitHub account
+- For GitHub Enterprise, contact admin for Copilot CLI token access
 
 ### MCP Server Issues
 - Validate JSON configuration syntax

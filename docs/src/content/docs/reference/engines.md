@@ -67,6 +67,27 @@ engine:
 
 - `COPILOT_CLI_TOKEN` secret is required for authentication.
 
+> **Important**: The standard GitHub Actions `GITHUB_TOKEN` is **not compatible** with GitHub Copilot CLI. You must use a Personal Access Token (PAT) with appropriate permissions.
+
+**To obtain a compatible token:**
+
+1. **For GitHub.com users**: Generate a Personal Access Token at [github.com/settings/tokens](https://github.com/settings/tokens)
+   - Select **Classic** token or **Fine-grained** token
+   - Required scopes: `repo`, `read:org` (for repository access)
+   - Optional scopes: `copilot` (if available for enhanced Copilot features)
+
+2. **For GitHub Enterprise users**: Contact your GitHub Enterprise administrator for Copilot CLI access tokens
+
+3. **Add the token to your repository**:
+   - Go to your repository → Settings → Secrets and variables → Actions
+   - Create a new secret named `COPILOT_CLI_TOKEN`
+   - Paste your Personal Access Token as the value
+
+**Token Requirements:**
+- Must have repository access permissions (`repo` scope)
+- Must be associated with a GitHub account that has Copilot access
+- Cannot be the default GitHub Actions `GITHUB_TOKEN`
+
 ### OpenAI Codex (Experimental)
 
 OpenAI Codex CLI with MCP server support. Designed for code-focused tasks and integration scenarios.
